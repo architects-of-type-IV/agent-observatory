@@ -4,7 +4,8 @@ defmodule ObservatoryWeb.ObservatoryComponents do
   """
 
   use Phoenix.Component
-  import ObservatoryWeb.DashboardHelpers
+  import ObservatoryWeb.DashboardFormatHelpers
+  import ObservatoryWeb.DashboardTeamHelpers
 
   @doc """
   Renders a task board column with filtered tasks.

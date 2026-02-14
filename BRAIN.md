@@ -8,7 +8,10 @@
 ## Patterns
 - Module size limit: 200-300 lines max
 - Template in separate .html.heex file, not inline ~H
-- Helper functions in dashboard_helpers.ex, not in LiveView module
+- Helper functions split by domain:
+  - dashboard_team_helpers.ex: team derivation, member enrichment
+  - dashboard_data_helpers.ex: task/message derivation, filtering
+  - dashboard_format_helpers.ex: display formatting, event summaries
 - Reusable components in observatory_components.ex
 - TeamWatcher GenServer polls ~/.claude/teams/ and ~/.claude/tasks/ every 2s
 

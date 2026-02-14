@@ -1,6 +1,8 @@
 defmodule ObservatoryWeb.DashboardLive do
   use ObservatoryWeb, :live_view
-  import ObservatoryWeb.DashboardHelpers
+  import ObservatoryWeb.DashboardTeamHelpers
+  import ObservatoryWeb.DashboardDataHelpers
+  import ObservatoryWeb.DashboardFormatHelpers
 
   @max_events 500
 
