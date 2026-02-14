@@ -50,6 +50,7 @@ defmodule ObservatoryWeb.EventController do
          |> Ash.create() do
       {:ok, event} ->
         maybe_upsert_session(event)
+        handle_channel_events(event)
 
         Phoenix.PubSub.broadcast(
           Observatory.PubSub,
@@ -111,6 +112,69 @@ defmodule ObservatoryWeb.EventController do
 
           _ ->
             :ok
+        end
+
+      _ ->
+        :ok
+    end
+  end
+
+  defp handle_channel_events(event) do
+    case event.hook_event_type do
+      :SessionStart ->
+        Observatory.Channels.create_agent_channel(event.session_id)
+
+      :PreToolUse ->
+        handle_pre_tool_use(event)
+
+      _ ->
+        :ok
+    end
+  end
+
+  defp handle_pre_tool_use(event) do
+    input = (event.payload || %{})["tool_input"] || %{}
+
+    case event.tool_name do
+      "TeamCreate" ->
+        if team_name = input["team_name"] do
+          Observatory.Channels.create_team_channel(team_name, [])
+        end
+
+      "SendMessage" ->
+        handle_send_message(event, input)
+
+      _ ->
+        :ok
+    end
+  end
+
+  defp handle_send_message(event, input) do
+    type = input["type"] || "message"
+    recipient = input["recipient"]
+    content = input["content"] || input["summary"] || ""
+
+    case type do
+      "message" when is_binary(recipient) ->
+        Observatory.Mailbox.send_message(
+          recipient,
+          event.session_id,
+          content,
+          type: :text,
+          metadata: %{
+            source_app: event.source_app,
+            summary: input["summary"]
+          }
+        )
+
+      "broadcast" ->
+        # Broadcast to team (requires team context from event)
+        if team_name = input["team_name"] do
+          Observatory.Channels.publish_to_team(team_name, %{
+            from: event.session_id,
+            content: content,
+            timestamp: DateTime.utc_now()
+          })
         end
 
       _ ->

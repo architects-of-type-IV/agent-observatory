@@ -14,6 +14,7 @@ defmodule Observatory.Application do
        repos: Application.fetch_env!(:observatory, :ecto_repos), skip: skip_migrations?()},
       {DNSCluster, query: Application.get_env(:observatory, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: Observatory.PubSub},
+      {Observatory.Mailbox, []},
       {Observatory.TeamWatcher, []},
       ObservatoryWeb.Endpoint
     ]

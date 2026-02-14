@@ -354,8 +354,27 @@
             class="p-4 rounded-lg border border-zinc-800 bg-zinc-900/50"
           >
             <div class="mb-3">
-              <h3 class="text-sm font-semibold text-zinc-200 mb-1">{team.name}</h3>
-              <p :if={team.description} class="text-xs text-zinc-500">{team.description}</p>
+              <div class="flex items-center justify-between mb-1">
+                <h3 class="text-sm font-semibold text-zinc-200">{team.name}</h3>
+              </div>
+              <p :if={team.description} class="text-xs text-zinc-500 mb-2">{team.description}</p>
+
+              <%!-- Team broadcast input --%>
+              <form phx-submit="send_team_broadcast" class="flex gap-1">
+                <input type="hidden" name="team" value={team.name} />
+                <input
+                  type="text"
+                  name="content"
+                  placeholder="Broadcast to team..."
+                  class="flex-1 bg-zinc-800 border border-zinc-700 rounded px-2 py-1 text-xs text-zinc-300 placeholder-zinc-600 focus:border-cyan-500 focus:ring-0 focus:outline-none"
+                />
+                <button
+                  type="submit"
+                  class="px-2 py-1 bg-cyan-600/20 text-cyan-400 rounded text-xs hover:bg-cyan-600/30 transition"
+                >
+                  Send
+                </button>
+              </form>
             </div>
 
             <% task_total = length(team.tasks) %>
@@ -378,22 +397,54 @@
               <h4 class="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Members</h4>
               <div
                 :for={member <- team.members}
-                class="p-2 rounded bg-zinc-800/50 hover:bg-zinc-800 transition cursor-pointer"
-                phx-click="filter_agent"
-                phx-value-session_id={member[:agent_id]}
+                class="p-2 rounded bg-zinc-800/50 border border-zinc-800 hover:border-zinc-700 transition"
               >
                 <div class="flex items-center gap-2 mb-1">
                   <span class={"w-2 h-2 rounded-full shrink-0 #{member_status_color(member[:status])}"}></span>
                   <span class="text-xs font-semibold text-zinc-300">{member[:name] || "?"}</span>
                   <span class="text-xs text-zinc-600 ml-auto">{member[:agent_type]}</span>
+                  <% unread = Map.get(@mailbox_counts, member[:agent_id], 0) %>
+                  <span :if={unread > 0} class="inline-flex items-center justify-center px-1.5 min-w-[1.25rem] h-4 text-xs font-semibold text-white bg-indigo-500 rounded-full">
+                    {unread}
+                  </span>
                 </div>
-                <div class="flex items-center gap-2 ml-4 text-xs text-zinc-500">
+                <div class="flex items-center gap-2 ml-4 text-xs text-zinc-500 mb-2">
                   <span :if={member[:latest_event]}>
                     {relative_time(member[:latest_event].inserted_at, @now)}
                   </span>
                   <span :if={member[:event_count] && member[:event_count] > 0}>
                     | {member[:event_count]} events
                   </span>
+                </div>
+
+                <%!-- Agent messaging controls --%>
+                <div :if={member[:agent_id]} class="ml-4 space-y-1">
+                  <form phx-submit="send_agent_message" class="flex gap-1">
+                    <input type="hidden" name="session_id" value={member[:agent_id]} />
+                    <input
+                      type="text"
+                      name="content"
+                      placeholder="Send message..."
+                      class="flex-1 bg-zinc-900 border border-zinc-700 rounded px-2 py-1 text-xs text-zinc-300 placeholder-zinc-700 focus:border-indigo-500 focus:ring-0 focus:outline-none"
+                    />
+                    <button
+                      type="submit"
+                      class="px-2 py-1 bg-indigo-600/20 text-indigo-400 rounded text-xs hover:bg-indigo-600/30 transition"
+                      title="Send message"
+                    >
+                      Send
+                    </button>
+                  </form>
+                  <div class="flex gap-1">
+                    <button
+                      phx-click="filter_agent"
+                      phx-value-session_id={member[:agent_id]}
+                      class="flex-1 px-2 py-1 bg-zinc-700/50 text-zinc-400 rounded text-xs hover:bg-zinc-700 transition"
+                      title="View events"
+                    >
+                      Events
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>

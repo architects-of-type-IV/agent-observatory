@@ -31,4 +31,17 @@ Session 3 (current - continuation):
   - dashboard_format_helpers.ex (192 lines): display formatting
 - All modules now under 300 lines, zero warnings confirmed
 
-Next: Task #19 - PubSub messaging layer
+
+Session 4 (current - task #19):
+- Implemented PubSub messaging system:
+  - Observatory.Mailbox GenServer (142 lines): ETS-backed message queues
+  - Observatory.Channels (160 lines): Channel topology and routing
+  - DashboardMessagingHandlers (94 lines): LiveView messaging handlers
+  - Updated EventController: Routes SendMessage to mailbox/channels
+  - Updated Application: Added Mailbox to supervisor
+  - Updated DashboardLive: Integrated messaging handlers + mailbox_counts
+  - Updated template: Message inputs, unread badges, team broadcast
+- Verification: All modules under 300 lines, zero warnings
+- Status: Task #19 complete, awaiting team-lead review
+
+Next: TBD by team-lead

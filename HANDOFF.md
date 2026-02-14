@@ -14,9 +14,11 @@ The Observatory multi-agent observability dashboard is functional with these com
 - #14: Implement clickable task detail panel + team split view + agent panels
 - #22: Split dashboard_helpers.ex into 3 modules under 300 lines each
 
+### Recently Completed
+- #19: PubSub channel system for bidirectional agent messaging (COMPLETED)
+
 ### Pending Tasks
 - #10, #11, #15: Superseded by #14
-- #19: PubSub channel system for bidirectional agent messaging (blocked by #14, now unblocked)
 
 ### Architecture
 - Elixir 1.19 / Phoenix 1.8.3 / Ash 3.x / SQLite
@@ -33,10 +35,13 @@ The Observatory multi-agent observability dashboard is functional with these com
 | dashboard_team_helpers.ex | 148 | Team derivation, member enrichment, status colors |
 | dashboard_data_helpers.ex | 222 | Task/message derivation, filtering, search |
 | dashboard_format_helpers.ex | 192 | Display formatting, event summaries, colors |
+| dashboard_messaging_handlers.ex | 94 | Messaging event handlers for LiveView |
 | observatory_components.ex | 127 | Reusable function components |
+| mailbox.ex | 142 | Per-agent message queue GenServer (ETS) |
+| channels.ex | 160 | PubSub channel management and routing |
 | team_watcher.ex | ~143 | Disk-based team state polling |
-| event_controller.ex | API endpoint for hook events |
-| application.ex | Supervision tree with TeamWatcher |
+| event_controller.ex | ~170 | API endpoint + channel routing |
+| application.ex | Supervision tree with Mailbox + TeamWatcher |
 
 ### View Modes
 1. **Feed**: Real-time event stream with filters and search
@@ -44,11 +49,18 @@ The Observatory multi-agent observability dashboard is functional with these com
 3. **Messages**: Team message thread view
 4. **Agents**: 2-column grid of team panels with member status and task progress
 
+### Latest Implementation (Task #19)
+PubSub channel system for bidirectional agent messaging - COMPLETED
+- Observatory.Mailbox GenServer: ETS-backed per-agent message queues
+- Observatory.Channels: Channel topology (agent/team/session/dashboard)
+- DashboardMessagingHandlers: LiveView handlers for messaging
+- EventController: Routes SendMessage events to mailbox and channels
+- UI: Message inputs, unread badges, team broadcast in Agents view
+- All modules under 300 lines, zero warnings
+
 ### Next Priority
-Task #19: PubSub channel system for bidirectional agent messaging
-- Channel topology: agent:{session_id}, team:{team_name}, dashboard:commands
-- Mailbox pattern with read/unread state
-- UI controls to send messages, push context, reassign tasks
+- Team-lead review of PubSub implementation
+- End-to-end testing of messaging flows
 
 ### User Constraints
 - All modules must be under 200-300 lines

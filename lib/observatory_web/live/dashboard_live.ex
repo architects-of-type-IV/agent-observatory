@@ -3,6 +3,7 @@ defmodule ObservatoryWeb.DashboardLive do
   import ObservatoryWeb.DashboardTeamHelpers
   import ObservatoryWeb.DashboardDataHelpers
   import ObservatoryWeb.DashboardFormatHelpers
+  import ObservatoryWeb.DashboardMessagingHandlers
 
   @max_events 500
 
@@ -36,6 +37,7 @@ defmodule ObservatoryWeb.DashboardLive do
       |> assign(:view_mode, :feed)
       |> assign(:disk_teams, disk_teams)
       |> assign(:selected_team, nil)
+      |> assign(:mailbox_counts, %{})
       |> prepare_assigns()
 
     {:ok, socket}
@@ -53,6 +55,10 @@ defmodule ObservatoryWeb.DashboardLive do
 
   def handle_info({:teams_updated, teams}, socket) do
     {:noreply, socket |> assign(:disk_teams, teams) |> prepare_assigns()}
+  end
+
+  def handle_info({:new_mailbox_message, message}, socket) do
+    handle_new_mailbox_message(message, socket)
   end
 
   # ═══════════════════════════════════════════════════════
@@ -163,6 +169,18 @@ defmodule ObservatoryWeb.DashboardLive do
 
   def handle_event("filter_agent", %{"session_id" => sid}, socket) do
     {:noreply, socket |> assign(:filter_session_id, sid) |> assign(:view_mode, :feed) |> prepare_assigns()}
+  end
+
+  def handle_event("send_agent_message", params, socket) do
+    handle_send_agent_message(params, socket)
+  end
+
+  def handle_event("send_team_broadcast", params, socket) do
+    handle_send_team_broadcast(params, socket)
+  end
+
+  def handle_event("push_context", params, socket) do
+    handle_push_context(params, socket)
   end
 
 

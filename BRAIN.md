@@ -12,8 +12,10 @@
   - dashboard_team_helpers.ex: team derivation, member enrichment
   - dashboard_data_helpers.ex: task/message derivation, filtering
   - dashboard_format_helpers.ex: display formatting, event summaries
+  - dashboard_messaging_handlers.ex: messaging event handlers
 - Reusable components in observatory_components.ex
-- TeamWatcher GenServer polls ~/.claude/teams/ and ~/.claude/tasks/ every 2s
+- GenServers: TeamWatcher (disk polling), Mailbox (ETS message queues)
+- Phoenix.Component.assign/3 for helper modules (not LiveView.assign/2)
 
 ## Refactoring Lessons
 - Extract template FIRST (biggest win), then helpers, then components
@@ -30,7 +32,10 @@
 ## PubSub Topics
 - "events:stream" - all events (dashboard subscribes)
 - "teams:update" - team state changes from TeamWatcher
-- Planned: agent:{session_id}, team:{team_name}, dashboard:commands
+- "agent:{session_id}" - per-agent mailbox channel
+- "team:{team_name}" - team broadcast channel
+- "session:{session_id}" - session event stream
+- "dashboard:commands" - UI -> agents commands
 
 ## User Preferences
 - Zero warnings policy
