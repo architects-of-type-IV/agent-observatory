@@ -1,25 +1,24 @@
 # Observatory - Handoff
 
-## Current Status (View Documentation Research - IN PROGRESS)
+## Current Status: IDLE (ready for next sprint)
 
-Spawned view-researchers team to document all Observatory dashboard features. Feed view research complete. Remaining views in progress.
+All documentation, refactoring, and research complete. Build clean.
 
-## Component Refactoring Summary
+## What's Done
 
-### Files Refactored
+### View Documentation (README.md)
+- All 9 views documented with detailed "See:" and "Do:" sections
+- Views: Overview, Feed, Tasks, Messages, Agents, Agent Focus, Errors, Analytics, Timeline
+- Global features documented: header, sidebar, detail panels, keyboard shortcuts, persistence
+
+### Component Refactoring (defdelegate pattern)
 | Original | Before | After (facade) | Child Modules |
 |----------|--------|-----------------|---------------|
 | observatory_components.ex | 218 lines | 15 lines | 8 modules in observatory/ |
 | feed_components.ex | 302 lines | 10 lines | 4 modules in feed/ |
 | agent_activity_components.ex | 198 lines | 10 lines | 4 modules in agent_activity/ |
 
-### Largest Child Modules
-- agent_focus_view.ex: 128 lines
-- session_group.ex: 103 lines
-- feed_view.ex: 100 lines
-- All others under 85 lines
-
-### UX Fix: Task Board Dropdowns
+### Task Board UX Fix
 - Added "Status" and "Owner" labels to dropdowns
 - Owner dropdown hidden when no team members available
 - Shows owner as text when team has no members but task has owner
@@ -34,12 +33,7 @@ Zero warnings: `mix compile --warnings-as-errors` PASS
 4. Parent module: thin defdelegate facade preserving public API
 5. Each child imports only the helpers it needs
 
-## Current Research Tasks
-- Feed view: COMPLETE - full SEE/DO feature list delivered
-- Overview, Tasks, Messages, Agents, Errors, Analytics, Timeline views: IN PROGRESS (parallel researchers)
-- Global features (header, sidebar, detail panels): IN PROGRESS
-
 ## Next Steps
-- Complete view documentation across all 8 views + global features
-- Use documentation to identify gaps, inconsistencies, redundancies
+- Use README documentation to identify gaps, inconsistencies, redundancies
 - Plan next sprint based on documentation analysis
+- Potential areas: cost tracking integration, session replay, dependency graphs

@@ -32,16 +32,182 @@ Claude Code Agents
 
 ## Views
 
-1. **Overview** - Stat cards (teams, agents, tasks, errors) + recent activity feed
-2. **Feed** - Real-time event stream with search, filters, and duration indicators
-3. **Tasks** - Kanban board (pending/in-progress/completed) with create/edit from UI
-4. **Messages** - Inter-agent message threads with search, collapsible threads, type badges
-5. **Agents** - Team grid with health monitoring, activity indicators, model/cwd/uptime badges, detail panel
-6. **Errors** - Grouped error dashboard with acknowledge actions
-7. **Analytics** - Tool performance leaderboard and slowest calls
-8. **Timeline** - Horizontal swimlanes per session with tool execution blocks
+### 1. Overview (default)
 
-Keyboard shortcuts: `?` for help, `1-8` for views, `f` for filter, `j/k` to navigate.
+The landing page. Gives a high-level snapshot of system state.
+
+**See:**
+- 6 metric cards in a responsive grid: Active Teams (with total agent count), Tasks (with progress bar), Messages, Events (visible + cached), Errors (red when > 0), Sessions
+- Recent Activity feed showing last 10 events with color-coded session dots, relative timestamps, tool names, and summaries
+
+**Do:**
+- Click "View -->" on any card to jump to its dedicated view
+- Click "View all -->" to open the full event feed
+- Hover cards for visual feedback
+
+### 2. Feed
+
+Real-time event stream with two display modes.
+
+**See:**
+- Toggle between Chronological (flat list) and Group by Agent modes
+- Chronological: every event with session color dot, relative timestamp, event type badge, tool name (cyan for team tools), summary, duration with color coding, note indicator
+- Grouped: collapsible session groups with model badge, event count, working directory; green session-start and red session-end banners; paired tool execution blocks (START/DONE/FAIL) with elapsed time; standalone events
+- Filter presets: Failed Tools, Team Events, Slow (>5s), Errors Only
+- Detail panel (right sidebar) with full event metadata, raw JSON payload, and notes
+
+**Do:**
+- Toggle chronological/grouped view
+- Click any event to open detail panel
+- Search events by text (tool, command, file, message, team)
+- Filter by source app, event type, or presets
+- Add/delete notes on events
+- Copy event payload to clipboard
+- Filter by session, tool, or related events from detail panel
+- Export filtered events as JSON or CSV
+
+### 3. Tasks
+
+Kanban board for team task management.
+
+**See:**
+- Three columns: Pending (gray), In Progress (blue, pulsing dot), Completed (emerald, strikethrough)
+- Task cards with ID, subject, status dropdown, owner dropdown, delete button
+- Blocked-by indicators on pending tasks, active form text on in-progress tasks
+- Task count per column
+- Detail panel with full description, metadata, blocked-by/blocks lists
+
+**Do:**
+- Create new tasks via "+ New Task" modal (subject, description, owner)
+- Change task status inline via dropdown
+- Reassign task owner inline via dropdown
+- Delete tasks with confirmation prompt
+- Click task subject to open detail panel
+- Navigate to agent view or filter feed from detail panel
+
+### 4. Messages
+
+Inter-agent message threads.
+
+**See:**
+- Threads grouped by conversation pair (bidirectional)
+- Thread header: participants, message count, unread badge, type icons, last message time
+- Message types with color-coded borders: regular (gray), broadcast (amber), shutdown request (red), shutdown response (emerald), plan approval (blue)
+- Type icons per message (DM, broadcast, urgent, response)
+- Urgent indicator (pulsing) for shutdown/plan approval requests
+- Individual messages: sender dot, sender ID, recipient, timestamp, content
+
+**Do:**
+- Search messages by content, sender, or recipient
+- Expand/collapse individual threads
+- Expand All / Collapse All buttons
+- Scroll within threads (max height with overflow)
+
+### 5. Agents
+
+Team grid with deep agent inspection.
+
+**See:**
+- Team cards in 2-column grid with name, description, task progress bar, broadcast input
+- Member cards: status dot (green/amber/gray), name, type, model badge, permission mode badge, task count badge, unread message badge, working directory, uptime, event count, current running tool with elapsed time, failure rate (color-coded), health warnings
+- Idle agents at 60% opacity, selected agent with indigo highlight
+- Detail panel (right sidebar): full session ID, model, permission mode, cwd, uptime, event count, assigned tasks, health metrics, activity stream (last 15 events with expandable payloads), message form, action buttons
+
+**Do:**
+- Click member card to select agent and open detail panel
+- Send direct message to any agent
+- Send broadcast to entire team
+- Click task count badge to filter tasks by agent
+- Click "Events" to filter feed to agent's events
+- Expand/collapse event payloads in activity stream
+- Click "Focus" for full-screen agent inspection (Agent Focus view)
+- Pause, resume, or shutdown agents from detail panel
+- Filter to session or view feed from detail panel
+
+### Agent Focus (full-screen)
+
+**See:**
+- Left: unlimited scrollable activity stream with timestamps, summaries, expandable payloads
+- Right sidebar: agent info (name, type, model, status, cwd, uptime, events), assigned tasks, health issues
+
+**Do:**
+- Scroll through full event history
+- Expand/collapse any event to inspect payload
+- Click "Back" to return to agents view
+
+### 6. Errors
+
+Grouped error dashboard.
+
+**See:**
+- Errors grouped by tool name in red-themed cards
+- Error count badge with pulsing animation per group
+- Latest error timestamp per group
+- Individual errors: session color dot, short session ID, timestamp, error message (up to 5 per group with overflow count)
+- Error count badge in header nav (visible from all views)
+
+**Do:**
+- Click "View in Timeline" to jump to error's session in timeline
+- Click "View in Feed" to jump to error's session in feed
+
+### 7. Analytics
+
+Tool performance metrics.
+
+**See:**
+- Table with columns: tool name, total uses, successes, failures, failure rate, average duration
+- Failure rates above 30% highlighted in red
+- Sorted by most-used tools first
+
+**Do:**
+- Click any tool row to filter feed to that tool's events
+
+### 8. Timeline
+
+Horizontal swimlane visualization of tool executions.
+
+**See:**
+- Color legend: blue (Bash), emerald (Read/Write/Edit), amber (Search), purple (Task/Team), gray (idle)
+- One swimlane per session with session dot, source app, session ID, total duration
+- Tool execution blocks positioned by time with tool name labels on wide blocks
+- Idle gaps between tool blocks shown in gray
+- Time axis with relative offsets (+0s, +Xm, +Xh)
+- Tooltips on hover with tool name and summary
+
+**Do:**
+- Click any tool block to select and inspect in detail panel
+
+### Global Features
+
+**Header (always visible):**
+- View mode tabs with badge counters (task progress, message count, error count)
+- Live indicator (animated green pulse)
+- Event counter (visible/total)
+- Export dropdown (JSON, CSV)
+- Clear events button
+- Keyboard shortcuts help button (?)
+
+**Left Sidebar:**
+- Team cards with member list, task progress bars, status indicators
+- Standalone sessions list with search, model badges, event counts, durations
+
+**Right Detail Panel (contextual):**
+- Event detail: metadata grid, action buttons, notes, raw payload
+- Task detail: description, blocked-by/blocks, actions
+- Agent detail: metadata, health, activity stream, message form, actions
+
+**Keyboard Shortcuts:**
+- `1-8`: Switch views
+- `f`: Focus search
+- `j/k`: Navigate events
+- `Esc`: Clear selection
+- `?`: Show help
+
+**Cross-View Navigation:**
+- Jump between views from any context (errors to timeline, tasks to agents, analytics to feed, etc.)
+
+**State Persistence:**
+- View mode, filters, search query, selected team persist across page reloads via localStorage
 
 ## MCP Server
 

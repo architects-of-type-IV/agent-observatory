@@ -985,7 +985,7 @@ Compilation: ✅ mix compile --warnings-as-errors (SUCCESS - ZERO WARNINGS)
 - Owner dropdown hidden when no team members (prevents confusing "Unassigned" dropdown)
 - Shows owner as text when team has no members but task has owner assigned
 
-View Documentation Research (view-researchers team) - IN PROGRESS
+View Documentation Research (view-researchers team) - COMPLETE
 ===================================================================
 
 [2026-02-14] Task #2: Feed View Research - COMPLETED by feed-researcher
@@ -1035,3 +1035,10 @@ FINDINGS - What Users Can DO:
 9. Clear all events (with confirmation)
 
 STATUS: Research complete. Full SEE/DO list sent to team-lead.
+
+[2026-02-14] All 9 View Researchers - COMPLETE
+------------------------------------------------
+All researchers reported back. README.md updated with detailed "See:" and "Do:" sections for:
+- Overview, Feed, Tasks, Messages, Agents, Agent Focus, Errors, Analytics, Timeline
+- Global features: header, sidebar, detail panels, keyboard shortcuts, state persistence
+Team cleaned up. Build clean (zero warnings).
