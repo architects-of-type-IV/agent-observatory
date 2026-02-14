@@ -112,6 +112,15 @@ Consistent colors across views:
 - **Single-line handler consolidation**: Reduced dashboard_live.ex from 313 → 245 lines by consolidating simple event handlers to single-line format (e.g., `def handle_event("filter", p, s), do: {:noreply, handle_filter(p, s) |> prepare_assigns()}`). Saves ~60 lines without sacrificing readability.
 - **Selection clearing pattern**: Extract common "clear all selections" logic to helper function (`clear_selections/1`) instead of repeating `assign(:selected_event, nil) |> assign(:selected_task, nil) |> assign(:selected_agent, nil)` in every selection handler.
 
+## Sprint 5 Lessons (Feb 2026)
+- **Template component extraction**: Split 1401-line dashboard_live.html.heex into 8 view-specific component modules (overview, feed, tasks, messages, agents, errors, analytics, timeline). Reduced main template by 38% (-536 lines). Each component under 200 lines with single public function.
+- **HEEx template imports**: Elixir compiler cannot detect function usage in HEEx templates, leading to "unused import" warnings for helper modules. These are false positives when helpers are called from templates (e.g., session_color/1, relative_time/2). May need to suppress warnings or restructure.
+- **Component module pattern**: `use Phoenix.Component` + single public attr-based function + focused imports (ObservatoryComponents, DashboardFormatHelpers, DashboardSessionHelpers, domain helpers). Keeps main template as dispatcher + chrome only.
+- **Session control handlers**: Dashboard → agent communication uses dual-write pattern (CommandQueue file writes + Mailbox ETS + PubSub). Handler modules return socket (not {:noreply, socket}) to allow prepare_assigns() wrapper in dashboard_live.ex.
+- **Inline editing with phx-change**: For dropdowns in task cards, use phx-change (not phx-click) with hidden phx-value-* attributes to pass context. Event handler receives params with both the select value (name="status") and the context values (phx-value-team, phx-value-task_id).
+- **Browser confirmation dialogs**: Use data-confirm="Message?" attribute on buttons for simple yes/no confirmations. Browser handles the prompt - no JavaScript needed.
+- **Team member data structure**: Team members from sel_team.members use :agent_id and :name keys (not :session_id). Owner dropdowns should use member[:agent_id] || member[:name] as the value.
+
 ## QA Testing Patterns (Feb 2026)
 - **Complete agent lifecycle**: SessionStart + PreToolUse/PostToolUse pairs + SessionEnd
 - **Varying durations**: Mix fast (<100ms), medium (100-1000ms), slow (>3000ms) to test duration colors

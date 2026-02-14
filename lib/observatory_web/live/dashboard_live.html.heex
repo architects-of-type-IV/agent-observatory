@@ -346,6 +346,7 @@
         :if={@view_mode == :tasks}
         active_tasks={@active_tasks}
         selected_team={@selected_team}
+        sel_team={@sel_team}
       />
 
       <ObservatoryWeb.Components.MessagesComponents.messages_view
@@ -363,6 +364,15 @@
         active_tasks={@active_tasks}
         selected_agent={@selected_agent}
         mailbox_counts={@mailbox_counts}
+        now={@now}
+      />
+
+      <ObservatoryWeb.Components.AgentActivityComponents.agent_focus_view
+        :if={@view_mode == :agent_focus && @selected_agent}
+        agent={@selected_agent}
+        events={agent_events(@events, @selected_agent[:agent_id])}
+        tasks={agent_tasks(@active_tasks, @selected_agent[:agent_id])}
+        expanded_events={@expanded_events}
         now={@now}
       />
 
@@ -666,17 +676,14 @@
           </div>
         </div>
 
-        <div :if={recent_events != []} class="px-4 py-3 border-b border-zinc-800/50">
-          <h3 class="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">Recent Events (15)</h3>
-          <div class="space-y-1">
-            <div :for={evt <- recent_events} class="flex items-center gap-2 text-xs">
-              <% {type_label, type_class} = event_type_label(evt.hook_event_type) %>
-              <span class={"font-mono px-1 py-0 rounded shrink-0 #{type_class}"}>{type_label}</span>
-              <span :if={evt.tool_name} class="font-mono text-indigo-400 shrink-0">{evt.tool_name}</span>
-              <span class="text-zinc-600 font-mono shrink-0">{relative_time(evt.inserted_at, @now)}</span>
-              <span :if={evt.duration_ms} class={"font-mono shrink-0 #{duration_color(evt.duration_ms)}"}>{format_duration(evt.duration_ms)}</span>
-            </div>
-          </div>
+        <div class="px-4 py-3 border-b border-zinc-800/50">
+          <h3 class="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">Activity Stream</h3>
+          <ObservatoryWeb.Components.AgentActivityComponents.activity_stream
+            events={recent_events}
+            expanded_events={@expanded_events || []}
+            limit={25}
+            now={@now}
+          />
         </div>
 
         <div :if={agent_task_list != []} class="px-4 py-3 border-b border-zinc-800/50">
@@ -716,6 +723,13 @@
         <div :if={agent[:agent_id]} class="px-4 py-3">
           <h3 class="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">Actions</h3>
           <div class="flex flex-wrap gap-1.5">
+            <button
+              phx-click="focus_agent"
+              phx-value-session_id={agent[:agent_id]}
+              class="text-xs px-2 py-1 rounded bg-indigo-600/20 text-indigo-400 hover:bg-indigo-600/30 transition"
+            >
+              Focus
+            </button>
             <button
               phx-click="filter_session"
               phx-value-sid={agent[:agent_id]}

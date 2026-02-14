@@ -13,6 +13,7 @@ defmodule ObservatoryWeb.DashboardLive do
   import ObservatoryWeb.DashboardMessageHelpers
   import ObservatoryWeb.DashboardNotesHandlers
   import ObservatoryWeb.DashboardAgentHelpers
+  import ObservatoryWeb.DashboardAgentActivityHelpers
 
   @max_events 500
 
@@ -42,6 +43,7 @@ defmodule ObservatoryWeb.DashboardLive do
       |> assign(:selected_event, nil)
       |> assign(:selected_task, nil)
       |> assign(:selected_agent, nil)
+      |> assign(:expanded_events, [])
       |> assign(:now, DateTime.utc_now())
       |> assign(:page_title, "Observatory")
       |> assign(:view_mode, :overview)
@@ -132,10 +134,34 @@ defmodule ObservatoryWeb.DashboardLive do
   def handle_event("push_context", p, s), do: handle_push_context(p, s)
   def handle_event("toggle_shortcuts_help", p, s), do: {:noreply, handle_toggle_shortcuts_help(p, s) |> prepare_assigns()}
   def handle_event("toggle_create_task_modal", p, s), do: {:noreply, handle_toggle_create_task_modal(p, s) |> prepare_assigns()}
+  def handle_event("toggle_event_detail", p, s), do: {:noreply, handle_toggle_event_detail(p, s) |> prepare_assigns()}
+  def handle_event("focus_agent", p, s), do: {:noreply, handle_focus_agent(p, s) |> prepare_assigns()}
+  def handle_event("close_agent_focus", p, s), do: {:noreply, handle_close_agent_focus(p, s) |> prepare_assigns()}
 
   def handle_event("create_task", p, s) do
     case handle_create_task(p, s) do
       {:noreply, upd} -> {:noreply, upd |> assign(:show_create_task_modal, false) |> prepare_assigns()}
+      other -> other
+    end
+  end
+
+  def handle_event("update_task_status", p, s) do
+    case handle_update_task_status(p, s) do
+      {:noreply, upd} -> {:noreply, upd |> prepare_assigns()}
+      other -> other
+    end
+  end
+
+  def handle_event("reassign_task", p, s) do
+    case handle_reassign_task(p, s) do
+      {:noreply, upd} -> {:noreply, upd |> prepare_assigns()}
+      other -> other
+    end
+  end
+
+  def handle_event("delete_task", p, s) do
+    case handle_delete_task(p, s) do
+      {:noreply, upd} -> {:noreply, upd |> prepare_assigns()}
       other -> other
     end
   end

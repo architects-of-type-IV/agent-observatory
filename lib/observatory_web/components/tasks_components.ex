@@ -8,6 +8,7 @@ defmodule ObservatoryWeb.Components.TasksComponents do
 
   attr :active_tasks, :list, required: true
   attr :selected_team, :any, default: nil
+  attr :sel_team, :any, default: nil
 
   def tasks_view(assigns) do
     ~H"""
@@ -34,6 +35,8 @@ defmodule ObservatoryWeb.Components.TasksComponents do
           status="pending"
           title="Pending"
           tasks={@active_tasks}
+          team_members={if @sel_team, do: @sel_team.members, else: []}
+          team_name={@selected_team}
           dot_class="bg-zinc-500"
           title_class="text-zinc-400"
           card_border="border-zinc-800 hover:border-zinc-700"
@@ -45,6 +48,8 @@ defmodule ObservatoryWeb.Components.TasksComponents do
           status="in_progress"
           title="In Progress"
           tasks={@active_tasks}
+          team_members={if @sel_team, do: @sel_team.members, else: []}
+          team_name={@selected_team}
           dot_class="bg-blue-500"
           title_class="text-blue-400"
           card_border="border-blue-500/20 hover:border-blue-500/40"
@@ -57,6 +62,8 @@ defmodule ObservatoryWeb.Components.TasksComponents do
           status="completed"
           title="Completed"
           tasks={@active_tasks}
+          team_members={if @sel_team, do: @sel_team.members, else: []}
+          team_name={@selected_team}
           dot_class="bg-emerald-500"
           title_class="text-emerald-400"
           card_border="border-emerald-500/15 hover:border-emerald-500/30"
