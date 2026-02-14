@@ -1,44 +1,41 @@
 # Observatory - Handoff
 
-## Current Status (Sprint 5 COMPLETE)
-All Sprint 5 tasks done. Ash resources, template refactor, session control, inline task editing, agent activity stream, grouped feed - all integrated and QA-verified. Zero warnings.
+## Current Status (Component Refactoring - In Progress)
 
-## Sprint 5 Deliverables
+Component refactoring sprint in progress. Splitting large component files into focused child modules using defdelegate pattern.
 
-### 1. Ash Resources (4 new domains, SQLite-backed)
-- Observatory.Messaging (Message), Observatory.TaskBoard (Task), Observatory.Annotations (Note), Observatory.Costs (TokenUsage)
-- Migration: 20260214201807_sprint5_domains.exs (4 tables)
-- NOT yet integrated with existing GenServers (separate task)
+## Component Refactoring Progress
 
-### 2. Template Refactor
-- dashboard_live.html.heex: 1401 -> 879 lines
-- 8 component modules: overview, feed, tasks, messages, agents, errors, analytics, timeline
+### Completed
+- **observatory_components.ex** (Task #2): 218 → 15 lines defdelegate facade
+  - Created 8 focused child modules in lib/observatory_web/components/observatory/
+  - session_dot.ex, event_type_badge.ex, member_status_dot.ex, empty_state.ex, health_warnings.ex, model_badge.ex, toast_container.ex, message_thread.ex
+  - All use inline ~H templates (components too small for separate .heex files)
+  - Correct imports for helper functions verified
 
-### 3. Session Control
-- dashboard_session_control_handlers.ex (93 lines) - pause/resume/shutdown via CommandQueue + Mailbox
+### In Progress
+- **feed_components.ex** (Task #1): 302 lines - being refactored by feed-dev
+- **agent_activity_components.ex** (Task #3): 198 lines - being refactored by activity-dev
 
-### 4. Inline Task Editing
-- Status/owner dropdowns + delete on task cards. task_column moved to tasks_components.ex.
+### Pending
+- **Build verification** (Task #4): Zero warnings compile after all refactors
 
-### 5. Agent Activity Stream
-- dashboard_agent_activity_helpers.ex (240 lines) - summarize_event for all tool types
-- agent_activity_components.ex (198 lines) - activity_stream, payload_detail
-- Agent focus view (:agent_focus mode) - full-screen inspection
-- Click-to-expand payload details
+## Known Issues
+- Compilation blocked by error in agent_activity_components.ex:
+  ```
+  could not define attributes for function activity_item/1. Please make sure that you have `use Phoenix.Component` and that the function has no default arguments
+  ```
+  - Created by activity-dev agent
+  - Issue with embed_templates pattern when using attr declarations
 
-### 6. Grouped Feed
-- dashboard_feed_helpers.ex (151 lines) - group by session, pair tools
-- feed_components.ex (302 lines) - session groups with start/end indicators
-
-### 7. Integration
-- dashboard_live.ex (280 lines) - all modules wired, new assigns + event handlers
-
-## QA Results
-- Zero warnings, all endpoints pass (events API, dashboard, MCP, export)
-- All 6 Ash domains registered
-- Module sizes: 2 marginal (data_helpers 307, feed_components 302), rest under 300
+## Pattern for Component Refactoring
+1. Create directory: lib/observatory_web/components/{module_name}/
+2. Create child modules: one per component function
+3. Use inline ~H templates (not embed_templates) when components are small
+4. Replace main file with defdelegate facade to preserve existing imports
+5. Each child module imports only needed helpers
 
 ## Next Steps
-- Integrate Ash resources with existing GenServers (replace ETS/file backends)
-- Cost tracking: capture token usage from hook events
-- Session replay functionality
+- Fix agent_activity_components.ex compilation error
+- Complete feed_components.ex refactor
+- Run final zero-warnings build verification

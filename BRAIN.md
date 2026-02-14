@@ -122,6 +122,12 @@ Consistent colors across views:
 - **Team member data structure**: Team members from sel_team.members use :agent_id and :name keys (not :session_id). Owner dropdowns should use member[:agent_id] || member[:name] as the value.
 - **QA endpoint testing**: All endpoints verified (POST /api/events, GET /export/events, GET /, POST /mcp). Check for phx-socket in HTML to verify LiveView mount. Use curl with -w for HTTP status codes.
 
+## Component Refactoring Lessons (Feb 2026)
+- **embed_templates incompatible with attr declarations**: When using `attr` + `embed_templates` together, Phoenix Component throws "could not define attributes" error. Use inline ~H instead for small components.
+- **Inline ~H preferred for tiny components**: For components under 30 lines, inline ~H in .ex file is cleaner than separate .heex files. No need to split template when total size is minimal.
+- **defdelegate facade preserves imports**: Replacing large component module with defdelegate facade maintains backward compatibility. Existing `import ObservatoryWeb.ObservatoryComponents` still works.
+- **Helper function location matters**: session_color is in DashboardFormatHelpers (not DashboardSessionHelpers). Always grep to verify helper location before importing.
+
 ## QA Testing Patterns (Feb 2026)
 - **Complete agent lifecycle**: SessionStart + PreToolUse/PostToolUse pairs + SessionEnd
 - **Varying durations**: Mix fast (<100ms), medium (100-1000ms), slow (>3000ms) to test duration colors

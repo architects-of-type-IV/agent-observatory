@@ -867,3 +867,48 @@ FINAL STATE:
 Sprint 5 COMPLETE
 ==================
 All tasks done: Ash resources, template refactor, session control, inline editing, activity stream, grouped feed, integration, QA.
+
+Component Refactoring Sprint (Feb 2026)
+========================================
+
+GOAL: Refactor large component modules into focused child modules using defdelegate pattern.
+
+[2026-02-14] Task #2: observatory_components.ex refactor - COMPLETED by observatory-dev
+----------------------------------------------------------------------------------------
+
+BEFORE:
+- lib/observatory_web/components/observatory_components.ex: 218 lines (8 components in one file)
+
+AFTER:
+- lib/observatory_web/components/observatory_components.ex: 15 lines (defdelegate facade)
+- lib/observatory_web/components/observatory/session_dot.ex: 29 lines
+- lib/observatory_web/components/observatory/event_type_badge.ex: 28 lines
+- lib/observatory_web/components/observatory/member_status_dot.ex: 24 lines
+- lib/observatory_web/components/observatory/empty_state.ex: 28 lines
+- lib/observatory_web/components/observatory/health_warnings.ex: 26 lines
+- lib/observatory_web/components/observatory/model_badge.ex: 25 lines
+- lib/observatory_web/components/observatory/toast_container.ex: 24 lines
+- lib/observatory_web/components/observatory/message_thread.ex: 68 lines
+
+IMPLEMENTATION:
+- All 8 components split into focused modules in components/observatory/ directory
+- Inline ~H templates used (not embed_templates) since components are small
+- Correct helper imports verified:
+  - session_dot: DashboardFormatHelpers (session_color)
+  - event_type_badge: DashboardFormatHelpers (event_type_label)
+  - member_status_dot: DashboardTeamHelpers (member_status_color)
+  - health_warnings: DashboardAgentHealthHelpers (format_issue)
+  - model_badge: DashboardSessionHelpers (short_model_name)
+  - message_thread: DashboardFormatHelpers, DashboardSessionHelpers, DashboardMessageHelpers
+- Main file replaced with defdelegate facade to preserve backward compatibility
+
+PATTERN LEARNED:
+- embed_templates + attr declarations = compilation error ("could not define attributes")
+- Inline ~H in small .ex file is cleaner for components under 30 lines
+- defdelegate preserves existing `import ObservatoryWeb.ObservatoryComponents` usage
+
+STATUS: Task #2 complete. Refactored observatory_components.ex successfully.
+
+COMPILATION BLOCKED:
+- agent_activity_components.ex has embed_templates error (created by activity-dev)
+- Same pattern issue: attr + embed_templates incompatible
