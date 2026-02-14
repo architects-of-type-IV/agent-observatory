@@ -127,6 +127,7 @@ Consistent colors across views:
 - **Inline ~H preferred for tiny components**: For components under 30 lines, inline ~H in .ex file is cleaner than separate .heex files. No need to split template when total size is minimal.
 - **defdelegate facade preserves imports**: Replacing large component module with defdelegate facade maintains backward compatibility. Existing `import ObservatoryWeb.ObservatoryComponents` still works.
 - **Helper function location matters**: session_color is in DashboardFormatHelpers (not DashboardSessionHelpers). Always grep to verify helper location before importing.
+- **Module redefinition warnings after refactoring**: After converting embed_templates to inline templates, run `mix clean` to remove stale .beam files before recompiling.
 
 ## QA Testing Patterns (Feb 2026)
 - **Complete agent lifecycle**: SessionStart + PreToolUse/PostToolUse pairs + SessionEnd

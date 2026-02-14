@@ -1,41 +1,40 @@
 # Observatory - Handoff
 
-## Current Status (Component Refactoring - In Progress)
+## Current Status (Component Refactor + UX Fix - COMPLETE)
 
-Component refactoring sprint in progress. Splitting large component files into focused child modules using defdelegate pattern.
+Component refactoring sprint complete. Split 3 large component files into 16 focused child modules using defdelegate pattern. Fixed task board dropdown UX. Zero warnings.
 
-## Component Refactoring Progress
+## Component Refactoring Summary
 
-### Completed
-- **observatory_components.ex** (Task #2): 218 → 15 lines defdelegate facade
-  - Created 8 focused child modules in lib/observatory_web/components/observatory/
-  - session_dot.ex, event_type_badge.ex, member_status_dot.ex, empty_state.ex, health_warnings.ex, model_badge.ex, toast_container.ex, message_thread.ex
-  - All use inline ~H templates (components too small for separate .heex files)
-  - Correct imports for helper functions verified
+### Files Refactored
+| Original | Before | After (facade) | Child Modules |
+|----------|--------|-----------------|---------------|
+| observatory_components.ex | 218 lines | 15 lines | 8 modules in observatory/ |
+| feed_components.ex | 302 lines | 10 lines | 4 modules in feed/ |
+| agent_activity_components.ex | 198 lines | 10 lines | 4 modules in agent_activity/ |
 
-### In Progress
-- **feed_components.ex** (Task #1): 302 lines - being refactored by feed-dev
-- **agent_activity_components.ex** (Task #3): 198 lines - being refactored by activity-dev
+### Largest Child Modules
+- agent_focus_view.ex: 128 lines
+- session_group.ex: 103 lines
+- feed_view.ex: 100 lines
+- All others under 85 lines
 
-### Pending
-- **Build verification** (Task #4): Zero warnings compile after all refactors
+### UX Fix: Task Board Dropdowns
+- Added "Status" and "Owner" labels to dropdowns
+- Owner dropdown hidden when no team members available
+- Shows owner as text when team has no members but task has owner
 
-## Known Issues
-- Compilation blocked by error in agent_activity_components.ex:
-  ```
-  could not define attributes for function activity_item/1. Please make sure that you have `use Phoenix.Component` and that the function has no default arguments
-  ```
-  - Created by activity-dev agent
-  - Issue with embed_templates pattern when using attr declarations
+### Build Status
+Zero warnings: `mix compile --warnings-as-errors` PASS
 
-## Pattern for Component Refactoring
-1. Create directory: lib/observatory_web/components/{module_name}/
-2. Create child modules: one per component function
-3. Use inline ~H templates (not embed_templates) when components are small
-4. Replace main file with defdelegate facade to preserve existing imports
-5. Each child module imports only needed helpers
+## Defdelegate Pattern
+1. Create directory: `components/{domain}/`
+2. One child module per component function, focused and small
+3. Inline ~H templates (embed_templates had issues with attr declarations)
+4. Parent module: thin defdelegate facade preserving public API
+5. Each child imports only the helpers it needs
 
 ## Next Steps
-- Fix agent_activity_components.ex compilation error
-- Complete feed_components.ex refactor
-- Run final zero-warnings build verification
+- Integrate Ash resources with existing GenServers (replace ETS/file backends)
+- Cost tracking: capture token usage from hook events
+- Session replay functionality

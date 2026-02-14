@@ -49,6 +49,7 @@ defmodule ObservatoryWeb.Components.TasksComponents do
           </div>
           <p :if={@show_active_form && task[:active_form]} class="text-xs text-blue-400/60 mb-2">{task[:active_form]}</p>
           <div :if={@team_name} class="mb-2">
+            <label class="text-[10px] text-zinc-600 uppercase tracking-wider mb-0.5 block">Status</label>
             <select phx-change="update_task_status" phx-value-team={@team_name} phx-value-task_id={task[:id]} name="status"
               class="w-full px-2 py-1 text-xs bg-zinc-800 border border-zinc-700 rounded text-zinc-200 focus:outline-none focus:border-blue-500">
               <option value="pending" selected={task[:status] == "pending"}>Pending</option>
@@ -56,13 +57,18 @@ defmodule ObservatoryWeb.Components.TasksComponents do
               <option value="completed" selected={task[:status] == "completed"}>Completed</option>
             </select>
           </div>
-          <div :if={@team_name} class="mb-2">
+          <div :if={@team_name && @team_members != []} class="mb-2">
+            <label class="text-[10px] text-zinc-600 uppercase tracking-wider mb-0.5 block">Owner</label>
             <select phx-change="reassign_task" phx-value-team={@team_name} phx-value-task_id={task[:id]} name="owner"
               class="w-full px-2 py-1 text-xs bg-zinc-800 border border-zinc-700 rounded text-zinc-200 focus:outline-none focus:border-blue-500">
               <option value="" selected={!task[:owner] || task[:owner] == ""}>Unassigned</option>
               <option :for={member <- @team_members} value={member[:agent_id] || member[:name]}
                 selected={task[:owner] == (member[:agent_id] || member[:name])}>{member[:name] || member[:agent_id]}</option>
             </select>
+          </div>
+          <div :if={@team_name && @team_members == [] && task[:owner]} class="mb-2">
+            <span class="text-[10px] text-zinc-600 uppercase tracking-wider">Owner:</span>
+            <span class="text-xs text-zinc-400 ml-1">{task[:owner]}</span>
           </div>
           <div :if={@show_blocked_by && task[:blocked_by] && task[:blocked_by] != []} class="mt-1.5">
             <span class="text-xs text-amber-500/70">blocked by #{Enum.join(task[:blocked_by], ", #")}</span>

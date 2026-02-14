@@ -909,6 +909,78 @@ PATTERN LEARNED:
 
 STATUS: Task #2 complete. Refactored observatory_components.ex successfully.
 
-COMPILATION BLOCKED:
-- agent_activity_components.ex has embed_templates error (created by activity-dev)
-- Same pattern issue: attr + embed_templates incompatible
+[2026-02-14] Task #1: feed_components.ex refactor - COMPLETED by feed-dev
+--------------------------------------------------------------------------
+
+BEFORE:
+- lib/observatory_web/components/feed_components.ex: 302 lines (4 components in one file)
+
+AFTER:
+- lib/observatory_web/components/feed_components.ex: 10 lines (defdelegate facade)
+- lib/observatory_web/components/feed/feed_view.ex: 101 lines
+- lib/observatory_web/components/feed/session_group.ex: 103 lines
+- lib/observatory_web/components/feed/tool_execution_block.ex: 83 lines
+- lib/observatory_web/components/feed/standalone_event.ex: 37 lines
+
+IMPLEMENTATION:
+- All 4 components split into focused modules in components/feed/ directory
+- Inline ~H templates used (not embed_templates)
+- Correct helper imports verified:
+  - feed_view: ObservatoryComponents, DashboardFormatHelpers
+  - session_group: ObservatoryComponents, DashboardFormatHelpers, DashboardSessionHelpers, ToolExecutionBlock, StandaloneEvent, DashboardFeedHelpers
+  - tool_execution_block: DashboardFormatHelpers, DashboardFeedHelpers
+  - standalone_event: DashboardFormatHelpers
+- Main file replaced with defdelegate facade to preserve backward compatibility
+
+ADDITIONAL FIXES:
+- Fixed activity_item.ex - converted embed_templates to inline template
+- Fixed activity_stream.ex - converted embed_templates to inline template
+- Fixed session_dot.ex - corrected import (DashboardFormatHelpers not DashboardSessionHelpers)
+- Removed unused imports from feed_view.ex and message_thread.ex
+
+COMPILATION:
+✅ mix clean && mix compile --warnings-as-errors (SUCCESS - ZERO WARNINGS)
+
+STATUS: Task #1 complete. Refactored feed_components.ex successfully. All builds passing.
+
+[2026-02-14] Task #3: agent_activity_components.ex refactor - COMPLETED by activity-dev
+----------------------------------------------------------------------------------------
+
+BEFORE:
+- lib/observatory_web/components/agent_activity_components.ex: 198 lines (4 components in one file)
+
+AFTER:
+- lib/observatory_web/components/agent_activity_components.ex: 10 lines (defdelegate facade)
+- lib/observatory_web/components/agent_activity/activity_stream.ex: inline ~H (linter-converted)
+- lib/observatory_web/components/agent_activity/activity_item.ex: inline ~H (linter-converted)
+- lib/observatory_web/components/agent_activity/payload_detail.ex: inline ~H
+- lib/observatory_web/components/agent_activity/agent_focus_view.ex: inline ~H
+
+IMPLEMENTATION:
+- All 4 components split into focused modules in components/agent_activity/ directory
+- Linter auto-converted embed_templates to inline ~H templates (acceptable)
+- Fixed unused import warnings in feed_view.ex and message_thread.ex
+- Main file replaced with defdelegate facade to preserve backward compatibility
+
+COMPILATION:
+- Ran mix clean to clear stale .beam files
+- Zero warnings achieved after clean build
+
+STATUS: Task #3 complete. Refactored agent_activity_components.ex successfully.
+
+Component Refactoring Sprint Complete
+========================================
+All 3 large component modules refactored into focused child modules:
+- feed_components.ex: 302 → 10 lines
+- observatory_components.ex: 218 → 15 lines
+- agent_activity_components.ex: 198 → 10 lines
+
+Total line reduction: 683 lines → 35 lines (95% reduction in facade files)
+
+Compilation: ✅ mix compile --warnings-as-errors (SUCCESS - ZERO WARNINGS)
+
+[2026-02-14] Task board UX fix - COMPLETED by team-lead
+---------------------------------------------------------
+- Added "Status" and "Owner" labels to task card dropdowns
+- Owner dropdown hidden when no team members (prevents confusing "Unassigned" dropdown)
+- Shows owner as text when team has no members but task has owner assigned
