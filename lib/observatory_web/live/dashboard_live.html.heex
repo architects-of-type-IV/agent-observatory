@@ -82,6 +82,13 @@
         >
           Clear
         </button>
+        <button
+          phx-click="toggle_shortcuts_help"
+          class="text-xs px-2 py-0.5 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-500 hover:text-zinc-300 transition font-semibold"
+          title="Keyboard shortcuts"
+        >
+          ?
+        </button>
       </div>
     </div>
 
@@ -245,13 +252,11 @@
     <main class="flex-1 overflow-y-auto overflow-x-hidden">
       <%!-- Feed View --%>
       <div :if={@view_mode == :feed} class="p-3 space-y-px" id="event-list">
-        <div
+        <ObservatoryWeb.ObservatoryComponents.empty_state
           :if={Enum.empty?(@visible_events)}
-          class="flex flex-col items-center justify-center py-24 text-zinc-600"
-        >
-          <p class="text-lg">Waiting for agent activity...</p>
-          <p class="text-sm mt-1 text-zinc-700">Hook events will stream here in real-time</p>
-        </div>
+          title="Waiting for agent activity..."
+          description="Hook events will stream here in real-time. Try running agents or use keyboard shortcuts (press ?) for help."
+        />
 
         <div :for={event <- @visible_events} id={"ev-#{event.id}"}>
           <div
@@ -297,10 +302,22 @@
 
       <%!-- Task Board View --%>
       <div :if={@view_mode == :tasks} class="p-4">
-        <div :if={@active_tasks == []} class="flex flex-col items-center justify-center py-24 text-zinc-600">
-          <p class="text-lg">No tasks tracked yet</p>
-          <p class="text-sm mt-1 text-zinc-700">Tasks will appear when agents use TaskCreate/TaskUpdate</p>
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="text-sm font-semibold text-zinc-400">Task Board</h2>
+          <button
+            :if={@selected_team}
+            phx-click="toggle_create_task_modal"
+            class="px-3 py-1 text-xs rounded-md bg-blue-600 hover:bg-blue-500 text-white transition"
+          >
+            + New Task
+          </button>
         </div>
+
+        <ObservatoryWeb.ObservatoryComponents.empty_state
+          :if={@active_tasks == []}
+          title="No tasks tracked yet"
+          description="Tasks will appear when agents use TaskCreate or TaskUpdate tools"
+        />
 
         <div :if={@active_tasks != []} class="grid grid-cols-3 gap-4 min-w-0">
           <ObservatoryWeb.ObservatoryComponents.task_column
@@ -341,10 +358,11 @@
 
       <%!-- Messages View --%>
       <div :if={@view_mode == :messages} class="p-4 max-w-3xl mx-auto">
-        <div :if={@messages == []} class="flex flex-col items-center justify-center py-24 text-zinc-600">
-          <p class="text-lg">No inter-agent messages yet</p>
-          <p class="text-sm mt-1 text-zinc-700">Messages appear when agents use SendMessage</p>
-        </div>
+        <ObservatoryWeb.ObservatoryComponents.empty_state
+          :if={@messages == []}
+          title="No inter-agent messages yet"
+          description="Messages appear when agents use the SendMessage tool for team coordination"
+        />
 
         <div class="space-y-3">
           <div
@@ -381,10 +399,11 @@
 
       <%!-- Agents View --%>
       <div :if={@view_mode == :agents} class="p-4">
-        <div :if={@teams == []} class="flex flex-col items-center justify-center py-24 text-zinc-600">
-          <p class="text-lg">No teams active yet</p>
-          <p class="text-sm mt-1 text-zinc-700">Teams will appear when agents use TeamCreate</p>
-        </div>
+        <ObservatoryWeb.ObservatoryComponents.empty_state
+          :if={@teams == []}
+          title="No teams active yet"
+          description="Teams appear when agents use TeamCreate tool to spawn teammates"
+        />
 
         <div :if={@teams != []} class="grid grid-cols-2 gap-4 min-w-0">
           <div
@@ -505,17 +524,18 @@
 
       <%!-- Errors View --%>
       <div :if={@view_mode == :errors} class="p-4">
-        <div :if={@errors == []} class="flex flex-col items-center justify-center py-24 text-zinc-600">
-          <p class="text-lg">No errors yet</p>
-          <p class="text-sm mt-1 text-zinc-700">Tool failures will appear here</p>
-        </div>
+        <ObservatoryWeb.ObservatoryComponents.empty_state
+          :if={@errors == []}
+          title="No errors yet"
+          description="Tool failures from PostToolUseFailure events will appear here grouped by tool"
+        />
 
         <div :if={@errors != []} class="space-y-4">
           <div :for={group <- @error_groups} class="p-4 rounded-lg border border-red-500/20 bg-red-500/5">
             <div class="flex items-center justify-between mb-3">
               <div class="flex items-center gap-2">
                 <span class="text-sm font-semibold text-red-400">{group.tool}</span>
-                <span class="px-2 py-0.5 text-xs rounded bg-red-500/20 text-red-300">{group.count} errors</span>
+                <span class="px-2 py-0.5 text-xs rounded bg-red-500/40 text-red-300 animate-pulse">{group.count} errors</span>
                 <button
                   phx-click="jump_to_timeline"
                   phx-value-session_id={group.latest.session_id}
@@ -553,10 +573,11 @@
 
       <%!-- Analytics View --%>
       <div :if={@view_mode == :analytics} class="p-4">
-        <div :if={@analytics == []} class="flex flex-col items-center justify-center py-24 text-zinc-600">
-          <p class="text-lg">No tool usage yet</p>
-          <p class="text-sm mt-1 text-zinc-700">Analytics will appear when agents use tools</p>
-        </div>
+        <ObservatoryWeb.ObservatoryComponents.empty_state
+          :if={@analytics == []}
+          title="No tool usage yet"
+          description="Performance analytics appear when agents execute tools with PreToolUse/PostToolUse events"
+        />
 
         <div :if={@analytics != []} class="space-y-3">
           <div class="overflow-x-auto">
@@ -598,16 +619,42 @@
 
       <%!-- Timeline View --%>
       <div :if={@view_mode == :timeline} class="p-4">
-        <div :if={@timeline == []} class="flex flex-col items-center justify-center py-24 text-zinc-600">
-          <p class="text-lg">No tool activity yet</p>
-          <p class="text-sm mt-1 text-zinc-700">Timeline will show tool executions over time</p>
-        </div>
+        <ObservatoryWeb.ObservatoryComponents.empty_state
+          :if={@timeline == []}
+          title="No tool activity yet"
+          description="Timeline will show tool executions over time as horizontal bars. Click blocks to inspect."
+        />
 
         <div :if={@timeline != []} class="space-y-4">
+          <%!-- Color legend --%>
+          <div class="flex items-center gap-3 text-xs text-zinc-500 pb-2 border-b border-zinc-800">
+            <span class="font-semibold text-zinc-400">Legend:</span>
+            <div class="flex items-center gap-1.5">
+              <span class="w-3 h-3 rounded bg-blue-500/60"></span>
+              <span>Bash</span>
+            </div>
+            <div class="flex items-center gap-1.5">
+              <span class="w-3 h-3 rounded bg-emerald-500/60"></span>
+              <span>Read/Write/Edit</span>
+            </div>
+            <div class="flex items-center gap-1.5">
+              <span class="w-3 h-3 rounded bg-amber-500/60"></span>
+              <span>Search</span>
+            </div>
+            <div class="flex items-center gap-1.5">
+              <span class="w-3 h-3 rounded bg-purple-500/60"></span>
+              <span>Task/Team</span>
+            </div>
+            <div class="flex items-center gap-1.5">
+              <span class="w-3 h-3 rounded bg-zinc-800"></span>
+              <span>Idle</span>
+            </div>
+          </div>
+
           <% global_start = List.first(@timeline).start_time %>
           <% global_end = List.last(Enum.sort_by(@timeline, & &1.start_time, {:desc, DateTime})).end_time %>
 
-          <div :for={session <- @timeline} class="space-y-2">
+          <div :for={{session, idx} <- Enum.with_index(@timeline)} class="space-y-2">
             <div class="flex items-center gap-2">
               <% {bg, _b, _t} = session_color(session.session_id) %>
               <span class={"w-2 h-2 rounded-full #{bg}"}></span>
@@ -615,11 +662,12 @@
               <span class="text-xs text-zinc-600">{session_duration_sec(session.duration_sec)}</span>
             </div>
 
-            <div class="relative h-8 bg-zinc-900 rounded border border-zinc-800 overflow-hidden">
+            <div class={"relative h-8 rounded border border-zinc-800 overflow-hidden #{if rem(idx, 2) == 0, do: "bg-zinc-900", else: "bg-zinc-900/50"}"}>
               <% positioned_blocks = calculate_block_positions(session, global_start, global_end) %>
               <div :for={block <- positioned_blocks} class="absolute top-1 h-6 group" style={"left: #{block.left_pct}%; width: #{block.width_pct}%"}>
-                <% block_class = if block[:type] == :idle, do: "h-full w-full rounded bg-zinc-800", else: "h-full w-full rounded #{tool_color(block[:tool_name])} cursor-pointer hover:opacity-80 transition" %>
+                <% block_class = if block[:type] == :idle, do: "h-full w-full rounded bg-zinc-800", else: "h-full w-full rounded #{tool_color(block[:tool_name])} cursor-pointer hover:opacity-80 transition flex items-center justify-center" %>
                 <% block_title = if block[:type] == :tool, do: "#{block[:tool_name]}: #{block[:summary]}", else: "idle" %>
+                <% show_label = block[:type] == :tool && block.width_pct > 5 %>
                 <div
                   :if={block[:type] == :tool && block[:event_id]}
                   phx-click="select_timeline_event"
@@ -627,6 +675,7 @@
                   class={block_class}
                   title={block_title}
                 >
+                  <span :if={show_label} class="text-xs font-mono text-white/90 truncate px-1">{block[:tool_name]}</span>
                 </div>
                 <div
                   :if={block[:type] == :idle || !block[:event_id]}
@@ -843,6 +892,74 @@
     </aside>
   </div>
 </div>
+
+  <%!-- Create Task Modal --%>
+  <div
+    :if={@show_create_task_modal}
+    class="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+    phx-click="toggle_create_task_modal"
+  >
+    <div class="bg-zinc-900 border border-zinc-700 rounded-lg shadow-xl max-w-lg w-full mx-4" phx-click="stop">
+      <div class="px-4 py-3 border-b border-zinc-800 flex items-center justify-between">
+        <h2 class="text-sm font-semibold text-zinc-200">Create New Task</h2>
+        <button phx-click="toggle_create_task_modal" class="text-zinc-500 hover:text-zinc-300 transition">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+          </svg>
+        </button>
+      </div>
+      <form phx-submit="create_task" class="px-4 py-3 space-y-3">
+        <div>
+          <label class="block text-xs font-semibold text-zinc-400 mb-1">Subject</label>
+          <input
+            type="text"
+            name="subject"
+            required
+            class="w-full px-3 py-1.5 text-sm bg-zinc-800 border border-zinc-700 rounded text-zinc-200 focus:outline-none focus:border-blue-500"
+            placeholder="Add new feature..."
+          />
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-zinc-400 mb-1">Description</label>
+          <textarea
+            name="description"
+            required
+            rows="3"
+            class="w-full px-3 py-1.5 text-sm bg-zinc-800 border border-zinc-700 rounded text-zinc-200 focus:outline-none focus:border-blue-500"
+            placeholder="Detailed description of the task..."
+          ></textarea>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-zinc-400 mb-1">Assign To</label>
+          <select
+            name="owner"
+            class="w-full px-3 py-1.5 text-sm bg-zinc-800 border border-zinc-700 rounded text-zinc-200 focus:outline-none focus:border-blue-500"
+          >
+            <option value="">Unassigned</option>
+            <option :for={member <- @team_members || []} value={member.session_id}>
+              {member.name || member.session_id}
+            </option>
+          </select>
+        </div>
+        <input type="hidden" name="team" value={@selected_team} />
+        <div class="flex justify-end gap-2 pt-2">
+          <button
+            type="button"
+            phx-click="toggle_create_task_modal"
+            class="px-3 py-1.5 text-xs rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-400 transition"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            class="px-3 py-1.5 text-xs rounded bg-blue-600 hover:bg-blue-500 text-white transition"
+          >
+            Create Task
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
 
   <%!-- Keyboard Shortcuts Help Modal --%>
   <div

@@ -4,8 +4,9 @@ defmodule ObservatoryWeb.DashboardLive do
   import ObservatoryWeb.DashboardDataHelpers
   import ObservatoryWeb.DashboardFormatHelpers
   import ObservatoryWeb.DashboardMessagingHandlers
+  import ObservatoryWeb.DashboardTaskHandlers
   import ObservatoryWeb.DashboardTimelineHelpers
-  import ObservatoryWeb.DashboardNavigationHandlers
+  import ObservatoryWeb.DashboardSessionHelpers
 
   @max_events 500
 
@@ -41,6 +42,7 @@ defmodule ObservatoryWeb.DashboardLive do
       |> assign(:selected_team, nil)
       |> assign(:mailbox_counts, %{})
       |> assign(:show_shortcuts_help, false)
+      |> assign(:show_create_task_modal, false)
       |> prepare_assigns()
 
     # Subscribe to mailbox channels for all active sessions
@@ -195,6 +197,21 @@ defmodule ObservatoryWeb.DashboardLive do
     {:noreply, socket |> assign(:show_shortcuts_help, !socket.assigns.show_shortcuts_help)}
   end
 
+  def handle_event("toggle_create_task_modal", _params, socket) do
+    {:noreply, socket |> assign(:show_create_task_modal, !socket.assigns.show_create_task_modal)}
+  end
+
+  def handle_event("create_task", params, socket) do
+    result = handle_create_task(params, socket)
+
+    case result do
+      {:noreply, updated_socket} ->
+        {:noreply, updated_socket |> assign(:show_create_task_modal, false) |> prepare_assigns()}
+      other ->
+        other
+    end
+  end
+
   def handle_event("keyboard_escape", _params, socket) do
     {:noreply,
      socket
@@ -235,15 +252,9 @@ defmodule ObservatoryWeb.DashboardLive do
   end
 
   # Navigation handlers
-  def handle_event("jump_to_timeline", params, socket), do: handle_jump_to_timeline(params, socket) |> add_prepare()
-  def handle_event("jump_to_feed", params, socket), do: handle_jump_to_feed(params, socket) |> add_prepare()
-  def handle_event("jump_to_agents", params, socket), do: handle_jump_to_agents(params, socket) |> add_prepare()
-  def handle_event("jump_to_tasks", params, socket), do: handle_jump_to_tasks(params, socket) |> add_prepare()
-  def handle_event("select_timeline_event", params, socket), do: handle_select_timeline_event(params, socket) |> add_prepare()
-  def handle_event("filter_agent_tasks", params, socket), do: handle_filter_agent_tasks(params, socket) |> add_prepare()
-  def handle_event("filter_analytics_tool", params, socket), do: handle_filter_analytics_tool(params, socket) |> add_prepare()
-
-  defp add_prepare({:noreply, socket}), do: {:noreply, prepare_assigns(socket)}
+  def handle_event(e, p, s) when e in ["jump_to_timeline", "jump_to_feed", "jump_to_agents", "jump_to_tasks", "select_timeline_event", "filter_agent_tasks", "filter_analytics_tool"] do
+    ObservatoryWeb.DashboardNavigationHandlers.handle_event(e, p, s) |> then(&{:noreply, prepare_assigns(&1)})
+  end
 
 
   defp load_recent_events do

@@ -80,8 +80,29 @@ The Observatory multi-agent observability dashboard is fully functional with 7 v
 ### Compilation Status
 ✅ `mix compile --warnings-as-errors` SUCCESS (zero warnings)
 
+### Latest Update (2026-02-14 - nav-builder)
+**Completed Task #6**: Cross-view navigation jumps
+
+**Task #6 - Cross-View Navigation**:
+- Created `dashboard_navigation_handlers.ex` (71 lines) for navigation logic
+- Added event_id to timeline blocks for clickability
+- Errors view: "View in Timeline" and "View in Feed" buttons per error group
+- Task detail panel: "View Agent" button to jump to Agents view
+- Messages view: clickable sender/recipient session IDs to filter Feed
+- Timeline blocks: clickable to select event and open detail in Feed view
+- Agents view: task count badges (clickable) to filter Tasks view by agent
+- Analytics view: clickable tool rows to filter Feed by tool name
+
+**Files Modified**:
+- Created: `lib/observatory_web/live/dashboard_navigation_handlers.ex`
+- Modified: `dashboard_live.ex` (303 lines), `dashboard_live.html.heex`, `dashboard_timeline_helpers.ex`
+
+**Module Size Status**:
+- dashboard_live.ex: 303 lines (slightly over 300 due to necessary handler delegation)
+- dashboard_navigation_handlers.ex: 71 lines
+
 ### Next Steps
-Product analysis spawned for deep feature evaluation. Awaiting results before spawning implementation team.
+Cross-view navigation complete. All views now interconnected with navigation jumps.
 
 Potential features identified:
 - Session control (pause/resume/kill)

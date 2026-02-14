@@ -11,10 +11,12 @@
 - Helper functions split by domain:
   - dashboard_team_helpers.ex: team derivation, member enrichment
   - dashboard_data_helpers.ex: task/message derivation, filtering
-  - dashboard_format_helpers.ex: display formatting, event summaries
+  - dashboard_format_helpers.ex: display formatting, event summaries, duration colors
   - dashboard_timeline_helpers.ex: timeline computation, block positioning
+  - dashboard_session_helpers.ex: session metadata (model extraction, cwd abbreviation)
   - dashboard_messaging_handlers.ex: messaging event handlers
-- Reusable components in observatory_components.ex
+  - dashboard_navigation_handlers.ex: cross-view navigation jumps
+- Reusable components in observatory_components.ex (empty_state, health_warnings, model_badge, task_column, session_dot, event_type_badge, member_status_dot)
 - GenServers: TeamWatcher (disk polling), Mailbox (ETS message queues)
 
 ## Timeline View Implementation
@@ -102,3 +104,10 @@ CommandQueue GenServer provides dual-channel agent communication:
 - **Outbox**: poll_responses(session_id) reads ~/.claude/outbox/{session_id}/*.json
 - Polls every 2s, broadcasts {:command_responses, []} to "session:{id}" topic
 - Mailbox.send_message automatically writes to CommandQueue (dual-write pattern)
+
+## Cross-View Navigation Pattern
+Navigation handlers delegate to separate module to keep dashboard_live.ex manageable:
+- Single handle_event clause with guard: `when e in ["jump_to_timeline", ...]`
+- Delegates to DashboardNavigationHandlers.handle_event/3
+- Returns socket (not {:noreply, socket}) - wrapper adds prepare_assigns
+- Pattern: `ObservatoryWeb.DashboardNavigationHandlers.handle_event(e, p, s) |> then(&{:noreply, prepare_assigns(&1)})`

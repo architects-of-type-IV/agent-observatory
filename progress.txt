@@ -104,3 +104,62 @@ Session 5: Command Queue + Task Manager
 - Cost tracking and budgets
 - Session replay functionality
 - Export/sharing capabilities
+
+Session 6: Visual Polish + Data Surfacing + Navigation
+=======================================================
+
+### Tasks #9 and #10: Polish Builder (COMPLETE)
+
+**Created Files**:
+- lib/observatory_web/live/dashboard_session_helpers.ex (71 lines)
+  - extract_session_model/1 - finds model from SessionStart or fallback to model_name
+  - extract_session_cwd/1 - gets most recent cwd from events
+  - abbreviate_cwd/1 - shows last 2 path segments with ".../" prefix
+  - short_model_name/1 - extracts "opus"/"sonnet"/"haiku" from full model strings
+
+**Modified Files**:
+- dashboard_format_helpers.ex: Added duration_color/1 (gray <1s, amber 1-5s, red >5s)
+- observatory_components.ex: Added 3 new components
+  - empty_state: Reusable empty view with title + description
+  - health_warnings: Displays agent health issues list
+  - model_badge: Shows short model name badge
+- dashboard_live.html.heex:
+  - All 7 views use empty_state component
+  - Session cards show model badges + abbreviated cwd
+  - Feed shows durations on ALL events (not just when present)
+  - Agents view shows health warnings under each agent
+  - Idle agents at 60% opacity
+  - Timeline has color legend, tool names in wide blocks, alternating backgrounds
+  - Error badges use animate-pulse
+  - Header has "?" help button
+
+**Compilation**: ✅ mix compile --warnings-as-errors (SUCCESS)
+
+**Status**: All polish work complete. Dashboard now surfaces all hidden data with enhanced visual polish.
+
+### Task #6: Cross-View Navigation (COMPLETE)
+
+**Created Files**:
+- lib/observatory_web/live/dashboard_navigation_handlers.ex (71 lines)
+  - handle_event delegates for 7 navigation events
+  - handle_jump_to_timeline/2, handle_jump_to_feed/2, handle_jump_to_agents/2, handle_jump_to_tasks/2
+  - handle_select_timeline_event/2 - timeline block click -> feed with event selected
+  - handle_filter_agent_tasks/2 - agent task badge -> tasks view filtered
+  - handle_filter_analytics_tool/2 - analytics tool row -> feed filtered by tool
+
+**Modified Files**:
+- dashboard_live.ex (303 lines): Single guarded handle_event clause delegates to navigation handlers module
+- dashboard_timeline_helpers.ex: Added event_id field to timeline blocks for clickability
+- dashboard_live.html.heex: Added navigation UI elements across all views:
+  - Errors view: "View in Timeline" + "View in Feed" buttons on error groups
+  - Task detail panel: "View Agent" button
+  - Messages view: Clickable sender/recipient session IDs
+  - Timeline: Clickable tool blocks (phx-click="select_timeline_event")
+  - Agents view: Clickable task count badges (phx-click="filter_agent_tasks")
+  - Analytics view: Clickable tool rows (phx-click="filter_analytics_tool")
+
+**Pattern**: Navigation handlers module keeps dashboard_live.ex manageable despite added complexity
+
+**Compilation**: ✅ mix compile --warnings-as-errors (SUCCESS)
+
+**Status**: All views now interconnected with cross-view navigation jumps. Users can seamlessly navigate from errors → timeline, tasks → agents, analytics → feed, etc.
