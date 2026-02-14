@@ -133,9 +133,28 @@ defmodule ObservatoryWeb.DashboardMessagingHandlers do
     end)
   end
 
-  # ═══════════════════════════════════════════════════════
-  # Helpers
-  # ═══════════════════════════════════════════════════════
+  def handle_search_messages(%{"q" => q}, socket) do
+    socket |> Phoenix.Component.assign(:search_messages, q)
+  end
+
+  def handle_toggle_thread(%{"key" => key}, socket) do
+    collapsed_threads = socket.assigns.collapsed_threads
+    new_state = !Map.get(collapsed_threads, key, false)
+    socket |> Phoenix.Component.assign(:collapsed_threads, Map.put(collapsed_threads, key, new_state))
+  end
+
+  def handle_expand_all_threads(socket) do
+    socket |> Phoenix.Component.assign(:collapsed_threads, %{})
+  end
+
+  def handle_collapse_all_threads(socket) do
+    thread_keys =
+      socket.assigns.message_threads
+      |> Enum.map(&ObservatoryWeb.DashboardMessageHelpers.participant_key(&1.participants))
+
+    collapsed_map = Map.new(thread_keys, fn k -> {k, true} end)
+    socket |> Phoenix.Component.assign(:collapsed_threads, collapsed_map)
+  end
 
   defp get_team_members(socket, team_name) do
     socket.assigns[:sessions]

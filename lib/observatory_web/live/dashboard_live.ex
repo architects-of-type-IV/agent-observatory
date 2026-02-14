@@ -103,34 +103,20 @@ defmodule ObservatoryWeb.DashboardLive do
   end
 
   def handle_event("select_event", %{"id" => id}, socket) do
-    selected =
-      if socket.assigns.selected_event && socket.assigns.selected_event.id == id do
-        nil
-      else
-        Enum.find(socket.assigns.events, &(&1.id == id))
-      end
-
+    cur = socket.assigns.selected_event
+    selected = if cur && cur.id == id, do: nil, else: Enum.find(socket.assigns.events, &(&1.id == id))
     {:noreply, socket |> assign(:selected_event, selected) |> assign(:selected_task, nil) |> prepare_assigns()}
   end
 
-  def handle_event("close_detail", params, socket) do
-    {:noreply, handle_close_detail(params, socket) |> prepare_assigns()}
-  end
+  def handle_event("close_detail", p, socket), do: {:noreply, handle_close_detail(p, socket) |> prepare_assigns()}
 
   def handle_event("select_task", %{"id" => id}, socket) do
-    selected =
-      if socket.assigns.selected_task && socket.assigns.selected_task[:id] == id do
-        nil
-      else
-        Enum.find(socket.assigns.active_tasks, &(&1[:id] == id))
-      end
-
+    cur = socket.assigns.selected_task
+    selected = if cur && cur[:id] == id, do: nil, else: Enum.find(socket.assigns.active_tasks, &(&1[:id] == id))
     {:noreply, socket |> assign(:selected_task, selected) |> assign(:selected_event, nil) |> prepare_assigns()}
   end
 
-  def handle_event("close_task_detail", params, socket) do
-    {:noreply, handle_close_task_detail(params, socket) |> prepare_assigns()}
-  end
+  def handle_event("close_task_detail", p, socket), do: {:noreply, handle_close_task_detail(p, socket) |> prepare_assigns()}
 
   def handle_event("filter_tool", %{"tool" => tool}, socket) do
     {:noreply, handle_filter_tool(tool, socket) |> prepare_assigns()}
@@ -260,11 +246,8 @@ defmodule ObservatoryWeb.DashboardLive do
     team_sids = all_team_sids(teams)
     standalone = Enum.reject(all_sessions, fn s -> MapSet.member?(team_sids, s.session_id) end)
 
-    # Derive event-based task and message state
     event_tasks = derive_tasks(assigns.events)
     messages = derive_messages(assigns.events)
-
-    # Apply message search if present
     filtered_messages = search_messages(messages, assigns.search_messages)
     message_threads = group_messages_by_thread(filtered_messages)
 
