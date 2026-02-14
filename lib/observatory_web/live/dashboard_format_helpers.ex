@@ -109,6 +109,13 @@ defmodule ObservatoryWeb.DashboardFormatHelpers do
   end
 
   @doc """
+  Format duration in seconds for timeline view.
+  """
+  def session_duration_sec(sec) when sec < 60, do: "#{sec}s"
+  def session_duration_sec(sec) when sec < 3600, do: "#{div(sec, 60)}m"
+  def session_duration_sec(sec), do: "#{div(sec, 3600)}h#{rem(div(sec, 60), 60)}m"
+
+  @doc """
   Generate human-readable summary for an event.
   """
   def event_summary(%{hook_event_type: :PreToolUse} = event) do

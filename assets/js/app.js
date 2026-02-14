@@ -37,6 +37,59 @@ let Hooks = {
         })
       })
     }
+  },
+  KeyboardShortcuts: {
+    mounted() {
+      this.handleKeydown = (e) => {
+        // Ignore if user is typing in an input
+        if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") {
+          return
+        }
+
+        // ? - show shortcuts help
+        if (e.key === "?" && !e.metaKey && !e.ctrlKey) {
+          e.preventDefault()
+          this.pushEvent("toggle_shortcuts_help", {})
+          return
+        }
+
+        // f - focus search
+        if (e.key === "f" && !e.metaKey && !e.ctrlKey) {
+          e.preventDefault()
+          const searchInput = document.querySelector('input[name="q"]')
+          if (searchInput) searchInput.focus()
+          return
+        }
+
+        // 1-6 - switch view modes
+        const viewModes = ["feed", "tasks", "messages", "agents", "errors", "analytics"]
+        const numKey = parseInt(e.key)
+        if (numKey >= 1 && numKey <= 6 && !e.metaKey && !e.ctrlKey) {
+          e.preventDefault()
+          this.pushEvent("set_view", { mode: viewModes[numKey - 1] })
+          return
+        }
+
+        // Escape - clear selection/filters/detail
+        if (e.key === "Escape") {
+          e.preventDefault()
+          this.pushEvent("keyboard_escape", {})
+          return
+        }
+
+        // j/k - navigate events
+        if ((e.key === "j" || e.key === "k") && !e.metaKey && !e.ctrlKey) {
+          e.preventDefault()
+          this.pushEvent("keyboard_navigate", { direction: e.key === "j" ? "next" : "prev" })
+          return
+        }
+      }
+
+      window.addEventListener("keydown", this.handleKeydown)
+    },
+    destroyed() {
+      window.removeEventListener("keydown", this.handleKeydown)
+    }
   }
 }
 

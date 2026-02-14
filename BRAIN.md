@@ -12,34 +12,77 @@
   - dashboard_team_helpers.ex: team derivation, member enrichment
   - dashboard_data_helpers.ex: task/message derivation, filtering
   - dashboard_format_helpers.ex: display formatting, event summaries
+  - dashboard_timeline_helpers.ex: timeline computation, block positioning
   - dashboard_messaging_handlers.ex: messaging event handlers
 - Reusable components in observatory_components.ex
 - GenServers: TeamWatcher (disk polling), Mailbox (ETS message queues)
-- Phoenix.Component.assign/3 for helper modules (not LiveView.assign/2)
+
+## Timeline View Implementation
+
+### Event Pairing Strategy
+Tool executions split into PreToolUse and PostToolUse with matching tool_use_id.
+
+**Algorithm**:
+1. Create Map lookup of PostToolUse events keyed by tool_use_id
+2. Filter for PreToolUse events
+3. For each Pre event, lookup matching Post by tool_use_id
+4. Create block: start_time (Pre), end_time (Post), duration_ms (Post)
+
+### CSS Percentage Positioning
+Calculate timeline block positions as percentages of total timespan:
+
+```elixir
+start_offset_ms = DateTime.diff(block.start_time, global_start, :millisecond)
+duration_ms = DateTime.diff(block.end_time, block.start_time, :millisecond)
+total_duration_ms = DateTime.diff(global_end, global_start, :millisecond)
+
+left_pct = (start_offset_ms / total_duration_ms) * 100
+width_pct = max((duration_ms / total_duration_ms) * 100, 0.5)  # min 0.5% visibility
+```
+
+**Benefits**: Responsive, no JavaScript, works with Tailwind
+
+### Idle Gap Computation
+Fill gaps between tool blocks with "idle" blocks:
+1. Sort tool blocks by start_time
+2. Add initial idle if session_start < first_block.start_time
+3. For each consecutive pair, add idle if gap exists
+4. Add final idle if last_block.end_time < session_end
+5. Reverse list (built backwards for performance)
+
+### Auto-scroll UX Pattern
+```javascript
+AutoScrollTimeline: {
+  mounted() { this.scrollToBottom() },
+  updated() {
+    const isNearBottom = this.el.scrollHeight - this.el.scrollTop - this.el.clientHeight < 100
+    if (isNearBottom) { this.scrollToBottom() }
+  }
+}
+```
+
+Auto-scrolls on mount + updates (only if user is near bottom < 100px)
+
+## Tool Color Mapping
+Consistent colors across views:
+- Bash: amber (shell)
+- Read: blue (reading)
+- Write: emerald (creating)
+- Edit: violet (modifying)
+- Grep/Glob: cyan/teal (searching)
+- Task: indigo (delegation)
+- Web tools: orange (external)
+- Messaging: fuchsia/pink (coordination)
 
 ## Refactoring Lessons
 - Extract template FIRST (biggest win), then helpers, then components
-- prepare_assigns/1 pattern: single function that computes all derived assigns from raw state
-- Keep LiveView module to lifecycle only: mount, handle_info, handle_event, prepare_assigns
-
-## Team Agent Insights
-- Teammates spawned in delegate mode may lack file tools (Read, Bash) - verify tool access
-- Always spawn with mode: "bypassPermissions" for implementation work
-- subagent_type: "general-purpose" should have all tools but doesn't always
-- One team per leader limitation - add tasks to existing team instead of creating new ones
-- Always review teammate work - don't trust completion messages blindly
+- prepare_assigns/1 pattern: single function computes all derived state
+- LiveView module for lifecycle only: mount, handle_info, handle_event, prepare_assigns
 
 ## PubSub Topics
-- "events:stream" - all events (dashboard subscribes)
-- "teams:update" - team state changes from TeamWatcher
-- "agent:{session_id}" - per-agent mailbox channel
-- "team:{team_name}" - team broadcast channel
-- "session:{session_id}" - session event stream
-- "dashboard:commands" - UI -> agents commands
-
-## User Preferences
-- Zero warnings policy
-- Modules under 300 lines
-- Always run builds (mix compile --warnings-as-errors)
-- Always verify work as team lead
-- Use /keep-track for checkpoints
+- "events:stream" - all events
+- "teams:update" - team state changes
+- "agent:{session_id}" - per-agent mailbox
+- "team:{team_name}" - team broadcast
+- "session:{session_id}" - session events
+- "dashboard:commands" - UI -> agents

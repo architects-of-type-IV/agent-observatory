@@ -1,4 +1,4 @@
-<div class="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col">
+<div class="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col" id="dashboard-root" phx-hook="KeyboardShortcuts">
   <%!-- Header --%>
   <header class="sticky top-0 z-50 bg-zinc-900/95 backdrop-blur border-b border-zinc-800">
     <div class="px-4 py-3 flex items-center justify-between">
@@ -38,6 +38,30 @@
           >
             Agents
             <span :if={@teams != []} class="ml-1 text-xs text-zinc-600">({length(@teams)})</span>
+          </button>
+          <button
+            phx-click="set_view"
+            phx-value-mode="errors"
+            class={"px-2.5 py-1 text-xs rounded-md transition #{if @view_mode == :errors, do: "bg-zinc-700 text-zinc-200 shadow-sm", else: "text-zinc-500 hover:text-zinc-300"}"}
+          >
+            Errors
+            <span :if={@errors != []} class="ml-1 px-1 text-xs bg-red-500/20 text-red-400 rounded">
+              {length(@errors)}
+            </span>
+          </button>
+          <button
+            phx-click="set_view"
+            phx-value-mode="analytics"
+            class={"px-2.5 py-1 text-xs rounded-md transition #{if @view_mode == :analytics, do: "bg-zinc-700 text-zinc-200 shadow-sm", else: "text-zinc-500 hover:text-zinc-300"}"}
+          >
+            Analytics
+          </button>
+          <button
+            phx-click="set_view"
+            phx-value-mode="timeline"
+            class={"px-2.5 py-1 text-xs rounded-md transition #{if @view_mode == :timeline, do: "bg-zinc-700 text-zinc-200 shadow-sm", else: "text-zinc-500 hover:text-zinc-300"}"}
+          >
+            Timeline
           </button>
         </div>
       </div>
@@ -451,6 +475,124 @@
           </div>
         </div>
       </div>
+
+      <%!-- Errors View --%>
+      <div :if={@view_mode == :errors} class="p-4">
+        <div :if={@errors == []} class="flex flex-col items-center justify-center py-24 text-zinc-600">
+          <p class="text-lg">No errors yet</p>
+          <p class="text-sm mt-1 text-zinc-700">Tool failures will appear here</p>
+        </div>
+
+        <div :if={@errors != []} class="space-y-4">
+          <div :for={group <- @error_groups} class="p-4 rounded-lg border border-red-500/20 bg-red-500/5">
+            <div class="flex items-center justify-between mb-3">
+              <div class="flex items-center gap-2">
+                <span class="text-sm font-semibold text-red-400">{group.tool}</span>
+                <span class="px-2 py-0.5 text-xs rounded bg-red-500/20 text-red-300">{group.count} errors</span>
+              </div>
+              <span class="text-xs text-zinc-500">{relative_time(group.latest.timestamp, @now)}</span>
+            </div>
+            <div class="space-y-2">
+              <div :for={err <- Enum.take(group.errors, 5)} class="p-2 rounded bg-zinc-900/50 border border-zinc-800">
+                <div class="flex items-center justify-between mb-1">
+                  <% {bg, _b, _t} = session_color(err.session_id) %>
+                  <span class={"w-2 h-2 rounded-full #{bg}"}></span>
+                  <span class="text-xs font-mono text-zinc-500">{short_session(err.session_id)}</span>
+                  <span class="text-xs text-zinc-600">{relative_time(err.timestamp, @now)}</span>
+                </div>
+                <p class="text-xs text-zinc-300 ml-4">{err.error}</p>
+              </div>
+              <p :if={length(group.errors) > 5} class="text-xs text-zinc-600 text-center">
+                + {length(group.errors) - 5} more errors
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <%!-- Analytics View --%>
+      <div :if={@view_mode == :analytics} class="p-4">
+        <div :if={@analytics == []} class="flex flex-col items-center justify-center py-24 text-zinc-600">
+          <p class="text-lg">No tool usage yet</p>
+          <p class="text-sm mt-1 text-zinc-700">Analytics will appear when agents use tools</p>
+        </div>
+
+        <div :if={@analytics != []} class="space-y-3">
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead class="border-b border-zinc-800">
+                <tr class="text-left">
+                  <th class="pb-2 pr-4 text-xs font-semibold text-zinc-500 uppercase">Tool</th>
+                  <th class="pb-2 pr-4 text-xs font-semibold text-zinc-500 uppercase text-right">Uses</th>
+                  <th class="pb-2 pr-4 text-xs font-semibold text-zinc-500 uppercase text-right">Success</th>
+                  <th class="pb-2 pr-4 text-xs font-semibold text-zinc-500 uppercase text-right">Failures</th>
+                  <th class="pb-2 pr-4 text-xs font-semibold text-zinc-500 uppercase text-right">Fail %</th>
+                  <th class="pb-2 text-xs font-semibold text-zinc-500 uppercase text-right">Avg Duration</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr :for={stat <- @analytics} class="border-b border-zinc-800/50 hover:bg-zinc-900/50">
+                  <td class="py-2 pr-4 font-mono text-zinc-300">{stat.tool}</td>
+                  <td class="py-2 pr-4 text-right text-zinc-400">{stat.total_uses}</td>
+                  <td class="py-2 pr-4 text-right text-emerald-400">{stat.successes}</td>
+                  <td class="py-2 pr-4 text-right text-red-400">{stat.failures}</td>
+                  <% fail_class = if stat.failure_rate > 0.3, do: "py-2 pr-4 text-right text-red-400", else: "py-2 pr-4 text-right text-zinc-500" %>
+                  <td class={fail_class}>
+                    {Float.round(stat.failure_rate * 100, 0)}%
+                  </td>
+                  <td class="py-2 text-right text-zinc-400">
+                    {if stat.avg_duration_ms, do: format_duration(stat.avg_duration_ms), else: "-"}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <%!-- Timeline View --%>
+      <div :if={@view_mode == :timeline} class="p-4">
+        <div :if={@timeline == []} class="flex flex-col items-center justify-center py-24 text-zinc-600">
+          <p class="text-lg">No tool activity yet</p>
+          <p class="text-sm mt-1 text-zinc-700">Timeline will show tool executions over time</p>
+        </div>
+
+        <div :if={@timeline != []} class="space-y-4">
+          <% global_start = List.first(@timeline).start_time %>
+          <% global_end = List.last(Enum.sort_by(@timeline, & &1.start_time, {:desc, DateTime})).end_time %>
+
+          <div :for={session <- @timeline} class="space-y-2">
+            <div class="flex items-center gap-2">
+              <% {bg, _b, _t} = session_color(session.session_id) %>
+              <span class={"w-2 h-2 rounded-full #{bg}"}></span>
+              <span class="text-xs font-mono text-zinc-400">{session.source_app}:{short_session(session.session_id)}</span>
+              <span class="text-xs text-zinc-600">{session_duration_sec(session.duration_sec)}</span>
+            </div>
+
+            <div class="relative h-8 bg-zinc-900 rounded border border-zinc-800">
+              <% positioned_blocks = calculate_block_positions(session, global_start, global_end) %>
+              <div :for={block <- positioned_blocks} class="absolute top-1 h-6 group">
+                <% block_class = if block[:type] == :idle, do: "h-full rounded bg-zinc-800", else: "h-full rounded #{tool_color(block[:tool_name])}" %>
+                <% block_title = if block[:type] == :tool, do: "#{block[:tool_name]}: #{block[:summary]}", else: "idle" %>
+                <div
+                  class={block_class}
+                  style={"left: #{block.left_pct}%; width: #{block.width_pct}%"}
+                  title={block_title}
+                >
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <%!-- Time axis --%>
+          <div class="relative h-4 mt-2">
+            <% labels = time_axis_labels(global_start, global_end, 10) %>
+            <div :for={label <- labels} class="absolute" style={"left: #{label.position_pct}%"}>
+              <span class="text-xs text-zinc-600">{label.label}</span>
+            </div>
+          </div>
+        </div>
+      </div>
     </main>
 
     <%!-- ═══ Detail Panel ═══ --%>
@@ -638,3 +780,62 @@
     </aside>
   </div>
 </div>
+
+  <%!-- Keyboard Shortcuts Help Modal --%>
+  <div
+    :if={@show_shortcuts_help}
+    class="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+    phx-click="toggle_shortcuts_help"
+  >
+    <div class="bg-zinc-900 border border-zinc-700 rounded-lg shadow-xl max-w-md w-full mx-4" phx-click="stop">
+      <div class="px-4 py-3 border-b border-zinc-800 flex items-center justify-between">
+        <h2 class="text-sm font-semibold text-zinc-200">Keyboard Shortcuts</h2>
+        <button phx-click="toggle_shortcuts_help" class="text-zinc-500 hover:text-zinc-300 transition">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+          </svg>
+        </button>
+      </div>
+      <div class="px-4 py-3 space-y-3">
+        <div>
+          <h3 class="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">Navigation</h3>
+          <div class="space-y-1 text-xs">
+            <div class="flex items-center justify-between">
+              <span class="text-zinc-400">Switch views (1-6)</span>
+              <kbd class="px-2 py-0.5 bg-zinc-800 border border-zinc-700 rounded text-zinc-300 font-mono">1-6</kbd>
+            </div>
+            <div class="flex items-center justify-between">
+              <span class="text-zinc-400">Focus search</span>
+              <kbd class="px-2 py-0.5 bg-zinc-800 border border-zinc-700 rounded text-zinc-300 font-mono">f</kbd>
+            </div>
+            <div class="flex items-center justify-between">
+              <span class="text-zinc-400">Clear selection</span>
+              <kbd class="px-2 py-0.5 bg-zinc-800 border border-zinc-700 rounded text-zinc-300 font-mono">Esc</kbd>
+            </div>
+          </div>
+        </div>
+        <div>
+          <h3 class="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">Feed</h3>
+          <div class="space-y-1 text-xs">
+            <div class="flex items-center justify-between">
+              <span class="text-zinc-400">Next event</span>
+              <kbd class="px-2 py-0.5 bg-zinc-800 border border-zinc-700 rounded text-zinc-300 font-mono">j</kbd>
+            </div>
+            <div class="flex items-center justify-between">
+              <span class="text-zinc-400">Previous event</span>
+              <kbd class="px-2 py-0.5 bg-zinc-800 border border-zinc-700 rounded text-zinc-300 font-mono">k</kbd>
+            </div>
+          </div>
+        </div>
+        <div>
+          <h3 class="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">Help</h3>
+          <div class="space-y-1 text-xs">
+            <div class="flex items-center justify-between">
+              <span class="text-zinc-400">Show this help</span>
+              <kbd class="px-2 py-0.5 bg-zinc-800 border border-zinc-700 rounded text-zinc-300 font-mono">?</kbd>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>

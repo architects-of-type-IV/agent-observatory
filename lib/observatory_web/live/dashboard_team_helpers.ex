@@ -4,6 +4,8 @@ defmodule ObservatoryWeb.DashboardTeamHelpers do
   Handles merging event-based teams with disk-persisted teams.
   """
 
+  import ObservatoryWeb.DashboardAgentHealthHelpers
+
   @doc """
   Derive teams from both events and disk state, merging them appropriately.
   Disk teams are authoritative when available.
@@ -129,18 +131,28 @@ defmodule ObservatoryWeb.DashboardTeamHelpers do
             true -> :active
           end
 
+        # Compute health metrics
+        health_data = compute_agent_health(member_events, now)
+
         Map.merge(m, %{
           event_count: length(member_events),
           latest_event: latest,
-          status: status
+          status: status,
+          health: health_data.health,
+          health_issues: health_data.issues,
+          failure_rate: health_data.failure_rate
         })
       end)
     end)
   end
 
   @doc """
-  Get color class for member status indicator.
+  Get color class for member status indicator (now health-based).
   """
+  def member_status_color(member) when is_map(member) do
+    health_color(member[:health] || :unknown)
+  end
+
   def member_status_color(:active), do: "bg-emerald-500"
   def member_status_color(:idle), do: "bg-amber-500"
   def member_status_color(:ended), do: "bg-zinc-600"

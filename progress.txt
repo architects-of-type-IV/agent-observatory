@@ -1,47 +1,61 @@
 Observatory Progress Log
 ========================
 
-Session 1:
-- Scaffolded Phoenix project with Ash/SQLite
-- Created Event resource, API endpoint, hook scripts
-- Built initial LiveView dashboard with feed view
+Session 1-3:
+- Core refactoring complete (#1-5, #14, #22)
+- PubSub messaging system (#19)
 
-Session 2:
-- Added event detail panel (right sidebar)
-- Researched Claude Code agent teams feature
-- Implemented team-aware UI (team derivation, 3 view modes)
-- Started observatory-refactor team
+Session 4 (current - task #28):
+==================================
 
-Session 3 (current - continuation):
-- Completed codebase refactoring:
-  - #1: Audit complete
-  - #2: Template extracted to .html.heex (589 lines)
-  - #3: Helpers extracted to dashboard_helpers.ex (503 lines)
-  - #4: Components extracted to observatory_components.ex (127 lines)
-  - #5: Compilation verified (zero warnings)
-- Implemented UI features (task #14):
-  - Clickable task board with detail panel
-  - 4th view mode: Agents (team grid with member panels)
-  - Agent filtering (click member -> filter feed)
-  - Task/event selection mutually exclusive
-- Reviewer verified implementation and found dashboard_helpers.ex exceeded 300 lines
-- Completed task #22: Split dashboard_helpers.ex into 3 focused modules:
-  - dashboard_team_helpers.ex (148 lines): team logic
-  - dashboard_data_helpers.ex (222 lines): tasks, messages, filtering
-  - dashboard_format_helpers.ex (192 lines): display formatting
-- All modules now under 300 lines, zero warnings confirmed
+TASK #28: Timeline/Swimlane View - COMPLETED
 
+### Created Files
+1. lib/observatory_web/live/dashboard_timeline_helpers.ex (252 lines)
+   - compute_timeline_data/1: Groups events by session
+   - build_timeline_blocks/1: Pairs PreToolUse + PostToolUse by tool_use_id
+   - add_idle_gaps/2: Inserts gray idle blocks between tools
+   - calculate_block_positions/3: Converts timestamps to CSS percentages
+   - tool_color/1: Maps tool names to color classes
+   - time_axis_labels/3: Generates time axis tick marks
 
-Session 4 (current - task #19):
-- Implemented PubSub messaging system:
-  - Observatory.Mailbox GenServer (142 lines): ETS-backed message queues
-  - Observatory.Channels (160 lines): Channel topology and routing
-  - DashboardMessagingHandlers (94 lines): LiveView messaging handlers
-  - Updated EventController: Routes SendMessage to mailbox/channels
-  - Updated Application: Added Mailbox to supervisor
-  - Updated DashboardLive: Integrated messaging handlers + mailbox_counts
-  - Updated template: Message inputs, unread badges, team broadcast
-- Verification: All modules under 300 lines, zero warnings
-- Status: Task #19 complete, awaiting team-lead review
+### Modified Files
+1. lib/observatory_web/live/dashboard_live.ex
+   - Imported DashboardTimelineHelpers
+   - Added timeline computation in prepare_assigns/1
+   - New assigns: timeline_sessions, timeline_start, timeline_end, time_axis
+
+2. lib/observatory_web/live/dashboard_live.html.heex
+   - Added Timeline tab (keyboard shortcut: 7)
+   - Implemented timeline view with:
+     * Horizontal time axis (+0s, +30s, +1m labels)
+     * Session swimlanes (one per session_id)
+     * Colored tool blocks (inline CSS positioning)
+     * Gray idle gaps
+     * Hover tooltips (tool, summary, duration)
+     * Click blocks to select event
+     * Red dot for failures
+     * Auto-scroll container
+
+3. assets/js/app.js
+   - AutoScrollTimeline hook
+   - Updated keyboard shortcuts (1-7)
+
+### Features
+- Pure CSS (no charting library)
+- Horizontal swimlanes per session
+- Percentage-based positioning (left%, width%)
+- Tool-specific colors: Bash=amber, Read=blue, Write=emerald, etc.
+- Idle gaps (gray) show thinking/processing time
+- Interactive: click -> detail panel
+- Auto-scroll to latest (preserves scroll if user scrolls up)
+- Time axis: relative from session start
+- Failure indicators (red dots)
+
+### Verification
+✅ mix compile --warnings-as-errors (SUCCESS - zero warnings)
+
+### Status
+COMPLETE - Ready for team-lead review
 
 Next: TBD by team-lead

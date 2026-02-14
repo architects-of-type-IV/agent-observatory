@@ -4,6 +4,7 @@ defmodule ObservatoryWeb.DashboardLive do
   import ObservatoryWeb.DashboardDataHelpers
   import ObservatoryWeb.DashboardFormatHelpers
   import ObservatoryWeb.DashboardMessagingHandlers
+  import ObservatoryWeb.DashboardTimelineHelpers
 
   @max_events 500
 
@@ -38,6 +39,7 @@ defmodule ObservatoryWeb.DashboardLive do
       |> assign(:disk_teams, disk_teams)
       |> assign(:selected_team, nil)
       |> assign(:mailbox_counts, %{})
+      |> assign(:show_shortcuts_help, false)
       |> prepare_assigns()
 
     # Subscribe to mailbox channels for all active sessions
@@ -188,6 +190,49 @@ defmodule ObservatoryWeb.DashboardLive do
     handle_push_context(params, socket)
   end
 
+  def handle_event("toggle_shortcuts_help", _params, socket) do
+    {:noreply, socket |> assign(:show_shortcuts_help, !socket.assigns.show_shortcuts_help)}
+  end
+
+  def handle_event("keyboard_escape", _params, socket) do
+    {:noreply,
+     socket
+     |> assign(:selected_event, nil)
+     |> assign(:selected_task, nil)
+     |> assign(:search_feed, "")
+     |> prepare_assigns()}
+  end
+
+  def handle_event("keyboard_navigate", %{"direction" => direction}, socket) do
+    # Simple implementation: just move selection in feed view
+    if socket.assigns.view_mode == :feed && socket.assigns.visible_events != [] do
+      current = socket.assigns.selected_event
+      events = socket.assigns.visible_events
+
+      new_event = case direction do
+        "next" ->
+          if current do
+            idx = Enum.find_index(events, &(&1.id == current.id))
+            if idx && idx < length(events) - 1, do: Enum.at(events, idx + 1), else: current
+          else
+            List.first(events)
+          end
+        "prev" ->
+          if current do
+            idx = Enum.find_index(events, &(&1.id == current.id))
+            if idx && idx > 0, do: Enum.at(events, idx - 1), else: current
+          else
+            List.first(events)
+          end
+        _ -> current
+      end
+
+      {:noreply, socket |> assign(:selected_event, new_event) |> prepare_assigns()}
+    else
+      {:noreply, socket}
+    end
+  end
+
 
   defp load_recent_events do
     case Ash.read(Observatory.Events.Event, action: :read) do
@@ -229,6 +274,12 @@ defmodule ObservatoryWeb.DashboardLive do
 
     has_teams? = teams != []
 
+    # Compute error and analytics data
+    errors = extract_errors(assigns.events)
+    error_groups = group_errors(errors)
+    analytics = compute_tool_analytics(assigns.events)
+    timeline = compute_timeline_data(assigns.events)
+
     socket
     |> assign(:visible_events, filtered_events(assigns))
     |> assign(:sessions, filtered_sessions(standalone, assigns.search_sessions))
@@ -238,5 +289,9 @@ defmodule ObservatoryWeb.DashboardLive do
     |> assign(:active_tasks, active_tasks)
     |> assign(:messages, messages)
     |> assign(:sel_team, sel_team)
+    |> assign(:errors, errors)
+    |> assign(:error_groups, error_groups)
+    |> assign(:analytics, analytics)
+    |> assign(:timeline, timeline)
   end
 end

@@ -219,4 +219,81 @@ defmodule ObservatoryWeb.DashboardDataHelpers do
 
   defp find_model(events), do: Enum.find_value(events, fn e -> e.payload["model"] || e.model_name end)
   defp find_cwd(events), do: Enum.find_value(events, fn e -> e.cwd end)
+
+  @doc """
+  Extract error events (PostToolUseFailure) from events.
+  """
+  def extract_errors(events) do
+    events
+    |> Enum.filter(&(&1.hook_event_type == :PostToolUseFailure))
+    |> Enum.map(fn e ->
+      %{
+        id: e.id,
+        tool_name: e.tool_name,
+        session_id: e.session_id,
+        source_app: e.source_app,
+        error: e.payload["error"] || "Unknown error",
+        timestamp: e.inserted_at,
+        tool_use_id: e.tool_use_id
+      }
+    end)
+  end
+
+  @doc """
+  Group errors by tool name for summary view.
+  """
+  def group_errors(errors) do
+    errors
+    |> Enum.group_by(& &1.tool_name)
+    |> Enum.map(fn {tool, errs} ->
+      %{
+        tool: tool,
+        count: length(errs),
+        latest: List.first(Enum.sort_by(errs, & &1.timestamp, {:desc, DateTime})),
+        errors: errs
+      }
+    end)
+    |> Enum.sort_by(& &1.count, :desc)
+  end
+
+  @doc """
+  Compute tool performance analytics from events.
+  """
+  def compute_tool_analytics(events) do
+    # Get all PreToolUse and PostToolUse/PostToolUseFailure events
+    tool_events =
+      events
+      |> Enum.filter(fn e ->
+        e.hook_event_type in [:PreToolUse, :PostToolUse, :PostToolUseFailure]
+      end)
+
+    # Group by tool name
+    tool_events
+    |> Enum.group_by(fn e -> e.tool_name end)
+    |> Enum.map(fn {tool, evts} ->
+      completions = Enum.filter(evts, &(&1.hook_event_type in [:PostToolUse, :PostToolUseFailure]))
+      failures = Enum.filter(completions, &(&1.hook_event_type == :PostToolUseFailure))
+      successes = Enum.filter(completions, &(&1.hook_event_type == :PostToolUse))
+
+      durations =
+        successes
+        |> Enum.map(& &1.duration_ms)
+        |> Enum.reject(&is_nil/1)
+
+      avg_duration =
+        if Enum.empty?(durations),
+          do: nil,
+          else: Float.round(Enum.sum(durations) / length(durations), 1)
+
+      %{
+        tool: tool,
+        total_uses: length(completions),
+        successes: length(successes),
+        failures: length(failures),
+        failure_rate: if(length(completions) > 0, do: Float.round(length(failures) / length(completions), 2), else: 0.0),
+        avg_duration_ms: avg_duration
+      }
+    end)
+    |> Enum.sort_by(& &1.total_uses, :desc)
+  end
 end
