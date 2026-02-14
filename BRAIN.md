@@ -177,3 +177,11 @@ AgentMonitor GenServer monitors agent health and auto-reassigns tasks from crash
 - Displays: full session ID, model, permission mode, cwd, uptime, health metrics, recent 15 events, assigned tasks, message form, actions
 - Member cards clickable with selection highlight (border change)
 - Reuses existing components: member_status_color, model_badge, event_type_badge, health_warnings
+
+## Sprint 5 Lessons (Feb 2026)
+- **5 parallel agents with non-overlapping file scopes**: Assign each agent specific files to create/modify. Zero merge conflicts achieved.
+- **Agents self-wire when possible**: activity-builder and task-editor wired their own event handlers into dashboard_live.ex, reducing integrator work
+- **Component extraction fixes size violations**: Moving task_column from observatory_components (335 lines) to tasks_components (77 -> 144 lines) brought both under 300
+- **Ash resource pattern**: Domain at lib/observatory/{domain}.ex, resource at lib/observatory/{domain}/{resource}.ex. Use `mix ash.codegen --name X` for migrations.
+- **Feed grouping reuses timeline pairing**: Tool event pairing (PreToolUse + PostToolUse by tool_use_id) is same pattern as timeline_helpers
+- **Agent activity summarization**: Parse hook event payload by tool_name to generate human-readable summaries (Read -> "Reading {path}", Bash -> "Running `{cmd}`")

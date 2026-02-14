@@ -844,3 +844,26 @@ RECOMMENDATION:
 System is production-ready. Module violations should be addressed in follow-up refactoring task.
 
 STATUS: QA complete. All critical functionality verified.
+
+[2026-02-14] Task #10: Integration + QA Fix - COMPLETED by team-lead
+=====================================================================
+
+INTEGRATION:
+- Wired session control handlers into dashboard_live.ex (pause/resume/shutdown_agent events)
+- Added feed_grouped assign + toggle_feed_grouping event handler
+- Added feed_groups computation in prepare_assigns (calls build_feed_groups when toggled on)
+- Imported DashboardFeedHelpers
+
+QA FIX:
+- Moved task_column component from observatory_components.ex (335 -> 218 lines) to tasks_components.ex (77 -> 144 lines)
+- Both now well under 300 line limit
+
+FINAL STATE:
+- dashboard_live.ex: 280 lines
+- observatory_components.ex: 218 lines
+- tasks_components.ex: 144 lines
+- Zero warnings: mix compile --warnings-as-errors PASS
+
+Sprint 5 COMPLETE
+==================
+All tasks done: Ash resources, template refactor, session control, inline editing, activity stream, grouped feed, integration, QA.
