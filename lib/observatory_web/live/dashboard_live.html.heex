@@ -241,7 +241,7 @@
     </aside>
 
     <%!-- ═══ Main Content Area ═══ --%>
-    <main class="flex-1 overflow-y-auto">
+    <main class="flex-1 overflow-y-auto overflow-x-hidden">
       <%!-- Feed View --%>
       <div :if={@view_mode == :feed} class="p-3 space-y-px" id="event-list">
         <div
@@ -277,7 +277,7 @@
               {event.tool_name}
             </span>
 
-            <span class="text-sm text-zinc-400 truncate flex-1 group-hover:text-zinc-300">
+            <span class="text-sm text-zinc-400 truncate flex-1 min-w-0 group-hover:text-zinc-300">
               {event.summary || event_summary(event)}
             </span>
 
@@ -302,7 +302,7 @@
           <p class="text-sm mt-1 text-zinc-700">Tasks will appear when agents use TaskCreate/TaskUpdate</p>
         </div>
 
-        <div :if={@active_tasks != []} class="grid grid-cols-3 gap-4">
+        <div :if={@active_tasks != []} class="grid grid-cols-3 gap-4 min-w-0">
           <ObservatoryWeb.ObservatoryComponents.task_column
             status="pending"
             title="Pending"
@@ -360,7 +360,7 @@
               <span :if={msg.type != "message"} class={"text-xs px-1.5 rounded #{case msg.type do; "broadcast" -> "bg-amber-500/15 text-amber-400"; "shutdown_request" -> "bg-red-500/15 text-red-400"; _ -> "bg-zinc-800 text-zinc-500" end}"}>{msg.type}</span>
               <span class="text-xs text-zinc-600 ml-auto">{relative_time(msg.timestamp, @now)}</span>
             </div>
-            <p class="text-sm text-zinc-300 whitespace-pre-wrap">{msg.content}</p>
+            <p class="text-sm text-zinc-300 whitespace-pre-wrap break-words">{msg.content}</p>
           </div>
         </div>
       </div>
@@ -372,7 +372,7 @@
           <p class="text-sm mt-1 text-zinc-700">Teams will appear when agents use TeamCreate</p>
         </div>
 
-        <div :if={@teams != []} class="grid grid-cols-2 gap-4">
+        <div :if={@teams != []} class="grid grid-cols-2 gap-4 min-w-0">
           <div
             :for={team <- @teams}
             class="p-4 rounded-lg border border-zinc-800 bg-zinc-900/50"
@@ -500,7 +500,7 @@
                   <span class="text-xs font-mono text-zinc-500">{short_session(err.session_id)}</span>
                   <span class="text-xs text-zinc-600">{relative_time(err.timestamp, @now)}</span>
                 </div>
-                <p class="text-xs text-zinc-300 ml-4">{err.error}</p>
+                <p class="text-xs text-zinc-300 ml-4 break-words">{err.error}</p>
               </div>
               <p :if={length(group.errors) > 5} class="text-xs text-zinc-600 text-center">
                 + {length(group.errors) - 5} more errors
@@ -569,14 +569,13 @@
               <span class="text-xs text-zinc-600">{session_duration_sec(session.duration_sec)}</span>
             </div>
 
-            <div class="relative h-8 bg-zinc-900 rounded border border-zinc-800">
+            <div class="relative h-8 bg-zinc-900 rounded border border-zinc-800 overflow-hidden">
               <% positioned_blocks = calculate_block_positions(session, global_start, global_end) %>
-              <div :for={block <- positioned_blocks} class="absolute top-1 h-6 group">
-                <% block_class = if block[:type] == :idle, do: "h-full rounded bg-zinc-800", else: "h-full rounded #{tool_color(block[:tool_name])}" %>
+              <div :for={block <- positioned_blocks} class="absolute top-1 h-6 group" style={"left: #{block.left_pct}%; width: #{block.width_pct}%"}>
+                <% block_class = if block[:type] == :idle, do: "h-full w-full rounded bg-zinc-800", else: "h-full w-full rounded #{tool_color(block[:tool_name])}" %>
                 <% block_title = if block[:type] == :tool, do: "#{block[:tool_name]}: #{block[:summary]}", else: "idle" %>
                 <div
                   class={block_class}
-                  style={"left: #{block.left_pct}%; width: #{block.width_pct}%"}
                   title={block_title}
                 >
                 </div>
