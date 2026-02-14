@@ -1,0 +1,589 @@
+<div class="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col">
+  <%!-- Header --%>
+  <header class="sticky top-0 z-50 bg-zinc-900/95 backdrop-blur border-b border-zinc-800">
+    <div class="px-4 py-3 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <h1 class="text-lg font-bold tracking-tight">Observatory</h1>
+        <%!-- View mode toggle --%>
+        <div class="flex items-center gap-0.5 bg-zinc-800 rounded-lg p-0.5">
+          <button
+            phx-click="set_view"
+            phx-value-mode="feed"
+            class={"px-2.5 py-1 text-xs rounded-md transition #{if @view_mode == :feed, do: "bg-zinc-700 text-zinc-200 shadow-sm", else: "text-zinc-500 hover:text-zinc-300"}"}
+          >
+            Feed
+          </button>
+          <button
+            phx-click="set_view"
+            phx-value-mode="tasks"
+            class={"px-2.5 py-1 text-xs rounded-md transition #{if @view_mode == :tasks, do: "bg-zinc-700 text-zinc-200 shadow-sm", else: "text-zinc-500 hover:text-zinc-300"}"}
+          >
+            Tasks
+            <span :if={@active_tasks != []} class="ml-1 text-xs text-zinc-600">
+              ({length(Enum.filter(@active_tasks, fn t -> t[:status] in ["completed", "completed"] end))}/{length(@active_tasks)})
+            </span>
+          </button>
+          <button
+            phx-click="set_view"
+            phx-value-mode="messages"
+            class={"px-2.5 py-1 text-xs rounded-md transition #{if @view_mode == :messages, do: "bg-zinc-700 text-zinc-200 shadow-sm", else: "text-zinc-500 hover:text-zinc-300"}"}
+          >
+            Messages
+            <span :if={@messages != []} class="ml-1 text-xs text-zinc-600">({length(@messages)})</span>
+          </button>
+          <button
+            phx-click="set_view"
+            phx-value-mode="agents"
+            class={"px-2.5 py-1 text-xs rounded-md transition #{if @view_mode == :agents, do: "bg-zinc-700 text-zinc-200 shadow-sm", else: "text-zinc-500 hover:text-zinc-300"}"}
+          >
+            Agents
+            <span :if={@teams != []} class="ml-1 text-xs text-zinc-600">({length(@teams)})</span>
+          </button>
+        </div>
+      </div>
+      <div class="flex items-center gap-3">
+        <div class="flex items-center gap-1.5 text-sm">
+          <span class="relative flex h-2 w-2">
+            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+            <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+          </span>
+          <span class="text-zinc-500 text-xs">live</span>
+        </div>
+        <span class="text-xs font-mono bg-zinc-800 px-2 py-0.5 rounded text-zinc-500">
+          {length(@visible_events)}/{length(@events)}
+        </span>
+        <button
+          phx-click="clear_events"
+          class="text-xs px-2 py-0.5 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-500 hover:text-zinc-300 transition"
+        >
+          Clear
+        </button>
+      </div>
+    </div>
+
+    <%!-- Search + Filters (only in feed mode) --%>
+    <div :if={@view_mode == :feed} class="px-4 pb-2 flex items-center gap-2">
+      <form phx-change="search_feed" class="flex-1">
+        <input
+          type="text"
+          name="q"
+          value={@search_feed}
+          placeholder="Search events... (tool, command, file, message, team)"
+          autocomplete="off"
+          phx-debounce="150"
+          class="w-full bg-zinc-800 border border-zinc-700 rounded px-2.5 py-1 text-xs text-zinc-300 placeholder-zinc-600 focus:border-indigo-500 focus:ring-0 focus:outline-none"
+        />
+      </form>
+      <form phx-change="filter" class="flex items-center gap-2">
+        <select
+          name="source_app"
+          class="bg-zinc-800 border border-zinc-700 rounded px-2 py-1 text-xs text-zinc-300 focus:border-indigo-500 focus:ring-0"
+        >
+          <option value="">All Apps</option>
+          <option
+            :for={app <- unique_values(@events, :source_app)}
+            value={app}
+            selected={app == @filter_source_app}
+          >
+            {app}
+          </option>
+        </select>
+
+        <select
+          name="event_type"
+          class="bg-zinc-800 border border-zinc-700 rounded px-2 py-1 text-xs text-zinc-300 focus:border-indigo-500 focus:ring-0"
+        >
+          <option value="">All Events</option>
+          <option
+            :for={et <- unique_values(@events, :hook_event_type)}
+            value={et}
+            selected={to_string(et) == @filter_event_type}
+          >
+            {et}
+          </option>
+        </select>
+      </form>
+
+      <button
+        :if={@filter_source_app || @filter_session_id || @filter_event_type || @search_feed != "" || @search_sessions != ""}
+        phx-click="clear_filters"
+        class="text-xs px-2 py-0.5 rounded bg-indigo-600/20 text-indigo-400 hover:bg-indigo-600/30 transition"
+      >
+        Reset
+      </button>
+    </div>
+  </header>
+
+  <div class="flex flex-1 overflow-hidden">
+    <%!-- ═══ Left Sidebar ═══ --%>
+    <aside class="w-72 bg-zinc-900/50 border-r border-zinc-800 overflow-y-auto shrink-0">
+      <div class="p-3">
+        <%!-- Teams Section --%>
+        <div :if={@has_teams} class="mb-4">
+          <h2 class="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">
+            Teams ({length(@teams)})
+          </h2>
+          <div class="space-y-2">
+            <div
+              :for={team <- @teams}
+              class={"rounded-lg border transition-all #{if @selected_team == team.name, do: "border-indigo-500/40 bg-zinc-800/60", else: "border-zinc-800 hover:border-zinc-700 bg-zinc-900/50"}"}
+            >
+              <%!-- Team header --%>
+              <div
+                class="p-2.5 cursor-pointer"
+                phx-click="select_team"
+                phx-value-name={team.name}
+              >
+                <div class="flex items-center justify-between mb-1.5">
+                  <span class="text-xs font-semibold text-zinc-200 truncate">{team.name}</span>
+                  <span class="text-xs text-zinc-600">{length(team.members)} agents</span>
+                </div>
+
+                <%!-- Task progress bar --%>
+                <% task_total = length(team.tasks) %>
+                <% task_done = Enum.count(team.tasks, fn t -> t[:status] == "completed" end) %>
+                <div :if={task_total > 0} class="mb-2">
+                  <div class="flex items-center justify-between text-xs text-zinc-500 mb-0.5">
+                    <span>Tasks</span>
+                    <span>{task_done}/{task_total}</span>
+                  </div>
+                  <div class="h-1 bg-zinc-800 rounded-full overflow-hidden">
+                    <div
+                      class="h-full bg-emerald-500 rounded-full transition-all"
+                      style={"width: #{if task_total > 0, do: round(task_done / task_total * 100), else: 0}%"}
+                    >
+                    </div>
+                  </div>
+                </div>
+
+                <%!-- Members --%>
+                <div class="space-y-1">
+                  <div :for={m <- team.members} class="flex items-center gap-2">
+                    <span class={"w-1.5 h-1.5 rounded-full shrink-0 #{member_status_color(m[:status])}"}></span>
+                    <span class="text-xs text-zinc-400 truncate">{m[:name] || "?"}</span>
+                    <span class="text-xs text-zinc-600 ml-auto">{m[:agent_type]}</span>
+                    <span :if={m[:event_count] && m[:event_count] > 0} class="text-xs text-zinc-700">{m[:event_count]}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <%!-- Sessions Section --%>
+        <div>
+          <div class="flex items-center justify-between mb-2">
+            <h2 class="text-xs font-semibold text-zinc-500 uppercase tracking-wider">
+              <%= if @has_teams, do: "Standalone Sessions", else: "Sessions" %>
+              ({length(@sessions)}<span :if={length(@sessions) != @total_sessions}>/{@total_sessions}</span>)
+            </h2>
+          </div>
+          <form phx-change="search_sessions" class="mb-3">
+            <input
+              type="text"
+              name="q"
+              value={@search_sessions}
+              placeholder="Search sessions..."
+              autocomplete="off"
+              phx-debounce="150"
+              class="w-full bg-zinc-800 border border-zinc-700 rounded px-2 py-1 text-xs text-zinc-300 placeholder-zinc-600 focus:border-indigo-500 focus:ring-0 focus:outline-none"
+            />
+          </form>
+          <div class="space-y-2">
+            <div
+              :for={s <- @sessions}
+              class={"p-2 rounded-lg cursor-pointer transition-all hover:bg-zinc-800 #{if @filter_session_id == s.session_id, do: "bg-zinc-800 ring-1 ring-zinc-600", else: ""}"}
+              phx-click="filter_session"
+              phx-value-sid={s.session_id}
+            >
+              <div class="flex items-center gap-2 mb-1">
+                <% {bg, _border, _text} = session_color(s.session_id) %>
+                <span class={"w-2 h-2 rounded-full shrink-0 #{bg} #{if s.ended?, do: "opacity-30", else: ""}"}></span>
+                <span class="text-xs font-mono text-zinc-300 truncate">{s.source_app}</span>
+                <span class="text-xs font-mono text-zinc-600">{short_session(s.session_id)}</span>
+              </div>
+              <div class="flex items-center gap-2 ml-4 text-xs text-zinc-500">
+                <span>{s.event_count} events</span>
+                <span>|</span>
+                <span>{session_duration(s.first_event, @now)}</span>
+              </div>
+              <div :if={s.model} class="ml-4 mt-0.5">
+                <span class="text-xs font-mono text-zinc-600">{s.model}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <%!-- ═══ Main Content Area ═══ --%>
+    <main class="flex-1 overflow-y-auto">
+      <%!-- Feed View --%>
+      <div :if={@view_mode == :feed} class="p-3 space-y-px" id="event-list">
+        <div
+          :if={Enum.empty?(@visible_events)}
+          class="flex flex-col items-center justify-center py-24 text-zinc-600"
+        >
+          <p class="text-lg">Waiting for agent activity...</p>
+          <p class="text-sm mt-1 text-zinc-700">Hook events will stream here in real-time</p>
+        </div>
+
+        <div :for={event <- @visible_events} id={"ev-#{event.id}"}>
+          <div
+            class={"flex items-center gap-2 px-3 py-1.5 rounded cursor-pointer transition-all hover:bg-zinc-900/80 group #{if @selected_event && @selected_event.id == event.id, do: "bg-zinc-800/80 ring-1 ring-indigo-500/40", else: ""} #{if is_team_tool?(event.tool_name), do: "border-l-2 border-cyan-500/30", else: ""}"}
+            phx-click="select_event"
+            phx-value-id={event.id}
+          >
+            <% {bg, _border, _text} = session_color(event.session_id) %>
+            <span class={"w-1.5 h-1.5 rounded-full shrink-0 #{bg}"}></span>
+
+            <span class="text-xs font-mono text-zinc-600 shrink-0 w-14 text-right" title={format_time(event.inserted_at)}>
+              {relative_time(event.inserted_at, @now)}
+            </span>
+
+            <% {label, badge_class} = event_type_label(event.hook_event_type) %>
+            <span class={"text-xs font-mono px-1.5 py-0 rounded shrink-0 #{badge_class}"}>
+              {label}
+            </span>
+
+            <span
+              :if={event.tool_name}
+              class={"text-xs font-mono shrink-0 #{if is_team_tool?(event.tool_name), do: "text-cyan-400", else: "text-indigo-400"}"}
+            >
+              {event.tool_name}
+            </span>
+
+            <span class="text-sm text-zinc-400 truncate flex-1 group-hover:text-zinc-300">
+              {event.summary || event_summary(event)}
+            </span>
+
+            <span
+              :if={event.duration_ms}
+              class={"text-xs font-mono px-1 rounded #{if event.duration_ms > 5000, do: "text-amber-400", else: "text-zinc-600"}"}
+            >
+              {format_duration(event.duration_ms)}
+            </span>
+
+            <span class="text-xs font-mono text-zinc-700 shrink-0 hidden lg:inline">
+              {event.source_app}:{short_session(event.session_id)}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <%!-- Task Board View --%>
+      <div :if={@view_mode == :tasks} class="p-4">
+        <div :if={@active_tasks == []} class="flex flex-col items-center justify-center py-24 text-zinc-600">
+          <p class="text-lg">No tasks tracked yet</p>
+          <p class="text-sm mt-1 text-zinc-700">Tasks will appear when agents use TaskCreate/TaskUpdate</p>
+        </div>
+
+        <div :if={@active_tasks != []} class="grid grid-cols-3 gap-4">
+          <ObservatoryWeb.ObservatoryComponents.task_column
+            status="pending"
+            title="Pending"
+            tasks={@active_tasks}
+            dot_class="bg-zinc-500"
+            title_class="text-zinc-400"
+            card_border="border-zinc-800 hover:border-zinc-700"
+            owner_class="text-zinc-500"
+            show_blocked_by={true}
+          />
+
+          <ObservatoryWeb.ObservatoryComponents.task_column
+            status="in_progress"
+            title="In Progress"
+            tasks={@active_tasks}
+            dot_class="bg-blue-500"
+            title_class="text-blue-400"
+            card_border="border-blue-500/20 hover:border-blue-500/40"
+            owner_class="text-blue-400"
+            show_active_form={true}
+            animate_dot={true}
+          />
+
+          <ObservatoryWeb.ObservatoryComponents.task_column
+            status="completed"
+            title="Completed"
+            tasks={@active_tasks}
+            dot_class="bg-emerald-500"
+            title_class="text-emerald-400"
+            card_border="border-emerald-500/15 hover:border-emerald-500/30"
+            owner_class="text-emerald-400/70"
+            subject_class="text-zinc-500 line-through"
+          />
+        </div>
+      </div>
+
+      <%!-- Messages View --%>
+      <div :if={@view_mode == :messages} class="p-4 max-w-3xl mx-auto">
+        <div :if={@messages == []} class="flex flex-col items-center justify-center py-24 text-zinc-600">
+          <p class="text-lg">No inter-agent messages yet</p>
+          <p class="text-sm mt-1 text-zinc-700">Messages appear when agents use SendMessage</p>
+        </div>
+
+        <div class="space-y-3">
+          <div
+            :for={msg <- @messages}
+            class={"p-3 rounded-lg border transition #{case msg.type do; "broadcast" -> "border-amber-500/20 bg-amber-500/5"; "shutdown_request" -> "border-red-500/20 bg-red-500/5"; _ -> "border-zinc-800 bg-zinc-900" end}"}
+          >
+            <div class="flex items-center gap-2 mb-1.5">
+              <% {bg, _b, _t} = session_color(msg.sender_session) %>
+              <span class={"w-2 h-2 rounded-full #{bg}"}></span>
+              <span class="text-xs font-mono text-zinc-400">{msg.sender_app}:{short_session(msg.sender_session)}</span>
+              <span class="text-xs text-zinc-600">-></span>
+              <span class="text-xs font-mono text-cyan-400">{msg.recipient || "all"}</span>
+              <span :if={msg.type != "message"} class={"text-xs px-1.5 rounded #{case msg.type do; "broadcast" -> "bg-amber-500/15 text-amber-400"; "shutdown_request" -> "bg-red-500/15 text-red-400"; _ -> "bg-zinc-800 text-zinc-500" end}"}>{msg.type}</span>
+              <span class="text-xs text-zinc-600 ml-auto">{relative_time(msg.timestamp, @now)}</span>
+            </div>
+            <p class="text-sm text-zinc-300 whitespace-pre-wrap">{msg.content}</p>
+          </div>
+        </div>
+      </div>
+
+      <%!-- Agents View --%>
+      <div :if={@view_mode == :agents} class="p-4">
+        <div :if={@teams == []} class="flex flex-col items-center justify-center py-24 text-zinc-600">
+          <p class="text-lg">No teams active yet</p>
+          <p class="text-sm mt-1 text-zinc-700">Teams will appear when agents use TeamCreate</p>
+        </div>
+
+        <div :if={@teams != []} class="grid grid-cols-2 gap-4">
+          <div
+            :for={team <- @teams}
+            class="p-4 rounded-lg border border-zinc-800 bg-zinc-900/50"
+          >
+            <div class="mb-3">
+              <h3 class="text-sm font-semibold text-zinc-200 mb-1">{team.name}</h3>
+              <p :if={team.description} class="text-xs text-zinc-500">{team.description}</p>
+            </div>
+
+            <% task_total = length(team.tasks) %>
+            <% task_done = Enum.count(team.tasks, fn t -> t[:status] == "completed" end) %>
+            <div :if={task_total > 0} class="mb-3">
+              <div class="flex items-center justify-between text-xs text-zinc-500 mb-1">
+                <span>Task Progress</span>
+                <span>{task_done}/{task_total}</span>
+              </div>
+              <div class="h-2 bg-zinc-800 rounded-full overflow-hidden">
+                <div
+                  class="h-full bg-emerald-500 rounded-full transition-all"
+                  style={"width: #{if task_total > 0, do: round(task_done / task_total * 100), else: 0}%"}
+                >
+                </div>
+              </div>
+            </div>
+
+            <div class="space-y-2">
+              <h4 class="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Members</h4>
+              <div
+                :for={member <- team.members}
+                class="p-2 rounded bg-zinc-800/50 hover:bg-zinc-800 transition cursor-pointer"
+                phx-click="filter_agent"
+                phx-value-session_id={member[:agent_id]}
+              >
+                <div class="flex items-center gap-2 mb-1">
+                  <span class={"w-2 h-2 rounded-full shrink-0 #{member_status_color(member[:status])}"}></span>
+                  <span class="text-xs font-semibold text-zinc-300">{member[:name] || "?"}</span>
+                  <span class="text-xs text-zinc-600 ml-auto">{member[:agent_type]}</span>
+                </div>
+                <div class="flex items-center gap-2 ml-4 text-xs text-zinc-500">
+                  <span :if={member[:latest_event]}>
+                    {relative_time(member[:latest_event].inserted_at, @now)}
+                  </span>
+                  <span :if={member[:event_count] && member[:event_count] > 0}>
+                    | {member[:event_count]} events
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <%!-- ═══ Detail Panel ═══ --%>
+    <aside
+      :if={@selected_event || @selected_task}
+      class="w-96 bg-zinc-900/70 border-l border-zinc-800 overflow-y-auto shrink-0 flex flex-col"
+    >
+      <%!-- Event Detail --%>
+      <div :if={@selected_event}>
+        <% ev = @selected_event %>
+        <% {_bg, _border, text_color} = session_color(ev.session_id) %>
+        <% {type_label, type_class} = event_type_label(ev.hook_event_type) %>
+
+      <div class="sticky top-0 bg-zinc-900/95 backdrop-blur border-b border-zinc-800 px-4 py-3 flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <span class={"text-xs font-mono px-1.5 py-0 rounded #{type_class}"}>{type_label}</span>
+          <span :if={ev.tool_name} class={"text-sm font-mono #{if is_team_tool?(ev.tool_name), do: "text-cyan-400", else: "text-indigo-400"}"}>{ev.tool_name}</span>
+        </div>
+        <button phx-click="close_detail" class="text-zinc-500 hover:text-zinc-300 transition p-1">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+          </svg>
+        </button>
+      </div>
+
+      <div class="px-4 py-3 border-b border-zinc-800/50">
+        <p class="text-sm text-zinc-300">{ev.summary || event_summary(ev)}</p>
+      </div>
+
+      <%!-- Team context badge if this is a team tool event --%>
+      <div :if={is_team_tool?(ev.tool_name)} class="px-4 py-2 border-b border-zinc-800/50 bg-cyan-500/5">
+        <span class="text-xs text-cyan-400 font-mono">Team coordination event</span>
+      </div>
+
+      <div class="px-4 py-3 border-b border-zinc-800/50 space-y-2">
+        <h3 class="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">Details</h3>
+        <div class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5 text-xs">
+          <span class="text-zinc-600">Timestamp</span>
+          <span class="font-mono text-zinc-400">{Calendar.strftime(ev.inserted_at, "%Y-%m-%d %H:%M:%S.%f")}</span>
+
+          <span class="text-zinc-600">Event Type</span>
+          <span class="font-mono text-zinc-400">{ev.hook_event_type}</span>
+
+          <span class="text-zinc-600">Source</span>
+          <span class={"font-mono #{text_color}"}>{ev.source_app}</span>
+
+          <span class="text-zinc-600">Session</span>
+          <span class="font-mono text-zinc-400">{ev.session_id}</span>
+
+          <span :if={ev.tool_name} class="text-zinc-600">Tool</span>
+          <span :if={ev.tool_name} class={"font-mono #{if is_team_tool?(ev.tool_name), do: "text-cyan-400", else: "text-indigo-400"}"}>{ev.tool_name}</span>
+
+          <span :if={ev.tool_use_id} class="text-zinc-600">Tool Use ID</span>
+          <span :if={ev.tool_use_id} class="font-mono text-zinc-400">{ev.tool_use_id}</span>
+
+          <span :if={ev.cwd} class="text-zinc-600">Working Dir</span>
+          <span :if={ev.cwd} class="font-mono text-zinc-400 break-all">{ev.cwd}</span>
+
+          <span :if={ev.permission_mode} class="text-zinc-600">Permission</span>
+          <span :if={ev.permission_mode} class="font-mono text-zinc-400">{ev.permission_mode}</span>
+
+          <span :if={ev.model_name} class="text-zinc-600">Model</span>
+          <span :if={ev.model_name} class="font-mono text-zinc-400">{ev.model_name}</span>
+
+          <span :if={ev.duration_ms} class="text-zinc-600">Duration</span>
+          <span :if={ev.duration_ms} class={"font-mono #{if ev.duration_ms > 5000, do: "text-amber-400", else: "text-zinc-400"}"}>{format_duration(ev.duration_ms)}</span>
+        </div>
+      </div>
+
+      <div class="px-4 py-3 border-b border-zinc-800/50">
+        <h3 class="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">Actions</h3>
+        <div class="flex flex-wrap gap-1.5">
+          <button
+            phx-click="filter_session"
+            phx-value-sid={ev.session_id}
+            class="text-xs px-2 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-zinc-200 transition"
+          >
+            Filter session
+          </button>
+          <button
+            :if={ev.tool_name}
+            phx-click="filter_tool"
+            phx-value-tool={ev.tool_name}
+            class="text-xs px-2 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-zinc-200 transition"
+          >
+            Filter tool: {ev.tool_name}
+          </button>
+          <button
+            :if={ev.tool_use_id}
+            phx-click="filter_tool_use_id"
+            phx-value-tuid={ev.tool_use_id}
+            class="text-xs px-2 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-zinc-200 transition"
+          >
+            Find related
+          </button>
+          <button
+            id="copy-payload"
+            phx-hook="CopyToClipboard"
+            data-payload={format_payload(ev.payload)}
+            class="text-xs px-2 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-zinc-200 transition"
+          >
+            Copy payload
+          </button>
+        </div>
+      </div>
+
+        <div class="px-4 py-3 flex-1">
+          <h3 class="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">Payload</h3>
+          <pre class="text-xs font-mono text-zinc-400 whitespace-pre-wrap break-all overflow-x-auto">{format_payload(ev.payload)}</pre>
+        </div>
+      </div>
+
+      <%!-- Task Detail --%>
+      <div :if={@selected_task}>
+        <% task = @selected_task %>
+
+        <div class="sticky top-0 bg-zinc-900/95 backdrop-blur border-b border-zinc-800 px-4 py-3 flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <span class="text-xs font-mono text-zinc-500">Task #{task[:id]}</span>
+            <span class={"text-xs px-1.5 py-0.5 rounded #{case task[:status] do; "pending" -> "bg-zinc-700 text-zinc-400"; "in_progress" -> "bg-blue-500/20 text-blue-400"; "completed" -> "bg-emerald-500/20 text-emerald-400"; _ -> "bg-zinc-800 text-zinc-500" end}"}>
+              {task[:status]}
+            </span>
+          </div>
+          <button phx-click="close_task_detail" class="text-zinc-500 hover:text-zinc-300 transition p-1">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+            </svg>
+          </button>
+        </div>
+
+        <div class="px-4 py-3 border-b border-zinc-800/50">
+          <h3 class="text-sm font-semibold text-zinc-200 mb-2">{task[:subject]}</h3>
+          <p :if={task[:description]} class="text-xs text-zinc-400 whitespace-pre-wrap">{task[:description]}</p>
+        </div>
+
+        <div class="px-4 py-3 border-b border-zinc-800/50 space-y-2">
+          <h3 class="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">Details</h3>
+          <div class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5 text-xs">
+            <span class="text-zinc-600">ID</span>
+            <span class="font-mono text-zinc-400">{task[:id]}</span>
+
+            <span class="text-zinc-600">Status</span>
+            <span class="font-mono text-zinc-400">{task[:status]}</span>
+
+            <span :if={task[:owner]} class="text-zinc-600">Owner</span>
+            <span :if={task[:owner]} class="font-mono text-zinc-400">{task[:owner]}</span>
+
+            <span :if={task[:active_form]} class="text-zinc-600">Active Form</span>
+            <span :if={task[:active_form]} class="font-mono text-zinc-400">{task[:active_form]}</span>
+
+            <span :if={task[:created_at]} class="text-zinc-600">Created</span>
+            <span :if={task[:created_at]} class="font-mono text-zinc-400">{relative_time(task[:created_at], @now)}</span>
+          </div>
+        </div>
+
+        <div :if={task[:blocked_by] && task[:blocked_by] != []} class="px-4 py-3 border-b border-zinc-800/50">
+          <h3 class="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">Blocked By</h3>
+          <div class="space-y-1">
+            <div :for={bid <- task[:blocked_by]} class="text-xs font-mono text-amber-400">
+              Task #{bid}
+            </div>
+          </div>
+        </div>
+
+        <div :if={task[:blocks] && task[:blocks] != []} class="px-4 py-3 border-b border-zinc-800/50">
+          <h3 class="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">Blocks</h3>
+          <div class="space-y-1">
+            <div :for={bid <- task[:blocks]} class="text-xs font-mono text-zinc-400">
+              Task #{bid}
+            </div>
+          </div>
+        </div>
+
+        <div :if={task[:session_id]} class="px-4 py-3">
+          <h3 class="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">Actions</h3>
+          <button
+            phx-click="filter_session"
+            phx-value-sid={task[:session_id]}
+            class="text-xs px-2 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-zinc-200 transition"
+          >
+            Filter to session
+          </button>
+        </div>
+      </div>
+    </aside>
+  </div>
+</div>

@@ -1,0 +1,61 @@
+2026-02-14 - Observatory Refactor Progress
+
+[COMPLETED] Task #1: Audit Observatory codebase for refactoring targets
+- Reviewed all 7 .ex files and 2 .heex files in lib/
+- Identified dashboard_live.ex (1168 lines) as primary target
+- Found 480-line inline HEEx template needing extraction
+- Identified duplicate patterns: task columns, session/team cards
+- Confirmed other files are well-structured (no changes needed)
+- Sent detailed audit report to team-lead
+- Estimated 75% size reduction possible (1168 → ~200-250 lines)
+
+[COMPLETED] Task #2: Extract inline HEEx template to separate .html.heex file
+- Verified dashboard_live.html.heex creation (479 lines)
+- dashboard_live.ex reduced from 1168 to 688 lines (41% reduction)
+- Removed inline ~H""" sigil from render/1 function
+- Added prepare_assigns/1 helper called from mount, handle_info, handle_event
+- Phoenix auto-loads external .html.heex template
+- Compilation successful with ZERO warnings
+
+[COMPLETED] Task #3: Extract helper functions into dashboard_helpers module
+- Created dashboard_helpers.ex (503 lines)
+- dashboard_live.ex reduced from 688 to 196 lines (72% reduction)
+- Total reduction from original: 83% (1168 → 196 lines)
+- Extracted ALL helper functions (team, task, event, session, display)
+- Moved module attributes (@session_palette, @event_type_labels, @team_tools)
+- Added import ObservatoryWeb.DashboardHelpers
+- Compilation successful with ZERO warnings
+- dashboard_live.ex now contains ONLY callbacks and lifecycle logic
+
+[COMPLETED] Task #14: Implement clickable task detail panel and team split view
+- Added selected_task assign (initialized to nil in mount)
+- Implemented select_task and close_task_detail event handlers
+- Made task cards clickable (phx-click="select_task" in task_column component)
+- Task and event selections are mutually exclusive (selecting one clears other)
+- Added comprehensive task detail panel in right sidebar:
+  - Task ID, status badge, subject, description
+  - Owner, active form, created time
+  - Blocked by / Blocks task lists
+  - Filter to session action button
+- Added 4th view mode: :agents (Team Split View)
+  - Added "Agents" tab button in header
+  - Created 2-column grid layout for team panels
+  - Each team panel shows: name, description, task progress bar
+  - Member cards with status dots (green/yellow/gray based on activity)
+  - Member info: name, agent_type, last activity time, event count
+- Implemented filter_agent handler for agent-to-feed drill-down
+- Clicking agent card filters feed by session_id and switches to feed view
+- Module sizes verified: dashboard_live.ex 216 lines, components 126 lines
+- Compilation verified: ZERO warnings with --warnings-as-errors
+
+Files currently in project:
+- ✓ lib/observatory_web/live/dashboard_live.ex (216 lines) - REFACTORED
+- ✓ lib/observatory_web/live/dashboard_live.html.heex (589 lines) - EXPANDED
+- ✓ lib/observatory_web/live/dashboard_helpers.ex (503 lines) - STABLE
+- ✓ lib/observatory_web/components/observatory_components.ex (126 lines) - UPDATED
+- ✓ lib/observatory_web/controllers/event_controller.ex (120 lines) - STABLE
+- ✓ lib/observatory/team_watcher.ex (143 lines) - STABLE
+- ✓ lib/observatory/events/event.ex (84 lines) - STABLE
+- ✓ lib/observatory/events/session.ex (67 lines) - STABLE
+- ✓ lib/observatory_web/components/core_components.ex (498 lines) - STABLE
+- ✓ lib/observatory_web/components/layouts.ex (154 lines) - STABLE
