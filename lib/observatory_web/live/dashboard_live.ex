@@ -36,6 +36,7 @@ defmodule ObservatoryWeb.DashboardLive do
       |> assign(:filter_slow, false)
       |> assign(:search_feed, "")
       |> assign(:search_sessions, "")
+      |> assign(:search_messages, "")
       |> assign(:search_history, [])
       |> assign(:selected_event, nil)
       |> assign(:selected_task, nil)
@@ -45,6 +46,7 @@ defmodule ObservatoryWeb.DashboardLive do
       |> assign(:disk_teams, disk_teams)
       |> assign(:selected_team, nil)
       |> assign(:mailbox_counts, %{})
+      |> assign(:collapsed_threads, %{})
       |> assign(:show_shortcuts_help, false)
       |> assign(:show_create_task_modal, false)
       |> prepare_assigns()
@@ -216,6 +218,22 @@ defmodule ObservatoryWeb.DashboardLive do
     {:noreply, result_socket |> prepare_assigns()}
   end
 
+  def handle_event("search_messages", params, socket) do
+    {:noreply, handle_search_messages(params, socket) |> prepare_assigns()}
+  end
+
+  def handle_event("toggle_thread", params, socket) do
+    {:noreply, handle_toggle_thread(params, socket) |> prepare_assigns()}
+  end
+
+  def handle_event("expand_all_threads", _params, socket) do
+    {:noreply, handle_expand_all_threads(socket) |> prepare_assigns()}
+  end
+
+  def handle_event("collapse_all_threads", _params, socket) do
+    {:noreply, handle_collapse_all_threads(socket) |> prepare_assigns()}
+  end
+
   # Navigation handlers
   def handle_event(e, p, s) when e in ["jump_to_timeline", "jump_to_feed", "jump_to_agents", "jump_to_tasks", "select_timeline_event", "filter_agent_tasks", "filter_analytics_tool"] do
     ObservatoryWeb.DashboardNavigationHandlers.handle_event(e, p, s) |> then(&{:noreply, prepare_assigns(&1)})
@@ -245,7 +263,11 @@ defmodule ObservatoryWeb.DashboardLive do
     # Derive event-based task and message state
     event_tasks = derive_tasks(assigns.events)
     messages = derive_messages(assigns.events)
-    message_threads = group_messages_by_thread(messages)
+
+    # Apply message search if present
+    filtered_messages = search_messages(messages, assigns.search_messages)
+    message_threads = group_messages_by_thread(filtered_messages)
+
     event_notes = Observatory.Notes.list_notes()
 
     # For the selected team, merge disk tasks with event tasks

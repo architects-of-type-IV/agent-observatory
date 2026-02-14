@@ -557,36 +557,42 @@
         />
 
         <div :if={@messages != []} class="space-y-4">
-          <div :for={thread <- @message_threads} class="border border-zinc-800 rounded-lg bg-zinc-900/50 overflow-hidden">
-            <%!-- Thread header --%>
-            <div class="px-3 py-2 bg-zinc-800/50 border-b border-zinc-800 flex items-center justify-between">
-              <div class="flex items-center gap-2">
-                <span class="text-xs font-semibold text-zinc-400">
-                  {format_participants(thread.participants)}
-                </span>
-                <span class="text-xs text-zinc-600">{length(thread.messages)} messages</span>
-              </div>
-              <span class="text-xs text-zinc-600">{relative_time(thread.last_message_at, @now)}</span>
-            </div>
+          <%!-- Search and Filter Controls --%>
+          <div class="flex items-center gap-2 pb-3 border-b border-zinc-800">
+            <form phx-change="search_messages" class="flex-1">
+              <input
+                type="text"
+                name="q"
+                value={@search_messages || ""}
+                placeholder="Search messages by content or participant..."
+                autocomplete="off"
+                phx-debounce="150"
+                class="w-full bg-zinc-800 border border-zinc-700 rounded px-2.5 py-1 text-xs text-zinc-300 placeholder-zinc-600 focus:border-indigo-500 focus:ring-0 focus:outline-none"
+              />
+            </form>
+            <button
+              phx-click="expand_all_threads"
+              class="text-xs px-2 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-zinc-200 transition whitespace-nowrap"
+              title="Expand all threads"
+            >
+              Expand All
+            </button>
+            <button
+              phx-click="collapse_all_threads"
+              class="text-xs px-2 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-zinc-200 transition whitespace-nowrap"
+              title="Collapse all threads"
+            >
+              Collapse All
+            </button>
+          </div>
 
-            <%!-- Thread messages --%>
-            <div class="p-3 space-y-2 max-h-96 overflow-y-auto">
-              <div
-                :for={msg <- thread.messages}
-                class={"p-2 rounded border transition #{case msg.type do; "broadcast" -> "border-amber-500/20 bg-amber-500/5"; "shutdown_request" -> "border-red-500/20 bg-red-500/5"; _ -> "border-zinc-700/50 bg-zinc-800/30" end}"}
-              >
-                <div class="flex items-center gap-2 mb-1">
-                  <% {bg, _b, _t} = session_color(msg.sender_session) %>
-                  <span class={"w-1.5 h-1.5 rounded-full #{bg}"}></span>
-                  <span class="text-xs font-mono text-zinc-400">{short_session(msg.sender_session)}</span>
-                  <span class="text-xs text-zinc-700">-></span>
-                  <span class="text-xs font-mono text-cyan-500">{msg.recipient || "all"}</span>
-                  <span :if={msg.type != "message"} class={"text-xs px-1 rounded #{case msg.type do; "broadcast" -> "bg-amber-500/15 text-amber-400"; "shutdown_request" -> "bg-red-500/15 text-red-400"; _ -> "bg-zinc-700 text-zinc-500" end}"}>{msg.type}</span>
-                  <span class="text-xs text-zinc-600 ml-auto">{relative_time(msg.timestamp, @now)}</span>
-                </div>
-                <p class="text-xs text-zinc-300 whitespace-pre-wrap break-words ml-3">{msg.content}</p>
-              </div>
-            </div>
+          <%!-- Message Threads --%>
+          <div :for={thread <- @message_threads} class="space-y-4">
+            <ObservatoryWeb.ObservatoryComponents.message_thread
+              thread={thread}
+              now={@now}
+              collapsed={Map.get(@collapsed_threads, participant_key(thread.participants), false)}
+            />
           </div>
         </div>
       </div>

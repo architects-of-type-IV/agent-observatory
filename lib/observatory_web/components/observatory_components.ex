@@ -8,6 +8,7 @@ defmodule ObservatoryWeb.ObservatoryComponents do
   import ObservatoryWeb.DashboardTeamHelpers
   import ObservatoryWeb.DashboardSessionHelpers
   import ObservatoryWeb.DashboardAgentHealthHelpers
+  import ObservatoryWeb.DashboardMessageHelpers
 
   @doc """
   Renders a task board column with filtered tasks.

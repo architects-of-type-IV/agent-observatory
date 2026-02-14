@@ -134,6 +134,41 @@ defmodule ObservatoryWeb.DashboardMessageHelpers do
     |> Enum.sort()
   end
 
+  @doc """
+  Get border class for message based on type.
+  """
+  def message_border_class(type) do
+    case type do
+      "broadcast" -> "border-amber-500/20 bg-amber-500/5"
+      "shutdown_request" -> "border-red-500/20 bg-red-500/5"
+      "shutdown_response" -> "border-emerald-500/20 bg-emerald-500/5"
+      "plan_approval_request" -> "border-blue-500/20 bg-blue-500/5"
+      "plan_approval_response" -> "border-emerald-500/20 bg-emerald-500/5"
+      _ -> "border-zinc-700/50 bg-zinc-800/30"
+    end
+  end
+
+  @doc """
+  Get badge class for message type.
+  """
+  def message_type_badge_class(type) do
+    case type do
+      "broadcast" -> "bg-amber-500/15 text-amber-400"
+      "shutdown_request" -> "bg-red-500/15 text-red-400"
+      "shutdown_response" -> "bg-emerald-500/15 text-emerald-400"
+      "plan_approval_request" -> "bg-blue-500/15 text-blue-400"
+      "plan_approval_response" -> "bg-emerald-500/15 text-emerald-400"
+      _ -> "bg-zinc-700 text-zinc-500"
+    end
+  end
+
+  @doc """
+  Generate a stable key for thread collapse state.
+  """
+  def participant_key(participants) when is_list(participants) do
+    Enum.join(participants, "<->")
+  end
+
   defp short_id(id) when is_binary(id) do
     if String.length(id) > 12 do
       String.slice(id, 0..11)

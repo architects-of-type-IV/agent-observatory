@@ -14,10 +14,11 @@
   - dashboard_format_helpers.ex: display formatting, event summaries, duration colors
   - dashboard_timeline_helpers.ex: timeline computation, block positioning
   - dashboard_session_helpers.ex: session metadata (model extraction, cwd abbreviation)
+  - dashboard_message_helpers.ex: message threading, search, type icons (181 lines)
   - dashboard_messaging_handlers.ex: messaging event handlers
   - dashboard_task_handlers.ex: task CRUD event handlers
   - dashboard_navigation_handlers.ex: cross-view navigation jumps
-- Reusable components in observatory_components.ex (empty_state, health_warnings, model_badge, task_column, session_dot, event_type_badge, member_status_dot)
+- Reusable components in observatory_components.ex (empty_state, health_warnings, model_badge, task_column, session_dot, event_type_badge, member_status_dot, message_thread)
 - GenServers: TeamWatcher (disk polling), Mailbox (ETS, 151 lines), CommandQueue (file I/O, 237 lines), Notes (ETS annotations, ~120 lines)
 - Plain modules: TaskManager (task JSON CRUD, 217 lines)
 - Handler modules (6 total): ui, filter, navigation, task, messaging, notification
@@ -103,6 +104,7 @@ Consistent colors across views:
 - **Rogue agents can deliver value**: Agents that ignore shutdown requests sometimes deliver useful work, though they can cause merge conflicts. Evaluate output quality before discarding
 - **Default view_mode matters for UX**: Changed from :feed to :overview for better first-time experience. Users need context (stats/recent activity) before diving into raw event streams
 - **Handler count scales with features**: Started with 3 handlers (messaging, task, navigation), now 6 (added ui, filter, notification). Pattern holds well at scale
+- **Member struct keys vary by source**: Team members from disk use `:agent_id`, not `:session_id`. Always check dashboard_team_helpers.ex for canonical struct shape
 
 ## QA Testing Patterns (Feb 2026)
 - **Complete agent lifecycle**: SessionStart + PreToolUse/PostToolUse pairs + SessionEnd
@@ -142,3 +144,12 @@ AgentMonitor GenServer monitors agent health and auto-reassigns tasks from crash
 - Auto-reassigns crashed agent's tasks (TaskManager.update_task sets owner -> nil)
 - Writes crash notification to ~/.claude/inbox/crash_{team}_{sid}_{ts}.json
 - Dashboard subscribes to "agent:crashes" and shows flash message
+
+## Messages View Architecture (Feb 2026)
+- Messages derived from SendMessage tool events
+- Threads grouped by sender-recipient pairs (bidirectional)
+- Thread metadata: participants, message_count, unread_count, has_urgent, message_types
+- Message types: message, broadcast, shutdown_request/response, plan_approval_request/response
+- Search filters by content, sender, or recipient
+- Collapsible threads with state in LiveView assigns
+- Icon system: 💬 (DM), 📢 (broadcast), ⚠️ (urgent), ✓ (response)
