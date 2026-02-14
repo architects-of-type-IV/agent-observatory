@@ -1,40 +1,62 @@
 # Observatory - Handoff
 
 ## Current Status
-Enhanced agent member cards in Agents view with activity data. Cards now show model, working directory, current tool execution, uptime, failure rate, and permission mode.
+All Agents view improvements complete. MCP server operational. README fully documented with hook setup instructions.
 
-## What Was Done (card-enhancer agent)
+## What Was Done This Session
 
-### Agent Cards Enhanced
-- Modified `dashboard_team_helpers.ex:enrich_team_members/3` to extract additional session data:
-  - Model name from SessionStart events
-  - Working directory (cwd) from most recent events
-  - Permission mode from SessionStart payload
-  - Current running tool (PreToolUse without matching PostToolUse)
-  - Session uptime from first event to now
-- Added helper functions: `extract_model_from_events/1`, `extract_cwd_from_events/1`, `extract_permission_mode/1`, `detect_current_tool/2`
-- Added formatting helpers: `format_uptime/1`, `format_permission_mode/1` in dashboard_format_helpers.ex
-- Updated dashboard_live.html.heex member cards to display all new data inline with existing badges
+### Hook Setup Instructions in README
+- Added full "Hook Scripts" section to README.md with 3-step setup guide:
+  1. Install script: copy `send_event.sh` to `~/.claude/hooks/observatory/`
+  2. Configure hooks: complete JSON config for all 12 Claude Code lifecycle events
+  3. Verify: start server + open Claude Code session
+- Documents `OBSERVATORY_URL` env var, `jq`/`curl` requirements, non-blocking behavior
 
-### Files Modified
+### Agent Detail Panel (panel-builder agent)
+- Created `dashboard_agent_helpers.ex` (34 lines):
+  - `agent_recent_events/3` - filters events to last N for specific agent
+  - `agent_tasks/2` - filters tasks by owner matching agent_id
+- Modified `dashboard_live.ex` (245 lines):
+  - Added `:selected_agent` assign with toggle behavior
+  - Consolidated event handlers to single-line format (313 -> 245 lines)
+  - `clear_selections/0` helper for mutual exclusion across selection types
+- Updated `dashboard_live.html.heex`:
+  - Clickable member cards with `phx-click="select_agent"`
+  - Right sidebar panel: header, details, health metrics, recent 15 events, assigned tasks, message input, actions
+
+### Agent Member Card Enhancement (card-enhancer agent)
+- Enhanced `dashboard_team_helpers.ex` (239 lines):
+  - `enrich_team_members/3` extracts model, cwd, permission_mode, current_tool, uptime
+  - `detect_current_tool/2` finds PreToolUse without matching PostToolUse
+- Enhanced `dashboard_format_helpers.ex` (248 lines):
+  - `format_uptime/1`, `format_permission_mode/1`
+- Cards now show: model badge, cwd, current activity, uptime, failure rate, permission mode
+
+### MCP Server (earlier in session)
+- AshAi MCP server at `/mcp` with 5 tools (check_inbox, acknowledge_message, send_message, get_tasks, update_task_status)
+- `.mcp.json` config for agent connection
+
+## Files Modified
+- `README.md` (rewritten with full docs + hook setup)
+- `observatory/.mcp.json` (new)
+- `lib/observatory/agent_tools.ex` (new)
+- `lib/observatory/agent_tools/inbox.ex` (new)
+- `lib/observatory_web/router.ex` (added /mcp route)
+- `config/config.exs` (added AgentTools domain)
+- `mix.exs` (added ash_ai, usage_rules)
 - `lib/observatory_web/live/dashboard_team_helpers.ex` (239 lines)
 - `lib/observatory_web/live/dashboard_format_helpers.ex` (248 lines)
+- `lib/observatory_web/live/dashboard_agent_helpers.ex` (new, 34 lines)
+- `lib/observatory_web/live/dashboard_live.ex` (245 lines)
 - `lib/observatory_web/live/dashboard_live.html.heex`
 
-### Display Features
-Each member card now shows:
-1. Model badge (opus/sonnet/haiku)
-2. Abbreviated working directory (last 2 path segments)
-3. Current activity: "Running: {tool_name} ({elapsed}s)" when tool executing
-4. Session uptime (formatted as "Xm" or "Xh Ym")
-5. Failure rate badge (red if >10%, amber if >5%, hidden if 0%)
-6. Permission mode badge (e.g., "bypass" for bypassPermissions)
-
-### Verified
-- Zero warnings build (mix compile --warnings-as-errors)
+## Verified
+- Zero warnings: mix compile --warnings-as-errors
 - All modules under 300 lines
-- Existing components reused (model_badge, abbreviate_cwd)
+- MCP server tested end-to-end (initialize, tools/list, tools/call)
 
 ## Next Steps
-- Agent detail panel with full inspection (task #2 - panel-builder)
-- Continue Agents view enhancements per team plan
+- Session control actions (pause/resume/shutdown agents from UI)
+- Inline task editing in agent detail panel
+- Cost tracking and budgets
+- Session replay functionality

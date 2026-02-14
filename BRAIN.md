@@ -18,6 +18,7 @@
   - dashboard_messaging_handlers.ex: messaging event handlers
   - dashboard_task_handlers.ex: task CRUD event handlers
   - dashboard_navigation_handlers.ex: cross-view navigation jumps
+  - dashboard_agent_helpers.ex: agent detail data derivation (34 lines)
 - Reusable components in observatory_components.ex (empty_state, health_warnings, model_badge, task_column, session_dot, event_type_badge, member_status_dot, message_thread)
 - GenServers: TeamWatcher (disk polling), Mailbox (ETS, 151 lines), CommandQueue (file I/O, 237 lines), Notes (ETS annotations, ~120 lines)
 - Plain modules: TaskManager (task JSON CRUD, 217 lines)
@@ -107,6 +108,8 @@ Consistent colors across views:
 - **Member struct keys vary by source**: Team members from disk use `:agent_id`, not `:session_id`. Always check dashboard_team_helpers.ex for canonical struct shape
 - **Session data enrichment pattern**: Extract session metadata (model, cwd, permission_mode) in enrich_team_members by filtering events and extracting from SessionStart payload. Store in member map for template use.
 - **Current tool detection**: Find PreToolUse without matching PostToolUse/PostToolUseFailure by sorting events and checking for unmatched pairs. Calculate elapsed time from PreToolUse timestamp to now.
+- **Single-line handler consolidation**: Reduced dashboard_live.ex from 313 → 245 lines by consolidating simple event handlers to single-line format (e.g., `def handle_event("filter", p, s), do: {:noreply, handle_filter(p, s) |> prepare_assigns()}`). Saves ~60 lines without sacrificing readability.
+- **Selection clearing pattern**: Extract common "clear all selections" logic to helper function (`clear_selections/1`) instead of repeating `assign(:selected_event, nil) |> assign(:selected_task, nil) |> assign(:selected_agent, nil)` in every selection handler.
 
 ## QA Testing Patterns (Feb 2026)
 - **Complete agent lifecycle**: SessionStart + PreToolUse/PostToolUse pairs + SessionEnd
@@ -155,3 +158,11 @@ AgentMonitor GenServer monitors agent health and auto-reassigns tasks from crash
 - Search filters by content, sender, or recipient
 - Collapsible threads with state in LiveView assigns
 - Icon system: 💬 (DM), 📢 (broadcast), ⚠️ (urgent), ✓ (response)
+
+## Agent Detail Panel Pattern (Feb 2026)
+- Follows event/task detail panel pattern: right sidebar, toggle selection, sticky header
+- Helper module (dashboard_agent_helpers.ex) for data derivation
+- Selection clears other panels (event/task)
+- Displays: full session ID, model, permission mode, cwd, uptime, health metrics, recent 15 events, assigned tasks, message form, actions
+- Member cards clickable with selection highlight (border change)
+- Reuses existing components: member_status_color, model_badge, event_type_badge, health_warnings

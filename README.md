@@ -80,9 +80,70 @@ claude mcp add --transport http observatory http://localhost:4005/mcp
 
 ## Hook Scripts
 
-Observatory receives events via shell hook scripts that POST JSON to `/api/events`.
+Observatory receives events via shell hook scripts that POST JSON to `/api/events`. The hook script reads JSON from stdin, extracts session metadata, and fires a non-blocking POST to the Observatory server.
 
-Configure in `.claude/settings.json` to map all 12 Claude Code lifecycle hooks (SessionStart, SessionEnd, PreToolUse, PostToolUse, etc.) to your hook script.
+### 1. Install the hook script
+
+```bash
+mkdir -p ~/.claude/hooks/observatory
+cp hooks/send_event.sh ~/.claude/hooks/observatory/send_event.sh
+chmod +x ~/.claude/hooks/observatory/send_event.sh
+```
+
+The script requires `jq` and `curl`. It defaults to `http://localhost:4005/api/events` but respects the `OBSERVATORY_URL` environment variable.
+
+### 2. Configure Claude Code hooks
+
+Add the following to your `~/.claude/settings.json` (create it if it doesn't exist). This maps all 12 Claude Code lifecycle events to the hook script:
+
+```json
+{
+  "hooks": {
+    "SessionStart": [
+      { "type": "command", "command": "~/.claude/hooks/observatory/send_event.sh SessionStart" }
+    ],
+    "SessionEnd": [
+      { "type": "command", "command": "~/.claude/hooks/observatory/send_event.sh SessionEnd" }
+    ],
+    "PreToolUse": [
+      { "type": "command", "command": "~/.claude/hooks/observatory/send_event.sh PreToolUse" }
+    ],
+    "PostToolUse": [
+      { "type": "command", "command": "~/.claude/hooks/observatory/send_event.sh PostToolUse" }
+    ],
+    "PostToolUseFailure": [
+      { "type": "command", "command": "~/.claude/hooks/observatory/send_event.sh PostToolUseFailure" }
+    ],
+    "UserPromptSubmit": [
+      { "type": "command", "command": "~/.claude/hooks/observatory/send_event.sh UserPromptSubmit" }
+    ],
+    "PreCompact": [
+      { "type": "command", "command": "~/.claude/hooks/observatory/send_event.sh PreCompact" }
+    ],
+    "PermissionRequest": [
+      { "type": "command", "command": "~/.claude/hooks/observatory/send_event.sh PermissionRequest" }
+    ],
+    "Notification": [
+      { "type": "command", "command": "~/.claude/hooks/observatory/send_event.sh Notification" }
+    ],
+    "SubagentStart": [
+      { "type": "command", "command": "~/.claude/hooks/observatory/send_event.sh SubagentStart" }
+    ],
+    "SubagentStop": [
+      { "type": "command", "command": "~/.claude/hooks/observatory/send_event.sh SubagentStop" }
+    ],
+    "Stop": [
+      { "type": "command", "command": "~/.claude/hooks/observatory/send_event.sh Stop" }
+    ]
+  }
+}
+```
+
+The script always exits 0 and uses a 1-second connect timeout so it never blocks Claude Code, even if Observatory is not running.
+
+### 3. Verify
+
+Start Observatory (`mix phx.server`) and open a new Claude Code session. You should see events appear in the Feed view immediately.
 
 ## Key Modules
 

@@ -619,3 +619,34 @@ FILES MODIFIED:
 - lib/observatory_web/live/dashboard_live.html.heex
 
 STATUS: Complete. Agent cards now surface all hidden activity data.
+
+2026-02-14 - Agent Detail Panel (panel-builder)
+=================================================
+
+COMPLETED: Task #2 - Agent detail panel with full inspection
+
+IMPLEMENTATION:
+- Created dashboard_agent_helpers.ex (34 lines):
+  - agent_recent_events/3, agent_tasks/2
+- Modified dashboard_live.ex (245 lines, down from 313):
+  - selected_agent assign, select_agent handler, clear_selections helper
+  - Single-line handler consolidation saved ~60 lines
+- Updated dashboard_live.html.heex:
+  - Clickable member cards, right sidebar detail panel
+  - Shows: session ID, model, permission mode, cwd, uptime, health metrics,
+    recent 15 events, assigned tasks, message input, actions
+
+STATUS: Complete. Agent detail panel follows existing event/task panel pattern.
+
+2026-02-14 - README Hook Setup Instructions
+=============================================
+
+ADDED: Full hook setup section to README.md
+
+CONTENT:
+1. Install script: copy send_event.sh to ~/.claude/hooks/observatory/
+2. Configure hooks: complete JSON for all 12 lifecycle events in settings.json
+3. Verify: start server + open Claude Code session
+- Documents OBSERVATORY_URL env var, jq/curl requirements, non-blocking behavior
+
+STATUS: Complete. README now fully documented with architecture, views, MCP server, and hook setup.
