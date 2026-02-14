@@ -163,3 +163,56 @@ Session 6: Visual Polish + Data Surfacing + Navigation
 **Compilation**: ✅ mix compile --warnings-as-errors (SUCCESS)
 
 **Status**: All views now interconnected with cross-view navigation jumps. Users can seamlessly navigate from errors → timeline, tasks → agents, analytics → feed, etc.
+
+Session 7: Backend Infrastructure (Command Queue + Task Manager)
+=================================================================
+
+### Task #7: File-Based Command Queue (COMPLETE)
+
+**Created Files**:
+- lib/observatory/command_queue.ex (237 lines) - GenServer for inbox/outbox file system
+  - write_command(session_id, command) writes JSON to ~/.claude/inbox/{session_id}/{id}.json
+  - poll_responses(session_id) reads from ~/.claude/outbox/{session_id}/*.json
+  - Polls every 2s, broadcasts {:command_responses, []} to "session:{id}" PubSub topic
+  - Auto-consumes (deletes) response files after reading
+
+**Modified Files**:
+- lib/observatory/application.ex - Added CommandQueue to supervision tree
+- lib/observatory/mailbox.ex - send_message now dual-writes to both ETS and CommandQueue
+- lib/observatory_web/live/dashboard_messaging_handlers.ex - Team broadcasts write to each member's inbox
+
+**Pattern**: Dual-write messaging (in-memory ETS + file-based queue) for agent coordination
+
+**Compilation**: ✅ mix compile --warnings-as-errors (SUCCESS)
+
+### Task #8: Task Mutation from UI (COMPLETE)
+
+**Created Files**:
+- lib/observatory/task_manager.ex (217 lines) - Plain module for task CRUD
+  - create_task(team_name, attrs) - writes JSON to ~/.claude/tasks/{team}/{id}.json
+  - update_task(team_name, task_id, changes) - read + deep_merge + write
+  - get_task, list_tasks, delete_task, next_task_id(team_name)
+
+- lib/observatory_web/live/dashboard_task_handlers.ex (180 lines) - LiveView event handlers
+  - handle_create_task - creates task + broadcasts to team
+  - handle_update_task_status - changes status (pending/in_progress/completed)
+  - handle_reassign_task - changes owner
+  - handle_edit_task - updates any task fields
+  - handle_delete_task - removes task file
+  - Auto-generates activeForm from imperative subjects ("Fix bug" -> "Fixing bug")
+
+**Modified Files**:
+- dashboard_live.ex: Added import DashboardTaskHandlers + 2 event handlers
+- dashboard_live.html.heex:
+  - "New Task" button in tasks view header
+  - Create task modal with subject/description/owner form
+  - Modal toggle handler + auto-close on submit
+
+**UI Features**:
+- New Task button (only visible when team selected)
+- Create task modal with subject, description, owner dropdown
+- Backend ready for inline editing (status/owner dropdowns, edit/delete buttons)
+
+**Compilation**: ✅ mix compile --warnings-as-errors (SUCCESS)
+
+**Status**: Task orchestration backend complete. Users can create tasks from UI. Inline editing controls ready to be added to task cards.

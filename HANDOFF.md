@@ -12,6 +12,7 @@ The Observatory multi-agent observability dashboard is fully functional with 7 v
 - **Session 4 Complete**: All 7 view modes operational, error dashboard, analytics leaderboard, keyboard shortcuts, agent health monitoring
 - **Checkpoint (231b08b -> 18655b9)**: Integration review resolved parallel editing conflicts, all views verified working
 - **Task #7 Complete**: File-based command queue (CommandQueue GenServer)
+- **Task #8 Complete**: Task mutation from UI (TaskManager + CRUD handlers + create modal)
 
 ### System Features
 
@@ -75,6 +76,8 @@ The Observatory multi-agent observability dashboard is fully functional with 7 v
 | observatory_components.ex | 127 | Reusable components |
 | mailbox.ex | 151 | ETS-backed message queues |
 | command_queue.ex | 237 | File-based command queue |
+| task_manager.ex | 217 | Task CRUD for JSON files |
+| dashboard_task_handlers.ex | 180 | Task mutation event handlers |
 | channels.ex | 160 | PubSub channel management |
 
 ### Compilation Status

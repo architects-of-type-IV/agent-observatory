@@ -15,9 +15,11 @@
   - dashboard_timeline_helpers.ex: timeline computation, block positioning
   - dashboard_session_helpers.ex: session metadata (model extraction, cwd abbreviation)
   - dashboard_messaging_handlers.ex: messaging event handlers
+  - dashboard_task_handlers.ex: task CRUD event handlers
   - dashboard_navigation_handlers.ex: cross-view navigation jumps
 - Reusable components in observatory_components.ex (empty_state, health_warnings, model_badge, task_column, session_dot, event_type_badge, member_status_dot)
-- GenServers: TeamWatcher (disk polling), Mailbox (ETS message queues)
+- GenServers: TeamWatcher (disk polling), Mailbox (ETS, 151 lines), CommandQueue (file I/O, 237 lines)
+- Plain modules: TaskManager (task JSON CRUD, 217 lines)
 
 ## Timeline View Implementation
 
