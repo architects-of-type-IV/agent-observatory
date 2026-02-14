@@ -192,3 +192,15 @@ AgentMonitor GenServer monitors agent health and auto-reassigns tasks from crash
 - **Ash resource pattern**: Domain at lib/observatory/{domain}.ex, resource at lib/observatory/{domain}/{resource}.ex. Use `mix ash.codegen --name X` for migrations.
 - **Feed grouping reuses timeline pairing**: Tool event pairing (PreToolUse + PostToolUse by tool_use_id) is same pattern as timeline_helpers
 - **Agent activity summarization**: Parse hook event payload by tool_name to generate human-readable summaries (Read -> "Reading {path}", Bash -> "Running `{cmd}`")
+
+## Team Data Architecture (Feb 2026)
+- **Dual data sources**: TeamWatcher polls disk (`~/.claude/teams/`, `~/.claude/tasks/`) every 2s + hook events via PubSub
+- **Disk is authoritative**: DashboardTeamHelpers merges both sources, disk wins for team/task state
+- **Member enrichment**: Runtime data (health, status, model, cwd, current_tool, uptime) from events, not disk
+- **Member struct variance**: Disk members use `:agent_id`, event members use `:session_id`
+- **Current gaps for team inspection**:
+  - No team-level aggregate health/progress metrics
+  - No task completion percentage per team
+  - No message volume/flow tracking between members
+  - No team timeline (created_at, duration, phases)
+  - No roadmap integration (`.claude/roadmaps/` not read by TeamWatcher)
