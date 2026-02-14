@@ -304,3 +304,69 @@ Backend infrastructure, visual polish, and cross-view navigation complete. All 7
 - Failure recovery mechanisms
 - Deeper orchestration from UI
 - Dependency graph visualization
+
+Sprint 3: Overview Dashboard + Persistence + Notifications (COMPLETE)
+=======================================================================
+
+### Completed Features
+
+**1. Overview Dashboard (Default View)**
+- Stat cards showing: teams, agents, tasks, errors, active sessions
+- Recent activity feed (last 10 events)
+- Better first-time UX vs raw event stream
+- Changed default view_mode from :feed to :overview
+
+**2. localStorage Persistence**
+- View mode persists across page reloads
+- Filter settings maintained in browser storage
+- Search query preserved between sessions
+- User preferences automatically restored
+
+**3. Toast + Browser Notifications**
+- dashboard_notification_handlers.ex (~95 lines) - notification logic delegation
+- Flash messages for crashes, task updates, system events
+- Browser notification API integration (with permission prompt)
+- Critical alerts trigger both toast and browser notifications
+
+**4. Handler Delegation Pattern Expansion**
+- Started with 3 handlers (messaging, task, navigation)
+- Now 6 handlers: ui, filter, navigation, task, messaging, notification
+- dashboard_live.ex stays under 300 lines despite feature growth
+- Clean separation of concerns by domain
+
+**5. 8 View Modes Total**
+- Overview (1) - DEFAULT landing page
+- Feed (2), Tasks (3), Messages (4), Agents (5), Errors (6), Analytics (7), Timeline (8)
+- Keyboard shortcuts updated to 1-8
+
+### Key Lessons
+- Agents ignore task redirections - be explicit about WHAT to build
+- Rogue agents (ignore shutdown) can deliver useful work despite conflicts
+- Default view_mode critical for first-time UX
+- Handler delegation pattern scales well (3 → 6 handlers)
+
+### Module Additions
+- dashboard_filter_handlers.ex (~85 lines) - filter/preset management
+- dashboard_notification_handlers.ex (~95 lines) - toast/browser notifications
+- notes.ex (~120 lines) - ETS-backed event annotations (sprint 4)
+
+### Compilation Status
+✅ mix compile --warnings-as-errors (SUCCESS - ZERO WARNINGS)
+
+Sprint 4: Export + Threading + Annotations (IN PROGRESS)
+=========================================================
+
+### In Progress
+- **Export functionality**: JSON/CSV export for events, tasks, analytics data
+- **Filter presets**: Save/load/share common filter combinations
+- **Message threading**: Group related agent messages in conversation view
+- **Event annotations**: Add notes to specific events (Notes GenServer with ETS storage)
+
+### Remaining
+- Export UI controls and download handlers
+- Preset management (CRUD operations)
+- Message thread grouping algorithm
+- Annotation UI (add/edit/delete notes on events)
+
+### Status
+Infrastructure mostly complete (Notes GenServer created), UI integration pending

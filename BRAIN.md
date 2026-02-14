@@ -18,8 +18,9 @@
   - dashboard_task_handlers.ex: task CRUD event handlers
   - dashboard_navigation_handlers.ex: cross-view navigation jumps
 - Reusable components in observatory_components.ex (empty_state, health_warnings, model_badge, task_column, session_dot, event_type_badge, member_status_dot)
-- GenServers: TeamWatcher (disk polling), Mailbox (ETS, 151 lines), CommandQueue (file I/O, 237 lines)
+- GenServers: TeamWatcher (disk polling), Mailbox (ETS, 151 lines), CommandQueue (file I/O, 237 lines), Notes (ETS annotations, ~120 lines)
 - Plain modules: TaskManager (task JSON CRUD, 217 lines)
+- Handler modules (6 total): ui, filter, navigation, task, messaging, notification
 
 ## Timeline View Implementation
 
@@ -95,7 +96,13 @@ Consistent colors across views:
 ## Sprint 2 Lessons (Feb 2026)
 - **Non-overlapping file scopes prevent conflicts**: Creating NEW files (task_handlers, navigation_handlers, session_helpers) instead of editing shared dashboard_live.ex eliminated merge conflicts
 - **Create new files for new features**: Better to have focused 71-180 line modules than bloat existing files past 300 lines
-- **Handler delegation pattern**: dashboard_live.ex stays under 300 by delegating handle_event clauses to domain-specific handler modules (messaging_handlers, task_handlers, navigation_handlers, ui_handlers)
+- **Handler delegation pattern**: dashboard_live.ex stays under 300 by delegating handle_event clauses to domain-specific handler modules (messaging_handlers, task_handlers, navigation_handlers, ui_handlers, filter_handlers, notification_handlers)
+
+## Sprint 3-4 Lessons (Feb 2026)
+- **Agents ignore task redirections**: When delegating to teammates, be VERY explicit about WHAT to build, not just task IDs. Agents often ignore references to "see task #N" and need direct instructions
+- **Rogue agents can deliver value**: Agents that ignore shutdown requests sometimes deliver useful work, though they can cause merge conflicts. Evaluate output quality before discarding
+- **Default view_mode matters for UX**: Changed from :feed to :overview for better first-time experience. Users need context (stats/recent activity) before diving into raw event streams
+- **Handler count scales with features**: Started with 3 handlers (messaging, task, navigation), now 6 (added ui, filter, notification). Pattern holds well at scale
 
 ## PubSub Topics
 - "events:stream" - all events

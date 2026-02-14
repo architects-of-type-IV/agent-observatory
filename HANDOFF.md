@@ -49,19 +49,20 @@ The Observatory multi-agent observability dashboard is fully functional with 7 v
 #### Keyboard Shortcuts
 - `?` - Help/shortcuts overlay
 - `f` - Toggle filter panel
-- `1-7` - Switch view modes (Feed, Tasks, Messages, Agents, Errors, Analytics, Timeline)
+- `1-8` - Switch view modes (Overview, Feed, Tasks, Messages, Agents, Errors, Analytics, Timeline)
 - `Esc` - Clear selection/close modals
 - `j/k` - Navigate events (vim-style)
 - `Enter` - Select highlighted event
 
-### View Modes (7 total)
-1. **Feed**: Real-time event stream (keyboard: 1)
-2. **Tasks**: Kanban board (keyboard: 2)
-3. **Messages**: Team messaging (keyboard: 3)
-4. **Agents**: Team grid panels (keyboard: 4)
-5. **Errors**: Error grouping (keyboard: 5)
-6. **Analytics**: Tool performance (keyboard: 6)
-7. **Timeline**: Swimlane visualization (keyboard: 7) ← NEW
+### View Modes (8 total)
+1. **Overview**: Default landing page with stat cards + recent activity (keyboard: 1) ← DEFAULT
+2. **Feed**: Real-time event stream (keyboard: 2)
+3. **Tasks**: Kanban board (keyboard: 3)
+4. **Messages**: Team messaging (keyboard: 4)
+5. **Agents**: Team grid panels (keyboard: 5)
+6. **Errors**: Error grouping (keyboard: 6)
+7. **Analytics**: Tool performance (keyboard: 7)
+8. **Timeline**: Swimlane visualization (keyboard: 8)
 
 ### Key Files
 | File | Lines | Purpose |
@@ -79,16 +80,42 @@ The Observatory multi-agent observability dashboard is fully functional with 7 v
 | command_queue.ex | 237 | File-based command queue |
 | task_manager.ex | 217 | Task CRUD for JSON files |
 | dashboard_task_handlers.ex | 180 | Task mutation event handlers |
+| dashboard_ui_handlers.ex | 41 | Modal toggles |
+| dashboard_navigation_handlers.ex | 71 | Cross-view navigation |
+| dashboard_filter_handlers.ex | ~85 | Filter/preset management |
+| dashboard_notification_handlers.ex | ~95 | Toast/browser notifications |
 | channels.ex | 160 | PubSub channel management |
 | agent_monitor.ex | 170 | Crash detection & task reassignment |
+| notes.ex | ~120 | ETS-backed event annotations |
 
 ### Compilation Status
 ✅ `mix compile --warnings-as-errors` SUCCESS (zero warnings)
 
-### Latest Update (2026-02-14 - Sprint 3: Agent Lifecycle)
-**Task #13 Complete**: Crash detection and auto-task-reassignment
+### Latest Update (2026-02-14 - Sprint 3 Complete + Sprint 4 In Progress)
+
+**Sprint 3 Complete**: Overview dashboard, localStorage persistence, crash detection, toast/browser notifications
+
+**Sprint 4 In Progress**: Export (JSON/CSV), filter presets, message threading, event annotations
 
 **Completed Features**:
+- **Overview Dashboard** (DEFAULT landing page)
+  - Stat cards: teams, agents, tasks, errors, active sessions
+  - Recent activity feed with last 10 events
+  - Better first-time UX vs jumping straight to event feed
+
+- **localStorage Persistence**
+  - View mode, filters, search query persist across page reloads
+  - User preferences maintained in browser storage
+
+- **Toast + Browser Notifications**
+  - Flash messages for crashes, task updates, system events
+  - Browser notifications (with permission) for critical alerts
+  - dashboard_notification_handlers.ex delegates notification logic
+
+- **Handler Delegation Pattern**
+  - dashboard_live.ex stays under 300 lines
+  - 6 handler modules: ui, filter, navigation, task, messaging, notification
+  - Clean separation of concerns by domain
 - **Cross-View Navigation** (7 jump types between all views)
   - Errors → Timeline/Feed, Tasks → Agents, Messages → Feed
   - Timeline blocks → Feed (event selection)
@@ -128,7 +155,7 @@ The Observatory multi-agent observability dashboard is fully functional with 7 v
 **Module Size Status**:
 All modules under 300 lines. dashboard_live.ex kept at 303 by delegating to handler modules.
 
-### Sprint 3: Agent Lifecycle Management (In Progress)
+### Sprint 3: Overview + Persistence + Notifications (COMPLETE)
 
 **Completed**:
 - **Task #13**: Crash detection and auto-task-reassignment
@@ -136,6 +163,18 @@ All modules under 300 lines. dashboard_live.ex kept at 303 by delegating to hand
   - Auto-reassigns tasks from crashed agents (owner -> nil)
   - Writes crash notifications to ~/.claude/inbox/crash_{team}_{sid}_{ts}.json
   - Dashboard shows flash messages with crash details
+- **Overview dashboard** - DEFAULT view mode with stat cards + recent activity
+- **localStorage persistence** - View mode, filters, search persist across reloads
+- **Toast + browser notifications** - Flash messages + critical alerts
+- **Handler delegation** - 6 handler modules keep dashboard_live.ex under 300 lines
+
+### Sprint 4: Export + Threading + Annotations (IN PROGRESS)
+
+**In Progress**:
+- Export functionality (JSON/CSV for events, tasks, analytics)
+- Filter presets (save/load/share common filter combinations)
+- Message threading (group related agent messages in conversation view)
+- Event annotations (add notes to specific events via Notes GenServer)
 
 **Remaining**:
 - Session control (pause/resume/kill agents)
