@@ -320,604 +320,68 @@
 
     <%!-- ═══ Main Content Area ═══ --%>
     <main class="flex-1 overflow-y-auto overflow-x-hidden">
-      <%!-- Overview View --%>
-      <div :if={@view_mode == :overview} class="p-6">
-        <h2 class="text-lg font-semibold text-zinc-300 mb-6">System Overview</h2>
+      <%!-- View Dispatcher --%>
+      <ObservatoryWeb.Components.OverviewComponents.overview_view
+        :if={@view_mode == :overview}
+        teams={@teams}
+        active_tasks={@active_tasks}
+        messages={@messages}
+        visible_events={@visible_events}
+        events={@events}
+        errors={@errors}
+        total_sessions={@total_sessions}
+        sessions={@sessions}
+        now={@now}
+      />
 
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          <%!-- Active Teams Card --%>
-          <div class="bg-zinc-900/50 border border-zinc-800 rounded-lg p-4 hover:border-zinc-700 transition">
-            <div class="flex items-center justify-between mb-2">
-              <h3 class="text-sm font-semibold text-zinc-400 uppercase tracking-wider">Active Teams</h3>
-              <button phx-click="set_view" phx-value-mode="agents" class="text-xs text-indigo-400 hover:text-indigo-300">
-                View →
-              </button>
-            </div>
-            <div class="text-3xl font-bold text-zinc-200">{length(@teams)}</div>
-            <p class="text-xs text-zinc-600 mt-1">
-              {Enum.sum(Enum.map(@teams, fn t -> length(t.members) end))} agents total
-            </p>
-          </div>
+      <ObservatoryWeb.Components.FeedComponents.feed_view
+        :if={@view_mode == :feed}
+        visible_events={@visible_events}
+        selected_event={@selected_event}
+        event_notes={@event_notes}
+        now={@now}
+      />
 
-          <%!-- Active Tasks Card --%>
-          <div class="bg-zinc-900/50 border border-zinc-800 rounded-lg p-4 hover:border-zinc-700 transition">
-            <div class="flex items-center justify-between mb-2">
-              <h3 class="text-sm font-semibold text-zinc-400 uppercase tracking-wider">Tasks</h3>
-              <button phx-click="set_view" phx-value-mode="tasks" class="text-xs text-indigo-400 hover:text-indigo-300">
-                View →
-              </button>
-            </div>
-            <% task_count = length(@active_tasks) %>
-            <% completed = Enum.count(@active_tasks, fn t -> t[:status] == "completed" end) %>
-            <div class="text-3xl font-bold text-zinc-200">{task_count}</div>
-            <div class="mt-2">
-              <div class="flex items-center justify-between text-xs text-zinc-500 mb-1">
-                <span>Progress</span>
-                <span>{completed}/{task_count}</span>
-              </div>
-              <div class="h-2 bg-zinc-800 rounded-full overflow-hidden">
-                <div
-                  class="h-full bg-emerald-500 rounded-full transition-all"
-                  style={"width: #{if task_count > 0, do: round(completed / task_count * 100), else: 0}%"}
-                >
-                </div>
-              </div>
-            </div>
-          </div>
+      <ObservatoryWeb.Components.TasksComponents.tasks_view
+        :if={@view_mode == :tasks}
+        active_tasks={@active_tasks}
+        selected_team={@selected_team}
+      />
 
-          <%!-- Messages Card --%>
-          <div class="bg-zinc-900/50 border border-zinc-800 rounded-lg p-4 hover:border-zinc-700 transition">
-            <div class="flex items-center justify-between mb-2">
-              <h3 class="text-sm font-semibold text-zinc-400 uppercase tracking-wider">Messages</h3>
-              <button phx-click="set_view" phx-value-mode="messages" class="text-xs text-indigo-400 hover:text-indigo-300">
-                View →
-              </button>
-            </div>
-            <div class="text-3xl font-bold text-zinc-200">{length(@messages)}</div>
-            <p class="text-xs text-zinc-600 mt-1">Inter-agent coordination</p>
-          </div>
+      <ObservatoryWeb.Components.MessagesComponents.messages_view
+        :if={@view_mode == :messages}
+        messages={@messages}
+        message_threads={@message_threads}
+        search_messages={@search_messages}
+        collapsed_threads={@collapsed_threads}
+        now={@now}
+      />
 
-          <%!-- Events Card --%>
-          <div class="bg-zinc-900/50 border border-zinc-800 rounded-lg p-4 hover:border-zinc-700 transition">
-            <div class="flex items-center justify-between mb-2">
-              <h3 class="text-sm font-semibold text-zinc-400 uppercase tracking-wider">Events</h3>
-              <button phx-click="set_view" phx-value-mode="feed" class="text-xs text-indigo-400 hover:text-indigo-300">
-                View →
-              </button>
-            </div>
-            <div class="text-3xl font-bold text-zinc-200">{length(@visible_events)}</div>
-            <p class="text-xs text-zinc-600 mt-1">{length(@events)} total cached</p>
-          </div>
+      <ObservatoryWeb.Components.AgentsComponents.agents_view
+        :if={@view_mode == :agents}
+        teams={@teams}
+        active_tasks={@active_tasks}
+        selected_agent={@selected_agent}
+        mailbox_counts={@mailbox_counts}
+        now={@now}
+      />
 
-          <%!-- Errors Card --%>
-          <div class="bg-zinc-900/50 border border-zinc-800 rounded-lg p-4 hover:border-zinc-700 transition">
-            <div class="flex items-center justify-between mb-2">
-              <h3 class="text-sm font-semibold text-zinc-400 uppercase tracking-wider">Errors</h3>
-              <button phx-click="set_view" phx-value-mode="errors" class="text-xs text-indigo-400 hover:text-indigo-300">
-                View →
-              </button>
-            </div>
-            <div class={"text-3xl font-bold #{if length(@errors) > 0, do: "text-red-400", else: "text-zinc-200"}"}>{length(@errors)}</div>
-            <p class="text-xs text-zinc-600 mt-1">Tool failures detected</p>
-          </div>
+      <ObservatoryWeb.Components.ErrorsComponents.errors_view
+        :if={@view_mode == :errors}
+        errors={@errors}
+        error_groups={@error_groups}
+        now={@now}
+      />
 
-          <%!-- Sessions Card --%>
-          <div class="bg-zinc-900/50 border border-zinc-800 rounded-lg p-4 hover:border-zinc-700 transition">
-            <div class="flex items-center justify-between mb-2">
-              <h3 class="text-sm font-semibold text-zinc-400 uppercase tracking-wider">Sessions</h3>
-              <button phx-click="set_view" phx-value-mode="feed" class="text-xs text-indigo-400 hover:text-indigo-300">
-                View →
-              </button>
-            </div>
-            <div class="text-3xl font-bold text-zinc-200">{@total_sessions}</div>
-            <p class="text-xs text-zinc-600 mt-1">
-              {length(@sessions)} standalone
-            </p>
-          </div>
-        </div>
+      <ObservatoryWeb.Components.AnalyticsComponents.analytics_view
+        :if={@view_mode == :analytics}
+        analytics={@analytics}
+      />
 
-        <%!-- Recent Activity Section --%>
-        <div :if={length(@visible_events) > 0} class="mt-8">
-          <div class="flex items-center justify-between mb-4">
-            <h3 class="text-sm font-semibold text-zinc-400 uppercase tracking-wider">Recent Activity</h3>
-            <button phx-click="set_view" phx-value-mode="feed" class="text-xs text-indigo-400 hover:text-indigo-300">
-              View all →
-            </button>
-          </div>
-          <div class="space-y-1">
-            <div :for={event <- Enum.take(@visible_events, 10)} class="flex items-center gap-2 px-3 py-2 rounded bg-zinc-900/30 hover:bg-zinc-900/60 transition text-xs">
-              <% {bg, _border, _text} = session_color(event.session_id) %>
-              <span class={"w-1.5 h-1.5 rounded-full shrink-0 #{bg}"}></span>
-              <span class="text-zinc-600 font-mono w-12 shrink-0 text-right">{relative_time(event.inserted_at, @now)}</span>
-              <span :if={event.tool_name} class="text-indigo-400 font-mono shrink-0">{event.tool_name}</span>
-              <span class="text-zinc-400 truncate flex-1">{event.summary || event_summary(event)}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <%!-- Feed View --%>
-      <div :if={@view_mode == :feed} class="p-3 space-y-px" id="event-list">
-        <ObservatoryWeb.ObservatoryComponents.empty_state
-          :if={Enum.empty?(@visible_events)}
-          title="Waiting for agent activity..."
-          description="Hook events will stream here in real-time. Try running agents or use keyboard shortcuts (press ?) for help."
-        />
-
-        <div :for={event <- @visible_events} id={"ev-#{event.id}"}>
-          <div
-            class={"flex items-center gap-2 px-3 py-1.5 rounded cursor-pointer transition-all hover:bg-zinc-900/80 group #{if @selected_event && @selected_event.id == event.id, do: "bg-zinc-800/80 ring-1 ring-indigo-500/40", else: ""} #{if is_team_tool?(event.tool_name), do: "border-l-2 border-cyan-500/30", else: ""}"}
-            phx-click="select_event"
-            phx-value-id={event.id}
-          >
-            <% {bg, _border, _text} = session_color(event.session_id) %>
-            <span class={"w-1.5 h-1.5 rounded-full shrink-0 #{bg}"}></span>
-
-            <span class="text-xs font-mono text-zinc-600 shrink-0 w-14 text-right" title={format_time(event.inserted_at)}>
-              {relative_time(event.inserted_at, @now)}
-            </span>
-
-            <% {label, badge_class} = event_type_label(event.hook_event_type) %>
-            <span class={"text-xs font-mono px-1.5 py-0 rounded shrink-0 #{badge_class}"}>
-              {label}
-            </span>
-
-            <span
-              :if={event.tool_name}
-              class={"text-xs font-mono shrink-0 #{if is_team_tool?(event.tool_name), do: "text-cyan-400", else: "text-indigo-400"}"}
-            >
-              {event.tool_name}
-            </span>
-
-            <span class="text-sm text-zinc-400 truncate flex-1 min-w-0 group-hover:text-zinc-300">
-              {event.summary || event_summary(event)}
-            </span>
-
-            <span :if={Map.has_key?(@event_notes, event.id)} class="text-amber-400 shrink-0" title="Has note">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
-                <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
-              </svg>
-            </span>
-
-            <span
-              class={"text-xs font-mono px-1 rounded #{duration_color(event.duration_ms)} shrink-0 w-12 text-right"}
-            >
-              {if event.duration_ms, do: format_duration(event.duration_ms), else: "-"}
-            </span>
-
-            <span class="text-xs font-mono text-zinc-700 shrink-0 hidden lg:inline">
-              {event.source_app}:{short_session(event.session_id)}
-            </span>
-          </div>
-        </div>
-      </div>
-
-      <%!-- Task Board View --%>
-      <div :if={@view_mode == :tasks} class="p-4">
-        <div class="flex justify-between items-center mb-4">
-          <h2 class="text-sm font-semibold text-zinc-400">Task Board</h2>
-          <button
-            :if={@selected_team}
-            phx-click="toggle_create_task_modal"
-            class="px-3 py-1 text-xs rounded-md bg-blue-600 hover:bg-blue-500 text-white transition"
-          >
-            + New Task
-          </button>
-        </div>
-
-        <ObservatoryWeb.ObservatoryComponents.empty_state
-          :if={@active_tasks == []}
-          title="No tasks tracked yet"
-          description="Tasks will appear when agents use TaskCreate or TaskUpdate tools"
-        />
-
-        <div :if={@active_tasks != []} class="grid grid-cols-3 gap-4 min-w-0">
-          <ObservatoryWeb.ObservatoryComponents.task_column
-            status="pending"
-            title="Pending"
-            tasks={@active_tasks}
-            dot_class="bg-zinc-500"
-            title_class="text-zinc-400"
-            card_border="border-zinc-800 hover:border-zinc-700"
-            owner_class="text-zinc-500"
-            show_blocked_by={true}
-          />
-
-          <ObservatoryWeb.ObservatoryComponents.task_column
-            status="in_progress"
-            title="In Progress"
-            tasks={@active_tasks}
-            dot_class="bg-blue-500"
-            title_class="text-blue-400"
-            card_border="border-blue-500/20 hover:border-blue-500/40"
-            owner_class="text-blue-400"
-            show_active_form={true}
-            animate_dot={true}
-          />
-
-          <ObservatoryWeb.ObservatoryComponents.task_column
-            status="completed"
-            title="Completed"
-            tasks={@active_tasks}
-            dot_class="bg-emerald-500"
-            title_class="text-emerald-400"
-            card_border="border-emerald-500/15 hover:border-emerald-500/30"
-            owner_class="text-emerald-400/70"
-            subject_class="text-zinc-500 line-through"
-          />
-        </div>
-      </div>
-
-      <%!-- Messages View --%>
-      <div :if={@view_mode == :messages} class="p-4 max-w-4xl mx-auto">
-        <ObservatoryWeb.ObservatoryComponents.empty_state
-          :if={@messages == []}
-          title="No inter-agent messages yet"
-          description="Messages appear when agents use the SendMessage tool for team coordination"
-        />
-
-        <div :if={@messages != []} class="space-y-4">
-          <%!-- Search and Filter Controls --%>
-          <div class="flex items-center gap-2 pb-3 border-b border-zinc-800">
-            <form phx-change="search_messages" class="flex-1">
-              <input
-                type="text"
-                name="q"
-                value={@search_messages || ""}
-                placeholder="Search messages by content or participant..."
-                autocomplete="off"
-                phx-debounce="150"
-                class="w-full bg-zinc-800 border border-zinc-700 rounded px-2.5 py-1 text-xs text-zinc-300 placeholder-zinc-600 focus:border-indigo-500 focus:ring-0 focus:outline-none"
-              />
-            </form>
-            <button
-              phx-click="expand_all_threads"
-              class="text-xs px-2 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-zinc-200 transition whitespace-nowrap"
-              title="Expand all threads"
-            >
-              Expand All
-            </button>
-            <button
-              phx-click="collapse_all_threads"
-              class="text-xs px-2 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-zinc-200 transition whitespace-nowrap"
-              title="Collapse all threads"
-            >
-              Collapse All
-            </button>
-          </div>
-
-          <%!-- Message Threads --%>
-          <div :for={thread <- @message_threads} class="space-y-4">
-            <ObservatoryWeb.ObservatoryComponents.message_thread
-              thread={thread}
-              now={@now}
-              collapsed={Map.get(@collapsed_threads, participant_key(thread.participants), false)}
-            />
-          </div>
-        </div>
-      </div>
-
-      <%!-- Agents View --%>
-      <div :if={@view_mode == :agents} class="p-4">
-        <ObservatoryWeb.ObservatoryComponents.empty_state
-          :if={@teams == []}
-          title="No teams active yet"
-          description="Teams appear when agents use TeamCreate tool to spawn teammates"
-        />
-
-        <div :if={@teams != []} class="grid grid-cols-2 gap-4 min-w-0">
-          <div
-            :for={team <- @teams}
-            class="p-4 rounded-lg border border-zinc-800 bg-zinc-900/50"
-          >
-            <div class="mb-3">
-              <div class="flex items-center justify-between mb-1">
-                <h3 class="text-sm font-semibold text-zinc-200">{team.name}</h3>
-              </div>
-              <p :if={team.description} class="text-xs text-zinc-500 mb-2">{team.description}</p>
-
-              <%!-- Team broadcast input --%>
-              <form phx-submit="send_team_broadcast" class="flex gap-1">
-                <input type="hidden" name="team" value={team.name} />
-                <input
-                  type="text"
-                  name="content"
-                  placeholder="Broadcast to team..."
-                  class="flex-1 bg-zinc-800 border border-zinc-700 rounded px-2 py-1 text-xs text-zinc-300 placeholder-zinc-600 focus:border-cyan-500 focus:ring-0 focus:outline-none"
-                />
-                <button
-                  type="submit"
-                  class="px-2 py-1 bg-cyan-600/20 text-cyan-400 rounded text-xs hover:bg-cyan-600/30 transition"
-                >
-                  Send
-                </button>
-              </form>
-            </div>
-
-            <% task_total = length(team.tasks) %>
-            <% task_done = Enum.count(team.tasks, fn t -> t[:status] == "completed" end) %>
-            <div :if={task_total > 0} class="mb-3">
-              <div class="flex items-center justify-between text-xs text-zinc-500 mb-1">
-                <span>Task Progress</span>
-                <span>{task_done}/{task_total}</span>
-              </div>
-              <div class="h-2 bg-zinc-800 rounded-full overflow-hidden">
-                <div
-                  class="h-full bg-emerald-500 rounded-full transition-all"
-                  style={"width: #{if task_total > 0, do: round(task_done / task_total * 100), else: 0}%"}
-                >
-                </div>
-              </div>
-            </div>
-
-            <div class="space-y-2">
-              <h4 class="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Members</h4>
-              <div
-                :for={member <- team.members}
-                phx-click="select_agent"
-                phx-value-id={member[:agent_id]}
-                class={"p-2 rounded bg-zinc-800/50 border hover:border-zinc-700 transition cursor-pointer #{if member[:status] == :idle, do: "opacity-60", else: ""} #{if @selected_agent && @selected_agent[:agent_id] == member[:agent_id], do: "border-indigo-500/40 bg-zinc-800/80", else: "border-zinc-800"}"}
-              >
-                <div class="flex items-center gap-2 mb-1">
-                  <span class={"w-2 h-2 rounded-full shrink-0 #{member_status_color(member)}"}></span>
-                  <span class="text-xs font-semibold text-zinc-300">{member[:name] || "?"}</span>
-                  <span class="text-xs text-zinc-600 ml-auto">{member[:agent_type]}</span>
-                  <ObservatoryWeb.ObservatoryComponents.model_badge model={member[:model]} />
-                  <% perm_mode = format_permission_mode(member[:permission_mode]) %>
-                  <span :if={perm_mode} class="text-xs font-mono px-1.5 py-0.5 rounded bg-yellow-500/15 text-yellow-400 border border-yellow-500/30">
-                    {perm_mode}
-                  </span>
-                  <% task_count = Enum.count(@active_tasks, fn t -> t[:owner] == member[:name] end) %>
-                  <button
-                    :if={task_count > 0}
-                    phx-click="filter_agent_tasks"
-                    phx-value-session_id={member[:agent_id]}
-                    class="inline-flex items-center justify-center px-1.5 min-w-[1.25rem] h-4 text-xs font-semibold text-white bg-blue-500 rounded-full hover:bg-blue-600 transition"
-                    title="View tasks"
-                  >
-                    {task_count}
-                  </button>
-                  <% unread = Map.get(@mailbox_counts, member[:agent_id], 0) %>
-                  <span :if={unread > 0} class="inline-flex items-center justify-center px-1.5 min-w-[1.25rem] h-4 text-xs font-semibold text-white bg-indigo-500 rounded-full">
-                    {unread}
-                  </span>
-                </div>
-                <div class="flex items-center gap-2 ml-4 text-xs text-zinc-500 mb-1">
-                  <span :if={member[:cwd]}>
-                    {abbreviate_cwd(member[:cwd])}
-                  </span>
-                  <span :if={member[:uptime]}>
-                    | {format_uptime(member[:uptime])}
-                  </span>
-                  <span :if={member[:latest_event]}>
-                    | {relative_time(member[:latest_event].inserted_at, @now)}
-                  </span>
-                  <span :if={member[:event_count] && member[:event_count] > 0}>
-                    | {member[:event_count]} events
-                  </span>
-                </div>
-                <div :if={member[:current_tool]} class="ml-4 mb-1 text-xs text-blue-400">
-                  Running: {member[:current_tool].tool_name} ({member[:current_tool].elapsed}s)
-                </div>
-                <div :if={member[:failure_rate] && member[:failure_rate] > 0} class="ml-4 mb-1">
-                  <% fail_pct = Float.round(member[:failure_rate] * 100, 0) %>
-                  <span class={"text-xs px-1.5 py-0.5 rounded #{if fail_pct > 10, do: "bg-red-500/20 text-red-400", else: "bg-amber-500/20 text-amber-400"}"}>
-                    {fail_pct}% failures
-                  </span>
-                </div>
-
-                <%!-- Health warnings --%>
-                <ObservatoryWeb.ObservatoryComponents.health_warnings issues={member[:health_issues] || []} />
-
-                <%!-- Agent messaging controls --%>
-                <div :if={member[:agent_id]} class="ml-4 space-y-1">
-                  <form phx-submit="send_agent_message" class="flex gap-1">
-                    <input type="hidden" name="session_id" value={member[:agent_id]} />
-                    <input
-                      type="text"
-                      name="content"
-                      placeholder="Send message..."
-                      class="flex-1 bg-zinc-900 border border-zinc-700 rounded px-2 py-1 text-xs text-zinc-300 placeholder-zinc-700 focus:border-indigo-500 focus:ring-0 focus:outline-none"
-                    />
-                    <button
-                      type="submit"
-                      class="px-2 py-1 bg-indigo-600/20 text-indigo-400 rounded text-xs hover:bg-indigo-600/30 transition"
-                      title="Send message"
-                    >
-                      Send
-                    </button>
-                  </form>
-                  <div class="flex gap-1">
-                    <button
-                      phx-click="filter_agent"
-                      phx-value-session_id={member[:agent_id]}
-                      class="flex-1 px-2 py-1 bg-zinc-700/50 text-zinc-400 rounded text-xs hover:bg-zinc-700 transition"
-                      title="View events"
-                    >
-                      Events
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <%!-- Errors View --%>
-      <div :if={@view_mode == :errors} class="p-4">
-        <ObservatoryWeb.ObservatoryComponents.empty_state
-          :if={@errors == []}
-          title="No errors yet"
-          description="Tool failures from PostToolUseFailure events will appear here grouped by tool"
-        />
-
-        <div :if={@errors != []} class="space-y-4">
-          <div :for={group <- @error_groups} class="p-4 rounded-lg border border-red-500/20 bg-red-500/5">
-            <div class="flex items-center justify-between mb-3">
-              <div class="flex items-center gap-2">
-                <span class="text-sm font-semibold text-red-400">{group.tool}</span>
-                <span class="px-2 py-0.5 text-xs rounded bg-red-500/40 text-red-300 animate-pulse">{group.count} errors</span>
-                <button
-                  phx-click="jump_to_timeline"
-                  phx-value-session_id={group.latest.session_id}
-                  class="text-xs px-2 py-0.5 rounded bg-zinc-700/50 text-zinc-400 hover:bg-zinc-700 transition"
-                >
-                  View in Timeline
-                </button>
-                <button
-                  phx-click="jump_to_feed"
-                  phx-value-session_id={group.latest.session_id}
-                  class="text-xs px-2 py-0.5 rounded bg-zinc-700/50 text-zinc-400 hover:bg-zinc-700 transition"
-                >
-                  View in Feed
-                </button>
-              </div>
-              <span class="text-xs text-zinc-500">{relative_time(group.latest.timestamp, @now)}</span>
-            </div>
-            <div class="space-y-2">
-              <div :for={err <- Enum.take(group.errors, 5)} class="p-2 rounded bg-zinc-900/50 border border-zinc-800">
-                <div class="flex items-center justify-between mb-1">
-                  <% {bg, _b, _t} = session_color(err.session_id) %>
-                  <span class={"w-2 h-2 rounded-full #{bg}"}></span>
-                  <span class="text-xs font-mono text-zinc-500">{short_session(err.session_id)}</span>
-                  <span class="text-xs text-zinc-600">{relative_time(err.timestamp, @now)}</span>
-                </div>
-                <p class="text-xs text-zinc-300 ml-4 break-words">{err.error}</p>
-              </div>
-              <p :if={length(group.errors) > 5} class="text-xs text-zinc-600 text-center">
-                + {length(group.errors) - 5} more errors
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <%!-- Analytics View --%>
-      <div :if={@view_mode == :analytics} class="p-4">
-        <ObservatoryWeb.ObservatoryComponents.empty_state
-          :if={@analytics == []}
-          title="No tool usage yet"
-          description="Performance analytics appear when agents execute tools with PreToolUse/PostToolUse events"
-        />
-
-        <div :if={@analytics != []} class="space-y-3">
-          <div class="overflow-x-auto">
-            <table class="w-full text-sm">
-              <thead class="border-b border-zinc-800">
-                <tr class="text-left">
-                  <th class="pb-2 pr-4 text-xs font-semibold text-zinc-500 uppercase">Tool</th>
-                  <th class="pb-2 pr-4 text-xs font-semibold text-zinc-500 uppercase text-right">Uses</th>
-                  <th class="pb-2 pr-4 text-xs font-semibold text-zinc-500 uppercase text-right">Success</th>
-                  <th class="pb-2 pr-4 text-xs font-semibold text-zinc-500 uppercase text-right">Failures</th>
-                  <th class="pb-2 pr-4 text-xs font-semibold text-zinc-500 uppercase text-right">Fail %</th>
-                  <th class="pb-2 text-xs font-semibold text-zinc-500 uppercase text-right">Avg Duration</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr
-                  :for={stat <- @analytics}
-                  phx-click="filter_analytics_tool"
-                  phx-value-tool={stat.tool}
-                  class="border-b border-zinc-800/50 hover:bg-zinc-900/50 cursor-pointer transition"
-                >
-                  <td class="py-2 pr-4 font-mono text-zinc-300">{stat.tool}</td>
-                  <td class="py-2 pr-4 text-right text-zinc-400">{stat.total_uses}</td>
-                  <td class="py-2 pr-4 text-right text-emerald-400">{stat.successes}</td>
-                  <td class="py-2 pr-4 text-right text-red-400">{stat.failures}</td>
-                  <% fail_class = if stat.failure_rate > 0.3, do: "py-2 pr-4 text-right text-red-400", else: "py-2 pr-4 text-right text-zinc-500" %>
-                  <td class={fail_class}>
-                    {Float.round(stat.failure_rate * 100, 0)}%
-                  </td>
-                  <td class="py-2 text-right text-zinc-400">
-                    {if stat.avg_duration_ms, do: format_duration(stat.avg_duration_ms), else: "-"}
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-
-      <%!-- Timeline View --%>
-      <div :if={@view_mode == :timeline} class="p-4">
-        <ObservatoryWeb.ObservatoryComponents.empty_state
-          :if={@timeline == []}
-          title="No tool activity yet"
-          description="Timeline will show tool executions over time as horizontal bars. Click blocks to inspect."
-        />
-
-        <div :if={@timeline != []} class="space-y-4">
-          <%!-- Color legend --%>
-          <div class="flex items-center gap-3 text-xs text-zinc-500 pb-2 border-b border-zinc-800">
-            <span class="font-semibold text-zinc-400">Legend:</span>
-            <div class="flex items-center gap-1.5">
-              <span class="w-3 h-3 rounded bg-blue-500/60"></span>
-              <span>Bash</span>
-            </div>
-            <div class="flex items-center gap-1.5">
-              <span class="w-3 h-3 rounded bg-emerald-500/60"></span>
-              <span>Read/Write/Edit</span>
-            </div>
-            <div class="flex items-center gap-1.5">
-              <span class="w-3 h-3 rounded bg-amber-500/60"></span>
-              <span>Search</span>
-            </div>
-            <div class="flex items-center gap-1.5">
-              <span class="w-3 h-3 rounded bg-purple-500/60"></span>
-              <span>Task/Team</span>
-            </div>
-            <div class="flex items-center gap-1.5">
-              <span class="w-3 h-3 rounded bg-zinc-800"></span>
-              <span>Idle</span>
-            </div>
-          </div>
-
-          <% global_start = List.first(@timeline).start_time %>
-          <% global_end = List.last(Enum.sort_by(@timeline, & &1.start_time, {:desc, DateTime})).end_time %>
-
-          <div :for={{session, idx} <- Enum.with_index(@timeline)} class="space-y-2">
-            <div class="flex items-center gap-2">
-              <% {bg, _b, _t} = session_color(session.session_id) %>
-              <span class={"w-2 h-2 rounded-full #{bg}"}></span>
-              <span class="text-xs font-mono text-zinc-400">{session.source_app}:{short_session(session.session_id)}</span>
-              <span class="text-xs text-zinc-600">{session_duration_sec(session.duration_sec)}</span>
-            </div>
-
-            <div class={"relative h-8 rounded border border-zinc-800 overflow-hidden #{if rem(idx, 2) == 0, do: "bg-zinc-900", else: "bg-zinc-900/50"}"}>
-              <% positioned_blocks = calculate_block_positions(session, global_start, global_end) %>
-              <div :for={block <- positioned_blocks} class="absolute top-1 h-6 group" style={"left: #{block.left_pct}%; width: #{block.width_pct}%"}>
-                <% block_class = if block[:type] == :idle, do: "h-full w-full rounded bg-zinc-800", else: "h-full w-full rounded #{tool_color(block[:tool_name])} cursor-pointer hover:opacity-80 transition flex items-center justify-center" %>
-                <% block_title = if block[:type] == :tool, do: "#{block[:tool_name]}: #{block[:summary]}", else: "idle" %>
-                <% show_label = block[:type] == :tool && block.width_pct > 5 %>
-                <div
-                  :if={block[:type] == :tool && block[:event_id]}
-                  phx-click="select_timeline_event"
-                  phx-value-id={block[:event_id]}
-                  class={block_class}
-                  title={block_title}
-                >
-                  <span :if={show_label} class="text-xs font-mono text-white/90 truncate px-1">{block[:tool_name]}</span>
-                </div>
-                <div
-                  :if={block[:type] == :idle || !block[:event_id]}
-                  class={block_class}
-                  title={block_title}
-                >
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <%!-- Time axis --%>
-          <div class="relative h-4 mt-2">
-            <% labels = time_axis_labels(global_start, global_end, 10) %>
-            <div :for={label <- labels} class="absolute" style={"left: #{label.position_pct}%"}>
-              <span class="text-xs text-zinc-600">{label.label}</span>
-            </div>
-          </div>
-        </div>
-      </div>
+      <ObservatoryWeb.Components.TimelineComponents.timeline_view
+        :if={@view_mode == :timeline}
+        timeline={@timeline}
+      />
     </main>
 
     <%!-- ═══ Detail Panel ═══ --%>
