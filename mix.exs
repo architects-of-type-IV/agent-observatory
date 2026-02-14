@@ -69,7 +69,9 @@ defmodule Observatory.MixProject do
       # Ash Framework
       {:ash, "~> 3.0"},
       {:ash_phoenix, "~> 2.0"},
-      {:ash_sqlite, "~> 0.2"}
+      {:ash_sqlite, "~> 0.2"},
+      {:ash_ai, "~> 0.5"},
+      {:usage_rules, "~> 1.1", only: :dev}
     ]
   end
 

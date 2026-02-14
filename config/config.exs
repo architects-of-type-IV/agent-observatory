@@ -10,7 +10,7 @@ import Config
 config :observatory,
   ecto_repos: [Observatory.Repo],
   generators: [timestamp_type: :utc_datetime],
-  ash_domains: [Observatory.Events]
+  ash_domains: [Observatory.Events, Observatory.AgentTools]
 
 # Configure the endpoint
 config :observatory, ObservatoryWeb.Endpoint,

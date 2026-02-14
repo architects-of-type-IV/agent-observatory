@@ -533,5 +533,40 @@ QUALITY:
 FILES MODIFIED:
 - lib/observatory_web/live/dashboard_message_helpers.ex (181 lines)
 - lib/observatory_web/components/observatory_components.ex (279 lines)
-- lib/observatory_web/live/dashboard_live.ex (321 lines)
+- lib/observatory_web/live/dashboard_live.ex (321 lines -> 299 lines after extraction)
 - lib/observatory_web/live/dashboard_live.html.heex
+
+2026-02-14 - Thread Handler Extraction
+========================================
+Extracted thread/message handlers from dashboard_live.ex to dashboard_messaging_handlers.ex.
+Compacted select_event/select_task handlers. dashboard_live.ex: 321 -> 299 lines.
+
+2026-02-14 - MCP Server (AshAi) for Agent Communication
+=========================================================
+
+IMPLEMENTED: Observatory as MCP server using AshAi framework.
+Agents connect via MCP protocol to check inbox, send messages, manage tasks.
+
+CREATED:
+- lib/observatory/agent_tools.ex - Ash Domain with AshAi extension, defines 5 tools
+- lib/observatory/agent_tools/inbox.ex - Ash Resource with generic actions:
+  - check_inbox(session_id) - returns unread messages from Mailbox GenServer
+  - acknowledge_message(session_id, message_id) - mark as read
+  - send_message(from_session_id, to_session_id, content) - send via Mailbox
+  - get_tasks(session_id, team_name) - list assigned tasks from TaskManager
+  - update_task_status(team_name, task_id, status) - update task
+
+MODIFIED:
+- config/config.exs - added Observatory.AgentTools to ash_domains
+- lib/observatory_web/router.ex - added forward "/mcp" to AshAi.Mcp.Router
+- mix.exs - added ash_ai ~> 0.5, usage_rules ~> 1.1
+
+VERIFIED:
+- MCP initialize handshake: protocol 2025-03-26
+- tools/list: returns all 5 tools with JSON schemas
+- tools/call: send_message + check_inbox tested end-to-end
+- Zero warnings build
+
+AGENT CONNECTION:
+- .mcp.json at project root: {"mcpServers":{"observatory":{"type":"http","url":"http://localhost:4005/mcp"}}}
+- Or: claude mcp add --transport http observatory http://localhost:4005/mcp

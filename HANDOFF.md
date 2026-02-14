@@ -1,52 +1,44 @@
-# Observatory Messages View Enhancement - Handoff
+# Observatory MCP Server - Handoff
 
 ## Current Status
-Task #3 "Analyze Messages view and implement observability improvements" is **COMPLETED**.
+MCP server implemented and tested. Agents can connect to Observatory via MCP to check inbox, send messages, and manage tasks.
 
 ## What Was Done
-Enhanced the Observatory Messages view with high-impact observability features for team lead monitoring:
 
-### Implemented Features
-1. **Enhanced Thread Metadata**
-   - Unread message count badges per thread
-   - Urgent message warning indicators (⚠️) for shutdown_request/plan_approval_request
-   - Message type badges showing all types in thread
+### MCP Server (AshAi)
+- Added `ash_ai` ~> 0.5 and `usage_rules` ~> 1.1 dependencies
+- Created `Observatory.AgentTools` domain with AshAi extension
+- Created `Observatory.AgentTools.Inbox` resource with 5 generic actions:
+  - `check_inbox(session_id)` - returns unread messages
+  - `acknowledge_message(session_id, message_id)` - mark as read
+  - `send_message(from_session_id, to_session_id, content)` - send via Mailbox
+  - `get_tasks(session_id, team_name)` - list assigned tasks
+  - `update_task_status(team_name, task_id, status)` - update task status
+- Forwarded `/mcp` in Phoenix router to `AshAi.Mcp.Router`
+- Registered `Observatory.AgentTools` domain in config
+- Created `.mcp.json` at project root for Claude Code integration
 
-2. **Message Type Visual System**
-   - Icons: 💬 (DM), 📢 (broadcast), ⚠️ (shutdown_request), ✓ (responses)
-   - Color-coded borders and backgrounds per message type
-   - Consistent badge styling across UI
+### Files Created/Modified
+- `lib/observatory/agent_tools.ex` (new - Ash Domain)
+- `lib/observatory/agent_tools/inbox.ex` (new - Ash Resource with actions)
+- `lib/observatory_web/router.ex` (added MCP forward)
+- `config/config.exs` (added AgentTools domain)
+- `mix.exs` (added ash_ai, usage_rules deps)
+- `../../.mcp.json` (project root - Claude Code MCP config)
 
-3. **Collapsible Thread UI**
-   - Click thread header to toggle collapse/expand
-   - "Expand All" and "Collapse All" buttons
-   - State tracked in LiveView assigns
+### Verified
+- MCP initialize handshake works (protocol 2025-03-26)
+- tools/list returns all 5 tools with JSON schemas
+- tools/call works: send_message + check_inbox tested end-to-end
+- Zero warnings build
 
-4. **Message Search**
-   - Real-time search by content, sender, or recipient
-   - 150ms debounce for performance
-   - Filters threads on-the-fly
-
-5. **Better Timestamps**
-   - Relative time display ("2m ago")
-   - Absolute timestamp on hover
-
-### Files Modified
-- lib/observatory_web/live/dashboard_message_helpers.ex (181 lines)
-- lib/observatory_web/components/observatory_components.ex (279 lines)
-- lib/observatory_web/live/dashboard_live.ex (321 lines)
-- lib/observatory_web/live/dashboard_live.html.heex
-
-### Quality Checks
-✓ Zero warnings (mix compile --warnings-as-errors)
-✓ All modules under 300 line limit
-✓ Server running on port 4005
-✓ No new dependencies or GenServers
+## Agent Connection
+Agents in the kardashev project auto-discover Observatory via `.mcp.json`:
+```
+claude mcp add --transport http observatory http://localhost:4005/mcp
+```
 
 ## Next Steps
-- Mark task #3 as completed (after keep-track)
-- Team lead can review the Messages view enhancements
-- Other team tasks (#1, #4, #5) are still in progress
-
-## Context
-Working as "messages-analyst" on team "observatory-debug". Server was already running on port 4005. Followed existing patterns (prepare_assigns, helper delegation, component reuse).
+- Agents view analysis and improvements (user requested)
+- Consider adding a PostToolUse hook to inject "you have messages" context
+- Test with actual Claude Code agent sessions
