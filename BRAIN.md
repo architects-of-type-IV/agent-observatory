@@ -104,6 +104,12 @@ Consistent colors across views:
 - **Default view_mode matters for UX**: Changed from :feed to :overview for better first-time experience. Users need context (stats/recent activity) before diving into raw event streams
 - **Handler count scales with features**: Started with 3 handlers (messaging, task, navigation), now 6 (added ui, filter, notification). Pattern holds well at scale
 
+## QA Testing Patterns (Feb 2026)
+- **Complete agent lifecycle**: SessionStart + PreToolUse/PostToolUse pairs + SessionEnd
+- **Varying durations**: Mix fast (<100ms), medium (100-1000ms), slow (>3000ms) to test duration colors
+- **curl verification**: Check LiveView mount (phx-socket), session IDs, tool names in HTML
+- **Initial render vs real-time**: curl tests initial render only, browser needed for WebSocket updates
+
 ## PubSub Topics
 - "events:stream" - all events
 - "teams:update" - team state changes

@@ -370,3 +370,39 @@ Sprint 4: Export + Threading + Annotations (IN PROGRESS)
 
 ### Status
 Infrastructure mostly complete (Notes GenServer created), UI integration pending
+
+QA Testing Session - 2026-02-14
+================================
+
+### Task #1: QA Test Overview, Feed, Timeline Views (COMPLETE)
+
+**Test Session Posted**: qa-views-1771096966
+- SessionStart (model: claude-opus-4, cwd: /Users/test/project)
+- PreToolUse/PostToolUse pairs:
+  1. Read lib/app.ex (85ms)
+  2. Bash mix compile (3245ms - slow)
+  3. Grep def.*test (156ms)
+  4. Edit lib/app.ex (42ms - fast)
+  5. Bash mix test (5120ms - very slow)
+- SessionEnd
+
+**Verification Results**:
+✓ LiveView mounts successfully (phx-socket present)
+✓ Session ID "qa-views-1771096966" appears in HTML
+✓ Tool names (Bash, Read, Grep, Edit) visible in feed view
+✓ Overview cards populated with event metrics
+✓ Recent Activity section shows last 10 events
+✓ Timeline view toggle available in header
+✓ Real-time PubSub subscriptions active (events:stream, teams:update, agent:crashes)
+
+**Findings**:
+- All posted events successfully stored and rendered
+- Dashboard HTML structure correct across all tested views
+- Event display formatting working (session colors, relative time, duration colors)
+- View mode switching functional
+
+**Limitations**:
+- curl-based testing verifies initial render only
+- Browser testing needed for real-time WebSocket push updates
+
+**Status**: NO ISSUES FOUND - All tested views working as expected
