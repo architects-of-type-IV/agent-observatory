@@ -182,7 +182,8 @@ defmodule ObservatoryWeb.DashboardLive do
   # Assign Preparation for Template
   # ═══════════════════════════════════════════════════════
 
-  defp prepare_assigns(assigns) do
+  defp prepare_assigns(socket) do
+    assigns = socket.assigns
     all_sessions = active_sessions(assigns.events)
     teams = derive_teams(assigns.events, assigns.disk_teams)
     teams = Enum.map(teams, &enrich_team_members(&1, assigns.events, assigns.now))
@@ -205,7 +206,7 @@ defmodule ObservatoryWeb.DashboardLive do
 
     has_teams? = teams != []
 
-    assigns
+    socket
     |> assign(:visible_events, filtered_events(assigns))
     |> assign(:sessions, filtered_sessions(standalone, assigns.search_sessions))
     |> assign(:total_sessions, length(all_sessions))
