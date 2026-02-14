@@ -68,6 +68,26 @@ Session 4: ALL 7 VIEW MODES COMPLETE
 ### Status
 SESSION 4 COMPLETE - All 7 view modes operational, zero warnings, all modules under 300 lines
 
+Session 5: Command Queue + Task Manager
+========================================
+
+### Task #7: File-Based Command Queue (COMPLETE)
+**Created**:
+- lib/observatory/command_queue.ex (237 lines) - GenServer for inbox/outbox file system
+  - write_command(session_id, command) writes JSON to ~/.claude/inbox/{session_id}/{id}.json
+  - poll_responses(session_id) reads from ~/.claude/outbox/{session_id}/*.json
+  - Polls every 2s, broadcasts {:command_responses, []} to "session:{id}" PubSub topic
+  - Auto-consumes (deletes) response files after reading
+
+**Modified**:
+- lib/observatory/application.ex - Added CommandQueue to supervision tree
+- lib/observatory/mailbox.ex - send_message now dual-writes to both ETS and CommandQueue
+- lib/observatory_web/live/dashboard_messaging_handlers.ex - Team broadcasts write to each member's inbox
+
+**Pattern**: Dual-write messaging (in-memory ETS + file-based queue) for agent coordination
+
+**Compilation**: ✅ mix compile --warnings-as-errors (SUCCESS)
+
 ### Checkpoint: 2026-02-14 (Commits 231b08b -> 18655b9)
 - Integration review resolved parallel editing merge conflicts
 - 3 views (analytics, errors, timeline) temporarily lost due to parallel editing on dashboard_live.html.heex

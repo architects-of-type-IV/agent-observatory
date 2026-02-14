@@ -196,4 +196,13 @@ defmodule ObservatoryWeb.DashboardFormatHelpers do
   Check if tool is a team coordination tool.
   """
   def is_team_tool?(tool_name), do: tool_name in @team_tools
+
+  @doc """
+  Get color class for duration based on threshold.
+  Gray <1s, amber 1-5s, red >5s.
+  """
+  def duration_color(nil), do: "text-zinc-600"
+  def duration_color(ms) when ms < 1000, do: "text-zinc-600"
+  def duration_color(ms) when ms < 5000, do: "text-amber-400"
+  def duration_color(_ms), do: "text-red-400"
 end

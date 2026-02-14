@@ -11,11 +11,13 @@ The Observatory multi-agent observability dashboard is fully functional with 7 v
 - #28: Timeline/Swimlane View
 - **Session 4 Complete**: All 7 view modes operational, error dashboard, analytics leaderboard, keyboard shortcuts, agent health monitoring
 - **Checkpoint (231b08b -> 18655b9)**: Integration review resolved parallel editing conflicts, all views verified working
+- **Task #7 Complete**: File-based command queue (CommandQueue GenServer)
 
 ### System Features
 
 #### PubSub Messaging
 - Mailbox GenServer with ETS-backed message queues
+- CommandQueue GenServer for file-based agent communication (inbox/outbox)
 - Channels module for bidirectional messaging
 - Topics: agent:{id}, team:{name}, session:{id}, events:stream, teams:update
 
@@ -71,7 +73,8 @@ The Observatory multi-agent observability dashboard is fully functional with 7 v
 | dashboard_agent_health_helpers.ex | 137 | Agent health monitoring |
 | dashboard_messaging_handlers.ex | 94 | Messaging handlers |
 | observatory_components.ex | 127 | Reusable components |
-| mailbox.ex | 142 | ETS-backed message queues |
+| mailbox.ex | 151 | ETS-backed message queues |
+| command_queue.ex | 237 | File-based command queue |
 | channels.ex | 160 | PubSub channel management |
 
 ### Compilation Status

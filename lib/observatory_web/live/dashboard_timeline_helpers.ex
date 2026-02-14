@@ -63,7 +63,8 @@ defmodule ObservatoryWeb.DashboardTimelineHelpers do
           end_time: if(post, do: post.inserted_at, else: pre.inserted_at),
           duration_ms: if(post, do: post.duration_ms, else: nil),
           status: if(post, do: event_status(post), else: :pending),
-          summary: event_summary(pre, post)
+          summary: event_summary(pre, post),
+          event_id: pre.id
         }
       end)
 

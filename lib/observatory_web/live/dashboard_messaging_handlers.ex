@@ -25,11 +25,24 @@ defmodule ObservatoryWeb.DashboardMessagingHandlers do
   def handle_send_team_broadcast(%{"team" => team_name, "content" => content}, socket) do
     from_session = socket.assigns[:current_session_id] || "dashboard"
 
+    # Publish via PubSub
     Observatory.Channels.publish_to_team(team_name, %{
       from: from_session,
       content: content,
       timestamp: DateTime.utc_now()
     })
+
+    # Write broadcast command to each team member's inbox
+    team_members = get_team_members(socket, team_name)
+
+    Enum.each(team_members, fn member ->
+      Observatory.CommandQueue.write_command(member.session_id, %{
+        type: "broadcast",
+        team: team_name,
+        from: from_session,
+        content: content
+      })
+    end)
 
     {:noreply, socket}
   end
@@ -42,6 +55,7 @@ defmodule ObservatoryWeb.DashboardMessagingHandlers do
 
     case File.read(path) do
       {:ok, content} ->
+        # Send via mailbox (which now also writes to CommandQueue)
         Observatory.Mailbox.send_message(
           sid,
           from_session,
@@ -90,5 +104,14 @@ defmodule ObservatoryWeb.DashboardMessagingHandlers do
     Enum.each(sessions, fn s ->
       Observatory.Channels.subscribe_agent(s.session_id)
     end)
+  end
+
+  # ═══════════════════════════════════════════════════════
+  # Helpers
+  # ═══════════════════════════════════════════════════════
+
+  defp get_team_members(socket, team_name) do
+    socket.assigns[:sessions]
+    |> Enum.filter(fn s -> s.team == team_name end)
   end
 end

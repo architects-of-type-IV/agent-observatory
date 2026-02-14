@@ -93,5 +93,12 @@ Consistent colors across views:
 - "teams:update" - team state changes
 - "agent:{session_id}" - per-agent mailbox
 - "team:{team_name}" - team broadcast
-- "session:{session_id}" - session events
+- "session:{session_id}" - session events (including command_responses)
 - "dashboard:commands" - UI -> agents
+
+## File-Based Command Queue
+CommandQueue GenServer provides dual-channel agent communication:
+- **Inbox**: write_command(session_id, command) -> ~/.claude/inbox/{session_id}/{id}.json
+- **Outbox**: poll_responses(session_id) reads ~/.claude/outbox/{session_id}/*.json
+- Polls every 2s, broadcasts {:command_responses, []} to "session:{id}" topic
+- Mailbox.send_message automatically writes to CommandQueue (dual-write pattern)

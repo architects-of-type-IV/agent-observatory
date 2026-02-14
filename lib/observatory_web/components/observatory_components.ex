@@ -6,6 +6,8 @@ defmodule ObservatoryWeb.ObservatoryComponents do
   use Phoenix.Component
   import ObservatoryWeb.DashboardFormatHelpers
   import ObservatoryWeb.DashboardTeamHelpers
+  import ObservatoryWeb.DashboardSessionHelpers
+  import ObservatoryWeb.DashboardAgentHealthHelpers
 
   @doc """
   Renders a task board column with filtered tasks.
@@ -122,6 +124,64 @@ defmodule ObservatoryWeb.ObservatoryComponents do
   def member_status_dot(assigns) do
     ~H"""
     <span class={"w-1.5 h-1.5 rounded-full shrink-0 #{member_status_color(@status)}"}></span>
+    """
+  end
+
+  @doc """
+  Renders an empty state with icon and guidance text.
+
+  ## Examples
+
+      <.empty_state
+        title="No tasks yet"
+        description="Tasks will appear when agents use TaskCreate/TaskUpdate"
+      />
+  """
+  attr :title, :string, required: true
+  attr :description, :string, required: true
+
+  def empty_state(assigns) do
+    ~H"""
+    <div class="flex flex-col items-center justify-center py-24 text-zinc-600">
+      <p class="text-lg">{@title}</p>
+      <p class="text-sm mt-1 text-zinc-700">{@description}</p>
+    </div>
+    """
+  end
+
+  @doc """
+  Renders health warnings for an agent.
+
+  ## Examples
+
+      <.health_warnings issues={member[:health_issues]} />
+  """
+  attr :issues, :list, required: true
+
+  def health_warnings(assigns) do
+    ~H"""
+    <div :if={@issues != []} class="mt-2 ml-4 space-y-0.5">
+      <div :for={issue <- @issues} class="text-xs text-red-400/80">
+        {format_issue(issue)}
+      </div>
+    </div>
+    """
+  end
+
+  @doc """
+  Renders a model badge.
+
+  ## Examples
+
+      <.model_badge model="opus" />
+  """
+  attr :model, :string, default: nil
+
+  def model_badge(assigns) do
+    ~H"""
+    <span :if={@model} class="text-xs font-mono px-1.5 py-0.5 rounded bg-indigo-500/15 text-indigo-400 border border-indigo-500/30">
+      {short_model_name(@model)}
+    </span>
     """
   end
 end

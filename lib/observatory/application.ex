@@ -15,6 +15,7 @@ defmodule Observatory.Application do
       {DNSCluster, query: Application.get_env(:observatory, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: Observatory.PubSub},
       {Observatory.Mailbox, []},
+      {Observatory.CommandQueue, []},
       {Observatory.TeamWatcher, []},
       ObservatoryWeb.Endpoint
     ]

@@ -5,6 +5,7 @@ defmodule ObservatoryWeb.DashboardLive do
   import ObservatoryWeb.DashboardFormatHelpers
   import ObservatoryWeb.DashboardMessagingHandlers
   import ObservatoryWeb.DashboardTimelineHelpers
+  import ObservatoryWeb.DashboardNavigationHandlers
 
   @max_events 500
 
@@ -232,6 +233,17 @@ defmodule ObservatoryWeb.DashboardLive do
       {:noreply, socket}
     end
   end
+
+  # Navigation handlers
+  def handle_event("jump_to_timeline", params, socket), do: handle_jump_to_timeline(params, socket) |> add_prepare()
+  def handle_event("jump_to_feed", params, socket), do: handle_jump_to_feed(params, socket) |> add_prepare()
+  def handle_event("jump_to_agents", params, socket), do: handle_jump_to_agents(params, socket) |> add_prepare()
+  def handle_event("jump_to_tasks", params, socket), do: handle_jump_to_tasks(params, socket) |> add_prepare()
+  def handle_event("select_timeline_event", params, socket), do: handle_select_timeline_event(params, socket) |> add_prepare()
+  def handle_event("filter_agent_tasks", params, socket), do: handle_filter_agent_tasks(params, socket) |> add_prepare()
+  def handle_event("filter_analytics_tool", params, socket), do: handle_filter_analytics_tool(params, socket) |> add_prepare()
+
+  defp add_prepare({:noreply, socket}), do: {:noreply, prepare_assigns(socket)}
 
 
   defp load_recent_events do

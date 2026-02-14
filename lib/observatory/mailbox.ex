@@ -80,6 +80,15 @@ defmodule Observatory.Mailbox do
     updated_messages = [message | messages]
     :ets.insert(@table_name, {to, updated_messages})
 
+    # Write command to file system
+    Observatory.CommandQueue.write_command(to, %{
+      type: "message",
+      from: from,
+      content: content,
+      message_type: Keyword.get(opts, :type, :text),
+      metadata: Keyword.get(opts, :metadata, %{})
+    })
+
     # Broadcast new message event
     Phoenix.PubSub.broadcast(
       Observatory.PubSub,

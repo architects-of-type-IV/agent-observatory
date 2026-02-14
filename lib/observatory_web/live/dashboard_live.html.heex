@@ -225,14 +225,15 @@
                 <span class={"w-2 h-2 rounded-full shrink-0 #{bg} #{if s.ended?, do: "opacity-30", else: ""}"}></span>
                 <span class="text-xs font-mono text-zinc-300 truncate">{s.source_app}</span>
                 <span class="text-xs font-mono text-zinc-600">{short_session(s.session_id)}</span>
+                <ObservatoryWeb.ObservatoryComponents.model_badge model={s.model} />
               </div>
               <div class="flex items-center gap-2 ml-4 text-xs text-zinc-500">
                 <span>{s.event_count} events</span>
                 <span>|</span>
                 <span>{session_duration(s.first_event, @now)}</span>
               </div>
-              <div :if={s.model} class="ml-4 mt-0.5">
-                <span class="text-xs font-mono text-zinc-600">{s.model}</span>
+              <div :if={s.cwd} class="ml-4 mt-0.5">
+                <span class="text-xs font-mono text-zinc-600">{abbreviate_cwd(s.cwd)}</span>
               </div>
             </div>
           </div>
@@ -282,10 +283,9 @@
             </span>
 
             <span
-              :if={event.duration_ms}
-              class={"text-xs font-mono px-1 rounded #{if event.duration_ms > 5000, do: "text-amber-400", else: "text-zinc-600"}"}
+              class={"text-xs font-mono px-1 rounded #{duration_color(event.duration_ms)} shrink-0 w-12 text-right"}
             >
-              {format_duration(event.duration_ms)}
+              {if event.duration_ms, do: format_duration(event.duration_ms), else: "-"}
             </span>
 
             <span class="text-xs font-mono text-zinc-700 shrink-0 hidden lg:inline">
@@ -354,9 +354,23 @@
             <div class="flex items-center gap-2 mb-1.5">
               <% {bg, _b, _t} = session_color(msg.sender_session) %>
               <span class={"w-2 h-2 rounded-full #{bg}"}></span>
-              <span class="text-xs font-mono text-zinc-400">{msg.sender_app}:{short_session(msg.sender_session)}</span>
+              <button
+                phx-click="jump_to_feed"
+                phx-value-session_id={msg.sender_session}
+                class="text-xs font-mono text-zinc-400 hover:text-zinc-200 hover:underline transition"
+              >
+                {msg.sender_app}:{short_session(msg.sender_session)}
+              </button>
               <span class="text-xs text-zinc-600">-></span>
-              <span class="text-xs font-mono text-cyan-400">{msg.recipient || "all"}</span>
+              <button
+                :if={msg.recipient && msg.recipient != "all"}
+                phx-click="jump_to_feed"
+                phx-value-session_id={msg.recipient_session || msg.recipient}
+                class="text-xs font-mono text-cyan-400 hover:text-cyan-200 hover:underline transition"
+              >
+                {msg.recipient}
+              </button>
+              <span :if={!msg.recipient || msg.recipient == "all"} class="text-xs font-mono text-cyan-400">all</span>
               <span :if={msg.type != "message"} class={"text-xs px-1.5 rounded #{case msg.type do; "broadcast" -> "bg-amber-500/15 text-amber-400"; "shutdown_request" -> "bg-red-500/15 text-red-400"; _ -> "bg-zinc-800 text-zinc-500" end}"}>{msg.type}</span>
               <span class="text-xs text-zinc-600 ml-auto">{relative_time(msg.timestamp, @now)}</span>
             </div>
@@ -421,12 +435,22 @@
               <h4 class="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Members</h4>
               <div
                 :for={member <- team.members}
-                class="p-2 rounded bg-zinc-800/50 border border-zinc-800 hover:border-zinc-700 transition"
+                class={"p-2 rounded bg-zinc-800/50 border border-zinc-800 hover:border-zinc-700 transition #{if member[:status] == :idle, do: "opacity-60", else: ""}"}
               >
                 <div class="flex items-center gap-2 mb-1">
-                  <span class={"w-2 h-2 rounded-full shrink-0 #{member_status_color(member[:status])}"}></span>
+                  <span class={"w-2 h-2 rounded-full shrink-0 #{member_status_color(member)}"}></span>
                   <span class="text-xs font-semibold text-zinc-300">{member[:name] || "?"}</span>
                   <span class="text-xs text-zinc-600 ml-auto">{member[:agent_type]}</span>
+                  <% task_count = Enum.count(@active_tasks, fn t -> t[:owner] == member[:name] end) %>
+                  <button
+                    :if={task_count > 0}
+                    phx-click="filter_agent_tasks"
+                    phx-value-session_id={member[:agent_id]}
+                    class="inline-flex items-center justify-center px-1.5 min-w-[1.25rem] h-4 text-xs font-semibold text-white bg-blue-500 rounded-full hover:bg-blue-600 transition"
+                    title="View tasks"
+                  >
+                    {task_count}
+                  </button>
                   <% unread = Map.get(@mailbox_counts, member[:agent_id], 0) %>
                   <span :if={unread > 0} class="inline-flex items-center justify-center px-1.5 min-w-[1.25rem] h-4 text-xs font-semibold text-white bg-indigo-500 rounded-full">
                     {unread}
@@ -440,6 +464,9 @@
                     | {member[:event_count]} events
                   </span>
                 </div>
+
+                <%!-- Health warnings --%>
+                <ObservatoryWeb.ObservatoryComponents.health_warnings issues={member[:health_issues] || []} />
 
                 <%!-- Agent messaging controls --%>
                 <div :if={member[:agent_id]} class="ml-4 space-y-1">
@@ -489,6 +516,20 @@
               <div class="flex items-center gap-2">
                 <span class="text-sm font-semibold text-red-400">{group.tool}</span>
                 <span class="px-2 py-0.5 text-xs rounded bg-red-500/20 text-red-300">{group.count} errors</span>
+                <button
+                  phx-click="jump_to_timeline"
+                  phx-value-session_id={group.latest.session_id}
+                  class="text-xs px-2 py-0.5 rounded bg-zinc-700/50 text-zinc-400 hover:bg-zinc-700 transition"
+                >
+                  View in Timeline
+                </button>
+                <button
+                  phx-click="jump_to_feed"
+                  phx-value-session_id={group.latest.session_id}
+                  class="text-xs px-2 py-0.5 rounded bg-zinc-700/50 text-zinc-400 hover:bg-zinc-700 transition"
+                >
+                  View in Feed
+                </button>
               </div>
               <span class="text-xs text-zinc-500">{relative_time(group.latest.timestamp, @now)}</span>
             </div>
@@ -531,7 +572,12 @@
                 </tr>
               </thead>
               <tbody>
-                <tr :for={stat <- @analytics} class="border-b border-zinc-800/50 hover:bg-zinc-900/50">
+                <tr
+                  :for={stat <- @analytics}
+                  phx-click="filter_analytics_tool"
+                  phx-value-tool={stat.tool}
+                  class="border-b border-zinc-800/50 hover:bg-zinc-900/50 cursor-pointer transition"
+                >
                   <td class="py-2 pr-4 font-mono text-zinc-300">{stat.tool}</td>
                   <td class="py-2 pr-4 text-right text-zinc-400">{stat.total_uses}</td>
                   <td class="py-2 pr-4 text-right text-emerald-400">{stat.successes}</td>
@@ -572,9 +618,18 @@
             <div class="relative h-8 bg-zinc-900 rounded border border-zinc-800 overflow-hidden">
               <% positioned_blocks = calculate_block_positions(session, global_start, global_end) %>
               <div :for={block <- positioned_blocks} class="absolute top-1 h-6 group" style={"left: #{block.left_pct}%; width: #{block.width_pct}%"}>
-                <% block_class = if block[:type] == :idle, do: "h-full w-full rounded bg-zinc-800", else: "h-full w-full rounded #{tool_color(block[:tool_name])}" %>
+                <% block_class = if block[:type] == :idle, do: "h-full w-full rounded bg-zinc-800", else: "h-full w-full rounded #{tool_color(block[:tool_name])} cursor-pointer hover:opacity-80 transition" %>
                 <% block_title = if block[:type] == :tool, do: "#{block[:tool_name]}: #{block[:summary]}", else: "idle" %>
                 <div
+                  :if={block[:type] == :tool && block[:event_id]}
+                  phx-click="select_timeline_event"
+                  phx-value-id={block[:event_id]}
+                  class={block_class}
+                  title={block_title}
+                >
+                </div>
+                <div
+                  :if={block[:type] == :idle || !block[:event_id]}
                   class={block_class}
                   title={block_title}
                 >
@@ -767,13 +822,22 @@
 
         <div :if={task[:session_id]} class="px-4 py-3">
           <h3 class="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">Actions</h3>
-          <button
-            phx-click="filter_session"
-            phx-value-sid={task[:session_id]}
-            class="text-xs px-2 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-zinc-200 transition"
-          >
-            Filter to session
-          </button>
+          <div class="flex flex-wrap gap-1.5">
+            <button
+              phx-click="filter_session"
+              phx-value-sid={task[:session_id]}
+              class="text-xs px-2 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-zinc-200 transition"
+            >
+              Filter to session
+            </button>
+            <button
+              phx-click="jump_to_agents"
+              phx-value-session_id={task[:session_id]}
+              class="text-xs px-2 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-zinc-200 transition"
+            >
+              View Agent
+            </button>
+          </div>
         </div>
       </div>
     </aside>
