@@ -10,6 +10,8 @@ defmodule ObservatoryWeb.DashboardLive do
   import ObservatoryWeb.DashboardUIHandlers
   import ObservatoryWeb.DashboardNotificationHandlers
   import ObservatoryWeb.DashboardFilterHandlers
+  import ObservatoryWeb.DashboardMessageHelpers
+  import ObservatoryWeb.DashboardNotesHandlers
 
   @max_events 500
 
@@ -35,8 +37,10 @@ defmodule ObservatoryWeb.DashboardLive do
       |> assign(:filter_source_app, nil)
       |> assign(:filter_session_id, nil)
       |> assign(:filter_event_type, nil)
+      |> assign(:filter_slow, false)
       |> assign(:search_feed, "")
       |> assign(:search_sessions, "")
+      |> assign(:search_history, [])
       |> assign(:selected_event, nil)
       |> assign(:selected_task, nil)
       |> assign(:now, DateTime.utc_now())
@@ -90,6 +94,10 @@ defmodule ObservatoryWeb.DashboardLive do
 
   def handle_event("clear_filters", _params, socket) do
     {:noreply, handle_clear_filters(socket) |> prepare_assigns()}
+  end
+
+  def handle_event("apply_preset", %{"preset" => preset}, socket) do
+    {:noreply, handle_apply_preset(preset, socket) |> prepare_assigns()}
   end
 
   def handle_event("search_feed", %{"q" => q}, socket) do
@@ -206,6 +214,16 @@ defmodule ObservatoryWeb.DashboardLive do
     {:noreply, handle_keyboard_navigate(params, socket) |> prepare_assigns()}
   end
 
+  def handle_event("add_note", params, socket) do
+    {:noreply, result_socket} = handle_add_note(params, socket)
+    {:noreply, result_socket |> prepare_assigns()}
+  end
+
+  def handle_event("delete_note", params, socket) do
+    {:noreply, result_socket} = handle_delete_note(params, socket)
+    {:noreply, result_socket |> prepare_assigns()}
+  end
+
   # Navigation handlers
   def handle_event(e, p, s) when e in ["jump_to_timeline", "jump_to_feed", "jump_to_agents", "jump_to_tasks", "select_timeline_event", "filter_agent_tasks", "filter_analytics_tool"] do
     ObservatoryWeb.DashboardNavigationHandlers.handle_event(e, p, s) |> then(&{:noreply, prepare_assigns(&1)})
@@ -239,6 +257,8 @@ defmodule ObservatoryWeb.DashboardLive do
     # Derive event-based task and message state
     event_tasks = derive_tasks(assigns.events)
     messages = derive_messages(assigns.events)
+    message_threads = group_messages_by_thread(messages)
+    event_notes = Observatory.Notes.list_notes()
 
     # For the selected team, merge disk tasks with event tasks
     sel_team = Enum.find(teams, fn t -> t.name == assigns.selected_team end)
@@ -266,6 +286,8 @@ defmodule ObservatoryWeb.DashboardLive do
     |> assign(:has_teams, has_teams?)
     |> assign(:active_tasks, active_tasks)
     |> assign(:messages, messages)
+    |> assign(:message_threads, message_threads)
+    |> assign(:event_notes, event_notes)
     |> assign(:sel_team, sel_team)
     |> assign(:errors, errors)
     |> assign(:error_groups, error_groups)

@@ -24,6 +24,7 @@ defmodule ObservatoryWeb.Router do
     pipe_through :browser
 
     live "/", DashboardLive
+    get "/export/events", ExportController, :index
   end
 
   # Enable LiveDashboard and Swoosh mailbox preview in development

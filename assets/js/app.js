@@ -223,6 +223,32 @@ let Hooks = {
     destroyed() {
       window.removeEventListener("keydown", this.handleKeydown)
     }
+  },
+  ExportDropdown: {
+    mounted() {
+      const button = this.el.querySelector("#export-button")
+      const menu = this.el.querySelector("#export-menu")
+
+      this.toggleMenu = () => {
+        menu.classList.toggle("hidden")
+      }
+
+      this.closeMenu = (e) => {
+        if (!this.el.contains(e.target)) {
+          menu.classList.add("hidden")
+        }
+      }
+
+      button.addEventListener("click", this.toggleMenu)
+      document.addEventListener("click", this.closeMenu)
+    },
+    destroyed() {
+      const button = this.el.querySelector("#export-button")
+      if (button) {
+        button.removeEventListener("click", this.toggleMenu)
+      }
+      document.removeEventListener("click", this.closeMenu)
+    }
   }
 }
 

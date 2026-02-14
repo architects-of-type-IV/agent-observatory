@@ -205,4 +205,23 @@ defmodule ObservatoryWeb.DashboardFormatHelpers do
   def duration_color(ms) when ms < 1000, do: "text-zinc-600"
   def duration_color(ms) when ms < 5000, do: "text-amber-400"
   def duration_color(_ms), do: "text-red-400"
+
+  @doc """
+  Build export URL with current filter parameters.
+  """
+  def build_export_url(session_id, search, event_type, format) do
+    params =
+      []
+      |> maybe_add_param("session_id", session_id)
+      |> maybe_add_param("search", search)
+      |> maybe_add_param("hook_event_type", event_type)
+      |> maybe_add_param("format", format)
+
+    query_string = URI.encode_query(params)
+    "/export/events?" <> query_string
+  end
+
+  defp maybe_add_param(params, _key, nil), do: params
+  defp maybe_add_param(params, _key, ""), do: params
+  defp maybe_add_param(params, key, value), do: [{key, value} | params]
 end

@@ -63,4 +63,56 @@ defmodule ObservatoryWeb.DashboardFilterHandlers do
   def handle_filter_agent(sid, socket) do
     socket |> assign(:filter_session_id, sid) |> assign(:view_mode, :feed)
   end
+
+  def handle_apply_preset(preset, socket) do
+    case preset do
+      "failed_tools" ->
+        socket
+        |> assign(:filter_event_type, "PostToolUseFailure")
+        |> assign(:filter_source_app, nil)
+        |> assign(:filter_session_id, nil)
+        |> assign(:search_feed, "")
+
+      "team_events" ->
+        socket
+        |> assign(:filter_event_type, nil)
+        |> assign(:filter_source_app, nil)
+        |> assign(:filter_session_id, nil)
+        |> assign(:search_feed, "SendMessage")
+
+      "slow" ->
+        socket
+        |> assign(:filter_event_type, nil)
+        |> assign(:filter_source_app, nil)
+        |> assign(:filter_session_id, nil)
+        |> assign(:search_feed, "")
+        |> assign(:filter_slow, true)
+
+      "errors_only" ->
+        socket
+        |> assign(:filter_event_type, "PostToolUseFailure")
+        |> assign(:filter_source_app, nil)
+        |> assign(:filter_session_id, nil)
+        |> assign(:search_feed, "")
+
+      _ ->
+        socket
+    end
+  end
+
+  def add_search_to_history(search, socket) do
+    # Get current history, add new search, keep last 10
+    history = socket.assigns[:search_history] || []
+
+    # Skip if empty or already at the top
+    if search == "" or (List.first(history) == search) do
+      socket
+    else
+      new_history =
+        [search | Enum.reject(history, &(&1 == search))]
+        |> Enum.take(10)
+
+      assign(socket, :search_history, new_history)
+    end
+  end
 end

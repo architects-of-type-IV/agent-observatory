@@ -96,6 +96,7 @@ defmodule ObservatoryWeb.DashboardDataHelpers do
     |> maybe_filter(:source_app, assigns.filter_source_app)
     |> maybe_filter(:session_id, assigns.filter_session_id)
     |> maybe_filter(:hook_event_type, assigns.filter_event_type)
+    |> maybe_filter_slow(assigns[:filter_slow])
     |> search_events(assigns.search_feed)
   end
 
@@ -177,6 +178,13 @@ defmodule ObservatoryWeb.DashboardDataHelpers do
   defp maybe_filter(events, field, value) do
     Enum.filter(events, &(Map.get(&1, field) == value))
   end
+
+  defp maybe_filter_slow(events, true) do
+    Enum.filter(events, fn e ->
+      e.duration_ms && e.duration_ms > 5000
+    end)
+  end
+  defp maybe_filter_slow(events, _), do: events
 
   @doc """
   Convert blank string to nil for filter cleanup.

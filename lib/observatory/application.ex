@@ -18,6 +18,7 @@ defmodule Observatory.Application do
       {Observatory.CommandQueue, []},
       {Observatory.TeamWatcher, []},
       {Observatory.AgentMonitor, []},
+      {Observatory.Notes, []},
       ObservatoryWeb.Endpoint
     ]
 
