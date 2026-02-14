@@ -14,6 +14,7 @@ defmodule ObservatoryWeb.DashboardLive do
   import ObservatoryWeb.DashboardNotesHandlers
   import ObservatoryWeb.DashboardAgentHelpers
   import ObservatoryWeb.DashboardAgentActivityHelpers
+  import ObservatoryWeb.DashboardFeedHelpers
 
   @max_events 500
 
@@ -53,6 +54,7 @@ defmodule ObservatoryWeb.DashboardLive do
       |> assign(:collapsed_threads, %{})
       |> assign(:show_shortcuts_help, false)
       |> assign(:show_create_task_modal, false)
+      |> assign(:feed_grouped, false)
       |> prepare_assigns()
 
     # Subscribe to mailbox channels for all active sessions
@@ -137,6 +139,10 @@ defmodule ObservatoryWeb.DashboardLive do
   def handle_event("toggle_event_detail", p, s), do: {:noreply, handle_toggle_event_detail(p, s) |> prepare_assigns()}
   def handle_event("focus_agent", p, s), do: {:noreply, handle_focus_agent(p, s) |> prepare_assigns()}
   def handle_event("close_agent_focus", p, s), do: {:noreply, handle_close_agent_focus(p, s) |> prepare_assigns()}
+  def handle_event("toggle_feed_grouping", _p, s), do: {:noreply, s |> assign(:feed_grouped, !s.assigns.feed_grouped) |> prepare_assigns()}
+  def handle_event("pause_agent", p, s), do: {:noreply, ObservatoryWeb.DashboardSessionControlHandlers.handle_pause_agent(p, s) |> prepare_assigns()}
+  def handle_event("resume_agent", p, s), do: {:noreply, ObservatoryWeb.DashboardSessionControlHandlers.handle_resume_agent(p, s) |> prepare_assigns()}
+  def handle_event("shutdown_agent", p, s), do: {:noreply, ObservatoryWeb.DashboardSessionControlHandlers.handle_shutdown_agent(p, s) |> prepare_assigns()}
 
   def handle_event("create_task", p, s) do
     case handle_create_task(p, s) do
@@ -251,8 +257,11 @@ defmodule ObservatoryWeb.DashboardLive do
     analytics = compute_tool_analytics(assigns.events)
     timeline = compute_timeline_data(assigns.events)
 
+    feed_groups = if assigns[:feed_grouped], do: build_feed_groups(assigns.events, assigns), else: []
+
     socket
     |> assign(:visible_events, filtered_events(assigns))
+    |> assign(:feed_groups, feed_groups)
     |> assign(:sessions, filtered_sessions(standalone, assigns.search_sessions))
     |> assign(:total_sessions, length(all_sessions))
     |> assign(:teams, teams)

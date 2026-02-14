@@ -120,6 +120,7 @@ Consistent colors across views:
 - **Inline editing with phx-change**: For dropdowns in task cards, use phx-change (not phx-click) with hidden phx-value-* attributes to pass context. Event handler receives params with both the select value (name="status") and the context values (phx-value-team, phx-value-task_id).
 - **Browser confirmation dialogs**: Use data-confirm="Message?" attribute on buttons for simple yes/no confirmations. Browser handles the prompt - no JavaScript needed.
 - **Team member data structure**: Team members from sel_team.members use :agent_id and :name keys (not :session_id). Owner dropdowns should use member[:agent_id] || member[:name] as the value.
+- **QA endpoint testing**: All endpoints verified (POST /api/events, GET /export/events, GET /, POST /mcp). Check for phx-socket in HTML to verify LiveView mount. Use curl with -w for HTTP status codes.
 
 ## QA Testing Patterns (Feb 2026)
 - **Complete agent lifecycle**: SessionStart + PreToolUse/PostToolUse pairs + SessionEnd

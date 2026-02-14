@@ -19,6 +19,23 @@ defmodule ObservatoryWeb.DashboardUIHandlers do
     socket |> Phoenix.Component.assign(:selected_task, nil)
   end
 
+  def handle_toggle_event_detail(%{"id" => id}, socket) do
+    expanded = socket.assigns[:expanded_events] || []
+    new_expanded = if id in expanded, do: List.delete(expanded, id), else: [id | expanded]
+    socket |> Phoenix.Component.assign(:expanded_events, new_expanded)
+  end
+
+  def handle_focus_agent(%{"session_id" => session_id}, socket) do
+    agent = find_agent_by_id(socket.assigns.teams, session_id)
+    socket
+    |> Phoenix.Component.assign(:view_mode, :agent_focus)
+    |> Phoenix.Component.assign(:selected_agent, agent)
+  end
+
+  def handle_close_agent_focus(_params, socket) do
+    socket |> Phoenix.Component.assign(:view_mode, :agents)
+  end
+
   def handle_keyboard_escape(_params, socket) do
     socket
     |> Phoenix.Component.assign(:selected_event, nil)
@@ -79,4 +96,10 @@ defmodule ObservatoryWeb.DashboardUIHandlers do
   end
 
   defp maybe_restore(socket, key, value), do: Phoenix.Component.assign(socket, key, value)
+
+  defp find_agent_by_id(teams, agent_id) do
+    teams
+    |> Enum.flat_map(& &1.members)
+    |> Enum.find(&(&1[:agent_id] == agent_id))
+  end
 end
