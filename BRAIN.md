@@ -100,6 +100,7 @@ Consistent colors across views:
 ## PubSub Topics
 - "events:stream" - all events
 - "teams:update" - team state changes
+- "agent:crashes" - agent crash notifications
 - "agent:{session_id}" - per-agent mailbox
 - "team:{team_name}" - team broadcast
 - "session:{session_id}" - session events (including command_responses)
@@ -118,3 +119,13 @@ Navigation handlers delegate to separate module to keep dashboard_live.ex manage
 - Delegates to DashboardNavigationHandlers.handle_event/3
 - Returns socket (not {:noreply, socket}) - wrapper adds prepare_assigns
 - Pattern: `ObservatoryWeb.DashboardNavigationHandlers.handle_event(e, p, s) |> then(&{:noreply, prepare_assigns(&1)})`
+
+## Agent Crash Detection (Task #13)
+AgentMonitor GenServer monitors agent health and auto-reassigns tasks from crashed agents:
+- Subscribes to "events:stream" PubSub topic to track agent activity
+- Tracks session state: %{session_id => %{last_event_at, team_name}}
+- Every 5s checks for agents idle >120s without SessionEnd
+- On crash: broadcasts {:agent_crashed, session_id, team_name, reassigned_count}
+- Auto-reassigns crashed agent's tasks (TaskManager.update_task sets owner -> nil)
+- Writes crash notification to ~/.claude/inbox/crash_{team}_{sid}_{ts}.json
+- Dashboard subscribes to "agent:crashes" and shows flash message

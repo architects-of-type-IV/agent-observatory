@@ -269,7 +269,37 @@ Backend infrastructure, visual polish, and cross-view navigation complete. All 7
 ### Compilation Status
 ✅ mix compile --warnings-as-errors (SUCCESS - ZERO WARNINGS)
 
-### Next: Sprint 3 - Agent Lifecycle Management
+### Sprint 3: Agent Lifecycle Management (In Progress)
+==================================================
+
+### Task #13: Crash Detection & Auto-Reassignment (COMPLETE)
+
+**Created/Modified Files**:
+- lib/observatory/agent_monitor.ex (~170 lines) - Already existed, enhanced for crash handling
+  - handle_crash() now tracks reassignment count
+  - reassign_agent_tasks() returns count of reassigned tasks
+  - write_inbox_notification() writes crash events to ~/.claude/inbox/
+  - Broadcasts {:agent_crashed, session_id, team_name, reassigned_count}
+
+- lib/observatory_web/live/dashboard_live.ex
+  - Added PubSub subscription to "agent:crashes" in mount()
+  - Added handle_info({:agent_crashed, ...}) to show flash messages
+
+**How It Works**:
+1. AgentMonitor subscribes to "events:stream" and tracks agent activity
+2. Maintains session state: %{session_id => %{last_event_at, team_name}}
+3. Every 5s checks for agents idle >120s without SessionEnd event
+4. On crash detection:
+   - Auto-reassigns tasks (TaskManager.update_task sets owner -> nil)
+   - Writes notification to ~/.claude/inbox/crash_{team}_{sid}_{ts}.json
+   - Broadcasts crash event via PubSub
+   - Dashboard shows flash: "Agent abc12345 crashed in team X. N task(s) reassigned."
+
+**Compilation**: ✅ mix compile --warnings-as-errors (SUCCESS)
+
+**Status**: Crash detection fully operational. Tasks auto-reassign, team leads get inbox notifications, dashboard shows real-time crash alerts.
+
+### Next: Sprint 3 - Remaining Features
 - Session control (pause/resume/kill)
 - Failure recovery mechanisms
 - Deeper orchestration from UI

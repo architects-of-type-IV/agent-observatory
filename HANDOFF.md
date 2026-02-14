@@ -13,6 +13,7 @@ The Observatory multi-agent observability dashboard is fully functional with 7 v
 - **Checkpoint (231b08b -> 18655b9)**: Integration review resolved parallel editing conflicts, all views verified working
 - **Task #7 Complete**: File-based command queue (CommandQueue GenServer)
 - **Task #8 Complete**: Task mutation from UI (TaskManager + CRUD handlers + create modal)
+- **Task #13 Complete**: Crash detection and auto-task-reassignment (AgentMonitor)
 
 ### System Features
 
@@ -79,12 +80,13 @@ The Observatory multi-agent observability dashboard is fully functional with 7 v
 | task_manager.ex | 217 | Task CRUD for JSON files |
 | dashboard_task_handlers.ex | 180 | Task mutation event handlers |
 | channels.ex | 160 | PubSub channel management |
+| agent_monitor.ex | 170 | Crash detection & task reassignment |
 
 ### Compilation Status
 ✅ `mix compile --warnings-as-errors` SUCCESS (zero warnings)
 
-### Latest Update (2026-02-14 - Sprint 2 Complete)
-**Sprint 2 Complete**: Backend infrastructure, visual polish, cross-view navigation
+### Latest Update (2026-02-14 - Sprint 3: Agent Lifecycle)
+**Task #13 Complete**: Crash detection and auto-task-reassignment
 
 **Completed Features**:
 - **Cross-View Navigation** (7 jump types between all views)
@@ -121,12 +123,21 @@ The Observatory multi-agent observability dashboard is fully functional with 7 v
 - dashboard_navigation_handlers.ex (71 lines) - Cross-view navigation jumps
 - dashboard_session_helpers.ex (71 lines) - Model/cwd extraction utilities
 - dashboard_ui_handlers.ex (41 lines) - Modal toggles
+- agent_monitor.ex (170 lines) - Agent crash detection & task reassignment
 
 **Module Size Status**:
 All modules under 300 lines. dashboard_live.ex kept at 303 by delegating to handler modules.
 
-### Next Steps - Sprint 3: Agent Lifecycle Management
-Potential features:
+### Sprint 3: Agent Lifecycle Management (In Progress)
+
+**Completed**:
+- **Task #13**: Crash detection and auto-task-reassignment
+  - AgentMonitor GenServer tracks agent activity (120s timeout)
+  - Auto-reassigns tasks from crashed agents (owner -> nil)
+  - Writes crash notifications to ~/.claude/inbox/crash_{team}_{sid}_{ts}.json
+  - Dashboard shows flash messages with crash details
+
+**Remaining**:
 - Session control (pause/resume/kill agents)
 - Failure recovery and restart mechanisms
 - Deeper orchestration (spawn/message/coordinate from UI)

@@ -20,6 +20,7 @@ defmodule ObservatoryWeb.DashboardLive do
     if connected?(socket) do
       Phoenix.PubSub.subscribe(Observatory.PubSub, "events:stream")
       Phoenix.PubSub.subscribe(Observatory.PubSub, "teams:update")
+      Phoenix.PubSub.subscribe(Observatory.PubSub, "agent:crashes")
       :timer.send_interval(1000, self(), :tick)
     end
 
@@ -70,6 +71,18 @@ defmodule ObservatoryWeb.DashboardLive do
 
   def handle_info({:new_mailbox_message, message}, socket) do
     handle_new_mailbox_message(message, socket)
+  end
+
+  def handle_info({:agent_crashed, session_id, team_name, reassigned_count}, socket) do
+    short_sid = String.slice(session_id, 0, 8)
+    
+    msg = if reassigned_count > 0 do
+      "Agent #{short_sid} crashed in team #{team_name}. #{reassigned_count} task(s) reassigned."
+    else
+      "Agent #{short_sid} crashed in team #{team_name}."
+    end
+
+    {:noreply, socket |> put_flash(:info, msg) |> prepare_assigns()}
   end
 
   # ═══════════════════════════════════════════════════════
