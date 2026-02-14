@@ -7,6 +7,7 @@ defmodule ObservatoryWeb.DashboardLive do
   import ObservatoryWeb.DashboardTaskHandlers
   import ObservatoryWeb.DashboardTimelineHelpers
   import ObservatoryWeb.DashboardSessionHelpers
+  import ObservatoryWeb.DashboardUIHandlers
 
   @max_events 500
 
@@ -117,8 +118,8 @@ defmodule ObservatoryWeb.DashboardLive do
     {:noreply, socket |> assign(:selected_event, selected) |> assign(:selected_task, nil) |> prepare_assigns()}
   end
 
-  def handle_event("close_detail", _params, socket) do
-    {:noreply, socket |> assign(:selected_event, nil) |> prepare_assigns()}
+  def handle_event("close_detail", params, socket) do
+    {:noreply, handle_close_detail(params, socket) |> prepare_assigns()}
   end
 
   def handle_event("select_task", %{"id" => id}, socket) do
@@ -132,8 +133,8 @@ defmodule ObservatoryWeb.DashboardLive do
     {:noreply, socket |> assign(:selected_task, selected) |> assign(:selected_event, nil) |> prepare_assigns()}
   end
 
-  def handle_event("close_task_detail", _params, socket) do
-    {:noreply, socket |> assign(:selected_task, nil) |> prepare_assigns()}
+  def handle_event("close_task_detail", params, socket) do
+    {:noreply, handle_close_task_detail(params, socket) |> prepare_assigns()}
   end
 
   def handle_event("filter_tool", %{"tool" => tool}, socket) do
@@ -193,12 +194,12 @@ defmodule ObservatoryWeb.DashboardLive do
     handle_push_context(params, socket)
   end
 
-  def handle_event("toggle_shortcuts_help", _params, socket) do
-    {:noreply, socket |> assign(:show_shortcuts_help, !socket.assigns.show_shortcuts_help)}
+  def handle_event("toggle_shortcuts_help", params, socket) do
+    {:noreply, handle_toggle_shortcuts_help(params, socket) |> prepare_assigns()}
   end
 
-  def handle_event("toggle_create_task_modal", _params, socket) do
-    {:noreply, socket |> assign(:show_create_task_modal, !socket.assigns.show_create_task_modal)}
+  def handle_event("toggle_create_task_modal", params, socket) do
+    {:noreply, handle_toggle_create_task_modal(params, socket) |> prepare_assigns()}
   end
 
   def handle_event("create_task", params, socket) do
@@ -212,43 +213,12 @@ defmodule ObservatoryWeb.DashboardLive do
     end
   end
 
-  def handle_event("keyboard_escape", _params, socket) do
-    {:noreply,
-     socket
-     |> assign(:selected_event, nil)
-     |> assign(:selected_task, nil)
-     |> assign(:search_feed, "")
-     |> prepare_assigns()}
+  def handle_event("keyboard_escape", params, socket) do
+    {:noreply, handle_keyboard_escape(params, socket) |> prepare_assigns()}
   end
 
-  def handle_event("keyboard_navigate", %{"direction" => direction}, socket) do
-    # Simple implementation: just move selection in feed view
-    if socket.assigns.view_mode == :feed && socket.assigns.visible_events != [] do
-      current = socket.assigns.selected_event
-      events = socket.assigns.visible_events
-
-      new_event = case direction do
-        "next" ->
-          if current do
-            idx = Enum.find_index(events, &(&1.id == current.id))
-            if idx && idx < length(events) - 1, do: Enum.at(events, idx + 1), else: current
-          else
-            List.first(events)
-          end
-        "prev" ->
-          if current do
-            idx = Enum.find_index(events, &(&1.id == current.id))
-            if idx && idx > 0, do: Enum.at(events, idx - 1), else: current
-          else
-            List.first(events)
-          end
-        _ -> current
-      end
-
-      {:noreply, socket |> assign(:selected_event, new_event) |> prepare_assigns()}
-    else
-      {:noreply, socket}
-    end
+  def handle_event("keyboard_navigate", params, socket) do
+    {:noreply, handle_keyboard_navigate(params, socket) |> prepare_assigns()}
   end
 
   # Navigation handlers
