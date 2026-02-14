@@ -1,60 +1,66 @@
 defmodule ObservatoryWeb.ExportController do
   use ObservatoryWeb, :controller
-  alias Observatory.Repo
-  alias Observatory.Events.HookEvent
-  import Ecto.Query
+  alias Observatory.Events.Event
 
   def index(conn, params) do
     format = params["format"] || "json"
 
-    # Build query with filters
-    query =
-      HookEvent
-      |> maybe_filter_session(params["session_id"])
-      |> maybe_filter_tool(params["tool"])
-      |> maybe_filter_search(params["search"])
-      |> maybe_filter_event_type(params["hook_event_type"])
-      |> order_by([e], asc: e.inserted_at)
+    # Load events using Ash
+    case Ash.read(Event, action: :read) do
+      {:ok, events} ->
+        events =
+          events
+          |> apply_filters(params)
+          |> Enum.sort_by(& &1.inserted_at, DateTime)
 
-    events = Repo.all(query)
+        case format do
+          "csv" -> export_csv(conn, events)
+          "json" -> export_json(conn, events)
+          _ -> export_json(conn, events)
+        end
 
-    case format do
-      "csv" -> export_csv(conn, events)
-      "json" -> export_json(conn, events)
-      _ -> export_json(conn, events)
+      {:error, _} ->
+        send_resp(conn, 500, "Failed to load events")
     end
   end
 
-  defp maybe_filter_session(query, nil), do: query
-  defp maybe_filter_session(query, ""), do: query
-  defp maybe_filter_session(query, session_id) do
-    where(query, [e], e.session_id == ^session_id)
+  defp apply_filters(events, params) do
+    events
+    |> filter_by_session(params["session_id"])
+    |> filter_by_tool(params["tool"])
+    |> filter_by_event_type(params["hook_event_type"])
+    |> filter_by_search(params["search"])
   end
 
-  defp maybe_filter_tool(query, nil), do: query
-  defp maybe_filter_tool(query, ""), do: query
-  defp maybe_filter_tool(query, tool) do
-    where(query, [e], e.tool_name == ^tool)
+  defp filter_by_session(events, nil), do: events
+  defp filter_by_session(events, ""), do: events
+  defp filter_by_session(events, session_id) do
+    Enum.filter(events, &(&1.session_id == session_id))
   end
 
-  defp maybe_filter_event_type(query, nil), do: query
-  defp maybe_filter_event_type(query, ""), do: query
-  defp maybe_filter_event_type(query, event_type) do
+  defp filter_by_tool(events, nil), do: events
+  defp filter_by_tool(events, ""), do: events
+  defp filter_by_tool(events, tool) do
+    Enum.filter(events, &(&1.tool_name == tool))
+  end
+
+  defp filter_by_event_type(events, nil), do: events
+  defp filter_by_event_type(events, ""), do: events
+  defp filter_by_event_type(events, event_type) do
     atom_val = String.to_existing_atom(event_type)
-    where(query, [e], e.hook_event_type == ^atom_val)
+    Enum.filter(events, &(&1.hook_event_type == atom_val))
   end
 
-  defp maybe_filter_search(query, nil), do: query
-  defp maybe_filter_search(query, ""), do: query
-  defp maybe_filter_search(query, search_term) do
-    # Simple search on key fields
-    pattern = "%#{search_term}%"
-    where(query, [e],
-      ilike(e.tool_name, ^pattern) or
-      ilike(e.session_id, ^pattern) or
-      ilike(e.source_app, ^pattern) or
-      ilike(e.summary, ^pattern)
-    )
+  defp filter_by_search(events, nil), do: events
+  defp filter_by_search(events, ""), do: events
+  defp filter_by_search(events, search_term) do
+    search_lower = String.downcase(search_term)
+    Enum.filter(events, fn e ->
+      String.contains?(String.downcase(e.tool_name || ""), search_lower) or
+      String.contains?(String.downcase(e.session_id || ""), search_lower) or
+      String.contains?(String.downcase(e.source_app || ""), search_lower) or
+      String.contains?(String.downcase(e.summary || ""), search_lower)
+    end)
   end
 
   defp export_json(conn, events) do

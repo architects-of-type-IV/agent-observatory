@@ -406,3 +406,44 @@ QA Testing Session - 2026-02-14
 - Browser testing needed for real-time WebSocket push updates
 
 **Status**: NO ISSUES FOUND - All tested views working as expected
+
+### Task #2: QA Test Tasks + Messages + Agents Views (COMPLETE)
+
+**Test Setup**:
+- Created 3 agent sessions via curl POST to /api/events:
+  - qa-opus-001 (claude-opus-4): SessionStart, Read tool, SessionEnd
+  - qa-sonnet-002 (claude-sonnet-3.5): SessionStart, Bash tool (active)
+  - qa-haiku-003 (claude-haiku-3): SessionStart, TaskCreate tool (active)
+
+- Created observatory-qa team via TeamCreate event
+- Created 3 task files in ~/.claude/tasks/observatory-qa/:
+  - Task #1: "Test overview dashboard" (pending)
+  - Task #2: "Test real-time feed updates" (in_progress, owner: qa-interactions)
+  - Task #3: "Verify export functionality" (completed, owner: qa-views)
+
+- Created message events:
+  - Direct message: team-lead → qa-sonnet-002 ("Please start working on task #2")
+  - Broadcast: qa-haiku-003 → all ("All agents: QA testing is starting")
+
+**Verification Results**:
+✓ **Agents View**: Team "observatory-qa" visible in teams list
+✓ **Agents View**: All 3 sessions (qa-opus-001, qa-sonnet-002, qa-haiku-003) rendered in sidebar
+✓ **Agents View**: Model badges displayed correctly
+✓ **Tasks View**: Task board with 3 columns (Pending/In Progress/Completed) rendered
+✓ **Tasks View**: Task files loaded from disk
+✓ **Tasks View**: Overview card shows task count
+✓ **Messages View**: SendMessage tool events captured in feed
+✓ **Messages View**: Messages overview card present
+✓ **Export Endpoint**: GET /export/events?format=json returns valid JSON
+✓ **Real-Time Updates**: Events stream immediately after POST (Phoenix PubSub confirmed)
+✓ **Overview Cards**: All 6 stat cards rendered (Teams, Tasks, Messages, Events, Errors, Sessions)
+
+**Dashboard HTML Checks**:
+- Team name "observatory-qa" present in team selector
+- Session IDs visible with correct truncation (qa-opus-, qa-haiku, qa-sonnet-002)
+- Tool names (SendMessage, TaskCreate, TeamCreate) visible in feed
+- View mode tabs (Tasks, Messages, Agents) present in header
+
+**Issues Found**: None. All tested functionality works as expected.
+
+**Status**: NO ISSUES FOUND - Tasks, Messages, and Agents views fully operational
