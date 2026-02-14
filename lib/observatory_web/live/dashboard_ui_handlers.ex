@@ -71,7 +71,9 @@ defmodule ObservatoryWeb.DashboardUIHandlers do
   defp maybe_restore(socket, _key, ""), do: socket
 
   defp maybe_restore(socket, :view_mode, value) when is_binary(value) do
-    Phoenix.Component.assign(socket, :view_mode, String.to_existing_atom(value))
+    socket
+    |> Phoenix.Component.assign(:view_mode, String.to_existing_atom(value))
+    |> Phoenix.LiveView.push_event("view_mode_changed", %{view_mode: value})
   rescue
     ArgumentError -> socket
   end

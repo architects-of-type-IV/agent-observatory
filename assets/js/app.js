@@ -194,10 +194,10 @@ let Hooks = {
           return
         }
 
-        // 1-6 - switch view modes
-        const viewModes = ["feed", "tasks", "messages", "agents", "errors", "analytics"]
+        // 1-8 - switch view modes
+        const viewModes = ["overview", "feed", "tasks", "messages", "agents", "errors", "analytics", "timeline"]
         const numKey = parseInt(e.key)
-        if (numKey >= 1 && numKey <= 6 && !e.metaKey && !e.ctrlKey) {
+        if (numKey >= 1 && numKey <= 8 && !e.metaKey && !e.ctrlKey) {
           e.preventDefault()
           this.pushEvent("set_view", { mode: viewModes[numKey - 1] })
           return

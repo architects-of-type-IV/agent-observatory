@@ -15,10 +15,6 @@ defmodule ObservatoryWeb.DashboardLive do
 
   @max_events 500
 
-  # ═══════════════════════════════════════════════════════
-  # Mount + Lifecycle
-  # ═══════════════════════════════════════════════════════
-
   @impl true
   def mount(_params, _session, socket) do
     if connected?(socket) do
@@ -82,10 +78,6 @@ defmodule ObservatoryWeb.DashboardLive do
   def handle_info({:agent_crashed, session_id, team_name, reassigned_count}, socket) do
     {:noreply, handle_agent_crashed(session_id, team_name, reassigned_count, socket) |> prepare_assigns()}
   end
-
-  # ═══════════════════════════════════════════════════════
-  # Event Handlers
-  # ═══════════════════════════════════════════════════════
 
   @impl true
   def handle_event("filter", params, socket) do
@@ -242,10 +234,6 @@ defmodule ObservatoryWeb.DashboardLive do
     end
   end
 
-  # ═══════════════════════════════════════════════════════
-  # Assign Preparation for Template
-  # ═══════════════════════════════════════════════════════
-
   defp prepare_assigns(socket) do
     assigns = socket.assigns
     all_sessions = active_sessions(assigns.events)
@@ -261,7 +249,15 @@ defmodule ObservatoryWeb.DashboardLive do
     event_notes = Observatory.Notes.list_notes()
 
     # For the selected team, merge disk tasks with event tasks
-    sel_team = Enum.find(teams, fn t -> t.name == assigns.selected_team end)
+    # Auto-select team when only 1 exists
+    selected_team =
+      cond do
+        assigns.selected_team -> assigns.selected_team
+        length(teams) == 1 -> hd(teams).name
+        true -> nil
+      end
+
+    sel_team = Enum.find(teams, fn t -> t.name == selected_team end)
 
     active_tasks =
       cond do
@@ -288,6 +284,7 @@ defmodule ObservatoryWeb.DashboardLive do
     |> assign(:messages, messages)
     |> assign(:message_threads, message_threads)
     |> assign(:event_notes, event_notes)
+    |> assign(:selected_team, selected_team)
     |> assign(:sel_team, sel_team)
     |> assign(:errors, errors)
     |> assign(:error_groups, error_groups)

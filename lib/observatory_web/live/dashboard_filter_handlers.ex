@@ -43,7 +43,9 @@ defmodule ObservatoryWeb.DashboardFilterHandlers do
   end
 
   def handle_set_view(mode, socket) do
-    socket |> assign(:view_mode, String.to_existing_atom(mode))
+    socket
+    |> assign(:view_mode, String.to_existing_atom(mode))
+    |> Phoenix.LiveView.push_event("view_mode_changed", %{view_mode: mode})
   end
 
   def handle_filter_team(name, socket) do

@@ -9,8 +9,10 @@ defmodule ObservatoryWeb.DashboardMessageHelpers do
   Returns a list of threads, each containing:
   - participants: sorted list of [sender, recipient]
   - messages: all messages in this thread
-  - unread_count: number of unread messages (placeholder for future)
+  - unread_count: number of unread messages
   - last_message_at: timestamp of most recent message
+  - has_urgent: true if contains shutdown_request or plan_approval_request
+  - message_types: set of unique message types in thread
   """
   def group_messages_by_thread(messages) do
     messages
@@ -19,11 +21,19 @@ defmodule ObservatoryWeb.DashboardMessageHelpers do
       sorted_messages = Enum.sort_by(thread_messages, & &1.timestamp, {:desc, DateTime})
       latest = List.first(sorted_messages)
 
+      message_types = thread_messages |> Enum.map(& &1.type) |> Enum.uniq()
+      has_urgent =
+        Enum.any?(message_types, fn t ->
+          t in ["shutdown_request", "plan_approval_request", "shutdown_response"]
+        end)
+
       %{
         participants: key,
         messages: sorted_messages,
-        unread_count: 0,
-        last_message_at: latest.timestamp
+        unread_count: Enum.count(thread_messages, fn m -> Map.get(m, :read, true) == false end),
+        last_message_at: latest.timestamp,
+        has_urgent: has_urgent,
+        message_types: message_types
       }
     end)
     |> Enum.sort_by(& &1.last_message_at, {:desc, DateTime})
@@ -60,6 +70,68 @@ defmodule ObservatoryWeb.DashboardMessageHelpers do
       [single] -> short_id(single)
       _ -> "unknown"
     end
+  end
+
+  @doc """
+  Get message type icon and color classes.
+  Returns {icon_svg, color_class}.
+  """
+  def message_type_icon(type) do
+    case type do
+      "message" ->
+        {"💬", "text-zinc-400"}
+
+      "broadcast" ->
+        {"📢", "text-amber-400"}
+
+      "shutdown_request" ->
+        {"⚠️", "text-red-400"}
+
+      "shutdown_response" ->
+        {"✓", "text-emerald-400"}
+
+      "plan_approval_request" ->
+        {"📋", "text-blue-400"}
+
+      "plan_approval_response" ->
+        {"✓", "text-emerald-400"}
+
+      _ ->
+        {"•", "text-zinc-600"}
+    end
+  end
+
+  @doc """
+  Search messages by content or participant.
+  """
+  def search_messages(messages, query) when is_binary(query) and query != "" do
+    query_lower = String.downcase(query)
+
+    Enum.filter(messages, fn msg ->
+      content_match = msg.content && String.contains?(String.downcase(msg.content), query_lower)
+
+      sender_match =
+        msg.sender_session && String.contains?(String.downcase(msg.sender_session), query_lower)
+
+      recipient_match =
+        msg.recipient && String.contains?(String.downcase(msg.recipient), query_lower)
+
+      content_match || sender_match || recipient_match
+    end)
+  end
+
+  def search_messages(messages, _query), do: messages
+
+  @doc """
+  Extract unique participants from messages (for filtering).
+  """
+  def extract_participants(messages) do
+    messages
+    |> Enum.flat_map(fn msg ->
+      [msg.sender_session, msg.recipient || "all"]
+    end)
+    |> Enum.uniq()
+    |> Enum.sort()
   end
 
   defp short_id(id) when is_binary(id) do

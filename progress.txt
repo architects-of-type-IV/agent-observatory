@@ -369,7 +369,17 @@ Sprint 4: Export + Threading + Annotations (IN PROGRESS)
 - Annotation UI (add/edit/delete notes on events)
 
 ### Status
-Infrastructure mostly complete (Notes GenServer created), UI integration pending
+Sprint 4 COMPLETE - committed as fd253e5
+
+QA Results: 15/15 endpoint tests passed, 3 agent QA reports all pass
+
+Bugs Found During QA
+=====================
+1. New Task modal crash: @team_members undefined assign -> LiveView crash -> re-mount to Overview
+   - Fix: changed to @sel_team.members (then agent_id keys)
+2. localStorage not persisting view_mode: handle_set_view missing push_event
+3. Keyboard shortcuts mapped wrong (1-6, missing overview+timeline) -> FIXED to 1-8
+4. Team not auto-selected when only 1 team -> FIXED with auto-select in prepare_assigns
 
 QA Testing Session - 2026-02-14
 ================================
