@@ -1,56 +1,56 @@
-# Observatory Refactor Handoff
+# Observatory - Handoff Document
 
-## Current Status
-Task #14 completed. All UI features implemented: clickable task board, team split view, and agent filtering.
+## Current State
+The Observatory multi-agent observability dashboard is functional with these completed features:
 
-## What Was Done
-✓ Task #14: Implemented clickable task detail panel and team split view
+### Completed Tasks
+- #1: Codebase audit
+- #2: Extract inline HEEx template to dashboard_live.html.heex
+- #3: Extract helper functions to dashboard_helpers.ex (503 lines -> now split)
+- #4: Extract reusable function components to observatory_components.ex
+- #5: Verify compilation (zero warnings confirmed)
+- #8: Design clickable task board (architecture)
+- #9: Design team split view (architecture)
+- #14: Implement clickable task detail panel + team split view + agent panels
 
-### Feature 1: Clickable Task Board with Detail Panel
-- Added `selected_task` assign (initialized to nil in mount)
-- Added `handle_event("select_task", %{"id" => id}, socket)` - toggles task selection
-- Added `handle_event("close_task_detail", _, socket)` - clears selected task
-- Task and event selections are mutually exclusive (selecting one clears the other)
-- Task cards now clickable with phx-click="select_task"
-- Task detail panel shows in right sidebar (same w-96 aside as events):
-  - Subject, description, status badge
-  - Owner, active form, created time
-  - Blocked by / Blocks task lists
-  - Filter to session button
+### Pending Tasks
+- #10, #11, #15: Superseded by #14
+- #19: PubSub channel system for bidirectional agent messaging (blocked by #14, now unblocked)
 
-### Feature 2: Team Split View (4th view mode: :agents)
-- Added "Agents" tab (4th button after Feed/Tasks/Messages)
-- In :agents view, displays 2-column grid of team panels
-- Each team panel shows:
-  - Team name and description
-  - Task progress bar (completed/total)
-  - Members list with status dots (green=active, yellow=idle, gray=ended)
-  - Each member: name, agent_type, last activity time, event count
-- Clicking a member filters feed to that agent's session and switches to feed view
+### Architecture
+- Elixir 1.19 / Phoenix 1.8.3 / Ash 3.x / SQLite
+- Hook scripts POST events to /api/events
+- Events broadcast via PubSub to LiveView dashboard
+- TeamWatcher GenServer polls ~/.claude/teams/ and ~/.claude/tasks/ every 2s
+- Teams derived from both events AND disk state
 
-### Feature 3: Agent Detail
-- Added `handle_event("filter_agent", %{"session_id" => sid}, socket)` handler
-- Clicking agent in agents view filters events to that agent's session
-- Agent cards show mini summary: status, recent activity, event count
+### Key Files
+| File | Lines | Purpose |
+|------|-------|---------|
+| dashboard_live.ex | ~216 | LiveView mount + event handlers + prepare_assigns |
+| dashboard_live.html.heex | ~445-479 | Template with 4 view modes |
+| dashboard_helpers.ex | ~503 | All helper/derivation functions |
+| observatory_components.ex | ~126 | Reusable function components |
+| team_watcher.ex | ~143 | Disk-based team state polling |
+| event_controller.ex | API endpoint for hook events |
+| application.ex | Supervision tree with TeamWatcher |
 
-## Module Size Verification
-All modules within 300-line constraint:
-- dashboard_live.ex: 216 lines (was 196, added 20 lines of handlers)
-- observatory_components.ex: 126 lines (added phx-click to task cards)
-- dashboard_live.html.heex: 589 lines (added Agents tab + task detail panel)
+### View Modes
+1. **Feed**: Real-time event stream with filters and search
+2. **Tasks**: Kanban board (Pending/In Progress/Completed) - clickable with detail panel
+3. **Messages**: Team message thread view
+4. **Agents**: 2-column grid of team panels with member status and task progress
 
-## Compilation Status
-✓ mix compile --warnings-as-errors passed with ZERO warnings
+### Next Priority
+Task #19: PubSub channel system for bidirectional agent messaging
+- Channel topology: agent:{session_id}, team:{team_name}, dashboard:commands
+- Mailbox pattern with read/unread state
+- UI controls to send messages, push context, reassign tasks
 
-## Files Modified
-- /Users/xander/code/www/kardashev/observatory/lib/observatory_web/live/dashboard_live.ex
-- /Users/xander/code/www/kardashev/observatory/lib/observatory_web/live/dashboard_live.html.heex
-- /Users/xander/code/www/kardashev/observatory/lib/observatory_web/components/observatory_components.ex
-
-## Next Agent
-All pending tasks complete. Observatory UI now has full interactivity for tasks, teams, and agents.
-
-## Important Notes
-- Run `mix compile --warnings-as-errors` after each change (zero warnings policy)
-- Do NOT touch git settings
-- Always work from project root (/Users/xander/code/www/kardashev/observatory)
+### User Constraints
+- All modules must be under 200-300 lines
+- Zero warnings policy (mix compile --warnings-as-errors)
+- Always run builds after changes
+- Do NOT use rm - move to tmp/trash/
+- Do NOT cd into subdirectories
+- Read existing code before modifying
