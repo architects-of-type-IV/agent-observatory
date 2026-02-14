@@ -12,9 +12,30 @@ defmodule ObservatoryWeb.DashboardMessagingHandlers do
 
     case Observatory.Mailbox.send_message(sid, from_session, content, type: :text) do
       {:ok, _message} ->
+        # Get agent name from session
+        agent_name =
+          socket.assigns[:sessions]
+          |> Enum.find(fn s -> s.session_id == sid end)
+          |> case do
+            %{name: name} -> name
+            _ -> String.slice(sid, 0..7)
+          end
+
+        socket =
+          Phoenix.LiveView.push_event(socket, "toast", %{
+            message: "Message sent to #{agent_name}",
+            type: "success"
+          })
+
         {:noreply, socket}
 
       {:error, _reason} ->
+        socket =
+          Phoenix.LiveView.push_event(socket, "toast", %{
+            message: "Failed to send message",
+            type: "error"
+          })
+
         {:noreply, socket}
     end
   end
@@ -43,6 +64,12 @@ defmodule ObservatoryWeb.DashboardMessagingHandlers do
         content: content
       })
     end)
+
+    socket =
+      Phoenix.LiveView.push_event(socket, "toast", %{
+        message: "Broadcast sent to #{team_name} (#{length(team_members)} agents)",
+        type: "success"
+      })
 
     {:noreply, socket}
   end

@@ -39,9 +39,21 @@ defmodule ObservatoryWeb.DashboardTaskHandlers do
           {:tasks_updated, team_name}
         )
 
+        socket =
+          Phoenix.LiveView.push_event(socket, "toast", %{
+            message: "Task created: #{subject}",
+            type: "success"
+          })
+
         {:noreply, socket}
 
       {:error, _reason} ->
+        socket =
+          Phoenix.LiveView.push_event(socket, "toast", %{
+            message: "Failed to create task",
+            type: "error"
+          })
+
         {:noreply, socket}
     end
   end
@@ -61,6 +73,13 @@ defmodule ObservatoryWeb.DashboardTaskHandlers do
     case Observatory.TaskManager.update_task(team_name, task_id, changes) do
       {:ok, updated_task} ->
         broadcast_task_update(team_name, updated_task)
+
+        socket =
+          Phoenix.LiveView.push_event(socket, "toast", %{
+            message: "Task status updated to #{new_status}",
+            type: "success"
+          })
+
         {:noreply, socket}
 
       {:error, _reason} ->
@@ -83,6 +102,13 @@ defmodule ObservatoryWeb.DashboardTaskHandlers do
     case Observatory.TaskManager.update_task(team_name, task_id, changes) do
       {:ok, updated_task} ->
         broadcast_task_update(team_name, updated_task)
+
+        socket =
+          Phoenix.LiveView.push_event(socket, "toast", %{
+            message: "Task reassigned to #{new_owner}",
+            type: "success"
+          })
+
         {:noreply, socket}
 
       {:error, _reason} ->
@@ -108,6 +134,13 @@ defmodule ObservatoryWeb.DashboardTaskHandlers do
     case Observatory.TaskManager.update_task(team_name, task_id, changes) do
       {:ok, updated_task} ->
         broadcast_task_update(team_name, updated_task)
+
+        socket =
+          Phoenix.LiveView.push_event(socket, "toast", %{
+            message: "Task updated",
+            type: "success"
+          })
+
         {:noreply, socket}
 
       {:error, _reason} ->
@@ -137,6 +170,12 @@ defmodule ObservatoryWeb.DashboardTaskHandlers do
           "teams:update",
           {:tasks_updated, team_name}
         )
+
+        socket =
+          Phoenix.LiveView.push_event(socket, "toast", %{
+            message: "Task deleted",
+            type: "success"
+          })
 
         {:noreply, socket}
 

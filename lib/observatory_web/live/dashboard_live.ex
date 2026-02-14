@@ -8,6 +8,8 @@ defmodule ObservatoryWeb.DashboardLive do
   import ObservatoryWeb.DashboardTimelineHelpers
   import ObservatoryWeb.DashboardSessionHelpers
   import ObservatoryWeb.DashboardUIHandlers
+  import ObservatoryWeb.DashboardNotificationHandlers
+  import ObservatoryWeb.DashboardFilterHandlers
 
   @max_events 500
 
@@ -39,7 +41,7 @@ defmodule ObservatoryWeb.DashboardLive do
       |> assign(:selected_task, nil)
       |> assign(:now, DateTime.utc_now())
       |> assign(:page_title, "Observatory")
-      |> assign(:view_mode, :feed)
+      |> assign(:view_mode, :overview)
       |> assign(:disk_teams, disk_teams)
       |> assign(:selected_team, nil)
       |> assign(:mailbox_counts, %{})
@@ -74,15 +76,7 @@ defmodule ObservatoryWeb.DashboardLive do
   end
 
   def handle_info({:agent_crashed, session_id, team_name, reassigned_count}, socket) do
-    short_sid = String.slice(session_id, 0, 8)
-    
-    msg = if reassigned_count > 0 do
-      "Agent #{short_sid} crashed in team #{team_name}. #{reassigned_count} task(s) reassigned."
-    else
-      "Agent #{short_sid} crashed in team #{team_name}."
-    end
-
-    {:noreply, socket |> put_flash(:info, msg) |> prepare_assigns()}
+    {:noreply, handle_agent_crashed(session_id, team_name, reassigned_count, socket) |> prepare_assigns()}
   end
 
   # ═══════════════════════════════════════════════════════
@@ -91,33 +85,19 @@ defmodule ObservatoryWeb.DashboardLive do
 
   @impl true
   def handle_event("filter", params, socket) do
-    socket =
-      socket
-      |> assign(:filter_source_app, blank_to_nil(params["source_app"]))
-      |> assign(:filter_session_id, blank_to_nil(params["session_id"]))
-      |> assign(:filter_event_type, blank_to_nil(params["event_type"]))
-      |> prepare_assigns()
-
-    {:noreply, socket}
+    {:noreply, handle_filter(params, socket) |> prepare_assigns()}
   end
 
   def handle_event("clear_filters", _params, socket) do
-    {:noreply,
-     socket
-     |> assign(:filter_source_app, nil)
-     |> assign(:filter_session_id, nil)
-     |> assign(:filter_event_type, nil)
-     |> assign(:search_feed, "")
-     |> assign(:search_sessions, "")
-     |> prepare_assigns()}
+    {:noreply, handle_clear_filters(socket) |> prepare_assigns()}
   end
 
   def handle_event("search_feed", %{"q" => q}, socket) do
-    {:noreply, socket |> assign(:search_feed, q) |> prepare_assigns()}
+    {:noreply, handle_search_feed(q, socket) |> prepare_assigns()}
   end
 
   def handle_event("search_sessions", %{"q" => q}, socket) do
-    {:noreply, socket |> assign(:search_sessions, q) |> prepare_assigns()}
+    {:noreply, handle_search_sessions(q, socket) |> prepare_assigns()}
   end
 
   def handle_event("select_event", %{"id" => id}, socket) do
@@ -151,11 +131,11 @@ defmodule ObservatoryWeb.DashboardLive do
   end
 
   def handle_event("filter_tool", %{"tool" => tool}, socket) do
-    {:noreply, socket |> assign(:search_feed, tool) |> prepare_assigns()}
+    {:noreply, handle_filter_tool(tool, socket) |> prepare_assigns()}
   end
 
   def handle_event("filter_tool_use_id", %{"tuid" => tuid}, socket) do
-    {:noreply, socket |> assign(:search_feed, tuid) |> prepare_assigns()}
+    {:noreply, handle_filter_tool_use_id(tuid, socket) |> prepare_assigns()}
   end
 
   def handle_event("clear_events", _params, socket) do
@@ -163,11 +143,15 @@ defmodule ObservatoryWeb.DashboardLive do
   end
 
   def handle_event("filter_session", %{"sid" => sid}, socket) do
-    {:noreply, socket |> assign(:filter_session_id, sid) |> prepare_assigns()}
+    {:noreply, handle_filter_session(sid, socket) |> prepare_assigns()}
   end
 
   def handle_event("set_view", %{"mode" => mode}, socket) do
-    {:noreply, socket |> assign(:view_mode, String.to_existing_atom(mode)) |> prepare_assigns()}
+    {:noreply, handle_set_view(mode, socket) |> prepare_assigns()}
+  end
+
+  def handle_event("restore_state", params, socket) do
+    {:noreply, handle_restore_state(params, socket) |> prepare_assigns()}
   end
 
   def handle_event("select_team", %{"name" => name}, socket) do
@@ -176,23 +160,11 @@ defmodule ObservatoryWeb.DashboardLive do
   end
 
   def handle_event("filter_team", %{"name" => name}, socket) do
-    # Filter feed to only show events from this team's sessions
-    team = Enum.find(derive_teams(socket.assigns.events, socket.assigns.disk_teams), &(&1.name == name))
-
-    if team do
-      sids = team_member_sids(team)
-      # Use the first session ID for filtering (or clear if multiple)
-      case sids do
-        [sid] -> {:noreply, socket |> assign(:filter_session_id, sid) |> prepare_assigns()}
-        _ -> {:noreply, socket |> assign(:search_feed, name) |> prepare_assigns()}
-      end
-    else
-      {:noreply, socket}
-    end
+    {:noreply, handle_filter_team(name, socket) |> prepare_assigns()}
   end
 
   def handle_event("filter_agent", %{"session_id" => sid}, socket) do
-    {:noreply, socket |> assign(:filter_session_id, sid) |> assign(:view_mode, :feed) |> prepare_assigns()}
+    {:noreply, handle_filter_agent(sid, socket) |> prepare_assigns()}
   end
 
   def handle_event("send_agent_message", params, socket) do

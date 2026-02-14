@@ -55,4 +55,26 @@ defmodule ObservatoryWeb.DashboardUIHandlers do
       socket
     end
   end
+
+  def handle_restore_state(params, socket) do
+    socket
+    |> maybe_restore(:view_mode, params["view_mode"])
+    |> maybe_restore(:filter_source_app, params["filter_source_app"])
+    |> maybe_restore(:filter_session_id, params["filter_session_id"])
+    |> maybe_restore(:filter_event_type, params["filter_event_type"])
+    |> maybe_restore(:search_feed, params["search_feed"])
+    |> maybe_restore(:search_sessions, params["search_sessions"])
+    |> maybe_restore(:selected_team, params["selected_team"])
+  end
+
+  defp maybe_restore(socket, _key, nil), do: socket
+  defp maybe_restore(socket, _key, ""), do: socket
+
+  defp maybe_restore(socket, :view_mode, value) when is_binary(value) do
+    Phoenix.Component.assign(socket, :view_mode, String.to_existing_atom(value))
+  rescue
+    ArgumentError -> socket
+  end
+
+  defp maybe_restore(socket, key, value), do: Phoenix.Component.assign(socket, key, value)
 end

@@ -26,6 +26,100 @@ import {hooks as colocatedHooks} from "phoenix-colocated/observatory"
 import topbar from "../vendor/topbar"
 
 let Hooks = {
+  StatePersistence: {
+    mounted() {
+      // Restore state from localStorage on mount
+      const savedState = {
+        view_mode: localStorage.getItem("observatory:view_mode"),
+        filter_source_app: localStorage.getItem("observatory:filter_source_app"),
+        filter_session_id: localStorage.getItem("observatory:filter_session_id"),
+        filter_event_type: localStorage.getItem("observatory:filter_event_type"),
+        search_feed: localStorage.getItem("observatory:search_feed"),
+        search_sessions: localStorage.getItem("observatory:search_sessions"),
+        selected_team: localStorage.getItem("observatory:selected_team")
+      }
+
+      // Push to LiveView to restore state
+      this.pushEvent("restore_state", savedState)
+
+      // Save state on every view mode change
+      this.handleEvent("view_mode_changed", ({ view_mode }) => {
+        if (view_mode) {
+          localStorage.setItem("observatory:view_mode", view_mode)
+        }
+      })
+
+      // Save state on filter changes
+      this.handleEvent("filters_changed", (data) => {
+        Object.entries(data).forEach(([key, value]) => {
+          if (value === null || value === undefined || value === "") {
+            localStorage.removeItem(`observatory:${key}`)
+          } else {
+            localStorage.setItem(`observatory:${key}`, value)
+          }
+        })
+      })
+    }
+  },
+  Toast: {
+    mounted() {
+      this.handleToast = (e) => {
+        const { message, type } = e.detail
+        this.showToast(message, type || "info")
+      }
+      window.addEventListener("phx:toast", this.handleToast)
+    },
+    destroyed() {
+      window.removeEventListener("phx:toast", this.handleToast)
+    },
+    showToast(message, type) {
+      const toast = document.createElement("div")
+      toast.className = `pointer-events-auto px-4 py-3 rounded-lg shadow-lg border transition-all duration-300 transform translate-x-0 opacity-100 ${this.getToastClasses(type)}`
+      toast.innerHTML = `
+        <div class="flex items-center gap-2">
+          <span class="text-sm">${this.escapeHtml(message)}</span>
+        </div>
+      `
+
+      // Add to container
+      this.el.appendChild(toast)
+
+      // Animate in
+      requestAnimationFrame(() => {
+        toast.style.transform = "translateX(0)"
+        toast.style.opacity = "1"
+      })
+
+      // Auto-dismiss after 3 seconds
+      setTimeout(() => {
+        toast.style.transform = "translateX(100%)"
+        toast.style.opacity = "0"
+        setTimeout(() => {
+          if (toast.parentNode === this.el) {
+            this.el.removeChild(toast)
+          }
+        }, 300)
+      }, 3000)
+    },
+    getToastClasses(type) {
+      switch (type) {
+        case "success":
+          return "bg-emerald-500/15 border-emerald-500/30 text-emerald-400"
+        case "error":
+          return "bg-red-500/15 border-red-500/30 text-red-400"
+        case "warning":
+          return "bg-amber-500/15 border-amber-500/30 text-amber-400"
+        case "info":
+        default:
+          return "bg-blue-500/15 border-blue-500/30 text-blue-400"
+      }
+    },
+    escapeHtml(text) {
+      const div = document.createElement("div")
+      div.textContent = text
+      return div.innerHTML
+    }
+  },
   CopyToClipboard: {
     mounted() {
       this.el.addEventListener("click", () => {
@@ -35,6 +129,45 @@ let Hooks = {
           this.el.textContent = "Copied!"
           setTimeout(() => { this.el.textContent = orig }, 1500)
         })
+      })
+    }
+  },
+  BrowserNotifications: {
+    mounted() {
+      this.permissionGranted = false
+      this.handleNotification = (e) => {
+        const { title, body } = e.detail
+        this.showNotification(title, body)
+      }
+      window.addEventListener("phx:browser_notify", this.handleNotification)
+      this.requestPermission()
+    },
+    destroyed() {
+      window.removeEventListener("phx:browser_notify", this.handleNotification)
+    },
+    requestPermission() {
+      if (!("Notification" in window)) {
+        console.log("Browser notifications not supported")
+        return
+      }
+
+      if (Notification.permission === "granted") {
+        this.permissionGranted = true
+      } else if (Notification.permission !== "denied") {
+        Notification.requestPermission().then((permission) => {
+          this.permissionGranted = permission === "granted"
+        })
+      }
+    },
+    showNotification(title, body) {
+      if (!this.permissionGranted) {
+        return
+      }
+
+      new Notification(title, {
+        body: body,
+        icon: "/favicon.ico",
+        badge: "/favicon.ico"
       })
     }
   },
