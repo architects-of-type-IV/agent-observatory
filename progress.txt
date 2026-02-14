@@ -650,3 +650,53 @@ CONTENT:
 - Documents OBSERVATORY_URL env var, jq/curl requirements, non-blocking behavior
 
 STATUS: Complete. README now fully documented with architecture, views, MCP server, and hook setup.
+
+Sprint 5: Ash Resources for Persistence (IN PROGRESS)
+======================================================
+
+2026-02-14 - Task #1: Create Ash Resources (ash-modeler) - COMPLETE
+--------------------------------------------------------------------
+
+CREATED FILES:
+- lib/observatory/messaging/message.ex (103 lines)
+- lib/observatory/messaging.ex (7 lines)
+- lib/observatory/task_board/task.ex (123 lines)
+- lib/observatory/task_board.ex (7 lines)
+- lib/observatory/annotations/note.ex (63 lines)
+- lib/observatory/annotations.ex (7 lines)
+- lib/observatory/costs/token_usage.ex (118 lines)
+- lib/observatory/costs.ex (7 lines)
+
+MODIFIED:
+- config/config.exs - added 4 domains to ash_domains list
+
+DATABASE:
+- Migration: priv/repo/migrations/20260214201807_sprint5_domains.exs
+- Tables: messages, tasks, notes, token_usages
+- All migrations applied successfully
+
+RESOURCES CREATED:
+1. Observatory.Messaging.Message - replaces Mailbox ETS
+   - Attributes: from_session_id, to_session_id, content, message_type, read, team_name
+   - Actions: create, mark_read, unread_for_session, by_thread
+
+2. Observatory.TaskBoard.Task - replaces TaskManager JSON files
+   - Attributes: subject, description, status, owner, team_name, active_form, blocks, blocked_by, metadata
+   - Actions: create, update, by_team, by_owner
+
+3. Observatory.Annotations.Note - replaces Notes ETS
+   - Attributes: event_id, text
+   - Actions: create, update, delete, by_event
+
+4. Observatory.Costs.TokenUsage - NEW cost tracking feature
+   - Attributes: session_id, source_app, model_name, tokens, estimated_cost_cents, tool_name
+   - Actions: create, by_session, by_model, totals
+   - Calculations: total_input_tokens, total_output_tokens, total_cost_cents
+
+VERIFICATION:
+✅ mix compile --warnings-as-errors (SUCCESS - ZERO WARNINGS)
+✅ All modules under 300 lines (largest: TaskBoard.Task at 123 lines)
+✅ Followed existing pattern from Observatory.Events.Event
+✅ All 4 domains registered in config
+
+STATUS: Ash resources ready. Integration with existing GenServers is a separate task.

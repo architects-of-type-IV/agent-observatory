@@ -23,6 +23,7 @@
 - GenServers: TeamWatcher (disk polling), Mailbox (ETS, 151 lines), CommandQueue (file I/O, 237 lines), Notes (ETS annotations, ~120 lines)
 - Plain modules: TaskManager (task JSON CRUD, 217 lines)
 - Handler modules (6 total): ui, filter, navigation, task, messaging, notification
+- Ash domains (6 total): Events, AgentTools, Messaging, TaskBoard, Annotations, Costs
 
 ## Timeline View Implementation
 

@@ -1,11 +1,35 @@
 # Observatory - Handoff
 
-## Current Status
-All Agents view improvements complete. MCP server operational. README fully documented with hook setup instructions.
+## Current Status (Sprint 5)
+Task #1 COMPLETED: Created Ash resources for Messages, Tasks, Notes, and Costs to replace ETS/file-based storage.
 
-## What Was Done This Session
+## What Was Done This Session (Sprint 5)
 
-### Hook Setup Instructions in README
+### Ash Resources Created (Task #1)
+Created four new Ash domains with SQLite-backed resources:
+
+1. **Observatory.Messaging** - Message storage (replaces Mailbox ETS)
+   - Resource: Observatory.Messaging.Message (103 lines)
+   - Attributes: from_session_id, to_session_id, content, message_type (enum: message, broadcast, shutdown_request, shutdown_response, plan_approval_request, plan_approval_response), read (boolean), team_name
+   - Actions: create, read, mark_read, unread_for_session, by_thread
+
+2. **Observatory.TaskBoard** - Task management (replaces TaskManager JSON files)
+   - Resource: Observatory.TaskBoard.Task (123 lines)
+   - Attributes: subject, description, status (enum: pending, in_progress, completed), owner, team_name, active_form, blocks (array), blocked_by (array), metadata (map)
+   - Actions: create, read, update, by_team, by_owner
+
+3. **Observatory.Annotations** - Event notes (replaces Notes ETS)
+   - Resource: Observatory.Annotations.Note (63 lines)
+   - Attributes: event_id, text
+   - Actions: create, read, update, delete, by_event
+
+4. **Observatory.Costs** - Token usage tracking (NEW feature)
+   - Resource: Observatory.Costs.TokenUsage (118 lines)
+   - Attributes: session_id, source_app, model_name, input_tokens, output_tokens, cache_read_tokens, cache_write_tokens, estimated_cost_cents, tool_name
+   - Actions: create, read, by_session, by_model, totals
+   - Calculations: total_input_tokens, total_output_tokens, total_cost_cents
+
+### Previous Session: Hook Setup Instructions in README
 - Added full "Hook Scripts" section to README.md with 3-step setup guide:
   1. Install script: copy `send_event.sh` to `~/.claude/hooks/observatory/`
   2. Configure hooks: complete JSON config for all 12 Claude Code lifecycle events
@@ -36,27 +60,38 @@ All Agents view improvements complete. MCP server operational. README fully docu
 - AshAi MCP server at `/mcp` with 5 tools (check_inbox, acknowledge_message, send_message, get_tasks, update_task_status)
 - `.mcp.json` config for agent connection
 
-## Files Modified
-- `README.md` (rewritten with full docs + hook setup)
-- `observatory/.mcp.json` (new)
-- `lib/observatory/agent_tools.ex` (new)
-- `lib/observatory/agent_tools/inbox.ex` (new)
-- `lib/observatory_web/router.ex` (added /mcp route)
-- `config/config.exs` (added AgentTools domain)
-- `mix.exs` (added ash_ai, usage_rules)
-- `lib/observatory_web/live/dashboard_team_helpers.ex` (239 lines)
-- `lib/observatory_web/live/dashboard_format_helpers.ex` (248 lines)
-- `lib/observatory_web/live/dashboard_agent_helpers.ex` (new, 34 lines)
-- `lib/observatory_web/live/dashboard_live.ex` (245 lines)
-- `lib/observatory_web/live/dashboard_live.html.heex`
+## Files Created (Sprint 5)
+- `lib/observatory/messaging/message.ex` (103 lines)
+- `lib/observatory/messaging.ex` (7 lines)
+- `lib/observatory/task_board/task.ex` (123 lines)
+- `lib/observatory/task_board.ex` (7 lines)
+- `lib/observatory/annotations/note.ex` (63 lines)
+- `lib/observatory/annotations.ex` (7 lines)
+- `lib/observatory/costs/token_usage.ex` (118 lines)
+- `lib/observatory/costs.ex` (7 lines)
 
-## Verified
-- Zero warnings: mix compile --warnings-as-errors
-- All modules under 300 lines
-- MCP server tested end-to-end (initialize, tools/list, tools/call)
+## Files Modified (Sprint 5)
+- `config/config.exs` (added 4 new domains to ash_domains list)
+
+## Database Changes (Sprint 5)
+- Migration generated: `priv/repo/migrations/20260214201807_sprint5_domains.exs`
+- Migration applied: 4 new tables (messages, tasks, notes, token_usages)
+- Resource snapshots created for all 4 resources
+
+## Verified (Sprint 5)
+- Zero warnings: `mix compile --warnings-as-errors` passed
+- All modules under 300 lines (largest: TaskBoard.Task at 123 lines)
+- Followed existing pattern from Observatory.Events.Event
+- All 4 domains registered in config
 
 ## Next Steps
-- Session control actions (pause/resume/shutdown agents from UI)
-- Inline task editing in agent detail panel
-- Cost tracking and budgets
-- Session replay functionality
+- Task #2: Split dashboard_live.html.heex into per-view component files (template-splitter working on this)
+- Task #3: Add session control actions (pause/resume/shutdown agents)
+- Task #4: Add inline task editing in task cards and detail panel
+- Task #5: Quality control: verify all changes, fix warnings, test endpoints
+
+## Important Notes
+- Do NOT modify existing GenServers (mailbox.ex, task_manager.ex, notes.ex, command_queue.ex) - integration is a separate task
+- The Ash resources are ready but not yet integrated with existing code
+- All resources use AshSqlite.DataLayer with Observatory.Repo
+- Pattern followed: lib/observatory/events/event.ex as reference
