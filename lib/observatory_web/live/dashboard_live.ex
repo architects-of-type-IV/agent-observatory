@@ -40,6 +40,11 @@ defmodule ObservatoryWeb.DashboardLive do
       |> assign(:mailbox_counts, %{})
       |> prepare_assigns()
 
+    # Subscribe to mailbox channels for all active sessions
+    if connected?(socket) do
+      subscribe_to_mailboxes(socket.assigns.sessions)
+    end
+
     {:ok, socket}
   end
 
