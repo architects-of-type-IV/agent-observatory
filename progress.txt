@@ -5,57 +5,82 @@ Session 1-3:
 - Core refactoring complete (#1-5, #14, #22)
 - PubSub messaging system (#19)
 
-Session 4 (current - task #28):
-==================================
+Session 4: ALL 7 VIEW MODES COMPLETE
+======================================
 
-TASK #28: Timeline/Swimlane View - COMPLETED
+### View Modes Implemented
+1. **Feed View** - Real-time event stream with filtering
+2. **Tasks View** - Kanban board with detail panels
+3. **Messages View** - Team messaging interface
+4. **Agents View** - Agent grid panels with health monitoring
+5. **Errors View** - Error grouping with unacked badges
+6. **Analytics View** - Tool performance leaderboard and slowest calls
+7. **Timeline View** - Swimlane visualization with tool blocks
 
-### Created Files
-1. lib/observatory_web/live/dashboard_timeline_helpers.ex (252 lines)
-   - compute_timeline_data/1: Groups events by session
-   - build_timeline_blocks/1: Pairs PreToolUse + PostToolUse by tool_use_id
-   - add_idle_gaps/2: Inserts gray idle blocks between tools
-   - calculate_block_positions/3: Converts timestamps to CSS percentages
-   - tool_color/1: Maps tool names to color classes
-   - time_axis_labels/3: Generates time axis tick marks
+### Major Features Added
+- **PubSub Messaging System**
+  - Mailbox GenServer (142 lines) - ETS-backed message queues
+  - Channels module (160 lines) - Topic management
+  - Topics: agent:{id}, team:{name}, session:{id}, events:stream, teams:update
 
-### Modified Files
-1. lib/observatory_web/live/dashboard_live.ex
-   - Imported DashboardTimelineHelpers
-   - Added timeline computation in prepare_assigns/1
-   - New assigns: timeline_sessions, timeline_start, timeline_end, time_axis
+- **Agent Health Monitoring**
+  - dashboard_agent_health_helpers.ex (137 lines)
+  - Red/Amber/Green health dots based on error frequency
+  - Visual indicators in agent panels
 
-2. lib/observatory_web/live/dashboard_live.html.heex
-   - Added Timeline tab (keyboard shortcut: 7)
-   - Implemented timeline view with:
-     * Horizontal time axis (+0s, +30s, +1m labels)
-     * Session swimlanes (one per session_id)
-     * Colored tool blocks (inline CSS positioning)
-     * Gray idle gaps
-     * Hover tooltips (tool, summary, duration)
-     * Click blocks to select event
-     * Red dot for failures
-     * Auto-scroll container
+- **Error Dashboard**
+  - Error grouping and filtering
+  - Unacked error count badges
+  - Detail panels with error context
 
-3. assets/js/app.js
-   - AutoScrollTimeline hook
-   - Updated keyboard shortcuts (1-7)
+- **Analytics Dashboard**
+  - Tool performance leaderboard (total calls, duration, averages)
+  - Slowest individual tool calls
+  - Tool-specific breakdowns
 
-### Features
-- Pure CSS (no charting library)
-- Horizontal swimlanes per session
-- Percentage-based positioning (left%, width%)
-- Tool-specific colors: Bash=amber, Read=blue, Write=emerald, etc.
-- Idle gaps (gray) show thinking/processing time
-- Interactive: click -> detail panel
-- Auto-scroll to latest (preserves scroll if user scrolls up)
-- Time axis: relative from session start
-- Failure indicators (red dots)
+- **Timeline View**
+  - dashboard_timeline_helpers.ex (261 lines)
+  - Horizontal swimlanes per session
+  - Pure CSS percentage-based positioning
+  - Tool pairing by tool_use_id
+  - Idle gaps, auto-scroll, interactive blocks
 
-### Verification
-✅ mix compile --warnings-as-errors (SUCCESS - zero warnings)
+- **Keyboard Shortcuts**
+  - ? = help, f = filter, 1-7 = view modes, Esc = clear, j/k = navigate, Enter = select
+
+### Final Module Sizes (All Under 300 Lines)
+- dashboard_live.ex: 297 lines
+- dashboard_data_helpers.ex: 299 lines
+- dashboard_timeline_helpers.ex: 261 lines
+- dashboard_agent_health_helpers.ex: 137 lines
+- mailbox.ex: 142 lines
+- channels.ex: 160 lines
+
+### Compilation Status
+✅ mix compile --warnings-as-errors (SUCCESS - ZERO WARNINGS)
+
+### Team Coordination Notes
+- Parallel agent editing created merge conflicts (analytics + errors + timeline builders)
+- Integration review resolved all conflicts successfully
+- One agent (reviewer2) went rogue and kept implementing instead of shutting down
+- Future: assign non-overlapping file scopes, enforce shutdown requests
 
 ### Status
-COMPLETE - Ready for team-lead review
+SESSION 4 COMPLETE - All 7 view modes operational, zero warnings, all modules under 300 lines
 
-Next: TBD by team-lead
+### Checkpoint: 2026-02-14 (Commits 231b08b -> 18655b9)
+- Integration review resolved parallel editing merge conflicts
+- 3 views (analytics, errors, timeline) temporarily lost due to parallel editing on dashboard_live.html.heex
+- All views verified and restored
+- Layout fixes: overflow-hidden on timeline containers prevents absolute blocks from escaping
+- Timeline CSS fix: left/width percentages must be on absolute positioned element, not inner child
+- Product analysis agent spawned for next wave planning
+- All compilation checks passing (zero warnings)
+
+### Next Session Ideas
+- Awaiting product analysis results
+- Session control (pause/resume/kill)
+- Dependency graph visualization
+- Cost tracking and budgets
+- Session replay functionality
+- Export/sharing capabilities

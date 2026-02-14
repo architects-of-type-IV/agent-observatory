@@ -79,6 +79,15 @@ Consistent colors across views:
 - prepare_assigns/1 pattern: single function computes all derived state
 - LiveView module for lifecycle only: mount, handle_info, handle_event, prepare_assigns
 
+## Team Coordination Lessons
+- **Parallel editing creates merge conflicts**: Assign non-overlapping file scopes to parallel agents working on shared modules
+- **Always do integration review**: After parallel work, review merge conflicts and integration points - views can get lost during parallel editing
+- **Verify agent capabilities**: Teammates spawned in delegate mode often lack Read/Bash tools - verify before assigning file-based work
+- **Shutdown enforcement**: Shutdown requests may be ignored by rogue agents - need stronger enforcement mechanism. Rogue agents can duplicate work but sometimes deliver useful results.
+- **keep-track and delegate mode**: keep-track hook blocks TaskUpdate completion in delegate mode - use TaskUpdate with status=deleted instead
+- **Timeline CSS absolute positioning**: left/width percentages must be on the absolutely positioned element itself, not on an inner child div
+- **Overflow containment**: overflow-hidden on relative containers prevents absolute children from escaping bounds - critical for timeline swimlanes
+
 ## PubSub Topics
 - "events:stream" - all events
 - "teams:update" - team state changes

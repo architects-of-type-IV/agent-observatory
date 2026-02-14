@@ -1,39 +1,54 @@
 # Observatory - Handoff Document
 
 ## Current State
-The Observatory multi-agent observability dashboard is functional with timeline visualization.
+The Observatory multi-agent observability dashboard is fully functional with 7 view modes, PubSub messaging, agent health monitoring, and comprehensive analytics.
 
 ### Completed Tasks
 - #1-5: Core refactoring (audit, template extraction, helpers, components, verification)
 - #8-9, #14: Task board + team split view + agent panels
 - #19: PubSub channel system for bidirectional messaging
 - #22: Split dashboard_helpers into 3 focused modules
-- #28: **Timeline/Swimlane View (JUST COMPLETED)**
+- #28: Timeline/Swimlane View
+- **Session 4 Complete**: All 7 view modes operational, error dashboard, analytics leaderboard, keyboard shortcuts, agent health monitoring
+- **Checkpoint (231b08b -> 18655b9)**: Integration review resolved parallel editing conflicts, all views verified working
 
-### Latest Implementation (Task #28)
-**Timeline/Swimlane View** - Horizontal timeline visualization of tool execution
+### System Features
 
-#### Files Created
-- `/lib/observatory_web/live/dashboard_timeline_helpers.ex` (252 lines)
-  - compute_timeline_data/1: Groups events by session, builds timeline blocks
-  - build_timeline_blocks/1: Pairs PreToolUse with PostToolUse by tool_use_id
-  - calculate_block_positions/3: Converts timestamps to CSS percentages
-  - tool_color/1: Maps tool names to color classes
-  - time_axis_labels/3: Generates time axis tick marks
-  - add_idle_gaps/2: Inserts idle blocks between tool executions
+#### PubSub Messaging
+- Mailbox GenServer with ETS-backed message queues
+- Channels module for bidirectional messaging
+- Topics: agent:{id}, team:{name}, session:{id}, events:stream, teams:update
 
-#### Files Modified
-1. `dashboard_live.ex` - Added timeline computation in prepare_assigns/1
-2. `dashboard_live.html.heex` - Added Timeline tab + full swimlane view
-3. `assets/js/app.js` - AutoScrollTimeline hook + keyboard shortcut 7
+#### Agent Health Monitoring
+- Red/Amber/Green health dots based on error frequency
+- Computed in dashboard_agent_health_helpers.ex
+- Visual indicators in agent panels
 
-#### Technical Details
-- **Pure CSS positioning**: Percentage-based (left%, width%) from timestamps
-- **Tool pairing**: PreToolUse + PostToolUse matched by tool_use_id
-- **Idle gaps**: Gray blocks between tool executions
-- **Interactive**: Click blocks to select event and show detail panel
-- **Auto-scroll**: Follows latest activity (preserves scroll if user scrolls up)
-- **Tool colors**: Bash=amber, Read=blue, Write=emerald, Edit=violet, etc.
+#### Error Dashboard
+- Error grouping and filtering
+- Unacked error badges
+- Error detail panels with context
+
+#### Analytics Dashboard
+- Tool performance leaderboard (total calls, total duration, avg duration)
+- Slowest individual tool calls
+- Tool-specific breakdowns
+
+#### Timeline View
+- Horizontal swimlane visualization per session
+- Pure CSS percentage-based positioning
+- Tool pairing: PreToolUse + PostToolUse matched by tool_use_id
+- Idle gaps showing thinking/processing time
+- Interactive: click blocks for detail panel
+- Auto-scroll following latest activity
+
+#### Keyboard Shortcuts
+- `?` - Help/shortcuts overlay
+- `f` - Toggle filter panel
+- `1-7` - Switch view modes (Feed, Tasks, Messages, Agents, Errors, Analytics, Timeline)
+- `Esc` - Clear selection/close modals
+- `j/k` - Navigate events (vim-style)
+- `Enter` - Select highlighted event
 
 ### View Modes (7 total)
 1. **Feed**: Real-time event stream (keyboard: 1)
@@ -47,20 +62,31 @@ The Observatory multi-agent observability dashboard is functional with timeline 
 ### Key Files
 | File | Lines | Purpose |
 |------|-------|---------|
-| dashboard_live.ex | ~290 | LiveView + prepare_assigns |
-| dashboard_live.html.heex | ~780 | Template with 7 view modes |
-| dashboard_team_helpers.ex | 148 | Team derivation |
-| dashboard_data_helpers.ex | 222 | Task/message derivation |
-| dashboard_format_helpers.ex | 192 | Display formatting |
-| dashboard_timeline_helpers.ex | 252 | Timeline computation ← NEW |
+| dashboard_live.ex | 297 | LiveView + prepare_assigns |
+| dashboard_live.html.heex | ~841 | Template with 7 view modes |
+| dashboard_team_helpers.ex | 160 | Team derivation |
+| dashboard_data_helpers.ex | 299 | Task/message derivation |
+| dashboard_format_helpers.ex | 199 | Display formatting |
+| dashboard_timeline_helpers.ex | 261 | Timeline computation |
+| dashboard_agent_health_helpers.ex | 137 | Agent health monitoring |
 | dashboard_messaging_handlers.ex | 94 | Messaging handlers |
 | observatory_components.ex | 127 | Reusable components |
+| mailbox.ex | 142 | ETS-backed message queues |
+| channels.ex | 160 | PubSub channel management |
 
 ### Compilation Status
 ✅ `mix compile --warnings-as-errors` SUCCESS (zero warnings)
 
 ### Next Steps
-Team-lead review of timeline implementation
+Product analysis spawned for deep feature evaluation. Awaiting results before spawning implementation team.
+
+Potential features identified:
+- Session control (pause/resume/kill)
+- Dependency graph visualization
+- Cost tracking and budgets
+- Session replay functionality
+- Real-time collaboration features
+- Export/sharing capabilities
 
 ### User Constraints
 - All modules under 200-300 lines
