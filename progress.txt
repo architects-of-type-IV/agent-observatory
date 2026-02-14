@@ -216,3 +216,61 @@ Session 7: Backend Infrastructure (Command Queue + Task Manager)
 **Compilation**: ✅ mix compile --warnings-as-errors (SUCCESS)
 
 **Status**: Task orchestration backend complete. Users can create tasks from UI. Inline editing controls ready to be added to task cards.
+
+Sprint 2 Complete: 2026-02-14
+==============================
+
+### Summary
+Backend infrastructure, visual polish, and cross-view navigation complete. All 7 views now fully interconnected with comprehensive navigation jumps.
+
+### Completed Work
+1. **Cross-View Navigation** (Task #6)
+   - 7 jump types connecting all views (errors→timeline/feed, tasks→agents, messages→feed, timeline→feed, agents→tasks, analytics→feed)
+   - dashboard_navigation_handlers.ex (71 lines)
+   - Clickable UI elements across all views
+
+2. **File-Based Command Queue** (Task #7)
+   - CommandQueue GenServer (237 lines) - inbox/outbox file system
+   - Dual-write pattern: ETS + file-based for agent coordination
+   - Polls ~/.claude/inbox/ and ~/.claude/outbox/ every 2s
+
+3. **Task CRUD from UI** (Task #8)
+   - TaskManager module (217 lines) - JSON file CRUD
+   - dashboard_task_handlers.ex (180 lines) - LiveView event handlers
+   - Create task modal with subject/description/owner
+   - Auto-generates activeForm from imperative subjects
+
+4. **Hidden Data Surfaced** (Tasks #9-10)
+   - Agent health warnings in agents view
+   - Model badges (opus/sonnet/haiku) on session cards
+   - Abbreviated cwd on session cards
+   - Duration colors on ALL events (gray/amber/red)
+
+5. **Visual Polish** (Tasks #9-10)
+   - Empty state component for all 7 views
+   - Pulsing error badges
+   - Timeline legend + tool names on wide blocks
+   - Idle agents at 60% opacity
+   - Shortcuts help button
+
+### New Modules
+- command_queue.ex (237 lines)
+- task_manager.ex (217 lines)
+- dashboard_task_handlers.ex (180 lines)
+- dashboard_navigation_handlers.ex (71 lines)
+- dashboard_session_helpers.ex (71 lines)
+- dashboard_ui_handlers.ex (41 lines)
+
+### Key Lessons
+- Non-overlapping file scopes prevent merge conflicts
+- Create NEW files for new features instead of bloating existing ones
+- Handler delegation keeps dashboard_live.ex under 300 lines
+
+### Compilation Status
+✅ mix compile --warnings-as-errors (SUCCESS - ZERO WARNINGS)
+
+### Next: Sprint 3 - Agent Lifecycle Management
+- Session control (pause/resume/kill)
+- Failure recovery mechanisms
+- Deeper orchestration from UI
+- Dependency graph visualization

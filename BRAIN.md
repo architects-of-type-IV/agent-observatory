@@ -92,6 +92,11 @@ Consistent colors across views:
 - **Timeline CSS absolute positioning**: left/width percentages must be on the absolutely positioned element itself, not on an inner child div
 - **Overflow containment**: overflow-hidden on relative containers prevents absolute children from escaping bounds - critical for timeline swimlanes
 
+## Sprint 2 Lessons (Feb 2026)
+- **Non-overlapping file scopes prevent conflicts**: Creating NEW files (task_handlers, navigation_handlers, session_helpers) instead of editing shared dashboard_live.ex eliminated merge conflicts
+- **Create new files for new features**: Better to have focused 71-180 line modules than bloat existing files past 300 lines
+- **Handler delegation pattern**: dashboard_live.ex stays under 300 by delegating handle_event clauses to domain-specific handler modules (messaging_handlers, task_handlers, navigation_handlers, ui_handlers)
+
 ## PubSub Topics
 - "events:stream" - all events
 - "teams:update" - team state changes

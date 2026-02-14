@@ -83,37 +83,56 @@ The Observatory multi-agent observability dashboard is fully functional with 7 v
 ### Compilation Status
 ✅ `mix compile --warnings-as-errors` SUCCESS (zero warnings)
 
-### Latest Update (2026-02-14 - nav-builder)
-**Completed Task #6**: Cross-view navigation jumps
+### Latest Update (2026-02-14 - Sprint 2 Complete)
+**Sprint 2 Complete**: Backend infrastructure, visual polish, cross-view navigation
 
-**Task #6 - Cross-View Navigation**:
-- Created `dashboard_navigation_handlers.ex` (71 lines) for navigation logic
-- Added event_id to timeline blocks for clickability
-- Errors view: "View in Timeline" and "View in Feed" buttons per error group
-- Task detail panel: "View Agent" button to jump to Agents view
-- Messages view: clickable sender/recipient session IDs to filter Feed
-- Timeline blocks: clickable to select event and open detail in Feed view
-- Agents view: task count badges (clickable) to filter Tasks view by agent
-- Analytics view: clickable tool rows to filter Feed by tool name
+**Completed Features**:
+- **Cross-View Navigation** (7 jump types between all views)
+  - Errors → Timeline/Feed, Tasks → Agents, Messages → Feed
+  - Timeline blocks → Feed (event selection)
+  - Agents → Tasks (filter by agent), Analytics → Feed (filter by tool)
 
-**Files Modified**:
-- Created: `lib/observatory_web/live/dashboard_navigation_handlers.ex`
-- Modified: `dashboard_live.ex` (303 lines), `dashboard_live.html.heex`, `dashboard_timeline_helpers.ex`
+- **File-Based Command Queue** (agent communication bridge)
+  - CommandQueue GenServer writes to ~/.claude/inbox/, polls ~/.claude/outbox/
+  - Dual-write pattern: ETS + file system for agent coordination
+
+- **Task CRUD from UI**
+  - TaskManager module for JSON file operations
+  - Create task modal with subject/description/owner
+  - Backend ready for inline edit/delete/reassign
+
+- **Hidden Data Surfaced**
+  - Agent health warnings (Red/Amber/Green with details)
+  - Model badges (opus/sonnet/haiku) on session cards
+  - Current working directory (abbreviated) on session cards
+  - Duration colors on ALL events (gray <1s, amber 1-5s, red >5s)
+
+- **Visual Polish**
+  - Empty states for all 7 views (reusable component)
+  - Pulsing error badges for prominence
+  - Timeline legend + tool names on wide blocks
+  - Idle agents at 60% opacity
+  - Shortcuts help button in header
+
+**New Modules Created**:
+- command_queue.ex (237 lines) - File-based agent communication
+- task_manager.ex (217 lines) - Task JSON CRUD operations
+- dashboard_task_handlers.ex (180 lines) - Task mutation event handlers
+- dashboard_navigation_handlers.ex (71 lines) - Cross-view navigation jumps
+- dashboard_session_helpers.ex (71 lines) - Model/cwd extraction utilities
+- dashboard_ui_handlers.ex (41 lines) - Modal toggles
 
 **Module Size Status**:
-- dashboard_live.ex: 303 lines (slightly over 300 due to necessary handler delegation)
-- dashboard_navigation_handlers.ex: 71 lines
+All modules under 300 lines. dashboard_live.ex kept at 303 by delegating to handler modules.
 
-### Next Steps
-Cross-view navigation complete. All views now interconnected with navigation jumps.
-
-Potential features identified:
-- Session control (pause/resume/kill)
+### Next Steps - Sprint 3: Agent Lifecycle Management
+Potential features:
+- Session control (pause/resume/kill agents)
+- Failure recovery and restart mechanisms
+- Deeper orchestration (spawn/message/coordinate from UI)
 - Dependency graph visualization
 - Cost tracking and budgets
 - Session replay functionality
-- Real-time collaboration features
-- Export/sharing capabilities
 
 ### User Constraints
 - All modules under 200-300 lines
