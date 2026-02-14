@@ -157,7 +157,16 @@ defmodule ObservatoryWeb.DashboardMessagingHandlers do
   end
 
   defp get_team_members(socket, team_name) do
-    socket.assigns[:sessions]
-    |> Enum.filter(fn s -> s.team == team_name end)
+    team = Enum.find(socket.assigns[:teams] || [], &(&1.name == team_name))
+
+    case team do
+      nil ->
+        []
+
+      %{members: members} ->
+        members
+        |> Enum.filter(& &1[:agent_id])
+        |> Enum.map(fn m -> %{session_id: m[:agent_id]} end)
+    end
   end
 end

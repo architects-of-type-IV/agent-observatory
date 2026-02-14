@@ -262,7 +262,7 @@
                   <div :for={m <- team.members} class="flex items-center gap-2">
                     <span class={"w-1.5 h-1.5 rounded-full shrink-0 #{member_status_color(m[:status])}"}></span>
                     <span class="text-xs text-zinc-400 truncate">{m[:name] || "?"}</span>
-                    <span class="text-xs text-zinc-600 ml-auto">{m[:agent_type]}</span>
+                    <span :if={m[:agent_type]} class="text-xs text-zinc-600 ml-auto">{m[:agent_type]}</span>
                     <span :if={m[:event_count] && m[:event_count] > 0} class="text-xs text-zinc-700">{m[:event_count]}</span>
                   </div>
                 </div>

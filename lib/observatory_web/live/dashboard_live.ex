@@ -219,9 +219,11 @@ defmodule ObservatoryWeb.DashboardLive do
   defp prepare_assigns(socket) do
     assigns = socket.assigns
     all_sessions = active_sessions(assigns.events)
-    teams = derive_teams(assigns.events, assigns.disk_teams)
-    teams = Enum.map(teams, &enrich_team_members(&1, assigns.events, assigns.now))
-    team_sids = all_team_sids(teams)
+    all_teams = derive_teams(assigns.events, assigns.disk_teams)
+    all_teams = Enum.map(all_teams, &enrich_team_members(&1, assigns.events, assigns.now))
+    all_teams = detect_dead_teams(all_teams, assigns.now)
+    teams = Enum.reject(all_teams, & &1[:dead?])
+    team_sids = all_team_sids(all_teams)
     standalone = Enum.reject(all_sessions, fn s -> MapSet.member?(team_sids, s.session_id) end)
 
     event_tasks = derive_tasks(assigns.events)

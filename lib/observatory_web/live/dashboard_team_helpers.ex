@@ -6,6 +6,9 @@ defmodule ObservatoryWeb.DashboardTeamHelpers do
 
   import ObservatoryWeb.DashboardAgentHealthHelpers
 
+  # A team with no activity for this long (seconds) and no disk presence is dead
+  @dead_team_threshold_sec 300
+
   @doc """
   Derive teams from both events and disk state, merging them appropriately.
   Disk teams are authoritative when available.
@@ -223,6 +226,40 @@ defmodule ObservatoryWeb.DashboardTeamHelpers do
     else
       nil
     end
+  end
+
+  @doc """
+  Mark teams as dead when they have no disk presence and all members are inactive.
+  A dead team is one derived only from events where:
+  - No corresponding directory/file exists in ~/.claude/teams/
+  - All members are :ended, :idle, or :unknown
+  - The most recent member activity exceeds the dead team threshold
+  """
+  def detect_dead_teams(teams, now) do
+    Enum.map(teams, fn team ->
+      if team.source == :disk do
+        Map.put(team, :dead?, false)
+      else
+        latest_member_event =
+          team.members
+          |> Enum.map(& &1[:latest_event])
+          |> Enum.reject(&is_nil/1)
+          |> Enum.max_by(& &1.inserted_at, DateTime, fn -> nil end)
+
+        all_inactive? =
+          Enum.all?(team.members, fn m ->
+            m[:status] in [:ended, :idle, :unknown, nil]
+          end)
+
+        stale? =
+          case latest_member_event do
+            nil -> true
+            event -> DateTime.diff(now, event.inserted_at, :second) > @dead_team_threshold_sec
+          end
+
+        Map.put(team, :dead?, all_inactive? and stale?)
+      end
+    end)
   end
 
   @doc """
