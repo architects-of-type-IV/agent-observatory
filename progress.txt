@@ -984,3 +984,54 @@ Compilation: ✅ mix compile --warnings-as-errors (SUCCESS - ZERO WARNINGS)
 - Added "Status" and "Owner" labels to task card dropdowns
 - Owner dropdown hidden when no team members (prevents confusing "Unassigned" dropdown)
 - Shows owner as text when team has no members but task has owner assigned
+
+View Documentation Research (view-researchers team) - IN PROGRESS
+===================================================================
+
+[2026-02-14] Task #2: Feed View Research - COMPLETED by feed-researcher
+------------------------------------------------------------------------
+DELIVERABLE: Complete feature list for Feed view (what users can SEE and DO)
+
+RESEARCH SCOPE:
+- Read all Feed view source files:
+  - feed_components.ex (defdelegate facade)
+  - feed/feed_view.ex, feed/session_group.ex, feed/tool_execution_block.ex, feed/standalone_event.ex
+  - dashboard_feed_helpers.ex (grouping/pairing logic)
+  - dashboard_live.html.heex (feed-related sections)
+
+FINDINGS - What Users Can SEE:
+1. View Mode Toggle: "Chronological" vs "Group by Agent" button
+2. Chronological View:
+   - Session color dots, relative timestamps, event type badges
+   - Tool names (color-coded: indigo=regular, cyan=team)
+   - Event summaries (truncated), note indicators, duration colors
+   - Source app + session ID
+   - Selection highlight (indigo ring)
+3. Grouped View:
+   - Session groups with colored left border
+   - Session headers: color dot, session ID, model badge, event count, "Active" status, cwd
+   - Session start/end banners (green/red) with timestamps/duration
+   - Tool execution blocks: paired Pre/Post events with status
+   - Tool status indicators: "Running..." (amber), duration (success), "Failed" (red)
+   - START/DONE/FAIL labels, standalone events
+4. Search & Filters:
+   - Search input (tool, command, file, message, team)
+   - Source app dropdown, event type dropdown, Reset button
+5. Filter Presets: Failed Tools, Team Events, Slow (>5s), Errors Only
+6. Detail Panel (right sidebar):
+   - Event type badge, tool name, summary, team coordination badge
+   - Details grid: timestamp, type, source, session, tool, tool_use_id, cwd, permission, model, duration
+   - Action buttons, notes section, raw payload
+
+FINDINGS - What Users Can DO:
+1. Toggle chronological/grouped view modes
+2. Click events to select/open detail panel, close with X
+3. Search events by text content
+4. Filter by source app or event type
+5. Click preset buttons for common filters
+6. Click "Filter session", "Filter tool", "Find related", "Copy payload" in detail panel
+7. Add/delete notes on events
+8. Export events as JSON/CSV
+9. Clear all events (with confirmation)
+
+STATUS: Research complete. Full SEE/DO list sent to team-lead.

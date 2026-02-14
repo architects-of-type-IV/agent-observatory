@@ -1,8 +1,8 @@
 # Observatory - Handoff
 
-## Current Status (Component Refactor + UX Fix - COMPLETE)
+## Current Status (View Documentation Research - IN PROGRESS)
 
-Component refactoring sprint complete. Split 3 large component files into 16 focused child modules using defdelegate pattern. Fixed task board dropdown UX. Zero warnings.
+Spawned view-researchers team to document all Observatory dashboard features. Feed view research complete. Remaining views in progress.
 
 ## Component Refactoring Summary
 
@@ -34,7 +34,12 @@ Zero warnings: `mix compile --warnings-as-errors` PASS
 4. Parent module: thin defdelegate facade preserving public API
 5. Each child imports only the helpers it needs
 
+## Current Research Tasks
+- Feed view: COMPLETE - full SEE/DO feature list delivered
+- Overview, Tasks, Messages, Agents, Errors, Analytics, Timeline views: IN PROGRESS (parallel researchers)
+- Global features (header, sidebar, detail panels): IN PROGRESS
+
 ## Next Steps
-- Integrate Ash resources with existing GenServers (replace ETS/file backends)
-- Cost tracking: capture token usage from hook events
-- Session replay functionality
+- Complete view documentation across all 8 views + global features
+- Use documentation to identify gaps, inconsistencies, redundancies
+- Plan next sprint based on documentation analysis
