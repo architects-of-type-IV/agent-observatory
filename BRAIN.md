@@ -105,6 +105,8 @@ Consistent colors across views:
 - **Default view_mode matters for UX**: Changed from :feed to :overview for better first-time experience. Users need context (stats/recent activity) before diving into raw event streams
 - **Handler count scales with features**: Started with 3 handlers (messaging, task, navigation), now 6 (added ui, filter, notification). Pattern holds well at scale
 - **Member struct keys vary by source**: Team members from disk use `:agent_id`, not `:session_id`. Always check dashboard_team_helpers.ex for canonical struct shape
+- **Session data enrichment pattern**: Extract session metadata (model, cwd, permission_mode) in enrich_team_members by filtering events and extracting from SessionStart payload. Store in member map for template use.
+- **Current tool detection**: Find PreToolUse without matching PostToolUse/PostToolUseFailure by sorting events and checking for unmatched pairs. Calculate elapsed time from PreToolUse timestamp to now.
 
 ## QA Testing Patterns (Feb 2026)
 - **Complete agent lifecycle**: SessionStart + PreToolUse/PostToolUse pairs + SessionEnd

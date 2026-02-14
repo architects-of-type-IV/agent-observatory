@@ -1,44 +1,40 @@
-# Observatory MCP Server - Handoff
+# Observatory - Handoff
 
 ## Current Status
-MCP server implemented and tested. Agents can connect to Observatory via MCP to check inbox, send messages, and manage tasks.
+Enhanced agent member cards in Agents view with activity data. Cards now show model, working directory, current tool execution, uptime, failure rate, and permission mode.
 
-## What Was Done
+## What Was Done (card-enhancer agent)
 
-### MCP Server (AshAi)
-- Added `ash_ai` ~> 0.5 and `usage_rules` ~> 1.1 dependencies
-- Created `Observatory.AgentTools` domain with AshAi extension
-- Created `Observatory.AgentTools.Inbox` resource with 5 generic actions:
-  - `check_inbox(session_id)` - returns unread messages
-  - `acknowledge_message(session_id, message_id)` - mark as read
-  - `send_message(from_session_id, to_session_id, content)` - send via Mailbox
-  - `get_tasks(session_id, team_name)` - list assigned tasks
-  - `update_task_status(team_name, task_id, status)` - update task status
-- Forwarded `/mcp` in Phoenix router to `AshAi.Mcp.Router`
-- Registered `Observatory.AgentTools` domain in config
-- Created `.mcp.json` at project root for Claude Code integration
+### Agent Cards Enhanced
+- Modified `dashboard_team_helpers.ex:enrich_team_members/3` to extract additional session data:
+  - Model name from SessionStart events
+  - Working directory (cwd) from most recent events
+  - Permission mode from SessionStart payload
+  - Current running tool (PreToolUse without matching PostToolUse)
+  - Session uptime from first event to now
+- Added helper functions: `extract_model_from_events/1`, `extract_cwd_from_events/1`, `extract_permission_mode/1`, `detect_current_tool/2`
+- Added formatting helpers: `format_uptime/1`, `format_permission_mode/1` in dashboard_format_helpers.ex
+- Updated dashboard_live.html.heex member cards to display all new data inline with existing badges
 
-### Files Created/Modified
-- `lib/observatory/agent_tools.ex` (new - Ash Domain)
-- `lib/observatory/agent_tools/inbox.ex` (new - Ash Resource with actions)
-- `lib/observatory_web/router.ex` (added MCP forward)
-- `config/config.exs` (added AgentTools domain)
-- `mix.exs` (added ash_ai, usage_rules deps)
-- `../../.mcp.json` (project root - Claude Code MCP config)
+### Files Modified
+- `lib/observatory_web/live/dashboard_team_helpers.ex` (239 lines)
+- `lib/observatory_web/live/dashboard_format_helpers.ex` (248 lines)
+- `lib/observatory_web/live/dashboard_live.html.heex`
+
+### Display Features
+Each member card now shows:
+1. Model badge (opus/sonnet/haiku)
+2. Abbreviated working directory (last 2 path segments)
+3. Current activity: "Running: {tool_name} ({elapsed}s)" when tool executing
+4. Session uptime (formatted as "Xm" or "Xh Ym")
+5. Failure rate badge (red if >10%, amber if >5%, hidden if 0%)
+6. Permission mode badge (e.g., "bypass" for bypassPermissions)
 
 ### Verified
-- MCP initialize handshake works (protocol 2025-03-26)
-- tools/list returns all 5 tools with JSON schemas
-- tools/call works: send_message + check_inbox tested end-to-end
-- Zero warnings build
-
-## Agent Connection
-Agents in the kardashev project auto-discover Observatory via `.mcp.json`:
-```
-claude mcp add --transport http observatory http://localhost:4005/mcp
-```
+- Zero warnings build (mix compile --warnings-as-errors)
+- All modules under 300 lines
+- Existing components reused (model_badge, abbreviate_cwd)
 
 ## Next Steps
-- Agents view analysis and improvements (user requested)
-- Consider adding a PostToolUse hook to inject "you have messages" context
-- Test with actual Claude Code agent sessions
+- Agent detail panel with full inspection (task #2 - panel-builder)
+- Continue Agents view enhancements per team plan

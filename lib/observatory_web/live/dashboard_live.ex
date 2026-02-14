@@ -12,6 +12,7 @@ defmodule ObservatoryWeb.DashboardLive do
   import ObservatoryWeb.DashboardFilterHandlers
   import ObservatoryWeb.DashboardMessageHelpers
   import ObservatoryWeb.DashboardNotesHandlers
+  import ObservatoryWeb.DashboardAgentHelpers
 
   @max_events 500
 
@@ -40,6 +41,7 @@ defmodule ObservatoryWeb.DashboardLive do
       |> assign(:search_history, [])
       |> assign(:selected_event, nil)
       |> assign(:selected_task, nil)
+      |> assign(:selected_agent, nil)
       |> assign(:now, DateTime.utc_now())
       |> assign(:page_title, "Observatory")
       |> assign(:view_mode, :overview)
@@ -82,143 +84,79 @@ defmodule ObservatoryWeb.DashboardLive do
   end
 
   @impl true
-  def handle_event("filter", params, socket) do
-    {:noreply, handle_filter(params, socket) |> prepare_assigns()}
-  end
-
-  def handle_event("clear_filters", _params, socket) do
-    {:noreply, handle_clear_filters(socket) |> prepare_assigns()}
-  end
-
-  def handle_event("apply_preset", %{"preset" => preset}, socket) do
-    {:noreply, handle_apply_preset(preset, socket) |> prepare_assigns()}
-  end
-
-  def handle_event("search_feed", %{"q" => q}, socket) do
-    {:noreply, handle_search_feed(q, socket) |> prepare_assigns()}
-  end
-
-  def handle_event("search_sessions", %{"q" => q}, socket) do
-    {:noreply, handle_search_sessions(q, socket) |> prepare_assigns()}
-  end
+  def handle_event("filter", p, s), do: {:noreply, handle_filter(p, s) |> prepare_assigns()}
+  def handle_event("clear_filters", _p, s), do: {:noreply, handle_clear_filters(s) |> prepare_assigns()}
+  def handle_event("apply_preset", %{"preset" => preset}, s), do: {:noreply, handle_apply_preset(preset, s) |> prepare_assigns()}
+  def handle_event("search_feed", %{"q" => q}, s), do: {:noreply, handle_search_feed(q, s) |> prepare_assigns()}
+  def handle_event("search_sessions", %{"q" => q}, s), do: {:noreply, handle_search_sessions(q, s) |> prepare_assigns()}
 
   def handle_event("select_event", %{"id" => id}, socket) do
     cur = socket.assigns.selected_event
-    selected = if cur && cur.id == id, do: nil, else: Enum.find(socket.assigns.events, &(&1.id == id))
-    {:noreply, socket |> assign(:selected_event, selected) |> assign(:selected_task, nil) |> prepare_assigns()}
+    sel = if cur && cur.id == id, do: nil, else: Enum.find(socket.assigns.events, &(&1.id == id))
+    {:noreply, socket |> clear_selections() |> assign(:selected_event, sel) |> prepare_assigns()}
   end
-
-  def handle_event("close_detail", p, socket), do: {:noreply, handle_close_detail(p, socket) |> prepare_assigns()}
 
   def handle_event("select_task", %{"id" => id}, socket) do
     cur = socket.assigns.selected_task
-    selected = if cur && cur[:id] == id, do: nil, else: Enum.find(socket.assigns.active_tasks, &(&1[:id] == id))
-    {:noreply, socket |> assign(:selected_task, selected) |> assign(:selected_event, nil) |> prepare_assigns()}
+    sel = if cur && cur[:id] == id, do: nil, else: Enum.find(socket.assigns.active_tasks, &(&1[:id] == id))
+    {:noreply, socket |> clear_selections() |> assign(:selected_task, sel) |> prepare_assigns()}
   end
 
-  def handle_event("close_task_detail", p, socket), do: {:noreply, handle_close_task_detail(p, socket) |> prepare_assigns()}
-
-  def handle_event("filter_tool", %{"tool" => tool}, socket) do
-    {:noreply, handle_filter_tool(tool, socket) |> prepare_assigns()}
+  def handle_event("select_agent", %{"id" => id}, socket) do
+    cur = socket.assigns.selected_agent
+    sel = if cur && cur[:agent_id] == id, do: nil, else: find_agent_by_id(socket.assigns.teams, id)
+    {:noreply, socket |> clear_selections() |> assign(:selected_agent, sel) |> prepare_assigns()}
   end
 
-  def handle_event("filter_tool_use_id", %{"tuid" => tuid}, socket) do
-    {:noreply, handle_filter_tool_use_id(tuid, socket) |> prepare_assigns()}
+  def handle_event(e, p, s) when e in ["close_detail", "close_task_detail"] do
+    h = if e == "close_detail", do: handle_close_detail(p, s), else: handle_close_task_detail(p, s)
+    {:noreply, h |> prepare_assigns()}
   end
 
-  def handle_event("clear_events", _params, socket) do
-    {:noreply, socket |> assign(:events, []) |> prepare_assigns()}
+  def handle_event("filter_tool", %{"tool" => t}, s), do: {:noreply, handle_filter_tool(t, s) |> prepare_assigns()}
+  def handle_event("filter_tool_use_id", %{"tuid" => t}, s), do: {:noreply, handle_filter_tool_use_id(t, s) |> prepare_assigns()}
+  def handle_event("clear_events", _p, s), do: {:noreply, s |> assign(:events, []) |> prepare_assigns()}
+  def handle_event("filter_session", %{"sid" => sid}, s), do: {:noreply, handle_filter_session(sid, s) |> prepare_assigns()}
+  def handle_event("set_view", %{"mode" => m}, s), do: {:noreply, handle_set_view(m, s) |> prepare_assigns()}
+  def handle_event("restore_state", p, s), do: {:noreply, handle_restore_state(p, s) |> prepare_assigns()}
+
+  def handle_event("select_team", %{"name" => name}, s) do
+    sel = if s.assigns.selected_team == name, do: nil, else: name
+    {:noreply, s |> assign(:selected_team, sel) |> prepare_assigns()}
   end
 
-  def handle_event("filter_session", %{"sid" => sid}, socket) do
-    {:noreply, handle_filter_session(sid, socket) |> prepare_assigns()}
-  end
+  def handle_event("filter_team", %{"name" => n}, s), do: {:noreply, handle_filter_team(n, s) |> prepare_assigns()}
+  def handle_event("filter_agent", %{"session_id" => sid}, s), do: {:noreply, handle_filter_agent(sid, s) |> prepare_assigns()}
+  def handle_event("send_agent_message", p, s), do: handle_send_agent_message(p, s)
+  def handle_event("send_team_broadcast", p, s), do: handle_send_team_broadcast(p, s)
+  def handle_event("push_context", p, s), do: handle_push_context(p, s)
+  def handle_event("toggle_shortcuts_help", p, s), do: {:noreply, handle_toggle_shortcuts_help(p, s) |> prepare_assigns()}
+  def handle_event("toggle_create_task_modal", p, s), do: {:noreply, handle_toggle_create_task_modal(p, s) |> prepare_assigns()}
 
-  def handle_event("set_view", %{"mode" => mode}, socket) do
-    {:noreply, handle_set_view(mode, socket) |> prepare_assigns()}
-  end
-
-  def handle_event("restore_state", params, socket) do
-    {:noreply, handle_restore_state(params, socket) |> prepare_assigns()}
-  end
-
-  def handle_event("select_team", %{"name" => name}, socket) do
-    selected = if socket.assigns.selected_team == name, do: nil, else: name
-    {:noreply, socket |> assign(:selected_team, selected) |> prepare_assigns()}
-  end
-
-  def handle_event("filter_team", %{"name" => name}, socket) do
-    {:noreply, handle_filter_team(name, socket) |> prepare_assigns()}
-  end
-
-  def handle_event("filter_agent", %{"session_id" => sid}, socket) do
-    {:noreply, handle_filter_agent(sid, socket) |> prepare_assigns()}
-  end
-
-  def handle_event("send_agent_message", params, socket) do
-    handle_send_agent_message(params, socket)
-  end
-
-  def handle_event("send_team_broadcast", params, socket) do
-    handle_send_team_broadcast(params, socket)
-  end
-
-  def handle_event("push_context", params, socket) do
-    handle_push_context(params, socket)
-  end
-
-  def handle_event("toggle_shortcuts_help", params, socket) do
-    {:noreply, handle_toggle_shortcuts_help(params, socket) |> prepare_assigns()}
-  end
-
-  def handle_event("toggle_create_task_modal", params, socket) do
-    {:noreply, handle_toggle_create_task_modal(params, socket) |> prepare_assigns()}
-  end
-
-  def handle_event("create_task", params, socket) do
-    result = handle_create_task(params, socket)
-
-    case result do
-      {:noreply, updated_socket} ->
-        {:noreply, updated_socket |> assign(:show_create_task_modal, false) |> prepare_assigns()}
-      other ->
-        other
+  def handle_event("create_task", p, s) do
+    case handle_create_task(p, s) do
+      {:noreply, upd} -> {:noreply, upd |> assign(:show_create_task_modal, false) |> prepare_assigns()}
+      other -> other
     end
   end
 
-  def handle_event("keyboard_escape", params, socket) do
-    {:noreply, handle_keyboard_escape(params, socket) |> prepare_assigns()}
+  def handle_event("keyboard_escape", p, s), do: {:noreply, handle_keyboard_escape(p, s) |> prepare_assigns()}
+  def handle_event("keyboard_navigate", p, s), do: {:noreply, handle_keyboard_navigate(p, s) |> prepare_assigns()}
+
+  def handle_event("add_note", p, s) do
+    {:noreply, res} = handle_add_note(p, s)
+    {:noreply, res |> prepare_assigns()}
   end
 
-  def handle_event("keyboard_navigate", params, socket) do
-    {:noreply, handle_keyboard_navigate(params, socket) |> prepare_assigns()}
+  def handle_event("delete_note", p, s) do
+    {:noreply, res} = handle_delete_note(p, s)
+    {:noreply, res |> prepare_assigns()}
   end
 
-  def handle_event("add_note", params, socket) do
-    {:noreply, result_socket} = handle_add_note(params, socket)
-    {:noreply, result_socket |> prepare_assigns()}
-  end
-
-  def handle_event("delete_note", params, socket) do
-    {:noreply, result_socket} = handle_delete_note(params, socket)
-    {:noreply, result_socket |> prepare_assigns()}
-  end
-
-  def handle_event("search_messages", params, socket) do
-    {:noreply, handle_search_messages(params, socket) |> prepare_assigns()}
-  end
-
-  def handle_event("toggle_thread", params, socket) do
-    {:noreply, handle_toggle_thread(params, socket) |> prepare_assigns()}
-  end
-
-  def handle_event("expand_all_threads", _params, socket) do
-    {:noreply, handle_expand_all_threads(socket) |> prepare_assigns()}
-  end
-
-  def handle_event("collapse_all_threads", _params, socket) do
-    {:noreply, handle_collapse_all_threads(socket) |> prepare_assigns()}
-  end
+  def handle_event("search_messages", p, s), do: {:noreply, handle_search_messages(p, s) |> prepare_assigns()}
+  def handle_event("toggle_thread", p, s), do: {:noreply, handle_toggle_thread(p, s) |> prepare_assigns()}
+  def handle_event("expand_all_threads", _p, s), do: {:noreply, handle_expand_all_threads(s) |> prepare_assigns()}
+  def handle_event("collapse_all_threads", _p, s), do: {:noreply, handle_collapse_all_threads(s) |> prepare_assigns()}
 
   # Navigation handlers
   def handle_event(e, p, s) when e in ["jump_to_timeline", "jump_to_feed", "jump_to_agents", "jump_to_tasks", "select_timeline_event", "filter_agent_tasks", "filter_analytics_tool"] do
@@ -236,6 +174,14 @@ defmodule ObservatoryWeb.DashboardLive do
       _ ->
         []
     end
+  end
+
+  defp find_agent_by_id(teams, agent_id) do
+    teams |> Enum.flat_map(& &1.members) |> Enum.find(&(&1[:agent_id] == agent_id))
+  end
+
+  defp clear_selections(socket) do
+    socket |> assign(:selected_event, nil) |> assign(:selected_task, nil) |> assign(:selected_agent, nil)
   end
 
   defp prepare_assigns(socket) do

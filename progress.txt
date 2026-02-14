@@ -474,7 +474,7 @@ Bug Fix Session - 2026-02-14
 ### Task #2: localStorage View Persistence (FIXED)
 **Root Cause**: dashboard_filter_handlers.ex handle_set_view assigned `:view_mode` but didn't push "view_mode_changed" event to JavaScript. Also, restore_state didn't push event when restoring view_mode from localStorage.
 
-**Fix**: 
+**Fix**:
 - Updated handle_set_view to push_event("view_mode_changed", %{view_mode: mode})
 - Updated maybe_restore(:view_mode) in dashboard_ui_handlers.ex to also push_event
 
@@ -570,3 +570,52 @@ VERIFIED:
 AGENT CONNECTION:
 - .mcp.json at project root: {"mcpServers":{"observatory":{"type":"http","url":"http://localhost:4005/mcp"}}}
 - Or: claude mcp add --transport http observatory http://localhost:4005/mcp
+
+2026-02-14 - Agents View Enhancement - Agent Member Cards (card-enhancer)
+===========================================================================
+
+COMPLETED: Task #1 - Enhance agent member cards with activity data
+
+IMPLEMENTATION:
+1. Modified dashboard_team_helpers.ex (239 lines):
+   - Enhanced enrich_team_members/3 to extract additional session data
+   - Added extract_model_from_events/1 - finds model from SessionStart
+   - Added extract_cwd_from_events/1 - gets most recent cwd
+   - Added extract_permission_mode/1 - extracts permission_mode from SessionStart
+   - Added detect_current_tool/2 - finds PreToolUse without matching PostToolUse/PostToolUseFailure
+   - Calculates session uptime from first event to now
+   - Enriches member map with: model, cwd, permission_mode, current_tool, uptime
+
+2. Modified dashboard_format_helpers.ex (248 lines):
+   - Added format_uptime/1 - formats seconds as "Xm" or "Xh Ym"
+   - Added format_permission_mode/1 - converts mode to short badge text ("bypass", "ask")
+
+3. Updated dashboard_live.html.heex:
+   - Added model badge using existing model_badge component
+   - Added abbreviated cwd display using abbreviate_cwd helper
+   - Added current activity indicator: "Running: {tool_name} ({elapsed}s)"
+   - Added session uptime display
+   - Added failure rate badge (red if >10%, amber if >5%, hidden if 0%)
+   - Added permission mode badge (shows "bypass" for bypassPermissions)
+
+DISPLAY FEATURES:
+Each member card now shows:
+1. Model badge (opus/sonnet/haiku) - existing component
+2. Abbreviated working directory (last 2 path segments)
+3. Current activity: "Running: {tool_name} ({elapsed}s)" when tool executing
+4. Session uptime (formatted as "Xm" or "Xh Ym")
+5. Failure rate badge (color-coded: red >10%, amber >5%, hidden if 0%)
+6. Permission mode badge (e.g., "bypass" for bypassPermissions)
+
+QUALITY:
+- Zero warnings (mix compile --warnings-as-errors)
+- All modules under 300 lines (team_helpers: 239, format_helpers: 248)
+- Reused existing components and patterns
+- No new dependencies
+
+FILES MODIFIED:
+- lib/observatory_web/live/dashboard_team_helpers.ex (239 lines)
+- lib/observatory_web/live/dashboard_format_helpers.ex (248 lines)
+- lib/observatory_web/live/dashboard_live.html.heex
+
+STATUS: Complete. Agent cards now surface all hidden activity data.

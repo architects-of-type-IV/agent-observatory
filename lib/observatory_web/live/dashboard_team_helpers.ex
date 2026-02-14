@@ -134,16 +134,95 @@ defmodule ObservatoryWeb.DashboardTeamHelpers do
         # Compute health metrics
         health_data = compute_agent_health(member_events, now)
 
+        # Extract model from SessionStart event
+        model = extract_model_from_events(member_events)
+
+        # Extract cwd from events
+        cwd = extract_cwd_from_events(member_events)
+
+        # Extract permission mode from SessionStart event
+        permission_mode = extract_permission_mode(member_events)
+
+        # Detect current running tool (PreToolUse without matching PostToolUse)
+        current_tool = detect_current_tool(member_events, now)
+
+        # Calculate session uptime
+        first_event = Enum.min_by(member_events, & &1.inserted_at, DateTime, fn -> nil end)
+        uptime = if first_event, do: DateTime.diff(now, first_event.inserted_at, :second), else: nil
+
         Map.merge(m, %{
           event_count: length(member_events),
           latest_event: latest,
           status: status,
           health: health_data.health,
           health_issues: health_data.issues,
-          failure_rate: health_data.failure_rate
+          failure_rate: health_data.failure_rate,
+          model: model,
+          cwd: cwd,
+          permission_mode: permission_mode,
+          current_tool: current_tool,
+          uptime: uptime
         })
       end)
     end)
+  end
+
+  defp extract_model_from_events(events) do
+    session_start = Enum.find(events, &(&1.hook_event_type == :SessionStart))
+
+    if session_start do
+      (session_start.payload || %{})["model"] || session_start.model_name
+    else
+      Enum.find_value(events, fn e -> e.model_name || (e.payload || %{})["model"] end)
+    end
+  end
+
+  defp extract_cwd_from_events(events) do
+    events
+    |> Enum.sort_by(& &1.inserted_at, {:desc, DateTime})
+    |> Enum.find_value(fn e -> e.cwd end)
+  end
+
+  defp extract_permission_mode(events) do
+    session_start = Enum.find(events, &(&1.hook_event_type == :SessionStart))
+
+    if session_start do
+      (session_start.payload || %{})["permission_mode"]
+    else
+      nil
+    end
+  end
+
+  defp detect_current_tool(events, now) do
+    # Find most recent PreToolUse
+    pre_tool_events =
+      events
+      |> Enum.filter(&(&1.hook_event_type == :PreToolUse))
+      |> Enum.sort_by(& &1.inserted_at, {:desc, DateTime})
+
+    latest_pre = List.first(pre_tool_events)
+
+    if latest_pre do
+      # Check if there's a matching PostToolUse or PostToolUseFailure
+      matching_post =
+        events
+        |> Enum.filter(fn e ->
+          (e.hook_event_type == :PostToolUse or e.hook_event_type == :PostToolUseFailure) and
+            e.inserted_at >= latest_pre.inserted_at and
+            e.tool_name == latest_pre.tool_name
+        end)
+        |> Enum.sort_by(& &1.inserted_at, {:asc, DateTime})
+        |> List.first()
+
+      if !matching_post do
+        elapsed = DateTime.diff(now, latest_pre.inserted_at, :second)
+        %{tool_name: latest_pre.tool_name, elapsed: elapsed}
+      else
+        nil
+      end
+    else
+      nil
+    end
   end
 
   @doc """

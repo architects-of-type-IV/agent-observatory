@@ -116,6 +116,27 @@ defmodule ObservatoryWeb.DashboardFormatHelpers do
   def session_duration_sec(sec), do: "#{div(sec, 3600)}h#{rem(div(sec, 60), 60)}m"
 
   @doc """
+  Format uptime in seconds as compact string (Xm or Xh Ym).
+  """
+  def format_uptime(nil), do: nil
+  def format_uptime(sec) when sec < 60, do: "#{sec}s"
+  def format_uptime(sec) when sec < 3600, do: "#{div(sec, 60)}m"
+  def format_uptime(sec) do
+    hours = div(sec, 3600)
+    mins = rem(div(sec, 60), 60)
+    "#{hours}h #{mins}m"
+  end
+
+  @doc """
+  Format permission mode as short badge text.
+  """
+  def format_permission_mode(nil), do: nil
+  def format_permission_mode("bypassPermissions"), do: "bypass"
+  def format_permission_mode("ask"), do: "ask"
+  def format_permission_mode(mode) when is_binary(mode), do: mode
+  def format_permission_mode(_), do: nil
+
+  @doc """
   Generate human-readable summary for an event.
   """
   def event_summary(%{hook_event_type: :PreToolUse} = event) do
