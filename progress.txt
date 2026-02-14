@@ -115,3 +115,13 @@ Analyzed: team_watcher.ex, dashboard_team_helpers.ex, dashboard_data_helpers.ex,
 channels.ex, event.ex, session.ex, agent_monitor.ex, event_controller.ex,
 dashboard_agent_health_helpers.ex, dashboard_session_helpers.ex.
 Documented all struct shapes, PubSub topics, event types, and data gaps.
+
+UI Component Patterns Scout - 2026-02-15
+==========================================
+READ-ONLY analysis of all UI component files for team-inspector project.
+Analyzed: observatory_components.ex, agents_components.ex, tasks_components.ex,
+messages_components.ex, overview_components.ex, dashboard_live.html.heex,
+app.css, app.js, plus child component modules.
+Documented: color scheme, layout structure, detail panel pattern, component attrs,
+list rendering, interactive patterns, keyboard shortcuts, JS hooks, modal pattern,
+form input pattern, section headers. Key finding: no bottom drawer/panel exists.

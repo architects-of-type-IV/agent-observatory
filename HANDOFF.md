@@ -53,6 +53,21 @@ Completed analysis of all team-related data structures for team-inspector projec
 - No team timeline (when created, duration, phases)
 - No roadmap integration (`.claude/roadmaps/` not read by TeamWatcher)
 
+## UI Component Patterns (scout-ui, 2026-02-15)
+
+READ-ONLY analysis of all UI components, layout, and interaction patterns.
+
+**Key findings:**
+- Three-panel layout: sidebar (w-72) + main (flex-1) + conditional detail (w-96)
+- Dark theme: zinc-950 base, zinc-900 cards, zinc-800 inputs/borders
+- Accent colors: indigo (primary), cyan (team), emerald (success), blue (progress), amber (warning), red (error)
+- Detail panel is conditional render (no animation/drawer)
+- No bottom drawer or slide-up panel exists anywhere -- would be new pattern
+- 8 view modes switched via header tab bar, persisted to localStorage
+- 6 JS hooks: StatePersistence, Toast, CopyToClipboard, BrowserNotifications, KeyboardShortcuts, ExportDropdown
+- Modal pattern: fixed overlay + centered card with phx-click="stop" propagation block
+- Form inputs: consistent bg-zinc-800 border-zinc-700 focus:border-indigo-500 pattern
+
 ## Next Steps
 - Consider persisting messages via `Observatory.Messaging.Message` Ash resource
 - Test messaging from the actual browser dashboard UI (LiveView form)
