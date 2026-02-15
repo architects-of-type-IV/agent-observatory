@@ -1,8 +1,8 @@
 # Observatory - Handoff
 
-## Current Status: Agent Messaging Pipeline FIXED (Option B)
+## Current Status: Dashboard Message Forms Unified
 
-3-phase investigation and fix of broken agent-to-dashboard messaging. All 3 phases complete.
+Fixed all 4 dashboard-to-agent message forms to use consistent delivery (Mailbox) and UX (phx-update="ignore" + JS form clear).
 
 ## What Was Fixed
 
@@ -43,6 +43,21 @@ All fixes applied:
 5. **ETS TTL** (mailbox.ex)
    - Added :cleanup_old_messages timer (60s interval)
    - Removes read messages older than 24h
+
+## Latest Changes: Message Form Consistency (2026-02-15)
+
+### Problem
+4 message forms used 3 different delivery mechanisms. `send_team_broadcast` bypassed Mailbox entirely (direct CommandQueue + PubSub). Forms in Agents view lacked `phx-update="ignore"` (input lost on 1s tick). All `phx-update="ignore"` forms didn't clear after submit.
+
+### Fixes Applied
+1. **dashboard_messaging_handlers.ex**: `send_team_broadcast` now uses `Mailbox.broadcast_to_many` (ETS + CommandQueue + PubSub)
+2. **agents_components.ex**: Added `phx-update="ignore"` wrappers to broadcast + per-agent forms
+3. **app.js**: Added `ClearFormOnSubmit` hook to reset text inputs after submit
+4. **dashboard_live.html.heex**: Added `ClearFormOnSubmit` hook to existing `phx-update="ignore"` wrappers
+
+### Also Created
+- `.claude/skills/team-task/SKILL.md` -- Agent protocol skill for team-based task execution
+- Insights report stored at `~/.config/claude/reports/report-1771120758.html`
 
 ## Build Status
 `mix compile --warnings-as-errors` -- PASSES (zero warnings)

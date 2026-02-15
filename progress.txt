@@ -559,3 +559,29 @@ All 3 Phases Complete - 2026-02-15
 ===================================
 9 agents across 3 teams, all issues identified and fixed.
 Build: PASS (zero warnings)
+
+Dashboard Message Forms Unified - 2026-02-15
+=============================================
+
+### Problem
+4 forms, 3 delivery paths, inconsistent UX. send_team_broadcast bypassed Mailbox.
+Forms in agents_components.ex lacked phx-update="ignore". No form clearing after submit.
+
+### Investigation
+- Spawned msg-test team (alpha + beta) as listener agents
+- Tested all 4 forms via Chrome browser automation
+- Console logs confirmed: send_agent_message and send_targeted_message fired, send_team_broadcast fired
+- CommandQueue filesystem confirmed all messages delivered
+- But send_team_broadcast wrote type:"broadcast" (no ETS entry), others wrote type:"message" (full Mailbox)
+
+### Fixes (4 files)
+1. dashboard_messaging_handlers.ex: send_team_broadcast -> Mailbox.broadcast_to_many
+2. agents_components.ex: added phx-update="ignore" + ClearFormOnSubmit hook
+3. app.js: added ClearFormOnSubmit JS hook (clears text inputs after submit)
+4. dashboard_live.html.heex: added ClearFormOnSubmit hook to existing phx-update="ignore" wrappers
+
+### Also Created
+- .claude/skills/team-task/SKILL.md (agent protocol for team task execution)
+- Insights report: ~/.config/claude/reports/report-1771120758.html
+
+Build: PASS (zero warnings)
