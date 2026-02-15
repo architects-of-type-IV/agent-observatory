@@ -214,6 +214,13 @@ AgentMonitor GenServer monitors agent health and auto-reassigns tasks from crash
 - **Inspector drawer**: 3-state size toggle (collapsed/default/maximized) is simpler than drag-resize. Maximized state triggers full-screen tmux overlay.
 - **Event filtering for tmux**: Filter from existing event buffer by team member session IDs + output mode + per-agent toggles. No per-team PubSub needed for v1.
 
+## Team Inspector Verification Lessons (Feb 2026)
+- **Roadmap spec verification pattern**: Read spec file → read implementation → compare against spec requirements → report status + deviations + edge cases
+- **Backend foundation functions verified**: detect_role/2 (checks agent_type + lead_session), team_health/1 (worst-wins aggregation), task_progress/1 (completed vs total), team_summary/1 (combines metrics), broadcast_to_many/4 (Enum.map over send_message), resolve_message_targets/2 (string pattern matching for 4 target types)
+- **Edge cases matter**: nil handling, empty lists, both string/atom status formats, unknown teams, missing agent_ids
+- **String-based target format**: UI sends "team:name" strings instead of tuples {:team, name} - simpler for LiveView event payloads
+- **Handler location matters**: resolve_message_targets in dashboard_team_inspector_handlers (not team_helpers) to keep helpers under 300 lines
+
 ## Roadmap Naming Convention
 - ALL files flat in ONE directory: `.claude/roadmaps/roadmap-{unix-timestamp}/`
 - Dotted numbering: `N.N.N-slug.md` (e.g., `2.1.1.1-detect-role.md`)

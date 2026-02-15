@@ -345,3 +345,16 @@ Conducted detailed spec-vs-implementation verification for all 4 backend tasks (
 
 ### Conclusion
 All 4 backend foundation tasks are production-ready. No critical deviations. Only beneficial enhancements found.
+
+Critical Gaps Fixed - 2026-02-15
+=================================
+
+All 3 critical gaps identified by verification team have been fixed (by separate team):
+
+1. **Inspector event stream** - prepare_assigns now computes inspector_events by filtering
+   events to inspected team member SIDs (MapSet intersection, sorted desc, capped at 200)
+2. **Hook event names** - JS pushes `set_inspector_size`, handles `set_drawer_state` (aligned)
+3. **Message composer in template** - Now rendered in teams view in dashboard_live.html.heex
+
+Build: `mix compile --warnings-as-errors` PASS (zero warnings)
+Status: Team Inspector feature 17/17 tasks COMPLETE.
