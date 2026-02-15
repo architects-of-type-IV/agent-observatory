@@ -113,7 +113,31 @@ Key scout findings:
 
 Architect validation pending -- will review and propose changes to roadmap.
 
+## Architect Validation Complete - 2026-02-15
+
+Architect agent reviewed all 29 roadmap files against actual source code. Key findings:
+
+### Critical Missing Items
+1. **prepare_assigns updates (M1)**: No task covers computing inspector_events, enriching inspected_teams, or pruning stale teams in prepare_assigns. Suggested new task 2.4.3.0.
+2. **:teams atom compile-time safety (M2)**: String.to_existing_atom("teams") will crash if :teams isn't referenced at compile time. Must add module attribute or reference.
+
+### Other Missing Items
+3. Component imports in dashboard_live.ex (4 new component modules need aliasing)
+4. handle_info pruning for stale inspected teams on team deletion
+5. Auto-scroll hook for tmux panes (acceptance criteria but no task)
+6. PubSub per-team subscriptions (deferred to v2, filter from existing buffer for v1)
+
+### Scope Reduction Recommendations
+- Cut tmux output modes from 6 to 3 for v1 (all_live, leads_only, all_agents)
+- Cut message target scopes from 7 to 4 for v1
+- Replace drag-resize drawer with 3-state toggle (collapsed/default/maximized)
+
+### Risks Identified
+- dashboard_team_helpers.ex at 276 lines -- adding 80+ lines would exceed 300 limit
+- dashboard_live.ex at 282 lines -- consolidate new events into guard-clause groups
+- app.js file scope overlap between Agent B and integration (safe if scoped)
+- Event buffer (500) may be thin for tmux with many agents
+
 ## Next Steps
-- Architect validates plan and proposes changes
-- Apply architect recommendations to roadmap files
-- Execute Phase 2 implementation
+- Team lead applies architect recommendations to roadmap files
+- Execute Phase 2 implementation (backend first, then 4 parallel agents, then integration)

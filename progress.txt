@@ -185,3 +185,12 @@ Key findings:
 - Inspector drawer must be outside main flex container (positioned fixed)
 - event_summary/1 already handles all event types (reuse in compact renderer)
 - Role detection gap confirmed (no explicit lead/member flag)
+
+Architect Validation - 2026-02-15
+==================================
+Validated all 29 roadmap files against actual source code.
+Found 6 missing tasks (2 critical), 4 recommended changes, 5 risks.
+Critical: prepare_assigns updates missing, :teams atom compile-time safety.
+Recommended: scope reduction (3 output modes, 4 message targets, no drag-resize).
+Module size risk: dashboard_team_helpers.ex (276 lines) needs resolve_message_targets moved out.
+Sent full analysis to team-lead with implementation order recommendations.
