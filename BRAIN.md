@@ -5,6 +5,24 @@
 - Dual data sources: event-derived state + disk-based team/task state (TeamWatcher)
 - prepare_assigns/1 called from mount and every handle_event/handle_info
 
+## MCP Server (Agent Tools)
+- Route: `forward "/mcp", AshAi.Mcp.Router` in router.ex (no pipeline)
+- AshAi nests tool arguments under `"input"` key: `{"arguments": {"input": {...}}}`
+- 5 tools: check_inbox, acknowledge_message, send_message, get_tasks, update_task_status
+- Definitions: `lib/observatory/agent_tools/inbox.ex`, domain: `lib/observatory/agent_tools.ex`
+- All 5 tools verified working end-to-end (2026-02-15)
+
+## Messaging Reliability Issues (2026-02-15)
+**CRITICAL**:
+1. CommandQueue file accumulation - 164 files (704KB), never cleaned (mark_read only updates ETS)
+2. Duplicate message delivery - Agent crash → ETS cleared → CommandQueue replayed
+3. Message loss on Phoenix restart - ETS ephemeral, CommandQueue not read-through on startup
+
+**MEDIUM**:
+4. No message ordering guarantees - ETS/CommandQueue/PubSub independent, no sequence numbers
+5. ETS memory growth - No TTL cleanup, mark_read doesn't remove
+6. Multi-tab dashboard identity - session_id varies per tab, message threading confused
+
 ## Patterns
 - Module size limit: 200-300 lines max
 - Template in separate .html.heex file, not inline ~H
@@ -141,10 +159,25 @@ Consistent colors across views:
 - "events:stream" - all events
 - "teams:update" - team state changes
 - "agent:crashes" - agent crash notifications
-- "agent:{session_id}" - per-agent mailbox
+- "agent:{session_id}" - per-agent mailbox (used for all agents AND dashboard)
 - "team:{team_name}" - team broadcast
 - "session:{session_id}" - session events (including command_responses)
 - "dashboard:commands" - UI -> agents
+
+## Messaging Flow Gaps (2026-02-15)
+Dashboard cannot receive messages from agents due to 3 critical gaps:
+1. Dashboard never subscribes to "agent:dashboard" PubSub topic in mount()
+2. Dashboard never sets :current_session_id assign (defaults to "dashboard" string)
+3. subscribe_to_mailboxes() only subscribes to agent sessions, not dashboard itself
+
+When agent calls send_message with to_session_id="dashboard":
+- ✅ Message stored in ETS under "dashboard" key
+- ✅ File written to ~/.claude/inbox/dashboard/{id}.json
+- ✅ PubSub broadcasts to "agent:dashboard"
+- ❌ Dashboard NOT subscribed → no UI update
+- ❌ Message sits in ETS invisible to dashboard
+
+Fix: Add `Phoenix.PubSub.subscribe(Observatory.PubSub, "agent:dashboard")` to mount() and `assign(:current_session_id, "dashboard")` in assigns.
 
 ## File-Based Command Queue
 CommandQueue GenServer provides dual-channel agent communication:
@@ -232,6 +265,15 @@ AgentMonitor GenServer monitors agent health and auto-reassigns tasks from crash
 - Dotted numbering: `N.N.N-slug.md` (e.g., `2.1.1.1-detect-role.md`)
 - NO subdirectories -- ever
 - 5 levels: Phase.Section.Story.Task.Subtask
+
+## Form Refresh Bug Pattern (Feb 2026)
+When LiveView form fields lose focus/input on typing:
+- **Root cause**: Parent assign changes trigger component re-render → form DOM destroyed
+- **Common trigger**: `:tick` timer calling `prepare_assigns()` which recreates list assigns
+- **Why lists recreate**: Functions like `enrich_team_members/3` compute new data on every call, even if values unchanged → new list reference → LiveView diffing sees as changed
+- **Quick fix**: Wrap form in `<div phx-update="ignore" id="stable-form">` to prevent re-render
+- **Proper fix**: Memoize computed assigns - only recompute when source data changes, not on timer ticks
+- **Example**: `prepare_assigns()` calls `enrich_team_members(teams, events, now)` on every :tick (1s interval). Even if no new events, the function returns new list reference. Component receiving `teams` prop sees change and re-renders.
 
 ## Phoenix LiveView Component Patterns (Feb 2026)
 

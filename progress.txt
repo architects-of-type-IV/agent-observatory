@@ -404,3 +404,98 @@ Full 5-stage dead code audit across entire observatory codebase.
 - Build: PASS (1 fix iteration - removed @doc on 3 newly-private functions)
 - Completeness: 0 remaining matches for all removed symbols
 - Report: .claude/audit-pipeline/4-validation-report.md
+
+Messaging Discovery Team - 2026-02-15
+======================================
+
+Team "messaging-discovery" created to verify MCP messaging end-to-end.
+
+### Approach
+3-agent investigation (researcher, tester, tracer):
+- researcher: document MCP protocol + Claude Code messaging expectations
+- tester: reproduce messaging with live curl tests
+- tracer: trace full message flow through Observatory codebase line-by-line
+
+### tracer findings (Task #2)
+Complete message flow trace with detailed line-by-line analysis.
+Files traced: router.ex, agent_tools.ex, inbox.ex, mailbox.ex, command_queue.ex,
+dashboard_live.ex, dashboard_messaging_handlers.ex, channels.ex (8 files total)
+
+Full flow verified:
+1. ✅ MCP route forwards to AshAi.Mcp.Router (no pipeline)
+2. ✅ send_message tool extracts to_session_id and calls Mailbox.send_message
+3. ✅ Mailbox stores in ETS under to_session_id key
+4. ✅ CommandQueue writes to ~/.claude/inbox/{to_session_id}/{id}.json
+5. ✅ PubSub broadcasts to "agent:#{to_session_id}"
+
+### tester findings (Task #3)
+Live curl testing of all 5 MCP tools with test-agent-001 session.
+
+**Tests executed**:
+1. send_message (agent -> dashboard): PASS - message_id returned
+2. check_inbox (empty): PASS - returns []
+3. send_message (dashboard -> agent): PASS - message delivered
+4. check_inbox (after send): PASS - message appears in inbox
+5. CommandQueue filesystem: PASS - JSON file created
+6. acknowledge_message: PARTIAL - ETS cleared, but filesystem NOT cleaned
+7. tools/list: PASS - all 5 tools listed
+
+**BUG FOUND**: acknowledge_message removes from ETS but NOT from CommandQueue
+- After acknowledgement, check_inbox returns [] (correct)
+- But ~/.claude/inbox/test-agent-001/7ac099aa4fe8f0b4.json still exists (incorrect)
+- Impact: stale message accumulation, possible re-delivery on rescan
+- Root cause: lib/observatory/agent_tools/inbox.ex - missing CommandQueue.delete_file call
+- Fix: Add CommandQueue.delete_file(session_id, message_id) after Mailbox.remove_message
+
+Messaging Analysis Team - 2026-02-15
+=====================================
+
+Team "messaging-analysis" created to deep-dive on messaging reliability, protocol, and UX.
+
+### reliability-analyst findings (Task #3) - COMPLETE
+Complete dual-write pipeline analysis (ETS + CommandQueue + PubSub).
+Analyzed: mailbox.ex (159 lines), command_queue.ex (164 lines), inbox.ex (175 lines), messaging_handlers.ex
+Filesystem inspection: 164 accumulated files, 704KB in ~/.claude/inbox/
+
+**6 issues found** (2 critical, 3 medium, 1 low):
+
+**CRITICAL**:
+1. CommandQueue file accumulation - Never deleted, unbounded disk growth
+   - Root cause: mark_read (mailbox.ex:115-129) only updates ETS, NOT filesystem
+   - acknowledge_message (inbox.ex:53-58) only calls Mailbox.mark_read
+   - CommandQueue cleanup only applies to OUTBOX (line 130), not INBOX
+   - Impact: 164 files (704KB) accumulated, eventual inode exhaustion
+2. Duplicate message delivery - Agent crash → ETS cleared → CommandQueue replayed
+   - No deduplication logic in check_inbox (inbox.ex:19-37)
+   - No persistent tracking of acknowledged IDs
+   - Impact: Agents process same command multiple times, race conditions
+3. Message loss on Phoenix restart - ETS cleared before CommandQueue consumed
+   - Low probability but guaranteed data loss on restart
+   - Impact: Messages acknowledged in ETS but not read from CommandQueue lost forever
+
+**MEDIUM**:
+4. No message ordering - ETS/CommandQueue/PubSub independent, no sequence numbers
+   - ETS: chronological prepend (newest first, line 88)
+   - CommandQueue: filesystem timestamp-based
+   - PubSub: asynchronous broadcast
+   - Impact: Command reordering in concurrent scenarios
+5. ETS memory growth - No TTL cleanup, messages accumulate until manual clear
+   - clear_messages/1 exists (line 50) but never called automatically
+   - mark_read doesn't remove, just flags
+   - Impact: Memory leak over long-running sessions
+6. Multi-tab dashboard identity - current_session_id varies per tab
+   - messaging_handlers.ex:11 uses socket.assigns[:current_session_id]
+   - Impact: Message threading confusion, attribution errors
+
+**Recommended priority**: Fix #1 (immediate disk impact), #2 (correctness), #4 (if order-sensitive)
+
+**BONUS**: CommandQueue outbox cleanup works correctly (do_poll_responses line 130: File.rm after reading)
+
+### ui-analyst findings (Task #2) - COMPLETE
+Form refresh bug diagnosis (message composer fields lose focus).
+Root cause: :tick timer (1s) → prepare_assigns → new :teams list → LiveView re-render → form DOM destroyed
+Recommended fix: phx-update="ignore" wrapper OR memoize teams computation
+Files analyzed: dashboard_live.ex, dashboard_live.html.heex, inspector_handlers.ex, team_message_components.ex, messages_components.ex
+
+### protocol-analyst findings (Task #4) - IN PROGRESS
+Awaiting analysis of message format, envelope structure, error handling

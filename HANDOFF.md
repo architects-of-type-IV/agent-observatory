@@ -1,10 +1,39 @@
 # Observatory - Handoff
 
-## Current Status: Dead Code Audit COMPLETE
+## Current Status: Messaging Reliability Analysis Complete
 
-Team Inspector feature done (17/17 tasks). Dead code audit pipeline removed 19 confirmed dead code instances across 11 files, moved 13 dead files to tmp/trash/. Zero warnings.
+**Team**: messaging-analysis (3 agents: ui-analyst, protocol-analyst, reliability-analyst)
+**Goal**: Analyze Observatory messaging pipeline for reliability, correctness, and architecture
 
-## Dead Code Audit Results (Stage 5)
+## Analysis Complete (2026-02-15)
+
+### 1. Form Refresh Bug (ui-analyst) - DIAGNOSED
+**Root Cause**: `:tick` timer (1s) → `prepare_assigns()` → new `:teams` list → LiveView re-render → form DOM destroyed
+**Recommended Fix**: Add `phx-update="ignore"` wrapper OR memoize teams computation
+
+### 2. Message Reliability (reliability-analyst) - 6 ISSUES FOUND
+
+**CRITICAL**:
+1. **CommandQueue file accumulation** - 164 files (704KB) in ~/.claude/inbox/, never cleaned
+   - Fix: Add CommandQueue.delete_command/2, call from mark_read
+2. **Duplicate delivery** - Agent crash + restart = duplicate messages from disk
+   - Fix: Track acknowledged IDs in persistent storage OR dedup by filename
+3. **Message loss on restart** - ETS cleared before CommandQueue consumed
+   - Fix: Read-through from CommandQueue on startup OR persist read state
+
+**MEDIUM**:
+4. **No ordering guarantees** - ETS/CommandQueue/PubSub are independent, no sequence numbers
+5. **ETS memory growth** - Messages accumulate, no TTL cleanup
+6. **Multi-tab identity confusion** - Dashboard session_id varies per tab
+
+### 3. Protocol Analysis (protocol-analyst) - IN PROGRESS
+Awaiting findings on message format, envelope structure, error handling
+
+**Status**: 2/3 agents complete, awaiting protocol analyst final report
+
+## Previous Work
+
+### Dead Code Audit Results (Stage 5)
 - Found (Stage 1): 23 instances across 4 scout areas
 - False positives removed (Stage 2): 2 (short_model_name, Observatory module)
 - Confirmed: 19
