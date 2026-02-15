@@ -497,5 +497,65 @@ Root cause: :tick timer (1s) → prepare_assigns → new :teams list → LiveVie
 Recommended fix: phx-update="ignore" wrapper OR memoize teams computation
 Files analyzed: dashboard_live.ex, dashboard_live.html.heex, inspector_handlers.ex, team_message_components.ex, messages_components.ex
 
-### protocol-analyst findings (Task #4) - IN PROGRESS
-Awaiting analysis of message format, envelope structure, error handling
+### protocol-analyst findings (Task #1) - COMPLETE
+Architecture analysis: 4 options evaluated (A-D). Recommended Option B (align with Claude Code native).
+Key finding: Observatory writes to ~/.claude/inbox/ (custom), Claude Code expects ~/.claude/teams/{team}/inboxes/ (native). Two competing systems that don't interoperate.
+Option B: 3-stage rollout (parallel write -> switch reads -> remove old). Estimated 12-16 hours.
+
+Messaging Fix Team - 2026-02-15
+================================
+
+Team "messaging-fix" created to apply critical fixes from messaging-analysis findings.
+
+### frontend-dev (Task #1) - COMPLETE
+Fixed dashboard PubSub subscription gap + form refresh bug.
+
+**Files modified**:
+1. lib/observatory_web/live/dashboard_live.ex
+   - Line 27: Added `Phoenix.PubSub.subscribe(Observatory.PubSub, "agent:dashboard")`
+   - Line 68: Added `|> assign(:current_session_id, "dashboard")`
+
+2. lib/observatory_web/live/dashboard_live.html.heex
+   - Line 445: Wrapped message_composer in `<div phx-update="ignore" id="message-composer-stable">`
+   - Line 877: Wrapped agent message form in `<div phx-update="ignore" id="agent-message-form-stable">`
+
+**Impact**:
+- Dashboard now receives messages from agents via PubSub
+- Message forms no longer lose input on :tick timer re-renders
+- Both message forms protected from LiveView DOM replacement
+
+**Verification**: `mix compile --warnings-as-errors` PASS (zero warnings)
+
+### backend-dev (Task #2) - COMPLETE
+Aligned CommandQueue with Claude Code native team inbox paths.
+
+**Files modified**:
+1. lib/observatory/command_queue.ex
+   - Added write_team_message/3 -> ~/.claude/teams/{team}/inboxes/{agent}.json (JSON array format)
+   - Added delete_team_message/3 for cleanup by index
+   - Native format: {"from": "...", "text": "...", "timestamp": "...", "read": false}
+
+2. lib/observatory/mailbox.ex
+   - Updated send_message to dual-write: legacy + native
+   - Parses "name@team" agent IDs to extract team/agent for native path
+
+**Verification**: `mix compile --warnings-as-errors` PASS (zero warnings)
+
+### verifier (Task #3) - COMPLETE
+Fixed acknowledge_message cleanup + added ETS TTL.
+
+**Files modified**:
+1. lib/observatory/agent_tools/inbox.ex
+   - acknowledge_message now scans and deletes matching CommandQueue file
+
+2. lib/observatory/mailbox.ex
+   - Added :cleanup_old_messages timer (60s interval)
+   - Removes read messages older than 24h from ETS
+   - Prevents unbounded memory growth
+
+**Verification**: `mix compile --warnings-as-errors` PASS (zero warnings)
+
+All 3 Phases Complete - 2026-02-15
+===================================
+9 agents across 3 teams, all issues identified and fixed.
+Build: PASS (zero warnings)

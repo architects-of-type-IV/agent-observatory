@@ -26,6 +26,21 @@ defmodule Observatory.CommandQueue do
     GenServer.call(__MODULE__, {:write_command, session_id, command})
   end
 
+  @doc """
+  Write a message to a team agent's inbox in Claude Code native format.
+  Creates ~/.claude/teams/{team}/inboxes/{agent_name}.json
+  """
+  def write_team_message(team_name, agent_name, message) when is_map(message) do
+    GenServer.call(__MODULE__, {:write_team_message, team_name, agent_name, message})
+  end
+
+  @doc """
+  Delete a message from a team agent's inbox by index.
+  """
+  def delete_team_message(team_name, agent_name, message_index) do
+    GenServer.call(__MODULE__, {:delete_team_message, team_name, agent_name, message_index})
+  end
+
   # ═══════════════════════════════════════════════════════
   # Server Callbacks
   # ═══════════════════════════════════════════════════════
@@ -40,6 +55,18 @@ defmodule Observatory.CommandQueue do
   @impl true
   def handle_call({:write_command, session_id, command}, _from, state) do
     result = do_write_command(session_id, command)
+    {:reply, result, state}
+  end
+
+  @impl true
+  def handle_call({:write_team_message, team_name, agent_name, message}, _from, state) do
+    result = do_write_team_message(team_name, agent_name, message)
+    {:reply, result, state}
+  end
+
+  @impl true
+  def handle_call({:delete_team_message, team_name, agent_name, message_index}, _from, state) do
+    result = do_delete_team_message(team_name, agent_name, message_index)
     {:reply, result, state}
   end
 
@@ -160,5 +187,63 @@ defmodule Observatory.CommandQueue do
 
   defp generate_id do
     :crypto.strong_rand_bytes(8) |> Base.encode16(case: :lower)
+  end
+
+  defp do_write_team_message(team_name, agent_name, message) do
+    inbox_dir = Path.expand("~/.claude/teams/#{team_name}/inboxes")
+    File.mkdir_p!(inbox_dir)
+    inbox_file = Path.join(inbox_dir, "#{agent_name}.json")
+
+    # Read existing messages or start fresh
+    existing =
+      case File.read(inbox_file) do
+        {:ok, content} ->
+          case Jason.decode(content) do
+            {:ok, messages} when is_list(messages) -> messages
+            _ -> []
+          end
+
+        {:error, _} ->
+          []
+      end
+
+    # Append new message in Claude Code native format
+    native_message = %{
+      "from" => message[:from] || message["from"] || "unknown",
+      "text" => message[:content] || message["content"] || "",
+      "timestamp" => DateTime.utc_now() |> DateTime.to_iso8601(),
+      "read" => false
+    }
+
+    updated = existing ++ [native_message]
+
+    case Jason.encode(updated, pretty: true) do
+      {:ok, json} -> File.write(inbox_file, json)
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  defp do_delete_team_message(team_name, agent_name, message_index) do
+    inbox_dir = Path.expand("~/.claude/teams/#{team_name}/inboxes")
+    inbox_file = Path.join(inbox_dir, "#{agent_name}.json")
+
+    case File.read(inbox_file) do
+      {:ok, content} ->
+        case Jason.decode(content) do
+          {:ok, messages} when is_list(messages) ->
+            updated = List.delete_at(messages, message_index)
+
+            case Jason.encode(updated, pretty: true) do
+              {:ok, json} -> File.write(inbox_file, json)
+              {:error, reason} -> {:error, reason}
+            end
+
+          _ ->
+            {:error, :invalid_inbox_format}
+        end
+
+      {:error, reason} ->
+        {:error, reason}
+    end
   end
 end

@@ -54,6 +54,33 @@ defmodule Observatory.AgentTools.Inbox do
         session_id = input.arguments.session_id
         message_id = input.arguments.message_id
         Observatory.Mailbox.mark_read(session_id, message_id)
+
+        # Clean up legacy CommandQueue file
+        inbox_dir = Path.expand("~/.claude/inbox/#{session_id}")
+
+        if File.dir?(inbox_dir) do
+          case File.ls(inbox_dir) do
+            {:ok, files} ->
+              Enum.each(files, fn file ->
+                file_path = Path.join(inbox_dir, file)
+
+                case File.read(file_path) do
+                  {:ok, content} ->
+                    case Jason.decode(content) do
+                      {:ok, %{"id" => ^message_id}} -> File.rm(file_path)
+                      _ -> :ok
+                    end
+
+                  _ ->
+                    :ok
+                end
+              end)
+
+            _ ->
+              :ok
+          end
+        end
+
         {:ok, %{"status" => "acknowledged", "message_id" => message_id}}
       end)
     end

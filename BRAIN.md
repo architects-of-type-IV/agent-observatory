@@ -164,20 +164,21 @@ Consistent colors across views:
 - "session:{session_id}" - session events (including command_responses)
 - "dashboard:commands" - UI -> agents
 
-## Messaging Flow Gaps (2026-02-15)
-Dashboard cannot receive messages from agents due to 3 critical gaps:
-1. Dashboard never subscribes to "agent:dashboard" PubSub topic in mount()
-2. Dashboard never sets :current_session_id assign (defaults to "dashboard" string)
-3. subscribe_to_mailboxes() only subscribes to agent sessions, not dashboard itself
+## Messaging Flow Gaps (2026-02-15) - FIXED
+Dashboard PubSub subscription gap and form refresh bug both resolved.
 
-When agent calls send_message with to_session_id="dashboard":
-- ✅ Message stored in ETS under "dashboard" key
-- ✅ File written to ~/.claude/inbox/dashboard/{id}.json
-- ✅ PubSub broadcasts to "agent:dashboard"
-- ❌ Dashboard NOT subscribed → no UI update
-- ❌ Message sits in ETS invisible to dashboard
+**Previous gaps**:
+1. Dashboard never subscribed to "agent:dashboard" PubSub topic
+2. Dashboard never set :current_session_id assign
+3. Message forms lost input on LiveView re-render
 
-Fix: Add `Phoenix.PubSub.subscribe(Observatory.PubSub, "agent:dashboard")` to mount() and `assign(:current_session_id, "dashboard")` in assigns.
+**Applied fixes** (dashboard_live.ex + dashboard_live.html.heex):
+1. Line 27: Added `Phoenix.PubSub.subscribe(Observatory.PubSub, "agent:dashboard")`
+2. Line 68: Added `|> assign(:current_session_id, "dashboard")`
+3. Line 445: Wrapped message_composer with `phx-update="ignore"`
+4. Line 877: Wrapped agent message form with `phx-update="ignore"`
+
+**Result**: Dashboard receives messages from agents in real-time. Form inputs persist across re-renders.
 
 ## File-Based Command Queue
 CommandQueue GenServer provides dual-channel agent communication:

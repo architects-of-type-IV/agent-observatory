@@ -25,6 +25,7 @@ defmodule ObservatoryWeb.DashboardLive do
       Phoenix.PubSub.subscribe(Observatory.PubSub, "events:stream")
       Phoenix.PubSub.subscribe(Observatory.PubSub, "teams:update")
       Phoenix.PubSub.subscribe(Observatory.PubSub, "agent:crashes")
+      Phoenix.PubSub.subscribe(Observatory.PubSub, "agent:dashboard")
       :timer.send_interval(1000, self(), :tick)
     end
 
@@ -64,6 +65,7 @@ defmodule ObservatoryWeb.DashboardLive do
       |> assign(:agent_toggles, %{})
       |> assign(:selected_message_target, nil)
       |> assign(:inspector_events, [])
+      |> assign(:current_session_id, "dashboard")
       |> prepare_assigns()
 
     # Subscribe to mailbox channels for all active sessions

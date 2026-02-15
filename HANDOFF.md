@@ -1,61 +1,51 @@
 # Observatory - Handoff
 
-## Current Status: Messaging Reliability Analysis Complete
+## Current Status: Agent Messaging Pipeline FIXED (Option B)
 
-**Team**: messaging-analysis (3 agents: ui-analyst, protocol-analyst, reliability-analyst)
-**Goal**: Analyze Observatory messaging pipeline for reliability, correctness, and architecture
+3-phase investigation and fix of broken agent-to-dashboard messaging. All 3 phases complete.
 
-## Analysis Complete (2026-02-15)
+## What Was Fixed
 
-### 1. Form Refresh Bug (ui-analyst) - DIAGNOSED
-**Root Cause**: `:tick` timer (1s) → `prepare_assigns()` → new `:teams` list → LiveView re-render → form DOM destroyed
-**Recommended Fix**: Add `phx-update="ignore"` wrapper OR memoize teams computation
+### Phase 1: Discovery (team: messaging-discovery, 3 agents)
+Found 5 critical gaps + 1 bug:
+1. Dashboard not subscribed to "agent:dashboard" PubSub topic
+2. No :current_session_id assign in mount
+3. subscribe_to_mailboxes() skips dashboard
+4. acknowledge_message doesn't clean CommandQueue files
+5. ~/.claude/inbox/ is custom, not Claude Code native path
+6. Form refresh bug: :tick timer recreates teams list, destroying form DOM
 
-### 2. Message Reliability (reliability-analyst) - 6 ISSUES FOUND
+### Phase 2: Analysis (team: messaging-analysis, 3 agents)
+- **Architecture**: Option B chosen (align with Claude Code native paths)
+- **Form bug root cause**: prepare_assigns() runs every 1s tick, creates new list reference, LiveView re-renders message_composer
+- **Reliability**: 164 stale files in inbox, no ETS TTL, duplicate delivery risk
 
-**CRITICAL**:
-1. **CommandQueue file accumulation** - 164 files (704KB) in ~/.claude/inbox/, never cleaned
-   - Fix: Add CommandQueue.delete_command/2, call from mark_read
-2. **Duplicate delivery** - Agent crash + restart = duplicate messages from disk
-   - Fix: Track acknowledged IDs in persistent storage OR dedup by filename
-3. **Message loss on restart** - ETS cleared before CommandQueue consumed
-   - Fix: Read-through from CommandQueue on startup OR persist read state
+### Phase 3: Implementation (team: messaging-fix, 3 agents)
+All fixes applied:
 
-**MEDIUM**:
-4. **No ordering guarantees** - ETS/CommandQueue/PubSub are independent, no sequence numbers
-5. **ETS memory growth** - Messages accumulate, no TTL cleanup
-6. **Multi-tab identity confusion** - Dashboard session_id varies per tab
+1. **PubSub subscription** (dashboard_live.ex:27)
+   - Added `Phoenix.PubSub.subscribe(Observatory.PubSub, "agent:dashboard")`
+   - Added `assign(:current_session_id, "dashboard")`
 
-### 3. Protocol Analysis (protocol-analyst) - IN PROGRESS
-Awaiting findings on message format, envelope structure, error handling
+2. **Form refresh fix** (dashboard_live.html.heex)
+   - Wrapped message_composer with `<div phx-update="ignore" id="message-composer-stable">`
+   - Wrapped agent message form with `<div phx-update="ignore" id="agent-message-form-stable">`
 
-**Status**: 2/3 agents complete, awaiting protocol analyst final report
+3. **CommandQueue aligned with Claude Code native** (command_queue.ex)
+   - Added write_team_message/3 -> ~/.claude/teams/{team}/inboxes/{agent}.json
+   - Added delete_team_message/3 for cleanup
+   - Mailbox.send_message now dual-writes: legacy + native format
+   - Agent ID parsed: "name@team" -> split to get team/agent
 
-## Previous Work
+4. **Acknowledge cleanup** (agent_tools/inbox.ex)
+   - acknowledge_message now deletes CommandQueue file after ETS mark_read
 
-### Dead Code Audit Results (Stage 5)
-- Found (Stage 1): 23 instances across 4 scout areas
-- False positives removed (Stage 2): 2 (short_model_name, Observatory module)
-- Confirmed: 19
-- Files edited: 11
-- Files moved to tmp/trash/dead-code-audit/: 13
-- Build: PASS (zero warnings)
-- Remaining instances: 0
-
-### Key Removals
-1. **Unused Ash domains**: Removed Messaging, TaskBoard, Annotations from config.exs ash_domains
-2. **Dead Ash files**: 6 files moved (messaging.ex, message.ex, task_board.ex, task.ex, annotations.ex, note.ex)
-3. **Dead components**: 3 files moved (toast_container.ex, session_dot.ex, event_type_badge.ex)
-4. **Dead PageController**: 3 files moved (page_controller.ex, page_html.ex, home.html.heex) + test
-5. **Dead functions**: installed_extensions, poll_responses, get_pending_commands, remove_team_channel, add_search_to_history, filter_threads_by_participant, extract_participants, handle_edit_task
-6. **Visibility fixes**: 3 functions changed def->defp (detect_tool_loops, group_events_by_session, pair_tool_events)
-7. **Dead macro**: channel/0 removed from observatory_web.ex
-
-### Pipeline Artifacts
-- `.claude/audit-pipeline/1-scout-findings.md`
-- `.claude/audit-pipeline/2-verified-findings.md`
-- `.claude/audit-pipeline/3-execution-plan.md`
-- `.claude/audit-pipeline/4-validation-report.md`
+5. **ETS TTL** (mailbox.ex)
+   - Added :cleanup_old_messages timer (60s interval)
+   - Removes read messages older than 24h
 
 ## Build Status
 `mix compile --warnings-as-errors` -- PASSES (zero warnings)
+
+## Roadmap
+`.claude/roadmaps/roadmap-1771119705/` (messaging investigation)

@@ -67,6 +67,7 @@ defmodule Observatory.Mailbox do
   def init(_opts) do
     # Create ETS table: {agent_id, [messages]}
     :ets.new(@table_name, [:named_table, :public, :set])
+    schedule_cleanup()
     {:ok, %{}}
   end
 
@@ -96,6 +97,18 @@ defmodule Observatory.Mailbox do
       message_type: Keyword.get(opts, :type, :text),
       metadata: Keyword.get(opts, :metadata, %{})
     })
+
+    # Also write to team inbox if recipient is a team agent
+    case String.split(to, "@") do
+      [agent_name, team_name] ->
+        Observatory.CommandQueue.write_team_message(team_name, agent_name, %{
+          from: from,
+          content: content
+        })
+
+      _ ->
+        :ok
+    end
 
     # Broadcast new message event
     Phoenix.PubSub.broadcast(
@@ -142,9 +155,34 @@ defmodule Observatory.Mailbox do
     {:reply, :ok, state}
   end
 
+  @impl true
+  def handle_info(:cleanup_old_messages, state) do
+    now = DateTime.utc_now()
+    ttl_hours = 24
+
+    :ets.tab2list(@table_name)
+    |> Enum.each(fn {agent_id, messages} ->
+      cleaned =
+        Enum.reject(messages, fn msg ->
+          msg.read && DateTime.diff(now, msg.timestamp, :hour) > ttl_hours
+        end)
+
+      if length(cleaned) != length(messages) do
+        :ets.insert(@table_name, {agent_id, cleaned})
+      end
+    end)
+
+    schedule_cleanup()
+    {:noreply, state}
+  end
+
   # ═══════════════════════════════════════════════════════
   # Helpers
   # ═══════════════════════════════════════════════════════
+
+  defp schedule_cleanup do
+    Process.send_after(self(), :cleanup_old_messages, 60_000)
+  end
 
   defp get_agent_messages(agent_id) do
     case :ets.lookup(@table_name, agent_id) do
