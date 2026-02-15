@@ -98,7 +98,22 @@ READ-ONLY analysis of all UI components, layout, and interaction patterns.
 - Implementation agents NOT YET spawned
 - Scout report consolidated at `.claude/roadmaps/roadmap-1771113081/scout-report.md`
 
+## Scout Enrichment Complete - 2026-02-15
+
+Three scouts analyzed the codebase and enriched all roadmap tasks with:
+- Exact line numbers for insertion points
+- Existing function signatures and patterns to follow
+- Data structure field names and edge cases
+- Dependency ordering between tasks
+
+Key scout findings:
+- **Backend**: detect_role must come first (2.1.2.2 depends on it). broadcast_to_many is independent.
+- **UI**: agents_components.ex is best template for teams_components.ex. No bottom drawer exists -- entirely new pattern. CSS file is app.css with Tailwind v4.
+- **Integration**: 9 new handle_event clauses, 7 new mount assigns, keyboard shortcut is just array+bound change.
+
+Architect validation pending -- will review and propose changes to roadmap.
+
 ## Next Steps
-- Execute Phase 2: Start with Section 2.1 (backend foundations, sequential)
-- Then spawn parallel agents for Sections 2.2-2.4
-- Story 2.4.3 (integration wiring) runs LAST after all agents complete
+- Architect validates plan and proposes changes
+- Apply architect recommendations to roadmap files
+- Execute Phase 2 implementation
