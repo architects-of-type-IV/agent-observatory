@@ -36,21 +36,23 @@ defmodule ObservatoryWeb.Components.AgentsComponents do
             <p :if={team.description} class="text-xs text-zinc-500 mb-2">{team.description}</p>
 
             <%!-- Team broadcast input --%>
-            <form phx-submit="send_team_broadcast" class="flex gap-1">
-              <input type="hidden" name="team" value={team.name} />
-              <input
-                type="text"
-                name="content"
-                placeholder="Broadcast to team..."
-                class="flex-1 bg-zinc-800 border border-zinc-700 rounded px-2 py-1 text-xs text-zinc-300 placeholder-zinc-600 focus:border-cyan-500 focus:ring-0 focus:outline-none"
-              />
-              <button
-                type="submit"
-                class="px-2 py-1 bg-cyan-600/20 text-cyan-400 rounded text-xs hover:bg-cyan-600/30 transition"
-              >
-                Send
-              </button>
-            </form>
+            <div phx-update="ignore" id={"broadcast-form-#{team.name}"} phx-hook="ClearFormOnSubmit">
+              <form phx-submit="send_team_broadcast" class="flex gap-1">
+                <input type="hidden" name="team" value={team.name} />
+                <input
+                  type="text"
+                  name="content"
+                  placeholder="Broadcast to team..."
+                  class="flex-1 bg-zinc-800 border border-zinc-700 rounded px-2 py-1 text-xs text-zinc-300 placeholder-zinc-600 focus:border-cyan-500 focus:ring-0 focus:outline-none"
+                />
+                <button
+                  type="submit"
+                  class="px-2 py-1 bg-cyan-600/20 text-cyan-400 rounded text-xs hover:bg-cyan-600/30 transition"
+                >
+                  Send
+                </button>
+              </form>
+            </div>
           </div>
 
           <% task_total = length(team.tasks) %>
@@ -138,22 +140,24 @@ defmodule ObservatoryWeb.Components.AgentsComponents do
 
               <%!-- Agent messaging controls --%>
               <div :if={member[:agent_id]} class="ml-4 space-y-1">
-                <form phx-submit="send_agent_message" class="flex gap-1">
-                  <input type="hidden" name="session_id" value={member[:agent_id]} />
-                  <input
-                    type="text"
-                    name="content"
-                    placeholder="Send message..."
-                    class="flex-1 bg-zinc-900 border border-zinc-700 rounded px-2 py-1 text-xs text-zinc-300 placeholder-zinc-700 focus:border-indigo-500 focus:ring-0 focus:outline-none"
-                  />
-                  <button
-                    type="submit"
-                    class="px-2 py-1 bg-indigo-600/20 text-indigo-400 rounded text-xs hover:bg-indigo-600/30 transition"
-                    title="Send message"
-                  >
-                    Send
-                  </button>
-                </form>
+                <div phx-update="ignore" id={"agent-msg-#{member[:agent_id]}"} phx-hook="ClearFormOnSubmit">
+                  <form phx-submit="send_agent_message" class="flex gap-1">
+                    <input type="hidden" name="session_id" value={member[:agent_id]} />
+                    <input
+                      type="text"
+                      name="content"
+                      placeholder="Send message..."
+                      class="flex-1 bg-zinc-900 border border-zinc-700 rounded px-2 py-1 text-xs text-zinc-300 placeholder-zinc-700 focus:border-indigo-500 focus:ring-0 focus:outline-none"
+                    />
+                    <button
+                      type="submit"
+                      class="px-2 py-1 bg-indigo-600/20 text-indigo-400 rounded text-xs hover:bg-indigo-600/30 transition"
+                      title="Send message"
+                    >
+                      Send
+                    </button>
+                  </form>
+                </div>
                 <div class="flex gap-1">
                   <button
                     phx-click="filter_agent"

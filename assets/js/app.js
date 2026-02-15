@@ -271,6 +271,20 @@ let Hooks = {
         this.el.scrollTop = this.el.scrollHeight
       }
     }
+  },
+  ClearFormOnSubmit: {
+    mounted() {
+      const form = this.el.querySelector("form") || this.el.closest("form")
+      if (form) {
+        form.addEventListener("submit", () => {
+          setTimeout(() => {
+            form.querySelectorAll('input[type="text"]').forEach(input => {
+              input.value = ""
+            })
+          }, 50)
+        })
+      }
+    }
   }
 }
 

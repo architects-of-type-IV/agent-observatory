@@ -46,28 +46,17 @@ defmodule ObservatoryWeb.DashboardMessagingHandlers do
   def handle_send_team_broadcast(%{"team" => team_name, "content" => content}, socket) do
     from_session = socket.assigns[:current_session_id] || "dashboard"
 
-    # Publish via PubSub
-    Observatory.Channels.publish_to_team(team_name, %{
-      from: from_session,
-      content: content,
-      timestamp: DateTime.utc_now()
-    })
+    # Get all member agent_ids for this team
+    member_ids =
+      get_team_members(socket, team_name)
+      |> Enum.map(& &1.session_id)
 
-    # Write broadcast command to each team member's inbox
-    team_members = get_team_members(socket, team_name)
-
-    Enum.each(team_members, fn member ->
-      Observatory.CommandQueue.write_command(member.session_id, %{
-        type: "broadcast",
-        team: team_name,
-        from: from_session,
-        content: content
-      })
-    end)
+    # Use Mailbox.broadcast_to_many for consistent delivery (ETS + CommandQueue + PubSub)
+    Observatory.Mailbox.broadcast_to_many(member_ids, from_session, content, type: :text)
 
     socket =
       Phoenix.LiveView.push_event(socket, "toast", %{
-        message: "Broadcast sent to #{team_name} (#{length(team_members)} agents)",
+        message: "Broadcast sent to #{team_name} (#{length(member_ids)} agents)",
         type: "success"
       })
 

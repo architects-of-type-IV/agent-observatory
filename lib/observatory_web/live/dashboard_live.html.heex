@@ -442,7 +442,7 @@
           inspected_teams={Enum.map(@inspected_teams, & &1[:name])}
           now={@now}
         />
-        <div phx-update="ignore" id="message-composer-stable">
+        <div phx-update="ignore" id="message-composer-stable" phx-hook="ClearFormOnSubmit">
           <ObservatoryWeb.Components.TeamMessageComponents.message_composer
             :if={@teams != []}
             teams={@teams}
@@ -875,7 +875,7 @@
           <h3 class="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">
             Send Message
           </h3>
-          <div phx-update="ignore" id="agent-message-form-stable">
+          <div phx-update="ignore" id="agent-message-form-stable" phx-hook="ClearFormOnSubmit">
             <form phx-submit="send_agent_message" class="flex gap-1">
               <input type="hidden" name="session_id" value={agent[:agent_id]} />
               <input
