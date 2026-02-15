@@ -64,12 +64,12 @@ defmodule ObservatoryWeb.Components.TeamsComponents do
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-3 min-w-0">
           <div class="flex items-center gap-2 min-w-0">
-            <span class="text-sm font-medium text-zinc-100 truncate">{@team.name}</span>
+            <span class="text-sm font-medium text-zinc-100 truncate">{@team[:name]}</span>
             <span class={"w-2 h-2 rounded-full shrink-0 #{health_color(@summary.health)}"}></span>
           </div>
 
           <div class="flex items-center gap-1.5">
-            <%= for member <- @team.members do %>
+            <%= for member <- @team[:members] || [] do %>
               <.member_status_dot status={member[:status] || :unknown} />
             <% end %>
           </div>
@@ -85,7 +85,7 @@ defmodule ObservatoryWeb.Components.TeamsComponents do
 
         <button
           phx-click="inspect_team"
-          phx-value-team={@team.name}
+          phx-value-team={@team[:name]}
           class="px-3 py-1.5 text-xs font-medium bg-zinc-800 text-zinc-300 rounded hover:bg-zinc-700 transition-colors shrink-0"
         >
           Inspect

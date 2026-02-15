@@ -62,17 +62,15 @@ defmodule ObservatoryWeb.DashboardTeamInspectorHandlers do
 
     case session_ids do
       [] ->
-        {:noreply,
-         push_event(socket, "show_toast", %{message: "No targets found", type: "warning"})}
+        push_event(socket, "show_toast", %{message: "No targets found", type: "warning"})
 
       sids ->
         Observatory.Mailbox.broadcast_to_many(sids, "dashboard", content)
 
-        {:noreply,
-         push_event(socket, "show_toast", %{
-           message: "Sent to #{length(sids)} agent(s)",
-           type: "success"
-         })}
+        push_event(socket, "show_toast", %{
+          message: "Sent to #{length(sids)} agent(s)",
+          type: "success"
+        })
     end
   end
 
