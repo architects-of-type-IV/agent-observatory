@@ -35,7 +35,7 @@ defmodule ObservatoryWeb.EventController do
       source_app: params["source_app"] || "unknown",
       session_id: params["session_id"] || "unknown",
       hook_event_type: hook_type,
-      payload: payload,
+      payload: sanitize_payload(payload),
       summary: params["summary"],
       model_name: params["model_name"],
       tool_name: tool_name,
@@ -70,6 +70,30 @@ defmodule ObservatoryWeb.EventController do
         |> json(%{error: "Invalid event", details: inspect(changeset.errors)})
     end
   end
+
+  # Strip large fields (tool_response, tool_input file contents) to avoid DB bloat
+  defp sanitize_payload(payload) when is_map(payload) do
+    payload
+    |> Map.delete("tool_response")
+    |> truncate_tool_input()
+  end
+
+  defp sanitize_payload(payload), do: payload
+
+  defp truncate_tool_input(%{"tool_input" => input} = payload) when is_map(input) do
+    truncated =
+      Map.new(input, fn
+        {k, v} when is_binary(v) and byte_size(v) > 500 ->
+          {k, String.slice(v, 0, 500) <> "...[truncated]"}
+
+        pair ->
+          pair
+      end)
+
+    Map.put(payload, "tool_input", truncated)
+  end
+
+  defp truncate_tool_input(payload), do: payload
 
   defp compute_duration(hook_type, tool_use_id)
        when hook_type in ["PostToolUse", "PostToolUseFailure"] and is_binary(tool_use_id) do
