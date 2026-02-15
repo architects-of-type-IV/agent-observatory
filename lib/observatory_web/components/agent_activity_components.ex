@@ -6,5 +6,7 @@ defmodule ObservatoryWeb.Components.AgentActivityComponents do
   defdelegate activity_stream(assigns), to: ObservatoryWeb.Components.AgentActivity.ActivityStream
   defdelegate activity_item(assigns), to: ObservatoryWeb.Components.AgentActivity.ActivityItem
   defdelegate payload_detail(assigns), to: ObservatoryWeb.Components.AgentActivity.PayloadDetail
-  defdelegate agent_focus_view(assigns), to: ObservatoryWeb.Components.AgentActivity.AgentFocusView
+
+  defdelegate agent_focus_view(assigns),
+    to: ObservatoryWeb.Components.AgentActivity.AgentFocusView
 end

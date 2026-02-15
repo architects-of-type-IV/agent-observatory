@@ -21,11 +21,16 @@ defmodule ObservatoryWeb.Components.ErrorsComponents do
       />
 
       <div :if={@errors != []} class="space-y-4">
-        <div :for={group <- @error_groups} class="p-4 rounded-lg border border-red-500/20 bg-red-500/5">
+        <div
+          :for={group <- @error_groups}
+          class="p-4 rounded-lg border border-red-500/20 bg-red-500/5"
+        >
           <div class="flex items-center justify-between mb-3">
             <div class="flex items-center gap-2">
               <span class="text-sm font-semibold text-red-400">{group.tool}</span>
-              <span class="px-2 py-0.5 text-xs rounded bg-red-500/40 text-red-300 animate-pulse">{group.count} errors</span>
+              <span class="px-2 py-0.5 text-xs rounded bg-red-500/40 text-red-300 animate-pulse">
+                {group.count} errors
+              </span>
               <button
                 phx-click="jump_to_timeline"
                 phx-value-session_id={group.latest.session_id}
@@ -44,7 +49,10 @@ defmodule ObservatoryWeb.Components.ErrorsComponents do
             <span class="text-xs text-zinc-500">{relative_time(group.latest.timestamp, @now)}</span>
           </div>
           <div class="space-y-2">
-            <div :for={err <- Enum.take(group.errors, 5)} class="p-2 rounded bg-zinc-900/50 border border-zinc-800">
+            <div
+              :for={err <- Enum.take(group.errors, 5)}
+              class="p-2 rounded bg-zinc-900/50 border border-zinc-800"
+            >
               <div class="flex items-center justify-between mb-1">
                 <% {bg, _b, _t} = session_color(err.session_id) %>
                 <span class={"w-2 h-2 rounded-full #{bg}"}></span>

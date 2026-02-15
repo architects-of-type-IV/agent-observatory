@@ -33,8 +33,8 @@ defmodule ObservatoryWeb.Components.Feed.FeedView do
         title="Waiting for agent activity..."
         description="Hook events will stream here in real-time. Try running agents or use keyboard shortcuts (press ?) for help."
       />
-
-      <!-- Grouped view -->
+      
+    <!-- Grouped view -->
       <div :if={@feed_grouped && !Enum.empty?(@feed_groups)} class="space-y-3" id="grouped-feed">
         <.session_group
           :for={group <- @feed_groups}
@@ -44,8 +44,8 @@ defmodule ObservatoryWeb.Components.Feed.FeedView do
           now={@now}
         />
       </div>
-
-      <!-- Chronological view -->
+      
+    <!-- Chronological view -->
       <div :if={!@feed_grouped} class="space-y-px" id="event-list">
         <div :for={event <- @visible_events} id={"ev-#{event.id}"}>
           <div
@@ -56,7 +56,10 @@ defmodule ObservatoryWeb.Components.Feed.FeedView do
             <% {bg, _border, _text} = session_color(event.session_id) %>
             <span class={"w-1.5 h-1.5 rounded-full shrink-0 #{bg}"}></span>
 
-            <span class="text-xs font-mono text-zinc-600 shrink-0 w-14 text-right" title={format_time(event.inserted_at)}>
+            <span
+              class="text-xs font-mono text-zinc-600 shrink-0 w-14 text-right"
+              title={format_time(event.inserted_at)}
+            >
               {relative_time(event.inserted_at, @now)}
             </span>
 
@@ -76,15 +79,22 @@ defmodule ObservatoryWeb.Components.Feed.FeedView do
               {event.summary || event_summary(event)}
             </span>
 
-            <span :if={Map.has_key?(@event_notes, event.id)} class="text-amber-400 shrink-0" title="Has note">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+            <span
+              :if={Map.has_key?(@event_notes, event.id)}
+              class="text-amber-400 shrink-0"
+              title="Has note"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                class="h-3.5 w-3.5"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+              >
                 <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
               </svg>
             </span>
 
-            <span
-              class={"text-xs font-mono px-1 rounded #{duration_color(event.duration_ms)} shrink-0 w-12 text-right"}
-            >
+            <span class={"text-xs font-mono px-1 rounded #{duration_color(event.duration_ms)} shrink-0 w-12 text-right"}>
               {if event.duration_ms, do: format_duration(event.duration_ms), else: "-"}
             </span>
 

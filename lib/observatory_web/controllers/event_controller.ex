@@ -128,7 +128,9 @@ defmodule ObservatoryWeb.EventController do
         case Ash.read(Observatory.Events.Session) do
           {:ok, sessions} ->
             sessions
-            |> Enum.find(&(&1.session_id == event.session_id and &1.source_app == event.source_app))
+            |> Enum.find(
+              &(&1.session_id == event.session_id and &1.source_app == event.source_app)
+            )
             |> case do
               nil -> :ok
               session -> session |> Ash.Changeset.for_update(:mark_ended) |> Ash.update()

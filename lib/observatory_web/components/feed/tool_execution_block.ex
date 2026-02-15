@@ -20,13 +20,16 @@ defmodule ObservatoryWeb.Components.Feed.ToolExecutionBlock do
         <span class="text-xs font-mono text-indigo-400 shrink-0">
           {@pair.tool_name}
         </span>
-
-        <!-- Status indicator -->
+        
+    <!-- Status indicator -->
         <span :if={@pair.status == :in_progress} class="text-xs font-mono text-amber-400 shrink-0">
           Running... ({format_duration(DashboardFeedHelpers.elapsed_time_ms(@pair.pre, @now))})
         </span>
 
-        <span :if={@pair.status == :success} class={"text-xs font-mono shrink-0 #{duration_color(@pair.duration_ms)}"}>
+        <span
+          :if={@pair.status == :success}
+          class={"text-xs font-mono shrink-0 #{duration_color(@pair.duration_ms)}"}
+        >
           {format_duration(@pair.duration_ms)}
         </span>
 
@@ -40,8 +43,8 @@ defmodule ObservatoryWeb.Components.Feed.ToolExecutionBlock do
           {relative_time(@pair.pre.inserted_at, @now)}
         </span>
       </div>
-
-      <!-- Pre event (clickable) -->
+      
+    <!-- Pre event (clickable) -->
       <div
         class={"flex items-center gap-2 px-2 py-1 rounded cursor-pointer transition-all hover:bg-zinc-800/50 text-xs #{if @selected_event && @selected_event.id == @pair.pre.id, do: "bg-zinc-800/80 ring-1 ring-indigo-500/40", else: ""}"}
         phx-click="select_event"
@@ -51,14 +54,23 @@ defmodule ObservatoryWeb.Components.Feed.ToolExecutionBlock do
         <span class="text-zinc-400 truncate flex-1">
           {event_summary(@pair.pre)}
         </span>
-        <span :if={Map.has_key?(@event_notes, @pair.pre.id)} class="text-amber-400 shrink-0" title="Has note">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
+        <span
+          :if={Map.has_key?(@event_notes, @pair.pre.id)}
+          class="text-amber-400 shrink-0"
+          title="Has note"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            class="h-3 w-3"
+            viewBox="0 0 20 20"
+            fill="currentColor"
+          >
             <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
           </svg>
         </span>
       </div>
-
-      <!-- Post event (clickable) - if exists -->
+      
+    <!-- Post event (clickable) - if exists -->
       <div
         :if={@pair.post}
         class={"flex items-center gap-2 px-2 py-1 rounded cursor-pointer transition-all hover:bg-zinc-800/50 text-xs #{if @selected_event && @selected_event.id == @pair.post.id, do: "bg-zinc-800/80 ring-1 ring-indigo-500/40", else: ""}"}
@@ -71,8 +83,17 @@ defmodule ObservatoryWeb.Components.Feed.ToolExecutionBlock do
         <span class="text-zinc-400 truncate flex-1">
           {event_summary(@pair.post)}
         </span>
-        <span :if={Map.has_key?(@event_notes, @pair.post.id)} class="text-amber-400 shrink-0" title="Has note">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
+        <span
+          :if={Map.has_key?(@event_notes, @pair.post.id)}
+          class="text-amber-400 shrink-0"
+          title="Has note"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            class="h-3 w-3"
+            viewBox="0 0 20 20"
+            fill="currentColor"
+          >
             <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
           </svg>
         </span>

@@ -31,7 +31,9 @@ defmodule ObservatoryWeb.DashboardAgentHealthHelpers do
       issues = []
       issues = if stuck?, do: [{:stuck, latest} | issues], else: issues
       issues = if loops != [], do: [{:looping, loops} | issues], else: issues
-      issues = if failure_rate > 0.5, do: [{:high_failure_rate, failure_rate} | issues], else: issues
+
+      issues =
+        if failure_rate > 0.5, do: [{:high_failure_rate, failure_rate} | issues], else: issues
 
       health =
         cond do
@@ -68,11 +70,7 @@ defmodule ObservatoryWeb.DashboardAgentHealthHelpers do
     end
   end
 
-  @doc """
-  Detect tool loops: same tool called 3+ times consecutively within recent window.
-  Returns list of detected loops with tool name and count.
-  """
-  def detect_tool_loops(sorted_events) do
+  defp detect_tool_loops(sorted_events) do
     recent_tools =
       sorted_events
       |> Enum.take(@loop_detection_window)

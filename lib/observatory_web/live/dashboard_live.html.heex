@@ -436,12 +436,18 @@
         timeline={@timeline}
       />
 
-      <ObservatoryWeb.Components.TeamsComponents.teams_view
-        :if={@view_mode == :teams}
-        teams={@teams}
-        inspected_teams={Enum.map(@inspected_teams, & &1[:name])}
-        now={@now}
-      />
+      <div :if={@view_mode == :teams} class="space-y-4">
+        <ObservatoryWeb.Components.TeamsComponents.teams_view
+          teams={@teams}
+          inspected_teams={Enum.map(@inspected_teams, & &1[:name])}
+          now={@now}
+        />
+        <ObservatoryWeb.Components.TeamMessageComponents.message_composer
+          :if={@teams != []}
+          teams={@teams}
+          selected_message_target={@selected_message_target}
+        />
+      </div>
     </main>
 
     <%!-- ═══ Detail Panel ═══ --%>
@@ -931,7 +937,7 @@
     inspected_teams={@inspected_teams}
     output_mode={@output_mode}
     agent_toggles={@agent_toggles}
-    live_events={@events}
+    live_events={@inspector_events}
     now={@now}
   />
 </div>

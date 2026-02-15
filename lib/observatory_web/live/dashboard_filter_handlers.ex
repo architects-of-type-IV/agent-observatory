@@ -49,10 +49,15 @@ defmodule ObservatoryWeb.DashboardFilterHandlers do
   end
 
   def handle_filter_team(name, socket) do
-    team = Enum.find(derive_teams(socket.assigns.events, socket.assigns.disk_teams), &(&1.name == name))
+    team =
+      Enum.find(
+        derive_teams(socket.assigns.events, socket.assigns.disk_teams),
+        &(&1.name == name)
+      )
 
     if team do
       sids = team_member_sids(team)
+
       case sids do
         [sid] -> socket |> assign(:filter_session_id, sid)
         _ -> socket |> assign(:search_feed, name)
@@ -99,22 +104,6 @@ defmodule ObservatoryWeb.DashboardFilterHandlers do
 
       _ ->
         socket
-    end
-  end
-
-  def add_search_to_history(search, socket) do
-    # Get current history, add new search, keep last 10
-    history = socket.assigns[:search_history] || []
-
-    # Skip if empty or already at the top
-    if search == "" or (List.first(history) == search) do
-      socket
-    else
-      new_history =
-        [search | Enum.reject(history, &(&1 == search))]
-        |> Enum.take(10)
-
-      assign(socket, :search_history, new_history)
     end
   end
 end

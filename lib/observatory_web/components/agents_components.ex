@@ -80,10 +80,15 @@ defmodule ObservatoryWeb.Components.AgentsComponents do
               <div class="flex items-center gap-2 mb-1">
                 <span class={"w-2 h-2 rounded-full shrink-0 #{member_status_color(member)}"}></span>
                 <span class="text-xs font-semibold text-zinc-300">{member[:name] || "?"}</span>
-                <span :if={member[:agent_type]} class="text-xs text-zinc-600 ml-auto">{member[:agent_type]}</span>
+                <span :if={member[:agent_type]} class="text-xs text-zinc-600 ml-auto">
+                  {member[:agent_type]}
+                </span>
                 <.model_badge model={member[:model]} />
                 <% perm_mode = format_permission_mode(member[:permission_mode]) %>
-                <span :if={perm_mode} class="text-xs font-mono px-1.5 py-0.5 rounded bg-yellow-500/15 text-yellow-400 border border-yellow-500/30">
+                <span
+                  :if={perm_mode}
+                  class="text-xs font-mono px-1.5 py-0.5 rounded bg-yellow-500/15 text-yellow-400 border border-yellow-500/30"
+                >
                   {perm_mode}
                 </span>
                 <% task_count = Enum.count(@active_tasks, fn t -> t[:owner] == member[:name] end) %>
@@ -97,7 +102,10 @@ defmodule ObservatoryWeb.Components.AgentsComponents do
                   {task_count}
                 </button>
                 <% unread = Map.get(@mailbox_counts, member[:agent_id], 0) %>
-                <span :if={unread > 0} class="inline-flex items-center justify-center px-1.5 min-w-[1.25rem] h-4 text-xs font-semibold text-white bg-indigo-500 rounded-full">
+                <span
+                  :if={unread > 0}
+                  class="inline-flex items-center justify-center px-1.5 min-w-[1.25rem] h-4 text-xs font-semibold text-white bg-indigo-500 rounded-full"
+                >
                   {unread}
                 </span>
               </div>

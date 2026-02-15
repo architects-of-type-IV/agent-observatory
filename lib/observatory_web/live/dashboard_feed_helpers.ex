@@ -4,22 +4,12 @@ defmodule ObservatoryWeb.DashboardFeedHelpers do
   Groups events by session and pairs tool executions (PreToolUse + PostToolUse).
   """
 
-  @doc """
-  Group events by session_id.
-  Returns a map of %{session_id => [events]}.
-  """
-  def group_events_by_session(events) do
+  defp group_events_by_session(events) do
     events
     |> Enum.group_by(& &1.session_id)
   end
 
-  @doc """
-  Pair PreToolUse events with PostToolUse/PostToolUseFailure events.
-  Returns list of tool execution pairs with duration and status.
-
-  Returns: [%{pre: event, post: event | nil, duration_ms: int | nil, status: :success | :failure | :in_progress}]
-  """
-  def pair_tool_events(events) do
+  defp pair_tool_events(events) do
     # Create lookup for PostToolUse events by tool_use_id
     post_events =
       events
@@ -95,7 +85,11 @@ defmodule ObservatoryWeb.DashboardFeedHelpers do
         cwd: extract_cwd(sorted_events),
         event_count: length(sorted_events),
         total_duration_ms: total_duration_ms,
-        start_time: if(session_start, do: session_start.inserted_at, else: List.first(sorted_events).inserted_at),
+        start_time:
+          if(session_start,
+            do: session_start.inserted_at,
+            else: List.first(sorted_events).inserted_at
+          ),
         is_active: session_end == nil
       }
     end)

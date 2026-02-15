@@ -34,18 +34,21 @@ defmodule ObservatoryWeb.ExportController do
 
   defp filter_by_session(events, nil), do: events
   defp filter_by_session(events, ""), do: events
+
   defp filter_by_session(events, session_id) do
     Enum.filter(events, &(&1.session_id == session_id))
   end
 
   defp filter_by_tool(events, nil), do: events
   defp filter_by_tool(events, ""), do: events
+
   defp filter_by_tool(events, tool) do
     Enum.filter(events, &(&1.tool_name == tool))
   end
 
   defp filter_by_event_type(events, nil), do: events
   defp filter_by_event_type(events, ""), do: events
+
   defp filter_by_event_type(events, event_type) do
     atom_val = String.to_existing_atom(event_type)
     Enum.filter(events, &(&1.hook_event_type == atom_val))
@@ -53,13 +56,15 @@ defmodule ObservatoryWeb.ExportController do
 
   defp filter_by_search(events, nil), do: events
   defp filter_by_search(events, ""), do: events
+
   defp filter_by_search(events, search_term) do
     search_lower = String.downcase(search_term)
+
     Enum.filter(events, fn e ->
       String.contains?(String.downcase(e.tool_name || ""), search_lower) or
-      String.contains?(String.downcase(e.session_id || ""), search_lower) or
-      String.contains?(String.downcase(e.source_app || ""), search_lower) or
-      String.contains?(String.downcase(e.summary || ""), search_lower)
+        String.contains?(String.downcase(e.session_id || ""), search_lower) or
+        String.contains?(String.downcase(e.source_app || ""), search_lower) or
+        String.contains?(String.downcase(e.summary || ""), search_lower)
     end)
   end
 
@@ -74,24 +79,33 @@ defmodule ObservatoryWeb.ExportController do
 
   defp export_csv(conn, events) do
     headers = [
-      "id", "inserted_at", "hook_event_type", "tool_name", "source_app",
-      "session_id", "summary", "duration_ms", "cwd", "permission_mode"
+      "id",
+      "inserted_at",
+      "hook_event_type",
+      "tool_name",
+      "source_app",
+      "session_id",
+      "summary",
+      "duration_ms",
+      "cwd",
+      "permission_mode"
     ]
 
-    rows = Enum.map(events, fn e ->
-      [
-        to_string(e.id),
-        to_string(e.inserted_at),
-        to_string(e.hook_event_type),
-        e.tool_name || "",
-        e.source_app || "",
-        e.session_id || "",
-        e.summary || "",
-        to_string(e.duration_ms || ""),
-        e.cwd || "",
-        e.permission_mode || ""
-      ]
-    end)
+    rows =
+      Enum.map(events, fn e ->
+        [
+          to_string(e.id),
+          to_string(e.inserted_at),
+          to_string(e.hook_event_type),
+          e.tool_name || "",
+          e.source_app || "",
+          e.session_id || "",
+          e.summary || "",
+          to_string(e.duration_ms || ""),
+          e.cwd || "",
+          e.permission_mode || ""
+        ]
+      end)
 
     csv_content =
       [headers | rows]

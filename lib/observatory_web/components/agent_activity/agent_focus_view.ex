@@ -33,7 +33,7 @@ defmodule ObservatoryWeb.Components.AgentActivity.AgentFocusView do
           <.activity_stream
             events={@events}
             expanded_events={@expanded_events}
-            limit={999999}
+            limit={999_999}
             now={@now}
           />
         </div>

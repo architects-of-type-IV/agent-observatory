@@ -46,7 +46,9 @@ defmodule ObservatoryWeb.Components.TeamInspectorComponents do
           <button
             phx-click="toggle_inspector_layout"
             class="p-1 text-zinc-500 hover:text-zinc-300 transition ml-2"
-            title={if @inspector_layout == :horizontal, do: "Stack vertically", else: "Stack horizontally"}
+            title={
+              if @inspector_layout == :horizontal, do: "Stack vertically", else: "Stack horizontally"
+            }
           >
             {if @inspector_layout == :horizontal, do: "|||", else: "==="}
           </button>
@@ -109,7 +111,7 @@ defmodule ObservatoryWeb.Components.TeamInspectorComponents do
 
   defp size_class(:collapsed), do: "h-8 overflow-hidden"
   defp size_class(:default), do: "h-80"
-  defp size_class(:maximized), do: "fixed inset-0 z-40 h-auto"
+  defp size_class(:maximized), do: ""
 
   defp size_label(:collapsed), do: "_"
   defp size_label(:default), do: "[]"

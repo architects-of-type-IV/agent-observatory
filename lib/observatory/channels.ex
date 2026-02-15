@@ -130,7 +130,9 @@ defmodule Observatory.Channels do
   Create and initialize a team channel (triggered by TeamCreate).
   """
   def create_team_channel(team_name, members \\ []) do
-    Logger.debug("Creating team channel: #{team_channel(team_name)} with #{length(members)} members")
+    Logger.debug(
+      "Creating team channel: #{team_channel(team_name)} with #{length(members)} members"
+    )
 
     # Subscribe team members to the team channel
     Enum.each(members, fn member ->
@@ -139,14 +141,6 @@ defmodule Observatory.Channels do
       end
     end)
 
-    :ok
-  end
-
-  @doc """
-  Remove a team channel (triggered by TeamDelete).
-  """
-  def remove_team_channel(team_name) do
-    Logger.debug("Removing team channel: #{team_channel(team_name)}")
     :ok
   end
 

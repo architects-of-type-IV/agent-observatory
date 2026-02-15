@@ -87,11 +87,12 @@ defmodule Observatory.AgentMonitor do
     Logger.warning("AgentMonitor: Detected crash for session #{session_id} in team #{team_name}")
 
     # Reassign tasks if team exists
-    reassigned_count = if team_name do
-      reassign_agent_tasks(session_id, team_name)
-    else
-      0
-    end
+    reassigned_count =
+      if team_name do
+        reassign_agent_tasks(session_id, team_name)
+      else
+        0
+      end
 
     # Broadcast crash event
     Phoenix.PubSub.broadcast(
@@ -124,12 +125,11 @@ defmodule Observatory.AgentMonitor do
           Logger.info(
             "AgentMonitor: Reassigned task #{task["id"]} from crashed agent #{session_id}"
           )
+
           1
 
         {:error, reason} ->
-          Logger.error(
-            "AgentMonitor: Failed to reassign task #{task["id"]}: #{inspect(reason)}"
-          )
+          Logger.error("AgentMonitor: Failed to reassign task #{task["id"]}: #{inspect(reason)}")
           0
       end
     end)

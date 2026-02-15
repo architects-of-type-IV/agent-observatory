@@ -24,11 +24,21 @@ defmodule ObservatoryWeb.Components.AnalyticsComponents do
             <thead class="border-b border-zinc-800">
               <tr class="text-left">
                 <th class="pb-2 pr-4 text-xs font-semibold text-zinc-500 uppercase">Tool</th>
-                <th class="pb-2 pr-4 text-xs font-semibold text-zinc-500 uppercase text-right">Uses</th>
-                <th class="pb-2 pr-4 text-xs font-semibold text-zinc-500 uppercase text-right">Success</th>
-                <th class="pb-2 pr-4 text-xs font-semibold text-zinc-500 uppercase text-right">Failures</th>
-                <th class="pb-2 pr-4 text-xs font-semibold text-zinc-500 uppercase text-right">Fail %</th>
-                <th class="pb-2 text-xs font-semibold text-zinc-500 uppercase text-right">Avg Duration</th>
+                <th class="pb-2 pr-4 text-xs font-semibold text-zinc-500 uppercase text-right">
+                  Uses
+                </th>
+                <th class="pb-2 pr-4 text-xs font-semibold text-zinc-500 uppercase text-right">
+                  Success
+                </th>
+                <th class="pb-2 pr-4 text-xs font-semibold text-zinc-500 uppercase text-right">
+                  Failures
+                </th>
+                <th class="pb-2 pr-4 text-xs font-semibold text-zinc-500 uppercase text-right">
+                  Fail %
+                </th>
+                <th class="pb-2 text-xs font-semibold text-zinc-500 uppercase text-right">
+                  Avg Duration
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -42,7 +52,10 @@ defmodule ObservatoryWeb.Components.AnalyticsComponents do
                 <td class="py-2 pr-4 text-right text-zinc-400">{stat.total_uses}</td>
                 <td class="py-2 pr-4 text-right text-emerald-400">{stat.successes}</td>
                 <td class="py-2 pr-4 text-right text-red-400">{stat.failures}</td>
-                <% fail_class = if stat.failure_rate > 0.3, do: "py-2 pr-4 text-right text-red-400", else: "py-2 pr-4 text-right text-zinc-500" %>
+                <% fail_class =
+                  if stat.failure_rate > 0.3,
+                    do: "py-2 pr-4 text-right text-red-400",
+                    else: "py-2 pr-4 text-right text-zinc-500" %>
                 <td class={fail_class}>
                   {Float.round(stat.failure_rate * 100, 0)}%
                 </td>

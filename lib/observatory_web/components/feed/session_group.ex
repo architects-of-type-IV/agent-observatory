@@ -44,9 +44,12 @@ defmodule ObservatoryWeb.Components.Feed.SessionGroup do
           {abbreviate_cwd(@group.cwd)}
         </span>
       </div>
-
-      <!-- Session start banner -->
-      <div :if={@group.session_start} class="px-3 py-1.5 bg-green-500/10 border-l-2 border-green-500/50">
+      
+    <!-- Session start banner -->
+      <div
+        :if={@group.session_start}
+        class="px-3 py-1.5 bg-green-500/10 border-l-2 border-green-500/50"
+      >
         <div class="flex items-center gap-2 text-xs">
           <span class="text-green-400 font-mono">Session Started</span>
           <span class="text-zinc-500">•</span>
@@ -55,12 +58,12 @@ defmodule ObservatoryWeb.Components.Feed.SessionGroup do
           <span :if={@group.model} class="text-zinc-400">{@group.model}</span>
         </div>
       </div>
-
-      <!-- Tool execution blocks and other events -->
+      
+    <!-- Tool execution blocks and other events -->
       <div class="px-3 py-2 space-y-1">
         <% paired_ids = DashboardFeedHelpers.get_paired_tool_use_ids(@group.tool_pairs) %>
-
-        <!-- Render tool pairs as blocks -->
+        
+    <!-- Render tool pairs as blocks -->
         <.tool_execution_block
           :for={pair <- @group.tool_pairs}
           pair={pair}
@@ -68,8 +71,8 @@ defmodule ObservatoryWeb.Components.Feed.SessionGroup do
           event_notes={@event_notes}
           now={@now}
         />
-
-        <!-- Render standalone events (not part of tool pairs) -->
+        
+    <!-- Render standalone events (not part of tool pairs) -->
         <% standalone = DashboardFeedHelpers.get_standalone_events(@group.events, paired_ids) %>
         <.standalone_event
           :for={event <- standalone}
@@ -79,8 +82,8 @@ defmodule ObservatoryWeb.Components.Feed.SessionGroup do
           now={@now}
         />
       </div>
-
-      <!-- Session end banner -->
+      
+    <!-- Session end banner -->
       <div :if={@group.session_end} class="px-3 py-1.5 bg-red-500/10 border-l-2 border-red-500/50">
         <div class="flex items-center gap-2 text-xs">
           <span class="text-red-400 font-mono">Session Ended</span>

@@ -22,6 +22,7 @@ defmodule ObservatoryWeb.DashboardMessageHelpers do
       latest = List.first(sorted_messages)
 
       message_types = thread_messages |> Enum.map(& &1.type) |> Enum.uniq()
+
       has_urgent =
         Enum.any?(message_types, fn t ->
           t in ["shutdown_request", "plan_approval_request", "shutdown_response"]
@@ -47,17 +48,6 @@ defmodule ObservatoryWeb.DashboardMessageHelpers do
 
     # Sort to ensure [A, B] and [B, A] map to same thread
     [sender, recipient] |> Enum.sort()
-  end
-
-  @doc """
-  Filter threads by participant (sender or recipient).
-  """
-  def filter_threads_by_participant(threads, nil), do: threads
-
-  def filter_threads_by_participant(threads, participant) do
-    Enum.filter(threads, fn thread ->
-      participant in thread.participants
-    end)
   end
 
   @doc """
@@ -121,18 +111,6 @@ defmodule ObservatoryWeb.DashboardMessageHelpers do
   end
 
   def search_messages(messages, _query), do: messages
-
-  @doc """
-  Extract unique participants from messages (for filtering).
-  """
-  def extract_participants(messages) do
-    messages
-    |> Enum.flat_map(fn msg ->
-      [msg.sender_session, msg.recipient || "all"]
-    end)
-    |> Enum.uniq()
-    |> Enum.sort()
-  end
 
   @doc """
   Get border class for message based on type.

@@ -140,7 +140,9 @@ defmodule ObservatoryWeb.DashboardMessagingHandlers do
   def handle_toggle_thread(%{"key" => key}, socket) do
     collapsed_threads = socket.assigns.collapsed_threads
     new_state = !Map.get(collapsed_threads, key, false)
-    socket |> Phoenix.Component.assign(:collapsed_threads, Map.put(collapsed_threads, key, new_state))
+
+    socket
+    |> Phoenix.Component.assign(:collapsed_threads, Map.put(collapsed_threads, key, new_state))
   end
 
   def handle_expand_all_threads(socket) do

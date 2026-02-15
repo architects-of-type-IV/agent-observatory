@@ -63,6 +63,7 @@ defmodule ObservatoryWeb.DashboardLive do
       |> assign(:output_mode, :all_live)
       |> assign(:agent_toggles, %{})
       |> assign(:selected_message_target, nil)
+      |> assign(:inspector_events, [])
       |> prepare_assigns()
 
     # Subscribe to mailbox channels for all active sessions
@@ -307,7 +308,8 @@ defmodule ObservatoryWeb.DashboardLive do
   def handle_event("set_message_target", p, s),
     do: {:noreply, handle_set_message_target(p, s) |> prepare_assigns()}
 
-  def handle_event("send_targeted_message", p, s), do: handle_send_targeted_message(p, s)
+  def handle_event("send_targeted_message", p, s),
+    do: {:noreply, handle_send_targeted_message(p, s) |> prepare_assigns()}
 
   # Navigation handlers
   def handle_event(e, p, s)
@@ -397,10 +399,27 @@ defmodule ObservatoryWeb.DashboardLive do
     inspected_names = Enum.map(assigns.inspected_teams, & &1[:name])
     refreshed_inspected = Enum.filter(teams, fn t -> t[:name] in inspected_names end)
 
+    # Compute inspector events: filter to only events from inspected team members
+    inspector_member_sids =
+      refreshed_inspected
+      |> Enum.flat_map(&team_member_sids/1)
+      |> MapSet.new()
+
+    inspector_events =
+      if MapSet.size(inspector_member_sids) > 0 do
+        assigns.events
+        |> Enum.filter(fn e -> MapSet.member?(inspector_member_sids, e.session_id) end)
+        |> Enum.sort_by(& &1.inserted_at, {:desc, DateTime})
+        |> Enum.take(200)
+      else
+        []
+      end
+
     socket
     |> assign(:visible_events, filtered_events(assigns))
     |> assign(:feed_groups, feed_groups)
     |> assign(:inspected_teams, refreshed_inspected)
+    |> assign(:inspector_events, inspector_events)
     |> assign(:sessions, filtered_sessions(standalone, assigns.search_sessions))
     |> assign(:total_sessions, length(all_sessions))
     |> assign(:teams, teams)

@@ -21,7 +21,7 @@ defmodule ObservatoryWeb.DashboardDataHelpers do
 
       case e.tool_name do
         "TaskCreate" ->
-          id = map_size(acc) + 1 |> to_string()
+          id = (map_size(acc) + 1) |> to_string()
 
           task = %{
             id: id,
@@ -184,6 +184,7 @@ defmodule ObservatoryWeb.DashboardDataHelpers do
       e.duration_ms && e.duration_ms > 5000
     end)
   end
+
   defp maybe_filter_slow(events, _), do: events
 
   @doc """
@@ -225,7 +226,9 @@ defmodule ObservatoryWeb.DashboardDataHelpers do
     |> Enum.sort_by(& &1.latest_event.inserted_at, {:desc, DateTime})
   end
 
-  defp find_model(events), do: Enum.find_value(events, fn e -> e.payload["model"] || e.model_name end)
+  defp find_model(events),
+    do: Enum.find_value(events, fn e -> e.payload["model"] || e.model_name end)
+
   defp find_cwd(events), do: Enum.find_value(events, fn e -> e.cwd end)
 
   @doc """
@@ -279,7 +282,9 @@ defmodule ObservatoryWeb.DashboardDataHelpers do
     tool_events
     |> Enum.group_by(fn e -> e.tool_name end)
     |> Enum.map(fn {tool, evts} ->
-      completions = Enum.filter(evts, &(&1.hook_event_type in [:PostToolUse, :PostToolUseFailure]))
+      completions =
+        Enum.filter(evts, &(&1.hook_event_type in [:PostToolUse, :PostToolUseFailure]))
+
       failures = Enum.filter(completions, &(&1.hook_event_type == :PostToolUseFailure))
       successes = Enum.filter(completions, &(&1.hook_event_type == :PostToolUse))
 
@@ -298,7 +303,11 @@ defmodule ObservatoryWeb.DashboardDataHelpers do
         total_uses: length(completions),
         successes: length(successes),
         failures: length(failures),
-        failure_rate: if(length(completions) > 0, do: Float.round(length(failures) / length(completions), 2), else: 0.0),
+        failure_rate:
+          if(length(completions) > 0,
+            do: Float.round(length(failures) / length(completions), 2),
+            else: 0.0
+          ),
         avg_duration_ms: avg_duration
       }
     end)

@@ -29,7 +29,10 @@ defmodule ObservatoryWeb.DashboardSessionControlHandlers do
     )
 
     socket
-    |> Phoenix.LiveView.put_flash(:info, "Pause command sent to agent #{String.slice(session_id, 0..7)}")
+    |> Phoenix.LiveView.put_flash(
+      :info,
+      "Pause command sent to agent #{String.slice(session_id, 0..7)}"
+    )
   end
 
   @doc """
@@ -57,7 +60,10 @@ defmodule ObservatoryWeb.DashboardSessionControlHandlers do
     )
 
     socket
-    |> Phoenix.LiveView.put_flash(:info, "Resume command sent to agent #{String.slice(session_id, 0..7)}")
+    |> Phoenix.LiveView.put_flash(
+      :info,
+      "Resume command sent to agent #{String.slice(session_id, 0..7)}"
+    )
   end
 
   @doc """
@@ -85,6 +91,9 @@ defmodule ObservatoryWeb.DashboardSessionControlHandlers do
     )
 
     socket
-    |> Phoenix.LiveView.put_flash(:warning, "Shutdown command sent to agent #{String.slice(session_id, 0..7)}")
+    |> Phoenix.LiveView.put_flash(
+      :warning,
+      "Shutdown command sent to agent #{String.slice(session_id, 0..7)}"
+    )
   end
 end

@@ -26,22 +26,6 @@ defmodule Observatory.CommandQueue do
     GenServer.call(__MODULE__, {:write_command, session_id, command})
   end
 
-  @doc """
-  Poll for responses from the outbox for a specific session.
-  Reads from ~/.claude/outbox/{session_id}/*.json
-  Returns list of response maps.
-  """
-  def poll_responses(session_id) do
-    GenServer.call(__MODULE__, {:poll_responses, session_id})
-  end
-
-  @doc """
-  Get all pending commands for a session (for debugging).
-  """
-  def get_pending_commands(session_id) do
-    GenServer.call(__MODULE__, {:get_pending_commands, session_id})
-  end
-
   # ═══════════════════════════════════════════════════════
   # Server Callbacks
   # ═══════════════════════════════════════════════════════
@@ -57,16 +41,6 @@ defmodule Observatory.CommandQueue do
   def handle_call({:write_command, session_id, command}, _from, state) do
     result = do_write_command(session_id, command)
     {:reply, result, state}
-  end
-
-  def handle_call({:poll_responses, session_id}, _from, state) do
-    responses = do_poll_responses(session_id)
-    {:reply, responses, state}
-  end
-
-  def handle_call({:get_pending_commands, session_id}, _from, state) do
-    commands = do_get_pending_commands(session_id)
-    {:reply, commands, state}
   end
 
   @impl true
@@ -113,11 +87,12 @@ defmodule Observatory.CommandQueue do
     command_id = generate_id()
     file_path = Path.join(session_inbox, "#{command_id}.json")
 
-    command_with_id = Map.merge(command, %{
-      id: command_id,
-      session_id: session_id,
-      timestamp: DateTime.utc_now() |> DateTime.to_iso8601()
-    })
+    command_with_id =
+      Map.merge(command, %{
+        id: command_id,
+        session_id: session_id,
+        timestamp: DateTime.utc_now() |> DateTime.to_iso8601()
+      })
 
     case Jason.encode(command_with_id, pretty: true) do
       {:ok, json} ->
@@ -162,33 +137,6 @@ defmodule Observatory.CommandQueue do
 
           {:error, reason} ->
             Logger.error("CommandQueue: Failed to read #{file_path}: #{inspect(reason)}")
-            nil
-        end
-      end)
-      |> Enum.reject(&is_nil/1)
-    else
-      []
-    end
-  end
-
-  defp do_get_pending_commands(session_id) do
-    session_inbox = Path.join(@inbox_dir, session_id)
-
-    if File.dir?(session_inbox) do
-      session_inbox
-      |> File.ls!()
-      |> Enum.filter(&String.ends_with?(&1, ".json"))
-      |> Enum.map(fn file ->
-        file_path = Path.join(session_inbox, file)
-
-        case File.read(file_path) do
-          {:ok, content} ->
-            case Jason.decode(content) do
-              {:ok, data} -> data
-              {:error, _} -> nil
-            end
-
-          {:error, _} ->
             nil
         end
       end)

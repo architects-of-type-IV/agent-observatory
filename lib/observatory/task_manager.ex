@@ -20,13 +20,14 @@ defmodule Observatory.TaskManager do
     team_dir = team_directory(team_name)
     File.mkdir_p!(team_dir)
 
-    task = Map.merge(attrs, %{
-      "id" => to_string(task_id),
-      "status" => attrs["status"] || "pending",
-      "blocks" => attrs["blocks"] || [],
-      "blockedBy" => attrs["blockedBy"] || [],
-      "metadata" => attrs["metadata"] || %{}
-    })
+    task =
+      Map.merge(attrs, %{
+        "id" => to_string(task_id),
+        "status" => attrs["status"] || "pending",
+        "blocks" => attrs["blocks"] || [],
+        "blockedBy" => attrs["blockedBy"] || [],
+        "metadata" => attrs["metadata"] || %{}
+      })
 
     file_path = task_file_path(team_name, task_id)
 

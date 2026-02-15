@@ -13,9 +13,6 @@ config :observatory,
   ash_domains: [
     Observatory.Events,
     Observatory.AgentTools,
-    Observatory.Messaging,
-    Observatory.TaskBoard,
-    Observatory.Annotations,
     Observatory.Costs
   ]
 

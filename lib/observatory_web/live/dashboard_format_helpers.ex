@@ -121,6 +121,7 @@ defmodule ObservatoryWeb.DashboardFormatHelpers do
   def format_uptime(nil), do: nil
   def format_uptime(sec) when sec < 60, do: "#{sec}s"
   def format_uptime(sec) when sec < 3600, do: "#{div(sec, 60)}m"
+
   def format_uptime(sec) do
     hours = div(sec, 3600)
     mins = rem(div(sec, 60), 60)
@@ -197,13 +198,19 @@ defmodule ObservatoryWeb.DashboardFormatHelpers do
     short_session(event.payload["agent_id"] || "?")
   end
 
-  def event_summary(%{hook_event_type: :PermissionRequest} = event), do: event.payload["tool_name"] || "?"
-  def event_summary(%{hook_event_type: :Notification} = event), do: event.payload["notification_type"] || "notification"
+  def event_summary(%{hook_event_type: :PermissionRequest} = event),
+    do: event.payload["tool_name"] || "?"
+
+  def event_summary(%{hook_event_type: :Notification} = event),
+    do: event.payload["notification_type"] || "notification"
+
   def event_summary(%{hook_event_type: :PreCompact}), do: "context compaction"
   def event_summary(%{hook_event_type: :Stop}), do: "response complete"
   def event_summary(_event), do: ""
 
-  defp truncate(str, max) when is_binary(str) and byte_size(str) > max, do: String.slice(str, 0, max) <> "..."
+  defp truncate(str, max) when is_binary(str) and byte_size(str) > max,
+    do: String.slice(str, 0, max) <> "..."
+
   defp truncate(str, _max) when is_binary(str), do: str
   defp truncate(_, _), do: ""
 

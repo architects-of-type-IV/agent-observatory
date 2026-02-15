@@ -35,7 +35,10 @@ defmodule ObservatoryWeb.Components.Observatory.MessageThread do
             {format_participants(@thread.participants)}
           </span>
           <span class="text-xs text-zinc-600">{length(@thread.messages)} messages</span>
-          <span :if={@thread.unread_count > 0} class="inline-flex items-center justify-center px-1.5 min-w-[1.25rem] h-4 text-xs font-semibold text-white bg-indigo-500 rounded-full">
+          <span
+            :if={@thread.unread_count > 0}
+            class="inline-flex items-center justify-center px-1.5 min-w-[1.25rem] h-4 text-xs font-semibold text-white bg-indigo-500 rounded-full"
+          >
             {@thread.unread_count}
           </span>
           <%!-- Message type badges --%>
@@ -66,7 +69,10 @@ defmodule ObservatoryWeb.Components.Observatory.MessageThread do
             <span class="text-xs font-mono text-zinc-400">{short_session(msg.sender_session)}</span>
             <span class="text-xs text-zinc-700">→</span>
             <span class="text-xs font-mono text-cyan-500">{msg.recipient || "all"}</span>
-            <span :if={msg.type != "message"} class={"text-xs px-1 rounded #{message_type_badge_class(msg.type)}"}>
+            <span
+              :if={msg.type != "message"}
+              class={"text-xs px-1 rounded #{message_type_badge_class(msg.type)}"}
+            >
               {msg.type}
             </span>
             <span class="text-xs text-zinc-600 ml-auto" title={format_time(msg.timestamp)}>

@@ -46,21 +46,33 @@ defmodule ObservatoryWeb.Components.TimelineComponents do
         </div>
 
         <% global_start = List.first(@timeline).start_time %>
-        <% global_end = List.last(Enum.sort_by(@timeline, & &1.start_time, {:desc, DateTime})).end_time %>
+        <% global_end =
+          List.last(Enum.sort_by(@timeline, & &1.start_time, {:desc, DateTime})).end_time %>
 
         <div :for={{session, idx} <- Enum.with_index(@timeline)} class="space-y-2">
           <div class="flex items-center gap-2">
             <% {bg, _b, _t} = session_color(session.session_id) %>
             <span class={"w-2 h-2 rounded-full #{bg}"}></span>
-            <span class="text-xs font-mono text-zinc-400">{session.source_app}:{short_session(session.session_id)}</span>
+            <span class="text-xs font-mono text-zinc-400">
+              {session.source_app}:{short_session(session.session_id)}
+            </span>
             <span class="text-xs text-zinc-600">{session_duration_sec(session.duration_sec)}</span>
           </div>
 
           <div class={"relative h-8 rounded border border-zinc-800 overflow-hidden #{if rem(idx, 2) == 0, do: "bg-zinc-900", else: "bg-zinc-900/50"}"}>
             <% positioned_blocks = calculate_block_positions(session, global_start, global_end) %>
-            <div :for={block <- positioned_blocks} class="absolute top-1 h-6 group" style={"left: #{block.left_pct}%; width: #{block.width_pct}%"}>
-              <% block_class = if block[:type] == :idle, do: "h-full w-full rounded bg-zinc-800", else: "h-full w-full rounded #{tool_color(block[:tool_name])} cursor-pointer hover:opacity-80 transition flex items-center justify-center" %>
-              <% block_title = if block[:type] == :tool, do: "#{block[:tool_name]}: #{block[:summary]}", else: "idle" %>
+            <div
+              :for={block <- positioned_blocks}
+              class="absolute top-1 h-6 group"
+              style={"left: #{block.left_pct}%; width: #{block.width_pct}%"}
+            >
+              <% block_class =
+                if block[:type] == :idle,
+                  do: "h-full w-full rounded bg-zinc-800",
+                  else:
+                    "h-full w-full rounded #{tool_color(block[:tool_name])} cursor-pointer hover:opacity-80 transition flex items-center justify-center" %>
+              <% block_title =
+                if block[:type] == :tool, do: "#{block[:tool_name]}: #{block[:summary]}", else: "idle" %>
               <% show_label = block[:type] == :tool && block.width_pct > 5 %>
               <div
                 :if={block[:type] == :tool && block[:event_id]}
@@ -69,7 +81,9 @@ defmodule ObservatoryWeb.Components.TimelineComponents do
                 class={block_class}
                 title={block_title}
               >
-                <span :if={show_label} class="text-xs font-mono text-white/90 truncate px-1">{block[:tool_name]}</span>
+                <span :if={show_label} class="text-xs font-mono text-white/90 truncate px-1">
+                  {block[:tool_name]}
+                </span>
               </div>
               <div
                 :if={block[:type] == :idle || !block[:event_id]}

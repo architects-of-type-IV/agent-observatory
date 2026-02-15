@@ -19,11 +19,13 @@
   - dashboard_task_handlers.ex: task CRUD event handlers
   - dashboard_navigation_handlers.ex: cross-view navigation jumps
   - dashboard_agent_helpers.ex: agent detail data derivation (34 lines)
-- Reusable components in observatory_components.ex (empty_state, health_warnings, model_badge, task_column, session_dot, event_type_badge, member_status_dot, message_thread)
+- Reusable components in observatory_components.ex (empty_state, health_warnings, model_badge, member_status_dot, message_thread)
+- Dead components removed: session_dot, event_type_badge, toast_container (files in tmp/trash/dead-code-audit/)
 - GenServers: TeamWatcher (disk polling), Mailbox (ETS, 151 lines), CommandQueue (file I/O, 237 lines), Notes (ETS annotations, ~120 lines)
 - Plain modules: TaskManager (task JSON CRUD, 217 lines)
 - Handler modules (6 total): ui, filter, navigation, task, messaging, notification
-- Ash domains (6 total): Events, AgentTools, Messaging, TaskBoard, Annotations, Costs
+- Ash domains (3 active): Events, AgentTools, Costs
+- Ash domains removed: Messaging, TaskBoard, Annotations (dead code, files in tmp/trash/dead-code-audit/)
 
 ## Timeline View Implementation
 
@@ -208,6 +210,10 @@ AgentMonitor GenServer monitors agent health and auto-reassigns tasks from crash
 
 ## Team Inspector Implementation Lessons (Feb 2026)
 - **In-process teammate agents cannot write files**: Spawned agents with bypassPermissions/dontAsk modes still lack file tools. For implementation work, do it yourself and keep team active for observability only.
+- **TeamDelete does NOT clean session tasks**: TaskCreate tasks live in `~/.claude/tasks/{session_id}/`, not `~/.claude/tasks/{team_name}/`. Always run TaskList + delete stale tasks when cleaning up a team.
+- **Team lead owns ALL task status**: Agents report via SendMessage, lead updates via TaskUpdate. Agents must NOT call TaskUpdate themselves (avoids keep-track hook conflicts and split ownership).
+- **Agent spawn contract**: Every agent prompt must include: (1) SendMessage to lead when done with results, (2) SendMessage to lead when blocked with reason. No silent completion.
+- **Lead reconciliation protocol**: After each agent message, TaskUpdate the corresponding task. After each wave of agents completes, run TaskList to find stale tasks. Before TeamDelete, reconcile ALL tasks then delete stale ones.
 - **Component-handler alignment is critical**: Agent-created components used wrong event names, wrong attrs, wrong data shapes. Always write handlers FIRST, then components that match exactly.
 - **safe_atom pattern**: Instead of String.to_existing_atom (crash risk) or module attributes (unused warnings), use explicit pattern-matching functions: `defp safe_size_atom("collapsed"), do: :collapsed` etc.
 - **resolve_message_targets pattern**: "all_teams", "team:name", "lead:name", "member:sid" string prefixes with pattern matching. Clean hierarchical targeting.

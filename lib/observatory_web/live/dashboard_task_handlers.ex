@@ -117,38 +117,6 @@ defmodule ObservatoryWeb.DashboardTaskHandlers do
   end
 
   @doc """
-  Handle editing a task's details (subject, description, etc.).
-  """
-  def handle_edit_task(params, socket) do
-    %{
-      "team" => team_name,
-      "task_id" => task_id
-    } = params
-
-    # Build changes map from all provided fields
-    changes =
-      params
-      |> Map.drop(["team", "task_id"])
-      |> Enum.into(%{})
-
-    case Observatory.TaskManager.update_task(team_name, task_id, changes) do
-      {:ok, updated_task} ->
-        broadcast_task_update(team_name, updated_task)
-
-        socket =
-          Phoenix.LiveView.push_event(socket, "toast", %{
-            message: "Task updated",
-            type: "success"
-          })
-
-        {:noreply, socket}
-
-      {:error, _reason} ->
-        {:noreply, socket}
-    end
-  end
-
-  @doc """
   Handle deleting a task.
   """
   def handle_delete_task(params, socket) do

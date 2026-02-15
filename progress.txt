@@ -358,3 +358,49 @@ All 3 critical gaps identified by verification team have been fixed (by separate
 
 Build: `mix compile --warnings-as-errors` PASS (zero warnings)
 Status: Team Inspector feature 17/17 tasks COMPLETE.
+
+Audit Pipeline: Teams Feature Wiring - 2026-02-15
+===================================================
+
+Ran 5-stage audit pipeline on teams feature wiring + defdelegate pattern.
+
+### Scout (4 parallel agents)
+- Components scout: checked imports, attrs, event names
+- Dashboard integration scout: checked handle_event delegation, mount assigns
+- Template + JS scout: checked template wiring, hooks, CSS
+- Backend helpers scout: checked function signatures, delegation patterns
+
+### Findings: 5 found, 2 false positives, 3 confirmed
+1. handle_send_targeted_message returns {:noreply, socket} while 9 other inspector handlers return raw socket (FIXED)
+2. teams_components.ex uses dot access on keyword lists -- runtime crash (FIXED)
+3. Redundant size_class(:maximized) duplicates CSS .inspector-maximized (FIXED)
+
+### Execution
+All 3 fixes applied in parallel. Build: PASS (zero warnings). Zero remaining instances.
+
+Dead Code Audit Pipeline - 2026-02-15
+======================================
+
+Full 5-stage dead code audit across entire observatory codebase.
+
+### Stage 1: SCOUT (4 parallel agents)
+- scout-backend: 10 findings (unused functions, unused Ash resources/domains)
+- scout-live: 5 dead functions, 3 should-be-private
+- scout-components: 3 dead components, unused delegations
+- scout-infra: PageController dead, channel macro dead, empty Observatory module
+
+### Stage 2: VERIFY
+- 2 false positives removed (short_model_name IS used in model_badge.ex, Observatory module needed as app root)
+- 19 confirmed, 2 needs-review (kept as-is)
+
+### Stage 3: PLAN
+- 6 parallel tasks grouped by file
+
+### Stage 4: EXECUTE
+- All 6 tasks executed: function removals, config cleanup, file moves, visibility fixes
+- 11 files edited, 13 files moved to tmp/trash/dead-code-audit/
+
+### Stage 5: VALIDATE
+- Build: PASS (1 fix iteration - removed @doc on 3 newly-private functions)
+- Completeness: 0 remaining matches for all removed symbols
+- Report: .claude/audit-pipeline/4-validation-report.md

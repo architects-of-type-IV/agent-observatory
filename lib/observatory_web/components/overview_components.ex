@@ -27,7 +27,11 @@ defmodule ObservatoryWeb.Components.OverviewComponents do
         <div class="bg-zinc-900/50 border border-zinc-800 rounded-lg p-4 hover:border-zinc-700 transition">
           <div class="flex items-center justify-between mb-2">
             <h3 class="text-sm font-semibold text-zinc-400 uppercase tracking-wider">Active Teams</h3>
-            <button phx-click="set_view" phx-value-mode="agents" class="text-xs text-indigo-400 hover:text-indigo-300">
+            <button
+              phx-click="set_view"
+              phx-value-mode="agents"
+              class="text-xs text-indigo-400 hover:text-indigo-300"
+            >
               View →
             </button>
           </div>
@@ -41,7 +45,11 @@ defmodule ObservatoryWeb.Components.OverviewComponents do
         <div class="bg-zinc-900/50 border border-zinc-800 rounded-lg p-4 hover:border-zinc-700 transition">
           <div class="flex items-center justify-between mb-2">
             <h3 class="text-sm font-semibold text-zinc-400 uppercase tracking-wider">Tasks</h3>
-            <button phx-click="set_view" phx-value-mode="tasks" class="text-xs text-indigo-400 hover:text-indigo-300">
+            <button
+              phx-click="set_view"
+              phx-value-mode="tasks"
+              class="text-xs text-indigo-400 hover:text-indigo-300"
+            >
               View →
             </button>
           </div>
@@ -67,7 +75,11 @@ defmodule ObservatoryWeb.Components.OverviewComponents do
         <div class="bg-zinc-900/50 border border-zinc-800 rounded-lg p-4 hover:border-zinc-700 transition">
           <div class="flex items-center justify-between mb-2">
             <h3 class="text-sm font-semibold text-zinc-400 uppercase tracking-wider">Messages</h3>
-            <button phx-click="set_view" phx-value-mode="messages" class="text-xs text-indigo-400 hover:text-indigo-300">
+            <button
+              phx-click="set_view"
+              phx-value-mode="messages"
+              class="text-xs text-indigo-400 hover:text-indigo-300"
+            >
               View →
             </button>
           </div>
@@ -79,7 +91,11 @@ defmodule ObservatoryWeb.Components.OverviewComponents do
         <div class="bg-zinc-900/50 border border-zinc-800 rounded-lg p-4 hover:border-zinc-700 transition">
           <div class="flex items-center justify-between mb-2">
             <h3 class="text-sm font-semibold text-zinc-400 uppercase tracking-wider">Events</h3>
-            <button phx-click="set_view" phx-value-mode="feed" class="text-xs text-indigo-400 hover:text-indigo-300">
+            <button
+              phx-click="set_view"
+              phx-value-mode="feed"
+              class="text-xs text-indigo-400 hover:text-indigo-300"
+            >
               View →
             </button>
           </div>
@@ -91,11 +107,17 @@ defmodule ObservatoryWeb.Components.OverviewComponents do
         <div class="bg-zinc-900/50 border border-zinc-800 rounded-lg p-4 hover:border-zinc-700 transition">
           <div class="flex items-center justify-between mb-2">
             <h3 class="text-sm font-semibold text-zinc-400 uppercase tracking-wider">Errors</h3>
-            <button phx-click="set_view" phx-value-mode="errors" class="text-xs text-indigo-400 hover:text-indigo-300">
+            <button
+              phx-click="set_view"
+              phx-value-mode="errors"
+              class="text-xs text-indigo-400 hover:text-indigo-300"
+            >
               View →
             </button>
           </div>
-          <div class={"text-3xl font-bold #{if length(@errors) > 0, do: "text-red-400", else: "text-zinc-200"}"}>{length(@errors)}</div>
+          <div class={"text-3xl font-bold #{if length(@errors) > 0, do: "text-red-400", else: "text-zinc-200"}"}>
+            {length(@errors)}
+          </div>
           <p class="text-xs text-zinc-600 mt-1">Tool failures detected</p>
         </div>
 
@@ -103,7 +125,11 @@ defmodule ObservatoryWeb.Components.OverviewComponents do
         <div class="bg-zinc-900/50 border border-zinc-800 rounded-lg p-4 hover:border-zinc-700 transition">
           <div class="flex items-center justify-between mb-2">
             <h3 class="text-sm font-semibold text-zinc-400 uppercase tracking-wider">Sessions</h3>
-            <button phx-click="set_view" phx-value-mode="feed" class="text-xs text-indigo-400 hover:text-indigo-300">
+            <button
+              phx-click="set_view"
+              phx-value-mode="feed"
+              class="text-xs text-indigo-400 hover:text-indigo-300"
+            >
               View →
             </button>
           </div>
@@ -117,17 +143,30 @@ defmodule ObservatoryWeb.Components.OverviewComponents do
       <%!-- Recent Activity Section --%>
       <div :if={length(@visible_events) > 0} class="mt-8">
         <div class="flex items-center justify-between mb-4">
-          <h3 class="text-sm font-semibold text-zinc-400 uppercase tracking-wider">Recent Activity</h3>
-          <button phx-click="set_view" phx-value-mode="feed" class="text-xs text-indigo-400 hover:text-indigo-300">
+          <h3 class="text-sm font-semibold text-zinc-400 uppercase tracking-wider">
+            Recent Activity
+          </h3>
+          <button
+            phx-click="set_view"
+            phx-value-mode="feed"
+            class="text-xs text-indigo-400 hover:text-indigo-300"
+          >
             View all →
           </button>
         </div>
         <div class="space-y-1">
-          <div :for={event <- Enum.take(@visible_events, 10)} class="flex items-center gap-2 px-3 py-2 rounded bg-zinc-900/30 hover:bg-zinc-900/60 transition text-xs">
+          <div
+            :for={event <- Enum.take(@visible_events, 10)}
+            class="flex items-center gap-2 px-3 py-2 rounded bg-zinc-900/30 hover:bg-zinc-900/60 transition text-xs"
+          >
             <% {bg, _border, _text} = session_color(event.session_id) %>
             <span class={"w-1.5 h-1.5 rounded-full shrink-0 #{bg}"}></span>
-            <span class="text-zinc-600 font-mono w-12 shrink-0 text-right">{relative_time(event.inserted_at, @now)}</span>
-            <span :if={event.tool_name} class="text-indigo-400 font-mono shrink-0">{event.tool_name}</span>
+            <span class="text-zinc-600 font-mono w-12 shrink-0 text-right">
+              {relative_time(event.inserted_at, @now)}
+            </span>
+            <span :if={event.tool_name} class="text-indigo-400 font-mono shrink-0">
+              {event.tool_name}
+            </span>
             <span class="text-zinc-400 truncate flex-1">{event.summary || event_summary(event)}</span>
           </div>
         </div>
