@@ -125,3 +125,21 @@ app.css, app.js, plus child component modules.
 Documented: color scheme, layout structure, detail panel pattern, component attrs,
 list rendering, interactive patterns, keyboard shortcuts, JS hooks, modal pattern,
 form input pattern, section headers. Key finding: no bottom drawer/panel exists.
+
+Messaging Infrastructure Scout - 2026-02-15
+=============================================
+READ-ONLY analysis of messaging and session control infrastructure.
+Analyzed: mailbox.ex, command_queue.ex, dashboard_messaging_handlers.ex,
+dashboard_session_control_handlers.ex, dashboard_message_helpers.ex.
+Documented: Mailbox API (ETS-backed), CommandQueue (filesystem), session control
+(pause/resume/shutdown), message threading, inter-agent messages (event-derived),
+PubSub topics. Key findings: dual message sources (ETS vs SQLite events) not unified,
+CommandQueue inbox possibly unused by agents, session control is optimistic (no ack).
+
+Team Inspector Roadmap Created - 2026-02-15
+=============================================
+Created 29-file roadmap at .claude/roadmaps/roadmap-1771113081/
+Architecture decisions: new :teams view mode, event stream for live output,
+collapsed bar for empty inspector.
+Phase 1 (scout) complete. Phase 2 (implementation) ready to execute.
+Team "team-inspector" created, scouts shut down, awaiting implementation agents.

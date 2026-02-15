@@ -198,9 +198,16 @@ AgentMonitor GenServer monitors agent health and auto-reassigns tasks from crash
 - **Disk is authoritative**: DashboardTeamHelpers merges both sources, disk wins for team/task state
 - **Member enrichment**: Runtime data (health, status, model, cwd, current_tool, uptime) from events, not disk
 - **Member struct variance**: Disk members use `:agent_id`, event members use `:session_id`
+- **Role detection**: No explicit role field on members. Must derive from team config (first member = lead, or check `agentType` field)
 - **Current gaps for team inspection**:
   - No team-level aggregate health/progress metrics
   - No task completion percentage per team
   - No message volume/flow tracking between members
   - No team timeline (created_at, duration, phases)
   - No roadmap integration (`.claude/roadmaps/` not read by TeamWatcher)
+
+## Roadmap Naming Convention
+- ALL files flat in ONE directory: `.claude/roadmaps/roadmap-{unix-timestamp}/`
+- Dotted numbering: `N.N.N-slug.md` (e.g., `2.1.1.1-detect-role.md`)
+- NO subdirectories -- ever
+- 5 levels: Phase.Section.Story.Task.Subtask

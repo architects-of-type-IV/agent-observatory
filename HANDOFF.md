@@ -68,7 +68,37 @@ READ-ONLY analysis of all UI components, layout, and interaction patterns.
 - Modal pattern: fixed overlay + centered card with phx-click="stop" propagation block
 - Form inputs: consistent bg-zinc-800 border-zinc-700 focus:border-indigo-500 pattern
 
+## Team Inspector Roadmap Created - 2026-02-15
+
+### Architecture Decisions Locked
+1. **Navigation**: New view mode `:teams` (not separate route) -- follows existing 9-view pattern
+2. **Live output**: Event stream via PubSub (not polling) -- reuses existing event pipeline
+3. **Empty inspector**: Collapsed bar with hint text -- non-intrusive, discoverable
+
+### Roadmap Structure
+29 flat files at `.claude/roadmaps/roadmap-1771113081/` using dotted naming convention:
+- Phase 1 (1-scout.md): COMPLETE -- 4 scouts analyzed views, data, messaging, UI
+- Phase 2 (2-build-team-inspector.md): Implementation phase
+  - Section 2.1: Backend foundations (SEQUENTIAL, team lead first)
+    - 2.1.1: Team data enrichment helpers (role detection, aggregate metrics)
+    - 2.1.2: Team inspector event handlers module
+  - Section 2.2: Teams view components (PARALLEL Agent A)
+    - 2.2.1: Teams page with team rows
+  - Section 2.3: Inspector components (PARALLEL Agent B + C)
+    - 2.3.1: Inspector drawer (bottom slide-out, stack, layout modes)
+    - 2.3.2: Tmux view (maximized tiled output, 6 output modes)
+  - Section 2.4: Messaging + integration (PARALLEL Agent D + sequential wiring)
+    - 2.4.1: Message composer (multi-target messaging)
+    - 2.4.2: Inspector handlers
+    - 2.4.3: Dashboard integration wiring (LAST -- imports, assigns, template, keyboard shortcut 9)
+
+### Team Status
+- Team "team-inspector" created via TeamCreate
+- All 4 scout agents shut down after completing Phase 1
+- Implementation agents NOT YET spawned
+- Scout report consolidated at `.claude/roadmaps/roadmap-1771113081/scout-report.md`
+
 ## Next Steps
-- Consider persisting messages via `Observatory.Messaging.Message` Ash resource
-- Test messaging from the actual browser dashboard UI (LiveView form)
-- Consider adding message history view in dashboard
+- Execute Phase 2: Start with Section 2.1 (backend foundations, sequential)
+- Then spawn parallel agents for Sections 2.2-2.4
+- Story 2.4.3 (integration wiring) runs LAST after all agents complete
