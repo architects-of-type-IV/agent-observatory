@@ -206,8 +206,83 @@ AgentMonitor GenServer monitors agent health and auto-reassigns tasks from crash
   - No team timeline (created_at, duration, phases)
   - No roadmap integration (`.claude/roadmaps/` not read by TeamWatcher)
 
+## Team Inspector Implementation Lessons (Feb 2026)
+- **In-process teammate agents cannot write files**: Spawned agents with bypassPermissions/dontAsk modes still lack file tools. For implementation work, do it yourself and keep team active for observability only.
+- **Component-handler alignment is critical**: Agent-created components used wrong event names, wrong attrs, wrong data shapes. Always write handlers FIRST, then components that match exactly.
+- **safe_atom pattern**: Instead of String.to_existing_atom (crash risk) or module attributes (unused warnings), use explicit pattern-matching functions: `defp safe_size_atom("collapsed"), do: :collapsed` etc.
+- **resolve_message_targets pattern**: "all_teams", "team:name", "lead:name", "member:sid" string prefixes with pattern matching. Clean hierarchical targeting.
+- **Inspector drawer**: 3-state size toggle (collapsed/default/maximized) is simpler than drag-resize. Maximized state triggers full-screen tmux overlay.
+- **Event filtering for tmux**: Filter from existing event buffer by team member session IDs + output mode + per-agent toggles. No per-team PubSub needed for v1.
+
 ## Roadmap Naming Convention
 - ALL files flat in ONE directory: `.claude/roadmaps/roadmap-{unix-timestamp}/`
 - Dotted numbering: `N.N.N-slug.md` (e.g., `2.1.1.1-detect-role.md`)
 - NO subdirectories -- ever
 - 5 levels: Phase.Section.Story.Task.Subtask
+
+## Phoenix LiveView Component Patterns (Feb 2026)
+
+### HEEx Syntax Rules
+- **Comprehensions**: Use `<%= %>` for `for` loops and multi-line `if` blocks
+  ```heex
+  <%= for item <- @items do %>
+    <div>{item}</div>
+  <% end %>
+  ```
+- **Inline expressions**: Use `{}` within attributes or text nodes
+  ```heex
+  <div class={@class_name}>
+    {member[:name]}
+  </div>
+  ```
+- **Comments**: `<%!-- comment --%>`
+
+### Component Module Structure
+```elixir
+defmodule ObservatoryWeb.Components.MyComponents do
+  use Phoenix.Component
+  import ObservatoryWeb.DashboardHelpers  # Import helper functions
+
+  attr :data, :list, required: true
+  attr :optional, :any, default: nil
+
+  def my_component(assigns) do
+    ~H"""
+    <div>...</div>
+    """
+  end
+end
+```
+
+### Form Patterns
+- `phx-submit="event_name"` for form submission
+- `phx-change="event_name"` for live updates (dropdowns, inputs)
+- Hidden inputs pass context: `<input type="hidden" name="key" value={val} />`
+- Form fields use `name="field"` attribute for param binding
+
+### Target Selector Pattern (Hierarchical Dropdowns)
+For multi-level targeting (team → member):
+```heex
+<select name="target" phx-change="set_target">
+  <option value="">Select target...</option>
+  <option value="all_teams">All teams</option>
+  <%= for team <- @teams do %>
+    <optgroup label={team[:name]}>
+      <option value={"team:#{team[:name]}"}>All members</option>
+      <%= for member <- team[:members] do %>
+        <option value={"member:#{member[:agent_id]}"}>
+          {member[:name]}
+        </option>
+      <% end %>
+    </optgroup>
+  <% end %>
+</select>
+```
+
+### Styling Conventions (Tailwind Dark Theme)
+- Backgrounds: `bg-zinc-900` (cards), `bg-zinc-800` (inputs), `bg-zinc-950` (base)
+- Borders: `border-zinc-800` (cards), `border-zinc-700` (inputs)
+- Text: `text-zinc-300` (normal), `text-zinc-500` (muted), `text-zinc-200` (headings)
+- Focus states: `focus:border-indigo-500 focus:ring-0 focus:outline-none`
+- Buttons: `bg-indigo-600/20 text-indigo-400 hover:bg-indigo-600/30`
+- Accent colors: indigo (primary), cyan (teams), emerald (success), amber (warnings)

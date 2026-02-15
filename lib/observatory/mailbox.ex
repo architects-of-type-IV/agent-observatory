@@ -51,6 +51,14 @@ defmodule Observatory.Mailbox do
     GenServer.call(__MODULE__, {:clear_messages, agent_id})
   end
 
+  @doc """
+  Send the same message to multiple session IDs.
+  Returns a list of {:ok, message} | {:error, reason}.
+  """
+  def broadcast_to_many(session_ids, from, content, opts \\ []) when is_list(session_ids) do
+    Enum.map(session_ids, fn sid -> send_message(sid, from, content, opts) end)
+  end
+
   # ═══════════════════════════════════════════════════════
   # Server Callbacks
   # ═══════════════════════════════════════════════════════

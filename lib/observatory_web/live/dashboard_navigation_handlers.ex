@@ -6,13 +6,21 @@ defmodule ObservatoryWeb.DashboardNavigationHandlers do
   Usage: defdelegate handle_event(event, params, socket), to: ObservatoryWeb.DashboardNavigationHandlers
   """
 
-  def handle_event("jump_to_timeline", params, socket), do: handle_jump_to_timeline(params, socket)
+  def handle_event("jump_to_timeline", params, socket),
+    do: handle_jump_to_timeline(params, socket)
+
   def handle_event("jump_to_feed", params, socket), do: handle_jump_to_feed(params, socket)
   def handle_event("jump_to_agents", params, socket), do: handle_jump_to_agents(params, socket)
   def handle_event("jump_to_tasks", params, socket), do: handle_jump_to_tasks(params, socket)
-  def handle_event("select_timeline_event", params, socket), do: handle_select_timeline_event(params, socket)
-  def handle_event("filter_agent_tasks", params, socket), do: handle_filter_agent_tasks(params, socket)
-  def handle_event("filter_analytics_tool", params, socket), do: handle_filter_analytics_tool(params, socket)
+
+  def handle_event("select_timeline_event", params, socket),
+    do: handle_select_timeline_event(params, socket)
+
+  def handle_event("filter_agent_tasks", params, socket),
+    do: handle_filter_agent_tasks(params, socket)
+
+  def handle_event("filter_analytics_tool", params, socket),
+    do: handle_filter_analytics_tool(params, socket)
 
   defp handle_jump_to_timeline(%{"session_id" => sid}, socket) do
     socket

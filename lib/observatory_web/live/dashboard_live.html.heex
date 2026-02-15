@@ -1,6 +1,15 @@
-<div class="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col" id="dashboard-root" phx-hook="KeyboardShortcuts">
+<div
+  class="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col"
+  id="dashboard-root"
+  phx-hook="KeyboardShortcuts"
+>
   <%!-- Toast notifications --%>
-  <div id="toast-container" phx-hook="Toast" class="fixed top-4 right-4 z-50 flex flex-col gap-2 pointer-events-none"></div>
+  <div
+    id="toast-container"
+    phx-hook="Toast"
+    class="fixed top-4 right-4 z-50 flex flex-col gap-2 pointer-events-none"
+  >
+  </div>
   <%!-- Browser notifications --%>
   <div id="browser-notifications" phx-hook="BrowserNotifications"></div>
   <%!-- Header --%>
@@ -9,7 +18,11 @@
       <div class="flex items-center gap-3">
         <h1 class="text-lg font-bold tracking-tight">Observatory</h1>
         <%!-- View mode toggle --%>
-        <div class="flex items-center gap-0.5 bg-zinc-800 rounded-lg p-0.5" id="view-mode-toggle" phx-hook="StatePersistence">
+        <div
+          class="flex items-center gap-0.5 bg-zinc-800 rounded-lg p-0.5"
+          id="view-mode-toggle"
+          phx-hook="StatePersistence"
+        >
           <button
             phx-click="set_view"
             phx-value-mode="overview"
@@ -31,7 +44,9 @@
           >
             Tasks
             <span :if={@active_tasks != []} class="ml-1 text-xs text-zinc-600">
-              ({length(Enum.filter(@active_tasks, fn t -> t[:status] in ["completed", "completed"] end))}/{length(@active_tasks)})
+              ({length(
+                Enum.filter(@active_tasks, fn t -> t[:status] in ["completed", "completed"] end)
+              )}/{length(@active_tasks)})
             </span>
           </button>
           <button
@@ -40,7 +55,9 @@
             class={"px-2.5 py-1 text-xs rounded-md transition #{if @view_mode == :messages, do: "bg-zinc-700 text-zinc-200 shadow-sm", else: "text-zinc-500 hover:text-zinc-300"}"}
           >
             Messages
-            <span :if={@messages != []} class="ml-1 text-xs text-zinc-600">({length(@messages)})</span>
+            <span :if={@messages != []} class="ml-1 text-xs text-zinc-600">
+              ({length(@messages)})
+            </span>
           </button>
           <button
             phx-click="set_view"
@@ -74,12 +91,20 @@
           >
             Timeline
           </button>
+          <button
+            phx-click="set_view"
+            phx-value-mode="teams"
+            class={"px-2.5 py-1 text-xs rounded-md transition #{if @view_mode == :teams, do: "bg-zinc-700 text-zinc-200 shadow-sm", else: "text-zinc-500 hover:text-zinc-300"}"}
+          >
+            Teams
+          </button>
         </div>
       </div>
       <div class="flex items-center gap-3">
         <div class="flex items-center gap-1.5 text-sm">
           <span class="relative flex h-2 w-2">
-            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75">
+            </span>
             <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
           </span>
           <span class="text-zinc-500 text-xs">live</span>
@@ -96,9 +121,14 @@
           >
             Export ▾
           </button>
-          <div id="export-menu" class="hidden absolute right-0 mt-1 w-32 bg-zinc-800 border border-zinc-700 rounded shadow-lg z-10">
+          <div
+            id="export-menu"
+            class="hidden absolute right-0 mt-1 w-32 bg-zinc-800 border border-zinc-700 rounded shadow-lg z-10"
+          >
             <a
-              href={build_export_url(@filter_session_id, @search_feed, @filter_event_type, "json")}
+              href={
+                build_export_url(@filter_session_id, @search_feed, @filter_event_type, "json")
+              }
               class="block px-3 py-2 text-xs text-zinc-300 hover:bg-zinc-700 transition"
               download
             >
@@ -173,7 +203,10 @@
       </form>
 
       <button
-        :if={@filter_source_app || @filter_session_id || @filter_event_type || @search_feed != "" || @search_sessions != ""}
+        :if={
+          @filter_source_app || @filter_session_id || @filter_event_type || @search_feed != "" ||
+            @search_sessions != ""
+        }
         phx-click="clear_filters"
         class="text-xs px-2 py-0.5 rounded bg-indigo-600/20 text-indigo-400 hover:bg-indigo-600/30 transition"
       >
@@ -260,10 +293,18 @@
                 <%!-- Members --%>
                 <div class="space-y-1">
                   <div :for={m <- team.members} class="flex items-center gap-2">
-                    <span class={"w-1.5 h-1.5 rounded-full shrink-0 #{member_status_color(m[:status])}"}></span>
+                    <span class={"w-1.5 h-1.5 rounded-full shrink-0 #{member_status_color(m[:status])}"}>
+                    </span>
                     <span class="text-xs text-zinc-400 truncate">{m[:name] || "?"}</span>
-                    <span :if={m[:agent_type]} class="text-xs text-zinc-600 ml-auto">{m[:agent_type]}</span>
-                    <span :if={m[:event_count] && m[:event_count] > 0} class="text-xs text-zinc-700">{m[:event_count]}</span>
+                    <span :if={m[:agent_type]} class="text-xs text-zinc-600 ml-auto">
+                      {m[:agent_type]}
+                    </span>
+                    <span
+                      :if={m[:event_count] && m[:event_count] > 0}
+                      class="text-xs text-zinc-700"
+                    >
+                      {m[:event_count]}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -275,8 +316,9 @@
         <div>
           <div class="flex items-center justify-between mb-2">
             <h2 class="text-xs font-semibold text-zinc-500 uppercase tracking-wider">
-              <%= if @has_teams, do: "Standalone Sessions", else: "Sessions" %>
-              ({length(@sessions)}<span :if={length(@sessions) != @total_sessions}>/{@total_sessions}</span>)
+              {if @has_teams, do: "Standalone Sessions", else: "Sessions"} ({length(@sessions)}<span :if={
+                length(@sessions) != @total_sessions
+              }>/{@total_sessions}</span>)
             </h2>
           </div>
           <form phx-change="search_sessions" class="mb-3">
@@ -299,7 +341,8 @@
             >
               <div class="flex items-center gap-2 mb-1">
                 <% {bg, _border, _text} = session_color(s.session_id) %>
-                <span class={"w-2 h-2 rounded-full shrink-0 #{bg} #{if s.ended?, do: "opacity-30", else: ""}"}></span>
+                <span class={"w-2 h-2 rounded-full shrink-0 #{bg} #{if s.ended?, do: "opacity-30", else: ""}"}>
+                </span>
                 <span class="text-xs font-mono text-zinc-300 truncate">{s.source_app}</span>
                 <span class="text-xs font-mono text-zinc-600">{short_session(s.session_id)}</span>
                 <ObservatoryWeb.ObservatoryComponents.model_badge model={s.model} />
@@ -392,6 +435,13 @@
         :if={@view_mode == :timeline}
         timeline={@timeline}
       />
+
+      <ObservatoryWeb.Components.TeamsComponents.teams_view
+        :if={@view_mode == :teams}
+        teams={@teams}
+        inspected_teams={Enum.map(@inspected_teams, & &1[:name])}
+        now={@now}
+      />
     </main>
 
     <%!-- ═══ Detail Panel ═══ --%>
@@ -405,136 +455,183 @@
         <% {_bg, _border, text_color} = session_color(ev.session_id) %>
         <% {type_label, type_class} = event_type_label(ev.hook_event_type) %>
 
-      <div class="sticky top-0 bg-zinc-900/95 backdrop-blur border-b border-zinc-800 px-4 py-3 flex items-center justify-between">
-        <div class="flex items-center gap-2">
-          <span class={"text-xs font-mono px-1.5 py-0 rounded #{type_class}"}>{type_label}</span>
-          <span :if={ev.tool_name} class={"text-sm font-mono #{if is_team_tool?(ev.tool_name), do: "text-cyan-400", else: "text-indigo-400"}"}>{ev.tool_name}</span>
-        </div>
-        <button phx-click="close_detail" class="text-zinc-500 hover:text-zinc-300 transition p-1">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-            <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
-          </svg>
-        </button>
-      </div>
-
-      <div class="px-4 py-3 border-b border-zinc-800/50">
-        <p class="text-sm text-zinc-300">{ev.summary || event_summary(ev)}</p>
-      </div>
-
-      <%!-- Team context badge if this is a team tool event --%>
-      <div :if={is_team_tool?(ev.tool_name)} class="px-4 py-2 border-b border-zinc-800/50 bg-cyan-500/5">
-        <span class="text-xs text-cyan-400 font-mono">Team coordination event</span>
-      </div>
-
-      <div class="px-4 py-3 border-b border-zinc-800/50 space-y-2">
-        <h3 class="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">Details</h3>
-        <div class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5 text-xs">
-          <span class="text-zinc-600">Timestamp</span>
-          <span class="font-mono text-zinc-400">{Calendar.strftime(ev.inserted_at, "%Y-%m-%d %H:%M:%S.%f")}</span>
-
-          <span class="text-zinc-600">Event Type</span>
-          <span class="font-mono text-zinc-400">{ev.hook_event_type}</span>
-
-          <span class="text-zinc-600">Source</span>
-          <span class={"font-mono #{text_color}"}>{ev.source_app}</span>
-
-          <span class="text-zinc-600">Session</span>
-          <span class="font-mono text-zinc-400">{ev.session_id}</span>
-
-          <span :if={ev.tool_name} class="text-zinc-600">Tool</span>
-          <span :if={ev.tool_name} class={"font-mono #{if is_team_tool?(ev.tool_name), do: "text-cyan-400", else: "text-indigo-400"}"}>{ev.tool_name}</span>
-
-          <span :if={ev.tool_use_id} class="text-zinc-600">Tool Use ID</span>
-          <span :if={ev.tool_use_id} class="font-mono text-zinc-400">{ev.tool_use_id}</span>
-
-          <span :if={ev.cwd} class="text-zinc-600">Working Dir</span>
-          <span :if={ev.cwd} class="font-mono text-zinc-400 break-all">{ev.cwd}</span>
-
-          <span :if={ev.permission_mode} class="text-zinc-600">Permission</span>
-          <span :if={ev.permission_mode} class="font-mono text-zinc-400">{ev.permission_mode}</span>
-
-          <span :if={ev.model_name} class="text-zinc-600">Model</span>
-          <span :if={ev.model_name} class="font-mono text-zinc-400">{ev.model_name}</span>
-
-          <span :if={ev.duration_ms} class="text-zinc-600">Duration</span>
-          <span :if={ev.duration_ms} class={"font-mono #{if ev.duration_ms > 5000, do: "text-amber-400", else: "text-zinc-400"}"}>{format_duration(ev.duration_ms)}</span>
-        </div>
-      </div>
-
-      <div class="px-4 py-3 border-b border-zinc-800/50">
-        <h3 class="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">Actions</h3>
-        <div class="flex flex-wrap gap-1.5">
-          <button
-            phx-click="filter_session"
-            phx-value-sid={ev.session_id}
-            class="text-xs px-2 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-zinc-200 transition"
-          >
-            Filter session
-          </button>
-          <button
-            :if={ev.tool_name}
-            phx-click="filter_tool"
-            phx-value-tool={ev.tool_name}
-            class="text-xs px-2 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-zinc-200 transition"
-          >
-            Filter tool: {ev.tool_name}
-          </button>
-          <button
-            :if={ev.tool_use_id}
-            phx-click="filter_tool_use_id"
-            phx-value-tuid={ev.tool_use_id}
-            class="text-xs px-2 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-zinc-200 transition"
-          >
-            Find related
-          </button>
-          <button
-            id="copy-payload"
-            phx-hook="CopyToClipboard"
-            data-payload={format_payload(ev.payload)}
-            class="text-xs px-2 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-zinc-200 transition"
-          >
-            Copy payload
-          </button>
-        </div>
-      </div>
-
-      <%!-- Event Notes Section --%>
-      <div class="px-4 py-3 border-b border-zinc-800/50">
-        <h3 class="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">Notes</h3>
-        <% existing_note = Map.get(@event_notes, ev.id) %>
-        <div :if={existing_note} class="mb-2 p-2 bg-amber-500/5 border border-amber-500/20 rounded text-xs">
-          <div class="flex items-center justify-between mb-1">
-            <span class="text-amber-400 font-semibold">Annotated</span>
-            <button
-              phx-click="delete_note"
-              phx-value-event_id={ev.id}
-              class="text-xs text-zinc-600 hover:text-red-400 transition"
+        <div class="sticky top-0 bg-zinc-900/95 backdrop-blur border-b border-zinc-800 px-4 py-3 flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <span class={"text-xs font-mono px-1.5 py-0 rounded #{type_class}"}>
+              {type_label}
+            </span>
+            <span
+              :if={ev.tool_name}
+              class={"text-sm font-mono #{if is_team_tool?(ev.tool_name), do: "text-cyan-400", else: "text-indigo-400"}"}
             >
-              Delete
+              {ev.tool_name}
+            </span>
+          </div>
+          <button
+            phx-click="close_detail"
+            class="text-zinc-500 hover:text-zinc-300 transition p-1"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              class="h-4 w-4"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+            >
+              <path
+                fill-rule="evenodd"
+                d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                clip-rule="evenodd"
+              />
+            </svg>
+          </button>
+        </div>
+
+        <div class="px-4 py-3 border-b border-zinc-800/50">
+          <p class="text-sm text-zinc-300">{ev.summary || event_summary(ev)}</p>
+        </div>
+
+        <%!-- Team context badge if this is a team tool event --%>
+        <div
+          :if={is_team_tool?(ev.tool_name)}
+          class="px-4 py-2 border-b border-zinc-800/50 bg-cyan-500/5"
+        >
+          <span class="text-xs text-cyan-400 font-mono">Team coordination event</span>
+        </div>
+
+        <div class="px-4 py-3 border-b border-zinc-800/50 space-y-2">
+          <h3 class="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">
+            Details
+          </h3>
+          <div class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5 text-xs">
+            <span class="text-zinc-600">Timestamp</span>
+            <span class="font-mono text-zinc-400">
+              {Calendar.strftime(ev.inserted_at, "%Y-%m-%d %H:%M:%S.%f")}
+            </span>
+
+            <span class="text-zinc-600">Event Type</span>
+            <span class="font-mono text-zinc-400">{ev.hook_event_type}</span>
+
+            <span class="text-zinc-600">Source</span>
+            <span class={"font-mono #{text_color}"}>{ev.source_app}</span>
+
+            <span class="text-zinc-600">Session</span>
+            <span class="font-mono text-zinc-400">{ev.session_id}</span>
+
+            <span :if={ev.tool_name} class="text-zinc-600">Tool</span>
+            <span
+              :if={ev.tool_name}
+              class={"font-mono #{if is_team_tool?(ev.tool_name), do: "text-cyan-400", else: "text-indigo-400"}"}
+            >
+              {ev.tool_name}
+            </span>
+
+            <span :if={ev.tool_use_id} class="text-zinc-600">Tool Use ID</span>
+            <span :if={ev.tool_use_id} class="font-mono text-zinc-400">{ev.tool_use_id}</span>
+
+            <span :if={ev.cwd} class="text-zinc-600">Working Dir</span>
+            <span :if={ev.cwd} class="font-mono text-zinc-400 break-all">{ev.cwd}</span>
+
+            <span :if={ev.permission_mode} class="text-zinc-600">Permission</span>
+            <span :if={ev.permission_mode} class="font-mono text-zinc-400">
+              {ev.permission_mode}
+            </span>
+
+            <span :if={ev.model_name} class="text-zinc-600">Model</span>
+            <span :if={ev.model_name} class="font-mono text-zinc-400">{ev.model_name}</span>
+
+            <span :if={ev.duration_ms} class="text-zinc-600">Duration</span>
+            <span
+              :if={ev.duration_ms}
+              class={"font-mono #{if ev.duration_ms > 5000, do: "text-amber-400", else: "text-zinc-400"}"}
+            >
+              {format_duration(ev.duration_ms)}
+            </span>
+          </div>
+        </div>
+
+        <div class="px-4 py-3 border-b border-zinc-800/50">
+          <h3 class="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">
+            Actions
+          </h3>
+          <div class="flex flex-wrap gap-1.5">
+            <button
+              phx-click="filter_session"
+              phx-value-sid={ev.session_id}
+              class="text-xs px-2 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-zinc-200 transition"
+            >
+              Filter session
+            </button>
+            <button
+              :if={ev.tool_name}
+              phx-click="filter_tool"
+              phx-value-tool={ev.tool_name}
+              class="text-xs px-2 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-zinc-200 transition"
+            >
+              Filter tool: {ev.tool_name}
+            </button>
+            <button
+              :if={ev.tool_use_id}
+              phx-click="filter_tool_use_id"
+              phx-value-tuid={ev.tool_use_id}
+              class="text-xs px-2 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-zinc-200 transition"
+            >
+              Find related
+            </button>
+            <button
+              id="copy-payload"
+              phx-hook="CopyToClipboard"
+              data-payload={format_payload(ev.payload)}
+              class="text-xs px-2 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-zinc-200 transition"
+            >
+              Copy payload
             </button>
           </div>
-          <p class="text-zinc-300 whitespace-pre-wrap">{existing_note.text}</p>
-          <span class="text-zinc-600 text-xs mt-1 block">{relative_time(existing_note.timestamp, @now)}</span>
         </div>
-        <form :if={!existing_note} phx-submit="add_note" class="flex gap-1">
-          <input type="hidden" name="event_id" value={ev.id} />
-          <input
-            type="text"
-            name="text"
-            placeholder="Add a note for this event..."
-            class="flex-1 bg-zinc-800 border border-zinc-700 rounded px-2 py-1 text-xs text-zinc-300 placeholder-zinc-600 focus:border-amber-500 focus:ring-0 focus:outline-none"
-          />
-          <button
-            type="submit"
-            class="px-2 py-1 bg-amber-600/20 text-amber-400 rounded text-xs hover:bg-amber-600/30 transition"
+
+        <%!-- Event Notes Section --%>
+        <div class="px-4 py-3 border-b border-zinc-800/50">
+          <h3 class="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">Notes</h3>
+          <% existing_note = Map.get(@event_notes, ev.id) %>
+          <div
+            :if={existing_note}
+            class="mb-2 p-2 bg-amber-500/5 border border-amber-500/20 rounded text-xs"
           >
-            Add
-          </button>
-        </form>
-      </div>
+            <div class="flex items-center justify-between mb-1">
+              <span class="text-amber-400 font-semibold">Annotated</span>
+              <button
+                phx-click="delete_note"
+                phx-value-event_id={ev.id}
+                class="text-xs text-zinc-600 hover:text-red-400 transition"
+              >
+                Delete
+              </button>
+            </div>
+            <p class="text-zinc-300 whitespace-pre-wrap">{existing_note.text}</p>
+            <span class="text-zinc-600 text-xs mt-1 block">
+              {relative_time(existing_note.timestamp, @now)}
+            </span>
+          </div>
+          <form :if={!existing_note} phx-submit="add_note" class="flex gap-1">
+            <input type="hidden" name="event_id" value={ev.id} />
+            <input
+              type="text"
+              name="text"
+              placeholder="Add a note for this event..."
+              class="flex-1 bg-zinc-800 border border-zinc-700 rounded px-2 py-1 text-xs text-zinc-300 placeholder-zinc-600 focus:border-amber-500 focus:ring-0 focus:outline-none"
+            />
+            <button
+              type="submit"
+              class="px-2 py-1 bg-amber-600/20 text-amber-400 rounded text-xs hover:bg-amber-600/30 transition"
+            >
+              Add
+            </button>
+          </form>
+        </div>
 
         <div class="px-4 py-3 flex-1">
-          <h3 class="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">Payload</h3>
+          <h3 class="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">
+            Payload
+          </h3>
           <pre class="text-xs font-mono text-zinc-400 whitespace-pre-wrap break-all overflow-x-auto">{format_payload(ev.payload)}</pre>
         </div>
       </div>
@@ -550,20 +647,36 @@
               {task[:status]}
             </span>
           </div>
-          <button phx-click="close_task_detail" class="text-zinc-500 hover:text-zinc-300 transition p-1">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-              <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+          <button
+            phx-click="close_task_detail"
+            class="text-zinc-500 hover:text-zinc-300 transition p-1"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              class="h-4 w-4"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+            >
+              <path
+                fill-rule="evenodd"
+                d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                clip-rule="evenodd"
+              />
             </svg>
           </button>
         </div>
 
         <div class="px-4 py-3 border-b border-zinc-800/50">
           <h3 class="text-sm font-semibold text-zinc-200 mb-2">{task[:subject]}</h3>
-          <p :if={task[:description]} class="text-xs text-zinc-400 whitespace-pre-wrap">{task[:description]}</p>
+          <p :if={task[:description]} class="text-xs text-zinc-400 whitespace-pre-wrap">
+            {task[:description]}
+          </p>
         </div>
 
         <div class="px-4 py-3 border-b border-zinc-800/50 space-y-2">
-          <h3 class="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">Details</h3>
+          <h3 class="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">
+            Details
+          </h3>
           <div class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5 text-xs">
             <span class="text-zinc-600">ID</span>
             <span class="font-mono text-zinc-400">{task[:id]}</span>
@@ -575,15 +688,24 @@
             <span :if={task[:owner]} class="font-mono text-zinc-400">{task[:owner]}</span>
 
             <span :if={task[:active_form]} class="text-zinc-600">Active Form</span>
-            <span :if={task[:active_form]} class="font-mono text-zinc-400">{task[:active_form]}</span>
+            <span :if={task[:active_form]} class="font-mono text-zinc-400">
+              {task[:active_form]}
+            </span>
 
             <span :if={task[:created_at]} class="text-zinc-600">Created</span>
-            <span :if={task[:created_at]} class="font-mono text-zinc-400">{relative_time(task[:created_at], @now)}</span>
+            <span :if={task[:created_at]} class="font-mono text-zinc-400">
+              {relative_time(task[:created_at], @now)}
+            </span>
           </div>
         </div>
 
-        <div :if={task[:blocked_by] && task[:blocked_by] != []} class="px-4 py-3 border-b border-zinc-800/50">
-          <h3 class="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">Blocked By</h3>
+        <div
+          :if={task[:blocked_by] && task[:blocked_by] != []}
+          class="px-4 py-3 border-b border-zinc-800/50"
+        >
+          <h3 class="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">
+            Blocked By
+          </h3>
           <div class="space-y-1">
             <div :for={bid <- task[:blocked_by]} class="text-xs font-mono text-amber-400">
               Task #{bid}
@@ -591,8 +713,13 @@
           </div>
         </div>
 
-        <div :if={task[:blocks] && task[:blocks] != []} class="px-4 py-3 border-b border-zinc-800/50">
-          <h3 class="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">Blocks</h3>
+        <div
+          :if={task[:blocks] && task[:blocks] != []}
+          class="px-4 py-3 border-b border-zinc-800/50"
+        >
+          <h3 class="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">
+            Blocks
+          </h3>
           <div class="space-y-1">
             <div :for={bid <- task[:blocks]} class="text-xs font-mono text-zinc-400">
               Task #{bid}
@@ -601,7 +728,9 @@
         </div>
 
         <div :if={task[:session_id]} class="px-4 py-3">
-          <h3 class="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">Actions</h3>
+          <h3 class="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">
+            Actions
+          </h3>
           <div class="flex flex-wrap gap-1.5">
             <button
               phx-click="filter_session"
@@ -633,15 +762,30 @@
             <span class="text-sm font-semibold text-zinc-200">{agent[:name] || "Agent"}</span>
             <ObservatoryWeb.ObservatoryComponents.model_badge model={agent[:model]} />
           </div>
-          <button phx-click="select_agent" phx-value-id={agent[:agent_id]} class="text-zinc-500 hover:text-zinc-300 transition p-1">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-              <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+          <button
+            phx-click="select_agent"
+            phx-value-id={agent[:agent_id]}
+            class="text-zinc-500 hover:text-zinc-300 transition p-1"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              class="h-4 w-4"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+            >
+              <path
+                fill-rule="evenodd"
+                d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                clip-rule="evenodd"
+              />
             </svg>
           </button>
         </div>
 
         <div class="px-4 py-3 border-b border-zinc-800/50 space-y-2">
-          <h3 class="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">Details</h3>
+          <h3 class="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">
+            Details
+          </h3>
           <div class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5 text-xs">
             <span class="text-zinc-600">Session ID</span>
             <span class="font-mono text-zinc-400 break-all">{agent[:agent_id]}</span>
@@ -650,21 +794,30 @@
             <span :if={agent[:model]} class="font-mono text-zinc-400">{agent[:model]}</span>
 
             <span :if={agent[:permission_mode]} class="text-zinc-600">Permission Mode</span>
-            <span :if={agent[:permission_mode]} class="font-mono text-zinc-400">{agent[:permission_mode]}</span>
+            <span :if={agent[:permission_mode]} class="font-mono text-zinc-400">
+              {agent[:permission_mode]}
+            </span>
 
             <span :if={agent[:cwd]} class="text-zinc-600">Working Directory</span>
             <span :if={agent[:cwd]} class="font-mono text-zinc-400 break-all">{agent[:cwd]}</span>
 
             <span :if={agent[:uptime]} class="text-zinc-600">Session Uptime</span>
-            <span :if={agent[:uptime]} class="font-mono text-zinc-400">{format_uptime(agent[:uptime])}</span>
+            <span :if={agent[:uptime]} class="font-mono text-zinc-400">
+              {format_uptime(agent[:uptime])}
+            </span>
 
             <span class="text-zinc-600">Agent Type</span>
             <span class="font-mono text-zinc-400">{agent[:agent_type] || "?"}</span>
           </div>
         </div>
 
-        <div :if={agent[:failure_rate] || agent[:health_issues] != []} class="px-4 py-3 border-b border-zinc-800/50">
-          <h3 class="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">Health Metrics</h3>
+        <div
+          :if={agent[:failure_rate] || agent[:health_issues] != []}
+          class="px-4 py-3 border-b border-zinc-800/50"
+        >
+          <h3 class="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">
+            Health Metrics
+          </h3>
           <div class="space-y-2">
             <div :if={agent[:failure_rate] && agent[:failure_rate] > 0}>
               <% fail_pct = Float.round(agent[:failure_rate] * 100, 0) %>
@@ -672,12 +825,16 @@
                 Failure Rate: {fail_pct}%
               </span>
             </div>
-            <ObservatoryWeb.ObservatoryComponents.health_warnings issues={agent[:health_issues] || []} />
+            <ObservatoryWeb.ObservatoryComponents.health_warnings issues={
+              agent[:health_issues] || []
+            } />
           </div>
         </div>
 
         <div class="px-4 py-3 border-b border-zinc-800/50">
-          <h3 class="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">Activity Stream</h3>
+          <h3 class="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">
+            Activity Stream
+          </h3>
           <ObservatoryWeb.Components.AgentActivityComponents.activity_stream
             events={recent_events}
             expanded_events={@expanded_events || []}
@@ -687,9 +844,14 @@
         </div>
 
         <div :if={agent_task_list != []} class="px-4 py-3 border-b border-zinc-800/50">
-          <h3 class="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">Assigned Tasks ({length(agent_task_list)})</h3>
+          <h3 class="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">
+            Assigned Tasks ({length(agent_task_list)})
+          </h3>
           <div class="space-y-2">
-            <div :for={task <- agent_task_list} class="p-2 rounded bg-zinc-800/50 border border-zinc-800">
+            <div
+              :for={task <- agent_task_list}
+              class="p-2 rounded bg-zinc-800/50 border border-zinc-800"
+            >
               <div class="flex items-center gap-2 mb-1">
                 <span class="text-xs font-mono text-zinc-500">#{task[:id]}</span>
                 <span class={"text-xs px-1.5 py-0.5 rounded #{case task[:status] do; "pending" -> "bg-zinc-700 text-zinc-400"; "in_progress" -> "bg-blue-500/20 text-blue-400"; "completed" -> "bg-emerald-500/20 text-emerald-400"; _ -> "bg-zinc-800 text-zinc-500" end}"}>
@@ -702,7 +864,9 @@
         </div>
 
         <div :if={agent[:agent_id]} class="px-4 py-3 border-b border-zinc-800/50">
-          <h3 class="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">Send Message</h3>
+          <h3 class="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">
+            Send Message
+          </h3>
           <form phx-submit="send_agent_message" class="flex gap-1">
             <input type="hidden" name="session_id" value={agent[:agent_id]} />
             <input
@@ -721,7 +885,9 @@
         </div>
 
         <div :if={agent[:agent_id]} class="px-4 py-3">
-          <h3 class="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">Actions</h3>
+          <h3 class="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">
+            Actions
+          </h3>
           <div class="flex flex-wrap gap-1.5">
             <button
               phx-click="focus_agent"
@@ -749,131 +915,197 @@
       </div>
     </aside>
   </div>
+
+  <%!-- Inspector Drawer --%>
+  <ObservatoryWeb.Components.TeamInspectorComponents.inspector_drawer
+    inspected_teams={@inspected_teams}
+    inspector_layout={@inspector_layout}
+    inspector_maximized={@inspector_maximized}
+    inspector_size={@inspector_size}
+    now={@now}
+  />
+
+  <%!-- Tmux Maximized View --%>
+  <ObservatoryWeb.Components.TeamTmuxComponents.tmux_view
+    :if={@inspector_maximized && @inspected_teams != []}
+    inspected_teams={@inspected_teams}
+    output_mode={@output_mode}
+    agent_toggles={@agent_toggles}
+    live_events={@events}
+    now={@now}
+  />
 </div>
 
-  <%!-- Create Task Modal --%>
+<%!-- Create Task Modal --%>
+<div
+  :if={@show_create_task_modal}
+  class="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+  phx-click="toggle_create_task_modal"
+>
   <div
-    :if={@show_create_task_modal}
-    class="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
-    phx-click="toggle_create_task_modal"
+    class="bg-zinc-900 border border-zinc-700 rounded-lg shadow-xl max-w-lg w-full mx-4"
+    phx-click="stop"
   >
-    <div class="bg-zinc-900 border border-zinc-700 rounded-lg shadow-xl max-w-lg w-full mx-4" phx-click="stop">
-      <div class="px-4 py-3 border-b border-zinc-800 flex items-center justify-between">
-        <h2 class="text-sm font-semibold text-zinc-200">Create New Task</h2>
-        <button phx-click="toggle_create_task_modal" class="text-zinc-500 hover:text-zinc-300 transition">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-            <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
-          </svg>
-        </button>
-      </div>
-      <form phx-submit="create_task" class="px-4 py-3 space-y-3">
-        <div>
-          <label class="block text-xs font-semibold text-zinc-400 mb-1">Subject</label>
-          <input
-            type="text"
-            name="subject"
-            required
-            class="w-full px-3 py-1.5 text-sm bg-zinc-800 border border-zinc-700 rounded text-zinc-200 focus:outline-none focus:border-blue-500"
-            placeholder="Add new feature..."
+    <div class="px-4 py-3 border-b border-zinc-800 flex items-center justify-between">
+      <h2 class="text-sm font-semibold text-zinc-200">Create New Task</h2>
+      <button
+        phx-click="toggle_create_task_modal"
+        class="text-zinc-500 hover:text-zinc-300 transition"
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          class="h-4 w-4"
+          viewBox="0 0 20 20"
+          fill="currentColor"
+        >
+          <path
+            fill-rule="evenodd"
+            d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+            clip-rule="evenodd"
           />
-        </div>
-        <div>
-          <label class="block text-xs font-semibold text-zinc-400 mb-1">Description</label>
-          <textarea
-            name="description"
-            required
-            rows="3"
-            class="w-full px-3 py-1.5 text-sm bg-zinc-800 border border-zinc-700 rounded text-zinc-200 focus:outline-none focus:border-blue-500"
-            placeholder="Detailed description of the task..."
-          ></textarea>
-        </div>
-        <div>
-          <label class="block text-xs font-semibold text-zinc-400 mb-1">Assign To</label>
-          <select
-            name="owner"
-            class="w-full px-3 py-1.5 text-sm bg-zinc-800 border border-zinc-700 rounded text-zinc-200 focus:outline-none focus:border-blue-500"
-          >
-            <option value="">Unassigned</option>
-            <option :for={member <- (if @sel_team, do: @sel_team.members, else: [])} value={member[:agent_id] || member[:name]}>
-              {member[:name] || member[:agent_id]}
-            </option>
-          </select>
-        </div>
-        <input type="hidden" name="team" value={@selected_team} />
-        <div class="flex justify-end gap-2 pt-2">
-          <button
-            type="button"
-            phx-click="toggle_create_task_modal"
-            class="px-3 py-1.5 text-xs rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-400 transition"
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            class="px-3 py-1.5 text-xs rounded bg-blue-600 hover:bg-blue-500 text-white transition"
-          >
-            Create Task
-          </button>
-        </div>
-      </form>
+        </svg>
+      </button>
     </div>
-  </div>
-
-  <%!-- Keyboard Shortcuts Help Modal --%>
-  <div
-    :if={@show_shortcuts_help}
-    class="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
-    phx-click="toggle_shortcuts_help"
-  >
-    <div class="bg-zinc-900 border border-zinc-700 rounded-lg shadow-xl max-w-md w-full mx-4" phx-click="stop">
-      <div class="px-4 py-3 border-b border-zinc-800 flex items-center justify-between">
-        <h2 class="text-sm font-semibold text-zinc-200">Keyboard Shortcuts</h2>
-        <button phx-click="toggle_shortcuts_help" class="text-zinc-500 hover:text-zinc-300 transition">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-            <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
-          </svg>
+    <form phx-submit="create_task" class="px-4 py-3 space-y-3">
+      <div>
+        <label class="block text-xs font-semibold text-zinc-400 mb-1">Subject</label>
+        <input
+          type="text"
+          name="subject"
+          required
+          class="w-full px-3 py-1.5 text-sm bg-zinc-800 border border-zinc-700 rounded text-zinc-200 focus:outline-none focus:border-blue-500"
+          placeholder="Add new feature..."
+        />
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-zinc-400 mb-1">Description</label>
+        <textarea
+          name="description"
+          required
+          rows="3"
+          class="w-full px-3 py-1.5 text-sm bg-zinc-800 border border-zinc-700 rounded text-zinc-200 focus:outline-none focus:border-blue-500"
+          placeholder="Detailed description of the task..."
+        ></textarea>
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-zinc-400 mb-1">Assign To</label>
+        <select
+          name="owner"
+          class="w-full px-3 py-1.5 text-sm bg-zinc-800 border border-zinc-700 rounded text-zinc-200 focus:outline-none focus:border-blue-500"
+        >
+          <option value="">Unassigned</option>
+          <option
+            :for={member <- if @sel_team, do: @sel_team.members, else: []}
+            value={member[:agent_id] || member[:name]}
+          >
+            {member[:name] || member[:agent_id]}
+          </option>
+        </select>
+      </div>
+      <input type="hidden" name="team" value={@selected_team} />
+      <div class="flex justify-end gap-2 pt-2">
+        <button
+          type="button"
+          phx-click="toggle_create_task_modal"
+          class="px-3 py-1.5 text-xs rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-400 transition"
+        >
+          Cancel
+        </button>
+        <button
+          type="submit"
+          class="px-3 py-1.5 text-xs rounded bg-blue-600 hover:bg-blue-500 text-white transition"
+        >
+          Create Task
         </button>
       </div>
-      <div class="px-4 py-3 space-y-3">
-        <div>
-          <h3 class="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">Navigation</h3>
-          <div class="space-y-1 text-xs">
-            <div class="flex items-center justify-between">
-              <span class="text-zinc-400">Switch views (1-6)</span>
-              <kbd class="px-2 py-0.5 bg-zinc-800 border border-zinc-700 rounded text-zinc-300 font-mono">1-6</kbd>
-            </div>
-            <div class="flex items-center justify-between">
-              <span class="text-zinc-400">Focus search</span>
-              <kbd class="px-2 py-0.5 bg-zinc-800 border border-zinc-700 rounded text-zinc-300 font-mono">f</kbd>
-            </div>
-            <div class="flex items-center justify-between">
-              <span class="text-zinc-400">Clear selection</span>
-              <kbd class="px-2 py-0.5 bg-zinc-800 border border-zinc-700 rounded text-zinc-300 font-mono">Esc</kbd>
-            </div>
+    </form>
+  </div>
+</div>
+
+<%!-- Keyboard Shortcuts Help Modal --%>
+<div
+  :if={@show_shortcuts_help}
+  class="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+  phx-click="toggle_shortcuts_help"
+>
+  <div
+    class="bg-zinc-900 border border-zinc-700 rounded-lg shadow-xl max-w-md w-full mx-4"
+    phx-click="stop"
+  >
+    <div class="px-4 py-3 border-b border-zinc-800 flex items-center justify-between">
+      <h2 class="text-sm font-semibold text-zinc-200">Keyboard Shortcuts</h2>
+      <button
+        phx-click="toggle_shortcuts_help"
+        class="text-zinc-500 hover:text-zinc-300 transition"
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          class="h-4 w-4"
+          viewBox="0 0 20 20"
+          fill="currentColor"
+        >
+          <path
+            fill-rule="evenodd"
+            d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+            clip-rule="evenodd"
+          />
+        </svg>
+      </button>
+    </div>
+    <div class="px-4 py-3 space-y-3">
+      <div>
+        <h3 class="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">
+          Navigation
+        </h3>
+        <div class="space-y-1 text-xs">
+          <div class="flex items-center justify-between">
+            <span class="text-zinc-400">Switch views (1-6)</span>
+            <kbd class="px-2 py-0.5 bg-zinc-800 border border-zinc-700 rounded text-zinc-300 font-mono">
+              1-6
+            </kbd>
+          </div>
+          <div class="flex items-center justify-between">
+            <span class="text-zinc-400">Focus search</span>
+            <kbd class="px-2 py-0.5 bg-zinc-800 border border-zinc-700 rounded text-zinc-300 font-mono">
+              f
+            </kbd>
+          </div>
+          <div class="flex items-center justify-between">
+            <span class="text-zinc-400">Clear selection</span>
+            <kbd class="px-2 py-0.5 bg-zinc-800 border border-zinc-700 rounded text-zinc-300 font-mono">
+              Esc
+            </kbd>
           </div>
         </div>
-        <div>
-          <h3 class="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">Feed</h3>
-          <div class="space-y-1 text-xs">
-            <div class="flex items-center justify-between">
-              <span class="text-zinc-400">Next event</span>
-              <kbd class="px-2 py-0.5 bg-zinc-800 border border-zinc-700 rounded text-zinc-300 font-mono">j</kbd>
-            </div>
-            <div class="flex items-center justify-between">
-              <span class="text-zinc-400">Previous event</span>
-              <kbd class="px-2 py-0.5 bg-zinc-800 border border-zinc-700 rounded text-zinc-300 font-mono">k</kbd>
-            </div>
+      </div>
+      <div>
+        <h3 class="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">Feed</h3>
+        <div class="space-y-1 text-xs">
+          <div class="flex items-center justify-between">
+            <span class="text-zinc-400">Next event</span>
+            <kbd class="px-2 py-0.5 bg-zinc-800 border border-zinc-700 rounded text-zinc-300 font-mono">
+              j
+            </kbd>
+          </div>
+          <div class="flex items-center justify-between">
+            <span class="text-zinc-400">Previous event</span>
+            <kbd class="px-2 py-0.5 bg-zinc-800 border border-zinc-700 rounded text-zinc-300 font-mono">
+              k
+            </kbd>
           </div>
         </div>
-        <div>
-          <h3 class="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">Help</h3>
-          <div class="space-y-1 text-xs">
-            <div class="flex items-center justify-between">
-              <span class="text-zinc-400">Show this help</span>
-              <kbd class="px-2 py-0.5 bg-zinc-800 border border-zinc-700 rounded text-zinc-300 font-mono">?</kbd>
-            </div>
+      </div>
+      <div>
+        <h3 class="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">Help</h3>
+        <div class="space-y-1 text-xs">
+          <div class="flex items-center justify-between">
+            <span class="text-zinc-400">Show this help</span>
+            <kbd class="px-2 py-0.5 bg-zinc-800 border border-zinc-700 rounded text-zinc-300 font-mono">
+              ?
+            </kbd>
           </div>
         </div>
       </div>
     </div>
   </div>
+</div>

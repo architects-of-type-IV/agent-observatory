@@ -8,7 +8,8 @@ defmodule ObservatoryWeb.DashboardUIHandlers do
   end
 
   def handle_toggle_create_task_modal(_params, socket) do
-    socket |> Phoenix.Component.assign(:show_create_task_modal, !socket.assigns.show_create_task_modal)
+    socket
+    |> Phoenix.Component.assign(:show_create_task_modal, !socket.assigns.show_create_task_modal)
   end
 
   def handle_close_detail(_params, socket) do
@@ -27,6 +28,7 @@ defmodule ObservatoryWeb.DashboardUIHandlers do
 
   def handle_focus_agent(%{"session_id" => session_id}, socket) do
     agent = find_agent_by_id(socket.assigns.teams, session_id)
+
     socket
     |> Phoenix.Component.assign(:view_mode, :agent_focus)
     |> Phoenix.Component.assign(:selected_agent, agent)
@@ -49,23 +51,27 @@ defmodule ObservatoryWeb.DashboardUIHandlers do
       current = socket.assigns.selected_event
       events = socket.assigns.visible_events
 
-      new_event = case direction do
-        "next" ->
-          if current do
-            idx = Enum.find_index(events, &(&1.id == current.id))
-            if idx && idx < length(events) - 1, do: Enum.at(events, idx + 1), else: current
-          else
-            List.first(events)
-          end
-        "prev" ->
-          if current do
-            idx = Enum.find_index(events, &(&1.id == current.id))
-            if idx && idx > 0, do: Enum.at(events, idx - 1), else: current
-          else
-            List.first(events)
-          end
-        _ -> current
-      end
+      new_event =
+        case direction do
+          "next" ->
+            if current do
+              idx = Enum.find_index(events, &(&1.id == current.id))
+              if idx && idx < length(events) - 1, do: Enum.at(events, idx + 1), else: current
+            else
+              List.first(events)
+            end
+
+          "prev" ->
+            if current do
+              idx = Enum.find_index(events, &(&1.id == current.id))
+              if idx && idx > 0, do: Enum.at(events, idx - 1), else: current
+            else
+              List.first(events)
+            end
+
+          _ ->
+            current
+        end
 
       socket |> Phoenix.Component.assign(:selected_event, new_event)
     else

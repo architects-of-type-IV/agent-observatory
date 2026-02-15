@@ -195,9 +195,9 @@ let Hooks = {
         }
 
         // 1-8 - switch view modes
-        const viewModes = ["overview", "feed", "tasks", "messages", "agents", "errors", "analytics", "timeline"]
+        const viewModes = ["overview", "feed", "tasks", "messages", "agents", "errors", "analytics", "timeline", "teams"]
         const numKey = parseInt(e.key)
-        if (numKey >= 1 && numKey <= 8 && !e.metaKey && !e.ctrlKey) {
+        if (numKey >= 1 && numKey <= 9 && !e.metaKey && !e.ctrlKey) {
           e.preventDefault()
           this.pushEvent("set_view", { mode: viewModes[numKey - 1] })
           return
@@ -248,6 +248,28 @@ let Hooks = {
         button.removeEventListener("click", this.toggleMenu)
       }
       document.removeEventListener("click", this.closeMenu)
+    }
+  },
+  InspectorDrawer: {
+    mounted() {
+      const saved = localStorage.getItem("inspector_drawer_state")
+      if (saved) {
+        this.pushEvent("set_inspector_size", { size: saved })
+      }
+      this.handleEvent("set_drawer_state", ({ size }) => {
+        localStorage.setItem("inspector_drawer_state", size)
+      })
+    }
+  },
+  AutoScrollPane: {
+    mounted() {
+      this.el.scrollTop = this.el.scrollHeight
+    },
+    updated() {
+      const isNearBottom = this.el.scrollHeight - this.el.scrollTop - this.el.clientHeight < 100
+      if (isNearBottom) {
+        this.el.scrollTop = this.el.scrollHeight
+      }
     }
   }
 }

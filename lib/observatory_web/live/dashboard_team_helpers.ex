@@ -151,7 +151,9 @@ defmodule ObservatoryWeb.DashboardTeamHelpers do
 
         # Calculate session uptime
         first_event = Enum.min_by(member_events, & &1.inserted_at, DateTime, fn -> nil end)
-        uptime = if first_event, do: DateTime.diff(now, first_event.inserted_at, :second), else: nil
+
+        uptime =
+          if first_event, do: DateTime.diff(now, first_event.inserted_at, :second), else: nil
 
         Map.merge(m, %{
           event_count: length(member_events),
@@ -260,6 +262,60 @@ defmodule ObservatoryWeb.DashboardTeamHelpers do
         Map.put(team, :dead?, all_inactive? and stale?)
       end
     end)
+  end
+
+  @doc """
+  Detect whether a team member is a lead or regular member.
+  """
+  def detect_role(team, member) do
+    cond do
+      member[:agent_type] == "lead" -> :lead
+      member[:agent_type] == "team-lead" -> :lead
+      team[:lead_session] != nil and member[:agent_id] == team[:lead_session] -> :lead
+      true -> :member
+    end
+  end
+
+  @doc """
+  Aggregate team health from all member health statuses.
+  Priority: :critical > :warning > :healthy > :unknown
+  """
+  def team_health(team) do
+    healths = Enum.map(team[:members] || [], & &1[:health])
+
+    cond do
+      :critical in healths -> :critical
+      :warning in healths -> :warning
+      :healthy in healths -> :healthy
+      true -> :unknown
+    end
+  end
+
+  @doc """
+  Calculate task progress (completed vs total).
+  """
+  def task_progress(team) do
+    tasks = team[:tasks] || []
+    total = length(tasks)
+
+    completed =
+      Enum.count(tasks, fn t -> t["status"] == "completed" || t[:status] == "completed" end)
+
+    {completed, total}
+  end
+
+  @doc """
+  Generate a team summary with aggregated metrics.
+  """
+  def team_summary(team) do
+    {completed, total} = task_progress(team)
+
+    %{
+      health: team_health(team),
+      progress: {completed, total},
+      member_count: length(team[:members] || []),
+      active_count: Enum.count(team[:members] || [], fn m -> m[:status] == :active end)
+    }
   end
 
   @doc """

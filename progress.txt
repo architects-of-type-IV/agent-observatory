@@ -194,3 +194,62 @@ Critical: prepare_assigns updates missing, :teams atom compile-time safety.
 Recommended: scope reduction (3 output modes, 4 message targets, no drag-resize).
 Module size risk: dashboard_team_helpers.ex (276 lines) needs resolve_message_targets moved out.
 Sent full analysis to team-lead with implementation order recommendations.
+
+Message Composer Implementation - 2026-02-15
+=============================================
+Task #6 (Story 2.4.1) - Create message composer component
+
+**Agent**: message-composer (teammate on team-inspector)
+**File created**: lib/observatory_web/components/team_message_components.ex (58 lines)
+
+**What**: Phoenix LiveView component for sending targeted messages to teams/members
+
+**Implementation details**:
+- message_composer/1 function component with 2 attrs (teams, selected_message_target)
+- Hierarchical select dropdown with 3 targeting levels:
+  1. All teams broadcast
+  2. Single team broadcast (all members)
+  3. Individual member direct message
+- Uses detect_role(team, member) helper from DashboardTeamHelpers to label leads
+- Form submits to "send_targeted_message" event, target selector triggers "set_message_target"
+- Styling matches existing patterns: zinc color palette, indigo accents, proper focus states
+- Proper HEEx syntax: <%= %> for comprehensions, {} for inline expressions
+
+**Patterns followed**:
+- Read agents_components.ex for reference (team broadcast form, member iteration)
+- Read dashboard_live.html.heex for existing message form pattern
+- Import DashboardTeamHelpers for detect_role/2 function
+- Tailwind classes only (no custom CSS)
+- Under 100 lines as required
+
+**Verification**: Component compiles without warnings. Build fails due to pre-existing warnings in team_inspector_components.ex and teams_components.ex (unused imports).
+
+**Status**: Complete, ready for integration into dashboard_live.ex by team lead.
+
+Team Inspector Build Phase - 2026-02-15
+=========================================
+
+Completed all 8 stories of Phase 2 (build) for the Team Inspector feature.
+
+### Stories Completed
+1. Role detection + team health helpers (detect_role/2, team_health/1, task_progress/1)
+2. Broadcast messaging (broadcast_to_many/3 in Mailbox)
+3. Teams view component (teams_components.ex - team cards with health/progress)
+4. Inspector drawer component (team_inspector_components.ex - 3-state size, layout toggle)
+5. Tmux view component (team_tmux_components.ex - tiled output, event filtering)
+6. Message composer component (team_message_components.ex - hierarchical targeting)
+7. Inspector handlers (dashboard_team_inspector_handlers.ex - 10 handlers + message targets)
+8. Integration wiring (dashboard_live.ex + template + app.js + app.css)
+
+### Key Implementation Details
+- 5 new modules created, 6 existing files modified
+- 10 new handle_event clauses in dashboard_live.ex
+- 7 new mount assigns for inspector state
+- Keyboard shortcut 9 = teams view
+- Inspector drawer: collapsed bar when empty, 3-state (collapsed/default/maximized)
+- Tmux view: full-screen overlay with per-agent output toggles
+- Message targets: all_teams, team:{name}, lead:{name}, member:{session_id}
+
+### Build Status
+mix compile --warnings-as-errors: PASS (zero warnings)
+curl http://localhost:4005/: 200 OK

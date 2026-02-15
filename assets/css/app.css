@@ -103,3 +103,20 @@
 [data-phx-session], [data-phx-teleported-src] { display: contents }
 
 /* This file is for your main application CSS */
+
+/* Inspector drawer */
+.inspector-drawer {
+  transition: height 200ms ease-in-out;
+}
+
+.inspector-handle {
+  cursor: row-resize;
+}
+
+.inspector-maximized {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 40 !important;
+  height: 100vh !important;
+  border-top: none !important;
+}
