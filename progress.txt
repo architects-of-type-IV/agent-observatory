@@ -143,3 +143,45 @@ Architecture decisions: new :teams view mode, event stream for live output,
 collapsed bar for empty inspector.
 Phase 1 (scout) complete. Phase 2 (implementation) ready to execute.
 Team "team-inspector" created, scouts shut down, awaiting implementation agents.
+
+Backend Scout (2.1.x enrichment) - 2026-02-15
+==============================================
+READ-ONLY enrichment of backend roadmap tasks with codebase context.
+Analyzed: dashboard_team_helpers.ex, mailbox.ex, command_queue.ex, channels.ex,
+dashboard_messaging_handlers.ex, dashboard_data_helpers.ex, dashboard_agent_health_helpers.ex.
+Reported to team-lead: exact function signatures, data structures, insertion points,
+edge cases, and dependency order for all 4 tasks (2.1.1.1, 2.1.1.2, 2.1.2.1, 2.1.2.2).
+Key finding: 2.1.1.1 (detect_role) must come first; 2.1.2.1 (broadcast_to_many) is independent.
+
+Integration Scout (2.4.x enrichment) - 2026-02-15
+===================================================
+READ-ONLY enrichment of integration/messaging roadmap tasks with codebase context.
+Analyzed: dashboard_live.ex, dashboard_live.html.heex, app.js, dashboard_messaging_handlers.ex,
+dashboard_ui_handlers.ex, dashboard_navigation_handlers.ex, dashboard_filter_handlers.ex.
+Reported to team-lead: exact line numbers for all insertion points:
+- Import: after line 17 in dashboard_live.ex
+- Mount assigns (7 new): before line 58 (prepare_assigns)
+- handle_event clauses (9 new): before line 194 (navigation catch-all)
+- Teams tab button: after line 76 in template (after Timeline)
+- View dispatch: after line 394 (after timeline_view)
+- Inspector drawer: after line 751 (after flex container closes)
+- Keyboard shortcut: line 198 (add "teams" to array), line 200 (change 8 to 9)
+- Shortcuts help: line 842 (update "1-6" to "1-9")
+Key finding: String.to_existing_atom("teams") needs :teams atom to exist at compile time.
+
+UI Scout (2.2.x + 2.3.x enrichment) - 2026-02-15
+===================================================
+READ-ONLY enrichment of UI roadmap tasks with codebase context.
+Analyzed: dashboard_live.html.heex, agents_components.ex, overview_components.ex,
+tasks_components.ex, observatory_components.ex, app.js, app.css,
+dashboard_team_helpers.ex, dashboard_format_helpers.ex, all observatory/ child components.
+Reported to team-lead: exact component patterns, CSS conventions, JS hook patterns,
+data shapes, and file locations for all 8 tasks (2.2.1.1, 2.2.2.1-2.2.2.3, 2.3.1.1-2.3.1.3).
+Key findings:
+- agents_components.ex is best template for teams_components.ex
+- No bottom drawer pattern exists (inspector is new UI paradigm)
+- CSS file is app.css with Tailwind v4 syntax, almost no custom CSS
+- JS hooks in Hooks object (app.js lines 28-253), merged at line 259
+- Inspector drawer must be outside main flex container (positioned fixed)
+- event_summary/1 already handles all event types (reuse in compact renderer)
+- Role detection gap confirmed (no explicit lead/member flag)
