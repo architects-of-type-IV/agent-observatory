@@ -1,8 +1,33 @@
 # Observatory - Handoff
 
-## Current Status: Team Inspector Feature COMPLETE (Phase 2 Build)
+## Current Status: Team Inspector VERIFIED - 3 Critical Gaps Found
 
-All 8 stories of the Team Inspector implementation are complete. Zero warnings. App loads at port 4005.
+Phase 2 (build) verified by roadmap-verify team (4 parallel agents). 14.5/17 tasks DONE. Build passes clean.
+
+## Verification Results
+
+### Scorecard: 14.5 / 17 DONE
+
+| Section | Score | Status |
+|---------|-------|--------|
+| 2.1 Backend foundations | 4/4 | ALL DONE |
+| 2.2 UI components | 3.5/4 | Hook event mismatch |
+| 2.3 Tmux view | 3/3 | ALL DONE |
+| 2.4.1-2 Messaging + handlers | 2/2 | ALL DONE |
+| 2.4.3 Integration wiring | 2/4 | Critical gaps |
+
+### 3 Critical Gaps
+
+1. **No inspector event stream** (2.4.3.0) - `prepare_assigns` does NOT compute `inspector_events` or `inspector_visible_events`. The inspector drawer and tmux view render with no live data.
+
+2. **Hook event name mismatch** (2.2.2.2) - JS hook listens for `set_drawer_state` but LiveView pushes `set_inspector_size`. Drawer state won't persist to localStorage.
+
+3. **Message composer not in template** - `message_composer` component exists but isn't rendered inside the teams view in `dashboard_live.html.heex`.
+
+### Minor Issues
+- Missing component aliases (full module paths used -- works but verbose)
+- Shortcuts help text says "1-6" instead of "1-9"
+- `@view_modes` attribute removed (was unused) -- :teams atom safety relies on mount assign
 
 ## What Was Built
 
@@ -10,32 +35,22 @@ All 8 stories of the Team Inspector implementation are complete. Zero warnings. 
 A 10th view mode (`:teams`) with bottom inspector drawer, tmux-style maximized view, and multi-target messaging.
 
 ### Files Created (5 new modules)
-1. **lib/observatory_web/components/teams_components.ex** - Teams view with team cards, health dots, progress bars, inspect button
-2. **lib/observatory_web/components/team_inspector_components.ex** - Inspector drawer (collapsed/default/maximized), layout toggle, team panels with member status
-3. **lib/observatory_web/components/team_tmux_components.ex** - Tmux-style tiled output view with event filtering (all_live/leads_only/all_agents), per-agent toggles
-4. **lib/observatory_web/components/team_message_components.ex** - Multi-target message composer (all teams/single team/lead/member)
-5. **lib/observatory_web/live/dashboard_team_inspector_handlers.ex** - All inspector event handlers + message target resolution
+1. **lib/observatory_web/components/teams_components.ex** - Teams view with team cards, health dots, progress bars
+2. **lib/observatory_web/components/team_inspector_components.ex** - Inspector drawer (collapsed/default/maximized)
+3. **lib/observatory_web/components/team_tmux_components.ex** - Tmux tiled output, event filtering, per-agent toggles
+4. **lib/observatory_web/components/team_message_components.ex** - Multi-target message composer
+5. **lib/observatory_web/live/dashboard_team_inspector_handlers.ex** - All inspector event handlers + resolve_message_targets
 
-### Files Modified (4 existing)
-1. **lib/observatory_web/live/dashboard_live.ex** - Import handlers, 7 mount assigns, 10 handle_event clauses, prepare_assigns refresh, stale team pruning
-2. **lib/observatory_web/live/dashboard_live.html.heex** - Teams tab button, teams_view dispatch, inspector_drawer, tmux_view
-3. **lib/observatory_web/live/dashboard_team_helpers.ex** - detect_role/2, team_health/1, task_progress/1, team_summary/1, team_member_sids/1
-4. **lib/observatory/mailbox.ex** - broadcast_to_many/3
-5. **assets/js/app.js** - "teams" in viewModes array, InspectorDrawer + AutoScrollPane hooks
-6. **assets/css/app.css** - Inspector drawer transitions + maximized positioning
-
-### Architecture Decisions
-- `:teams` is the 10th view mode (keyboard shortcut: 9)
-- Inspector drawer sits below main content, 3 size states (collapsed/default/maximized)
-- Tmux view is full-screen overlay when inspector is maximized
-- Event filtering reuses existing event buffer (no per-team PubSub subscriptions for v1)
-- Message targets: all_teams, team:{name}, lead:{name}, member:{session_id}
-- Handler delegation: all inspector events route through DashboardTeamInspectorHandlers
-
-### Roadmap
-Located at `.claude/roadmaps/roadmap-1771113081/` (29 flat files, dotted naming).
-Phase 1 (scout): COMPLETE. Phase 2 (build): COMPLETE.
+### Files Modified (6 existing)
+1. **dashboard_live.ex** - Import, 7 assigns, 10 handle_events, prepare_assigns refresh
+2. **dashboard_live.html.heex** - Teams tab, view dispatch, inspector drawer, tmux overlay
+3. **dashboard_team_helpers.ex** - detect_role, team_health, task_progress, team_summary
+4. **mailbox.ex** - broadcast_to_many/4
+5. **app.js** - "teams" in viewModes, InspectorDrawer + AutoScrollPane hooks
+6. **app.css** - Inspector drawer transitions + maximized positioning
 
 ## Build Status
 `mix compile --warnings-as-errors` -- PASSES (zero warnings)
-`curl -s -o /dev/null -w "%{http_code}" http://localhost:4005/` -- 200 OK
+
+## Next Steps
+Fix the 3 critical gaps to make inspector drawer and tmux view functional with live event data.

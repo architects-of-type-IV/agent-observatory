@@ -253,3 +253,95 @@ Completed all 8 stories of Phase 2 (build) for the Team Inspector feature.
 ### Build Status
 mix compile --warnings-as-errors: PASS (zero warnings)
 curl http://localhost:4005/: 200 OK
+
+Team Inspector Verification - 2026-02-15
+=========================================
+
+Launched roadmap-verify team with 4 parallel agents to verify all 17 roadmap tasks.
+
+### Backend Foundations (2.1.x) - ALL DONE
+- 2.1.1.1 detect_role/2: DONE - matches spec, handles edge cases
+- 2.1.1.2 team_health/task_progress/team_summary: DONE - matches spec
+- 2.1.2.1 broadcast_to_many/4: DONE - type guard, proper iteration
+- 2.1.2.2 resolve_message_targets: DONE - all 4 v1 scopes implemented
+
+### UI Components (2.2.x) - 3.5/4 DONE
+- 2.2.1.1 teams_view: DONE
+- 2.2.2.1 inspector_drawer: DONE
+- 2.2.2.2 hooks: DONE with issue - event name mismatch (set_drawer_state vs set_inspector_size)
+- 2.2.2.3 drawer CSS: DONE
+
+### Tmux + Messaging (2.3.x + 2.4.1-2) - ALL DONE
+- 2.3.1.1 tmux_view: DONE - grid layout, panes match spec
+- 2.3.1.2 event filtering: DONE - 3 modes (all_live, leads_only, all_agents)
+- 2.3.1.3 compact renderer: DONE - color-coded, timestamp format
+- 2.4.1.1 message_composer: DONE - hierarchical targeting
+- 2.4.2.1 inspector_handlers: DONE - all 9+ handlers
+
+### Integration Wiring (2.4.3.x) - 2/4 DONE
+- 2.4.3.0 prepare_assigns: NOT DONE - missing inspector_events, inspector_visible_events
+- 2.4.3.1 wire dashboard_live: PARTIAL - missing component aliases, @view_modes
+- 2.4.3.2 wire template: DONE - teams tab, view dispatch, drawer, tmux overlay
+- 2.4.3.3 keyboard shortcut: DONE - 9 = teams view
+
+### Critical Gaps Found
+1. No inspector event stream in prepare_assigns (drawer/tmux have no live data)
+2. Hook event mismatch (set_drawer_state vs set_inspector_size)
+3. Message composer not rendered in teams view template
+
+Backend Verification Deep Dive - 2026-02-15
+============================================
+
+Conducted detailed spec-vs-implementation verification for all 4 backend tasks (2.1.x).
+
+### Verification Methodology
+1. Read roadmap spec file
+2. Read implementation file
+3. Compare function signature, return types, logic against spec
+4. Identify edge cases covered/missing
+5. Run compilation to verify zero warnings
+6. Report STATUS: DONE/PARTIAL/NOT DONE + deviations
+
+### Detailed Findings
+
+**Task 2.1.1.1: detect_role/2**
+- Location: dashboard_team_helpers.ex:270-277
+- Signature: detect_role(team, member) ✅
+- Returns: :lead | :member atom ✅
+- Logic: Checks agent_type ("lead"/"team-lead") first, then lead_session match ✅
+- Edge cases: nil lead_session (handled), unknown agent_type (defaults :member) ✅
+- Deviation: None. Exceeds spec by handling both "lead" and "team-lead" strings.
+
+**Task 2.1.1.2: Team health aggregates**
+- team_health/1 (lines 283-292): Worst-wins priority (:critical > :warning > :healthy > :unknown) ✅
+- task_progress/1 (lines 297-305): Returns {completed, total} tuple ✅
+- team_summary/1 (lines 310-319): Combines health + progress + member_count ✅
+- Edge cases: Empty members list (handled), string/atom status keys (handled), nil safety ✅
+- Deviation: team_summary includes active_count (beneficial enhancement, not in spec)
+
+**Task 2.1.2.1: broadcast_to_many/4**
+- Location: mailbox.ex:58-60
+- Signature: broadcast_to_many(session_ids, from, content, opts \\ []) when is_list(session_ids) ✅
+- Logic: Enum.map over send_message calls ✅
+- Returns: List of {:ok, message} | {:error, reason} tuples ✅
+- Edge cases: Type guard ensures list input, empty list returns [] ✅
+- Deviation: None. Perfectly matches spec.
+
+**Task 2.1.2.2: resolve_message_targets/2**
+- Location: dashboard_team_inspector_handlers.ex:81-106 (handler module, not helpers) ✅
+- Signature: resolve_message_targets(target, teams) ✅
+- v1 scopes implemented:
+  - "all_teams" → all agent_ids across teams (line 81-83) ✅
+  - "team:" <> name → all agent_ids in that team (line 85-90) ✅
+  - "lead:" <> team_name → lead of specific team (line 92-103) ✅
+  - "member:" <> session_id → [session_id] (line 105) ✅
+- Uses detect_role/2 for lead detection ✅
+- Uses team_member_sids/1 for session ID extraction ✅
+- Edge cases: Unknown teams (returns []), nil agent_ids filtered, deduplication ✅
+- Deviation: String-based targets instead of tuples (reasonable adaptation for LiveView)
+
+### Compilation Status
+`mix compile --warnings-as-errors` - PASS (zero warnings)
+
+### Conclusion
+All 4 backend foundation tasks are production-ready. No critical deviations. Only beneficial enhancements found.
