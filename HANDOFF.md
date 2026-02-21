@@ -1,66 +1,142 @@
 # Observatory - Handoff
 
-## Current Status: Dashboard Message Forms Unified
+## Current Status: Swarm Control Center (2026-02-21)
 
-Fixed all 4 dashboard-to-agent message forms to use consistent delivery (Mailbox) and UX (phx-update="ignore" + JS form clear).
+Complete dashboard redesign adding a swarm/DAG operational cockpit with cross-protocol message tracing.
 
-## What Was Fixed
+## Navigation Redesign
 
-### Phase 1: Discovery (team: messaging-discovery, 3 agents)
-Found 5 critical gaps + 1 bug:
-1. Dashboard not subscribed to "agent:dashboard" PubSub topic
-2. No :current_session_id assign in mount
-3. subscribe_to_mailboxes() skips dashboard
-4. acknowledge_message doesn't clean CommandQueue files
-5. ~/.claude/inbox/ is custom, not Claude Code native path
-6. Form refresh bug: :tick timer recreates teams list, destroying form DOM
+**Before (9 flat tabs):** Overview | Feed | Tasks | Messages | Agents | Errors | Analytics | Timeline | Teams
 
-### Phase 2: Analysis (team: messaging-analysis, 3 agents)
-- **Architecture**: Option B chosen (align with Claude Code native paths)
-- **Form bug root cause**: prepare_assigns() runs every 1s tick, creates new list reference, LiveView re-renders message_composer
-- **Reliability**: 164 stale files in inbox, no ETS TTL, duplicate delivery risk
+**After (4 primary + More dropdown):** Overview | Protocols | Feed | Errors | More...
 
-### Phase 3: Implementation (team: messaging-fix, 3 agents)
-All fixes applied:
+Overview stacks Command+Pipeline+Agents in one view. The "More" dropdown contains: Command, Pipeline, Agents, Tasks, Messages, Analytics, Timeline, Teams. Default view is `:overview`. Keyboard shortcuts 1-4 map to: Overview, Protocols, Feed, Errors.
 
-1. **PubSub subscription** (dashboard_live.ex:27)
-   - Added `Phoenix.PubSub.subscribe(Observatory.PubSub, "agent:dashboard")`
-   - Added `assign(:current_session_id, "dashboard")`
+## Feed View -- Segment-Based Architecture
 
-2. **Form refresh fix** (dashboard_live.html.heex)
-   - Wrapped message_composer with `<div phx-update="ignore" id="message-composer-stable">`
-   - Wrapped agent message form with `<div phx-update="ignore" id="agent-message-form-stable">`
+The feed groups events by session, then segments each session by subagent spans.
 
-3. **CommandQueue aligned with Claude Code native** (command_queue.ex)
-   - Added write_team_message/3 -> ~/.claude/teams/{team}/inboxes/{agent}.json
-   - Added delete_team_message/3 for cleanup
-   - Mailbox.send_message now dual-writes: legacy + native format
-   - Agent ID parsed: "name@team" -> split to get team/agent
+**Key finding**: SubagentStart/SubagentStop hooks fire on the PARENT session_id. Subagents get short hash IDs (e.g., "ac67b7c"), NOT separate session UUIDs. All subagent tool calls (Read, Bash, etc.) appear under the parent's session_id.
 
-4. **Acknowledge cleanup** (agent_tools/inbox.ex)
-   - acknowledge_message now deletes CommandQueue file after ETS mark_read
+**Segment model** (`dashboard_feed_helpers.ex`):
+- Each session's events are split into segments: `:parent` (direct events) and `:subagent` (events bracketed by SubagentStart/SubagentStop)
+- Subagent segments include: agent_id, agent_type, start/stop events, tool pairs, event counts
+- Segments render sequentially: parent events -> subagent block -> parent events -> subagent block -> ...
+- Subagent blocks are collapsible (key: "sub:{agent_id}" in collapsed_sessions MapSet)
+- Parallel subagents: events in overlapping time ranges appear in BOTH subagent blocks
 
-5. **ETS TTL** (mailbox.ex)
-   - Added :cleanup_old_messages timer (60s interval)
-   - Removes read messages older than 24h
+**Visual structure**:
+```
+Session Block (collapsible)
+  Header: agent name, role badge, session_id, model, permission, source, stats
+  Start Banner (green)
+  Segments:
+    Parent events: tool pairs + standalone events
+    Subagent Block (cyan, collapsible)
+      Header: agent_type, agent_id, event/tool counts, time range
+      Spawn marker
+      Tool pairs + standalone events
+      Reap marker
+    Parent events (between subagents)
+    ...
+  End/Stop Banner (red)
+  Active indicator (pulsing green)
+```
 
-## Latest Changes: Message Form Consistency (2026-02-15)
+## New Backend GenServers
 
-### Problem
-4 message forms used 3 different delivery mechanisms. `send_team_broadcast` bypassed Mailbox entirely (direct CommandQueue + PubSub). Forms in Agents view lacked `phx-update="ignore"` (input lost on 1s tick). All `phx-update="ignore"` forms didn't clear after submit.
+### SwarmMonitor (`lib/observatory/swarm_monitor.ex`)
+- Polls `tasks.jsonl` from discovered project paths every 3s
+- Runs `health-check.sh` every 30s
+- DAG computation: topological sort into execution waves, critical path via DFS with memoization
+- Detects stale tasks (in_progress > 10 min without update) and file conflicts
+- Action functions: `heal_task`, `reassign_task`, `reset_all_stale`, `trigger_gc`, `claim_task`
+- Project discovery from `~/.claude/teams/*/config.json` member `cwd` fields + archives
+- Broadcasts state on `"swarm:update"` PubSub topic
 
-### Fixes Applied
-1. **dashboard_messaging_handlers.ex**: `send_team_broadcast` now uses `Mailbox.broadcast_to_many` (ETS + CommandQueue + PubSub)
-2. **agents_components.ex**: Added `phx-update="ignore"` wrappers to broadcast + per-agent forms
-3. **app.js**: Added `ClearFormOnSubmit` hook to reset text inputs after submit
-4. **dashboard_live.html.heex**: Added `ClearFormOnSubmit` hook to existing `phx-update="ignore"` wrappers
+### ProtocolTracker (`lib/observatory/protocol_tracker.ex`)
+- Subscribes to `"events:stream"` PubSub
+- Creates message traces for SendMessage, TeamCreate, SubagentStart events
+- Tracks multi-hop delivery: HTTP -> Mailbox ETS -> CommandQueue filesystem -> PubSub
+- Maintains last 200 traces in `:protocol_traces` ETS table
+- Broadcasts stats on `"protocols:update"` PubSub topic every 5s
 
-### Also Created
-- `.claude/skills/team-task/SKILL.md` -- Agent protocol skill for team-based task execution
-- Insights report stored at `~/.config/claude/reports/report-1771120758.html`
+## New View Components
+
+### Command View (`:command` -- key 1)
+Operational cockpit. File: `lib/observatory_web/components/command_components.ex`
+- **Health bar**: status indicator (green/red), project selector, pipeline progress bar, action buttons
+- **Agent grid**: CSS Grid of clickable cells showing name, model, current tool + elapsed time, task ID, health warnings
+- **Alerts panel**: health issues + stale tasks with per-issue heal buttons
+- **Selected detail**: agent info (model, status, uptime, cwd) + task info + actions (Pause/Resume/Shutdown) + message form
+
+### Pipeline View (`:pipeline` -- key 2)
+DAG visualization. File: `lib/observatory_web/components/pipeline_components.ex`
+- **Project selector**: dropdown of registered projects + inline add-project form
+- **DAG visualization**: tasks arranged in wave columns, critical path highlighting, status colors
+- **Task table**: sortable with ID, Status, Subject, Owner, Priority, Blocked By, Updated
+- Bidirectional selection: click DAG node highlights table row and vice versa
+
+### Protocols View (`:protocols` -- key 4)
+Cross-protocol tracing. File: `lib/observatory_web/components/protocol_components.ex`
+- **Protocol summary**: 4 cards (HTTP, PubSub, Mailbox, CommandQueue) with current counts
+- **Message flow**: chronological traces with hop visualization (colored status dots per protocol)
+- **Channel detail**: per-agent mailbox stats table, per-session CommandQueue stats table
+
+## Handler Module
+
+`lib/observatory_web/live/dashboard_swarm_handlers.ex` handles:
+`select_project`, `add_project`, `heal_task`, `reassign_swarm_task`, `reset_all_stale`, `trigger_gc`, `run_health_check`, `claim_swarm_task`, `select_dag_node`, `select_command_agent`, `clear_command_selection`, `send_command_message`
+
+## Backend Modifications
+
+| File | Change |
+|------|--------|
+| `team_watcher.ex` | `parse_members` preserves cwd, model, is_active, tmux_pane_id, color, joined_at; added `derive_project/1` |
+| `mailbox.ex` | Added `get_stats/0` for per-agent message counts (total, unread, oldest_unread_age) |
+| `command_queue.ex` | Added `get_queue_stats/0` for per-session pending file counts and oldest file age |
+| `application.ex` | Added SwarmMonitor + ProtocolTracker to supervision tree |
+
+## JS Changes (assets/js/app.js)
+
+- `viewModes` array: `["overview", "protocols", "feed", "errors"]`
+- Added `MoreDropdown` hook (toggle on button click, close on outside click)
+
+## Hooks Compatibility
+
+All 13 hook types in `~/.claude/settings.json` send events via `~/.claude/hooks/observatory/send_event.sh`. The ProtocolTracker correctly matches event atoms (`:PreToolUse`, `:SubagentStart`) from the event pipeline: hook JSON -> POST /api/events -> Ash Event (atom types) -> PubSub -> ProtocolTracker.
+
+## Files Created (6)
+
+| File | Lines | Purpose |
+|------|-------|---------|
+| `lib/observatory/swarm_monitor.ex` | ~710 | GenServer: tasks.jsonl parser, health runner, DAG, actions |
+| `lib/observatory/protocol_tracker.ex` | ~230 | GenServer: cross-protocol message correlation |
+| `lib/observatory_web/components/command_components.ex` | ~535 | Command Center: agent grid, health, alerts |
+| `lib/observatory_web/components/pipeline_components.ex` | ~270 | DAG visualization + task table |
+| `lib/observatory_web/components/protocol_components.ex` | ~270 | Message flow + channel stats |
+| `lib/observatory_web/live/dashboard_swarm_handlers.ex` | ~100 | Event handlers for swarm actions |
+
+## Files Modified (7)
+
+| File | Change |
+|------|--------|
+| `lib/observatory/team_watcher.ex` | parse_members + derive_project |
+| `lib/observatory/mailbox.ex` | get_stats/0 |
+| `lib/observatory/command_queue.ex` | get_queue_stats/0 |
+| `lib/observatory/application.ex` | SwarmMonitor + ProtocolTracker in sup tree |
+| `lib/observatory_web/live/dashboard_live.ex` | subscriptions, assigns, 10+ handle_event clauses |
+| `lib/observatory_web/live/dashboard_live.html.heex` | nav restructure, 3 new view blocks |
+| `assets/js/app.js` | viewModes array, MoreDropdown hook |
 
 ## Build Status
+
 `mix compile --warnings-as-errors` -- PASSES (zero warnings)
 
-## Roadmap
-`.claude/roadmaps/roadmap-1771119705/` (messaging investigation)
+## Previous Work
+
+### Message Forms Unified (2026-02-15)
+All 4 dashboard-to-agent message forms unified to use Mailbox delivery. Forms protected with `phx-update="ignore"` + `ClearFormOnSubmit` JS hook.
+
+### Team Inspector (2026-02-15)
+17/17 tasks complete. Inspector drawer with 3-state sizing, tmux view overlay, hierarchical message targeting.

@@ -132,6 +132,36 @@ Consistent colors across views:
 - **Single-line handler consolidation**: Reduced dashboard_live.ex from 313 → 245 lines by consolidating simple event handlers to single-line format (e.g., `def handle_event("filter", p, s), do: {:noreply, handle_filter(p, s) |> prepare_assigns()}`). Saves ~60 lines without sacrificing readability.
 - **Selection clearing pattern**: Extract common "clear all selections" logic to helper function (`clear_selections/1`) instead of repeating `assign(:selected_event, nil) |> assign(:selected_task, nil) |> assign(:selected_agent, nil)` in every selection handler.
 
+## SubagentStart/SubagentStop Event Model (Feb 2026)
+
+**CRITICAL**: Subagent events fire on the PARENT session_id. Subagents do NOT get separate session UUIDs.
+
+**SubagentStart payload** (from real DB data):
+```json
+{
+  "agent_id": "ac67b7c",
+  "agent_type": "general-purpose",
+  "session_id": "6ba56fd8-...",
+  "transcript_path": "/<parent-uuid>.jsonl"
+}
+```
+
+**SubagentStop payload**:
+```json
+{
+  "agent_id": "ac67b7c",
+  "agent_transcript_path": "/<parent-uuid>/subagents/agent-ac67b7c.jsonl",
+  "last_assistant_message": "...",
+  "session_id": "6ba56fd8-..."
+}
+```
+
+**Timeline**: PreToolUse|Task -> PostToolUse|Task -> SubagentStart -> subagent tools -> Stop -> SubagentStop. All under PARENT session_id.
+
+**Parallel subagents**: Events interleave freely. Use matched Start/Stop time ranges for attribution.
+
+**Feed segment model**: Split session events into `:parent` and `:subagent` segments using SubagentStart/SubagentStop as delimiters.
+
 ## Sprint 5 Lessons (Feb 2026)
 - **Template component extraction**: Split 1401-line dashboard_live.html.heex into 8 view-specific component modules (overview, feed, tasks, messages, agents, errors, analytics, timeline). Reduced main template by 38% (-536 lines). Each component under 200 lines with single public function.
 - **HEEx template imports**: Elixir compiler cannot detect function usage in HEEx templates, leading to "unused import" warnings for helper modules. These are false positives when helpers are called from templates (e.g., session_color/1, relative_time/2). May need to suppress warnings or restructure.
