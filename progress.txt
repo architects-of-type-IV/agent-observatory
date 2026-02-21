@@ -73,6 +73,19 @@ Observatory Progress
 - [x] Fixed tool_count guard: team-enriched agents may have non-integer tool_count
 - [x] Build: zero warnings
 
+- [x] Letta-compatible agent memory system
+  - MemoryStore GenServer: 4 ETS tables, disk persistence to ~/.observatory/memory/
+  - Three tiers: core blocks (2000 char limit), recall (200 FIFO), archival (500 ETS + disk overflow)
+  - 10 MCP tools: read_memory, memory_replace, memory_insert, memory_rethink,
+    conversation_search, conversation_search_date, archival_memory_insert,
+    archival_memory_search, create_agent, list_agents
+  - Block sharing between agents via IDs, read_only protection
+  - Memory.compile() renders blocks as XML for system prompt injection
+  - ETS memory caps: 100 agents, 1000 blocks, 500 archival/agent in ETS
+  - Archival append-only on disk, search falls back to disk when ETS at capacity
+  - Smoke tested: all operations verified end-to-end
+- [x] Build: zero warnings
+
 ### Ready for Swarm
 - SwarmMonitor active, polling memories/tasks.jsonl every 3s
 - Pipeline view has 8 tasks in 6 DAG waves

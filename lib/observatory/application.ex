@@ -19,6 +19,7 @@ defmodule Observatory.Application do
       {Observatory.TeamWatcher, []},
       {Observatory.SwarmMonitor, []},
       {Observatory.ProtocolTracker, []},
+      {Observatory.MemoryStore, []},
       {Observatory.AgentMonitor, []},
       {Observatory.Notes, []},
       ObservatoryWeb.Endpoint

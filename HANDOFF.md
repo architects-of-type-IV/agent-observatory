@@ -209,6 +209,79 @@ Toggle button (< / >) at left edge. State persisted in localStorage via StatePer
 - Global hooks: all 13 types fire `send_event.sh` -> Observatory POST /api/events
 - Worker tmux sessions will auto-register as nodes in Command view via SessionStart events
 
+## Letta-Compatible Agent Memory System (2026-02-21)
+
+Three-tier memory system cloning Letta's architecture, exposed as MCP tools.
+
+### Architecture
+
+| Tier | Storage | ETS Cap | Purpose |
+|------|---------|---------|---------|
+| Core memory | Blocks (JSON per block) | 1000 blocks total | Always in context. Agent-editable. Shareable between agents. |
+| Recall memory | JSONL per agent | 200 per agent | Conversation history. Text + date range search. |
+| Archival memory | JSONL per agent | 500 per agent (overflow to disk) | Long-term passages with tags. Keyword search. |
+
+### Memory Blocks (Letta-identical)
+
+Each block: `id`, `label`, `description`, `value`, `limit` (default 2000 chars), `read_only`, timestamps.
+Blocks shared between agents via IDs. Read-only blocks protected from agent writes.
+
+### MCP Tools (10 new, 15 total)
+
+| Tool | Letta Equivalent | Purpose |
+|------|-----------------|---------|
+| `read_memory` | Memory.compile() | Load all blocks for context injection |
+| `memory_replace` | memory_replace (V2) | Find-and-replace in a block |
+| `memory_insert` | memory_insert (V2) | Insert at line position |
+| `memory_rethink` | memory_rethink (V2) | Rewrite a block entirely |
+| `conversation_search` | conversation_search | Search recall by text |
+| `conversation_search_date` | conversation_search_date | Search recall by date range |
+| `archival_memory_insert` | archival_memory_insert | Store passage with tags |
+| `archival_memory_search` | archival_memory_search | Keyword search + tag filter |
+| `create_agent` | agents.create | Register specialist with blocks |
+| `list_agents` | agents.list | List all registered agents |
+
+### ETS Memory Safety
+
+| Resource | Cap | Overflow |
+|----------|-----|----------|
+| Agents | 100 | create_agent rejected |
+| Blocks | 1000 | create_block rejected |
+| Recall | 200/agent | FIFO eviction |
+| Archival ETS | 500/agent | Older entries on disk only |
+| Block value | 2000 chars | Enforced per write |
+
+Archival search/list falls back to disk JSONL when ETS is at capacity.
+
+### Files Created
+
+| File | Purpose |
+|------|---------|
+| `lib/observatory/memory_store.ex` | GenServer: ETS + disk persistence, all 3 tiers |
+| `lib/observatory/agent_tools/memory.ex` | Ash Resource: 10 MCP tools |
+
+### Files Modified
+
+| File | Change |
+|------|--------|
+| `lib/observatory/agent_tools.ex` | Added Memory resource + 10 tool registrations |
+| `lib/observatory/application.ex` | Added MemoryStore to supervision tree |
+
+### Persistence Layout
+
+```
+~/.observatory/memory/
+  blocks/{block_id}.json       # shared blocks
+  agents/{name}/agent.json     # config + block_ids
+  agents/{name}/recall.jsonl   # conversation history
+  agents/{name}/archival.jsonl # long-term passages (append-only)
+```
+
+### Smoke Test
+
+All operations verified: create_agent, read_core_memory, compile_memory, memory_replace,
+archival_memory_insert, archival_memory_search, conversation_search, list_agents.
+
 ## Build Status
 
 `mix compile --warnings-as-errors` -- PASSES (zero warnings)
