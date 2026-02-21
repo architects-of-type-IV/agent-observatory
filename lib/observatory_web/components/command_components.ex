@@ -113,6 +113,59 @@ defmodule ObservatoryWeb.Components.CommandComponents do
     }
   end
 
+  # ═══════════════════════════════════════════════════════
+  # Cluster hierarchy: project -> swarm -> agent
+  # ═══════════════════════════════════════════════════════
+
+  @cluster_agent_cap 20
+  @swarm_agent_cap 10
+
+  defp build_clusters(agents) do
+    agents
+    |> Enum.group_by(& &1.project)
+    |> Enum.map(fn {project, project_agents} ->
+      {swarm_agents, standalone} = Enum.split_with(project_agents, & &1[:team_name])
+
+      swarms =
+        swarm_agents
+        |> Enum.group_by(& &1[:team_name])
+        |> Enum.map(fn {name, sa} ->
+          sorted = Enum.sort_by(sa, &{status_sort(&1.status), &1.name})
+          %{name: name, agents: sorted, stats: group_stats(sa)}
+        end)
+        |> Enum.sort_by(& &1.stats.active, :desc)
+
+      standalone_sorted = Enum.sort_by(standalone, &{status_sort(&1.status), &1.name})
+
+      %{
+        project: project || "unknown",
+        swarms: swarms,
+        standalone: standalone_sorted,
+        stats: group_stats(project_agents)
+      }
+    end)
+    |> Enum.sort_by(&{-&1.stats.active, &1.project})
+  end
+
+  defp group_stats(agents) do
+    %{
+      total: length(agents),
+      active: Enum.count(agents, &(&1.status == :active)),
+      idle: Enum.count(agents, &(&1.status == :idle)),
+      ended: Enum.count(agents, &(&1.status == :ended)),
+      events: agents |> Enum.map(& &1.event_count) |> Enum.sum(),
+      tools: agents |> Enum.map(& &1.tool_count) |> Enum.sum()
+    }
+  end
+
+  defp cluster_health_color(%{active: 0, total: t}) when t > 0, do: "border-zinc-700"
+  defp cluster_health_color(%{active: a, total: t}) when a == t, do: "border-emerald-500/30"
+  defp cluster_health_color(%{ended: e, total: t}) when e > t / 2, do: "border-zinc-700"
+  defp cluster_health_color(_), do: "border-zinc-800"
+
+  defp cluster_agent_cap, do: @cluster_agent_cap
+  defp swarm_agent_cap, do: @swarm_agent_cap
+
   defp build_alerts(issues, stale_tasks) do
     issue_alerts =
       Enum.map(issues, fn issue ->

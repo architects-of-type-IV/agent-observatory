@@ -49,6 +49,20 @@ Observatory Progress
 - [x] Verified: SwarmMonitor reads memories tasks.jsonl (8 tasks, 6 waves)
 - [x] Build: zero warnings
 
+- [x] Navigation: flat tab bar replacing broken More dropdown
+  - All 12 views visible: Overview, Command, Pipeline, Agents, Protocols, Feed, Tasks, Messages, Errors, Analytics, Timeline, Teams
+  - Keyboard shortcuts 1-9,0 for first 10 views
+  - Removed MoreDropdown JS hook
+- [x] Command view: NOC-style cluster hierarchy
+  - build_clusters/1: groups agents by project, then by team (swarm)
+  - Project cluster cards with health-colored borders
+  - Swarm groups (cyan-bordered) within each cluster
+  - Standalone agents below swarm groups
+  - Scale caps: swarm 10, standalone 20, with overflow indicators
+  - agent_row component extracted for reuse
+- [x] Message form: shows "To: {name} ({session_id})" target
+- [x] Build: zero warnings
+
 ### Ready for Swarm
 - SwarmMonitor active, polling memories/tasks.jsonl every 3s
 - Pipeline view has 8 tasks in 6 DAG waves

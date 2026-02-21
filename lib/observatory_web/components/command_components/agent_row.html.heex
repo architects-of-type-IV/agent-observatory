@@ -1,0 +1,40 @@
+<div
+  phx-click="select_command_agent"
+  phx-value-id={@agent.agent_id}
+  class={[
+    "flex items-center gap-3 px-3 py-1.5 cursor-pointer hover:bg-zinc-800/50 transition",
+    if(@selected && ((@selected[:agent_id] || @selected[:session_id]) == @agent.agent_id),
+      do: "bg-zinc-800/80 border-l-2 border-indigo-500",
+      else: "border-l-2 border-transparent"
+    )
+  ]}
+>
+  <%!-- Status dot --%>
+  <span class={["w-2 h-2 rounded-full shrink-0", status_dot_color(@agent.status)]} />
+
+  <%!-- Name --%>
+  <span class="text-xs font-medium text-zinc-200 w-24 truncate">{@agent.name}</span>
+
+  <%!-- Current tool or idle --%>
+  <div class="text-xs w-28 truncate">
+    <%= if @agent.current_tool do %>
+      <% {tool, elapsed} = @agent.current_tool %>
+      <span class="text-indigo-400 font-mono">{tool}</span>
+      <span class="text-zinc-600 font-mono">{elapsed}s</span>
+    <% else %>
+      <span class="text-zinc-700 italic">--</span>
+    <% end %>
+  </div>
+
+  <%!-- Model --%>
+  <span class="text-[10px] font-mono text-zinc-600 w-12 truncate">{short_model(@agent.model)}</span>
+
+  <%!-- Event count --%>
+  <span class="text-[10px] font-mono text-zinc-600 w-10 text-right">{@agent.event_count}e</span>
+
+  <%!-- Tool count --%>
+  <span class="text-[10px] font-mono text-zinc-700 w-8 text-right">{@agent.tool_count}t</span>
+
+  <%!-- Source app --%>
+  <span class="text-[10px] font-mono text-zinc-700 ml-auto">{@agent.source_app}</span>
+</div>

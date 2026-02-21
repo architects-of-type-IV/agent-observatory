@@ -17,117 +17,43 @@
     <div class="px-4 py-3 flex items-center justify-between">
       <div class="flex items-center gap-3">
         <h1 class="text-lg font-bold tracking-tight">Observatory</h1>
-        <%!-- View mode toggle --%>
-        <div
-          class="flex items-center gap-0.5 bg-zinc-800 rounded-lg p-0.5"
+        <%!-- View mode tabs --%>
+        <nav
+          class="flex items-center gap-0.5 bg-zinc-800 rounded-lg p-0.5 flex-wrap"
           id="view-mode-toggle"
           phx-hook="StatePersistence"
         >
+          <%
+            tabs = [
+              {:overview, "Overview"},
+              {:command, "Command"},
+              {:pipeline, "Pipeline"},
+              {:agents, "Agents"},
+              {:protocols, "Protocols"},
+              {:feed, "Feed"},
+              {:tasks, "Tasks"},
+              {:messages, "Messages"},
+              {:errors, "Errors"},
+              {:analytics, "Analytics"},
+              {:timeline, "Timeline"},
+              {:teams, "Teams"}
+            ]
+          %>
           <button
+            :for={{mode, label} <- tabs}
             phx-click="set_view"
-            phx-value-mode="overview"
-            class={"px-2.5 py-1 text-xs rounded-md transition #{if @view_mode == :overview, do: "bg-zinc-700 text-zinc-200 shadow-sm", else: "text-zinc-500 hover:text-zinc-300"}"}
+            phx-value-mode={mode}
+            class={"px-2 py-1 text-xs rounded-md transition #{if @view_mode == mode, do: "bg-zinc-700 text-zinc-200 shadow-sm", else: "text-zinc-500 hover:text-zinc-300"}"}
           >
-            Overview
-            <span :if={@swarm_state.pipeline.total > 0} class="ml-1 text-xs text-zinc-600">
+            {label}
+            <span :if={mode == :overview && @swarm_state.pipeline.total > 0} class="ml-1 text-zinc-600">
               ({@swarm_state.pipeline.completed}/{@swarm_state.pipeline.total})
             </span>
-          </button>
-          <button
-            phx-click="set_view"
-            phx-value-mode="protocols"
-            class={"px-2.5 py-1 text-xs rounded-md transition #{if @view_mode == :protocols, do: "bg-zinc-700 text-zinc-200 shadow-sm", else: "text-zinc-500 hover:text-zinc-300"}"}
-          >
-            Protocols
-          </button>
-          <button
-            phx-click="set_view"
-            phx-value-mode="feed"
-            class={"px-2.5 py-1 text-xs rounded-md transition #{if @view_mode == :feed, do: "bg-zinc-700 text-zinc-200 shadow-sm", else: "text-zinc-500 hover:text-zinc-300"}"}
-          >
-            Feed
-          </button>
-          <button
-            phx-click="set_view"
-            phx-value-mode="errors"
-            class={"px-2.5 py-1 text-xs rounded-md transition #{if @view_mode == :errors, do: "bg-zinc-700 text-zinc-200 shadow-sm", else: "text-zinc-500 hover:text-zinc-300"}"}
-          >
-            Errors
-            <span :if={@errors != []} class="ml-1 px-1 text-xs bg-red-500/20 text-red-400 rounded">
+            <span :if={mode == :errors && @errors != []} class="ml-1 px-1 bg-red-500/20 text-red-400 rounded">
               {length(@errors)}
             </span>
           </button>
-          <%!-- More dropdown for secondary views --%>
-          <div class="relative" id="more-dropdown" phx-hook="MoreDropdown">
-            <button
-              id="more-button"
-              class={"px-2.5 py-1 text-xs rounded-md transition #{if @view_mode in [:command, :pipeline, :agents, :tasks, :messages, :analytics, :timeline, :teams], do: "bg-zinc-700 text-zinc-200 shadow-sm", else: "text-zinc-500 hover:text-zinc-300"}"}
-            >
-              More
-            </button>
-            <div
-              id="more-menu"
-              class="hidden absolute top-full left-0 mt-1 bg-zinc-800 border border-zinc-700 rounded-lg shadow-xl py-1 z-50 min-w-[120px]"
-            >
-              <button
-                phx-click="set_view"
-                phx-value-mode="command"
-                class="block w-full text-left px-3 py-1.5 text-xs text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200"
-              >
-                Command
-              </button>
-              <button
-                phx-click="set_view"
-                phx-value-mode="pipeline"
-                class="block w-full text-left px-3 py-1.5 text-xs text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200"
-              >
-                Pipeline
-              </button>
-              <button
-                phx-click="set_view"
-                phx-value-mode="agents"
-                class="block w-full text-left px-3 py-1.5 text-xs text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200"
-              >
-                Agents
-              </button>
-              <button
-                phx-click="set_view"
-                phx-value-mode="tasks"
-                class="block w-full text-left px-3 py-1.5 text-xs text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200"
-              >
-                Tasks
-              </button>
-              <button
-                phx-click="set_view"
-                phx-value-mode="messages"
-                class="block w-full text-left px-3 py-1.5 text-xs text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200"
-              >
-                Messages
-              </button>
-              <button
-                phx-click="set_view"
-                phx-value-mode="analytics"
-                class="block w-full text-left px-3 py-1.5 text-xs text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200"
-              >
-                Analytics
-              </button>
-              <button
-                phx-click="set_view"
-                phx-value-mode="timeline"
-                class="block w-full text-left px-3 py-1.5 text-xs text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200"
-              >
-                Timeline
-              </button>
-              <button
-                phx-click="set_view"
-                phx-value-mode="teams"
-                class="block w-full text-left px-3 py-1.5 text-xs text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200"
-              >
-                Teams
-              </button>
-            </div>
-          </div>
-        </div>
+        </nav>
       </div>
       <div class="flex items-center gap-3">
         <div class="flex items-center gap-1.5 text-sm">

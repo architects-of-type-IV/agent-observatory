@@ -172,13 +172,31 @@ Session Block (collapsible)
 
 **Collapse keys**: `"chain:{first_tool_use_id}"` for chain groups, `"tool:{tool_use_id}"` for individual tools.
 
-## Command View: Event-Derived Agents
+## Navigation: Flat Tabs
 
-`collect_agents` now builds from events (every session_id = a node), not just team members:
-- Derives: name (cwd basename), model, status (active/idle/ended), current_tool, event/tool counts
-- Fleet status bar: total nodes, active/idle/ended counts, project clusters, health + pipeline progress
-- Compact row layout (shows 100, truncates with "+N more")
-- Merged with team data when available
+Replaced broken "More" dropdown with flat tab bar showing all 12 views at equal weight:
+Overview, Command, Pipeline, Agents, Protocols, Feed, Tasks, Messages, Errors, Analytics, Timeline, Teams.
+Keyboard shortcuts 1-9 and 0 map to first 10 views. MoreDropdown JS hook removed.
+
+## Command View: NOC-Style Cluster Hierarchy
+
+Redesigned from flat agent list to telecom NOC-style hierarchical control panel:
+
+**Structure**: Fleet bar -> Project clusters -> Swarm groups -> Agent rows
+
+- `build_clusters/1`: groups agents by project, then by team within each project
+- `group_stats/1`: aggregates per-cluster/per-swarm (total, active, idle, ended, events, tools)
+- `cluster_health_color/1`: border color based on cluster health state
+- `agent_row` component: extracted from agent_grid for reuse in cluster/swarm contexts
+- Scale caps: swarms show 10 agents max, standalone shows 20 max, with overflow indicators
+- Health-colored cluster borders: green=all active, zinc=mostly ended
+
+**Template files**:
+- `command_view.html.heex`: fleet bar + cluster cards with nested swarm groups
+- `agent_row.html.heex`: single agent row component (status, name, tool, model, events)
+- `agent_grid.html.heex`: backwards-compat wrapper, delegates to agent_row
+
+**Message form**: Now shows "To: {agent_name} ({session_id_short})" above input.
 
 ## SwarmMonitor: Auto Re-Discovery
 

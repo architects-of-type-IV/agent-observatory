@@ -66,13 +66,17 @@
 
     <%!-- Message form --%>
     <div class="border-t border-zinc-800 pt-3">
+      <div class="text-[10px] text-zinc-600 mb-1">
+        To: <span class="text-zinc-400 font-mono">{@agent[:name] || @agent[:agent_id]}</span>
+        <span class="text-zinc-700 ml-1">({String.slice(to_string(@agent[:agent_id]), 0, 8)})</span>
+      </div>
       <form phx-submit="send_command_message" class="flex gap-2">
         <input type="hidden" name="to" value={@agent[:agent_id]} />
         <div id={"cmd-msg-#{@agent[:agent_id]}"} phx-update="ignore" class="flex-1">
           <input
             type="text"
             name="content"
-            placeholder="Message agent..."
+            placeholder={"Message #{@agent[:name] || "agent"}..."}
             class="w-full bg-zinc-800 border border-zinc-700 rounded px-2 py-1 text-xs text-zinc-300 placeholder-zinc-600 focus:border-indigo-500 focus:ring-0 focus:outline-none"
           />
         </div>

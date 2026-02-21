@@ -194,12 +194,15 @@ let Hooks = {
           return
         }
 
-        // 1-8 - switch view modes
-        const viewModes = ["overview", "protocols", "feed", "errors"]
+        // 1-9,0 - switch view modes
+        const viewModes = ["overview", "command", "pipeline", "agents", "protocols", "feed", "tasks", "messages", "errors"]
         const numKey = parseInt(e.key)
-        if (numKey >= 1 && numKey <= 9 && !e.metaKey && !e.ctrlKey) {
-          e.preventDefault()
-          this.pushEvent("set_view", { mode: viewModes[numKey - 1] })
+        if (numKey >= 0 && numKey <= 9 && !e.metaKey && !e.ctrlKey) {
+          const idx = numKey === 0 ? 9 : numKey - 1
+          if (idx < viewModes.length) {
+            e.preventDefault()
+            this.pushEvent("set_view", { mode: viewModes[idx] })
+          }
           return
         }
 
@@ -244,32 +247,6 @@ let Hooks = {
     },
     destroyed() {
       const button = this.el.querySelector("#export-button")
-      if (button) {
-        button.removeEventListener("click", this.toggleMenu)
-      }
-      document.removeEventListener("click", this.closeMenu)
-    }
-  },
-  MoreDropdown: {
-    mounted() {
-      const button = this.el.querySelector("#more-button")
-      const menu = this.el.querySelector("#more-menu")
-
-      this.toggleMenu = () => {
-        menu.classList.toggle("hidden")
-      }
-
-      this.closeMenu = (e) => {
-        if (!this.el.contains(e.target)) {
-          menu.classList.add("hidden")
-        }
-      }
-
-      button.addEventListener("click", this.toggleMenu)
-      document.addEventListener("click", this.closeMenu)
-    },
-    destroyed() {
-      const button = this.el.querySelector("#more-button")
       if (button) {
         button.removeEventListener("click", this.toggleMenu)
       }
