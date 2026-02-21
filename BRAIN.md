@@ -295,6 +295,25 @@ AgentMonitor GenServer monitors agent health and auto-reassigns tasks from crash
 - **String-based target format**: UI sends "team:name" strings instead of tuples {:team, name} - simpler for LiveView event payloads
 - **Handler location matters**: resolve_message_targets in dashboard_team_inspector_handlers (not team_helpers) to keep helpers under 300 lines
 
+## Monad Method Pipeline (Feb 2026)
+- Mode A (Discover): Sessions -> Conversations -> ADRs (12 accepted)
+- Mode B (Define): ADRs -> FRDs (6, with inline FRs) -> UCs (79, with Gherkin)
+- Pipeline uses parallel agents (3 batches) + 2 validation gates
+- Gate 1: FRD coverage + FR consistency (frontmatter source_adr must match body references)
+- Gate 2: UC completeness (every FR has at least one UC)
+- Templates: `SPECS/_templates/` (frd.md, uc.md, adr.md, conversation.md, monad-method.md + examples)
+- Checkpoint: `SPECS/checkpoints/{unix_timestamp}-checkpoint.md`
+- Decision-log skill outputs to `SPECS_HARVESTED/` by default (separate from hand-authored SPECS)
+
+## Feed Turn-Based Architecture (Feb 2026)
+- Replaced segment-based grouping with turn-based conversation grouping
+- Turn = events between UserPromptSubmit boundaries (or SessionStart to first prompt = preamble)
+- classify_tool/1 categories: research (Read/Grep/Glob), build (Edit/Write/NotebookEdit), verify (Bash), delegate (Task/SendMessage/TeamCreate), communicate (AskUserQuestion), think (EnterPlanMode/ExitPlanMode), other
+- group_into_phases/1: consecutive same-category tool pairs grouped into phases
+- Collapse state inverted: expanded_sessions MapSet (empty = all collapsed), active sessions auto-expand
+- Collapse keys: session_id (session), "turn:{first_event_id}" (turn), "phase:{turn_id}:{index}" (phase)
+- Templates: conversation_turn.html.heex (turn header + response preview), activity_phase.html.heex (phase icon + tool summary)
+
 ## Roadmap Naming Convention
 - ALL files flat in ONE directory: `.claude/roadmaps/roadmap-{unix-timestamp}/`
 - Dotted numbering: `N.N.N-slug.md` (e.g., `2.1.1.1-detect-role.md`)

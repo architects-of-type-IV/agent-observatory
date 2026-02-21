@@ -1,295 +1,73 @@
 # Observatory - Handoff
 
-## Current Status: Swarm Control Center (2026-02-21)
+## Current Status: Mode B Complete + Feed Redesign (2026-02-21)
 
-Complete dashboard redesign adding a swarm/DAG operational cockpit with cross-protocol message tracing.
+### Just Completed
 
-## Navigation Redesign
+**Mode B Pipeline (Monad Method: Define)**
+- Ran full 4-stage pipeline with parallel agents
+- 12 accepted ADRs -> 6 FRDs (79 FRs) -> 79 UCs with Gherkin scenarios
+- Gate 1: FAIL (2 frontmatter source_adr mismatches), fixed, re-validated PASS
+- Gate 2: PASS (18 minor Gherkin-AC mapping notes, non-blocking)
+- Checkpoint: `SPECS/checkpoints/1740153600-checkpoint.md`
+- All artifacts committed (88 files)
 
-**Before (9 flat tabs):** Overview | Feed | Tasks | Messages | Agents | Errors | Analytics | Timeline | Teams
+**Decision-Log Skill Updates**
+- Added Write/Edit tools to allowed-tools
+- Phase 4 now produces proper ADR files (YAML frontmatter + References + Key Moments) + Conversation artifacts + INDEX.md
+- Output directory changed to `SPECS_HARVESTED/` (machine-generated artifacts separate from hand-authored SPECS)
+- Observatory uses `SPECS/` directly (no hand-authored specs to conflict with)
 
-**After (4 primary + More dropdown):** Overview | Protocols | Feed | Errors | More...
+**Feed Redesign: Turn-Based Architecture (tasks 1-13 DONE)**
+- Replaced segment-based feed with turn-based conversation grouping
+- `build_turns/1` splits events by UserPromptSubmit/Stop boundaries
+- `classify_tool/1` categorizes tools: research/build/verify/delegate/communicate/think/other
+- `group_into_phases/1` groups consecutive same-category tool pairs
+- Inverted collapse: `expanded_sessions` (collapsed by default, active auto-expand)
+- New templates: `conversation_turn.html.heex`, `activity_phase.html.heex`
+- Old templates moved to trash: `parent_segment.html.heex`, `subagent_segment.html.heex`
+- ToolChain multi-tool path removed (phases handle grouping now)
 
-Overview stacks Command+Pipeline+Agents in one view. The "More" dropdown contains: Command, Pipeline, Agents, Tasks, Messages, Analytics, Timeline, Teams. Default view is `:overview`. Keyboard shortcuts 1-4 map to: Overview, Protocols, Feed, Errors.
+### In Progress
+- Task 14: Runtime verification of feed view (visual check needed)
 
-## Feed View -- Segment-Based Architecture
-
-The feed groups events by session, then segments each session by subagent spans.
-
-**Key finding**: SubagentStart/SubagentStop hooks fire on the PARENT session_id. Subagents get short hash IDs (e.g., "ac67b7c"), NOT separate session UUIDs. All subagent tool calls (Read, Bash, etc.) appear under the parent's session_id.
-
-**Segment model** (`dashboard_feed_helpers.ex`):
-- Each session's events are split into segments: `:parent` (direct events) and `:subagent` (events bracketed by SubagentStart/SubagentStop)
-- Subagent segments include: agent_id, agent_type, start/stop events, tool pairs, event counts
-- Segments render sequentially: parent events -> subagent block -> parent events -> subagent block -> ...
-- Subagent blocks are collapsible (key: "sub:{agent_id}" in collapsed_sessions MapSet)
-- Parallel subagents: events in overlapping time ranges appear in BOTH subagent blocks
-
-**Visual structure**:
-```
-Session Block (collapsible)
-  Header: agent name, role badge, session_id, model, permission, source, stats
-  Start Banner (green)
-  Segments:
-    Parent events: tool pairs + standalone events
-    Subagent Block (cyan, collapsible)
-      Header: agent_type, agent_id, event/tool counts, time range
-      Spawn marker
-      Tool pairs + standalone events
-      Reap marker
-    Parent events (between subagents)
-    ...
-  End/Stop Banner (red)
-  Active indicator (pulsing green)
-```
-
-## New Backend GenServers
-
-### SwarmMonitor (`lib/observatory/swarm_monitor.ex`)
-- Polls `tasks.jsonl` from discovered project paths every 3s
-- Runs `health-check.sh` every 30s
-- DAG computation: topological sort into execution waves, critical path via DFS with memoization
-- Detects stale tasks (in_progress > 10 min without update) and file conflicts
-- Action functions: `heal_task`, `reassign_task`, `reset_all_stale`, `trigger_gc`, `claim_task`
-- Project discovery from `~/.claude/teams/*/config.json` member `cwd` fields + archives
-- Broadcasts state on `"swarm:update"` PubSub topic
-
-### ProtocolTracker (`lib/observatory/protocol_tracker.ex`)
-- Subscribes to `"events:stream"` PubSub
-- Creates message traces for SendMessage, TeamCreate, SubagentStart events
-- Tracks multi-hop delivery: HTTP -> Mailbox ETS -> CommandQueue filesystem -> PubSub
-- Maintains last 200 traces in `:protocol_traces` ETS table
-- Broadcasts stats on `"protocols:update"` PubSub topic every 5s
-
-## New View Components
-
-### Command View (`:command` -- key 1)
-Operational cockpit. File: `lib/observatory_web/components/command_components.ex`
-- **Health bar**: status indicator (green/red), project selector, pipeline progress bar, action buttons
-- **Agent grid**: CSS Grid of clickable cells showing name, model, current tool + elapsed time, task ID, health warnings
-- **Alerts panel**: health issues + stale tasks with per-issue heal buttons
-- **Selected detail**: agent info (model, status, uptime, cwd) + task info + actions (Pause/Resume/Shutdown) + message form
-
-### Pipeline View (`:pipeline` -- key 2)
-DAG visualization. File: `lib/observatory_web/components/pipeline_components.ex`
-- **Project selector**: dropdown of registered projects + inline add-project form
-- **DAG visualization**: tasks arranged in wave columns, critical path highlighting, status colors
-- **Task table**: sortable with ID, Status, Subject, Owner, Priority, Blocked By, Updated
-- Bidirectional selection: click DAG node highlights table row and vice versa
-
-### Protocols View (`:protocols` -- key 4)
-Cross-protocol tracing. File: `lib/observatory_web/components/protocol_components.ex`
-- **Protocol summary**: 4 cards (HTTP, PubSub, Mailbox, CommandQueue) with current counts
-- **Message flow**: chronological traces with hop visualization (colored status dots per protocol)
-- **Channel detail**: per-agent mailbox stats table, per-session CommandQueue stats table
-
-## Handler Module
-
-`lib/observatory_web/live/dashboard_swarm_handlers.ex` handles:
-`select_project`, `add_project`, `heal_task`, `reassign_swarm_task`, `reset_all_stale`, `trigger_gc`, `run_health_check`, `claim_swarm_task`, `select_dag_node`, `select_command_agent`, `clear_command_selection`, `send_command_message`
-
-## Backend Modifications
-
+### Key Files Changed (Feed Redesign)
 | File | Change |
 |------|--------|
-| `team_watcher.ex` | `parse_members` preserves cwd, model, is_active, tmux_pane_id, color, joined_at; added `derive_project/1` |
-| `mailbox.ex` | Added `get_stats/0` for per-agent message counts (total, unread, oldest_unread_age) |
-| `command_queue.ex` | Added `get_queue_stats/0` for per-session pending file counts and oldest file age |
-| `application.ex` | Added SwarmMonitor + ProtocolTracker to supervision tree |
+| `dashboard_feed_helpers.ex` | Rewritten: build_turns, classify_tool, group_into_phases |
+| `dashboard_live.ex` | expanded_sessions replaces collapsed_sessions, expand_all/collapse_all |
+| `feed_view.ex` | attr expanded_sessions |
+| `session_group.ex` | Turn dispatch + phase_label/phase_color helpers |
+| `session_group.html.heex` | Renders turns instead of segments |
+| `conversation_turn.html.heex` | NEW: turn header + response preview + phases |
+| `activity_phase.html.heex` | NEW: phase icon/color + tool summary + expandable tools |
 
-## JS Changes (assets/js/app.js)
-
-- `viewModes` array: `["overview", "protocols", "feed", "errors"]`
-- Added `MoreDropdown` hook (toggle on button click, close on outside click)
-
-## Hooks Compatibility
-
-All 13 hook types in `~/.claude/settings.json` send events via `~/.claude/hooks/observatory/send_event.sh`. The ProtocolTracker correctly matches event atoms (`:PreToolUse`, `:SubagentStart`) from the event pipeline: hook JSON -> POST /api/events -> Ash Event (atom types) -> PubSub -> ProtocolTracker.
-
-## Files Created (6)
-
-| File | Lines | Purpose |
-|------|-------|---------|
-| `lib/observatory/swarm_monitor.ex` | ~710 | GenServer: tasks.jsonl parser, health runner, DAG, actions |
-| `lib/observatory/protocol_tracker.ex` | ~230 | GenServer: cross-protocol message correlation |
-| `lib/observatory_web/components/command_components.ex` | ~535 | Command Center: agent grid, health, alerts |
-| `lib/observatory_web/components/pipeline_components.ex` | ~270 | DAG visualization + task table |
-| `lib/observatory_web/components/protocol_components.ex` | ~270 | Message flow + channel stats |
-| `lib/observatory_web/live/dashboard_swarm_handlers.ex` | ~100 | Event handlers for swarm actions |
-
-## Files Modified (7)
-
-| File | Change |
-|------|--------|
-| `lib/observatory/team_watcher.ex` | parse_members + derive_project |
-| `lib/observatory/mailbox.ex` | get_stats/0 |
-| `lib/observatory/command_queue.ex` | get_queue_stats/0 |
-| `lib/observatory/application.ex` | SwarmMonitor + ProtocolTracker in sup tree |
-| `lib/observatory_web/live/dashboard_live.ex` | subscriptions, assigns, 10+ handle_event clauses |
-| `lib/observatory_web/live/dashboard_live.html.heex` | nav restructure, 3 new view blocks |
-| `assets/js/app.js` | viewModes array, MoreDropdown hook |
-
-## File Split: embed_templates Refactor
-
-Large component files split into `.ex` (logic) + `.heex` (templates) using `embed_templates`:
-
-| Module | Before | After | Templates Created |
-|--------|--------|-------|-------------------|
-| `command_components.ex` | 535 lines | 102 lines | 6 heex files in `command_components/` |
-| `pipeline_components.ex` | 276 lines | 61 lines | 2 heex files in `pipeline_components/` |
-| `protocol_components.ex` | 272 lines | 52 lines | 5 heex files in `protocol_components/` |
-| `session_group.ex` | 388 lines | 98 lines | 3 heex files in `session_group/` |
-
-**Pattern**: Preprocessing moves into `<% %>` blocks at top of .heex templates. Multi-head pattern-matched functions stay as manual `defp` dispatch in .ex files (e.g., `segment/1`, `role_badge/1`).
-
-## Feed Nesting: Tool Chains
-
-Consecutive tool calls grouped into collapsible chains with summary headers.
-
-**New component**: `lib/observatory_web/components/feed/tool_chain.ex` + `tool_chain/tool_chain.html.heex`
-
-**Timeline builder** (`dashboard_feed_helpers.ex`):
-- `build_segment_timeline/2`: interleaves tool pairs and standalone events chronologically, groups consecutive tools into `{:tool_chain, pairs}` tuples
-- `chain_tool_summary/1`: "Read x3, Edit x1, Bash x1" summary
-- `chain_total_duration/1`, `chain_status/1`: aggregate stats
-
-**Nesting structure**:
+### SPECS Artifacts
 ```
-Session Block (collapsible)
-  Parent Segment
-    Tool Chain (collapsible) -- e.g. "3 tools: Read x2, Edit"
-      Tool: Read (collapsible)
-        START detail
-        DONE detail
-      Tool: Edit (collapsible)
-        START detail
-        DONE detail
-    Standalone Event (UserPromptSubmit, etc.)
-    Tool Chain ...
-  Subagent Block (collapsible)
-    Same nesting inside
+SPECS/
+  _templates/          # Copied from memories project
+  decisions/           # 12 ADRs + INDEX.md
+  conversations/       # 3 CONV files
+  requirements/
+    frds/              # FRD-001 through FRD-006
+    use-cases/         # UC-0001 through UC-0158 (79 files)
+    mode-b-plan.md
+    gate-1-report.md
+    gate-2-report.md
+  checkpoints/         # 1740153600-checkpoint.md
 ```
 
-**Collapse keys**: `"chain:{first_tool_use_id}"` for chain groups, `"tool:{tool_use_id}"` for individual tools.
+### Remaining
+- [ ] Task 14: Visual verification of feed view
+- [ ] Visual verification: all other views
+- [ ] Test feed with active agents spawning subagents
+- [ ] Test DAG rendering with real pipeline running
+- [ ] Remove dead ToolExecutionBlock module + delegate
 
-## Navigation: Flat Tabs
+## Architecture Reminders
 
-All 12 views as flat tabs at equal weight. Keyboard shortcuts 1-9,0 for first 10. MoreDropdown hook removed.
-
-## Overview: Unified Control Plane
-
-Single purpose-built view surfacing ALL dimensions. Not a stack of other components.
-
-**Fleet bar**: node counts, error count, message count, tool count, task pipeline progress, protocol stats (H/P/M/Q), health indicator. All updating in real-time via PubSub.
-
-**Cluster hierarchy**: project clusters -> swarm groups -> agent rows. Scale caps (swarm: 10, standalone: 20) with overflow. Health-colored borders.
-
-**Activity section** (below clusters):
-- Errors: red-bordered card with top 3 recent errors (tool name + project)
-- Messages: recent 5 messages with from->to and content preview
-- Alerts: swarm health issues + stale tasks with heal buttons
-
-**Detail panel**: right side, shows on agent/task click. Message form shows "To: {name} ({id})" with toast feedback on send.
-
-**Data flow**: command_view receives @errors, @messages, @protocol_stats, @active_tasks from LiveView. No separate pipeline/agents stacked below.
-
-## Collapsible Sidebar
-
-Toggle button (< / >) at left edge. State persisted in localStorage via StatePersistence hook. Sidebar width transitions from w-72 to w-0.
-
-## SwarmMonitor: Auto Re-Discovery
-
-`poll_tasks` now calls `discover_projects()` on every 3s cycle, merging new teams automatically. No restart needed when a new swarm starts.
-
-## Swarm Readiness (memories project)
-
-- SwarmMonitor active: memories project discovered from archived team configs
-- tasks.jsonl: 8 tasks, 6 DAG waves, all pending
-- Pipeline view: project selector, DAG visualization, task table all wired
-- Global hooks: all 13 types fire `send_event.sh` -> Observatory POST /api/events
-- Worker tmux sessions will auto-register as nodes in Command view via SessionStart events
-
-## Letta-Compatible Agent Memory System (2026-02-21)
-
-Three-tier memory system cloning Letta's architecture, exposed as MCP tools.
-
-### Architecture
-
-| Tier | Storage | ETS Cap | Purpose |
-|------|---------|---------|---------|
-| Core memory | Blocks (JSON per block) | 1000 blocks total | Always in context. Agent-editable. Shareable between agents. |
-| Recall memory | JSONL per agent | 200 per agent | Conversation history. Text + date range search. |
-| Archival memory | JSONL per agent | 500 per agent (overflow to disk) | Long-term passages with tags. Keyword search. |
-
-### Memory Blocks (Letta-identical)
-
-Each block: `id`, `label`, `description`, `value`, `limit` (default 2000 chars), `read_only`, timestamps.
-Blocks shared between agents via IDs. Read-only blocks protected from agent writes.
-
-### MCP Tools (10 new, 15 total)
-
-| Tool | Letta Equivalent | Purpose |
-|------|-----------------|---------|
-| `read_memory` | Memory.compile() | Load all blocks for context injection |
-| `memory_replace` | memory_replace (V2) | Find-and-replace in a block |
-| `memory_insert` | memory_insert (V2) | Insert at line position |
-| `memory_rethink` | memory_rethink (V2) | Rewrite a block entirely |
-| `conversation_search` | conversation_search | Search recall by text |
-| `conversation_search_date` | conversation_search_date | Search recall by date range |
-| `archival_memory_insert` | archival_memory_insert | Store passage with tags |
-| `archival_memory_search` | archival_memory_search | Keyword search + tag filter |
-| `create_agent` | agents.create | Register specialist with blocks |
-| `list_agents` | agents.list | List all registered agents |
-
-### ETS Memory Safety
-
-| Resource | Cap | Overflow |
-|----------|-----|----------|
-| Agents | 100 | create_agent rejected |
-| Blocks | 1000 | create_block rejected |
-| Recall | 200/agent | FIFO eviction |
-| Archival ETS | 500/agent | Older entries on disk only |
-| Block value | 2000 chars | Enforced per write |
-
-Archival search/list falls back to disk JSONL when ETS is at capacity.
-
-### Files Created
-
-| File | Purpose |
-|------|---------|
-| `lib/observatory/memory_store.ex` | GenServer: ETS + disk persistence, all 3 tiers |
-| `lib/observatory/agent_tools/memory.ex` | Ash Resource: 10 MCP tools |
-
-### Files Modified
-
-| File | Change |
-|------|--------|
-| `lib/observatory/agent_tools.ex` | Added Memory resource + 10 tool registrations |
-| `lib/observatory/application.ex` | Added MemoryStore to supervision tree |
-
-### Persistence Layout
-
-```
-~/.observatory/memory/
-  blocks/{block_id}.json       # shared blocks
-  agents/{name}/agent.json     # config + block_ids
-  agents/{name}/recall.jsonl   # conversation history
-  agents/{name}/archival.jsonl # long-term passages (append-only)
-```
-
-### Smoke Test
-
-All operations verified: create_agent, read_core_memory, compile_memory, memory_replace,
-archival_memory_insert, archival_memory_search, conversation_search, list_agents.
-
-## Build Status
-
-`mix compile --warnings-as-errors` -- PASSES (zero warnings)
-
-## Previous Work
-
-### Message Forms Unified (2026-02-15)
-All 4 dashboard-to-agent message forms unified to use Mailbox delivery. Forms protected with `phx-update="ignore"` + `ClearFormOnSubmit` JS hook.
-
-### Team Inspector (2026-02-15)
-17/17 tasks complete. Inspector drawer with 3-state sizing, tmux view overlay, hierarchical message targeting.
+- Phoenix LiveView on port 4005
+- Event-driven: hooks -> POST /api/events -> Ash.create + PubSub -> LiveView
+- Zero warnings: `mix compile --warnings-as-errors`
+- Module size limit: 200-300 lines max
+- embed_templates pattern: .ex (logic) + .heex (templates)

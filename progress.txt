@@ -86,6 +86,26 @@ Observatory Progress
   - Smoke tested: all operations verified end-to-end
 - [x] Build: zero warnings
 
+- [x] Mode B Pipeline (Monad Method: Define)
+  - 12 accepted ADRs -> 6 FRDs (79 FRs) -> 79 UCs with Gherkin scenarios
+  - 3 parallel FRD writer agents + 3 parallel UC writer agents
+  - Gate 1: FAIL->fixed->PASS (2 frontmatter mismatches)
+  - Gate 2: PASS (18 minor notes, non-blocking)
+  - Checkpoint: SPECS/checkpoints/1740153600-checkpoint.md
+  - All 88 artifact files committed
+
+- [x] Decision-log skill: ADR + Conversation artifact templates, SPECS_HARVESTED output dir
+- [x] ADRs 009-012: updated References sections to proper format
+
+- [x] Feed redesign: turn-based conversation grouping (tasks 1-13)
+  - build_turns/1: splits events by UserPromptSubmit/Stop boundaries
+  - classify_tool/1: research/build/verify/delegate/communicate/think/other
+  - group_into_phases/1: groups consecutive same-category tool pairs
+  - Inverted collapse: expanded_sessions (collapsed by default, active auto-expand)
+  - New templates: conversation_turn.html.heex, activity_phase.html.heex
+  - Old segment templates moved to trash
+- [x] Build: zero warnings
+
 ### Ready for Swarm
 - SwarmMonitor active, polling memories/tasks.jsonl every 3s
 - Pipeline view has 8 tasks in 6 DAG waves
@@ -93,6 +113,7 @@ Observatory Progress
 - Command view shows agents from events as they appear
 
 ### Remaining
+- [ ] Task 14: Visual verification of feed view (runtime check)
 - [ ] Visual verification: open browser, click through all views
 - [ ] Test feed with active agents spawning subagents
 - [ ] Test DAG rendering with real pipeline running
