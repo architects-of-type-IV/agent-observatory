@@ -88,6 +88,7 @@ defmodule ObservatoryWeb.DashboardUIHandlers do
     |> maybe_restore(:search_feed, params["search_feed"])
     |> maybe_restore(:search_sessions, params["search_sessions"])
     |> maybe_restore(:selected_team, params["selected_team"])
+    |> maybe_restore(:sidebar_collapsed, params["sidebar_collapsed"])
   end
 
   defp maybe_restore(socket, _key, nil), do: socket
@@ -100,6 +101,11 @@ defmodule ObservatoryWeb.DashboardUIHandlers do
   rescue
     ArgumentError -> socket
   end
+
+  defp maybe_restore(socket, :sidebar_collapsed, "true"),
+    do: Phoenix.Component.assign(socket, :sidebar_collapsed, true)
+
+  defp maybe_restore(socket, :sidebar_collapsed, _), do: socket
 
   defp maybe_restore(socket, key, value), do: Phoenix.Component.assign(socket, key, value)
 

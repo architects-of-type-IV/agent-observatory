@@ -33,7 +33,7 @@
   <span class="text-[10px] font-mono text-zinc-600 w-10 text-right">{@agent.event_count}e</span>
 
   <%!-- Tool count --%>
-  <span class="text-[10px] font-mono text-zinc-700 w-8 text-right">{@agent.tool_count}t</span>
+  <span class="text-[10px] font-mono text-zinc-700 w-8 text-right">{if is_integer(@agent.tool_count), do: @agent.tool_count, else: 0}t</span>
 
   <%!-- Source app --%>
   <span class="text-[10px] font-mono text-zinc-700 ml-auto">{@agent.source_app}</span>

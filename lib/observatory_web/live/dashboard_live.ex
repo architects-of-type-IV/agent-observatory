@@ -75,6 +75,7 @@ defmodule ObservatoryWeb.DashboardLive do
       |> assign(:selected_message_target, nil)
       |> assign(:inspector_events, [])
       |> assign(:current_session_id, "dashboard")
+      |> assign(:sidebar_collapsed, false)
       |> prepare_assigns()
 
     # Subscribe to mailbox channels for all active sessions
@@ -360,8 +361,28 @@ defmodule ObservatoryWeb.DashboardLive do
   def handle_event("clear_command_selection", _p, s),
     do: {:noreply, handle_clear_command_selection(%{}, s) |> prepare_assigns()}
 
-  def handle_event("send_command_message", p, s),
-    do: {:noreply, handle_send_command_message(p, s) |> prepare_assigns()}
+  def handle_event("send_command_message", %{"to" => to, "content" => content} = p, s) do
+    socket = handle_send_command_message(p, s) |> prepare_assigns()
+
+    socket =
+      if content != "" do
+        short = String.slice(to, 0, 8)
+        push_event(socket, "toast", %{message: "Sent to #{short}", type: "success"})
+      else
+        socket
+      end
+
+    {:noreply, socket}
+  end
+
+  def handle_event("toggle_sidebar", _p, s) do
+    new_val = !s.assigns.sidebar_collapsed
+
+    {:noreply,
+     s
+     |> assign(:sidebar_collapsed, new_val)
+     |> push_event("filters_changed", %{sidebar_collapsed: to_string(new_val)})}
+  end
 
   def handle_event("toggle_add_project", _p, s),
     do:

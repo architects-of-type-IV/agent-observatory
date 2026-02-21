@@ -204,8 +204,16 @@
   </header>
 
   <div class="flex flex-1 overflow-hidden">
+    <%!-- ═══ Sidebar Toggle ═══ --%>
+    <button
+      phx-click="toggle_sidebar"
+      class="w-6 bg-zinc-900/50 border-r border-zinc-800 flex items-center justify-center hover:bg-zinc-800 transition shrink-0 text-zinc-600 hover:text-zinc-400"
+      title={if @sidebar_collapsed, do: "Show sidebar", else: "Hide sidebar"}
+    >
+      <span class="text-[10px]">{if @sidebar_collapsed, do: ">", else: "<"}</span>
+    </button>
     <%!-- ═══ Left Sidebar ═══ --%>
-    <aside class="w-72 bg-zinc-900/50 border-r border-zinc-800 overflow-y-auto shrink-0">
+    <aside class={["bg-zinc-900/50 border-r border-zinc-800 overflow-y-auto shrink-0 transition-all", if(@sidebar_collapsed, do: "w-0 overflow-hidden", else: "w-72")]}>
       <div class="p-3">
         <%!-- Teams Section --%>
         <div :if={@has_teams} class="mb-4">
@@ -319,8 +327,8 @@
     <%!-- ═══ Main Content Area ═══ --%>
     <main class="flex-1 overflow-y-auto overflow-x-hidden">
       <%!-- View Dispatcher --%>
-      <%!-- Overview: Command + Pipeline + Agents stacked --%>
-      <div :if={@view_mode == :overview} class="space-y-0">
+      <%!-- Overview: Unified control plane --%>
+      <div :if={@view_mode == :overview}>
         <ObservatoryWeb.Components.CommandComponents.command_view
           swarm_state={@swarm_state}
           teams={@teams}
@@ -329,23 +337,14 @@
           now={@now}
           selected_command_agent={@selected_command_agent}
           selected_command_task={@selected_command_task}
-        />
-        <ObservatoryWeb.Components.PipelineComponents.pipeline_view
-          swarm_state={@swarm_state}
-          selected_dag_task={@selected_dag_task}
-          show_add_project={@show_add_project}
-          now={@now}
-        />
-        <ObservatoryWeb.Components.AgentsComponents.agents_view
-          teams={@teams}
+          messages={@messages}
+          protocol_stats={@protocol_stats}
           active_tasks={@active_tasks}
-          selected_agent={@selected_agent}
-          mailbox_counts={@mailbox_counts}
-          now={@now}
+          analytics={@analytics}
         />
       </div>
 
-      <%!-- Standalone views (via More dropdown) --%>
+      <%!-- Standalone views --%>
       <ObservatoryWeb.Components.CommandComponents.command_view
         :if={@view_mode == :command}
         swarm_state={@swarm_state}
@@ -355,6 +354,10 @@
         now={@now}
         selected_command_agent={@selected_command_agent}
         selected_command_task={@selected_command_task}
+        messages={@messages}
+        protocol_stats={@protocol_stats}
+        active_tasks={@active_tasks}
+        analytics={@analytics}
       />
 
       <ObservatoryWeb.Components.PipelineComponents.pipeline_view

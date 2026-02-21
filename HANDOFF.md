@@ -174,29 +174,28 @@ Session Block (collapsible)
 
 ## Navigation: Flat Tabs
 
-Replaced broken "More" dropdown with flat tab bar showing all 12 views at equal weight:
-Overview, Command, Pipeline, Agents, Protocols, Feed, Tasks, Messages, Errors, Analytics, Timeline, Teams.
-Keyboard shortcuts 1-9 and 0 map to first 10 views. MoreDropdown JS hook removed.
+All 12 views as flat tabs at equal weight. Keyboard shortcuts 1-9,0 for first 10. MoreDropdown hook removed.
 
-## Command View: NOC-Style Cluster Hierarchy
+## Overview: Unified Control Plane
 
-Redesigned from flat agent list to telecom NOC-style hierarchical control panel:
+Single purpose-built view surfacing ALL dimensions. Not a stack of other components.
 
-**Structure**: Fleet bar -> Project clusters -> Swarm groups -> Agent rows
+**Fleet bar**: node counts, error count, message count, tool count, task pipeline progress, protocol stats (H/P/M/Q), health indicator. All updating in real-time via PubSub.
 
-- `build_clusters/1`: groups agents by project, then by team within each project
-- `group_stats/1`: aggregates per-cluster/per-swarm (total, active, idle, ended, events, tools)
-- `cluster_health_color/1`: border color based on cluster health state
-- `agent_row` component: extracted from agent_grid for reuse in cluster/swarm contexts
-- Scale caps: swarms show 10 agents max, standalone shows 20 max, with overflow indicators
-- Health-colored cluster borders: green=all active, zinc=mostly ended
+**Cluster hierarchy**: project clusters -> swarm groups -> agent rows. Scale caps (swarm: 10, standalone: 20) with overflow. Health-colored borders.
 
-**Template files**:
-- `command_view.html.heex`: fleet bar + cluster cards with nested swarm groups
-- `agent_row.html.heex`: single agent row component (status, name, tool, model, events)
-- `agent_grid.html.heex`: backwards-compat wrapper, delegates to agent_row
+**Activity section** (below clusters):
+- Errors: red-bordered card with top 3 recent errors (tool name + project)
+- Messages: recent 5 messages with from->to and content preview
+- Alerts: swarm health issues + stale tasks with heal buttons
 
-**Message form**: Now shows "To: {agent_name} ({session_id_short})" above input.
+**Detail panel**: right side, shows on agent/task click. Message form shows "To: {name} ({id})" with toast feedback on send.
+
+**Data flow**: command_view receives @errors, @messages, @protocol_stats, @active_tasks from LiveView. No separate pipeline/agents stacked below.
+
+## Collapsible Sidebar
+
+Toggle button (< / >) at left edge. State persisted in localStorage via StatePersistence hook. Sidebar width transitions from w-72 to w-0.
 
 ## SwarmMonitor: Auto Re-Discovery
 

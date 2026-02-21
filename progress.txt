@@ -60,7 +60,17 @@ Observatory Progress
   - Standalone agents below swarm groups
   - Scale caps: swarm 10, standalone 20, with overflow indicators
   - agent_row component extracted for reuse
-- [x] Message form: shows "To: {name} ({session_id})" target
+- [x] Message form: shows "To: {name} ({session_id})" target + toast feedback on send
+- [x] Build: zero warnings
+
+- [x] Overview: unified control plane (not stacked components)
+  - Fleet bar: nodes, errors, messages, tools, task pipeline, protocol stats, health
+  - Activity section: recent errors, recent messages, alerts
+  - Passes @errors, @messages, @protocol_stats, @active_tasks to command_view
+  - Pipeline only shown when active (no empty "add project" noise)
+- [x] Collapsible sidebar: toggle button, state persisted in localStorage
+- [x] Fixed ArithmeticError: protocol_stats values are nested maps not ints
+- [x] Fixed tool_count guard: team-enriched agents may have non-integer tool_count
 - [x] Build: zero warnings
 
 ### Ready for Swarm

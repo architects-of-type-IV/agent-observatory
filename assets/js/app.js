@@ -36,7 +36,8 @@ let Hooks = {
         filter_event_type: localStorage.getItem("observatory:filter_event_type"),
         search_feed: localStorage.getItem("observatory:search_feed"),
         search_sessions: localStorage.getItem("observatory:search_sessions"),
-        selected_team: localStorage.getItem("observatory:selected_team")
+        selected_team: localStorage.getItem("observatory:selected_team"),
+        sidebar_collapsed: localStorage.getItem("observatory:sidebar_collapsed")
       }
 
       // Push to LiveView to restore state

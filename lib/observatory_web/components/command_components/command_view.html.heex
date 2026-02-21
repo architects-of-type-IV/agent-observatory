@@ -5,69 +5,115 @@
   pipeline = @swarm_state.pipeline
   health = @swarm_state.health
   stale = @swarm_state.stale_tasks
-  progress_pct = progress_pct(pipeline)
   alerts = build_alerts(health.issues, stale)
+  errors = @errors
+  messages = assigns[:messages] || []
+  protocol_stats = assigns[:protocol_stats] || %{}
+  active_tasks = assigns[:active_tasks] || []
+  # Aggregate counts for fleet bar
+  error_count = length(errors)
+  msg_count = length(messages)
+  task_count = length(active_tasks)
+  task_done = Enum.count(active_tasks, fn t -> t[:status] == "completed" end)
+  tool_count = agents |> Enum.map(fn a -> if is_integer(a.tool_count), do: a.tool_count, else: 0 end) |> Enum.sum()
+
+  # Recent errors (top 3)
+  recent_errors = Enum.take(errors, 3)
+  # Recent messages (top 5)
+  recent_msgs = Enum.take(messages, 5)
+
+  # Protocol summary (stats are nested maps, not plain ints)
+  proto_traces = protocol_stats[:traces] || 0
+  proto_mailbox = get_in(protocol_stats, [:mailbox, :total_pending]) || 0
+  proto_cmdq = get_in(protocol_stats, [:command_queue, :total_pending]) || 0
 %>
 <div class="p-4 flex flex-col gap-3 h-full">
-  <%!-- Fleet Status Bar --%>
+  <%!-- Fleet Status Bar -- all dimensions at a glance --%>
   <div class="bg-zinc-900/50 border border-zinc-800 rounded-lg px-4 py-2">
-    <div class="flex items-center gap-6">
+    <div class="flex items-center gap-4 flex-wrap">
+      <%!-- Nodes --%>
       <div class="flex items-center gap-2">
-        <span class="text-2xl font-bold text-zinc-200">{stats.total}</span>
-        <span class="text-[10px] text-zinc-500 uppercase tracking-wider leading-tight">
-          nodes<br/>
-          <span class="text-zinc-600">{length(clusters)} proj</span>
-        </span>
+        <span class="text-xl font-bold text-zinc-200">{stats.total}</span>
+        <div class="flex items-center gap-1.5 text-[10px] font-mono">
+          <span :if={stats.active > 0} class="text-emerald-400">{stats.active}a</span>
+          <span :if={stats.idle > 0} class="text-zinc-400">{stats.idle}i</span>
+          <span :if={stats.ended > 0} class="text-zinc-600">{stats.ended}e</span>
+        </div>
       </div>
 
-      <div class="flex items-center gap-4">
-        <div class="flex items-center gap-1.5">
-          <span class="w-2 h-2 rounded-full bg-emerald-400" />
-          <span class="text-xs font-mono text-emerald-400">{stats.active}</span>
-        </div>
-        <div class="flex items-center gap-1.5">
-          <span class="w-2 h-2 rounded-full bg-zinc-500" />
-          <span class="text-xs font-mono text-zinc-400">{stats.idle}</span>
-        </div>
-        <div class="flex items-center gap-1.5">
-          <span class="w-2 h-2 rounded-full bg-zinc-700" />
-          <span class="text-xs font-mono text-zinc-600">{stats.ended}</span>
-        </div>
+      <span class="w-px h-5 bg-zinc-800" />
+
+      <%!-- Errors --%>
+      <div class={["flex items-center gap-1.5 text-xs", if(error_count > 0, do: "text-red-400", else: "text-zinc-600")]}>
+        <span class={["w-1.5 h-1.5 rounded-full", if(error_count > 0, do: "bg-red-400", else: "bg-zinc-700")]} />
+        <span class="font-mono">{error_count}</span>
+        <span class="text-[10px]">errors</span>
+      </div>
+
+      <%!-- Messages --%>
+      <div class="flex items-center gap-1.5 text-xs text-zinc-500">
+        <span class="font-mono">{msg_count}</span>
+        <span class="text-[10px]">msgs</span>
+      </div>
+
+      <%!-- Tools --%>
+      <div class="flex items-center gap-1.5 text-xs text-zinc-500">
+        <span class="font-mono">{tool_count}</span>
+        <span class="text-[10px]">tools</span>
       </div>
 
       <span class="flex-1" />
 
-      <%!-- Health + Pipeline --%>
-      <div class="flex items-center gap-3">
-        <div class={[
-          "flex items-center gap-1.5 px-2 py-1 rounded text-xs font-medium",
-          if(health.healthy,
-            do: "bg-emerald-500/15 text-emerald-400",
-            else: "bg-red-500/15 text-red-400"
-          )
-        ]}>
-          <span class={[
-            "w-1.5 h-1.5 rounded-full",
-            if(health.healthy, do: "bg-emerald-400", else: "bg-red-400 animate-pulse")
-          ]} />
-          {if health.healthy, do: "OK", else: "#{length(health.issues)}!"}
+      <%!-- Tasks pipeline --%>
+      <div :if={task_count > 0} class="flex items-center gap-2">
+        <div class="w-20 h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+          <% pct = if task_count > 0, do: round(task_done / task_count * 100), else: 0 %>
+          <div class="h-full bg-emerald-500 rounded-full" style={"width: #{pct}%"} />
         </div>
+        <span class="text-[10px] font-mono text-zinc-500">{task_done}/{task_count}</span>
+      </div>
 
-        <div :if={pipeline.total > 0} class="flex items-center gap-2">
-          <div class="w-24 h-1.5 bg-zinc-800 rounded-full overflow-hidden">
-            <div class="h-full bg-emerald-500 rounded-full" style={"width: #{progress_pct}%"} />
-          </div>
-          <span class="text-[10px] font-mono text-zinc-500">
-            {pipeline.completed}/{pipeline.total}
-          </span>
+      <%!-- Swarm pipeline --%>
+      <div :if={pipeline.total > 0 && pipeline.total != task_count} class="flex items-center gap-2">
+        <% ppct = progress_pct(pipeline) %>
+        <div class="w-16 h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+          <div class="h-full bg-cyan-500 rounded-full" style={"width: #{ppct}%"} />
         </div>
+        <span class="text-[10px] font-mono text-zinc-500">{pipeline.completed}/{pipeline.total}</span>
+      </div>
+
+      <%!-- Health --%>
+      <div class={[
+        "flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-medium",
+        if(health.healthy && error_count == 0,
+          do: "bg-emerald-500/15 text-emerald-400",
+          else: "bg-red-500/15 text-red-400"
+        )
+      ]}>
+        <span class={[
+          "w-1.5 h-1.5 rounded-full",
+          if(health.healthy && error_count == 0, do: "bg-emerald-400", else: "bg-red-400 animate-pulse")
+        ]} />
+        {cond do
+          error_count > 0 && !health.healthy -> "#{error_count + length(health.issues)}!"
+          error_count > 0 -> "#{error_count}!"
+          !health.healthy -> "#{length(health.issues)}!"
+          true -> "OK"
+        end}
+      </div>
+
+      <%!-- Protocols --%>
+      <div :if={proto_traces + proto_mailbox + proto_cmdq > 0} class="flex items-center gap-2 text-[10px] font-mono text-zinc-600">
+        <span :if={proto_traces > 0}>T:{proto_traces}</span>
+        <span :if={proto_mailbox > 0}>M:{proto_mailbox}</span>
+        <span :if={proto_cmdq > 0}>Q:{proto_cmdq}</span>
       </div>
     </div>
   </div>
 
-  <%!-- Main: Clusters + Detail --%>
+  <%!-- Main: Clusters + Activity + Detail --%>
   <div class="flex gap-4 flex-1 min-h-0">
-    <%!-- Cluster Grid --%>
+    <%!-- Left: Clusters + Activity --%>
     <div class="flex-1 overflow-y-auto min-w-0 space-y-3">
       <%!-- Project Cluster Cards --%>
       <div
@@ -77,16 +123,14 @@
         <%!-- Cluster Header --%>
         <div class="flex items-center gap-3 px-3 py-2 border-b border-zinc-800/50">
           <span class="text-sm font-semibold text-zinc-200">{cluster.project}</span>
-          <span class="text-xs font-mono text-zinc-500">{cluster.stats.total} nodes</span>
+          <span class="text-xs font-mono text-zinc-500">{cluster.stats.total}</span>
           <div class="flex items-center gap-2 text-[10px] font-mono">
             <span :if={cluster.stats.active > 0} class="text-emerald-400">{cluster.stats.active}a</span>
             <span :if={cluster.stats.idle > 0} class="text-zinc-400">{cluster.stats.idle}i</span>
             <span :if={cluster.stats.ended > 0} class="text-zinc-600">{cluster.stats.ended}e</span>
           </div>
           <span class="flex-1" />
-          <span class="text-[10px] font-mono text-zinc-600">
-            {cluster.stats.events} events / {cluster.stats.tools} tools
-          </span>
+          <span class="text-[10px] font-mono text-zinc-600">{cluster.stats.events}ev {cluster.stats.tools}t</span>
           <span :if={cluster.swarms != []} class="text-[10px] text-cyan-600">
             {length(cluster.swarms)} swarm{if length(cluster.swarms) != 1, do: "s"}
           </span>
@@ -95,25 +139,19 @@
         <%!-- Swarm Groups --%>
         <div :for={swarm <- cluster.swarms} class="mx-2 mt-2 mb-1">
           <div class="rounded border border-cyan-900/30 bg-cyan-950/10">
-            <%!-- Swarm header --%>
             <div class="flex items-center gap-2 px-3 py-1.5 border-b border-cyan-900/20">
               <span class="text-[10px] text-cyan-500 uppercase tracking-wider">swarm</span>
               <span class="text-xs font-medium text-cyan-300">{swarm.name}</span>
-              <span class="text-[10px] font-mono text-zinc-500">{swarm.stats.total} nodes</span>
+              <span class="text-[10px] font-mono text-zinc-500">{swarm.stats.total}</span>
               <div class="flex items-center gap-1.5 text-[10px] font-mono">
                 <span :if={swarm.stats.active > 0} class="text-emerald-400">{swarm.stats.active}a</span>
                 <span :if={swarm.stats.idle > 0} class="text-zinc-400">{swarm.stats.idle}i</span>
               </div>
             </div>
-            <%!-- Swarm agent rows --%>
             <div class="divide-y divide-zinc-800/30">
               <% visible_swarm = Enum.take(swarm.agents, swarm_agent_cap()) %>
               <% swarm_overflow = swarm.stats.total - length(visible_swarm) %>
-              <.agent_row
-                :for={agent <- visible_swarm}
-                agent={agent}
-                selected={@selected_command_agent}
-              />
+              <.agent_row :for={agent <- visible_swarm} agent={agent} selected={@selected_command_agent} />
               <div :if={swarm_overflow > 0} class="px-3 py-1 text-[10px] text-zinc-600 text-center">
                 +{swarm_overflow} more
               </div>
@@ -121,29 +159,57 @@
           </div>
         </div>
 
-        <%!-- Standalone agents (no team) --%>
+        <%!-- Standalone agents --%>
         <div :if={cluster.standalone != []} class={[if(cluster.swarms != [], do: "border-t border-zinc-800/50")]}>
           <div :if={cluster.swarms != []} class="px-3 py-1">
             <span class="text-[10px] text-zinc-600 uppercase tracking-wider">standalone</span>
           </div>
           <div class="divide-y divide-zinc-800/30">
-            <% visible_standalone = Enum.take(cluster.standalone, cluster_agent_cap()) %>
-            <% standalone_overflow = length(cluster.standalone) - length(visible_standalone) %>
-            <.agent_row
-              :for={agent <- visible_standalone}
-              agent={agent}
-              selected={@selected_command_agent}
-            />
-            <div :if={standalone_overflow > 0} class="px-3 py-1 text-[10px] text-zinc-600 text-center">
-              +{standalone_overflow} more
+            <% visible_sa = Enum.take(cluster.standalone, cluster_agent_cap()) %>
+            <% sa_overflow = length(cluster.standalone) - length(visible_sa) %>
+            <.agent_row :for={agent <- visible_sa} agent={agent} selected={@selected_command_agent} />
+            <div :if={sa_overflow > 0} class="px-3 py-1 text-[10px] text-zinc-600 text-center">
+              +{sa_overflow} more
             </div>
           </div>
         </div>
       </div>
 
       <%!-- Empty state --%>
-      <div :if={clusters == []} class="flex items-center justify-center h-32 text-zinc-600 text-sm">
-        No nodes detected. Agent sessions appear as hook events stream in.
+      <div :if={clusters == []} class="flex items-center justify-center h-24 text-zinc-600 text-sm">
+        No nodes detected. Sessions appear as hook events stream in.
+      </div>
+
+      <%!-- ═══ Activity Section ═══ --%>
+
+      <%!-- Errors --%>
+      <div :if={recent_errors != []} class="rounded-lg border border-red-900/30 bg-red-950/10">
+        <div class="flex items-center gap-2 px-3 py-1.5 border-b border-red-900/20">
+          <span class="text-[10px] text-red-500 uppercase tracking-wider">errors</span>
+          <span class="text-xs font-mono text-red-400">{error_count}</span>
+        </div>
+        <div class="divide-y divide-zinc-800/30">
+          <div :for={err <- recent_errors} class="px-3 py-1.5 text-xs text-red-300/80 truncate">
+            <span class="text-red-500 font-mono mr-1">{err[:tool_name] || err.hook_event_type}</span>
+            <span class="text-zinc-500">{if err.cwd, do: Path.basename(err.cwd), else: short_id(err.session_id)}</span>
+          </div>
+        </div>
+      </div>
+
+      <%!-- Recent Messages --%>
+      <div :if={recent_msgs != []} class="rounded-lg border border-zinc-800 bg-zinc-900/30">
+        <div class="flex items-center gap-2 px-3 py-1.5 border-b border-zinc-800/50">
+          <span class="text-[10px] text-zinc-500 uppercase tracking-wider">messages</span>
+          <span class="text-xs font-mono text-zinc-500">{msg_count}</span>
+        </div>
+        <div class="divide-y divide-zinc-800/30">
+          <div :for={msg <- recent_msgs} class="px-3 py-1.5 flex items-center gap-2 text-xs">
+            <span class="text-cyan-500 font-mono truncate w-16">{msg[:from] || "?"}</span>
+            <span class="text-zinc-600">-></span>
+            <span class="text-zinc-400 font-mono truncate w-16">{msg[:to] || "?"}</span>
+            <span class="text-zinc-500 truncate flex-1">{String.slice(to_string(msg[:content] || msg[:body] || ""), 0, 60)}</span>
+          </div>
+        </div>
       </div>
 
       <%!-- Alerts --%>
@@ -166,7 +232,7 @@
       </div>
     </div>
 
-    <%!-- Selected Detail (right panel) --%>
+    <%!-- Right: Detail Panel --%>
     <div :if={@selected_command_agent || @selected_command_task} class="w-80 shrink-0">
       <.selected_detail
         agent={@selected_command_agent}
