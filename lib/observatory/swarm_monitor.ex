@@ -211,10 +211,27 @@ defmodule Observatory.SwarmMonitor do
   @impl true
   def handle_info(:poll_tasks, state) do
     Process.send_after(self(), :poll_tasks, @tasks_poll_interval)
+
+    # Re-discover projects on each poll (cheap: reads team config dir)
+    new_projects = discover_projects()
+    merged = Map.merge(state.watched_projects, new_projects)
+
+    state =
+      if merged != state.watched_projects do
+        active =
+          if state.active_project && Map.has_key?(merged, state.active_project),
+            do: state.active_project,
+            else: first_project_key(merged)
+
+        %{state | watched_projects: merged, active_project: active}
+      else
+        state
+      end
+
     old_tasks = state.tasks
     state = refresh_tasks(state)
 
-    if state.tasks != old_tasks do
+    if state.tasks != old_tasks || merged != state.watched_projects do
       broadcast(state)
     end
 

@@ -1,30 +1,107 @@
 <%
   agents = collect_agents(@teams, @events, @now)
+  stats = fleet_stats(agents)
   pipeline = @swarm_state.pipeline
   health = @swarm_state.health
   stale = @swarm_state.stale_tasks
   issues = health.issues
-  active_project = @swarm_state.active_project
-  projects = @swarm_state.watched_projects
   progress_pct = progress_pct(pipeline)
+  alerts = build_alerts(issues, stale)
 %>
 <div class="p-4 flex flex-col gap-4 h-full">
-  <%!-- Health Bar --%>
-  <.health_bar
-    health={health}
-    pipeline={pipeline}
-    progress_pct={progress_pct}
-    active_project={active_project}
-    projects={projects}
-    stale={stale}
-  />
+  <%!-- Fleet Status Bar --%>
+  <div class="bg-zinc-900/50 border border-zinc-800 rounded-lg p-3">
+    <div class="flex items-center gap-6">
+      <%!-- Node count --%>
+      <div class="flex items-center gap-2">
+        <span class="text-2xl font-bold text-zinc-200">{stats.total}</span>
+        <span class="text-xs text-zinc-500 uppercase tracking-wider">nodes</span>
+      </div>
 
-  <%!-- Main content: Agent Grid + Detail Panel --%>
+      <%!-- Status breakdown --%>
+      <div class="flex items-center gap-4">
+        <div class="flex items-center gap-1.5">
+          <span class="w-2 h-2 rounded-full bg-emerald-400" />
+          <span class="text-xs font-mono text-emerald-400">{stats.active}</span>
+          <span class="text-[10px] text-zinc-600">active</span>
+        </div>
+        <div class="flex items-center gap-1.5">
+          <span class="w-2 h-2 rounded-full bg-zinc-500" />
+          <span class="text-xs font-mono text-zinc-400">{stats.idle}</span>
+          <span class="text-[10px] text-zinc-600">idle</span>
+        </div>
+        <div class="flex items-center gap-1.5">
+          <span class="w-2 h-2 rounded-full bg-zinc-700" />
+          <span class="text-xs font-mono text-zinc-600">{stats.ended}</span>
+          <span class="text-[10px] text-zinc-600">ended</span>
+        </div>
+      </div>
+
+      <span class="flex-1" />
+
+      <%!-- Project clusters --%>
+      <div class="flex items-center gap-3">
+        <span :for={{project, count} <- Enum.take(stats.by_project, 5)} class="text-xs font-mono">
+          <span class="text-zinc-500">{project || "?"}</span>
+          <span class="text-zinc-600">({count})</span>
+        </span>
+      </div>
+
+      <%!-- Health + Pipeline --%>
+      <div class="flex items-center gap-2">
+        <div class={[
+          "flex items-center gap-1.5 px-2 py-1 rounded text-xs font-medium",
+          if(health.healthy,
+            do: "bg-emerald-500/15 text-emerald-400",
+            else: "bg-red-500/15 text-red-400"
+          )
+        ]}>
+          <span class={[
+            "w-1.5 h-1.5 rounded-full",
+            if(health.healthy, do: "bg-emerald-400", else: "bg-red-400 animate-pulse")
+          ]} />
+          {if health.healthy, do: "OK", else: "#{length(health.issues)}!"}
+        </div>
+
+        <div :if={pipeline.total > 0} class="flex items-center gap-2">
+          <div class="w-20 h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+            <div
+              class="h-full bg-emerald-500 rounded-full"
+              style={"width: #{progress_pct}%"}
+            />
+          </div>
+          <span class="text-[10px] font-mono text-zinc-500">
+            {pipeline.completed}/{pipeline.total}
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <%!-- Main content: Node Grid + Detail Panel --%>
   <div class="flex gap-4 flex-1 min-h-0">
-    <%!-- Agent Grid + Alerts --%>
-    <div class="flex-1 flex flex-col gap-4 min-w-0">
+    <%!-- Node Grid + Alerts --%>
+    <div class="flex-1 flex flex-col gap-3 min-w-0">
       <.agent_grid agents={agents} selected={@selected_command_agent} now={@now} />
-      <.alerts_panel issues={issues} stale={stale} />
+
+      <%!-- Alerts (inline, not separate panel) --%>
+      <div :if={alerts != []} class="space-y-1">
+        <div
+          :for={alert <- Enum.take(alerts, 5)}
+          class="flex items-center gap-2 px-3 py-1.5 rounded bg-zinc-900/50 border border-zinc-800"
+        >
+          <span class={["w-1.5 h-1.5 rounded-full shrink-0", severity_color(alert.severity)]} />
+          <span class={"text-xs flex-1 truncate #{severity_text_color(alert.severity)}"}>{alert.message}</span>
+          <button
+            :if={alert.action}
+            phx-click={alert.action}
+            phx-value-task_id={alert.target_id}
+            class="text-[10px] px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400 hover:text-zinc-200"
+          >
+            {alert.action_label}
+          </button>
+        </div>
+      </div>
     </div>
 
     <%!-- Selected Detail --%>

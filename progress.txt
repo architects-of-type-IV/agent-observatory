@@ -39,6 +39,22 @@ Observatory Progress
   - Recursive rendering: multi-chain -> single-tool children
 - [x] Build: zero warnings
 
+- [x] Command view: agents derived from events (not just teams)
+  - build_agent_from_events: session_id, model, cwd, status, current_tool
+  - Fleet status bar: total nodes, active/idle/ended, project clusters
+  - Compact row layout (handles 100+ agents)
+  - Agent selection works with event-derived agents
+- [x] Feed naming fix: cwd basename instead of "compact" source
+- [x] SwarmMonitor: re-discovers projects on each poll cycle (not just startup)
+- [x] Verified: SwarmMonitor reads memories tasks.jsonl (8 tasks, 6 waves)
+- [x] Build: zero warnings
+
+### Ready for Swarm
+- SwarmMonitor active, polling memories/tasks.jsonl every 3s
+- Pipeline view has 8 tasks in 6 DAG waves
+- Global hooks configured for all 13 event types -> Observatory
+- Command view shows agents from events as they appear
+
 ### Remaining
 - [ ] Visual verification: open browser, click through all views
 - [ ] Test feed with active agents spawning subagents

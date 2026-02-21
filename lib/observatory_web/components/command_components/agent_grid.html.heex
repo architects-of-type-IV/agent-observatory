@@ -1,11 +1,66 @@
+<%
+  # For scale: show compact rows, not cards. Rows handle 1000s; cards die at 50.
+  visible = Enum.take(@agents, 100)
+  overflow = length(@agents) - length(visible)
+%>
 <div :if={@agents != []} class="flex-1 min-h-0 overflow-y-auto">
-  <div class="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2">
-    <.agent_cell :for={agent <- @agents} agent={agent} selected={@selected} now={@now} />
+  <%!-- Compact node table --%>
+  <div class="space-y-0 divide-y divide-zinc-800/50">
+    <div
+      :for={agent <- visible}
+      phx-click="select_command_agent"
+      phx-value-id={agent.agent_id}
+      class={[
+        "flex items-center gap-3 px-3 py-1.5 cursor-pointer hover:bg-zinc-800/50 transition",
+        if(@selected && ((@selected[:agent_id] || @selected[:session_id]) == agent.agent_id),
+          do: "bg-zinc-800/80 border-l-2 border-indigo-500",
+          else: "border-l-2 border-transparent"
+        )
+      ]}
+    >
+      <%!-- Status dot --%>
+      <span class={["w-2 h-2 rounded-full shrink-0", status_dot_color(agent.status)]} />
+
+      <%!-- Name --%>
+      <span class="text-xs font-medium text-zinc-200 w-24 truncate">{agent.name}</span>
+
+      <%!-- Current tool or idle --%>
+      <div class="text-xs w-28 truncate">
+        <%= if agent.current_tool do %>
+          <% {tool, elapsed} = agent.current_tool %>
+          <span class="text-indigo-400 font-mono">{tool}</span>
+          <span class="text-zinc-600 font-mono">{elapsed}s</span>
+        <% else %>
+          <span class="text-zinc-700 italic">--</span>
+        <% end %>
+      </div>
+
+      <%!-- Model --%>
+      <span class="text-[10px] font-mono text-zinc-600 w-12 truncate">{short_model(agent.model)}</span>
+
+      <%!-- Event count --%>
+      <span class="text-[10px] font-mono text-zinc-600 w-10 text-right">{agent.event_count}e</span>
+
+      <%!-- Tool count --%>
+      <span class="text-[10px] font-mono text-zinc-700 w-8 text-right">{agent.tool_count}t</span>
+
+      <%!-- Team name --%>
+      <span :if={agent[:team_name]} class="text-[10px] font-mono text-cyan-600 truncate">{agent[:team_name]}</span>
+
+      <%!-- Source app --%>
+      <span class="text-[10px] font-mono text-zinc-700 ml-auto">{agent.source_app}</span>
+    </div>
+  </div>
+
+  <%!-- Overflow indicator --%>
+  <div :if={overflow > 0} class="px-3 py-2 text-xs text-zinc-600 text-center border-t border-zinc-800">
+    +{overflow} more nodes (filter to narrow)
   </div>
 </div>
+
 <div :if={@agents == []}>
   <.empty_state
-    title="No active agents"
-    description="Agents will appear when a swarm pipeline starts or sessions connect"
+    title="No nodes detected"
+    description="Agent sessions will appear as hook events stream in"
   />
 </div>

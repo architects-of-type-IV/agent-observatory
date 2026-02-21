@@ -172,6 +172,26 @@ Session Block (collapsible)
 
 **Collapse keys**: `"chain:{first_tool_use_id}"` for chain groups, `"tool:{tool_use_id}"` for individual tools.
 
+## Command View: Event-Derived Agents
+
+`collect_agents` now builds from events (every session_id = a node), not just team members:
+- Derives: name (cwd basename), model, status (active/idle/ended), current_tool, event/tool counts
+- Fleet status bar: total nodes, active/idle/ended counts, project clusters, health + pipeline progress
+- Compact row layout (shows 100, truncates with "+N more")
+- Merged with team data when available
+
+## SwarmMonitor: Auto Re-Discovery
+
+`poll_tasks` now calls `discover_projects()` on every 3s cycle, merging new teams automatically. No restart needed when a new swarm starts.
+
+## Swarm Readiness (memories project)
+
+- SwarmMonitor active: memories project discovered from archived team configs
+- tasks.jsonl: 8 tasks, 6 DAG waves, all pending
+- Pipeline view: project selector, DAG visualization, task table all wired
+- Global hooks: all 13 types fire `send_event.sh` -> Observatory POST /api/events
+- Worker tmux sessions will auto-register as nodes in Command view via SessionStart events
+
 ## Build Status
 
 `mix compile --warnings-as-errors` -- PASSES (zero warnings)

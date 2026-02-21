@@ -354,14 +354,17 @@ defmodule ObservatoryWeb.DashboardFeedHelpers do
       end)
       |> Map.new()
 
+    # Use cwd basename as session name; source "compact"/"startup" are not display names
     session_start_names =
       events
       |> Enum.filter(&(&1.hook_event_type == :SessionStart))
       |> Enum.reduce(%{}, fn e, acc ->
-        model = (e.payload || %{})["model"] || e.model_name
-        source = (e.payload || %{})["source"]
-        name = source || model
-        if name, do: Map.put(acc, e.session_id, name), else: acc
+        cwd = e.cwd
+        name = if cwd && cwd != "", do: Path.basename(cwd), else: nil
+
+        if name && !Map.has_key?(acc, e.session_id),
+          do: Map.put(acc, e.session_id, name),
+          else: acc
       end)
 
     Map.merge(session_start_names, team_names)

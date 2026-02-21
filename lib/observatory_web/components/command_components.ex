@@ -10,17 +10,107 @@ defmodule ObservatoryWeb.Components.CommandComponents do
 
   embed_templates "command_components/*"
 
+  @idle_threshold_seconds 120
+
   # ═══════════════════════════════════════════════════════
-  # Data collection helpers
+  # Data collection: derive agents from events + teams
   # ═══════════════════════════════════════════════════════
 
-  defp collect_agents(teams, _events, _now) do
+  defp collect_agents(teams, events, now) do
+    # Build agent map from events (every session = a node)
+    event_agents =
+      events
+      |> Enum.group_by(& &1.session_id)
+      |> Enum.map(fn {sid, evts} ->
+        build_agent_from_events(sid, evts, now)
+      end)
+
+    # Enrich with team data
+    team_index = build_team_index(teams)
+
+    event_agents
+    |> Enum.map(fn agent ->
+      case Map.get(team_index, agent.agent_id) do
+        nil -> agent
+        team_data -> Map.merge(agent, team_data)
+      end
+    end)
+    |> Enum.sort_by(fn a -> {status_sort(a.status), a.name} end)
+  end
+
+  defp build_agent_from_events(session_id, events, now) do
+    sorted = Enum.sort_by(events, & &1.inserted_at, {:desc, DateTime})
+    latest = hd(sorted)
+    ended? = Enum.any?(events, &(&1.hook_event_type == :SessionEnd))
+    cwd = latest.cwd || Enum.find_value(events, & &1.cwd)
+
+    model =
+      Enum.find_value(events, fn e ->
+        if e.hook_event_type == :SessionStart,
+          do: (e.payload || %{})["model"] || e.model_name
+      end) || Enum.find_value(events, & &1.model_name)
+
+    status =
+      cond do
+        ended? -> :ended
+        DateTime.diff(now, latest.inserted_at, :second) > @idle_threshold_seconds -> :idle
+        true -> :active
+      end
+
+    %{
+      agent_id: session_id,
+      name: if(cwd, do: Path.basename(cwd), else: String.slice(session_id, 0, 8)),
+      model: model,
+      status: status,
+      health: :unknown,
+      current_tool: find_current_tool(events, now),
+      event_count: length(events),
+      tool_count: Enum.count(events, &(&1.hook_event_type == :PreToolUse)),
+      cwd: cwd,
+      source_app: latest.source_app,
+      project: if(cwd, do: Path.basename(cwd), else: nil),
+      health_issues: []
+    }
+  end
+
+  defp find_current_tool(events, now) do
+    post_ids =
+      events
+      |> Enum.filter(&(&1.hook_event_type in [:PostToolUse, :PostToolUseFailure]))
+      |> MapSet.new(& &1.tool_use_id)
+
+    events
+    |> Enum.filter(&(&1.hook_event_type == :PreToolUse))
+    |> Enum.sort_by(& &1.inserted_at, {:desc, DateTime})
+    |> Enum.find(fn e -> e.tool_use_id && not MapSet.member?(post_ids, e.tool_use_id) end)
+    |> case do
+      nil -> nil
+      pre -> {pre.tool_name, div(DateTime.diff(now, pre.inserted_at, :millisecond), 1000)}
+    end
+  end
+
+  defp build_team_index(teams) do
     teams
     |> Enum.flat_map(fn team ->
       Enum.map(team.members, fn m ->
-        Map.merge(m, %{team_name: team.name})
+        {m[:agent_id] || m[:session_id], Map.merge(m, %{team_name: team.name})}
       end)
     end)
+    |> Map.new()
+  end
+
+  defp status_sort(:active), do: 0
+  defp status_sort(:idle), do: 1
+  defp status_sort(_), do: 2
+
+  defp fleet_stats(agents) do
+    %{
+      total: length(agents),
+      active: Enum.count(agents, &(&1.status == :active)),
+      idle: Enum.count(agents, &(&1.status == :idle)),
+      ended: Enum.count(agents, &(&1.status == :ended)),
+      by_project: agents |> Enum.frequencies_by(& &1.project) |> Enum.sort_by(&elem(&1, 1), :desc)
+    }
   end
 
   defp build_alerts(issues, stale_tasks) do
