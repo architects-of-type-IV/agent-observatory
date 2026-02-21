@@ -32,7 +32,7 @@ defmodule ObservatoryWeb.DashboardLive do
       :timer.send_interval(1000, self(), :tick)
     end
 
-    events = load_recent_events()
+    events = []
     disk_teams = Observatory.TeamWatcher.get_state()
 
     socket =
@@ -439,18 +439,6 @@ defmodule ObservatoryWeb.DashboardLive do
            ] do
     ObservatoryWeb.DashboardNavigationHandlers.handle_event(e, p, s)
     |> then(&{:noreply, prepare_assigns(&1)})
-  end
-
-  defp load_recent_events do
-    case Ash.read(Observatory.Events.Event, action: :read) do
-      {:ok, events} ->
-        events
-        |> Enum.sort_by(& &1.inserted_at, {:desc, DateTime})
-        |> Enum.take(@max_events)
-
-      _ ->
-        []
-    end
   end
 
   defp find_agent_by_id(teams, agent_id) do
