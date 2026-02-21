@@ -190,8 +190,8 @@
         </div>
         <div class="divide-y divide-zinc-800/30">
           <div :for={err <- recent_errors} class="px-3 py-1.5 text-xs text-red-300/80 truncate">
-            <span class="text-red-500 font-mono mr-1">{err[:tool_name] || err.hook_event_type}</span>
-            <span class="text-zinc-500">{if err.cwd, do: Path.basename(err.cwd), else: short_id(err.session_id)}</span>
+            <span class="text-red-500 font-mono mr-1">{err[:tool_name] || err[:hook_event_type] || "error"}</span>
+            <span class="text-zinc-500">{if err[:cwd], do: Path.basename(err[:cwd]), else: short_id(err[:session_id])}</span>
           </div>
         </div>
       </div>
