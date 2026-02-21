@@ -1,0 +1,32 @@
+<%
+  phase_key = "phase:#{@turn_id}:#{@phase.index}"
+  expanded = MapSet.member?(@expanded_sessions, phase_key)
+  pair_count = length(@phase.pairs)
+  status_color = case @phase.status do
+    :success -> "text-emerald-500"
+    :in_progress -> "text-amber-400"
+    :has_failures -> "text-red-400"
+    _ -> "text-zinc-500"
+  end
+%>
+<.feed_nest>
+  <.feed_row collapse_key={phase_key} expanded_sessions={@expanded_sessions}>
+    <span class={label_class(phase_color(@phase.phase))}>{phase_label(@phase.phase)}</span>
+    <span class={summary_class()}>{@phase.tool_summary}</span>
+    <span :if={@phase.permission_count > 0} class={stat_class("text-amber-500/70")}>{@phase.permission_count} perms</span>
+    <span :if={@phase.duration_ms} class={stat_class(duration_color(@phase.duration_ms))}>{format_duration(@phase.duration_ms)}</span>
+    <span :if={pair_count > 1} class={stat_class(status_color)}>{pair_count}</span>
+  </.feed_row>
+
+  <%!-- Expanded: individual tool pairs --%>
+  <div :if={expanded} class="space-y-0">
+    <.tool_pair
+      :for={pair <- @phase.pairs}
+      pair={pair}
+      selected_event={@selected_event}
+      event_notes={@event_notes}
+      expanded_sessions={@expanded_sessions}
+      now={@now}
+    />
+  </div>
+</.feed_nest>

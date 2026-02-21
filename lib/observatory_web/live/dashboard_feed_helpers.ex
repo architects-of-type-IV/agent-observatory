@@ -1,7 +1,8 @@
 defmodule ObservatoryWeb.DashboardFeedHelpers do
   @moduledoc """
   Feed grouping and event pairing helpers for the Observatory Dashboard.
-  Groups events by session, segments by subagent spans, and pairs tool executions.
+  Groups events by session, then by conversation turns (UserPromptSubmit/Stop boundaries),
+  then by activity phases (consecutive tools of the same category).
   """
 
   # ═══════════════════════════════════════════════════════
@@ -9,8 +10,8 @@ defmodule ObservatoryWeb.DashboardFeedHelpers do
   # ═══════════════════════════════════════════════════════
 
   @doc """
-  Build grouped feed structure with segments, agent names, and full metadata.
-  Each session group contains segments: parent events and subagent blocks.
+  Build grouped feed structure with turns, agent names, and full metadata.
+  Each session group contains turns: conversation turns with activity phases.
   """
   def build_feed_groups(events, teams \\ []) do
     name_map = build_agent_name_map(events, teams)
@@ -23,76 +24,12 @@ defmodule ObservatoryWeb.DashboardFeedHelpers do
     |> Enum.sort_by(& &1.start_time, {:desc, DateTime})
   end
 
-  def get_paired_tool_use_ids(tool_pairs) do
-    tool_pairs |> Enum.map(& &1.tool_use_id) |> MapSet.new()
-  end
-
-  @feed_hidden_types [
-    :SessionStart,
-    :SessionEnd,
-    :Stop,
-    :SubagentStart,
-    :SubagentStop,
-    :PreCompact
-  ]
-
-  def get_standalone_events(events, paired_ids) do
-    Enum.reject(events, fn e ->
-      (e.tool_use_id && MapSet.member?(paired_ids, e.tool_use_id)) ||
-        e.hook_event_type in @feed_hidden_types
-    end)
-  end
-
   def elapsed_time_ms(pre_event, now \\ DateTime.utc_now()) do
     DateTime.diff(now, pre_event.inserted_at, :millisecond)
   end
 
   @doc """
-  Build a chronological timeline of tool chains and standalone events.
-  Groups consecutive tool pairs into chains for collapsible rendering.
-
-  Returns a list of:
-    {:tool_chain, [pair1, pair2, ...]}  -- consecutive tool calls grouped
-    {:event, standalone_event}          -- non-tool events (prompts, notifications, etc.)
-  """
-  def build_segment_timeline(tool_pairs, events) do
-    paired_ids = get_paired_tool_use_ids(tool_pairs)
-    standalone = get_standalone_events(events, paired_ids)
-
-    tool_items =
-      Enum.map(tool_pairs, fn pair ->
-        %{type: :tool, data: pair, time: pair.pre.inserted_at}
-      end)
-
-    standalone_items =
-      Enum.map(standalone, fn event ->
-        %{type: :event, data: event, time: event.inserted_at}
-      end)
-
-    (tool_items ++ standalone_items)
-    |> Enum.sort_by(& &1.time, {:asc, DateTime})
-    |> group_into_chains()
-  end
-
-  defp group_into_chains(items) do
-    items
-    |> Enum.reduce([], fn item, acc ->
-      case {item.type, acc} do
-        {:tool, [{:tool_chain, chain} | rest]} ->
-          [{:tool_chain, chain ++ [item.data]} | rest]
-
-        {:tool, _} ->
-          [{:tool_chain, [item.data]} | acc]
-
-        {:event, _} ->
-          [{:event, item.data} | acc]
-      end
-    end)
-    |> Enum.reverse()
-  end
-
-  @doc """
-  Summarize tool names in a chain for the collapsed header.
+  Summarize tool names in a list of pairs for a collapsed header.
   Returns string like "Read x3, Edit x1, Bash x1"
   """
   def chain_tool_summary(pairs) do
@@ -106,7 +43,7 @@ defmodule ObservatoryWeb.DashboardFeedHelpers do
   end
 
   @doc """
-  Total duration of a tool chain in milliseconds.
+  Total duration of a list of tool pairs in milliseconds.
   """
   def chain_total_duration(pairs) do
     pairs
@@ -119,7 +56,7 @@ defmodule ObservatoryWeb.DashboardFeedHelpers do
   end
 
   @doc """
-  Overall status of a tool chain.
+  Overall status of a list of tool pairs.
   """
   def chain_status(pairs) do
     cond do
@@ -128,6 +65,260 @@ defmodule ObservatoryWeb.DashboardFeedHelpers do
       Enum.all?(pairs, &(&1.status == :success)) -> :success
       true -> :mixed
     end
+  end
+
+  # ═══════════════════════════════════════════════════════
+  # Tool classification
+  # ═══════════════════════════════════════════════════════
+
+  @doc """
+  Classify a tool name into an activity phase category.
+  """
+  def classify_tool("Read"), do: :research
+  def classify_tool("Grep"), do: :research
+  def classify_tool("Glob"), do: :research
+  def classify_tool("WebSearch"), do: :research
+  def classify_tool("WebFetch"), do: :research
+  def classify_tool("Edit"), do: :build
+  def classify_tool("Write"), do: :build
+  def classify_tool("NotebookEdit"), do: :build
+  def classify_tool("Bash"), do: :verify
+  def classify_tool("Task"), do: :delegate
+  def classify_tool("TaskOutput"), do: :delegate
+  def classify_tool("TeamCreate"), do: :delegate
+  def classify_tool("TeamDelete"), do: :delegate
+  def classify_tool("SendMessage"), do: :communicate
+  def classify_tool("AskUserQuestion"), do: :communicate
+  def classify_tool("mcp__sequential-thinking" <> _), do: :think
+  def classify_tool(_), do: :other
+
+  # ═══════════════════════════════════════════════════════
+  # Turn builder -- splits session events by conversation turn boundaries
+  # ═══════════════════════════════════════════════════════
+
+  @doc """
+  Build conversation turns from sorted session events.
+  Splits at UserPromptSubmit/Stop boundaries.
+
+  Returns a list of:
+    %{type: :turn, ...}           -- a conversation turn
+    %{type: :preamble, ...}       -- events before first UserPromptSubmit
+    %{type: :subagent_stop, ...}  -- orphan SubagentStop between turns
+  """
+  def build_turns(sorted_events) do
+    perm_map = build_permission_lookup(sorted_events)
+
+    tool_pairs =
+      sorted_events
+      |> pair_tool_events()
+      |> attach_permissions(perm_map)
+
+    pair_map = build_pair_lookup(tool_pairs)
+
+    {items, current_turn} =
+      sorted_events
+      |> Enum.reduce({[], nil}, fn event, {items, current_turn} ->
+        case event.hook_event_type do
+          :UserPromptSubmit ->
+            # Flush any in-progress turn
+            items = flush_turn(items, current_turn)
+
+            prompt_text =
+              case event.payload do
+                %{"prompt" => p} when is_binary(p) -> p
+                _ -> ""
+              end
+
+            new_turn = %{
+              type: :turn,
+              prompt: prompt_text,
+              prompt_event: event,
+              response: nil,
+              stop_event: nil,
+              events: [event],
+              tool_pairs: [],
+              first_event_id: event.id
+            }
+
+            {items, new_turn}
+
+          :Stop ->
+            if current_turn do
+              # Check if this is a subagent stop (orphan) or the turn's stop
+              response_text =
+                case event.payload do
+                  %{"last_assistant_message" => msg} when is_binary(msg) -> msg
+                  _ -> nil
+                end
+
+              # If we already have a stop (subagent stop within turn), just accumulate
+              if current_turn.stop_event do
+                updated = %{current_turn | events: current_turn.events ++ [event]}
+                {items, updated}
+              else
+                updated = %{
+                  current_turn
+                  | response: response_text || current_turn.response,
+                    stop_event: event,
+                    events: current_turn.events ++ [event]
+                }
+
+                {items, updated}
+              end
+            else
+              # Orphan stop outside any turn
+              {items ++ [%{type: :subagent_stop, event: event}], nil}
+            end
+
+          :SubagentStop ->
+            if current_turn do
+              updated = %{current_turn | events: current_turn.events ++ [event]}
+              {items, updated}
+            else
+              agent_id = (event.payload || %{})["agent_id"]
+
+              {items ++
+                 [
+                   %{
+                     type: :subagent_stop,
+                     event: event,
+                     agent_id: agent_id
+                   }
+                 ], nil}
+            end
+
+          _ ->
+            if current_turn do
+              # Accumulate tool pairs for this turn
+              tool_pair =
+                if event.hook_event_type == :PreToolUse && event.tool_use_id do
+                  Map.get(pair_map, event.tool_use_id)
+                end
+
+              updated =
+                if tool_pair do
+                  %{
+                    current_turn
+                    | events: current_turn.events ++ [event],
+                      tool_pairs: current_turn.tool_pairs ++ [tool_pair]
+                  }
+                else
+                  %{current_turn | events: current_turn.events ++ [event]}
+                end
+
+              {items, updated}
+            else
+              # Pre-turn preamble event -- also accumulate tool pairs
+              tool_pair =
+                if event.hook_event_type == :PreToolUse && event.tool_use_id do
+                  Map.get(pair_map, event.tool_use_id)
+                end
+
+              case items do
+                [%{type: :preamble} = preamble | rest] ->
+                  updated = %{preamble | events: preamble.events ++ [event]}
+                  updated = if tool_pair, do: %{updated | tool_pairs: updated.tool_pairs ++ [tool_pair]}, else: updated
+                  {[updated | rest], nil}
+
+                _ ->
+                  preamble = %{type: :preamble, events: [event], tool_pairs: if(tool_pair, do: [tool_pair], else: [])}
+                  {items ++ [preamble], nil}
+              end
+            end
+        end
+      end)
+
+    # Flush the last turn
+    items = flush_turn(items, current_turn)
+
+    # Enrich turns with phases
+    Enum.map(items, fn
+      %{type: :turn} = turn ->
+        phases = group_into_phases(turn.tool_pairs)
+
+        total_duration =
+          turn.tool_pairs
+          |> Enum.map(& &1.duration_ms)
+          |> Enum.reject(&is_nil/1)
+          |> case do
+            [] -> nil
+            durations -> Enum.sum(durations)
+          end
+
+        permission_count =
+          turn.tool_pairs
+          |> Enum.flat_map(fn p -> p[:permission_events] || [] end)
+          |> length()
+
+        Map.merge(turn, %{
+          phases: phases,
+          tool_count: length(turn.tool_pairs),
+          total_duration_ms: total_duration,
+          permission_count: permission_count,
+          start_time: turn.prompt_event.inserted_at,
+          end_time:
+            if(turn.stop_event, do: turn.stop_event.inserted_at, else: turn.prompt_event.inserted_at)
+        })
+
+      %{type: :preamble} = preamble ->
+        phases = group_into_phases(preamble.tool_pairs)
+
+        total_duration =
+          preamble.tool_pairs
+          |> Enum.map(& &1.duration_ms)
+          |> Enum.reject(&is_nil/1)
+          |> case do
+            [] -> nil
+            durations -> Enum.sum(durations)
+          end
+
+        first_event = List.first(preamble.events)
+
+        Map.merge(preamble, %{
+          phases: phases,
+          tool_count: length(preamble.tool_pairs),
+          total_duration_ms: total_duration,
+          start_time: first_event && first_event.inserted_at
+        })
+
+      other ->
+        other
+    end)
+  end
+
+  @doc """
+  Group consecutive tool pairs by their classified phase.
+  Returns: [%{phase: :research, pairs: [...], duration_ms: N, permission_count: N}, ...]
+  """
+  def group_into_phases(tool_pairs) do
+    tool_pairs
+    |> Enum.reduce([], fn pair, acc ->
+      phase = classify_tool(pair.tool_name)
+
+      case acc do
+        [%{phase: ^phase} = current | rest] ->
+          [%{current | pairs: current.pairs ++ [pair]} | rest]
+
+        _ ->
+          [%{phase: phase, pairs: [pair]} | acc]
+      end
+    end)
+    |> Enum.reverse()
+    |> Enum.with_index()
+    |> Enum.map(fn {phase_group, index} ->
+      perm_count =
+        phase_group.pairs
+        |> Enum.flat_map(fn p -> p[:permission_events] || [] end)
+        |> length()
+
+      Map.merge(phase_group, %{
+        index: index,
+        duration_ms: chain_total_duration(phase_group.pairs),
+        status: chain_status(phase_group.pairs),
+        permission_count: perm_count,
+        tool_summary: chain_tool_summary(phase_group.pairs)
+      })
+    end)
   end
 
   # ═══════════════════════════════════════════════════════
@@ -148,9 +339,8 @@ defmodule ObservatoryWeb.DashboardFeedHelpers do
     last_event = List.last(sorted)
 
     has_subagents = Enum.any?(sorted, &(&1.hook_event_type == :SubagentStart))
-    segments = build_segments(sorted)
+    turns = build_turns(sorted)
 
-    # Determine role from segments
     role =
       cond do
         has_subagents -> :lead
@@ -158,7 +348,9 @@ defmodule ObservatoryWeb.DashboardFeedHelpers do
       end
 
     subagent_count =
-      segments |> Enum.count(fn s -> s.type == :subagent end)
+      sorted |> Enum.count(&(&1.hook_event_type == :SubagentStop))
+
+    turn_count = Enum.count(turns, fn t -> t.type == :turn end)
 
     total_duration_ms =
       if session_start && session_end,
@@ -169,7 +361,8 @@ defmodule ObservatoryWeb.DashboardFeedHelpers do
       agent_name: Map.get(name_map, session_id),
       role: role,
       events: sorted,
-      segments: segments,
+      turns: Enum.reverse(turns),
+      turn_count: turn_count,
       session_start: session_start,
       session_end: session_end,
       stop_event: Enum.find(Enum.reverse(sorted), &(&1.hook_event_type == :Stop)),
@@ -193,147 +386,36 @@ defmodule ObservatoryWeb.DashboardFeedHelpers do
   end
 
   # ═══════════════════════════════════════════════════════
-  # Segment builder -- splits session events by subagent spans
+  # Turn builder helpers
   # ═══════════════════════════════════════════════════════
 
-  defp build_segments(sorted_events) do
-    spans = extract_subagent_spans(sorted_events)
+  defp flush_turn(items, nil), do: items
+  defp flush_turn(items, turn), do: items ++ [turn]
 
-    if spans == [] do
-      # No subagents: single parent segment with all events
-      tool_pairs = pair_tool_events(sorted_events)
-      [%{type: :parent, events: sorted_events, tool_pairs: tool_pairs}]
-    else
-      segment_by_spans(sorted_events, spans)
-    end
+  defp build_pair_lookup(tool_pairs) do
+    Map.new(tool_pairs, fn pair -> {pair.tool_use_id, pair} end)
   end
 
-  defp extract_subagent_spans(events) do
-    starts =
-      events
-      |> Enum.filter(&(&1.hook_event_type == :SubagentStart))
-      |> Enum.map(fn e ->
-        %{
-          agent_id: (e.payload || %{})["agent_id"],
-          agent_type: (e.payload || %{})["agent_type"],
-          event: e,
-          time: e.inserted_at
-        }
-      end)
-
-    stops =
-      events
-      |> Enum.filter(&(&1.hook_event_type == :SubagentStop))
-      |> Enum.map(fn e ->
-        %{agent_id: (e.payload || %{})["agent_id"], event: e, time: e.inserted_at}
-      end)
-
-    # Match starts to stops by agent_id
-    Enum.map(starts, fn start ->
-      stop = Enum.find(stops, fn s -> s.agent_id == start.agent_id end)
-
-      %{
-        agent_id: start.agent_id,
-        agent_type: start.agent_type,
-        start_event: start.event,
-        stop_event: stop && stop.event,
-        start_time: start.time,
-        end_time: stop && stop.time
-      }
-    end)
-  end
-
-  defp segment_by_spans(events, spans) do
-    # Build a timeline: walk events, track active subagent spans
-    # Events before any span = parent
-    # Events within a span = subagent
-    # Events between spans = parent
-    sorted_spans = Enum.sort_by(spans, & &1.start_time, {:asc, DateTime})
-
-    {segments, current_parent_events} =
-      Enum.reduce(events, {[], []}, fn event, {segs, parent_acc} ->
-        cond do
-          # SubagentStart: flush parent events, begin new subagent segment
-          event.hook_event_type == :SubagentStart ->
-            span = find_span_by_start(sorted_spans, event)
-            parent_seg = flush_parent(parent_acc)
-            segs = if parent_seg, do: segs ++ [parent_seg], else: segs
-
-            if span do
-              # Collect all events between this start and its stop
-              subagent_events = collect_span_events(events, span)
-              tool_pairs = pair_tool_events(subagent_events)
-
-              sub_seg = %{
-                type: :subagent,
-                agent_id: span.agent_id,
-                agent_type: span.agent_type,
-                start_event: span.start_event,
-                stop_event: span.stop_event,
-                start_time: span.start_time,
-                end_time: span.end_time,
-                events: subagent_events,
-                tool_pairs: tool_pairs,
-                event_count: length(subagent_events),
-                tool_count: length(tool_pairs)
-              }
-
-              {segs ++ [sub_seg], []}
-            else
-              # Unmatched SubagentStart -- treat as standalone event in parent
-              {segs, parent_acc ++ [event]}
-            end
-
-          # Skip events that belong to an active subagent span
-          event.hook_event_type == :SubagentStop ->
-            # SubagentStop already handled by the span; skip in parent
-            {segs, parent_acc}
-
-          in_any_span?(event, sorted_spans) ->
-            # This event is inside a subagent span, already collected
-            {segs, parent_acc}
-
-          true ->
-            # Parent event
-            {segs, parent_acc ++ [event]}
-        end
-      end)
-
-    # Flush remaining parent events
-    final_parent = flush_parent(current_parent_events)
-    if final_parent, do: segments ++ [final_parent], else: segments
-  end
-
-  defp find_span_by_start(spans, event) do
-    agent_id = (event.payload || %{})["agent_id"]
-    Enum.find(spans, fn s -> s.agent_id == agent_id end)
-  end
-
-  defp collect_span_events(all_events, span) do
-    # Events strictly between SubagentStart and SubagentStop timestamps
-    # Exclude the SubagentStart/SubagentStop markers themselves
-    all_events
+  defp build_permission_lookup(events) do
+    events
     |> Enum.filter(fn e ->
-      e.hook_event_type not in [:SubagentStart, :SubagentStop] &&
-        DateTime.compare(e.inserted_at, span.start_time) in [:gt, :eq] &&
-        (span.end_time == nil || DateTime.compare(e.inserted_at, span.end_time) in [:lt, :eq])
+      e.hook_event_type in [:PermissionRequest, :Notification] and e.tool_use_id
     end)
+    |> Enum.group_by(& &1.tool_use_id)
   end
 
-  defp in_any_span?(event, spans) do
-    # Check if event falls within any subagent span's time range
-    Enum.any?(spans, fn span ->
-      event.hook_event_type not in [:SubagentStart, :SubagentStop] &&
-        DateTime.compare(event.inserted_at, span.start_time) in [:gt, :eq] &&
-        (span.end_time == nil || DateTime.compare(event.inserted_at, span.end_time) in [:lt, :eq])
+  defp attach_permissions(tool_pairs, perm_map) do
+    Enum.map(tool_pairs, fn pair ->
+      perms = Map.get(perm_map, pair.tool_use_id, [])
+
+      {permission_events, notification_events} =
+        Enum.split_with(perms, fn e -> e.hook_event_type == :PermissionRequest end)
+
+      Map.merge(pair, %{
+        permission_events: permission_events,
+        notification_events: notification_events
+      })
     end)
-  end
-
-  defp flush_parent([]), do: nil
-
-  defp flush_parent(events) do
-    tool_pairs = pair_tool_events(events)
-    %{type: :parent, events: events, tool_pairs: tool_pairs}
   end
 
   # ═══════════════════════════════════════════════════════
@@ -354,7 +436,6 @@ defmodule ObservatoryWeb.DashboardFeedHelpers do
       end)
       |> Map.new()
 
-    # Use cwd basename as session name; source "compact"/"startup" are not display names
     session_start_names =
       events
       |> Enum.filter(&(&1.hook_event_type == :SessionStart))

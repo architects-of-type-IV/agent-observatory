@@ -376,3 +376,317 @@ For multi-level targeting (team → member):
 - Focus states: `focus:border-indigo-500 focus:ring-0 focus:outline-none`
 - Buttons: `bg-indigo-600/20 text-indigo-400 hover:bg-indigo-600/30`
 - Accent colors: indigo (primary), cyan (teams), emerald (success), amber (warnings)
+
+---
+
+## Claude Code Session JSONL Format (Feb 2026)
+
+Analysis from real sessions in memories project (`~/.claude/projects/-Users-xander-code-www-memories/`).
+Sessions: `cef358b1` (75M, 2655 lines), `12f25789` (20M, 5701 lines).
+
+### File Locations
+
+```
+~/.claude/projects/{mangled-path}/{session-uuid}.jsonl                            # main session
+~/.claude/projects/{mangled-path}/{session-uuid}/subagents/agent-{7hex}.jsonl    # subagent
+~/.claude/projects/{mangled-path}/{session-uuid}/subagents/agent-acompact-{6hex}.jsonl  # compact artifact
+```
+
+Mangled path: `/Users/xander/code/www/memories` → `-Users-xander-code-www-memories`
+
+### Message Type Distribution
+
+Large session (no teams, 2655 lines):
+```
+1704  assistant
+ 772  user
+ 107  queue-operation
+  57  file-history-snapshot
+   8  system
+   7  summary
+```
+
+Medium session (multi-agent team, 5701 lines):
+```
+3847  progress          <- only present in team/multi-agent sessions
+ 992  assistant
+ 625  user
+ 110  queue-operation
+  66  system
+  61  file-history-snapshot
+```
+
+### Top-Level Key Sets by Type
+
+**`type: "assistant"` / `type: "user"`** — main message entries:
+```
+uuid, parentUuid, sessionId, isSidechain, type, timestamp, cwd, gitBranch, slug, version, userType
+message        <- contains actual API message
+requestId      <- groups multiple entries into one API call (absent on synthetic)
+thinkingMetadata <- {level, disabled, triggers} — present when thinking enabled
+todos          <- snapshot of TodoWrite state at message time
+isApiErrorMessage  <- true on API error responses
+toolUseResult  <- string or [{type,text}] — inline tool result (alternate encoding)
+isCompactSummary + isVisibleInTranscriptOnly <- marks compact summary injections
+logicalParentUuid  <- present on system messages across compact boundaries
+imagePasteIds  <- present when user pastes an image
+```
+
+**`type: "system"`**:
+```
+uuid, parentUuid, logicalParentUuid, sessionId, isSidechain, type, subtype, content, level, isMeta
+timestamp, cwd, gitBranch, slug, version, userType
+compactMetadata: {trigger, preTokens}
+```
+`subtype` values observed: `"compact_boundary"`
+
+**`type: "summary"`**:
+```
+leafUuid, summary    (3 fields total)
+```
+Short text label for compact section. No uuid/parentUuid.
+
+**`type: "queue-operation"`**:
+```
+type, operation, sessionId, timestamp    (4 fields total)
+```
+`operation` values: `"enqueue"`, `"remove"`. Tracks internal request queue state.
+
+**`type: "file-history-snapshot"`**:
+```
+type, isSnapshotUpdate, messageId
+snapshot: {messageId, timestamp, trackedFileBackups}
+```
+No uuid, no parentUuid. Anchors file backup state to a conversation tree node.
+
+**`type: "progress"`** (team/multi-agent sessions only):
+```
+type, agentName, teamName, isSidechain, parentToolUseID, toolUseID
+uuid, parentUuid, sessionId, cwd, gitBranch, version, userType, timestamp
+data: { type, ... }
+```
+`data.type` values:
+- `"hook_progress"`: `{hookEvent, hookName, command}` — hook script firing
+- `"bash_progress"`: `{output, fullOutput, elapsedTimeSeconds, totalLines, totalBytes, taskId, timeoutMs}` — streaming stdout
+
+hookEvent values in progress messages: `PreToolUse`, `PostToolUse`, `Stop`, `SessionStart`, `PostToolUseFailure`
+
+### `message` Field Structure
+
+**Assistant `message`**:
+```json
+{
+  "id": "msg_01XYZ",
+  "type": "message",
+  "role": "assistant",
+  "model": "claude-opus-4-5-20251101",
+  "stop_reason": "tool_use",
+  "stop_sequence": null,
+  "usage": {
+    "input_tokens": 10,
+    "cache_creation_input_tokens": 32855,
+    "cache_read_input_tokens": 0,
+    "cache_creation": {"ephemeral_5m_input_tokens": 32855, "ephemeral_1h_input_tokens": 0},
+    "output_tokens": 3,
+    "service_tier": "standard"
+  },
+  "context_management": {"applied_edits": []},
+  "content": [...]
+}
+```
+
+`stop_reason` values: `"tool_use"`, `"stop_sequence"`, `null` (null = streaming chunk, not final message)
+`container` field on `message`: appears when agent is in container mode
+
+**User `message`**:
+```json
+{"role": "user", "content": [...]}
+```
+No `id`, `model`, `usage`, or `stop_reason` on user messages.
+
+### Content Block Types
+
+**In assistant messages**:
+- `"thinking"` — `{type: "thinking", thinking: "..."}`
+- `"text"` — `{type: "text", text: "..."}`
+- `"tool_use"` — `{type: "tool_use", id: "toulu_01...", name: "Bash", input: {...}}`
+
+**In user messages**:
+- `"tool_result"` — `{type: "tool_result", tool_use_id: "toolu_01...", content: "..." | [{type, text}]}`
+- `"text"` — `{type: "text", text: "..."}` (human input)
+- `"image"` — pasted image block
+
+### requestId Semantics (Critical)
+
+One API call = one `requestId` = multiple JSONL lines. Pattern:
+```
+assistant (thinking)  ─┐
+assistant (text)       ├─ same requestId
+assistant (tool_use)   ─┘
+user (tool_result)        <- different message, no requestId
+```
+
+Large session: 695 unique requestIds → 1704 assistant entries (~2.45 entries per call avg).
+Max observed: 5 entries per requestId.
+`null` stop_reason = streaming chunk. Non-null = final chunk.
+
+### Tool Call Distribution (large session, playwright-heavy)
+
+```
+216  Bash
+ 98  Read
+ 95  Edit
+ 49  mcp__playwright__browser_take_screenshot
+ 48  TodoWrite
+ 32  mcp__playwright__browser_navigate
+ 32  Grep
+ 27  mcp__playwright__browser_evaluate
+ 21  Write / TaskOutput
+ 14  Glob / mcp__playwright__browser_console_messages
+ 11  KillShell / mcp__playwright__browser_press_key
+  5  Task (subagent spawns)
+  1  ExitPlanMode / EnterPlanMode
+```
+
+### Tool Call Distribution (medium session, multi-agent team)
+
+```
+249  Bash
+123  Read
+ 55  Grep
+ 32  Task (subagent spawns)
+ 19  SendMessage
+ 15  Glob
+ 13  TaskOutput
+ 12  Edit
+ 10  Write
+  6  mcp__sequential-thinking__sequentialthinking
+  2  TeamCreate / TeamDelete
+```
+
+### Subagent JSONL Files
+
+```
+Path: {session-dir}/subagents/agent-{7hex}.jsonl
+```
+
+Key differences from parent:
+- `isSidechain: true` (always)
+- `sessionId` = **parent's** sessionId (not a new UUID)
+- `model` can differ: parent used `claude-opus-4-5-20251101`, subagent used `claude-sonnet-4-6`
+- Same schema as parent otherwise
+
+`agent-acompact-{6hex}.jsonl` files also in subagents/:
+- Have `agentId` field at top level (e.g. `"acompact-1c62dd"`)
+- `isSidechain: true`
+- Appear to be compaction artifacts (parallel summaries)
+
+### Model Distribution
+
+Large session: `"claude-opus-4-5-20251101"` (1700 entries), `"<synthetic>"` (4 entries)
+Subagents (Explore type): `"claude-sonnet-4-6"`
+Version string: `"2.0.76"` on 2484 entries, absent on 171 entries
+
+### todos Field
+
+When TodoWrite is called, every subsequent message carries a snapshot:
+```json
+"todos": [
+  {"content": "Investigate tool block stripping", "status": "completed", "activeForm": "Investigating..."},
+  {"content": "Test grouping", "status": "in_progress", "activeForm": "Testing..."},
+  {"content": "Verify merging", "status": "pending", "activeForm": "Verifying..."}
+]
+```
+
+### thinkingMetadata Field
+
+```json
+"thinkingMetadata": {"level": "high", "disabled": false, "triggers": []}
+```
+
+### toolUseResult Field (alternate tool result encoding)
+
+Appears on `type: "user"` entries as an alternative to embedding tool results in `message.content`:
+```json
+"toolUseResult": "Error: Browser is already in use..."
+"toolUseResult": [{"type": "text", "text": "### Page state\n..."}]
+```
+
+---
+
+## Observatory DB vs JSONL: Coverage Comparison
+
+### DB events table captures (from hooks)
+```
+hook_event_type  (PreToolUse, PostToolUse, UserPromptSubmit, SubagentStop, Stop, ...)
+tool_name        (Bash, Read, Edit, ...)
+tool_use_id      (links Pre/Post pairs)
+session_id
+source_app       (which project)
+cwd
+permission_mode  (acceptEdits, plan, default)
+duration_ms      (PostToolUse only)
+payload          (JSON: tool_input, tool_response, error details)
+model_name       (from SessionStart)
+```
+
+### JSONL has but hooks DB does NOT capture
+```
+uuid             (per-message conversation tree node ID)
+parentUuid       (tree structure)
+requestId        (groups multiple entries per API call)
+isSidechain      (whether subagent message)
+thinkingMetadata (thinking level/state)
+todos            (TodoWrite state snapshot)
+isApiErrorMessage
+toolUseResult    (inline alternate tool result)
+isCompactSummary / isVisibleInTranscriptOnly
+compactMetadata.preTokens  (token count before compaction)
+gitBranch
+slug             (human-readable session name)
+version          (Claude Code version string)
+message.content[].thinking  (full thinking text)
+message.content[].text      (full output text)
+message.usage.cache_creation  (detailed cache token breakdown)
+message.stop_reason
+message.model    (per-message exact model string)
+```
+
+### Hook event payload shapes
+
+**PreToolUse**: `{session_id, tool_name, tool_input, cwd, permission_mode, hook_event_name}`
+**PostToolUse**: `{tool_name, tool_response}` (minimal)
+**PostToolUseFailure**: `{tool_name, error, is_interrupt, tool_input, tool_use_id, session_id, cwd, permission_mode, hook_event_name}`
+**UserPromptSubmit**: `{message}` (just the text)
+**Stop**: `{cwd, hook_event_name, permission_mode, session_id, stop_hook_active, transcript_path}`
+**SessionStart**: `{cwd, hook_event_name, model, session_id, source, transcript_path}`
+**SubagentStart**: `{agent_id, agent_type}` (minimal)
+**SubagentStop**: `{agent_id, agent_type, agent_transcript_path, cwd, session_id, hook_event_name, permission_mode, stop_hook_active, transcript_path}`
+**Notification**: `{cwd, hook_event_name, message, notification_type, session_id, transcript_path}`
+**PreCompact**: `{custom_instructions, cwd, hook_event_name, session_id, transcript_path, trigger}`
+**PermissionRequest**: full tool_input embedded in payload (can be very long)
+
+### DB hook_event_type totals (16,700 events)
+```
+7178  PreToolUse
+7030  PostToolUse
+ 660  UserPromptSubmit
+ 596  SubagentStop
+ 492  Stop
+ 283  SubagentStart
+ 128  PostToolUseFailure
+ 106  Notification
+  77  PermissionRequest
+  70  SessionStart
+  33  SessionEnd
+  29  PreCompact
+```
+
+### DB source_app breakdown
+```
+7676  observatory
+6284  kardashev
+2241  genesis
+ 347  memories
+  91  Idiot_iot_platform_k8s
+```

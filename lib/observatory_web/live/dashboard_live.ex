@@ -53,7 +53,7 @@ defmodule ObservatoryWeb.DashboardLive do
       |> assign(:now, DateTime.utc_now())
       |> assign(:page_title, "Observatory")
       |> assign(:view_mode, :overview)
-      |> assign(:collapsed_sessions, MapSet.new())
+      |> assign(:expanded_sessions, MapSet.new())
       |> assign(:disk_teams, disk_teams)
       |> assign(:swarm_state, Observatory.SwarmMonitor.get_state())
       |> assign(:protocol_stats, Observatory.ProtocolTracker.get_stats())
@@ -221,14 +221,47 @@ defmodule ObservatoryWeb.DashboardLive do
     do: {:noreply, handle_close_agent_focus(p, s) |> prepare_assigns()}
 
   def handle_event("toggle_session_collapse", %{"session_id" => sid}, s) do
-    collapsed = s.assigns.collapsed_sessions
+    expanded = s.assigns.expanded_sessions
 
-    collapsed =
-      if MapSet.member?(collapsed, sid),
-        do: MapSet.delete(collapsed, sid),
-        else: MapSet.put(collapsed, sid)
+    expanded =
+      if MapSet.member?(expanded, sid),
+        do: MapSet.delete(expanded, sid),
+        else: MapSet.put(expanded, sid)
 
-    {:noreply, assign(s, :collapsed_sessions, collapsed)}
+    {:noreply, assign(s, :expanded_sessions, expanded)}
+  end
+
+  def handle_event("expand_all", _p, s) do
+    all_keys =
+      s.assigns.feed_groups
+      |> Enum.flat_map(fn g ->
+        item_keys =
+          g.turns
+          |> Enum.flat_map(fn
+            %{type: :turn} = turn ->
+              turn_key = "turn:#{turn.first_event_id}"
+              phase_keys = Enum.map(turn.phases, fn p -> "phase:#{turn.first_event_id}:#{p.index}" end)
+              [turn_key | phase_keys]
+
+            %{type: :preamble} = preamble ->
+              first = List.first(preamble.events)
+              preamble_key = "preamble:#{first.id}"
+              phase_keys = Enum.map(preamble.phases, fn p -> "phase:preamble:#{p.index}" end)
+              [preamble_key | phase_keys]
+
+            _ ->
+              []
+          end)
+
+        [g.session_id | item_keys]
+      end)
+      |> MapSet.new()
+
+    {:noreply, assign(s, :expanded_sessions, all_keys)}
+  end
+
+  def handle_event("collapse_all", _p, s) do
+    {:noreply, assign(s, :expanded_sessions, MapSet.new())}
   end
 
   def handle_event("pause_agent", p, s),

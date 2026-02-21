@@ -12,7 +12,7 @@ defmodule ObservatoryWeb.Components.Feed.FeedView do
   attr :visible_events, :list, required: true
   attr :selected_event, :map, default: nil
   attr :event_notes, :map, required: true
-  attr :collapsed_sessions, :any, default: MapSet.new()
+  attr :expanded_sessions, :any, default: MapSet.new()
   attr :now, :any, required: true
 
   def feed_view(assigns) do
@@ -29,7 +29,7 @@ defmodule ObservatoryWeb.Components.Feed.FeedView do
         group={group}
         selected_event={@selected_event}
         event_notes={@event_notes}
-        collapsed_sessions={@collapsed_sessions}
+        expanded_sessions={@expanded_sessions}
         now={@now}
         depth={0}
       />

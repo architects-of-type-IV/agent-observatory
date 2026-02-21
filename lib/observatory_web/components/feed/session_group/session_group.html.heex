@@ -1,4 +1,4 @@
-<% collapsed = MapSet.member?(@collapsed_sessions, @group.session_id) %>
+<% expanded = MapSet.member?(@expanded_sessions, @group.session_id) %>
 <div class={[
   "rounded-lg overflow-hidden",
   depth_style(@depth),
@@ -15,7 +15,7 @@
   >
     <%!-- Collapse indicator --%>
     <span class="text-zinc-600 text-xs font-mono w-3 shrink-0">
-      {if collapsed, do: "+", else: "-"}
+      {if expanded, do: "-", else: "+"}
     </span>
 
     <%!-- Status dot + Agent name --%>
@@ -56,8 +56,8 @@
     <span class="flex-1" />
 
     <%!-- Stats --%>
-    <span class="text-xs font-mono text-zinc-500">
-      {@group.event_count} events
+    <span :if={@group.turn_count > 0} class="text-xs font-mono text-zinc-500">
+      {@group.turn_count} turns
     </span>
     <span :if={@group.tool_count > 0} class="text-xs font-mono text-zinc-600">
       {@group.tool_count} tools
@@ -79,7 +79,7 @@
   </div>
 
   <%!-- Collapsible body --%>
-  <div :if={!collapsed}>
+  <div :if={expanded}>
     <%!-- Session Start Banner --%>
     <div
       :if={@group.session_start}
@@ -99,14 +99,14 @@
       </span>
     </div>
 
-    <%!-- Render segments --%>
+    <%!-- Render turns --%>
     <div class="space-y-0">
-      <.segment
-        :for={segment <- @group.segments}
-        segment={segment}
+      <.render_item
+        :for={item <- @group.turns}
+        item={item}
         selected_event={@selected_event}
         event_notes={@event_notes}
-        collapsed_sessions={@collapsed_sessions}
+        expanded_sessions={@expanded_sessions}
         now={@now}
       />
     </div>

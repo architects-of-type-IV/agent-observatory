@@ -1,0 +1,40 @@
+<%
+  turn_key = "turn:#{@item.first_event_id}"
+  expanded = MapSet.member?(@expanded_sessions, turn_key)
+  prompt_display = if @item.prompt && @item.prompt != "", do: String.slice(@item.prompt, 0, 80), else: "(no prompt)"
+%>
+<.feed_nest>
+  <.feed_row collapse_key={turn_key} expanded_sessions={@expanded_sessions}>
+    <span class={label_class("text-zinc-400")}>Prompt</span>
+    <span class={summary_class("text-zinc-300")} title={@item.prompt}>
+      {prompt_display}{if String.length(@item.prompt || "") > 80, do: "...", else: ""}
+    </span>
+    <span :if={@item.tool_count > 0} class={stat_class("text-zinc-500")}>{@item.tool_count} tools</span>
+    <span :if={@item.permission_count > 0} class={stat_class("text-amber-500/70")}>{@item.permission_count} perms</span>
+    <span :if={@item.total_duration_ms} class={stat_class(duration_color(@item.total_duration_ms))}>
+      {format_duration(@item.total_duration_ms)}
+    </span>
+    <span class={stat_class()}>{format_time(@item.start_time)}</span>
+  </.feed_row>
+
+  <%!-- Expanded body --%>
+  <div :if={expanded} class="space-y-0">
+    <%!-- Response text --%>
+    <div :if={@item.response} class="ml-4 pl-3 py-1">
+      <div class="text-xs text-zinc-500 italic whitespace-pre-wrap max-h-32 overflow-y-auto">
+        {String.slice(@item.response, 0, 500)}{if String.length(@item.response || "") > 500, do: "...", else: ""}
+      </div>
+    </div>
+
+    <%!-- Phase blocks --%>
+    <.activity_phase
+      :for={phase <- @item.phases}
+      phase={phase}
+      turn_id={@item.first_event_id}
+      selected_event={@selected_event}
+      event_notes={@event_notes}
+      expanded_sessions={@expanded_sessions}
+      now={@now}
+    />
+  </div>
+</.feed_nest>
