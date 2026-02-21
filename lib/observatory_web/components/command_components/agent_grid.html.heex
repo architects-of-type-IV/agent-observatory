@@ -1,0 +1,11 @@
+<div :if={@agents != []} class="flex-1 min-h-0 overflow-y-auto">
+  <div class="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2">
+    <.agent_cell :for={agent <- @agents} agent={agent} selected={@selected} now={@now} />
+  </div>
+</div>
+<div :if={@agents == []}>
+  <.empty_state
+    title="No active agents"
+    description="Agents will appear when a swarm pipeline starts or sessions connect"
+  />
+</div>

@@ -17,6 +17,8 @@ defmodule Observatory.Application do
       {Observatory.Mailbox, []},
       {Observatory.CommandQueue, []},
       {Observatory.TeamWatcher, []},
+      {Observatory.SwarmMonitor, []},
+      {Observatory.ProtocolTracker, []},
       {Observatory.AgentMonitor, []},
       {Observatory.Notes, []},
       ObservatoryWeb.Endpoint

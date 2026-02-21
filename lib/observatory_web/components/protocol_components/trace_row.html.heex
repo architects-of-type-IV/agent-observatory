@@ -1,0 +1,33 @@
+<%
+  type_label = trace_type_label(@trace.type)
+  type_color = trace_type_color(@trace.type)
+%>
+<div class="px-4 py-3 hover:bg-zinc-800/30 transition">
+  <div class="flex items-center gap-3 mb-1.5">
+    <span class="text-[10px] text-zinc-600 font-mono w-16 shrink-0">
+      {relative_time(@trace.timestamp, @now)}
+    </span>
+    <span class={"px-1.5 py-0.5 rounded text-[10px] #{type_color}"}>
+      {type_label}
+    </span>
+    <span class="text-xs text-zinc-400">
+      <span class="text-zinc-500 font-mono">{short_id(@trace.from)}</span>
+      <span class="text-zinc-600 mx-1">-></span>
+      <span class="text-zinc-500 font-mono">{short_id(@trace.to)}</span>
+    </span>
+    <span :if={@trace.content_preview != ""} class="text-xs text-zinc-600 truncate flex-1">
+      {@trace.content_preview}
+    </span>
+  </div>
+  <%!-- Protocol hops --%>
+  <div class="flex gap-4 ml-[76px]">
+    <div :for={hop <- @trace.hops} class="flex items-center gap-1.5 text-[10px]">
+      <span class={[
+        "w-1 h-1 rounded-full",
+        hop_status_color(hop.status)
+      ]} />
+      <span class="text-zinc-500">{hop.protocol}</span>
+      <span class={hop_status_text(hop.status)}>{hop.status}</span>
+    </div>
+  </div>
+</div>

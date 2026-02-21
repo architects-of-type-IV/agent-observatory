@@ -27,12 +27,107 @@ defmodule ObservatoryWeb.DashboardFeedHelpers do
     tool_pairs |> Enum.map(& &1.tool_use_id) |> MapSet.new()
   end
 
+  @feed_hidden_types [
+    :SessionStart,
+    :SessionEnd,
+    :Stop,
+    :SubagentStart,
+    :SubagentStop,
+    :PreCompact
+  ]
+
   def get_standalone_events(events, paired_ids) do
-    Enum.reject(events, fn e -> e.tool_use_id && MapSet.member?(paired_ids, e.tool_use_id) end)
+    Enum.reject(events, fn e ->
+      (e.tool_use_id && MapSet.member?(paired_ids, e.tool_use_id)) ||
+        e.hook_event_type in @feed_hidden_types
+    end)
   end
 
   def elapsed_time_ms(pre_event, now \\ DateTime.utc_now()) do
     DateTime.diff(now, pre_event.inserted_at, :millisecond)
+  end
+
+  @doc """
+  Build a chronological timeline of tool chains and standalone events.
+  Groups consecutive tool pairs into chains for collapsible rendering.
+
+  Returns a list of:
+    {:tool_chain, [pair1, pair2, ...]}  -- consecutive tool calls grouped
+    {:event, standalone_event}          -- non-tool events (prompts, notifications, etc.)
+  """
+  def build_segment_timeline(tool_pairs, events) do
+    paired_ids = get_paired_tool_use_ids(tool_pairs)
+    standalone = get_standalone_events(events, paired_ids)
+
+    tool_items =
+      Enum.map(tool_pairs, fn pair ->
+        %{type: :tool, data: pair, time: pair.pre.inserted_at}
+      end)
+
+    standalone_items =
+      Enum.map(standalone, fn event ->
+        %{type: :event, data: event, time: event.inserted_at}
+      end)
+
+    (tool_items ++ standalone_items)
+    |> Enum.sort_by(& &1.time, {:asc, DateTime})
+    |> group_into_chains()
+  end
+
+  defp group_into_chains(items) do
+    items
+    |> Enum.reduce([], fn item, acc ->
+      case {item.type, acc} do
+        {:tool, [{:tool_chain, chain} | rest]} ->
+          [{:tool_chain, chain ++ [item.data]} | rest]
+
+        {:tool, _} ->
+          [{:tool_chain, [item.data]} | acc]
+
+        {:event, _} ->
+          [{:event, item.data} | acc]
+      end
+    end)
+    |> Enum.reverse()
+  end
+
+  @doc """
+  Summarize tool names in a chain for the collapsed header.
+  Returns string like "Read x3, Edit x1, Bash x1"
+  """
+  def chain_tool_summary(pairs) do
+    pairs
+    |> Enum.frequencies_by(& &1.tool_name)
+    |> Enum.sort_by(fn {_name, count} -> -count end)
+    |> Enum.map(fn {name, count} ->
+      if count == 1, do: name, else: "#{name} x#{count}"
+    end)
+    |> Enum.join(", ")
+  end
+
+  @doc """
+  Total duration of a tool chain in milliseconds.
+  """
+  def chain_total_duration(pairs) do
+    pairs
+    |> Enum.map(& &1.duration_ms)
+    |> Enum.reject(&is_nil/1)
+    |> case do
+      [] -> nil
+      durations -> Enum.sum(durations)
+    end
+  end
+
+  @doc """
+  Overall status of a tool chain.
+  """
+  def chain_status(pairs) do
+    cond do
+      Enum.any?(pairs, &(&1.status == :in_progress)) -> :in_progress
+      Enum.any?(pairs, &(&1.status == :failure)) -> :has_failures
+      Enum.all?(pairs, &(&1.status == :success)) -> :success
+      true -> :mixed
+    end
   end
 
   # ═══════════════════════════════════════════════════════

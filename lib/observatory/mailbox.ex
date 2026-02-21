@@ -59,6 +59,36 @@ defmodule Observatory.Mailbox do
     Enum.map(session_ids, fn sid -> send_message(sid, from, content, opts) end)
   end
 
+  @doc """
+  Get per-agent mailbox statistics from ETS.
+  Returns a list of %{agent_id, total, unread, oldest_unread_age_sec}.
+  """
+  def get_stats do
+    now = DateTime.utc_now()
+
+    :ets.tab2list(@table_name)
+    |> Enum.map(fn {agent_id, messages} ->
+      unread = Enum.filter(messages, fn m -> !m.read end)
+
+      oldest_unread_age =
+        case unread do
+          [] ->
+            0
+
+          msgs ->
+            oldest = Enum.min_by(msgs, & &1.timestamp, DateTime)
+            DateTime.diff(now, oldest.timestamp, :second)
+        end
+
+      %{
+        agent_id: agent_id,
+        total: length(messages),
+        unread: length(unread),
+        oldest_unread_age_sec: oldest_unread_age
+      }
+    end)
+  end
+
   # ═══════════════════════════════════════════════════════
   # Server Callbacks
   # ═══════════════════════════════════════════════════════

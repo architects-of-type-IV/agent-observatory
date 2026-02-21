@@ -129,6 +129,49 @@ All 13 hook types in `~/.claude/settings.json` send events via `~/.claude/hooks/
 | `lib/observatory_web/live/dashboard_live.html.heex` | nav restructure, 3 new view blocks |
 | `assets/js/app.js` | viewModes array, MoreDropdown hook |
 
+## File Split: embed_templates Refactor
+
+Large component files split into `.ex` (logic) + `.heex` (templates) using `embed_templates`:
+
+| Module | Before | After | Templates Created |
+|--------|--------|-------|-------------------|
+| `command_components.ex` | 535 lines | 102 lines | 6 heex files in `command_components/` |
+| `pipeline_components.ex` | 276 lines | 61 lines | 2 heex files in `pipeline_components/` |
+| `protocol_components.ex` | 272 lines | 52 lines | 5 heex files in `protocol_components/` |
+| `session_group.ex` | 388 lines | 98 lines | 3 heex files in `session_group/` |
+
+**Pattern**: Preprocessing moves into `<% %>` blocks at top of .heex templates. Multi-head pattern-matched functions stay as manual `defp` dispatch in .ex files (e.g., `segment/1`, `role_badge/1`).
+
+## Feed Nesting: Tool Chains
+
+Consecutive tool calls grouped into collapsible chains with summary headers.
+
+**New component**: `lib/observatory_web/components/feed/tool_chain.ex` + `tool_chain/tool_chain.html.heex`
+
+**Timeline builder** (`dashboard_feed_helpers.ex`):
+- `build_segment_timeline/2`: interleaves tool pairs and standalone events chronologically, groups consecutive tools into `{:tool_chain, pairs}` tuples
+- `chain_tool_summary/1`: "Read x3, Edit x1, Bash x1" summary
+- `chain_total_duration/1`, `chain_status/1`: aggregate stats
+
+**Nesting structure**:
+```
+Session Block (collapsible)
+  Parent Segment
+    Tool Chain (collapsible) -- e.g. "3 tools: Read x2, Edit"
+      Tool: Read (collapsible)
+        START detail
+        DONE detail
+      Tool: Edit (collapsible)
+        START detail
+        DONE detail
+    Standalone Event (UserPromptSubmit, etc.)
+    Tool Chain ...
+  Subagent Block (collapsible)
+    Same nesting inside
+```
+
+**Collapse keys**: `"chain:{first_tool_use_id}"` for chain groups, `"tool:{tool_use_id}"` for individual tools.
+
 ## Build Status
 
 `mix compile --warnings-as-errors` -- PASSES (zero warnings)

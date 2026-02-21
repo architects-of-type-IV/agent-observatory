@@ -1,0 +1,62 @@
+<%
+  is_selected = @selected && @selected[:agent_id] == @agent[:agent_id]
+  health = @agent[:health] || :unknown
+  status = @agent[:status] || :unknown
+
+  border_color =
+    cond do
+      is_selected -> "border-indigo-500/60 bg-zinc-800/60"
+      health == :critical -> "border-red-500/40"
+      health == :warning -> "border-amber-500/40"
+      status == :active -> "border-emerald-500/30"
+      status == :idle -> "border-zinc-700"
+      true -> "border-zinc-800"
+    end
+%>
+<button
+  phx-click="select_command_agent"
+  phx-value-id={@agent[:agent_id] || @agent[:name]}
+  class={"bg-zinc-900/50 border rounded-lg p-3 text-left hover:border-zinc-600 transition cursor-pointer #{border_color}"}
+>
+  <div class="flex items-center gap-2 mb-2">
+    <span class={[
+      "w-2 h-2 rounded-full shrink-0",
+      status_dot_color(status)
+    ]} />
+    <span class="text-sm font-medium text-zinc-200 truncate">
+      {@agent[:name] || short_id(@agent[:agent_id])}
+    </span>
+    <span :if={@agent[:model]} class="text-[10px] text-zinc-600 ml-auto">
+      {short_model(@agent[:model])}
+    </span>
+  </div>
+
+  <%!-- Current tool or idle --%>
+  <div class="text-xs mb-1">
+    <%= if @agent[:current_tool] do %>
+      <% {tool, elapsed} = @agent[:current_tool] %>
+      <span class="text-indigo-400 font-mono">{tool}</span>
+      <span class="text-zinc-600">{elapsed}s</span>
+    <% else %>
+      <span class="text-zinc-600 italic">idle</span>
+    <% end %>
+  </div>
+
+  <%!-- Current task --%>
+  <div :if={@agent[:current_task_id]} class="text-xs text-zinc-500 truncate">
+    #{@agent[:current_task_id]}
+    <span :if={@agent[:current_task_subject]} class="text-zinc-600">
+      {@agent[:current_task_subject]}
+    </span>
+  </div>
+
+  <%!-- Health warnings --%>
+  <div :if={@agent[:health_issues] && @agent[:health_issues] != []} class="mt-1">
+    <span
+      :for={{type, _detail} <- Enum.take(@agent[:health_issues], 1)}
+      class="text-[10px] px-1 py-0.5 rounded bg-red-500/15 text-red-400"
+    >
+      {format_health_issue(type)}
+    </span>
+  </div>
+</button>

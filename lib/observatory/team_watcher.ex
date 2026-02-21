@@ -87,13 +87,15 @@ defmodule Observatory.TeamWatcher do
   defp read_team_config(name, config_path, tasks_dir) do
     with {:ok, json} <- File.read(config_path),
          {:ok, config} <- Jason.decode(json) do
+      members = parse_members(config["members"] || [])
       tasks = read_tasks(tasks_dir, name)
 
       %{
         name: name,
-        members: parse_members(config["members"] || []),
+        members: members,
         tasks: tasks,
-        description: config["description"]
+        description: config["description"],
+        project: derive_project(members)
       }
     else
       _ -> nil
@@ -105,12 +107,23 @@ defmodule Observatory.TeamWatcher do
       %{
         name: m["name"],
         agent_id: m["agentId"],
-        agent_type: m["agentType"]
+        agent_type: m["agentType"],
+        cwd: m["cwd"],
+        model: m["model"],
+        is_active: m["isActive"],
+        tmux_pane_id: m["tmuxPaneId"],
+        color: m["color"],
+        joined_at: m["joinedAt"]
       }
     end)
   end
 
   defp parse_members(_), do: []
+
+  defp derive_project(members) do
+    members
+    |> Enum.find_value(fn m -> m[:cwd] end)
+  end
 
   defp read_tasks(tasks_dir, team_name) do
     path = Path.join(tasks_dir, team_name)

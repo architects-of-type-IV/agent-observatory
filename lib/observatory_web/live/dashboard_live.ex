@@ -16,6 +16,7 @@ defmodule ObservatoryWeb.DashboardLive do
   import ObservatoryWeb.DashboardAgentActivityHelpers
   import ObservatoryWeb.DashboardFeedHelpers
   import ObservatoryWeb.DashboardTeamInspectorHandlers
+  import ObservatoryWeb.DashboardSwarmHandlers
 
   @max_events 500
 
@@ -26,6 +27,8 @@ defmodule ObservatoryWeb.DashboardLive do
       Phoenix.PubSub.subscribe(Observatory.PubSub, "teams:update")
       Phoenix.PubSub.subscribe(Observatory.PubSub, "agent:crashes")
       Phoenix.PubSub.subscribe(Observatory.PubSub, "agent:dashboard")
+      Phoenix.PubSub.subscribe(Observatory.PubSub, "swarm:update")
+      Phoenix.PubSub.subscribe(Observatory.PubSub, "protocols:update")
       :timer.send_interval(1000, self(), :tick)
     end
 
@@ -50,13 +53,19 @@ defmodule ObservatoryWeb.DashboardLive do
       |> assign(:now, DateTime.utc_now())
       |> assign(:page_title, "Observatory")
       |> assign(:view_mode, :overview)
+      |> assign(:collapsed_sessions, MapSet.new())
       |> assign(:disk_teams, disk_teams)
+      |> assign(:swarm_state, Observatory.SwarmMonitor.get_state())
+      |> assign(:protocol_stats, Observatory.ProtocolTracker.get_stats())
+      |> assign(:selected_dag_task, nil)
+      |> assign(:selected_command_agent, nil)
+      |> assign(:selected_command_task, nil)
+      |> assign(:show_add_project, false)
       |> assign(:selected_team, nil)
       |> assign(:mailbox_counts, %{})
       |> assign(:collapsed_threads, %{})
       |> assign(:show_shortcuts_help, false)
       |> assign(:show_create_task_modal, false)
-      |> assign(:feed_grouped, false)
       |> assign(:inspected_teams, [])
       |> assign(:inspector_layout, :horizontal)
       |> assign(:inspector_maximized, false)
@@ -99,6 +108,14 @@ defmodule ObservatoryWeb.DashboardLive do
 
   def handle_info({:new_mailbox_message, message}, socket) do
     handle_new_mailbox_message(message, socket)
+  end
+
+  def handle_info({:swarm_state, state}, socket) do
+    {:noreply, socket |> assign(:swarm_state, state) |> prepare_assigns()}
+  end
+
+  def handle_info({:protocol_update, stats}, socket) do
+    {:noreply, socket |> assign(:protocol_stats, stats)}
   end
 
   def handle_info({:agent_crashed, session_id, team_name, reassigned_count}, socket) do
@@ -202,8 +219,16 @@ defmodule ObservatoryWeb.DashboardLive do
   def handle_event("close_agent_focus", p, s),
     do: {:noreply, handle_close_agent_focus(p, s) |> prepare_assigns()}
 
-  def handle_event("toggle_feed_grouping", _p, s),
-    do: {:noreply, s |> assign(:feed_grouped, !s.assigns.feed_grouped) |> prepare_assigns()}
+  def handle_event("toggle_session_collapse", %{"session_id" => sid}, s) do
+    collapsed = s.assigns.collapsed_sessions
+
+    collapsed =
+      if MapSet.member?(collapsed, sid),
+        do: MapSet.delete(collapsed, sid),
+        else: MapSet.put(collapsed, sid)
+
+    {:noreply, assign(s, :collapsed_sessions, collapsed)}
+  end
 
   def handle_event("pause_agent", p, s),
     do:
@@ -313,6 +338,40 @@ defmodule ObservatoryWeb.DashboardLive do
   def handle_event("send_targeted_message", p, s),
     do: {:noreply, handle_send_targeted_message(p, s) |> prepare_assigns()}
 
+  # Swarm handlers
+  def handle_event("select_project", p, s),
+    do: {:noreply, handle_select_project(p, s) |> prepare_assigns()}
+
+  def handle_event("heal_task", p, s),
+    do: {:noreply, handle_heal_task(p, s) |> prepare_assigns()}
+
+  def handle_event("reset_all_stale", _p, s),
+    do: {:noreply, handle_reset_all_stale(%{}, s) |> prepare_assigns()}
+
+  def handle_event("run_health_check", _p, s),
+    do: {:noreply, handle_run_health_check(%{}, s) |> prepare_assigns()}
+
+  def handle_event("select_dag_node", p, s),
+    do: {:noreply, handle_select_dag_node(p, s) |> prepare_assigns()}
+
+  def handle_event("select_command_agent", p, s),
+    do: {:noreply, handle_select_command_agent(p, s) |> prepare_assigns()}
+
+  def handle_event("clear_command_selection", _p, s),
+    do: {:noreply, handle_clear_command_selection(%{}, s) |> prepare_assigns()}
+
+  def handle_event("send_command_message", p, s),
+    do: {:noreply, handle_send_command_message(p, s) |> prepare_assigns()}
+
+  def handle_event("toggle_add_project", _p, s),
+    do:
+      {:noreply, s |> assign(:show_add_project, !s.assigns.show_add_project) |> prepare_assigns()}
+
+  def handle_event("add_project", p, s),
+    do:
+      {:noreply,
+       handle_add_project(p, s) |> assign(:show_add_project, false) |> prepare_assigns()}
+
   # Navigation handlers
   def handle_event(e, p, s)
       when e in [
@@ -394,8 +453,7 @@ defmodule ObservatoryWeb.DashboardLive do
     analytics = compute_tool_analytics(assigns.events)
     timeline = compute_timeline_data(assigns.events)
 
-    feed_groups =
-      if assigns[:feed_grouped], do: build_feed_groups(assigns.events, assigns), else: []
+    feed_groups = build_feed_groups(assigns.events, teams)
 
     # Refresh inspected teams with current enriched data
     inspected_names = Enum.map(assigns.inspected_teams, & &1[:name])

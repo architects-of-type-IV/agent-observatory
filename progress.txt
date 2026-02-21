@@ -27,7 +27,20 @@ Observatory Progress
   - Collapse/expand at both session level AND subagent level (MapSet keys: session_id, "sub:{agent_id}")
 - [x] Build: zero warnings
 
+- [x] File split: embed_templates refactor (4 modules -> .ex + .heex)
+  - command_components: 535 -> 102 lines + 6 templates
+  - pipeline_components: 276 -> 61 lines + 2 templates
+  - protocol_components: 272 -> 52 lines + 5 templates
+  - session_group: 388 -> 98 lines + 3 templates
+- [x] Feed nesting: tool chain component
+  - build_segment_timeline/2 interleaves tools + events chronologically
+  - Consecutive tools grouped into collapsible chains
+  - chain_tool_summary, chain_total_duration, chain_status helpers
+  - Recursive rendering: multi-chain -> single-tool children
+- [x] Build: zero warnings
+
 ### Remaining
 - [ ] Visual verification: open browser, click through all views
 - [ ] Test feed with active agents spawning subagents
 - [ ] Test DAG rendering with real pipeline running
+- [ ] Remove dead ToolExecutionBlock module + delegate

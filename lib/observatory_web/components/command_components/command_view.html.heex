@@ -1,0 +1,39 @@
+<%
+  agents = collect_agents(@teams, @events, @now)
+  pipeline = @swarm_state.pipeline
+  health = @swarm_state.health
+  stale = @swarm_state.stale_tasks
+  issues = health.issues
+  active_project = @swarm_state.active_project
+  projects = @swarm_state.watched_projects
+  progress_pct = progress_pct(pipeline)
+%>
+<div class="p-4 flex flex-col gap-4 h-full">
+  <%!-- Health Bar --%>
+  <.health_bar
+    health={health}
+    pipeline={pipeline}
+    progress_pct={progress_pct}
+    active_project={active_project}
+    projects={projects}
+    stale={stale}
+  />
+
+  <%!-- Main content: Agent Grid + Detail Panel --%>
+  <div class="flex gap-4 flex-1 min-h-0">
+    <%!-- Agent Grid + Alerts --%>
+    <div class="flex-1 flex flex-col gap-4 min-w-0">
+      <.agent_grid agents={agents} selected={@selected_command_agent} now={@now} />
+      <.alerts_panel issues={issues} stale={stale} />
+    </div>
+
+    <%!-- Selected Detail --%>
+    <div :if={@selected_command_agent || @selected_command_task} class="w-80 shrink-0">
+      <.selected_detail
+        agent={@selected_command_agent}
+        task={@selected_command_task}
+        now={@now}
+      />
+    </div>
+  </div>
+</div>

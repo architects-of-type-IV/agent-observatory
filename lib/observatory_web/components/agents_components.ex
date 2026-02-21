@@ -140,7 +140,11 @@ defmodule ObservatoryWeb.Components.AgentsComponents do
 
               <%!-- Agent messaging controls --%>
               <div :if={member[:agent_id]} class="ml-4 space-y-1">
-                <div phx-update="ignore" id={"agent-msg-#{member[:agent_id]}"} phx-hook="ClearFormOnSubmit">
+                <div
+                  phx-update="ignore"
+                  id={"agent-msg-#{member[:agent_id]}"}
+                  phx-hook="ClearFormOnSubmit"
+                >
                   <form phx-submit="send_agent_message" class="flex gap-1">
                     <input type="hidden" name="session_id" value={member[:agent_id]} />
                     <input

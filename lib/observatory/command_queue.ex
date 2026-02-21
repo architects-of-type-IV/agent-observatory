@@ -41,6 +41,51 @@ defmodule Observatory.CommandQueue do
     GenServer.call(__MODULE__, {:delete_team_message, team_name, agent_name, message_index})
   end
 
+  @doc """
+  Get per-session queue statistics from the inbox directory.
+  Returns a list of %{session_id, pending_count, oldest_age_sec}.
+  """
+  def get_queue_stats do
+    now = System.os_time(:second)
+
+    list_session_dirs(@inbox_dir)
+    |> Enum.map(fn session_id ->
+      session_inbox = Path.join(@inbox_dir, session_id)
+
+      files =
+        case File.ls(session_inbox) do
+          {:ok, entries} -> Enum.filter(entries, &String.ends_with?(&1, ".json"))
+          _ -> []
+        end
+
+      oldest_age =
+        case files do
+          [] ->
+            0
+
+          fs ->
+            oldest_mtime =
+              fs
+              |> Enum.map(fn f ->
+                case File.stat(Path.join(session_inbox, f), time: :posix) do
+                  {:ok, %{mtime: mtime}} -> mtime
+                  _ -> now
+                end
+              end)
+              |> Enum.min()
+
+            now - oldest_mtime
+        end
+
+      %{
+        session_id: session_id,
+        pending_count: length(files),
+        oldest_age_sec: oldest_age
+      }
+    end)
+    |> Enum.filter(fn s -> s.pending_count > 0 end)
+  end
+
   # ═══════════════════════════════════════════════════════
   # Server Callbacks
   # ═══════════════════════════════════════════════════════

@@ -29,6 +29,16 @@
             class={"px-2.5 py-1 text-xs rounded-md transition #{if @view_mode == :overview, do: "bg-zinc-700 text-zinc-200 shadow-sm", else: "text-zinc-500 hover:text-zinc-300"}"}
           >
             Overview
+            <span :if={@swarm_state.pipeline.total > 0} class="ml-1 text-xs text-zinc-600">
+              ({@swarm_state.pipeline.completed}/{@swarm_state.pipeline.total})
+            </span>
+          </button>
+          <button
+            phx-click="set_view"
+            phx-value-mode="protocols"
+            class={"px-2.5 py-1 text-xs rounded-md transition #{if @view_mode == :protocols, do: "bg-zinc-700 text-zinc-200 shadow-sm", else: "text-zinc-500 hover:text-zinc-300"}"}
+          >
+            Protocols
           </button>
           <button
             phx-click="set_view"
@@ -36,36 +46,6 @@
             class={"px-2.5 py-1 text-xs rounded-md transition #{if @view_mode == :feed, do: "bg-zinc-700 text-zinc-200 shadow-sm", else: "text-zinc-500 hover:text-zinc-300"}"}
           >
             Feed
-          </button>
-          <button
-            phx-click="set_view"
-            phx-value-mode="tasks"
-            class={"px-2.5 py-1 text-xs rounded-md transition #{if @view_mode == :tasks, do: "bg-zinc-700 text-zinc-200 shadow-sm", else: "text-zinc-500 hover:text-zinc-300"}"}
-          >
-            Tasks
-            <span :if={@active_tasks != []} class="ml-1 text-xs text-zinc-600">
-              ({length(
-                Enum.filter(@active_tasks, fn t -> t[:status] in ["completed", "completed"] end)
-              )}/{length(@active_tasks)})
-            </span>
-          </button>
-          <button
-            phx-click="set_view"
-            phx-value-mode="messages"
-            class={"px-2.5 py-1 text-xs rounded-md transition #{if @view_mode == :messages, do: "bg-zinc-700 text-zinc-200 shadow-sm", else: "text-zinc-500 hover:text-zinc-300"}"}
-          >
-            Messages
-            <span :if={@messages != []} class="ml-1 text-xs text-zinc-600">
-              ({length(@messages)})
-            </span>
-          </button>
-          <button
-            phx-click="set_view"
-            phx-value-mode="agents"
-            class={"px-2.5 py-1 text-xs rounded-md transition #{if @view_mode == :agents, do: "bg-zinc-700 text-zinc-200 shadow-sm", else: "text-zinc-500 hover:text-zinc-300"}"}
-          >
-            Agents
-            <span :if={@teams != []} class="ml-1 text-xs text-zinc-600">({length(@teams)})</span>
           </button>
           <button
             phx-click="set_view"
@@ -77,27 +57,76 @@
               {length(@errors)}
             </span>
           </button>
-          <button
-            phx-click="set_view"
-            phx-value-mode="analytics"
-            class={"px-2.5 py-1 text-xs rounded-md transition #{if @view_mode == :analytics, do: "bg-zinc-700 text-zinc-200 shadow-sm", else: "text-zinc-500 hover:text-zinc-300"}"}
-          >
-            Analytics
-          </button>
-          <button
-            phx-click="set_view"
-            phx-value-mode="timeline"
-            class={"px-2.5 py-1 text-xs rounded-md transition #{if @view_mode == :timeline, do: "bg-zinc-700 text-zinc-200 shadow-sm", else: "text-zinc-500 hover:text-zinc-300"}"}
-          >
-            Timeline
-          </button>
-          <button
-            phx-click="set_view"
-            phx-value-mode="teams"
-            class={"px-2.5 py-1 text-xs rounded-md transition #{if @view_mode == :teams, do: "bg-zinc-700 text-zinc-200 shadow-sm", else: "text-zinc-500 hover:text-zinc-300"}"}
-          >
-            Teams
-          </button>
+          <%!-- More dropdown for secondary views --%>
+          <div class="relative" id="more-dropdown" phx-hook="MoreDropdown">
+            <button
+              id="more-button"
+              class={"px-2.5 py-1 text-xs rounded-md transition #{if @view_mode in [:command, :pipeline, :agents, :tasks, :messages, :analytics, :timeline, :teams], do: "bg-zinc-700 text-zinc-200 shadow-sm", else: "text-zinc-500 hover:text-zinc-300"}"}
+            >
+              More
+            </button>
+            <div
+              id="more-menu"
+              class="hidden absolute top-full left-0 mt-1 bg-zinc-800 border border-zinc-700 rounded-lg shadow-xl py-1 z-50 min-w-[120px]"
+            >
+              <button
+                phx-click="set_view"
+                phx-value-mode="command"
+                class="block w-full text-left px-3 py-1.5 text-xs text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200"
+              >
+                Command
+              </button>
+              <button
+                phx-click="set_view"
+                phx-value-mode="pipeline"
+                class="block w-full text-left px-3 py-1.5 text-xs text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200"
+              >
+                Pipeline
+              </button>
+              <button
+                phx-click="set_view"
+                phx-value-mode="agents"
+                class="block w-full text-left px-3 py-1.5 text-xs text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200"
+              >
+                Agents
+              </button>
+              <button
+                phx-click="set_view"
+                phx-value-mode="tasks"
+                class="block w-full text-left px-3 py-1.5 text-xs text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200"
+              >
+                Tasks
+              </button>
+              <button
+                phx-click="set_view"
+                phx-value-mode="messages"
+                class="block w-full text-left px-3 py-1.5 text-xs text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200"
+              >
+                Messages
+              </button>
+              <button
+                phx-click="set_view"
+                phx-value-mode="analytics"
+                class="block w-full text-left px-3 py-1.5 text-xs text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200"
+              >
+                Analytics
+              </button>
+              <button
+                phx-click="set_view"
+                phx-value-mode="timeline"
+                class="block w-full text-left px-3 py-1.5 text-xs text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200"
+              >
+                Timeline
+              </button>
+              <button
+                phx-click="set_view"
+                phx-value-mode="teams"
+                class="block w-full text-left px-3 py-1.5 text-xs text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200"
+              >
+                Teams
+              </button>
+            </div>
+          </div>
         </div>
       </div>
       <div class="flex items-center gap-3">
@@ -364,24 +393,74 @@
     <%!-- ═══ Main Content Area ═══ --%>
     <main class="flex-1 overflow-y-auto overflow-x-hidden">
       <%!-- View Dispatcher --%>
-      <ObservatoryWeb.Components.OverviewComponents.overview_view
-        :if={@view_mode == :overview}
+      <%!-- Overview: Command + Pipeline + Agents stacked --%>
+      <div :if={@view_mode == :overview} class="space-y-0">
+        <ObservatoryWeb.Components.CommandComponents.command_view
+          swarm_state={@swarm_state}
+          teams={@teams}
+          events={@events}
+          errors={@errors}
+          now={@now}
+          selected_command_agent={@selected_command_agent}
+          selected_command_task={@selected_command_task}
+        />
+        <ObservatoryWeb.Components.PipelineComponents.pipeline_view
+          swarm_state={@swarm_state}
+          selected_dag_task={@selected_dag_task}
+          show_add_project={@show_add_project}
+          now={@now}
+        />
+        <ObservatoryWeb.Components.AgentsComponents.agents_view
+          teams={@teams}
+          active_tasks={@active_tasks}
+          selected_agent={@selected_agent}
+          mailbox_counts={@mailbox_counts}
+          now={@now}
+        />
+      </div>
+
+      <%!-- Standalone views (via More dropdown) --%>
+      <ObservatoryWeb.Components.CommandComponents.command_view
+        :if={@view_mode == :command}
+        swarm_state={@swarm_state}
         teams={@teams}
-        active_tasks={@active_tasks}
-        messages={@messages}
-        visible_events={@visible_events}
         events={@events}
         errors={@errors}
-        total_sessions={@total_sessions}
-        sessions={@sessions}
+        now={@now}
+        selected_command_agent={@selected_command_agent}
+        selected_command_task={@selected_command_task}
+      />
+
+      <ObservatoryWeb.Components.PipelineComponents.pipeline_view
+        :if={@view_mode == :pipeline}
+        swarm_state={@swarm_state}
+        selected_dag_task={@selected_dag_task}
+        show_add_project={@show_add_project}
+        now={@now}
+      />
+
+      <ObservatoryWeb.Components.AgentsComponents.agents_view
+        :if={@view_mode == :agents}
+        teams={@teams}
+        active_tasks={@active_tasks}
+        selected_agent={@selected_agent}
+        mailbox_counts={@mailbox_counts}
+        now={@now}
+      />
+
+      <ObservatoryWeb.Components.ProtocolComponents.protocols_view
+        :if={@view_mode == :protocols}
+        protocol_stats={@protocol_stats}
         now={@now}
       />
 
       <ObservatoryWeb.Components.FeedComponents.feed_view
         :if={@view_mode == :feed}
+        feed_groups={@feed_groups}
         visible_events={@visible_events}
         selected_event={@selected_event}
         event_notes={@event_notes}
+        collapsed_sessions={@collapsed_sessions}
         now={@now}
       />
 
@@ -398,15 +477,6 @@
         message_threads={@message_threads}
         search_messages={@search_messages}
         collapsed_threads={@collapsed_threads}
-        now={@now}
-      />
-
-      <ObservatoryWeb.Components.AgentsComponents.agents_view
-        :if={@view_mode == :agents}
-        teams={@teams}
-        active_tasks={@active_tasks}
-        selected_agent={@selected_agent}
-        mailbox_counts={@mailbox_counts}
         now={@now}
       />
 

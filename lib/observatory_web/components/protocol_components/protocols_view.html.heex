@@ -1,0 +1,59 @@
+<%
+  traces = Observatory.ProtocolTracker.get_traces() |> Enum.take(50)
+  stats = @protocol_stats
+%>
+<div class="p-4 flex flex-col gap-4 h-full">
+  <%!-- Protocol Summary Bar --%>
+  <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+    <.protocol_card
+      label="HTTP Events"
+      count={stats[:traces] || 0}
+      detail="message traces"
+      color="indigo"
+    />
+    <.protocol_card
+      label="PubSub"
+      count={get_in(stats, [:by_type, :send_message]) || 0}
+      detail="send_message events"
+      color="cyan"
+    />
+    <.protocol_card
+      label="Mailbox"
+      count={get_in(stats, [:mailbox, :total_pending]) || 0}
+      detail={"#{get_in(stats, [:mailbox, :agents]) || 0} agents"}
+      color="amber"
+    />
+    <.protocol_card
+      label="CommandQueue"
+      count={get_in(stats, [:command_queue, :total_pending]) || 0}
+      detail={"#{get_in(stats, [:command_queue, :sessions]) || 0} sessions"}
+      color="emerald"
+    />
+  </div>
+
+  <%!-- Message Flow --%>
+  <div class="bg-zinc-900/50 border border-zinc-800 rounded-lg flex-1 min-h-0 overflow-hidden">
+    <div class="p-3 border-b border-zinc-800">
+      <h3 class="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Message Flow</h3>
+    </div>
+
+    <%= if traces == [] do %>
+      <div class="p-6">
+        <.empty_state
+          title="No message traces yet"
+          description="Messages will appear when agents send SendMessage, TeamCreate, or spawn subagents"
+        />
+      </div>
+    <% else %>
+      <div class="overflow-y-auto max-h-[500px] divide-y divide-zinc-800/50">
+        <.trace_row :for={trace <- traces} trace={trace} now={@now} />
+      </div>
+    <% end %>
+  </div>
+
+  <%!-- Channel Detail Panels --%>
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+    <.mailbox_detail stats={stats} />
+    <.queue_detail stats={stats} />
+  </div>
+</div>

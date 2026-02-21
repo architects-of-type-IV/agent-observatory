@@ -1,0 +1,22 @@
+<% timeline = DashboardFeedHelpers.build_segment_timeline(@segment.tool_pairs, @segment.events) %>
+<div class="px-3 py-1 space-y-0">
+  <%= for item <- timeline do %>
+    <%= case item do %>
+      <% {:tool_chain, pairs} -> %>
+        <.tool_chain
+          pairs={pairs}
+          selected_event={@selected_event}
+          event_notes={@event_notes}
+          collapsed_sessions={@collapsed_sessions}
+          now={@now}
+        />
+      <% {:event, event} -> %>
+        <.standalone_event
+          event={event}
+          selected_event={@selected_event}
+          event_notes={@event_notes}
+          now={@now}
+        />
+    <% end %>
+  <% end %>
+</div>

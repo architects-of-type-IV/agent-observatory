@@ -1,0 +1,30 @@
+<%= if @task do %>
+  <%
+    status = @task.status
+    border = dag_border(status, @is_critical, @is_selected)
+    bg = dag_bg(status)
+  %>
+  <button
+    phx-click="select_dag_node"
+    phx-value-id={@task_id}
+    class={"rounded-md px-2 py-1.5 text-left transition cursor-pointer #{bg} border #{border}"}
+  >
+    <div class="flex items-center gap-1.5 text-xs">
+      <span class="font-mono text-zinc-400">#{@task_id}</span>
+      <span class={[
+        "w-1.5 h-1.5 rounded-full shrink-0",
+        dag_dot(status)
+      ]} />
+    </div>
+    <div class="text-[10px] text-zinc-400 truncate mt-0.5 max-w-[120px]">
+      {@task.subject}
+    </div>
+    <div :if={@task.owner != ""} class="text-[10px] text-zinc-600 font-mono mt-0.5">
+      {@task.owner}
+    </div>
+  </button>
+<% else %>
+  <div class="bg-zinc-800/50 border border-zinc-800 rounded-md px-2 py-1.5 text-xs text-zinc-600">
+    #{@task_id} (missing)
+  </div>
+<% end %>

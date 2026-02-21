@@ -1,0 +1,81 @@
+<%
+  agent_key = "sub:#{@segment.agent_id}"
+  collapsed_sub = MapSet.member?(@collapsed_sessions, agent_key)
+%>
+<div class="mx-2 my-1 rounded border border-cyan-500/20 bg-zinc-900/30 overflow-hidden">
+  <%!-- Subagent header --%>
+  <div
+    class="px-3 py-1.5 flex items-center gap-2 cursor-pointer select-none hover:bg-zinc-800/50"
+    phx-click="toggle_session_collapse"
+    phx-value-session_id={agent_key}
+  >
+    <span class="text-zinc-600 text-xs font-mono w-3 shrink-0">
+      {if collapsed_sub, do: "+", else: "-"}
+    </span>
+    <span class="w-2 h-2 rounded-full bg-cyan-400 shrink-0" />
+    <span class="text-xs font-semibold text-cyan-300">
+      {@segment.agent_type || "subagent"}
+    </span>
+    <span class="text-[10px] font-mono text-zinc-600">
+      {short_session(@segment.agent_id || "")}
+    </span>
+    <span class="flex-1" />
+    <span class="text-[10px] font-mono text-zinc-500">
+      {@segment.event_count} events
+    </span>
+    <span :if={@segment.tool_count > 0} class="text-[10px] font-mono text-zinc-600">
+      {@segment.tool_count} tools
+    </span>
+    <span :if={@segment.start_time} class="text-[10px] font-mono text-zinc-600">
+      {format_time(@segment.start_time)}
+      {if @segment.end_time, do: "- #{format_time(@segment.end_time)}", else: "..."}
+    </span>
+    <span :if={span_duration(@segment)} class="text-[10px] font-mono text-zinc-500">
+      {format_duration(span_duration(@segment))}
+    </span>
+  </div>
+
+  <%!-- Subagent body --%>
+  <div :if={!collapsed_sub}>
+    <%!-- Start marker --%>
+    <div class="px-3 py-1 bg-cyan-500/8 border-y border-cyan-500/15 flex items-center gap-2">
+      <span class="text-[10px] font-mono font-bold tracking-wider text-cyan-400 uppercase">Spawn</span>
+      <span class="text-[10px] font-mono text-zinc-500">{format_time(@segment.start_time)}</span>
+      <span :if={@segment.agent_type} class="text-[10px] text-zinc-600">{@segment.agent_type}</span>
+    </div>
+
+    <%!-- Timeline: chronological tool chains + standalone events --%>
+    <% timeline = DashboardFeedHelpers.build_segment_timeline(@segment.tool_pairs, @segment.events) %>
+    <div class="px-3 py-1 space-y-0">
+      <%= for item <- timeline do %>
+        <%= case item do %>
+          <% {:tool_chain, pairs} -> %>
+            <.tool_chain
+              pairs={pairs}
+              selected_event={@selected_event}
+              event_notes={@event_notes}
+              collapsed_sessions={@collapsed_sessions}
+              now={@now}
+            />
+          <% {:event, event} -> %>
+            <.standalone_event
+              event={event}
+              selected_event={@selected_event}
+              event_notes={@event_notes}
+              now={@now}
+            />
+        <% end %>
+      <% end %>
+    </div>
+
+    <%!-- Stop marker --%>
+    <div
+      :if={@segment.stop_event}
+      class="px-3 py-1 bg-cyan-600/8 border-t border-cyan-600/15 flex items-center gap-2"
+    >
+      <span class="text-[10px] font-mono font-bold tracking-wider text-cyan-600 uppercase">Reap</span>
+      <span class="text-[10px] font-mono text-zinc-500">{format_time(@segment.end_time)}</span>
+      <span :if={span_duration(@segment)} class="text-[10px] text-zinc-500">{format_duration(span_duration(@segment))}</span>
+    </div>
+  </div>
+</div>

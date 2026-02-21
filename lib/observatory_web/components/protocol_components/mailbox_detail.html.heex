@@ -1,0 +1,34 @@
+<% detail = @stats[:mailbox_detail] || [] %>
+<div class="bg-zinc-900/50 border border-zinc-800 rounded-lg p-3">
+  <h3 class="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">Mailbox (ETS)</h3>
+  <%= if detail == [] do %>
+    <p class="text-xs text-zinc-600">No mailbox entries</p>
+  <% else %>
+    <table class="w-full text-xs">
+      <thead>
+        <tr class="text-zinc-600 text-left">
+          <th class="pb-1 font-medium">Agent</th>
+          <th class="pb-1 font-medium text-right">Total</th>
+          <th class="pb-1 font-medium text-right">Unread</th>
+          <th class="pb-1 font-medium text-right">Oldest</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr :for={entry <- detail} class="border-t border-zinc-800/50">
+          <td class="py-1 text-zinc-400 font-mono">{short_id(entry.agent_id)}</td>
+          <td class="py-1 text-zinc-500 text-right">{entry.total}</td>
+          <td class={"py-1 text-right #{if entry.unread > 0, do: "text-amber-400", else: "text-zinc-600"}"}>
+            {entry.unread}
+          </td>
+          <td class="py-1 text-zinc-600 text-right">
+            <%= if entry.oldest_unread_age_sec > 0 do %>
+              {format_seconds(entry.oldest_unread_age_sec)}
+            <% else %>
+              -
+            <% end %>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  <% end %>
+</div>
