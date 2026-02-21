@@ -34,7 +34,7 @@
   <%!-- Current tool or idle --%>
   <div class="text-xs mb-1">
     <%= if @agent[:current_tool] do %>
-      <% {tool, elapsed} = @agent[:current_tool] %>
+      <% %{tool_name: tool, elapsed: elapsed} = @agent[:current_tool] %>
       <span class="text-indigo-400 font-mono">{tool}</span>
       <span class="text-zinc-600">{elapsed}s</span>
     <% else %>

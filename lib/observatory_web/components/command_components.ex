@@ -85,7 +85,7 @@ defmodule ObservatoryWeb.Components.CommandComponents do
     |> Enum.find(fn e -> e.tool_use_id && not MapSet.member?(post_ids, e.tool_use_id) end)
     |> case do
       nil -> nil
-      pre -> {pre.tool_name, div(DateTime.diff(now, pre.inserted_at, :millisecond), 1000)}
+      pre -> %{tool_name: pre.tool_name, elapsed: div(DateTime.diff(now, pre.inserted_at, :millisecond), 1000)}
     end
   end
 
