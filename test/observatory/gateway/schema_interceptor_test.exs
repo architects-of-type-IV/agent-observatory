@@ -299,7 +299,7 @@ defmodule Observatory.Gateway.SchemaInterceptorTest do
 
   describe "EntropyTracker call contract (3.6.2)" do
     setup do
-      start_supervised!({EntropyTracker, []})
+      Observatory.Gateway.EntropyTracker.reset()
       :ok
     end
 

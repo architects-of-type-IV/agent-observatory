@@ -5,7 +5,8 @@ defmodule Observatory.Mesh.CausalDAGTest do
   alias Observatory.Mesh.CausalDAG.Node
 
   setup do
-    pid = start_supervised!({CausalDAG, []})
+    CausalDAG.reset()
+    pid = Process.whereis(CausalDAG)
     %{pid: pid}
   end
 

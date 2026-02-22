@@ -2,8 +2,7 @@ defmodule Observatory.Gateway.TopologyBuilderTest do
   use ExUnit.Case, async: false
 
   setup do
-    start_supervised!(Observatory.Mesh.CausalDAG)
-    start_supervised!(Observatory.Gateway.TopologyBuilder)
+    Observatory.Mesh.CausalDAG.reset()
     :ok
   end
 

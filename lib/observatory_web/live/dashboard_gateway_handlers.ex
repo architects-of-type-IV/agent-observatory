@@ -7,8 +7,10 @@ defmodule ObservatoryWeb.DashboardGatewayHandlers do
   """
 
   import Phoenix.Component, only: [assign: 3]
+  import Phoenix.LiveView, only: [push_event: 3]
 
   alias Observatory.Gateway.{CapabilityMap, CronScheduler, HeartbeatManager, WebhookRouter}
+  alias Observatory.Mesh.CausalDAG
 
   @throughput_window_seconds 60
   @max_dlq_entries 200
@@ -115,8 +117,19 @@ defmodule ObservatoryWeb.DashboardGatewayHandlers do
     |> assign(:agent_classes, derive_agent_classes(agents))
   end
 
-  # Full topology refresh (nodes + edges from TopologyBuilder)
-  def handle_gateway_info(%{nodes: _nodes, edges: _edges}, socket), do: socket
+  # Full topology refresh (nodes + edges from TopologyBuilder) -> push to fleet canvas
+  def handle_gateway_info(%{nodes: nodes, edges: edges}, socket) do
+    push_event(socket, "fleet_topology_update", %{nodes: nodes, edges: edges})
+  end
+
+  # Per-session DAG delta -> push updated session DAG to canvas
+  def handle_gateway_info(%{event: "dag_delta", session_id: session_id}, socket) do
+    if socket.assigns[:selected_session_id] == session_id do
+      push_session_dag(socket, session_id)
+    else
+      socket
+    end
+  end
 
   # Entropy alert -> update per-session entropy scores
   def handle_gateway_info(%{event_type: "entropy_alert"} = alert, socket) do
@@ -222,6 +235,66 @@ defmodule ObservatoryWeb.DashboardGatewayHandlers do
       intents
     end
   end
+
+  @doc """
+  Subscribe to a session's causal DAG topic and push the current DAG state to the JS hook.
+  Unsubscribes from the previously selected session if any.
+  """
+  def subscribe_session_dag(socket, new_session_id) do
+    old_session_id = socket.assigns[:selected_session_id]
+
+    if old_session_id && old_session_id != new_session_id do
+      Phoenix.PubSub.unsubscribe(Observatory.PubSub, "session:dag:#{old_session_id}")
+    end
+
+    if new_session_id do
+      Phoenix.PubSub.subscribe(Observatory.PubSub, "session:dag:#{new_session_id}")
+      push_session_dag(socket, new_session_id)
+    else
+      push_event(socket, "session_dag_update", %{nodes: [], edges: []})
+    end
+  end
+
+  defp push_session_dag(socket, session_id) do
+    case safe_call(fn -> CausalDAG.get_session_dag(session_id) end, {:error, :unavailable}) do
+      {:ok, node_map} ->
+        {nodes, edges} = dag_to_topology(node_map)
+        push_event(socket, "session_dag_update", %{nodes: nodes, edges: edges})
+
+      _ ->
+        push_event(socket, "session_dag_update", %{nodes: [], edges: []})
+    end
+  end
+
+  defp dag_to_topology(node_map) when is_map(node_map) do
+    nodes =
+      Enum.map(node_map, fn {_trace_id, node} ->
+        %{
+          trace_id: node.trace_id,
+          agent_id: node.agent_id,
+          state: map_action_state(node.action_status),
+          x: nil,
+          y: nil
+        }
+      end)
+
+    edges =
+      Enum.flat_map(node_map, fn {_trace_id, node} ->
+        Enum.map(node.children, fn child_id ->
+          %{from: node.trace_id, to: child_id, traffic_volume: 0, latency_ms: 0, status: "active",
+            from_x: nil, from_y: nil, to_x: nil, to_y: nil}
+        end)
+      end)
+
+    {nodes, edges}
+  end
+
+  defp map_action_state(:success), do: "active"
+  defp map_action_state(:pending), do: "idle"
+  defp map_action_state(:failure), do: "alert_entropy"
+  defp map_action_state(:skipped), do: "blocked"
+  defp map_action_state(s) when is_binary(s), do: s
+  defp map_action_state(_), do: "idle"
 
   defp update_latency_metrics(metrics, log) do
     timestamp = if log.meta, do: log.meta.timestamp, else: nil

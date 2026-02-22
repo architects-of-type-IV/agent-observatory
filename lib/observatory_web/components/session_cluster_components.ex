@@ -48,9 +48,10 @@ defmodule ObservatoryWeb.Components.SessionClusterComponents do
 
       <%!-- Drill-Down Panel (visible when session selected) --%>
       <div :if={@selected_session_id} class="space-y-4">
-        <div id="causal-dag-panel" class="bg-zinc-900/50 border border-zinc-800 rounded-lg p-4">
+        <div id="session-dag-hook" phx-hook="TopologyMap" data-event="session_dag_update" class="bg-zinc-900/50 border border-zinc-800 rounded-lg p-4">
           <h3 class="text-sm font-semibold text-zinc-400 uppercase tracking-wider mb-2">Causal DAG</h3>
-          <p class="text-xs text-zinc-500">DAG visualization for session {@selected_session_id |> String.slice(0..11)}</p>
+          <p class="text-xs text-zinc-500 mb-2">{@selected_session_id |> String.slice(0..11)}</p>
+          <canvas width="800" height="250" class="w-full rounded"></canvas>
         </div>
 
         <div id="live-scratchpad-panel" class="bg-zinc-900/50 border border-zinc-800 rounded-lg p-4">
@@ -58,9 +59,11 @@ defmodule ObservatoryWeb.Components.SessionClusterComponents do
           <%= if @scratchpad_intents == [] do %>
             <p class="text-xs text-zinc-500">No intents captured yet</p>
           <% else %>
-            <div class="space-y-1">
-              <div :for={intent <- @scratchpad_intents} class="text-xs font-mono text-zinc-400">
-                {intent}
+            <div class="space-y-1.5 max-h-64 overflow-y-auto">
+              <div :for={intent <- Enum.take(@scratchpad_intents, 50)} class="flex items-center gap-2 text-xs">
+                <span class="font-mono text-indigo-400">{format_intent(intent)}</span>
+                <span :if={format_confidence(intent)} class="text-zinc-600">{format_confidence(intent)}</span>
+                <span :if={format_strategy(intent)} class="text-zinc-700 italic">{format_strategy(intent)}</span>
               </div>
             </div>
           <% end %>
@@ -111,4 +114,13 @@ defmodule ObservatoryWeb.Components.SessionClusterComponents do
     do: Map.get(session, :session_id, Map.get(session, "session_id", "unknown"))
 
   defp session_id(_), do: "unknown"
+
+  defp format_intent(%{intent: intent}) when is_binary(intent), do: intent
+  defp format_intent(_), do: "unknown"
+
+  defp format_confidence(%{confidence: c}) when is_number(c), do: "#{Float.round(c * 1.0, 2)}"
+  defp format_confidence(_), do: nil
+
+  defp format_strategy(%{strategy: s}) when is_binary(s), do: s
+  defp format_strategy(_), do: nil
 end

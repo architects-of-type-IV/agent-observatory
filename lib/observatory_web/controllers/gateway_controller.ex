@@ -4,8 +4,6 @@ defmodule ObservatoryWeb.GatewayController do
   require Logger
 
   alias Observatory.Gateway.SchemaInterceptor
-  alias Observatory.Mesh.DecisionLog
-  alias Observatory.Mesh.EntropyTracker
 
   @doc """
   Accepts a DecisionLog JSON payload from an agent, validates it against the
@@ -16,7 +14,7 @@ defmodule ObservatoryWeb.GatewayController do
   All LiveView interaction with Gateway data occurs via PubSub subscriptions.
   """
   def create(conn, params) do
-    case SchemaInterceptor.validate(params) do
+    case SchemaInterceptor.validate_and_enrich(params) do
       {:ok, log} ->
         handle_valid(conn, log)
 
@@ -26,28 +24,15 @@ defmodule ObservatoryWeb.GatewayController do
   end
 
   defp handle_valid(conn, log) do
-    updated_log =
-      if log.cognition != nil do
-        score = EntropyTracker.record_and_score(log.identity.agent_id, log.cognition.entropy_score)
-
-        if is_float(score) do
-          DecisionLog.put_gateway_entropy_score(log, score)
-        else
-          log
-        end
-      else
-        log
-      end
-
     Task.start(fn ->
-      case Phoenix.PubSub.broadcast(Observatory.PubSub, "gateway:messages", {:decision_log, updated_log}) do
+      case Phoenix.PubSub.broadcast(Observatory.PubSub, "gateway:messages", {:decision_log, log}) do
         :ok -> :ok
         {:error, reason} ->
           Logger.warning("Failed to broadcast decision_log: #{inspect(reason)}")
       end
     end)
 
-    trace_id = if updated_log.meta, do: updated_log.meta.trace_id, else: nil
+    trace_id = if log.meta, do: log.meta.trace_id, else: nil
 
     conn
     |> put_status(:accepted)

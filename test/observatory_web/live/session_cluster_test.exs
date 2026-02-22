@@ -13,7 +13,7 @@ defmodule ObservatoryWeb.SessionClusterTest do
       {:ok, view, _html} = live(conn, "/")
       render_click(view, "set_view", %{"mode" => "session_cluster"})
       html = render_click(view, "select_session", %{"session_id" => "sess-xyz-789"})
-      assert html =~ "causal-dag-panel"
+      assert html =~ "session-dag-hook"
       assert html =~ "live-scratchpad-panel"
       assert html =~ "hitl-console-panel"
     end

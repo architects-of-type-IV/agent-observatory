@@ -18,8 +18,9 @@ const TopologyMap = {
     this.lastPanX = 0
     this.lastPanY = 0
 
-    // Handle topology updates from server
-    this.handleEvent("topology_update", ({nodes, edges}) => {
+    // Handle topology updates from server (configurable via data-event attribute)
+    this.eventName = this.el.dataset.event || "topology_update"
+    this.handleEvent(this.eventName, ({nodes, edges}) => {
       this.nodes = nodes
       this.edges = edges
     })
@@ -259,7 +260,12 @@ const NODE_COLORS = {
   alert_entropy: "#ef4444",
   schema_violation: "#f97316",
   dead: "#374151",
-  blocked: "#f59e0b"
+  blocked: "#f59e0b",
+  // Action status atoms (from CausalDAG nodes)
+  success: "#3b82f6",
+  pending: "#6b7280",
+  failure: "#ef4444",
+  skipped: "#f59e0b"
 }
 
 export default TopologyMap

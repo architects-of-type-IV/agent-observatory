@@ -6,7 +6,7 @@ defmodule ObservatoryWeb.FleetCommandTest do
     test "renders all six panels on fleet_command view", %{conn: conn} do
       {:ok, _view, html} = live(conn, "/")
       assert html =~ "fleet-command-view"
-      assert html =~ "mesh-topology-canvas"
+      assert html =~ "fleet-topology-hook"
       assert html =~ "throughput-panel"
       assert html =~ "cost-heatmap-panel"
       assert html =~ "infrastructure-health-panel"

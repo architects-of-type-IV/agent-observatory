@@ -1,7 +1,20 @@
 Observatory Progress
 ====================
 
-## Current: Phase 5 Hypervisor UI COMPLETE (2026-02-22)
+## Current: Dashboard-to-Backend Wiring COMPLETE (2026-02-22)
+
+### Dashboard Wiring Completed
+- [x] DashboardGatewayHandlers module (PubSub subs, DecisionLog processing, topology push)
+- [x] EventBridge GenServer (events:stream -> gateway:messages + CausalDAG feeding)
+- [x] CausalDAG + TopologyBuilder added to supervision tree
+- [x] Fleet Command canvas: real TopologyMap hook replacing placeholder
+- [x] Session Cluster DAG canvas: real TopologyMap hook replacing placeholder
+- [x] topology_map.js: configurable data-event attribute for dual instances
+- [x] dashboard_live.ex: handle_info for topology + DAG delta routing
+- [x] Per-session DAG subscription on select_session
+- [x] CausalDAG reset/0 API for test isolation
+- [x] 286 tests, 0 failures, zero warnings
+- [x] /distill launched (tmux distill-1771791211)
 
 ### Phase 5 Completed
 - [x] Task 1: Six-View Navigation Shell (opus) -- view_mode contract, 6 stubs, keyboard 1-6, localStorage
@@ -202,10 +215,7 @@ Observatory Progress
   - File: ~/.claude/skills/distill/scripts/launch.sh
 
 ## Next
-- [ ] Commit Phase 5 changes
-- [ ] Re-run /distill to verify fix works end-to-end
-- [ ] Fix flaky topology_builder_test.exs (test ordering issue)
+- [ ] Fix phase-to-dag.sh: --start-id flag + append mode (line 495 DAG_ID=1, line 791 cp)
 - [ ] Extract shared panel component (repeated CSS classes across Phase 5 components)
-- [ ] Visual verification: browser test of Phase 5 views
+- [ ] Visual verification: browser test of topology rendering
 - [ ] MONAD_LESSON_LOG.md evaluation for upstream skill amendments
-- [ ] Remove dead ToolExecutionBlock module + delegate

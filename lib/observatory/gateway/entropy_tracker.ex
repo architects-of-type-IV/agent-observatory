@@ -51,6 +51,14 @@ defmodule Observatory.Gateway.EntropyTracker do
     GenServer.call(__MODULE__, {:get_window, session_id})
   end
 
+  @doc """
+  Clears all ETS state. Used by tests to reset between test runs.
+  """
+  @spec reset() :: :ok
+  def reset do
+    GenServer.call(__MODULE__, :reset)
+  end
+
   # -- GenServer Callbacks --
 
   @impl true
@@ -138,6 +146,12 @@ defmodule Observatory.Gateway.EntropyTracker do
   end
 
   @impl true
+  def handle_call(:reset, _from, %{table: table} = state) do
+    :ets.delete_all_objects(table)
+    {:reply, :ok, state}
+  end
+
+  @impl true
   def handle_call({:get_window, session_id}, _from, %{table: table} = state) do
     window =
       case :ets.lookup(table, session_id) do
@@ -171,12 +185,9 @@ defmodule Observatory.Gateway.EntropyTracker do
     Float.round(unique / n, 4)
   end
 
-  defp build_alert_event(session_id, nil, _score, _window) do
-    Logger.warning(
-      "EntropyTracker: cannot emit alert, missing agent_id for session #{session_id}"
-    )
-
-    {:error, :missing_agent_id}
+  defp build_alert_event(session_id, nil, score, window) do
+    # Fallback: use session_id as agent_id when none registered
+    build_alert_event(session_id, session_id, score, window)
   end
 
   defp build_alert_event(session_id, agent_id, score, window) do

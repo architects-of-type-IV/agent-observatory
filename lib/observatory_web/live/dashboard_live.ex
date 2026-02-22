@@ -198,6 +198,17 @@ defmodule ObservatoryWeb.DashboardLive do
     {:noreply, handle_gateway_info(msg, socket) |> prepare_assigns()}
   end
 
+  # Fleet topology refresh from TopologyBuilder
+  def handle_info(%{nodes: _nodes, edges: _edges} = msg, socket)
+      when is_map_key(msg, :nodes) and is_map_key(msg, :edges) do
+    {:noreply, handle_gateway_info(msg, socket)}
+  end
+
+  # Per-session DAG delta from CausalDAG
+  def handle_info(%{event: "dag_delta"} = msg, socket) do
+    {:noreply, handle_gateway_info(msg, socket)}
+  end
+
   @impl true
   def handle_event("filter", p, s), do: {:noreply, handle_filter(p, s) |> prepare_assigns()}
 
@@ -517,6 +528,7 @@ defmodule ObservatoryWeb.DashboardLive do
   end
 
   def handle_event("select_session", %{"session_id" => sid}, s) do
+    s = subscribe_session_dag(s, sid)
     {:noreply, s |> assign(:selected_session_id, sid) |> prepare_assigns()}
   end
 

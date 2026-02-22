@@ -17,6 +17,19 @@ defmodule ObservatoryWeb.DashboardNavigationHandlers do
         "scheduler" -> :scheduler
         "forensic" -> :forensic
         "god_mode" -> :god_mode
+        # Legacy view modes from Swarm Control Center era
+        "command" -> :fleet_command
+        "overview" -> :fleet_command
+        "feed" -> :fleet_command
+        "timeline" -> :fleet_command
+        "agents" -> :fleet_command
+        "tasks" -> :scheduler
+        "analytics" -> :forensic
+        "messages" -> :fleet_command
+        "notes" -> :fleet_command
+        "protocols" -> :forensic
+        "errors" -> :forensic
+        "teams" -> :fleet_command
         _ ->
           Logger.warning("Unrecognized view_mode: #{inspect(value)}")
           :fleet_command

@@ -25,10 +25,13 @@ defmodule Observatory.Mesh.DecisionLog do
       field :timestamp, :utc_datetime
       field :parent_step_id, :string
       field :cluster_id, :string
+      field :source_app, :string
+      field :tool_use_id, :string
+      field :event_id, :string
     end
 
     @required_fields ~w(trace_id timestamp)a
-    @optional_fields ~w(parent_step_id cluster_id)a
+    @optional_fields ~w(parent_step_id cluster_id source_app tool_use_id event_id)a
 
     def changeset(struct, params) do
       struct
@@ -48,13 +51,15 @@ defmodule Observatory.Mesh.DecisionLog do
       field :agent_id, :string
       field :agent_type, :string
       field :capability_version, :string
+      field :model_name, :string
     end
 
     @required_fields ~w(agent_id agent_type capability_version)a
+    @optional_fields ~w(model_name)a
 
     def changeset(struct, params) do
       struct
-      |> cast(params, @required_fields)
+      |> cast(params, @required_fields ++ @optional_fields)
       |> validate_required(@required_fields)
     end
   end
@@ -71,10 +76,12 @@ defmodule Observatory.Mesh.DecisionLog do
       field :confidence_score, :float
       field :strategy_used, :string
       field :entropy_score, :float
+      field :hook_event_type, :string
+      field :summary, :string
     end
 
     @required_fields ~w(intent)a
-    @optional_fields ~w(reasoning_chain confidence_score strategy_used entropy_score)a
+    @optional_fields ~w(reasoning_chain confidence_score strategy_used entropy_score hook_event_type summary)a
 
     def changeset(struct, params) do
       struct
@@ -94,10 +101,14 @@ defmodule Observatory.Mesh.DecisionLog do
       field :tool_call, :string
       field :tool_input, :string
       field :tool_output_summary, :string
+      field :duration_ms, :integer
+      field :permission_mode, :string
+      field :cwd, :string
+      field :payload, :map
     end
 
     @required_fields ~w(status)a
-    @optional_fields ~w(tool_call tool_input tool_output_summary)a
+    @optional_fields ~w(tool_call tool_input tool_output_summary duration_ms permission_mode cwd payload)a
 
     def changeset(struct, params) do
       struct

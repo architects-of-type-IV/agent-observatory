@@ -47,6 +47,12 @@ defmodule Observatory.Mesh.CausalDAG do
     GenServer.cast(__MODULE__, {:terminal, session_id})
   end
 
+  @doc "Clears all ETS state. Used by tests to reset between test runs."
+  @spec reset() :: :ok
+  def reset do
+    GenServer.call(__MODULE__, :reset)
+  end
+
   ## GenServer Callbacks
 
   @impl true
@@ -80,6 +86,26 @@ defmodule Observatory.Mesh.CausalDAG do
         node_map = Map.new(entries, fn {trace_id, node_val} -> {trace_id, node_val} end)
         {:reply, {:ok, node_map}, state}
     end
+  end
+
+  def handle_call(:reset, _from, state) do
+    # Delete all per-session tables
+    :ets.tab2list(:causal_dag_session_registry)
+    |> Enum.each(fn {_session_id, table_name} ->
+      try do
+        :ets.delete(table_name)
+      rescue
+        ArgumentError -> :ok
+      end
+    end)
+
+    :ets.delete_all_objects(:causal_dag_session_registry)
+    :ets.delete_all_objects(:causal_dag_orphan_buffer)
+
+    # Cancel any pending deletion timers
+    Enum.each(state.pending_deletions, fn {_sid, ref} -> Process.cancel_timer(ref) end)
+
+    {:reply, :ok, %{state | pending_deletions: %{}}}
   end
 
   def handle_call({:get_children, session_id, trace_id}, _from, state) do

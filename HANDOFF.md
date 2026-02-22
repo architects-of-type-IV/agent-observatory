@@ -1,10 +1,33 @@
 # Observatory - Handoff
 
-## Current Status: Phase 5 Hypervisor UI COMPLETE (2026-02-22)
+## Current Status: Dashboard-to-Backend Wiring COMPLETE (2026-02-22)
 
-### Just Completed: Phase 5 DAG Run (6 tasks, 4 waves, ~18 min)
+### Just Completed: Live Topology Pipeline + Gateway Handlers
 
-**233 tests, 0 failures, zero warnings.**
+**286 tests, 0 failures, zero warnings.**
+
+Wired Phase 5 dashboard views to live backend data. Full end-to-end pipeline now active:
+
+| Change | File | What |
+|--------|------|------|
+| Supervision | application.ex | Added CausalDAG + TopologyBuilder to supervisor tree |
+| DAG feeding | event_bridge.ex | Converts hook events to CausalDAG nodes, tracks parent chain per session |
+| Fleet topology | dashboard_gateway_handlers.ex | Pushes topology updates to fleet canvas via push_event |
+| Session DAG | dashboard_gateway_handlers.ex | Per-session DAG subscription, push_event for drill-down |
+| Fleet canvas | fleet_command_components.ex | Real TopologyMap hook + canvas (was placeholder) |
+| Session canvas | session_cluster_components.ex | Real TopologyMap hook + canvas (was placeholder) |
+| JS configurable | topology_map.js | data-event attribute for dual instances (fleet + session) |
+| Dashboard routing | dashboard_live.ex | handle_info for topology + DAG delta messages |
+| Test isolation | causal_dag.ex | reset/0 API for test cleanup (avoids start_supervised conflict) |
+
+Also created DashboardGatewayHandlers module (prior session) with:
+- PubSub subscriptions to gateway:messages, gateway:topology, gateway:entropy_alerts, gateway:dlq
+- DecisionLog stream processing (throughput, cost, latency, scratchpad)
+- EventBridge GenServer bridging events:stream into gateway pipeline + CausalDAG
+- EntropyTracker fallback fix (safe_call pattern)
+- Dead stub removal (dashboard_session_helpers stubs)
+
+### Previous: Phase 5 Hypervisor UI (6 tasks, 4 waves, ~18 min)
 
 DAG team: `dag-1771779126` (archived via GC)
 
@@ -73,12 +96,11 @@ Model tiering per task complexity works. Opus for anchor tasks, sonnet for well-
 - Mode B Pipeline: 12 ADRs -> 6 FRDs -> 79 UCs
 
 ### Next Steps
-- [ ] Commit Phase 5 changes
-- [ ] Re-run `/distill` to verify the fix works end-to-end
-- [ ] Fix flaky topology_builder_test.exs (test ordering issue)
+- [ ] Fix phase-to-dag.sh: --start-id flag + append mode (IDs start at 1 instead of continuing)
 - [ ] Extract shared panel component (repeated CSS classes)
-- [ ] Visual verification: browser test of Phase 5 views
+- [ ] Visual verification: browser test of topology rendering
 - [ ] MONAD_LESSON_LOG.md evaluation for upstream skill amendments
+- [ ] mTLS panel: show "Not configured" (honest placeholder, no backend)
 
 ## Architecture Reminders
 

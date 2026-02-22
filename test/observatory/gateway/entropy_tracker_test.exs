@@ -7,9 +7,10 @@ defmodule Observatory.Gateway.EntropyTrackerTest do
   alias Observatory.Gateway.SchemaInterceptor
 
   setup do
-    start_supervised!({EntropyTracker, []})
+    EntropyTracker.reset()
 
     on_exit(fn ->
+      EntropyTracker.reset()
       Application.delete_env(:observatory, :entropy_window_size)
       Application.delete_env(:observatory, :entropy_loop_threshold)
       Application.delete_env(:observatory, :entropy_warning_threshold)
@@ -288,7 +289,7 @@ defmodule Observatory.Gateway.EntropyTrackerTest do
       assert event.occurrence_count == 5
     end
 
-    test "missing agent_id returns {:error, :missing_agent_id} and no alert broadcast" do
+    test "unregistered agent_id falls back to session_id and broadcasts alert" do
       session = "sess-no-agent-#{System.unique_integer([:positive])}"
 
       Phoenix.PubSub.subscribe(Observatory.PubSub, "gateway:entropy_alerts")
@@ -299,28 +300,28 @@ defmodule Observatory.Gateway.EntropyTrackerTest do
         EntropyTracker.record_and_score(session, tuple)
       end
 
-      assert {:error, :missing_agent_id} = EntropyTracker.record_and_score(session, tuple)
+      assert {:ok, 0.2, :loop} = EntropyTracker.record_and_score(session, tuple)
 
-      refute_receive %{event_type: "entropy_alert"}, 200
+      assert_receive %{event_type: "entropy_alert", agent_id: ^session}, 1000
     end
   end
 
   describe "register_agent/2" do
-    test "register_agent stores agent_id for subsequent LOOP alerts" do
+    test "register_agent overrides fallback session_id in subsequent LOOP alerts" do
       session = "sess-reg-#{System.unique_integer([:positive])}"
 
       Phoenix.PubSub.subscribe(Observatory.PubSub, "gateway:entropy_alerts")
 
       tuple = {:search, "list_files", :failure}
 
-      # First, without agent_id -> error
+      # Without explicit registration, alerts use session_id as agent_id fallback
       for _ <- 1..5 do
         EntropyTracker.record_and_score(session, tuple)
       end
 
-      refute_receive %{event_type: "entropy_alert"}, 200
+      assert_receive %{event_type: "entropy_alert", agent_id: ^session}, 1000
 
-      # Now register agent and trigger another LOOP
+      # Now register a real agent_id and trigger another LOOP
       EntropyTracker.register_agent(session, "agent-late")
       Process.sleep(10)
 
@@ -368,7 +369,7 @@ defmodule Observatory.Gateway.EntropyTrackerTest do
       assert is_float(log.cognition.entropy_score)
     end
 
-    test "SchemaInterceptor retains original score when EntropyTracker returns error" do
+    test "SchemaInterceptor overwrites score even when no agent_id pre-registered" do
       session = "sess-retain-#{System.unique_integer([:positive])}"
       params = put_in(@integration_params, ["meta", "trace_id"], session)
 
@@ -381,9 +382,9 @@ defmodule Observatory.Gateway.EntropyTrackerTest do
       end
 
       # 5th call (from validate_and_enrich) pushes score to 0.2 (LOOP).
-      # No agent_id registered -> {:error, :missing_agent_id} -> original score retained.
+      # Fallback uses session_id as agent_id -> entropy score overwritten.
       assert {:ok, log} = SchemaInterceptor.validate_and_enrich(params)
-      assert log.cognition.entropy_score == 0.9
+      assert log.cognition.entropy_score == 0.2
     end
   end
 

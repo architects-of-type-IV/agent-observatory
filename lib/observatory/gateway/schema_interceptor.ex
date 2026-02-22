@@ -137,11 +137,7 @@ defmodule Observatory.Gateway.SchemaInterceptor do
           {:ok, score, _severity} ->
             {:ok, DecisionLog.put_gateway_entropy_score(log, score)}
 
-          {:error, :missing_agent_id} ->
-            Logger.warning(
-              "SchemaInterceptor: entropy computation failed for session #{session_id}, retaining agent-reported score"
-            )
-
+          _ ->
             {:ok, log}
         end
     end

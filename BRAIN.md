@@ -279,6 +279,14 @@ AgentMonitor GenServer monitors agent health and auto-reassigns tasks from crash
 - **EntropyTracker FR-9.2 deviation**: Uses list ++ [tuple] (O(n)) instead of queue/circular buffer (O(1)). Immaterial at window size 5 but technically non-compliant.
 - **CausalDAG TopologyBuilder coupling**: Uses Code.ensure_loaded? guard + dynamic apply to avoid compile-time dependency. Pattern for optional cross-module subscription.
 
+## Dashboard-to-Backend Wiring Lessons (Feb 2026)
+- **CausalDAG supervision + test isolation**: CausalDAG and TopologyBuilder must be in application.ex supervisor tree. Tests use reset/0 (GenServer.call :reset) + Process.whereis instead of start_supervised! (which conflicts with app supervisor). Same pattern as EntropyTracker.
+- **TopologyMap dual-instance pattern**: Single JS hook serves both fleet-wide and per-session DAG by reading `data-event` attribute from the element. Fleet uses "fleet_topology_update", session uses "session_dag_update". push_event from LiveView targets the correct instance.
+- **EventBridge -> CausalDAG feeding**: EventBridge tracks `last_event` per session_id to build parent_step_id chain. Each DecisionLog event becomes a CausalDAG.Node. Uses `with` pattern for field extraction + rescue/catch for resilience.
+- **Gateway handler pattern**: DashboardGatewayHandlers follows same pattern as DashboardSwarmHandlers -- imported into dashboard_live.ex, handle_gateway_info/2 returns socket (not {:noreply, socket}), wrapper in dashboard_live adds {:noreply, ...}.
+- **Per-session DAG subscription**: On select_session, unsubscribe old + subscribe new PubSub topic "session:dag:{session_id}". push_session_dag reads full DAG from CausalDAG.get_session_dag and converts via dag_to_topology helper.
+- **safe_call pattern**: Wrap GenServer.call in try/catch for resilience when GenServer may not be started (e.g., in test). Returns fallback value on :exit.
+
 ## Phase 5 Lessons (Feb 2026)
 - **Model tiering ADOPT (EXP-003)**: Opus for anchor/contract-defining tasks, sonnet for well-specified component work, haiku for pure verification. Equal quality at ~60-70% cost savings. Make this default for all future DAG runs.
 - **Shared file ownership resolution**: When 3+ parallel workers need the same file (dashboard_live.ex), assign ALL edits to one worker (worker-2 owned mount assigns + event delegations for tasks 2, 3, 5). Other workers only touch their component files.

@@ -23,11 +23,15 @@ defmodule Observatory.Application do
       {Observatory.AgentMonitor, []},
       {Observatory.Notes, []},
       {Observatory.EventJanitor, []},
+      {Observatory.Mesh.CausalDAG, []},
+      {Observatory.Gateway.EntropyTracker, []},
       {Observatory.Gateway.CapabilityMap, []},
+      {Observatory.Gateway.TopologyBuilder, []},
       {Observatory.Gateway.HeartbeatManager, []},
       {Observatory.Gateway.CronScheduler, []},
       {Observatory.Gateway.WebhookRouter, []},
       {Observatory.Gateway.HITLRelay, []},
+      {Observatory.Gateway.EventBridge, []},
       ObservatoryWeb.Endpoint
     ]
 

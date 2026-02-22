@@ -25,16 +25,23 @@ defmodule ObservatoryWeb.Components.FleetCommandComponents do
       <h2 class="text-lg font-semibold text-zinc-300">Fleet Command</h2>
 
       <%!-- Primary Zone: Mesh Topology Map --%>
-      <div id="mesh-topology-canvas" class="bg-zinc-900/50 border border-zinc-800 rounded-lg p-4 min-h-[300px]">
+      <div id="fleet-topology-hook" phx-hook="TopologyMap" data-event="fleet_topology_update" class="bg-zinc-900/50 border border-zinc-800 rounded-lg p-4 min-h-[300px]">
         <h3 class="text-sm font-semibold text-zinc-400 uppercase tracking-wider mb-2">Mesh Topology</h3>
-        <p class="text-xs text-zinc-600">Topology map canvas placeholder</p>
+        <canvas width="800" height="280" class="w-full rounded"></canvas>
       </div>
 
       <%!-- Secondary Zone: Five Panels --%>
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         <div id="throughput-panel" class="bg-zinc-900/50 border border-zinc-800 rounded-lg p-4">
           <h3 class="text-sm font-semibold text-zinc-400 uppercase tracking-wider mb-2">Throughput</h3>
-          <p class="text-sm text-zinc-300">{@throughput_rate || "Loading..."}</p>
+          <%= if @throughput_rate do %>
+            <div class="flex items-baseline gap-1">
+              <span class="text-2xl font-mono font-bold text-zinc-200">{@throughput_rate}</span>
+              <span class="text-xs text-zinc-500">events/sec</span>
+            </div>
+          <% else %>
+            <p class="text-sm text-zinc-500">Waiting for events...</p>
+          <% end %>
         </div>
 
         <div id="cost-heatmap-panel" class="bg-zinc-900/50 border border-zinc-800 rounded-lg p-4">
@@ -53,7 +60,20 @@ defmodule ObservatoryWeb.Components.FleetCommandComponents do
 
         <div id="infrastructure-health-panel" class="bg-zinc-900/50 border border-zinc-800 rounded-lg p-4">
           <h3 class="text-sm font-semibold text-zinc-400 uppercase tracking-wider mb-2">Infrastructure Health</h3>
-          <p class="text-sm text-zinc-300">{@node_status || "Loading..."}</p>
+          <%= cond do %>
+            <% is_map(@node_status) and map_size(@node_status) > 0 -> %>
+              <div class="space-y-1">
+                <div class="flex items-center gap-2">
+                  <span class={"w-2 h-2 rounded-full #{node_state_color(Map.get(@node_status, :state))}"}></span>
+                  <span class="text-sm text-zinc-300">
+                    {Map.get(@node_status, :agent_id) || Map.get(@node_status, :session_id, "unknown") |> to_string() |> String.slice(0..11)}
+                  </span>
+                  <span class="text-xs text-zinc-500">{Map.get(@node_status, :state, "unknown")}</span>
+                </div>
+              </div>
+            <% true -> %>
+              <p class="text-sm text-zinc-500">All nodes healthy</p>
+          <% end %>
         </div>
 
         <div id="latency-panel" class="bg-zinc-900/50 border border-zinc-800 rounded-lg p-4">
@@ -80,7 +100,7 @@ defmodule ObservatoryWeb.Components.FleetCommandComponents do
 
         <div id="mtls-status-panel" class="bg-zinc-900/50 border border-zinc-800 rounded-lg p-4">
           <h3 class="text-sm font-semibold text-zinc-400 uppercase tracking-wider mb-2">mTLS Status</h3>
-          <p class="text-sm text-zinc-300">{@mtls_status || "Loading..."}</p>
+          <p class="text-sm text-zinc-500">{@mtls_status || "Not configured"}</p>
         </div>
       </div>
 
@@ -100,4 +120,10 @@ defmodule ObservatoryWeb.Components.FleetCommandComponents do
     </div>
     """
   end
+
+  defp node_state_color(:schema_violation), do: "bg-red-500"
+  defp node_state_color("alert_entropy"), do: "bg-amber-500"
+  defp node_state_color("blocked"), do: "bg-yellow-500"
+  defp node_state_color("active"), do: "bg-emerald-500"
+  defp node_state_color(_), do: "bg-zinc-500"
 end
