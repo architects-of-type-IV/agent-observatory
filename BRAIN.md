@@ -255,6 +255,14 @@ AgentMonitor GenServer monitors agent health and auto-reassigns tasks from crash
 - Member cards clickable with selection highlight (border change)
 - Reuses existing components: member_status_color, model_badge, event_type_badge, health_warnings
 
+## Phase 4 Pipeline Lessons (Feb 2026)
+- **Model selection per task**: Opus for greenfield architecture (new GenServers, complex state machines). Sonnet for well-specified contracts and verification tasks (run migrations + tests). User expectation: not every task needs the same model.
+- **EXP-002 reviewer INCONCLUSIVE**: Spawning a read-only Explore agent to check cross-task integration at wave 4 found 0 issues. The lead's shared API contract in worker prompts may prevent mismatches. Need messier parallel waves to truly test value.
+- **Coordinator should brief lead on experiments during pre-flight**: Not mid-pipeline. Only exception: blind tests of lead behavior.
+- **CapabilityMap created as real module**: User explicitly rejected stubs. GenServer with register_agent/3, remove_agent/1, get_agent/1, list_agents/0. Workers should always create real implementations unless explicitly told to stub.
+- **Flaky test ordering**: topology_builder_test.exs fails in full suite but passes isolated. Pre-existing Phase 3 issue. Likely ETS table name collision or PubSub leakage between tests.
+- **Lead reporting improved with explicit expectations**: Telling the lead exactly what to report (DONE results, wave transitions, problem escalation) produced clean coordination.
+
 ## Phase 3 Pipeline Lessons (Feb 2026)
 - **Worker-4 pre-satisfied task 5**: A thorough worker can cover adjacent tasks. Lead correctly recognized this and skipped spawning a new worker, saving time.
 - **Haiku+sonnet pair (EXP-001)**: Haiku scaffolds fast, but sonnet refiner needs pre-digested spec details in the prompt. Generic "read the spec" wastes turns on orientation.

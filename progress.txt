@@ -1,7 +1,7 @@
 Observatory Progress
 ====================
 
-## Current: Phase 2 Gateway Core COMPLETE (2026-02-22)
+## Current: Phase 4 Gateway Infrastructure & HITL COMPLETE (2026-02-22)
 
 ### Completed
 - [x] Nav redesign: 9 tabs -> 4 primary (Overview, Protocols, Feed, Errors) + More dropdown
@@ -168,10 +168,24 @@ Observatory Progress
   - New rule: ~/.claude/rules/rule-skill-coordinator.md (outer coordinator protocol)
   - New file: PIPELINE_EXPERIMENTS.md (experiment log)
 
+- [x] Phase 4: Gateway Infrastructure & HITL (DAG run, 7 tasks, 6 waves)
+  - Team: dag-phase4 (archived)
+  - 13 new modules, 3 modified, 4 migrations
+  - HeartbeatManager (90s eviction) + real CapabilityMap GenServer
+  - CronScheduler (persistent jobs, DB recovery)
+  - WebhookRouter (exponential backoff retry + DLQ + HMAC-SHA256)
+  - HITLRelay (pause/unpause state machine + ETS buffer)
+  - HITL HTTP endpoints (4 endpoints + OperatorAuth + audit trail)
+  - Auto-pause (SchemaInterceptor + SessionDrilldownLive)
+  - 204 tests, 0 failures, zero warnings
+  - EXP-002: parallel code reviewer -- INCONCLUSIVE (0 issues found)
+  - Sonnet used for task 7 (verification) -- good cost optimization
+  - Commit: eba293d
+
 ## Next
-- [ ] Phase 4 (next implementation phase)
-- [ ] Code quality review of Phase 3 output
-- [ ] EXP-002: haiku+sonnet with pre-digested stage-2 prompt
-- [ ] Visual verification: open browser, test topology renderer
+- [ ] Phase 5 (next implementation phase)
+- [ ] Fix flaky topology_builder_test.exs (test ordering issue)
+- [ ] Code quality review of Phase 4 output
+- [ ] Visual verification: browser test of HITL drilldown
 - [ ] MONAD_LESSON_LOG.md evaluation for upstream skill amendments
 - [ ] Remove dead ToolExecutionBlock module + delegate
