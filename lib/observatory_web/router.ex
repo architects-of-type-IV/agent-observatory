@@ -20,6 +20,11 @@ defmodule ObservatoryWeb.Router do
     post "/events", EventController, :create
   end
 
+  scope "/gateway", ObservatoryWeb do
+    pipe_through :api
+    post "/messages", GatewayController, :create
+  end
+
   forward "/mcp", AshAi.Mcp.Router,
     tools: [:check_inbox, :acknowledge_message, :send_message, :get_tasks, :update_task_status],
     otp_app: :observatory

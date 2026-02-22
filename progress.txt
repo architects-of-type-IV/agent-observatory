@@ -1,7 +1,7 @@
 Observatory Progress
 ====================
 
-## Current: Swarm Control Center (2026-02-21)
+## Current: Phase 2 Gateway Core COMPLETE (2026-02-22)
 
 ### Completed
 - [x] Nav redesign: 9 tabs -> 4 primary (Overview, Protocols, Feed, Errors) + More dropdown
@@ -139,17 +139,17 @@ Observatory Progress
   - Wired in settings.json PreToolUse hooks
   - Tested: direct bash call blocked, skill-invoked call allowed
 
-## Next: Phase 2 - Gateway Core
-- tasks.jsonl has 5 pending tasks (all sequential)
-- Task 1: SchemaInterceptor Module & Validation Contract (2.1)
-- Task 2: HTTP Endpoint & 422 Rejection (2.2)
-- Task 3: SchemaViolationEvent & Security (2.3)
-- Task 4: Topology Node State & Post-Validation Routing (2.4)
-- Task 5: Final migration + test suite
-- Specs: SPECS/implementation/2-gateway-core.md, ADR-014, FRD-006
-- Run `/dag run` from a fresh iTerm2 tab to execute
+- [x] Phase 2: Gateway Core (DAG run, 5 tasks)
+  - lib/observatory/gateway/schema_interceptor.ex -- validate/1, build_violation_event/3
+  - lib/observatory/mesh/entropy_tracker.ex -- stub (Phase 3)
+  - lib/observatory_web/controllers/gateway_controller.ex -- POST /gateway/messages (202/422)
+  - PubSub: gateway:violations, gateway:messages, gateway:topology
+  - Raw payload security: SHA-256 hash only, never logged/stored/broadcast
+  - Topology :schema_violation state with 30s clearance timer
+  - 65 tests, 0 failures, zero warnings
+  - Workers: 5 (worker-1 through worker-5), all Opus
 
-### Remaining
+## Next: Phase 3 - Entropy & Anomaly Detection
 - [ ] Visual verification: open browser, click through all views
 - [ ] Test feed with active agents spawning subagents
 - [ ] Test DAG rendering with real pipeline running

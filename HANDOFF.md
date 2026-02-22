@@ -1,49 +1,50 @@
 # Observatory - Handoff
 
-## Current Status: Phase 2 DAG Ready + Skill Enforcement (2026-02-22)
+## Current Status: Phase 2 Gateway Core COMPLETE (2026-02-22)
 
 ### Just Completed
 
-**Phase-to-DAG Script Improvements**
-- Fixed jq template: hardcoded `done_when` now uses computed `$DONE_WHEN` variable (line 648)
-- All 4 phases validated with `--dry-run` (phases 2-5)
-- Generated Phase 2 tasks.jsonl: 5 sequential tasks for Gateway Core
+**Phase 2: Gateway Core (DAG run, 5 tasks, 5 workers)**
+- Task 1: SchemaInterceptor Module & Validation Contract (Section 2.1) -- worker-1
+- Task 2: HTTP Endpoint & 422 Rejection (Section 2.2) -- worker-2
+- Task 3: SchemaViolationEvent & Security (Section 2.3) -- worker-3
+- Task 4: Topology Node State & Post-Validation Routing (Section 2.4) -- worker-4
+- Task 5: Final migration + full test suite -- worker-5 (via lead)
+- 65 tests, 0 failures, zero warnings
+- Team: dag-1740268800 (archived)
 
-**Skill Enforcement Mechanism**
-- Created `~/.claude/rules/rule-always-phase-to-dag.md` (alwaysApply: true)
-- Created `~/.claude/hooks/enforce-skill/phase-to-dag-gate.sh` (PreToolUse hook)
-- Wired hook into `~/.claude/settings.json` as Bash matcher
-- Pattern: hook blocks direct `phase-to-dag.sh` bash calls; skill-invoked calls use `PHASE_TO_DAG_SKILL=1` bypass token
-- Tested: direct call blocked, skill-invoked call allowed
+### New Files Created
+| File | Purpose |
+|------|---------|
+| `lib/observatory/gateway/schema_interceptor.ex` | validate/1, build_violation_event/3 |
+| `lib/observatory/mesh/entropy_tracker.ex` | Stub for Phase 3 (record_and_score/2) |
+| `lib/observatory_web/controllers/gateway_controller.ex` | POST /gateway/messages (202/422) |
+| `test/observatory/gateway/schema_interceptor_test.exs` | Boundary, validation, security tests |
+| `test/observatory_web/controllers/gateway_controller_test.exs` | Routing, rejection, PubSub, topology tests |
 
-### Phase 2 Pipeline Ready
-- `tasks.jsonl` has 5 tasks (sequential chain):
-  1. SchemaInterceptor Module & Validation Contract (2.1)
-  2. HTTP Endpoint & 422 Rejection (2.2)
-  3. SchemaViolationEvent & Security (2.3)
-  4. Topology Node State & Post-Validation Routing (2.4)
-  5. Final migration + test suite
-- Specs: `SPECS/implementation/2-gateway-core.md`, ADR-014, FRD-006
-- Run `/dag run` from a fresh iTerm2 tab to execute
-
-### Key Files Changed
+### Modified Files
 | File | Change |
 |------|--------|
-| `~/.claude/skills/phase-to-dag/phase-to-dag.sh` | Fixed `$DONE_WHEN` in jq template (line 648) |
-| `~/.claude/rules/rule-always-phase-to-dag.md` | NEW: always-on rule enforcing skill invocation |
-| `~/.claude/hooks/enforce-skill/phase-to-dag-gate.sh` | NEW: PreToolUse hook blocking direct bash calls |
-| `~/.claude/settings.json` | Added Bash PreToolUse hook for skill enforcement |
-| `tasks.jsonl` | Phase 2 DAG: 5 tasks, sequential chain |
+| `lib/observatory_web/router.ex` | Added `/gateway` scope with `:api` pipeline |
+
+### Architecture Notes
+- `SchemaInterceptor.validate/1` delegates to `DecisionLog.changeset/2` (Phase 1)
+- Module boundary enforced: `Observatory.Gateway.*` never imports `ObservatoryWeb.*`
+- PubSub topics: `"gateway:violations"`, `"gateway:messages"`, `"gateway:topology"`
+- Raw payload security: only SHA-256 hash retained, never logged/stored/broadcast
+- EntropyTracker is a stub -- real implementation in Phase 3
+- Topology `:schema_violation` state with 30s clearance timer (consumed by Phase 3/5 Canvas)
 
 ### Previous Milestones
 - Phase 1: DecisionLog Schema (commit 2a10e77) -- 4 tasks, all complete
+- Phase-to-DAG Script + Skill Enforcement
 - Mode C Pipeline: 7 FRDs -> 5 phases, 24 sections, 77 tasks, 225 subtasks
 - Mode B Pipeline: 12 ADRs -> 6 FRDs -> 79 UCs
 - Swarm Control Center: all views complete, zero warnings
 
-### Remaining
-- [ ] Execute Phase 2 via `/dag run`
-- [ ] Visual verification: all views
+### Next Steps
+- [ ] Phase 3: Entropy & Anomaly Detection
+- [ ] Visual verification: open browser, click through all views
 - [ ] Test feed with active agents spawning subagents
 - [ ] Test DAG rendering with real pipeline running
 - [ ] Remove dead ToolExecutionBlock module + delegate
