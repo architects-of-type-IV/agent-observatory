@@ -15,6 +15,17 @@ One experiment per DAG phase run. Each tests a single variable to improve speed,
 
 ---
 
+## EXP-002: Parallel Code Review Agent (Wave 4)
+**Phase:** 4 (Gateway Infrastructure & HITL) | **Date:** 2026-02-22
+**Hypothesis:** Spawning a read-only Explore agent alongside the two wave-4 parallel workers (tasks 4 & 5) that reviews their output files will catch cross-task integration issues before DONE, reducing lead verification failures and fix-then-retry cycles.
+**Method:** When wave 4 starts (tasks 4 and 5 run simultaneously), spawn a lightweight Explore agent that reads the output files from both workers after they report DONE but before the lead runs done_when. The reviewer flags cross-task integration gaps: mismatched function signatures, missing aliases, PubSub topic name mismatches, undefined function calls. Control: waves 1-3 and 5-6 run without a reviewer.
+**Measurement:** (1) Count of lead verification failures (done_when fails on first try) in wave 4 vs other waves. (2) Count of issues flagged by reviewer that would have caused done_when failure. (3) Wall-clock overhead of the review step.
+**Result:** Reviewer completed in ~2 minutes. Found ZERO integration issues between tasks 4 (HITLRelay) and 5 (HITL HTTP Endpoints). Checked 7 categories: function signatures, aliases, PubSub topics, struct fields, router wiring, supervisor ordering, return type handling. All PASS. Both tasks' done_when passed on first try after review -- consistent with the 0-issue finding. Control waves (1-3, 5-6) also had 0 done_when failures on first try (task 7 had 1 sandbox mode fix, unrelated to integration).
+**Verdict:** INCONCLUSIVE -- the reviewer worked mechanically and produced a thorough report, but found nothing. This could mean: (a) the lead's shared API contract in worker prompts prevented mismatches, or (b) the reviewer adds overhead without catching issues that wouldn't surface in done_when anyway. Need a wave with actual integration gaps to measure true value.
+**Next:** Re-test in a future phase where parallel workers have more complex cross-module interactions (e.g., shared PubSub consumers, bidirectional calls). Also consider: does the ~2min overhead justify itself if done_when catches the same issues? Track done_when first-try failure rate across phases to establish baseline.
+
+---
+
 ## Backlog
 
 Ideas to test in future phases:
@@ -23,3 +34,5 @@ Ideas to test in future phases:
 - **Worker turn count tracking**: Measure how many turns each worker takes to complete, compare across models
 - **Parallel code review agent**: Spawn a read-only reviewer alongside workers to catch issues before DONE
 - **Task-level DAG granularity**: Split sections into individual tasks instead of one-task-per-section
+- **Model selection per task**: Opus for greenfield architecture, Sonnet for well-specified contracts and verification tasks. Measure quality delta vs cost savings.
+- **Reviewer on complex parallel waves only**: Skip reviewer when parallel workers share explicit API contracts in prompts; only review when contracts are implicit

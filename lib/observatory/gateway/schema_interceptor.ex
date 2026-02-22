@@ -12,6 +12,7 @@ defmodule Observatory.Gateway.SchemaInterceptor do
   require Logger
 
   alias Observatory.Gateway.EntropyTracker
+  alias Observatory.Gateway.HITLRelay
   alias Observatory.Mesh.DecisionLog
 
   @spec validate(map()) :: {:ok, DecisionLog.t()} | {:error, Ecto.Changeset.t()}
@@ -74,6 +75,54 @@ defmodule Observatory.Gateway.SchemaInterceptor do
       "raw_payload_hash" => raw_payload_hash
     }
   end
+
+  @doc "Auto-pauses the session if the DecisionLog has control.hitl_required == true."
+  @spec maybe_auto_pause(DecisionLog.t()) :: {:paused, DecisionLog.t()} | {:normal, DecisionLog.t()}
+  def maybe_auto_pause(%DecisionLog{control: %{hitl_required: true}} = log) do
+    session_id = if log.meta, do: log.meta.trace_id, else: nil
+    agent_id = if log.identity, do: log.identity.agent_id, else: "unknown"
+
+    if session_id do
+      HITLRelay.pause(session_id, agent_id, "system", "hitl_required_flag")
+      HITLRelay.buffer_message(session_id, log)
+    end
+
+    {:paused, log}
+  end
+
+  def maybe_auto_pause(%DecisionLog{} = log), do: {:normal, log}
+
+  @doc """
+  Checks if a DecisionLog action contains a `schedule_reminder` tool call.
+
+  If the action's `tool_call` is `"schedule_reminder"` and `tool_input` is valid JSON
+  containing `"agent_id"` and `"delay_ms"`, schedules a one-time reminder via CronScheduler.
+
+  Returns `:ok` if a reminder was scheduled, `:noop` if the action is not a schedule_reminder,
+  or `{:error, reason}` on failure.
+  """
+  @spec maybe_schedule_reminder(DecisionLog.t()) :: :ok | :noop | {:error, term()}
+  def maybe_schedule_reminder(%DecisionLog{action: nil}), do: :noop
+
+  def maybe_schedule_reminder(%DecisionLog{action: %{tool_call: "schedule_reminder"} = action}) do
+    case Jason.decode(action.tool_input || "") do
+      {:ok, %{"agent_id" => agent_id, "delay_ms" => delay_ms} = input} ->
+        payload = Map.get(input, "payload", %{})
+
+        case Observatory.Gateway.CronScheduler.schedule_once(agent_id, delay_ms, payload) do
+          :ok -> :ok
+          {:error, reason} -> {:error, reason}
+        end
+
+      {:ok, _} ->
+        {:error, :missing_required_fields}
+
+      {:error, _} ->
+        {:error, :invalid_tool_input}
+    end
+  end
+
+  def maybe_schedule_reminder(%DecisionLog{}), do: :noop
 
   # Private
 

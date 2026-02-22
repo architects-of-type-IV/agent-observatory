@@ -14,6 +14,10 @@ defmodule ObservatoryWeb.Router do
     plug :accepts, ["json"]
   end
 
+  pipeline :hitl_auth do
+    plug Observatory.Plugs.OperatorAuth
+  end
+
   scope "/api", ObservatoryWeb do
     pipe_through :api
 
@@ -23,6 +27,17 @@ defmodule ObservatoryWeb.Router do
   scope "/gateway", ObservatoryWeb do
     pipe_through :api
     post "/messages", GatewayController, :create
+    post "/heartbeat", HeartbeatController, :create
+    post "/webhooks/:webhook_id", WebhookController, :create
+  end
+
+  scope "/gateway/sessions/:session_id", ObservatoryWeb do
+    pipe_through [:api, :hitl_auth]
+
+    post "/pause", HITLController, :pause
+    post "/unpause", HITLController, :unpause
+    post "/rewrite", HITLController, :rewrite
+    post "/inject", HITLController, :inject
   end
 
   forward "/mcp", AshAi.Mcp.Router,

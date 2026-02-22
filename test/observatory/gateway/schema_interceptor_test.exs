@@ -4,6 +4,7 @@ defmodule Observatory.Gateway.SchemaInterceptorTest do
   import ExUnit.CaptureLog
 
   alias Observatory.Gateway.EntropyTracker
+  alias Observatory.Gateway.HITLRelay
   alias Observatory.Gateway.SchemaInterceptor
   alias Observatory.Mesh.DecisionLog
 
@@ -203,6 +204,96 @@ defmodule Observatory.Gateway.SchemaInterceptorTest do
 
       assert_receive {:schema_violation, _}, 1000
       refute_receive {"schema_violation", _}, 100
+    end
+  end
+
+  describe "maybe_auto_pause/1" do
+    setup do
+      :ets.delete_all_objects(:hitl_buffer)
+      :ok
+    end
+
+    defp build_log_with_hitl(opts) do
+      hitl_required = Keyword.get(opts, :hitl_required, false)
+      trace_id = Keyword.get(opts, :trace_id, "trace-#{System.unique_integer([:positive])}")
+      agent_id = Keyword.get(opts, :agent_id, "agent-1")
+
+      %DecisionLog{
+        meta: %DecisionLog.Meta{
+          trace_id: trace_id,
+          timestamp: DateTime.utc_now()
+        },
+        identity: %DecisionLog.Identity{
+          agent_id: agent_id,
+          agent_type: "worker",
+          capability_version: "1.0.0"
+        },
+        cognition: %DecisionLog.Cognition{
+          intent: "test_intent"
+        },
+        action: %DecisionLog.Action{
+          status: :success,
+          tool_call: "test_tool"
+        },
+        control: %DecisionLog.Control{
+          hitl_required: hitl_required
+        }
+      }
+    end
+
+    test "returns {:paused, log} when hitl_required is true" do
+      log = build_log_with_hitl(hitl_required: true)
+
+      assert {:paused, ^log} = SchemaInterceptor.maybe_auto_pause(log)
+    end
+
+    test "pauses the session via HITLRelay when hitl_required is true" do
+      trace_id = "auto-pause-#{System.unique_integer([:positive])}"
+      log = build_log_with_hitl(hitl_required: true, trace_id: trace_id)
+
+      SchemaInterceptor.maybe_auto_pause(log)
+
+      assert :paused = HITLRelay.session_status(trace_id)
+    end
+
+    test "buffers the message when hitl_required is true" do
+      trace_id = "buffer-ap-#{System.unique_integer([:positive])}"
+      log = build_log_with_hitl(hitl_required: true, trace_id: trace_id)
+
+      Phoenix.PubSub.subscribe(Observatory.PubSub, "gateway:messages")
+
+      SchemaInterceptor.maybe_auto_pause(log)
+
+      # Unpause to flush the buffer and verify the message was buffered
+      {:ok, 1} = HITLRelay.unpause(trace_id, "operator", "dashboard_operator")
+
+      assert_receive {:decision_log, ^log}
+    end
+
+    test "returns {:normal, log} when hitl_required is false" do
+      log = build_log_with_hitl(hitl_required: false)
+
+      assert {:normal, ^log} = SchemaInterceptor.maybe_auto_pause(log)
+    end
+
+    test "returns {:normal, log} when control is nil" do
+      log = %DecisionLog{control: nil}
+
+      assert {:normal, ^log} = SchemaInterceptor.maybe_auto_pause(log)
+    end
+
+    test "returns {:paused, log} even when meta is nil (no session_id)" do
+      log = %DecisionLog{
+        meta: nil,
+        identity: %DecisionLog.Identity{
+          agent_id: "agent-1",
+          agent_type: "worker",
+          capability_version: "1.0.0"
+        },
+        control: %DecisionLog.Control{hitl_required: true}
+      }
+
+      assert {:paused, ^log} = SchemaInterceptor.maybe_auto_pause(log)
     end
   end
 
