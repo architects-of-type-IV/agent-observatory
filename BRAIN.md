@@ -255,7 +255,15 @@ AgentMonitor GenServer monitors agent health and auto-reassigns tasks from crash
 - Member cards clickable with selection highlight (border change)
 - Reuses existing components: member_status_color, model_badge, event_type_badge, health_warnings
 
-## Phase 4 Pipeline Lessons (Feb 2026)
+## Distill Skill Lessons (Feb 2026)
+- **`set -euo pipefail` kills piped `claude -p` silently**: When `claude -p` exits non-zero (common), `set -e` terminates the entire script before tee/log captures any output. Result: 0-byte log files, no error diagnostics. Fix: remove `-e`, handle errors explicitly per phase with exit code capture.
+- **Stream separation is mandatory**: `2>&1 | tee` merges stderr (CLI diagnostics) with stdout (agent output), and if the pipe breaks both are lost. Use `> >(tee log) 2> err` for process substitution with separate stderr capture.
+- **Status file for monitoring**: Write phase name + timestamp to status.txt on start/complete/fail. Allows external monitoring without parsing logs.
+- **Graceful non-zero handling**: `claude -p` may exit non-zero even when it produces valid output (e.g., context limit hit after writing findings). Check for expected output file existence before declaring failure.
+- **jq-only JSONL parsing**: Session JSONL files can be 50K+ lines. Reading them with the Read tool floods agent context, causing compaction or silent truncation. Always use jq via Bash tool with targeted extraction queries.
+- **Coordinator/lead recipe library**: Distill agents analyzing DAG pipeline sessions need specialized jq recipes for SendMessage flows, worker spawns, task lifecycle (claim/complete), relay patterns, and model selection. Generic session recipes miss multi-agent coordination patterns entirely.
+
+
 - **Model selection per task**: Opus for greenfield architecture (new GenServers, complex state machines). Sonnet for well-specified contracts and verification tasks (run migrations + tests). User expectation: not every task needs the same model.
 - **EXP-002 reviewer INCONCLUSIVE**: Spawning a read-only Explore agent to check cross-task integration at wave 4 found 0 issues. The lead's shared API contract in worker prompts may prevent mismatches. Need messier parallel waves to truly test value.
 - **Coordinator should brief lead on experiments during pre-flight**: Not mid-pipeline. Only exception: blind tests of lead behavior.

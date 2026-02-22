@@ -182,8 +182,16 @@ Observatory Progress
   - Sonnet used for task 7 (verification) -- good cost optimization
   - Commit: eba293d
 
+- [x] Distill Skill Fix (2026-02-22)
+  - Root cause: set -euo pipefail + claude -p | tee = silent failure (0-byte logs)
+  - Fix: run_phase helper, explicit error handling, stream separation, status.txt
+  - Added 17 jq recipes (8 general + 9 coordinator/lead patterns)
+  - Enforced jq-only JSONL parsing (never Read tool on .jsonl)
+  - File: ~/.claude/skills/distill/scripts/launch.sh
+
 ## Next
-- [ ] Phase 5 (next implementation phase)
+- [ ] Phase 5 (next implementation phase -- DAG ready, fresh iTerm2 tab)
+- [ ] Re-run /distill to verify fix works end-to-end
 - [ ] Fix flaky topology_builder_test.exs (test ordering issue)
 - [ ] Code quality review of Phase 4 output
 - [ ] Visual verification: browser test of HITL drilldown

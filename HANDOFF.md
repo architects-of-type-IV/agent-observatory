@@ -1,6 +1,19 @@
 # Observatory - Handoff
 
-## Current Status: Phase 5 Hypervisor UI READY (2026-02-22)
+## Current Status: Distill Skill Fixed + Phase 5 READY (2026-02-22)
+
+### Just Completed: Distill Skill Overhaul
+
+**Root cause of silent failures**: `set -euo pipefail` in generated run.sh killed the script when `claude -p` exited non-zero. The pipe `2>&1 | tee` captured nothing because the process died before tee received data. Result: empty miner.log, no error output, no status reporting.
+
+**Fix applied** (`~/.claude/skills/distill/scripts/launch.sh`):
+1. Replaced `set -euo pipefail` with `set -uo pipefail` (no `-e`) -- errors handled explicitly
+2. Added `run_phase` helper function: captures exit code, separates stdout/stderr, checks expected output files, writes status.txt
+3. Process substitution `> >(tee log)` + `2> err` for proper stream separation
+4. Graceful continuation: if output file exists despite non-zero exit, pipeline continues
+5. Pre-flight session size reporting + artifact inventory at completion
+6. **jq-only JSONL enforcement**: MANIFEST.md now has 17 jq recipes, agents instructed to NEVER use Read tool on .jsonl files
+7. **Coordinator/lead pattern recipes** (9-17): extract SendMessage flows, worker spawns, DAG script calls, relay messages, escalation moments, idle signals, model selection patterns
 
 ### Phase 5 Pre-Flight (READY for /dag run in fresh iTerm2 tab)
 - tasks.jsonl written: 6 tasks, 4 waves, max 2 parallel
@@ -91,6 +104,7 @@
 
 ### Next Steps
 - [ ] Run `/dag run` in fresh iTerm2 tab for Phase 5
+- [ ] Re-run `/distill` to verify the fix works end-to-end
 - [ ] Fix flaky topology_builder_test.exs (test ordering issue)
 - [ ] Code quality review of Phase 4 output
 - [ ] Visual verification: browser test of HITL drilldown
