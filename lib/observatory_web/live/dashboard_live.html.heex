@@ -25,6 +25,12 @@
         >
           <%
             tabs = [
+              {:fleet_command, "Fleet"},
+              {:session_cluster, "Sessions"},
+              {:registry, "Registry"},
+              {:scheduler, "Scheduler"},
+              {:forensic, "Forensic"},
+              {:god_mode, "God"},
               {:overview, "Overview"},
               {:command, "Command"},
               {:pipeline, "Pipeline"},
@@ -449,6 +455,78 @@
           />
         </div>
       </div>
+
+      <%!-- Phase 5: Hypervisor views --%>
+      <ObservatoryWeb.Components.FleetCommandComponents.fleet_command_view
+        :if={@view_mode == :fleet_command}
+        swarm_state={@swarm_state}
+        throughput_rate={@throughput_rate}
+        cost_heatmap={@cost_heatmap}
+        node_status={@node_status}
+        latency_metrics={@latency_metrics}
+        mtls_status={@mtls_status}
+        agent_grid_open={@agent_grid_open}
+        teams={@teams}
+        events={@events}
+        errors={@errors}
+        now={@now}
+        selected_command_agent={@selected_command_agent}
+        selected_command_task={@selected_command_task}
+        messages={@messages}
+        protocol_stats={@protocol_stats}
+        active_tasks={@active_tasks}
+        analytics={@analytics}
+      />
+
+      <ObservatoryWeb.Components.SessionClusterComponents.session_cluster_view
+        :if={@view_mode == :session_cluster}
+        sessions={@sessions}
+        entropy_filter_active={@entropy_filter_active}
+        entropy_threshold={@entropy_threshold}
+        selected_session_id={@selected_session_id}
+        scratchpad_intents={@scratchpad_intents}
+        feed_panel_open={@feed_panel_open}
+        messages_panel_open={@messages_panel_open}
+        tasks_panel_open={@tasks_panel_open}
+        protocols_panel_open={@protocols_panel_open}
+      />
+
+      <ObservatoryWeb.Components.RegistryComponents.registry_view
+        :if={@view_mode == :registry}
+        agent_types={@agent_types}
+        route_weights={@route_weights}
+        capability_sort_field={@capability_sort_field}
+        capability_sort_dir={@capability_sort_dir}
+        route_weight_errors={@route_weight_errors}
+      />
+
+      <ObservatoryWeb.Components.SchedulerComponents.scheduler_view
+        :if={@view_mode == :scheduler}
+        cron_jobs={@cron_jobs}
+        dlq_entries={@dlq_entries}
+        zombie_agents={@zombie_agents}
+      />
+
+      <ObservatoryWeb.Components.ForensicComponents.forensic_view
+        :if={@view_mode == :forensic}
+        archive_search={@archive_search}
+        archive_results={@archive_results}
+        cost_group_by={@cost_group_by}
+        cost_attribution={@cost_attribution}
+        webhook_logs={@webhook_logs}
+        policy_rules={@policy_rules}
+        forensic_audit_open={@forensic_audit_open}
+        forensic_topology_open={@forensic_topology_open}
+        forensic_entropy_open={@forensic_entropy_open}
+      />
+
+      <ObservatoryWeb.Components.GodModeComponents.god_mode_view
+        :if={@view_mode == :god_mode}
+        kill_switch_confirm_step={@kill_switch_confirm_step}
+        agent_classes={@agent_classes}
+        instructions_confirm_pending={@instructions_confirm_pending}
+        instructions_banner={@instructions_banner}
+      />
     </main>
 
     <%!-- ═══ Detail Panel ═══ --%>

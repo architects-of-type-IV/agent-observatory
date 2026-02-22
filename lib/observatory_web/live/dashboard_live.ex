@@ -52,7 +52,7 @@ defmodule ObservatoryWeb.DashboardLive do
       |> assign(:expanded_events, [])
       |> assign(:now, DateTime.utc_now())
       |> assign(:page_title, "Observatory")
-      |> assign(:view_mode, :overview)
+      |> assign(:view_mode, :fleet_command)
       |> assign(:expanded_sessions, MapSet.new())
       |> assign(:disk_teams, disk_teams)
       |> assign(:swarm_state, Observatory.SwarmMonitor.get_state())
@@ -76,6 +76,46 @@ defmodule ObservatoryWeb.DashboardLive do
       |> assign(:inspector_events, [])
       |> assign(:current_session_id, "dashboard")
       |> assign(:sidebar_collapsed, false)
+      # Phase 5 - Fleet Command (task 2)
+      |> assign(:throughput_rate, nil)
+      |> assign(:cost_heatmap, [])
+      |> assign(:node_status, nil)
+      |> assign(:latency_metrics, %{})
+      |> assign(:mtls_status, nil)
+      |> assign(:agent_grid_open, false)
+      # Phase 5 - Session Cluster & Registry (task 3)
+      |> assign(:entropy_filter_active, false)
+      |> assign(:entropy_threshold, 0.7)
+      |> assign(:selected_session_id, nil)
+      |> assign(:scratchpad_intents, [])
+      |> assign(:feed_panel_open, false)
+      |> assign(:messages_panel_open, false)
+      |> assign(:tasks_panel_open, false)
+      |> assign(:protocols_panel_open, false)
+      |> assign(:agent_types, [])
+      |> assign(:route_weights, %{})
+      |> assign(:capability_sort_field, :agent_type)
+      |> assign(:capability_sort_dir, :asc)
+      |> assign(:route_weight_errors, %{})
+      # Phase 5 - God Mode (task 5)
+      |> assign(:kill_switch_confirm_step, nil)
+      |> assign(:agent_classes, [])
+      |> assign(:instructions_confirm_pending, nil)
+      |> assign(:instructions_banner, nil)
+      # Phase 5 - Scheduler (task 4)
+      |> assign(:cron_jobs, [])
+      |> assign(:dlq_entries, [])
+      |> assign(:zombie_agents, [])
+      # Phase 5 - Forensic (task 4)
+      |> assign(:archive_search, "")
+      |> assign(:archive_results, [])
+      |> assign(:cost_group_by, :agent_id)
+      |> assign(:cost_attribution, [])
+      |> assign(:webhook_logs, [])
+      |> assign(:policy_rules, [])
+      |> assign(:forensic_audit_open, false)
+      |> assign(:forensic_topology_open, false)
+      |> assign(:forensic_entropy_open, false)
       |> prepare_assigns()
 
     # Subscribe to mailbox channels for all active sessions
@@ -186,6 +226,12 @@ defmodule ObservatoryWeb.DashboardLive do
 
   def handle_event("set_view", %{"mode" => m}, s),
     do: {:noreply, handle_set_view(m, s) |> prepare_assigns()}
+
+  def handle_event("restore_view_mode", p, s),
+    do:
+      {:noreply,
+       ObservatoryWeb.DashboardNavigationHandlers.handle_event("restore_view_mode", p, s)
+       |> prepare_assigns()}
 
   def handle_event("restore_state", p, s),
     do: {:noreply, handle_restore_state(p, s) |> prepare_assigns()}
@@ -425,6 +471,101 @@ defmodule ObservatoryWeb.DashboardLive do
     do:
       {:noreply,
        handle_add_project(p, s) |> assign(:show_add_project, false) |> prepare_assigns()}
+
+  # Phase 5 - Fleet Command handlers
+  def handle_event("toggle_agent_grid", _p, s) do
+    {:noreply, s |> assign(:agent_grid_open, !s.assigns.agent_grid_open) |> prepare_assigns()}
+  end
+
+  # Phase 5 - Session Cluster & Registry handlers
+  def handle_event("toggle_entropy_filter", _p, s) do
+    {:noreply, s |> assign(:entropy_filter_active, !s.assigns.entropy_filter_active) |> prepare_assigns()}
+  end
+
+  def handle_event("select_session", %{"session_id" => sid}, s) do
+    {:noreply, s |> assign(:selected_session_id, sid) |> prepare_assigns()}
+  end
+
+  def handle_event("toggle_subpanel", %{"panel" => panel}, s) do
+    key = String.to_existing_atom("#{panel}_panel_open")
+    {:noreply, s |> assign(key, !Map.get(s.assigns, key, false)) |> prepare_assigns()}
+  end
+
+  def handle_event("sort_capability_directory", %{"field" => field}, s) do
+    field_atom = String.to_existing_atom(field)
+    new_dir = if s.assigns.capability_sort_field == field_atom and s.assigns.capability_sort_dir == :asc, do: :desc, else: :asc
+    {:noreply, s |> assign(:capability_sort_field, field_atom) |> assign(:capability_sort_dir, new_dir) |> prepare_assigns()}
+  end
+
+  def handle_event("update_route_weight", %{"agent_type" => agent_type, "weight" => weight_str}, s) do
+    case Integer.parse(weight_str) do
+      {w, ""} when w >= 0 and w <= 100 ->
+        weights = Map.put(s.assigns.route_weights, agent_type, w)
+        {:noreply, s |> assign(:route_weights, weights) |> assign(:route_weight_errors, Map.delete(s.assigns.route_weight_errors, agent_type)) |> prepare_assigns()}
+      _ ->
+        errors = Map.put(s.assigns.route_weight_errors, agent_type, "Must be 0-100")
+        {:noreply, s |> assign(:route_weight_errors, errors) |> prepare_assigns()}
+    end
+  end
+
+  # Phase 5 - Scheduler handlers
+  def handle_event("retry_dlq_entry", %{"entry_id" => entry_id}, s) do
+    dlq = Enum.map(s.assigns.dlq_entries, fn entry ->
+      if Map.get(entry, :id) == entry_id, do: Map.put(entry, :state, "pending"), else: entry
+    end)
+    {:noreply, s |> assign(:dlq_entries, dlq) |> prepare_assigns()}
+  end
+
+  # Phase 5 - Forensic handlers
+  def handle_event("search_archive", %{"q" => query}, s) do
+    results = Enum.filter(s.assigns.events, fn ev ->
+      query != "" and String.contains?(String.downcase(inspect(ev)), String.downcase(query))
+    end)
+    {:noreply, s |> assign(:archive_search, query) |> assign(:archive_results, results) |> prepare_assigns()}
+  end
+
+  def handle_event("set_cost_group_by", %{"field" => field}, s) do
+    {:noreply, s |> assign(:cost_group_by, String.to_existing_atom(field)) |> prepare_assigns()}
+  end
+
+  def handle_event("add_policy_rule", %{"name" => name, "condition" => condition, "action" => action}, s) do
+    rule = %{id: System.unique_integer([:positive]), name: name, condition: condition, action: action, enabled: true}
+    {:noreply, s |> assign(:policy_rules, [rule | s.assigns.policy_rules]) |> prepare_assigns()}
+  end
+
+  def handle_event("toggle_forensic_panel", %{"panel" => panel}, s) do
+    key = String.to_existing_atom("forensic_#{panel}_open")
+    {:noreply, s |> assign(key, !Map.get(s.assigns, key, false)) |> prepare_assigns()}
+  end
+
+  # Phase 5 - God Mode handlers (delegated to DashboardSessionControlHandlers)
+  def handle_event("kill_switch_click", p, s) do
+    {:noreply, apply(ObservatoryWeb.DashboardSessionControlHandlers, :handle_kill_switch_click, [p, s]) |> prepare_assigns()}
+  end
+
+  def handle_event("kill_switch_first_confirm", p, s) do
+    {:noreply, apply(ObservatoryWeb.DashboardSessionControlHandlers, :handle_kill_switch_first_confirm, [p, s]) |> prepare_assigns()}
+  end
+
+  def handle_event("kill_switch_second_confirm", p, s) do
+    {:noreply, apply(ObservatoryWeb.DashboardSessionControlHandlers, :handle_kill_switch_second_confirm, [p, s]) |> prepare_assigns()}
+  end
+
+  def handle_event("kill_switch_cancel", p, s) do
+    {:noreply, apply(ObservatoryWeb.DashboardSessionControlHandlers, :handle_kill_switch_cancel, [p, s]) |> prepare_assigns()}
+  end
+
+  def handle_event("push_instructions_intent", p, s) do
+    {:noreply, apply(ObservatoryWeb.DashboardSessionControlHandlers, :handle_push_instructions_intent, [p, s]) |> prepare_assigns()}
+  end
+
+  def handle_event("push_instructions_confirm", p, s) do
+    {:noreply, apply(ObservatoryWeb.DashboardSessionControlHandlers, :handle_push_instructions_confirm, [p, s]) |> prepare_assigns()}
+  end
+
+  def handle_event("push_instructions_cancel", p, s) do
+    {:noreply, apply(ObservatoryWeb.DashboardSessionControlHandlers, :handle_push_instructions_cancel, [p, s]) |> prepare_assigns()}
+  end
 
   # Navigation handlers
   def handle_event(e, p, s)

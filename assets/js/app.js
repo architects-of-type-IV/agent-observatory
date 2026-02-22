@@ -198,10 +198,10 @@ let Hooks = {
         }
 
         // 1-9,0 - switch view modes
-        const viewModes = ["overview", "command", "pipeline", "agents", "protocols", "feed", "tasks", "messages", "errors"]
+        const viewModes = ["fleet_command", "session_cluster", "registry", "scheduler", "forensic", "god_mode"]
         const numKey = parseInt(e.key)
-        if (numKey >= 0 && numKey <= 9 && !e.metaKey && !e.ctrlKey) {
-          const idx = numKey === 0 ? 9 : numKey - 1
+        if (numKey >= 1 && numKey <= 6 && !e.metaKey && !e.ctrlKey) {
+          const idx = numKey - 1
           if (idx < viewModes.length) {
             e.preventDefault()
             this.pushEvent("set_view", { mode: viewModes[idx] })
@@ -275,6 +275,15 @@ let Hooks = {
       const isNearBottom = this.el.scrollHeight - this.el.scrollTop - this.el.clientHeight < 100
       if (isNearBottom) {
         this.el.scrollTop = this.el.scrollHeight
+      }
+    }
+  },
+  ViewModePersistence: {
+    mounted() {
+      const stored = localStorage.getItem("observatory:view_mode")
+      const valid = ["fleet_command", "session_cluster", "registry", "scheduler", "forensic", "god_mode"]
+      if (stored && valid.includes(stored)) {
+        this.pushEvent("restore_view_mode", { value: stored })
       }
     }
   },

@@ -279,6 +279,15 @@ AgentMonitor GenServer monitors agent health and auto-reassigns tasks from crash
 - **EntropyTracker FR-9.2 deviation**: Uses list ++ [tuple] (O(n)) instead of queue/circular buffer (O(1)). Immaterial at window size 5 but technically non-compliant.
 - **CausalDAG TopologyBuilder coupling**: Uses Code.ensure_loaded? guard + dynamic apply to avoid compile-time dependency. Pattern for optional cross-module subscription.
 
+## Phase 5 Lessons (Feb 2026)
+- **Model tiering ADOPT (EXP-003)**: Opus for anchor/contract-defining tasks, sonnet for well-specified component work, haiku for pure verification. Equal quality at ~60-70% cost savings. Make this default for all future DAG runs.
+- **Shared file ownership resolution**: When 3+ parallel workers need the same file (dashboard_live.ex), assign ALL edits to one worker (worker-2 owned mount assigns + event delegations for tasks 2, 3, 5). Other workers only touch their component files.
+- **One test fix needed per wave**: Minor test assertion adjustments (haiku worker-fix) are expected when tests reference data that isn't seeded. Keep haiku fix workers ready.
+- **Component composability achieved**: All 6 Phase 5 components use `use Phoenix.Component` with attr declarations. Dispatch via `:if={@view_mode == :atom}` in template. No inline HTML bloat.
+- **Non-blocking CSS repetition**: Panel container classes repeated 10x across components. Extract shared panel component in a future cleanup pass.
+- **Kill switch state machine**: nil -> :first -> :second cycle with catch-all reset. Pattern: multi-step confirmation via socket assign cycling.
+- **God mode danger-zone CSS**: @apply directives in app.css for .god-mode-panel, .god-mode-button-danger, .god-mode-border.
+
 ## Sprint 5 Lessons (Feb 2026)
 - **5 parallel agents with non-overlapping file scopes**: Assign each agent specific files to create/modify. Zero merge conflicts achieved.
 - **Agents self-wire when possible**: activity-builder and task-editor wired their own event handlers into dashboard_live.ex, reducing integrator work

@@ -6,6 +6,27 @@ defmodule ObservatoryWeb.DashboardNavigationHandlers do
   Usage: defdelegate handle_event(event, params, socket), to: ObservatoryWeb.DashboardNavigationHandlers
   """
 
+  require Logger
+
+  def handle_event("restore_view_mode", %{"value" => value}, socket) do
+    view_mode =
+      case value do
+        "fleet_command" -> :fleet_command
+        "session_cluster" -> :session_cluster
+        "registry" -> :registry
+        "scheduler" -> :scheduler
+        "forensic" -> :forensic
+        "god_mode" -> :god_mode
+        _ ->
+          Logger.warning("Unrecognized view_mode: #{inspect(value)}")
+          :fleet_command
+      end
+
+    socket
+    |> Phoenix.Component.assign(:view_mode, view_mode)
+    |> Phoenix.LiveView.push_event("view_mode_changed", %{view_mode: value})
+  end
+
   def handle_event("jump_to_timeline", params, socket),
     do: handle_jump_to_timeline(params, socket)
 

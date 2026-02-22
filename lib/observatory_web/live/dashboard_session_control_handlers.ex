@@ -96,4 +96,56 @@ defmodule ObservatoryWeb.DashboardSessionControlHandlers do
       "Shutdown command sent to agent #{String.slice(session_id, 0..7)}"
     )
   end
+
+  # Phase 5: Kill-switch state machine
+  def handle_kill_switch_click(_params, socket) do
+    Phoenix.Component.assign(socket, :kill_switch_confirm_step, :first)
+  end
+
+  def handle_kill_switch_first_confirm(_params, socket) do
+    Phoenix.Component.assign(socket, :kill_switch_confirm_step, :second)
+  end
+
+  def handle_kill_switch_second_confirm(_params, %{assigns: %{kill_switch_confirm_step: :second}} = socket) do
+    dispatch_mesh_pause(socket)
+    Phoenix.Component.assign(socket, :kill_switch_confirm_step, nil)
+  end
+
+  def handle_kill_switch_second_confirm(_params, socket) do
+    Phoenix.Component.assign(socket, :kill_switch_confirm_step, nil)
+  end
+
+  def handle_kill_switch_cancel(_params, socket) do
+    Phoenix.Component.assign(socket, :kill_switch_confirm_step, nil)
+  end
+
+  # Phase 5: Global Instructions handlers
+  def handle_push_instructions_intent(%{"agent_class" => agent_class}, socket) do
+    Phoenix.Component.assign(socket, :instructions_confirm_pending, agent_class)
+  end
+
+  def handle_push_instructions_confirm(%{"agent_class" => agent_class, "instructions" => instructions}, socket) do
+    Phoenix.PubSub.broadcast(
+      Observatory.PubSub,
+      "agent:#{agent_class}:instructions",
+      {:global_instructions, %{agent_class: agent_class, instructions: instructions}}
+    )
+
+    socket
+    |> Phoenix.Component.assign(:instructions_confirm_pending, nil)
+    |> Phoenix.Component.assign(:instructions_banner, {:success, "Instructions pushed to #{agent_class}"})
+  end
+
+  def handle_push_instructions_cancel(_params, socket) do
+    Phoenix.Component.assign(socket, :instructions_confirm_pending, nil)
+  end
+
+  defp dispatch_mesh_pause(socket) do
+    Phoenix.PubSub.broadcast(
+      Observatory.PubSub,
+      "gateway:mesh_control",
+      {:mesh_pause, %{initiated_by: "god_mode", timestamp: DateTime.utc_now()}}
+    )
+    socket
+  end
 end

@@ -120,3 +120,16 @@
   height: 100vh !important;
   border-top: none !important;
 }
+
+/* God Mode danger zone */
+.god-mode-panel {
+  @apply bg-zinc-900/50 border border-red-500/20 rounded-lg p-4;
+}
+
+.god-mode-button-danger {
+  @apply px-4 py-2 text-sm font-semibold bg-red-600 hover:bg-red-500 text-white rounded transition;
+}
+
+.god-mode-border {
+  @apply border border-red-500/30;
+}

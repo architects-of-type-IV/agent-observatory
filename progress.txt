@@ -1,7 +1,19 @@
 Observatory Progress
 ====================
 
-## Current: Phase 4 Gateway Infrastructure & HITL COMPLETE (2026-02-22)
+## Current: Phase 5 Hypervisor UI COMPLETE (2026-02-22)
+
+### Phase 5 Completed
+- [x] Task 1: Six-View Navigation Shell (opus) -- view_mode contract, 6 stubs, keyboard 1-6, localStorage
+- [x] Task 2: Fleet Command View (sonnet) -- 6 panels + all dashboard_live.ex mount/event wiring
+- [x] Task 3: Session Cluster + Registry Views (sonnet) -- entropy filter, drill-down, sortable directory
+- [x] Task 4: Scheduler + Forensic Inspector Views (sonnet) -- cron dashboard, DLQ retry, message archive
+- [x] Task 5: God Mode View (sonnet) -- kill switch double-confirm, danger CSS, global instructions
+- [x] Task 6: Final validation (haiku) -- 233 tests, 0 failures, zero warnings
+- [x] EXP-003: Model tiering ADOPT -- opus anchor, sonnet components, haiku verification
+- [x] Build: zero warnings
+
+## Previous: Phase 4 Gateway Infrastructure & HITL COMPLETE (2026-02-22)
 
 ### Completed
 - [x] Nav redesign: 9 tabs -> 4 primary (Overview, Protocols, Feed, Errors) + More dropdown
@@ -190,10 +202,10 @@ Observatory Progress
   - File: ~/.claude/skills/distill/scripts/launch.sh
 
 ## Next
-- [ ] Phase 5 (next implementation phase -- DAG ready, fresh iTerm2 tab)
+- [ ] Commit Phase 5 changes
 - [ ] Re-run /distill to verify fix works end-to-end
 - [ ] Fix flaky topology_builder_test.exs (test ordering issue)
-- [ ] Code quality review of Phase 4 output
-- [ ] Visual verification: browser test of HITL drilldown
+- [ ] Extract shared panel component (repeated CSS classes across Phase 5 components)
+- [ ] Visual verification: browser test of Phase 5 views
 - [ ] MONAD_LESSON_LOG.md evaluation for upstream skill amendments
 - [ ] Remove dead ToolExecutionBlock module + delegate
