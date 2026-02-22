@@ -22,6 +22,7 @@ defmodule Observatory.Application do
       {Observatory.MemoryStore, []},
       {Observatory.AgentMonitor, []},
       {Observatory.Notes, []},
+      {Observatory.EventJanitor, []},
       ObservatoryWeb.Endpoint
     ]
 
