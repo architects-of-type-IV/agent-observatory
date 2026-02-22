@@ -9,6 +9,9 @@ defmodule Observatory.Gateway.SchemaInterceptor do
   in log output.
   """
 
+  require Logger
+
+  alias Observatory.Gateway.EntropyTracker
   alias Observatory.Mesh.DecisionLog
 
   @spec validate(map()) :: {:ok, DecisionLog.t()} | {:error, Ecto.Changeset.t()}
@@ -19,6 +22,38 @@ defmodule Observatory.Gateway.SchemaInterceptor do
       {:ok, Ecto.Changeset.apply_changes(changeset)}
     else
       {:error, changeset}
+    end
+  end
+
+  @doc """
+  Validates params and enriches the resulting DecisionLog with a Gateway-computed entropy score.
+
+  Calls `validate/1` first. On success, calls `EntropyTracker.record_and_score/2` synchronously
+  and overwrites `cognition.entropy_score` with the returned Gateway-authoritative value.
+
+  If entropy computation fails (missing agent registration), the original agent-reported score
+  is retained and a warning is logged.
+
+  Returns `{:ok, %DecisionLog{}}` or `{:error, changeset}`.
+  """
+  @spec validate_and_enrich(map()) :: {:ok, DecisionLog.t()} | {:error, Ecto.Changeset.t()}
+  def validate_and_enrich(params) when is_map(params) do
+    case validate(params) do
+      {:error, changeset} ->
+        {:error, changeset}
+
+      {:ok, log} ->
+        enrich_with_entropy(log)
+    end
+  end
+
+  @doc false
+  @spec deduplicate_alert(map(), map()) :: map()
+  def deduplicate_alert(alerts, %{session_id: sid, entropy_score: score} = event) do
+    if Map.has_key?(alerts, sid) do
+      Map.update!(alerts, sid, fn existing -> %{existing | entropy_score: score} end)
+    else
+      Map.put(alerts, sid, event)
     end
   end
 
@@ -39,6 +74,40 @@ defmodule Observatory.Gateway.SchemaInterceptor do
       "raw_payload_hash" => raw_payload_hash
     }
   end
+
+  # Private
+
+  defp enrich_with_entropy(log) do
+    case extract_entropy_fields(log) do
+      nil ->
+        {:ok, log}
+
+      {session_id, intent, tool_call, action_status} ->
+        # Synchronous call per FR-9.9 and ADR-018. Must NOT be Task.async or GenServer.cast.
+        case EntropyTracker.record_and_score(session_id, {intent, tool_call, action_status}) do
+          {:ok, score, _severity} ->
+            {:ok, DecisionLog.put_gateway_entropy_score(log, score)}
+
+          {:error, :missing_agent_id} ->
+            Logger.warning(
+              "SchemaInterceptor: entropy computation failed for session #{session_id}, retaining agent-reported score"
+            )
+
+            {:ok, log}
+        end
+    end
+  end
+
+  defp extract_entropy_fields(%{
+         meta: %{trace_id: session_id},
+         cognition: %{intent: intent},
+         action: %{tool_call: tool_call, status: action_status}
+       })
+       when is_binary(session_id) and is_binary(intent) do
+    {session_id, intent, tool_call, action_status}
+  end
+
+  defp extract_entropy_fields(_), do: nil
 
   defp compute_hash(raw_body, _params) when is_binary(raw_body) and byte_size(raw_body) > 0 do
     digest = :crypto.hash(:sha256, raw_body)

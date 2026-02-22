@@ -255,6 +255,14 @@ AgentMonitor GenServer monitors agent health and auto-reassigns tasks from crash
 - Member cards clickable with selection highlight (border change)
 - Reuses existing components: member_status_color, model_badge, event_type_badge, health_warnings
 
+## Phase 3 Pipeline Lessons (Feb 2026)
+- **Worker-4 pre-satisfied task 5**: A thorough worker can cover adjacent tasks. Lead correctly recognized this and skipped spawning a new worker, saving time.
+- **Haiku+sonnet pair (EXP-001)**: Haiku scaffolds fast, but sonnet refiner needs pre-digested spec details in the prompt. Generic "read the spec" wastes turns on orientation.
+- **Coordinator role formalized**: Delegate/never initiate. Three escalation tiers (Passive/Watchful/Active). Quality review is read-only, findings go to user not lead.
+- **1 experiment per DAG phase**: Continuous pipeline improvement. Hypothesis/measurement/post-mortem cycle. Logged in PIPELINE_EXPERIMENTS.md.
+- **EntropyTracker FR-9.2 deviation**: Uses list ++ [tuple] (O(n)) instead of queue/circular buffer (O(1)). Immaterial at window size 5 but technically non-compliant.
+- **CausalDAG TopologyBuilder coupling**: Uses Code.ensure_loaded? guard + dynamic apply to avoid compile-time dependency. Pattern for optional cross-module subscription.
+
 ## Sprint 5 Lessons (Feb 2026)
 - **5 parallel agents with non-overlapping file scopes**: Assign each agent specific files to create/modify. Zero merge conflicts achieved.
 - **Agents self-wire when possible**: activity-builder and task-editor wired their own event handlers into dashboard_live.ex, reducing integrator work

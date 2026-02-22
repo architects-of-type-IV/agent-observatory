@@ -21,7 +21,7 @@ The subsystem is designed to operate with microsecond-level overhead per incomin
 
 `Observatory.Gateway.EntropyTracker` MUST be implemented in `lib/observatory/gateway/entropy_tracker.ex`. The module MUST be a GenServer or a module backed by ETS-per-session state that survives individual message processing without resetting. It MUST export a minimum public API of `EntropyTracker.record_and_score/2`. No other module in the codebase MAY maintain per-session entropy state; `EntropyTracker` is the single authoritative owner of sliding window data.
 
-**Positive path**: `SchemaInterceptor` calls `EntropyTracker.record_and_score("sess-abc", tuple)` after validating a DecisionLog message; `EntropyTracker` records the tuple in the session's window and returns `{:ok, score}`.
+**Positive path**: `SchemaInterceptor` calls `EntropyTracker.record_and_score("sess-abc", tuple)` after validating a DecisionLog message; `EntropyTracker` records the tuple in the session's window and returns `{:ok, score, severity}` where `severity` is `:loop`, `:warning`, or `:normal` (see FR-9.4 through FR-9.6).
 
 **Negative path**: Any module other than `SchemaInterceptor` attempts to write entropy tuples directly to ETS, bypassing `EntropyTracker`; this MUST be prevented by keeping the ETS table private to the `EntropyTracker` process (table owner is the GenServer pid).
 
@@ -41,9 +41,9 @@ The subsystem is designed to operate with microsecond-level overhead per incomin
 
 `EntropyTracker` MUST compute the entropy score as `unique_count / window_size`, where `unique_count` is the number of distinct `{intent, tool_call, action_status}` tuples in the current window and `window_size` is the total number of tuples in the window. A score of `0.0` indicates a pure loop (all tuples identical); a score of `1.0` indicates all tuples are unique. The computation MUST be performed using exact tuple equality (no fuzzy matching or string similarity) and MUST complete within the same process call as `record_and_score/2` — no async computation is permitted. The computed score MUST be returned as a float rounded to 4 decimal places.
 
-**Positive path**: Window contains `[{:search, "read_file", :failure}, {:search, "read_file", :failure}, {:search, "read_file", :failure}, {:search, "read_file", :failure}, {:search, "read_file", :failure}]`; unique_count = 1, window_size = 5; score = 0.2; function returns `{:ok, 0.2}`.
+**Positive path**: Window contains `[{:search, "read_file", :failure}, {:search, "read_file", :failure}, {:search, "read_file", :failure}, {:search, "read_file", :failure}, {:search, "read_file", :failure}]`; unique_count = 1, window_size = 5; score = 0.2; function returns `{:ok, 0.2, :loop}`.
 
-**Negative path**: Window contains 5 completely different tuples; unique_count = 5, window_size = 5; score = 1.0; no alert is emitted.
+**Negative path**: Window contains 5 completely different tuples; unique_count = 5, window_size = 5; score = 1.0; function returns `{:ok, 1.0, :normal}`; no alert is emitted.
 
 ---
 

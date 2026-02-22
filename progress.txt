@@ -149,8 +149,29 @@ Observatory Progress
   - 65 tests, 0 failures, zero warnings
   - Workers: 5 (worker-1 through worker-5), all Opus
 
-## Next: Phase 3 - Entropy & Anomaly Detection
-- [ ] Visual verification: open browser, click through all views
-- [ ] Test feed with active agents spawning subagents
-- [ ] Test DAG rendering with real pipeline running
+- [x] Phase 3 Gate Validation (pre-DAG)
+  - Mode C Gate + ADR Alignment review: 3 warnings, 2 informational findings
+  - Fixed all 5: subscription model rewrite, cross-phase warning, zoom/pan task, force-directed algo, FRD-009 return types
+  - Checkpoint: SPECS/checkpoints/1771771271-checkpoint.md
+  - Conversation: SPECS/conversations/CONV-003-phase3-gate-validation.md
+  - MONAD_LESSON_LOG.md: 5 lessons on upstream mode leaks (pending evaluation)
+
+- [x] Phase 3: Topology & Entropy (DAG run, 7 tasks, 4 waves)
+  - Team: dag-phase3 (archived)
+  - Wave 1: CausalDAG ETS Store (opus) + EntropyTracker Sliding Window (opus)
+  - Wave 2: DAG Query API (sonnet) + Canvas Topology Renderer (haiku+sonnet) + Entropy Alerting (pre-satisfied)
+  - Wave 3: Entropy PubSub & SchemaInterceptor Integration (sonnet)
+  - Wave 4: Final migration + test suite (lead)
+  - 113 tests, 0 failures, zero warnings
+  - 6 new modules, 2 modified
+  - EXP-001: haiku+sonnet pair -- INCONCLUSIVE (needs better stage-2 prompt)
+  - New rule: ~/.claude/rules/rule-skill-coordinator.md (outer coordinator protocol)
+  - New file: PIPELINE_EXPERIMENTS.md (experiment log)
+
+## Next
+- [ ] Phase 4 (next implementation phase)
+- [ ] Code quality review of Phase 3 output
+- [ ] EXP-002: haiku+sonnet with pre-digested stage-2 prompt
+- [ ] Visual verification: open browser, test topology renderer
+- [ ] MONAD_LESSON_LOG.md evaluation for upstream skill amendments
 - [ ] Remove dead ToolExecutionBlock module + delegate

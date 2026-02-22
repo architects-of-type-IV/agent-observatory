@@ -1,8 +1,9 @@
 defmodule Observatory.Gateway.SchemaInterceptorTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
   import ExUnit.CaptureLog
 
+  alias Observatory.Gateway.EntropyTracker
   alias Observatory.Gateway.SchemaInterceptor
   alias Observatory.Mesh.DecisionLog
 
@@ -84,7 +85,14 @@ defmodule Observatory.Gateway.SchemaInterceptorTest do
     test "completes synchronously with no async primitives in source" do
       source = File.read!("lib/observatory/gateway/schema_interceptor.ex")
 
-      refute source =~ ~r/Task\.(start|async)|GenServer\.call|Process\.spawn|:erlang\.spawn/
+      # Strip comment lines before checking — comments document constraints but don't introduce primitives
+      non_comment_lines =
+        source
+        |> String.split("\n")
+        |> Enum.reject(&String.match?(&1, ~r/^\s*#/))
+        |> Enum.join("\n")
+
+      refute non_comment_lines =~ ~r/Task\.(start|async)|GenServer\.call|Process\.spawn|:erlang\.spawn/
     end
   end
 
@@ -195,6 +203,33 @@ defmodule Observatory.Gateway.SchemaInterceptorTest do
 
       assert_receive {:schema_violation, _}, 1000
       refute_receive {"schema_violation", _}, 100
+    end
+  end
+
+  describe "EntropyTracker call contract (3.6.2)" do
+    setup do
+      start_supervised!({EntropyTracker, []})
+      :ok
+    end
+
+    @tag :entropy_contract
+    test "invalid message does not call EntropyTracker" do
+      session = "sess-contract-#{System.unique_integer([:positive])}"
+
+      # identity is present but missing required agent_id -> validation failure
+      invalid_params = %{
+        "meta" => %{"trace_id" => session, "timestamp" => "2026-02-22T12:00:00Z"},
+        "identity" => %{"agent_type" => "reasoning", "capability_version" => "1.0.0"}
+      }
+
+      assert {:error, _changeset} = SchemaInterceptor.validate_and_enrich(invalid_params)
+
+      # Process a valid message for the same session — window should contain only this one entry
+      valid_params = put_in(@valid_params, ["meta", "trace_id"], session)
+      assert {:ok, _log} = SchemaInterceptor.validate_and_enrich(valid_params)
+
+      window = EntropyTracker.get_window(session)
+      assert length(window) == 1
     end
   end
 end
