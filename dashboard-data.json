@@ -1,0 +1,51 @@
+{
+  "project": "architects-iv-hypervisor-observatory",
+  "modes": { "a": "complete", "b": "complete", "c": "complete" },
+  "adrs": [
+    {"id": "ADR-013", "title": "Hypervisor Platform Scope", "status": "proposed", "layer": 1},
+    {"id": "ADR-014", "title": "DecisionLog Universal Message Envelope", "status": "proposed", "layer": 1},
+    {"id": "ADR-015", "title": "Agent Capability Map & Version Registry", "status": "proposed", "layer": 1},
+    {"id": "ADR-016", "title": "Canvas-Based Topology Map Renderer", "status": "proposed", "layer": 2},
+    {"id": "ADR-017", "title": "Causal DAG via parent_step_id", "status": "proposed", "layer": 2},
+    {"id": "ADR-018", "title": "Entropy Loop Detection", "status": "proposed", "layer": 2},
+    {"id": "ADR-019", "title": "Heartbeat & Cron Scheduler", "status": "proposed", "layer": 3},
+    {"id": "ADR-020", "title": "Webhook Retry & DLQ", "status": "proposed", "layer": 3},
+    {"id": "ADR-021", "title": "HITL Intervention API", "status": "proposed", "layer": 3},
+    {"id": "ADR-022", "title": "Six-View UI Architecture", "status": "proposed", "layer": 4}
+  ],
+  "frds": [
+    {"id": "FRD-006", "title": "DecisionLog Schema", "fr_count": 9, "source_adrs": ["ADR-014"]},
+    {"id": "FRD-007", "title": "Gateway Schema Interceptor", "fr_count": 9, "source_adrs": ["ADR-013", "ADR-015"]},
+    {"id": "FRD-008", "title": "Causal DAG & Topology Engine", "fr_count": 13, "source_adrs": ["ADR-016", "ADR-017"]},
+    {"id": "FRD-009", "title": "Entropy Loop Detection", "fr_count": 11, "source_adrs": ["ADR-018", "ADR-015", "ADR-021"]},
+    {"id": "FRD-010", "title": "Gateway Lifecycle", "fr_count": 12, "source_adrs": ["ADR-019", "ADR-020"]},
+    {"id": "FRD-011", "title": "HITL Intervention API", "fr_count": 11, "source_adrs": ["ADR-021"]},
+    {"id": "FRD-012", "title": "Hypervisor UI Architecture", "fr_count": 13, "source_adrs": ["ADR-022"]}
+  ],
+  "ucs": {"total": 79, "ranges": [
+    {"batch": "A", "frds": ["FRD-006", "FRD-007"], "start": 200, "end": 217},
+    {"batch": "B", "frds": ["FRD-008", "FRD-009"], "start": 230, "end": 253},
+    {"batch": "C", "frds": ["FRD-010", "FRD-011"], "start": 260, "end": 282},
+    {"batch": "D", "frds": ["FRD-012"], "start": 300, "end": 313}
+  ]},
+  "phases": [
+    {"id": 1, "title": "decision-log-schema", "frd": "FRD-006", "sections": 3, "tasks": 9, "subtasks": 21, "status": "pending"},
+    {"id": 2, "title": "gateway-core", "frd": "FRD-007", "sections": 4, "tasks": 8, "subtasks": 38, "status": "pending"},
+    {"id": 3, "title": "topology-and-entropy", "frds": ["FRD-008", "FRD-009"], "sections": 6, "tasks": 23, "subtasks": 61, "status": "pending"},
+    {"id": 4, "title": "gateway-infrastructure-and-hitl", "frds": ["FRD-010", "FRD-011"], "sections": 6, "tasks": 24, "subtasks": 66, "status": "pending"},
+    {"id": 5, "title": "hypervisor-ui", "frd": "FRD-012", "sections": 5, "tasks": 13, "subtasks": 39, "status": "pending"}
+  ],
+  "implementation": {
+    "phases": 5,
+    "sections": 24,
+    "tasks": 77,
+    "subtasks": 225,
+    "index_entries": 330
+  },
+  "gates": {
+    "mode_b_gate1": "pass",
+    "mode_b_gate2": "pass",
+    "mode_c": "pass"
+  },
+  "updated": "2026-02-22T00:00:00Z"
+}
