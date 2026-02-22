@@ -24,12 +24,18 @@ defmodule Observatory.EventJanitor do
     Process.send_after(self(), :purge, @interval_ms)
     cutoff = DateTime.add(DateTime.utc_now(), -@retention_days, :day)
 
-    {count, _} =
+    {events, _} =
       from(e in "events", where: e.inserted_at < ^cutoff)
       |> Observatory.Repo.delete_all()
 
-    if count > 0 do
-      Logger.info("EventJanitor: purged #{count} events older than #{@retention_days} days")
+    {sessions, _} =
+      from(s in "sessions", where: s.inserted_at < ^cutoff)
+      |> Observatory.Repo.delete_all()
+
+    if events > 0 or sessions > 0 do
+      Logger.info(
+        "EventJanitor: purged #{events} events, #{sessions} sessions older than #{@retention_days} days"
+      )
     end
 
     {:noreply, state}

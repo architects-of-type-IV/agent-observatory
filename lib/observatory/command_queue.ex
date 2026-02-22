@@ -9,6 +9,8 @@ defmodule Observatory.CommandQueue do
   @inbox_dir Path.expand("~/.claude/inbox")
   @outbox_dir Path.expand("~/.claude/outbox")
   @poll_interval 2000
+  @inbox_ttl_sec 86_400
+  @sweep_interval_ms :timer.hours(1)
 
   # ═══════════════════════════════════════════════════════
   # Client API
@@ -94,6 +96,7 @@ defmodule Observatory.CommandQueue do
   def init(_opts) do
     ensure_directories()
     schedule_poll()
+    Process.send_after(self(), :sweep_inbox, @sweep_interval_ms)
     {:ok, %{last_poll: DateTime.utc_now()}}
   end
 
@@ -137,6 +140,47 @@ defmodule Observatory.CommandQueue do
 
     schedule_poll()
     {:noreply, %{state | last_poll: DateTime.utc_now()}}
+  end
+
+  @impl true
+  def handle_info(:sweep_inbox, state) do
+    Process.send_after(self(), :sweep_inbox, @sweep_interval_ms)
+
+    if map_size(Observatory.TeamWatcher.get_state()) == 0 do
+      now = System.os_time(:second)
+      cutoff = now - @inbox_ttl_sec
+
+      list_session_dirs(@inbox_dir)
+      |> Enum.each(fn session_id ->
+        session_dir = Path.join(@inbox_dir, session_id)
+
+        case File.ls(session_dir) do
+          {:ok, files} ->
+            Enum.each(files, fn file ->
+              path = Path.join(session_dir, file)
+
+              case File.stat(path, time: :posix) do
+                {:ok, %{mtime: mtime}} when mtime < cutoff ->
+                  File.rm(path)
+
+                _ ->
+                  :ok
+              end
+            end)
+
+            # Remove the session dir if now empty
+            case File.ls(session_dir) do
+              {:ok, []} -> File.rmdir(session_dir)
+              _ -> :ok
+            end
+
+          _ ->
+            :ok
+        end
+      end)
+    end
+
+    {:noreply, state}
   end
 
   # ═══════════════════════════════════════════════════════

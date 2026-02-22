@@ -134,13 +134,6 @@ defmodule Observatory.Channels do
       "Creating team channel: #{team_channel(team_name)} with #{length(members)} members"
     )
 
-    # Subscribe team members to the team channel
-    Enum.each(members, fn member ->
-      if member[:agent_id] do
-        subscribe_team(team_name)
-      end
-    end)
-
     :ok
   end
 
