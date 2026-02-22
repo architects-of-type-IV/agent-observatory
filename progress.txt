@@ -112,8 +112,44 @@ Observatory Progress
 - Global hooks configured for all 13 event types -> Observatory
 - Command view shows agents from events as they appear
 
+- [x] Mode C Pipeline (Monad Method: Build)
+  - 7 FRDs -> 5 phases, 24 sections, 77 tasks, 225 subtasks
+  - Phase-to-DAG: deterministic section-to-task conversion with dependency detection
+  - Implementation specs in SPECS/implementation/
+
+- [x] Phase 1: DecisionLog Schema (DAG run, 4 tasks)
+  - lib/observatory/mesh/decision_log.ex (207 lines)
+  - 6 inner embedded schemas: Meta, Identity, Cognition, Action, StateDelta, Control
+  - Public API: changeset/2, root?/1, major_version/1, put_gateway_entropy_score/2, from_json/1
+  - test/observatory/mesh/decision_log_test.exs (36 tests, 0 failures)
+  - Workers: 1 Opus + 3 Sonnet (Sonnet handles well-specified schema tasks fine)
+  - Commit: 2a10e77
+
+- [x] Phase-to-DAG Script Improvements
+  - Fixed jq template: $DONE_WHEN variable instead of hardcoded string (line 648)
+  - All 4 phases validated with --dry-run (phases 2-5)
+  - All sed replaced with perl -pe (macOS compatibility)
+  - pipefail fix: grep || true for zero-match cases
+  - Section summary extraction + auto-generated test AC
+
+- [x] Skill Enforcement: /phase-to-dag
+  - Rule: ~/.claude/rules/rule-always-phase-to-dag.md (alwaysApply: true)
+  - Hook: ~/.claude/hooks/enforce-skill/phase-to-dag-gate.sh (PreToolUse, exit 2 to block)
+  - Bypass: PHASE_TO_DAG_SKILL=1 env var prefix (stateless, per-invocation only)
+  - Wired in settings.json PreToolUse hooks
+  - Tested: direct bash call blocked, skill-invoked call allowed
+
+## Next: Phase 2 - Gateway Core
+- tasks.jsonl has 5 pending tasks (all sequential)
+- Task 1: SchemaInterceptor Module & Validation Contract (2.1)
+- Task 2: HTTP Endpoint & 422 Rejection (2.2)
+- Task 3: SchemaViolationEvent & Security (2.3)
+- Task 4: Topology Node State & Post-Validation Routing (2.4)
+- Task 5: Final migration + test suite
+- Specs: SPECS/implementation/2-gateway-core.md, ADR-014, FRD-006
+- Run `/dag run` from a fresh iTerm2 tab to execute
+
 ### Remaining
-- [ ] Task 14: Visual verification of feed view (runtime check)
 - [ ] Visual verification: open browser, click through all views
 - [ ] Test feed with active agents spawning subagents
 - [ ] Test DAG rendering with real pipeline running

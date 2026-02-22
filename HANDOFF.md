@@ -1,65 +1,49 @@
 # Observatory - Handoff
 
-## Current Status: Mode B Complete + Feed Redesign (2026-02-21)
+## Current Status: Phase 2 DAG Ready + Skill Enforcement (2026-02-22)
 
 ### Just Completed
 
-**Mode B Pipeline (Monad Method: Define)**
-- Ran full 4-stage pipeline with parallel agents
-- 12 accepted ADRs -> 6 FRDs (79 FRs) -> 79 UCs with Gherkin scenarios
-- Gate 1: FAIL (2 frontmatter source_adr mismatches), fixed, re-validated PASS
-- Gate 2: PASS (18 minor Gherkin-AC mapping notes, non-blocking)
-- Checkpoint: `SPECS/checkpoints/1740153600-checkpoint.md`
-- All artifacts committed (88 files)
+**Phase-to-DAG Script Improvements**
+- Fixed jq template: hardcoded `done_when` now uses computed `$DONE_WHEN` variable (line 648)
+- All 4 phases validated with `--dry-run` (phases 2-5)
+- Generated Phase 2 tasks.jsonl: 5 sequential tasks for Gateway Core
 
-**Decision-Log Skill Updates**
-- Added Write/Edit tools to allowed-tools
-- Phase 4 now produces proper ADR files (YAML frontmatter + References + Key Moments) + Conversation artifacts + INDEX.md
-- Output directory changed to `SPECS_HARVESTED/` (machine-generated artifacts separate from hand-authored SPECS)
-- Observatory uses `SPECS/` directly (no hand-authored specs to conflict with)
+**Skill Enforcement Mechanism**
+- Created `~/.claude/rules/rule-always-phase-to-dag.md` (alwaysApply: true)
+- Created `~/.claude/hooks/enforce-skill/phase-to-dag-gate.sh` (PreToolUse hook)
+- Wired hook into `~/.claude/settings.json` as Bash matcher
+- Pattern: hook blocks direct `phase-to-dag.sh` bash calls; skill-invoked calls use `PHASE_TO_DAG_SKILL=1` bypass token
+- Tested: direct call blocked, skill-invoked call allowed
 
-**Feed Redesign: Turn-Based Architecture (tasks 1-13 DONE)**
-- Replaced segment-based feed with turn-based conversation grouping
-- `build_turns/1` splits events by UserPromptSubmit/Stop boundaries
-- `classify_tool/1` categorizes tools: research/build/verify/delegate/communicate/think/other
-- `group_into_phases/1` groups consecutive same-category tool pairs
-- Inverted collapse: `expanded_sessions` (collapsed by default, active auto-expand)
-- New templates: `conversation_turn.html.heex`, `activity_phase.html.heex`
-- Old templates moved to trash: `parent_segment.html.heex`, `subagent_segment.html.heex`
-- ToolChain multi-tool path removed (phases handle grouping now)
+### Phase 2 Pipeline Ready
+- `tasks.jsonl` has 5 tasks (sequential chain):
+  1. SchemaInterceptor Module & Validation Contract (2.1)
+  2. HTTP Endpoint & 422 Rejection (2.2)
+  3. SchemaViolationEvent & Security (2.3)
+  4. Topology Node State & Post-Validation Routing (2.4)
+  5. Final migration + test suite
+- Specs: `SPECS/implementation/2-gateway-core.md`, ADR-014, FRD-006
+- Run `/dag run` from a fresh iTerm2 tab to execute
 
-### In Progress
-- Task 14: Runtime verification of feed view (visual check needed)
-
-### Key Files Changed (Feed Redesign)
+### Key Files Changed
 | File | Change |
 |------|--------|
-| `dashboard_feed_helpers.ex` | Rewritten: build_turns, classify_tool, group_into_phases |
-| `dashboard_live.ex` | expanded_sessions replaces collapsed_sessions, expand_all/collapse_all |
-| `feed_view.ex` | attr expanded_sessions |
-| `session_group.ex` | Turn dispatch + phase_label/phase_color helpers |
-| `session_group.html.heex` | Renders turns instead of segments |
-| `conversation_turn.html.heex` | NEW: turn header + response preview + phases |
-| `activity_phase.html.heex` | NEW: phase icon/color + tool summary + expandable tools |
+| `~/.claude/skills/phase-to-dag/phase-to-dag.sh` | Fixed `$DONE_WHEN` in jq template (line 648) |
+| `~/.claude/rules/rule-always-phase-to-dag.md` | NEW: always-on rule enforcing skill invocation |
+| `~/.claude/hooks/enforce-skill/phase-to-dag-gate.sh` | NEW: PreToolUse hook blocking direct bash calls |
+| `~/.claude/settings.json` | Added Bash PreToolUse hook for skill enforcement |
+| `tasks.jsonl` | Phase 2 DAG: 5 tasks, sequential chain |
 
-### SPECS Artifacts
-```
-SPECS/
-  _templates/          # Copied from memories project
-  decisions/           # 12 ADRs + INDEX.md
-  conversations/       # 3 CONV files
-  requirements/
-    frds/              # FRD-001 through FRD-006
-    use-cases/         # UC-0001 through UC-0158 (79 files)
-    mode-b-plan.md
-    gate-1-report.md
-    gate-2-report.md
-  checkpoints/         # 1740153600-checkpoint.md
-```
+### Previous Milestones
+- Phase 1: DecisionLog Schema (commit 2a10e77) -- 4 tasks, all complete
+- Mode C Pipeline: 7 FRDs -> 5 phases, 24 sections, 77 tasks, 225 subtasks
+- Mode B Pipeline: 12 ADRs -> 6 FRDs -> 79 UCs
+- Swarm Control Center: all views complete, zero warnings
 
 ### Remaining
-- [ ] Task 14: Visual verification of feed view
-- [ ] Visual verification: all other views
+- [ ] Execute Phase 2 via `/dag run`
+- [ ] Visual verification: all views
 - [ ] Test feed with active agents spawning subagents
 - [ ] Test DAG rendering with real pipeline running
 - [ ] Remove dead ToolExecutionBlock module + delegate

@@ -295,6 +295,24 @@ AgentMonitor GenServer monitors agent health and auto-reassigns tasks from crash
 - **String-based target format**: UI sends "team:name" strings instead of tuples {:team, name} - simpler for LiveView event payloads
 - **Handler location matters**: resolve_message_targets in dashboard_team_inspector_handlers (not team_helpers) to keep helpers under 300 lines
 
+## Skill Enforcement Pattern (Feb 2026)
+- Two-layer enforcement for critical skills: alwaysApply rule + PreToolUse hook
+- Rule: `rule-always-{skill}.md` with `alwaysApply: true` -- tells agent to use Skill tool
+- Hook: `~/.claude/hooks/enforce-skill/{skill}-gate.sh` -- hard gate blocking direct bash calls (exit 2)
+- Bypass token: skill-invoked calls prefix with `SKILL_NAME=1` env var (e.g., `PHASE_TO_DAG_SKILL=1`)
+- Token is stateless: shell env var exists only for that single invocation, no reset needed
+- Hook reads stdin JSON, extracts `.tool_input.command`, greps for script name, checks bypass token
+- Wired in `~/.claude/settings.json` under PreToolUse with `"matcher": "Bash"`
+
+## Phase-to-DAG Script (Feb 2026)
+- Location: `~/.claude/skills/phase-to-dag/phase-to-dag.sh` (~730 lines)
+- Converts Mode C Phase markdown into tasks.jsonl DAGs
+- Key fix: jq template line 648 must use `$DONE_WHEN` variable, not hardcoded string
+- All `sed` replaced with `perl -pe` throughout (macOS compatibility)
+- `set -euo pipefail` requires `|| true` on grep calls that may match zero lines
+- Section summary extraction: first paragraph after heading, stripped of markdown formatting
+- Auto-generated test AC: detects test files in section, adds to acceptance_criteria and done_when
+
 ## Monad Method Pipeline (Feb 2026)
 - Mode A (Discover): Sessions -> Conversations -> ADRs (12 accepted)
 - Mode B (Define): ADRs -> FRDs (6, with inline FRs) -> UCs (79, with Gherkin)
