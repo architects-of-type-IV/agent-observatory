@@ -1,13 +1,16 @@
 defmodule ObservatoryWeb.EventController do
   use ObservatoryWeb, :controller
   require Logger
+  require Ash.Query
 
   # ETS table for tracking PreToolUse timestamps by tool_use_id
   @tool_start_table :observatory_tool_starts
 
   def init_tool_tracking do
-    if :ets.whereis(@tool_start_table) == :undefined do
+    try do
       :ets.new(@tool_start_table, [:named_table, :public, :set])
+    rescue
+      ArgumentError -> :ok
     end
   end
 
@@ -125,19 +128,16 @@ defmodule ObservatoryWeb.EventController do
         |> Ash.create()
 
       :SessionEnd ->
-        case Ash.read(Observatory.Events.Session) do
-          {:ok, sessions} ->
-            sessions
-            |> Enum.find(
-              &(&1.session_id == event.session_id and &1.source_app == event.source_app)
-            )
-            |> case do
-              nil -> :ok
-              session -> session |> Ash.Changeset.for_update(:mark_ended) |> Ash.update()
-            end
+        sid = event.session_id
+        app = event.source_app
 
-          _ ->
-            :ok
+        Observatory.Events.Session
+        |> Ash.Query.filter(session_id == ^sid and source_app == ^app)
+        |> Ash.read_one()
+        |> case do
+          {:ok, nil} -> :ok
+          {:ok, session} -> session |> Ash.Changeset.for_update(:mark_ended) |> Ash.update()
+          _ -> :ok
         end
 
       _ ->

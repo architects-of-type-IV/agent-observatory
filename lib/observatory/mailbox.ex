@@ -7,6 +7,7 @@ defmodule Observatory.Mailbox do
   require Logger
 
   @table_name :observatory_mailboxes
+  @max_messages_per_agent 200
 
   # ═══════════════════════════════════════════════════════
   # Client API
@@ -114,9 +115,9 @@ defmodule Observatory.Mailbox do
       metadata: Keyword.get(opts, :metadata, %{})
     }
 
-    # Append message to agent's mailbox
+    # Prepend and cap at @max_messages_per_agent (oldest dropped when full)
     messages = get_agent_messages(to)
-    updated_messages = [message | messages]
+    updated_messages = [message | messages] |> Enum.take(@max_messages_per_agent)
     :ets.insert(@table_name, {to, updated_messages})
 
     # Write command to file system
@@ -197,8 +198,10 @@ defmodule Observatory.Mailbox do
           msg.read && DateTime.diff(now, msg.timestamp, :hour) > ttl_hours
         end)
 
-      if length(cleaned) != length(messages) do
-        :ets.insert(@table_name, {agent_id, cleaned})
+      cond do
+        cleaned == [] -> :ets.delete(@table_name, agent_id)
+        length(cleaned) != length(messages) -> :ets.insert(@table_name, {agent_id, cleaned})
+        true -> :ok
       end
     end)
 

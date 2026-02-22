@@ -55,6 +55,7 @@ defmodule Observatory.SwarmMonitor do
 
     state = %{
       watched_projects: projects,
+      manual_projects: %{},
       active_project: first_project_key(projects),
       tasks: [],
       pipeline: %{total: 0, pending: 0, in_progress: 0, completed: 0, failed: 0, blocked: 0},
@@ -91,8 +92,9 @@ defmodule Observatory.SwarmMonitor do
     tasks_path = Path.join(path, "tasks.jsonl")
 
     if File.exists?(tasks_path) or File.dir?(path) do
+      manual = Map.put(state.manual_projects, key, path)
       projects = Map.put(state.watched_projects, key, path)
-      state = %{state | watched_projects: projects, active_project: key}
+      state = %{state | manual_projects: manual, watched_projects: projects, active_project: key}
       state = refresh_tasks(state)
       broadcast(state)
       {:reply, :ok, state}
@@ -212,18 +214,19 @@ defmodule Observatory.SwarmMonitor do
   def handle_info(:poll_tasks, state) do
     Process.send_after(self(), :poll_tasks, @tasks_poll_interval)
 
-    # Re-discover projects on each poll (cheap: reads team config dir)
-    new_projects = discover_projects()
-    merged = Map.merge(state.watched_projects, new_projects)
+    # Re-discover projects on each poll (cheap: reads team config dir).
+    # Merge manual_projects last so user additions survive team deletions,
+    # but discovered projects that disappear from disk are dropped.
+    new_projects = Map.merge(discover_projects(), state.manual_projects)
 
     state =
-      if merged != state.watched_projects do
+      if new_projects != state.watched_projects do
         active =
-          if state.active_project && Map.has_key?(merged, state.active_project),
+          if state.active_project && Map.has_key?(new_projects, state.active_project),
             do: state.active_project,
-            else: first_project_key(merged)
+            else: first_project_key(new_projects)
 
-        %{state | watched_projects: merged, active_project: active}
+        %{state | watched_projects: new_projects, active_project: active}
       else
         state
       end
@@ -231,7 +234,7 @@ defmodule Observatory.SwarmMonitor do
     old_tasks = state.tasks
     state = refresh_tasks(state)
 
-    if state.tasks != old_tasks || merged != state.watched_projects do
+    if state.tasks != old_tasks || new_projects != state.watched_projects do
       broadcast(state)
     end
 

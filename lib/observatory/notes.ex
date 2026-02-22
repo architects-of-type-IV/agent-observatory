@@ -7,6 +7,7 @@ defmodule Observatory.Notes do
   require Logger
 
   @table_name :observatory_notes
+  @max_notes 1000
 
   # ═══════════════════════════════════════════════════════
   # Client API
@@ -63,6 +64,15 @@ defmodule Observatory.Notes do
       text: text,
       timestamp: DateTime.utc_now()
     }
+
+    if :ets.info(@table_name, :size) >= @max_notes do
+      oldest =
+        :ets.tab2list(@table_name)
+        |> Enum.min_by(fn {_id, n} -> n.timestamp end, DateTime)
+        |> elem(0)
+
+      :ets.delete(@table_name, oldest)
+    end
 
     :ets.insert(@table_name, {event_id, note})
     {:reply, {:ok, note}, state}
