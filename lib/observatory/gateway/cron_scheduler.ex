@@ -37,6 +37,13 @@ defmodule Observatory.Gateway.CronScheduler do
     Repo.all(from(j in CronJob, where: j.agent_id == ^agent_id))
   end
 
+  @doc "Returns all scheduled jobs across all agents."
+  def list_all_jobs do
+    Repo.all(CronJob)
+  rescue
+    _ -> []
+  end
+
   # ── Server Callbacks ────────────────────────────────────────────────
 
   @impl true

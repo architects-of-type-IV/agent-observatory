@@ -23,6 +23,16 @@ defmodule Observatory.Gateway.HeartbeatManager do
     GenServer.call(__MODULE__, {:heartbeat, agent_id, cluster_id})
   end
 
+  @doc "Returns all tracked agents as a map of `%{agent_id => %{last_seen, cluster_id}}`."
+  def list_agents do
+    GenServer.call(__MODULE__, :list_agents)
+  end
+
+  @doc "Returns agents past the eviction threshold that haven't been evicted yet."
+  def list_zombies do
+    GenServer.call(__MODULE__, :list_zombies)
+  end
+
   # ── Server Callbacks ────────────────────────────────────────────────
 
   @impl true
@@ -35,6 +45,23 @@ defmodule Observatory.Gateway.HeartbeatManager do
   def handle_call({:heartbeat, agent_id, cluster_id}, _from, state) do
     entry = %{last_seen: DateTime.utc_now(), cluster_id: cluster_id}
     {:reply, :ok, Map.put(state, agent_id, entry)}
+  end
+
+  def handle_call(:list_agents, _from, state) do
+    {:reply, state, state}
+  end
+
+  def handle_call(:list_zombies, _from, state) do
+    now = DateTime.utc_now()
+
+    zombies =
+      state
+      |> Enum.filter(fn {_id, %{last_seen: last_seen}} ->
+        DateTime.diff(now, last_seen, :second) > @eviction_threshold_seconds
+      end)
+      |> Map.new()
+
+    {:reply, zombies, state}
   end
 
   @impl true

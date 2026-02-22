@@ -17,6 +17,7 @@ defmodule ObservatoryWeb.DashboardLive do
   import ObservatoryWeb.DashboardFeedHelpers
   import ObservatoryWeb.DashboardTeamInspectorHandlers
   import ObservatoryWeb.DashboardSwarmHandlers
+  import ObservatoryWeb.DashboardGatewayHandlers
 
   @max_events 500
 
@@ -29,6 +30,7 @@ defmodule ObservatoryWeb.DashboardLive do
       Phoenix.PubSub.subscribe(Observatory.PubSub, "agent:dashboard")
       Phoenix.PubSub.subscribe(Observatory.PubSub, "swarm:update")
       Phoenix.PubSub.subscribe(Observatory.PubSub, "protocols:update")
+      subscribe_gateway_topics()
       :timer.send_interval(1000, self(), :tick)
     end
 
@@ -81,7 +83,7 @@ defmodule ObservatoryWeb.DashboardLive do
       |> assign(:cost_heatmap, [])
       |> assign(:node_status, nil)
       |> assign(:latency_metrics, %{})
-      |> assign(:mtls_status, nil)
+      |> assign(:mtls_status, "Not configured")
       |> assign(:agent_grid_open, false)
       # Phase 5 - Session Cluster & Registry (task 3)
       |> assign(:entropy_filter_active, false)
@@ -116,6 +118,8 @@ defmodule ObservatoryWeb.DashboardLive do
       |> assign(:forensic_audit_open, false)
       |> assign(:forensic_topology_open, false)
       |> assign(:forensic_entropy_open, false)
+      # Seed gateway data from GenServer queries
+      |> seed_gateway_assigns()
       |> prepare_assigns()
 
     # Subscribe to mailbox channels for all active sessions
@@ -162,6 +166,36 @@ defmodule ObservatoryWeb.DashboardLive do
   def handle_info({:agent_crashed, session_id, team_name, reassigned_count}, socket) do
     {:noreply,
      handle_agent_crashed(session_id, team_name, reassigned_count, socket) |> prepare_assigns()}
+  end
+
+  # Gateway PubSub handlers
+  def handle_info({:decision_log, _log} = msg, socket) do
+    {:noreply, handle_gateway_info(msg, socket) |> prepare_assigns()}
+  end
+
+  def handle_info({:schema_violation, _event} = msg, socket) do
+    {:noreply, handle_gateway_info(msg, socket) |> prepare_assigns()}
+  end
+
+  def handle_info({:node_state_update, _data} = msg, socket) do
+    {:noreply, handle_gateway_info(msg, socket) |> prepare_assigns()}
+  end
+
+  def handle_info({:dead_letter, _delivery} = msg, socket) do
+    {:noreply, handle_gateway_info(msg, socket) |> prepare_assigns()}
+  end
+
+  def handle_info({:capability_update, _agents} = msg, socket) do
+    {:noreply, handle_gateway_info(msg, socket) |> prepare_assigns()}
+  end
+
+  def handle_info(%{event_type: "entropy_alert"} = msg, socket) do
+    {:noreply, handle_gateway_info(msg, socket) |> prepare_assigns()}
+  end
+
+  def handle_info(%{session_id: _sid, state: _state} = msg, socket)
+      when is_map_key(msg, :session_id) and is_map_key(msg, :state) and map_size(msg) == 2 do
+    {:noreply, handle_gateway_info(msg, socket) |> prepare_assigns()}
   end
 
   @impl true

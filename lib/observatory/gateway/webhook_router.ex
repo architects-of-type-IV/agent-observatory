@@ -52,6 +52,15 @@ defmodule Observatory.Gateway.WebhookRouter do
     |> Repo.all()
   end
 
+  @doc "List all dead-letter deliveries across all agents."
+  def list_all_dead_letters do
+    WebhookDelivery
+    |> where([d], d.status == "dead")
+    |> Repo.all()
+  rescue
+    _ -> []
+  end
+
   @doc "Compute HMAC-SHA256 signature for payload verification."
   def compute_signature(payload, secret) do
     "sha256=" <>

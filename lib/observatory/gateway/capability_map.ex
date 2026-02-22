@@ -48,11 +48,15 @@ defmodule Observatory.Gateway.CapabilityMap do
       registered_at: DateTime.utc_now()
     }
 
-    {:reply, :ok, Map.put(state, agent_id, entry)}
+    new_state = Map.put(state, agent_id, entry)
+    broadcast_capability_update(new_state)
+    {:reply, :ok, new_state}
   end
 
   def handle_call({:remove, agent_id}, _from, state) do
-    {:reply, :ok, Map.delete(state, agent_id)}
+    new_state = Map.delete(state, agent_id)
+    broadcast_capability_update(new_state)
+    {:reply, :ok, new_state}
   end
 
   def handle_call({:get, agent_id}, _from, state) do
@@ -61,5 +65,13 @@ defmodule Observatory.Gateway.CapabilityMap do
 
   def handle_call(:list, _from, state) do
     {:reply, state, state}
+  end
+
+  defp broadcast_capability_update(state) do
+    Phoenix.PubSub.broadcast(
+      Observatory.PubSub,
+      "gateway:capabilities",
+      {:capability_update, state}
+    )
   end
 end
