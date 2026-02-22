@@ -1,6 +1,19 @@
 # Observatory - Handoff
 
-## Current Status: Phase 4 Gateway Infrastructure & HITL COMPLETE (2026-02-22)
+## Current Status: Phase 5 Hypervisor UI READY (2026-02-22)
+
+### Phase 5 Pre-Flight (READY for /dag run in fresh iTerm2 tab)
+- tasks.jsonl written: 6 tasks, 4 waves, max 2 parallel
+- Build baseline clean, no stale sessions
+- Wave 1: [1] Navigation Shell (Opus) + [5] God Mode (Sonnet) -- parallel
+- Wave 2: [2] Fleet Command (Sonnet) + [3] Session Cluster (Sonnet) -- parallel
+- Wave 3: [4] Scheduler & Forensic (Sonnet)
+- Wave 4: [6] Final verification (Haiku)
+- Model selection: Opus for task 1 (architectural wiring), Sonnet for tasks 2-5, Haiku for task 6
+
+---
+
+## Previous: Phase 4 Gateway Infrastructure & HITL COMPLETE (2026-02-22)
 
 ### Just Completed
 
@@ -77,7 +90,7 @@
 - Mode B Pipeline: 12 ADRs -> 6 FRDs -> 79 UCs
 
 ### Next Steps
-- [ ] Phase 5 (next implementation phase)
+- [ ] Run `/dag run` in fresh iTerm2 tab for Phase 5
 - [ ] Fix flaky topology_builder_test.exs (test ordering issue)
 - [ ] Code quality review of Phase 4 output
 - [ ] Visual verification: browser test of HITL drilldown
