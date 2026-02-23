@@ -95,7 +95,12 @@ defmodule Observatory.EventBuffer do
     hook_type =
       case attrs[:hook_event_type] || attrs["hook_event_type"] do
         t when is_atom(t) -> t
-        t when is_binary(t) -> String.to_existing_atom(t)
+        t when is_binary(t) ->
+          try do
+            String.to_existing_atom(t)
+          rescue
+            ArgumentError -> String.to_atom(t)
+          end
         _ -> :Stop
       end
 
@@ -112,6 +117,7 @@ defmodule Observatory.EventBuffer do
       cwd: attrs[:cwd] || attrs["cwd"],
       permission_mode: attrs[:permission_mode] || attrs["permission_mode"],
       duration_ms: attrs[:duration_ms] || attrs["duration_ms"],
+      tmux_session: attrs[:tmux_session] || attrs["tmux_session"],
       inserted_at: now,
       updated_at: now
     }

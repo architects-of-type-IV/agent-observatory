@@ -38,7 +38,8 @@ defmodule Observatory.Events.Event do
           :SubagentStart,
           :SubagentStop,
           :Stop,
-          :PreCompact
+          :PreCompact,
+          :TaskCompleted
         ]
       )
     end
@@ -56,6 +57,7 @@ defmodule Observatory.Events.Event do
     attribute(:cwd, :string, public?: true)
     attribute(:permission_mode, :string, public?: true)
     attribute(:duration_ms, :integer, public?: true)
+    attribute(:tmux_session, :string, public?: true)
 
     timestamps()
   end
@@ -75,7 +77,8 @@ defmodule Observatory.Events.Event do
         :tool_use_id,
         :cwd,
         :permission_mode,
-        :duration_ms
+        :duration_ms,
+        :tmux_session
       ])
     end
   end

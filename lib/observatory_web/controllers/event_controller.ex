@@ -16,14 +16,17 @@ defmodule ObservatoryWeb.EventController do
   def create(conn, params) do
     init_tool_tracking()
 
-    payload = params["payload"] || params
-    hook_type = params["hook_event_type"] || params["event_type"] || "Stop"
+    # Support both new format (raw: full stdin JSON) and legacy (payload: extracted)
+    {raw, hook_type, source_app, tmux_session} = extract_envelope(params)
 
-    # Extract fields from the nested payload (the raw hook stdin JSON)
-    tool_name = payload["tool_name"]
-    tool_use_id = payload["tool_use_id"]
-    cwd = payload["cwd"]
-    permission_mode = payload["permission_mode"]
+    # Extract fields from the raw hook stdin JSON
+    tool_name = raw["tool_name"]
+    tool_use_id = raw["tool_use_id"]
+    cwd = raw["cwd"]
+    permission_mode = raw["permission_mode"]
+    session_id = raw["session_id"] || params["session_id"] || "unknown"
+    model_name = raw["model"] || raw["model_name"] || params["model_name"]
+    summary = raw["summary"] || params["summary"]
 
     # Compute tool duration for PostToolUse events
     duration_ms = compute_duration(hook_type, tool_use_id)
@@ -34,17 +37,18 @@ defmodule ObservatoryWeb.EventController do
     end
 
     event_attrs = %{
-      source_app: params["source_app"] || "unknown",
-      session_id: params["session_id"] || "unknown",
+      source_app: source_app,
+      session_id: session_id,
       hook_event_type: hook_type,
-      payload: sanitize_payload(payload),
-      summary: params["summary"],
-      model_name: params["model_name"],
+      payload: sanitize_payload(raw),
+      summary: summary,
+      model_name: model_name,
       tool_name: tool_name,
       tool_use_id: tool_use_id,
       cwd: cwd,
       permission_mode: permission_mode,
-      duration_ms: duration_ms
+      duration_ms: duration_ms,
+      tmux_session: tmux_session
     }
 
     # Non-blocking: buffer for async DB write, broadcast immediately
@@ -133,6 +137,31 @@ defmodule ObservatoryWeb.EventController do
         :ok
     end
   end
+
+  # New format: {hook_event_type, tmux_session, source_app, raw: {...}}
+  # Legacy format: {hook_event_type, session_id, source_app, payload: {...}}
+  defp extract_envelope(%{"raw" => raw} = params) do
+    {
+      raw,
+      params["hook_event_type"] || "Stop",
+      params["source_app"] || "unknown",
+      nullify_empty(params["tmux_session"])
+    }
+  end
+
+  defp extract_envelope(params) do
+    payload = params["payload"] || params
+
+    {
+      payload,
+      params["hook_event_type"] || params["event_type"] || "Stop",
+      params["source_app"] || "unknown",
+      nullify_empty(params["tmux_session"])
+    }
+  end
+
+  defp nullify_empty(""), do: nil
+  defp nullify_empty(v), do: v
 
   defp handle_send_message(event, input) do
     type = input["type"] || "message"
