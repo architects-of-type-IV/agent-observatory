@@ -487,6 +487,47 @@ defmodule ObservatoryWeb.DashboardLive do
   def handle_event("send_targeted_message", p, s),
     do: {:noreply, handle_send_targeted_message(p, s) |> prepare_assigns()}
 
+  def handle_event("connect_tmux", %{"session" => session_name}, socket) do
+    cmd = "tmux attach -t #{session_name}"
+
+    socket =
+      Phoenix.LiveView.push_event(socket, "toast", %{
+        message: cmd,
+        type: "info"
+      })
+
+    {:noreply, socket}
+  end
+
+  def handle_event("launch_session", %{"cwd" => cwd} = params, socket) do
+    session_name = "obs-#{:os.system_time(:second)}"
+    command = params["command"] || "claude"
+
+    # Launch in a new tmux session
+    case System.cmd("tmux", [
+           "new-session", "-d", "-s", session_name, "-c", cwd,
+           command
+         ], stderr_to_stdout: true) do
+      {_output, 0} ->
+        socket =
+          Phoenix.LiveView.push_event(socket, "toast", %{
+            message: "Launched #{session_name} in #{Path.basename(cwd)}",
+            type: "success"
+          })
+
+        {:noreply, socket}
+
+      {error, _code} ->
+        socket =
+          Phoenix.LiveView.push_event(socket, "toast", %{
+            message: "Launch failed: #{String.slice(error, 0, 80)}",
+            type: "error"
+          })
+
+        {:noreply, socket}
+    end
+  end
+
   # Swarm handlers
   def handle_event("select_project", p, s),
     do: {:noreply, handle_select_project(p, s) |> prepare_assigns()}

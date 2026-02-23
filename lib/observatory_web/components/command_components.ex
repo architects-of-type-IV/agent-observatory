@@ -10,6 +10,7 @@ defmodule ObservatoryWeb.Components.CommandComponents do
 
   embed_templates "command_components/*"
 
+
   @idle_threshold_seconds 120
 
   # ═══════════════════════════════════════════════════════
@@ -58,7 +59,9 @@ defmodule ObservatoryWeb.Components.CommandComponents do
             source_app: nil,
             project: if(m[:cwd], do: Path.basename(m[:cwd]), else: nil),
             health_issues: [],
-            team_name: team.name
+            team_name: team.name,
+            tmux_session: nil,
+            recent_activity: []
           }
         end)
       end)
@@ -86,6 +89,8 @@ defmodule ObservatoryWeb.Components.CommandComponents do
         true -> :active
       end
 
+    tmux_session = Enum.find_value(events, & &1.tmux_session)
+
     %{
       agent_id: session_id,
       name: if(cwd, do: Path.basename(cwd), else: String.slice(session_id, 0, 8)),
@@ -98,9 +103,97 @@ defmodule ObservatoryWeb.Components.CommandComponents do
       cwd: cwd,
       source_app: latest.source_app,
       project: if(cwd, do: Path.basename(cwd), else: nil),
-      health_issues: []
+      health_issues: [],
+      tmux_session: tmux_session,
+      recent_activity: build_recent_activity(sorted, now)
     }
   end
+
+  # Extract recent activity items from events for an agent's live feed
+  defp build_recent_activity(sorted_events, now) do
+    sorted_events
+    |> Enum.take(20)
+    |> Enum.flat_map(fn e -> event_to_activity(e, now) end)
+    |> Enum.take(5)
+  end
+
+  defp event_to_activity(e, now) do
+    age = DateTime.diff(now, e.inserted_at, :second)
+    age_str = format_age(age)
+    payload = e.payload || %{}
+
+    case e.hook_event_type do
+      :PreToolUse ->
+        tool = e.tool_name || "?"
+        detail = extract_tool_detail(tool, payload)
+        [%{type: :tool, tool: tool, detail: detail, age: age_str}]
+
+      :PostToolUseFailure ->
+        tool = e.tool_name || "?"
+        [%{type: :error, tool: tool, detail: "failed", age: age_str}]
+
+      :Notification ->
+        text = payload["message"] || payload["content"] || e.summary || ""
+        if text != "", do: [%{type: :notify, detail: String.slice(text, 0, 120), age: age_str}], else: []
+
+      :TaskCompleted ->
+        task_id = payload["task_id"] || "?"
+        [%{type: :task_done, detail: "Task #{task_id} completed", age: age_str}]
+
+      _ ->
+        []
+    end
+  end
+
+  defp extract_tool_detail("SendMessage", payload) do
+    to = payload["recipient"] || payload["target_agent_id"] || payload["to"] ||
+         get_in(payload, ["input", "recipient"]) || "?"
+    content = payload["content"] || payload["summary"] ||
+              get_in(payload, ["input", "content"]) || ""
+    "-> #{to}: #{String.slice(content, 0, 80)}"
+  end
+
+  defp extract_tool_detail("Read", payload) do
+    path = payload["file_path"] || get_in(payload, ["input", "file_path"]) || ""
+    if path != "", do: Path.basename(path), else: ""
+  end
+
+  defp extract_tool_detail("Edit", payload) do
+    path = payload["file_path"] || get_in(payload, ["input", "file_path"]) || ""
+    if path != "", do: Path.basename(path), else: ""
+  end
+
+  defp extract_tool_detail("Write", payload) do
+    path = payload["file_path"] || get_in(payload, ["input", "file_path"]) || ""
+    if path != "", do: Path.basename(path), else: ""
+  end
+
+  defp extract_tool_detail("Bash", payload) do
+    cmd = payload["command"] || payload["description"] ||
+          get_in(payload, ["input", "command"]) || ""
+    String.slice(cmd, 0, 60)
+  end
+
+  defp extract_tool_detail("Grep", payload) do
+    pattern = payload["pattern"] || get_in(payload, ["input", "pattern"]) || ""
+    String.slice(pattern, 0, 40)
+  end
+
+  defp extract_tool_detail("Glob", payload) do
+    pattern = payload["pattern"] || get_in(payload, ["input", "pattern"]) || ""
+    String.slice(pattern, 0, 40)
+  end
+
+  defp extract_tool_detail("Task", payload) do
+    desc = payload["description"] || get_in(payload, ["input", "description"]) || ""
+    String.slice(desc, 0, 60)
+  end
+
+  defp extract_tool_detail(_tool, _payload), do: ""
+
+  defp format_age(seconds) when seconds < 60, do: "#{seconds}s"
+  defp format_age(seconds) when seconds < 3600, do: "#{div(seconds, 60)}m"
+  defp format_age(seconds), do: "#{div(seconds, 3600)}h"
 
   defp find_current_tool(events, now) do
     post_ids =
@@ -218,6 +311,18 @@ defmodule ObservatoryWeb.Components.CommandComponents do
   defp short_id(nil), do: "?"
   defp short_id(id) when byte_size(id) > 8, do: String.slice(id, 0, 8) <> "..."
   defp short_id(id), do: id
+
+  defp activity_icon(:tool), do: "text-cyan-500"
+  defp activity_icon(:error), do: "text-red-400"
+  defp activity_icon(:notify), do: "text-violet-400"
+  defp activity_icon(:task_done), do: "text-emerald-400"
+  defp activity_icon(_), do: "text-zinc-500"
+
+  defp activity_label(:tool, act), do: act.tool
+  defp activity_label(:error, act), do: "#{act.tool}!"
+  defp activity_label(:notify, _act), do: "msg"
+  defp activity_label(:task_done, _act), do: "done"
+  defp activity_label(_, _act), do: "?"
 
   defp format_health_issue(:stuck), do: "stuck"
   defp format_health_issue(:looping), do: "looping"

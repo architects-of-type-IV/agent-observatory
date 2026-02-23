@@ -1,0 +1,46 @@
+<div class="rounded-lg border border-zinc-800 bg-zinc-900/50 p-2.5">
+  <%!-- Row 1: Identity + status + tmux --%>
+  <div class="flex items-center gap-2 mb-1">
+    <span class={["w-2 h-2 rounded-full shrink-0", status_dot_color(@agent.status)]} />
+    <span class="text-xs font-semibold text-zinc-200 truncate">{@agent.name}</span>
+    <span :if={@agent.model} class="text-[10px] text-indigo-400 font-mono">{short_model(@agent.model)}</span>
+    <span class={["text-[10px] font-mono", status_text_color(@agent.status)]}>{@agent.status}</span>
+    <span :if={@agent[:team_name]} class="text-[10px] text-cyan-600">{@agent.team_name}</span>
+    <span class="flex-1" />
+    <span class="text-[10px] text-zinc-600 font-mono">{@agent.event_count}ev {@agent.tool_count}t</span>
+    <span class="text-[10px] text-zinc-700 font-mono">{short_id(@agent.agent_id)}</span>
+  </div>
+
+  <%!-- Row 2: Current tool + cwd --%>
+  <div :if={@agent[:current_tool] || @agent.cwd} class="flex items-center gap-2 mb-1">
+    <span :if={@agent[:current_tool]} class="text-[10px] font-mono text-cyan-400 truncate">
+      {@agent.current_tool.tool_name} ({@agent.current_tool.elapsed}s)
+    </span>
+    <span :if={@agent.cwd} class="text-[10px] font-mono text-zinc-700 truncate">{Path.basename(@agent.cwd)}</span>
+  </div>
+
+  <%!-- Row 3: Live Activity Stream --%>
+  <div :if={@agent.recent_activity != []} class="mb-1.5 space-y-0.5 border-l-2 border-zinc-800 pl-2 ml-1">
+    <div :for={act <- @agent.recent_activity} class="flex items-center gap-1.5 text-[10px]">
+      <span class={["font-mono shrink-0 w-10 text-right", activity_icon(act.type)]}>{activity_label(act.type, act)}</span>
+      <span class="text-zinc-500 truncate flex-1">{act.detail}</span>
+      <span class="text-zinc-700 font-mono shrink-0">{act.age}</span>
+    </div>
+  </div>
+
+  <%!-- Row 4: Controls --%>
+  <div class="flex gap-1 items-center">
+    <form phx-submit="send_agent_message" class="flex gap-1 flex-1 min-w-0">
+      <input type="hidden" name="session_id" value={@agent.agent_id} />
+      <input type="text" name="content" placeholder="Message..."
+        class="flex-1 bg-zinc-800 border border-zinc-700 rounded px-2 py-0.5 text-[11px] text-zinc-300 placeholder-zinc-600 focus:border-indigo-500 focus:ring-0 focus:outline-none min-w-0" />
+      <button type="submit" class="px-1.5 py-0.5 bg-indigo-600/20 text-indigo-400 rounded text-[10px] hover:bg-indigo-600/30 transition shrink-0">Msg</button>
+    </form>
+    <form phx-submit="push_context" class="flex gap-1 shrink-0">
+      <input type="hidden" name="session_id" value={@agent.agent_id} />
+      <input type="text" name="file_path" placeholder="/path..."
+        class="w-28 bg-zinc-800 border border-zinc-700 rounded px-2 py-0.5 text-[11px] text-zinc-300 placeholder-zinc-600 focus:border-indigo-500 focus:ring-0 focus:outline-none" />
+      <button type="submit" class="px-1.5 py-0.5 bg-amber-600/20 text-amber-400 rounded text-[10px] hover:bg-amber-600/30 transition shrink-0">Push</button>
+    </form>
+  </div>
+</div>
