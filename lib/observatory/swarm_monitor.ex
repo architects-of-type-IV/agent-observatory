@@ -64,8 +64,12 @@ defmodule Observatory.SwarmMonitor do
       file_conflicts: [],
       health: %{healthy: true, issues: [], agents: %{}, timestamp: nil},
       monitor_running: false,
-      archives: scan_archives()
+      archives: scan_archives(),
+      known_cwds: MapSet.new()
     }
+
+    # Auto-discover projects from hook events (session cwds)
+    Phoenix.PubSub.subscribe(Observatory.PubSub, "events:stream")
 
     send(self(), :poll_tasks)
     Process.send_after(self(), :poll_health, 5_000)
@@ -104,7 +108,7 @@ defmodule Observatory.SwarmMonitor do
   end
 
   def handle_call({:heal_task, task_id}, _from, state) do
-    case tasks_jsonl_path(state) do
+    case tasks_jsonl_path_for_task(state, task_id) do
       nil ->
         {:reply, {:error, :no_active_project}, state}
 
@@ -117,7 +121,7 @@ defmodule Observatory.SwarmMonitor do
   end
 
   def handle_call({:reassign_task, task_id, new_owner}, _from, state) do
-    case tasks_jsonl_path(state) do
+    case tasks_jsonl_path_for_task(state, task_id) do
       nil ->
         {:reply, {:error, :no_active_project}, state}
 
@@ -185,7 +189,7 @@ defmodule Observatory.SwarmMonitor do
   end
 
   def handle_call({:claim_task, task_id, agent_name}, _from, state) do
-    case tasks_jsonl_path(state) do
+    case tasks_jsonl_path_for_task(state, task_id) do
       nil ->
         {:reply, {:error, :no_active_project}, state}
 
@@ -207,6 +211,30 @@ defmodule Observatory.SwarmMonitor do
         state = refresh_tasks(state)
         broadcast(state)
         {:reply, result, state}
+    end
+  end
+
+  # Auto-discover projects from hook event cwds
+  def handle_info({:new_event, event}, state) do
+    cwd = event.cwd
+
+    if is_binary(cwd) and cwd != "" and not MapSet.member?(state.known_cwds, cwd) do
+      new_cwds = MapSet.put(state.known_cwds, cwd)
+      key = Path.basename(cwd)
+      tasks_path = Path.join(cwd, "tasks.jsonl")
+
+      if File.exists?(tasks_path) and not Map.has_key?(state.watched_projects, key) do
+        projects = Map.put(state.watched_projects, key, cwd)
+        active = state.active_project || key
+        state = %{state | watched_projects: projects, active_project: active, known_cwds: new_cwds}
+        state = refresh_tasks(state)
+        broadcast(state)
+        {:noreply, state}
+      else
+        {:noreply, %{state | known_cwds: new_cwds}}
+      end
+    else
+      {:noreply, state}
     end
   end
 
@@ -253,8 +281,18 @@ defmodule Observatory.SwarmMonitor do
   # ═══════════════════════════════════════════════════════
 
   defp refresh_tasks(state) do
-    case tasks_jsonl_path(state) do
-      nil ->
+    # Load tasks from ALL watched projects, not just active
+    all_tasks =
+      state.watched_projects
+      |> Enum.flat_map(fn {key, path} ->
+        tasks_path = Path.join(path, "tasks.jsonl")
+
+        parse_tasks_jsonl(tasks_path)
+        |> Enum.map(fn t -> %{t | project: key} end)
+      end)
+
+    case all_tasks do
+      [] ->
         %{
           state
           | tasks: [],
@@ -264,8 +302,7 @@ defmodule Observatory.SwarmMonitor do
             file_conflicts: []
         }
 
-      path ->
-        tasks = parse_tasks_jsonl(path)
+      tasks ->
         pipeline = compute_pipeline(tasks)
         dag = compute_dag(tasks)
         stale = find_stale_tasks(tasks, DateTime.utc_now())
@@ -312,7 +349,8 @@ defmodule Observatory.SwarmMonitor do
       done_when: t["done_when"] || "",
       updated: t["updated"] || t["created"] || "",
       notes: t["notes"] || "",
-      tags: t["tags"] || []
+      tags: t["tags"] || [],
+      project: ""
     }
   end
 
@@ -705,6 +743,23 @@ defmodule Observatory.SwarmMonitor do
     case get_active_project_path(state) do
       nil -> nil
       path -> Path.join(path, "tasks.jsonl")
+    end
+  end
+
+  # Find the tasks.jsonl path for a specific task by looking up its project
+  defp tasks_jsonl_path_for_task(state, task_id) do
+    case Enum.find(state.tasks, fn t -> t.id == task_id end) do
+      nil ->
+        tasks_jsonl_path(state)
+
+      %{project: project} when project != "" ->
+        case Map.get(state.watched_projects, project) do
+          nil -> tasks_jsonl_path(state)
+          path -> Path.join(path, "tasks.jsonl")
+        end
+
+      _ ->
+        tasks_jsonl_path(state)
     end
   end
 

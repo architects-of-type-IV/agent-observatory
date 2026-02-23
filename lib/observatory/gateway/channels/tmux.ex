@@ -9,6 +9,8 @@ defmodule Observatory.Gateway.Channels.Tmux do
 
   require Logger
 
+  @observatory_socket Path.expand("~/.observatory/tmux/obs.sock")
+
   @impl true
   def deliver(session_name, payload) when is_binary(session_name) do
     content = payload[:content] || payload["content"] || Jason.encode!(payload)
@@ -19,11 +21,10 @@ defmodule Observatory.Gateway.Channels.Tmux do
 
     File.write!(tmp_path, "[#{from}] #{content}")
 
-    case System.cmd("tmux", ["send-keys", "-t", session_name, "cat #{tmp_path}", "Enter"],
-           stderr_to_stdout: true
-         ) do
+    args = socket_args() ++ ["send-keys", "-t", session_name, "cat #{tmp_path}", "Enter"]
+
+    case System.cmd("tmux", args, stderr_to_stdout: true) do
       {_output, 0} ->
-        # Schedule cleanup of temp file
         spawn(fn ->
           Process.sleep(5_000)
           File.rm(tmp_path)
@@ -32,16 +33,39 @@ defmodule Observatory.Gateway.Channels.Tmux do
         :ok
 
       {error, _code} ->
-        File.rm(tmp_path)
-        {:error, {:tmux_send_failed, error}}
+        # Retry on default server if Observatory socket failed
+        case System.cmd("tmux", ["send-keys", "-t", session_name, "cat #{tmp_path}", "Enter"],
+               stderr_to_stdout: true
+             ) do
+          {_output, 0} ->
+            spawn(fn ->
+              Process.sleep(5_000)
+              File.rm(tmp_path)
+            end)
+
+            :ok
+
+          _ ->
+            File.rm(tmp_path)
+            {:error, {:tmux_send_failed, error}}
+        end
     end
   end
 
   @impl true
   def available?(session_name) when is_binary(session_name) do
-    case System.cmd("tmux", ["has-session", "-t", session_name], stderr_to_stdout: true) do
-      {_output, 0} -> true
-      _ -> false
+    # Check Observatory socket first, fall back to default
+    case System.cmd("tmux", socket_args() ++ ["has-session", "-t", session_name],
+           stderr_to_stdout: true
+         ) do
+      {_output, 0} ->
+        true
+
+      _ ->
+        case System.cmd("tmux", ["has-session", "-t", session_name], stderr_to_stdout: true) do
+          {_output, 0} -> true
+          _ -> false
+        end
     end
   end
 
@@ -52,31 +76,56 @@ defmodule Observatory.Gateway.Channels.Tmux do
   """
   def capture_pane(session_name, opts \\ []) do
     lines = Keyword.get(opts, :lines, 50)
-    args = ["capture-pane", "-t", session_name, "-p", "-S", "-#{lines}"]
+    base_args = ["-t", session_name, "-p", "-S", "-#{lines}"]
+
+    # Try Observatory socket first, fall back to default
+    args = socket_args() ++ ["capture-pane" | base_args]
 
     case System.cmd("tmux", args, stderr_to_stdout: true) do
       {output, 0} ->
-        cleaned = strip_ansi(output)
-        {:ok, cleaned}
+        {:ok, strip_ansi(output)}
 
-      {error, _code} ->
-        {:error, {:capture_failed, error}}
+      _ ->
+        case System.cmd("tmux", ["capture-pane" | base_args], stderr_to_stdout: true) do
+          {output, 0} -> {:ok, strip_ansi(output)}
+          {error, _code} -> {:error, {:capture_failed, error}}
+        end
     end
   end
 
-  @doc "List all active tmux sessions. Returns list of session name strings."
+  @doc "List all active tmux sessions across all known sockets."
   def list_sessions do
-    # The format string is a tmux literal, not Elixir interpolation
+    obs = list_sessions_on_socket(@observatory_socket)
+    default = list_sessions_default()
+    Enum.uniq(obs ++ default)
+  end
+
+  defp list_sessions_on_socket(socket_path) do
+    if File.exists?(socket_path) do
+      case System.cmd("tmux", ["-S", socket_path, "list-sessions", "-F", "\#{session_name}"],
+             stderr_to_stdout: true
+           ) do
+        {output, 0} -> String.split(output, "\n", trim: true)
+        _ -> []
+      end
+    else
+      []
+    end
+  end
+
+  defp list_sessions_default do
     case System.cmd("tmux", ["list-sessions", "-F", "\#{session_name}"],
            stderr_to_stdout: true
          ) do
-      {output, 0} ->
-        output
-        |> String.split("\n", trim: true)
-
-      _ ->
-        []
+      {output, 0} -> String.split(output, "\n", trim: true)
+      _ -> []
     end
+  end
+
+  defp socket_args do
+    if File.exists?(@observatory_socket),
+      do: ["-S", @observatory_socket],
+      else: []
   end
 
   # Strip ANSI escape codes using a regex

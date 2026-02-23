@@ -1,11 +1,13 @@
 <div class="rounded-lg border border-zinc-800 bg-zinc-900/50 p-2.5">
-  <%!-- Row 1: Identity + status + tmux --%>
+  <%!-- Row 1: Identity + role + status + tmux --%>
   <div class="flex items-center gap-2 mb-1">
     <span class={["w-2 h-2 rounded-full shrink-0", status_dot_color(@agent.status)]} />
+    <span :if={@agent[:role]} class={["text-[10px] font-bold uppercase px-1 py-0.5 rounded", role_badge_class(@agent.role)]}>{@agent.role}</span>
     <span class="text-xs font-semibold text-zinc-200 truncate">{@agent.name}</span>
     <span :if={@agent.model} class="text-[10px] text-indigo-400 font-mono">{short_model(@agent.model)}</span>
     <span class={["text-[10px] font-mono", status_text_color(@agent.status)]}>{@agent.status}</span>
     <span :if={@agent[:team_name]} class="text-[10px] text-cyan-600">{@agent.team_name}</span>
+    <span :if={@agent[:tmux_session]} class="text-[10px] text-amber-500/60 font-mono">{@agent.tmux_session}</span>
     <span class="flex-1" />
     <span class="text-[10px] text-zinc-600 font-mono">{@agent.event_count}ev {@agent.tool_count}t</span>
     <span class="text-[10px] text-zinc-700 font-mono">{short_id(@agent.agent_id)}</span>

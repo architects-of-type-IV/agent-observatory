@@ -319,11 +319,10 @@
         now={@now}
       />
 
-      <%!-- ═══ One Screen: 2-Column Layout ═══ --%>
-      <div :if={@view_mode != :agent_focus} class="flex flex-col gap-2 p-4">
-        <%!-- Row 1: Topology + Pipeline Board side by side --%>
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-3">
-          <%!-- Left: Fleet Control -- all agents with inline controls --%>
+      <%!-- ═══ One Screen: 3-Column Layout ═══ --%>
+      <div :if={@view_mode != :agent_focus} class="flex flex-col gap-2 p-3">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-3">
+          <%!-- Col 1: Fleet Control -- all agents with inline controls --%>
           <div class="min-w-0">
             <ObservatoryWeb.Components.CommandComponents.command_view
               swarm_state={@swarm_state}
@@ -340,12 +339,24 @@
             />
           </div>
 
-          <%!-- Right: Pipeline Board --%>
+          <%!-- Col 2: Pipeline Board --%>
           <div class="min-w-0">
             <ObservatoryWeb.Components.PipelineComponents.pipeline_view
               swarm_state={@swarm_state}
               selected_dag_task={@selected_dag_task}
               show_add_project={@show_add_project}
+              now={@now}
+            />
+          </div>
+
+          <%!-- Col 3: Live Feed --%>
+          <div class="min-w-0 max-h-[calc(100vh-200px)] overflow-y-auto">
+            <ObservatoryWeb.Components.FeedComponents.feed_view
+              feed_groups={@feed_groups}
+              visible_events={@visible_events}
+              selected_event={@selected_event}
+              event_notes={@event_notes}
+              expanded_sessions={@expanded_sessions}
               now={@now}
             />
           </div>
@@ -366,16 +377,6 @@
           <span :if={@selected_topology_node[:last_tool]} class="text-cyan-500">{@selected_topology_node.last_tool}</span>
           <button phx-click="clear_topology_selection" class="ml-auto text-zinc-600 hover:text-zinc-400">x</button>
         </div>
-
-        <%!-- Row 2: Live Feed + Message Composer --%>
-        <ObservatoryWeb.Components.FeedComponents.feed_view
-          feed_groups={@feed_groups}
-          visible_events={@visible_events}
-          selected_event={@selected_event}
-          event_notes={@event_notes}
-          expanded_sessions={@expanded_sessions}
-          now={@now}
-        />
 
         <%!-- Message Composer --%>
         <div :if={@teams != []}>

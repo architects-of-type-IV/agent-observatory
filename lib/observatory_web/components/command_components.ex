@@ -49,6 +49,7 @@ defmodule ObservatoryWeb.Components.CommandComponents do
           %{
             agent_id: m[:agent_id],
             name: m[:name] || m[:agent_type] || String.slice(m[:agent_id] || "", 0, 8),
+            role: m[:name] || m[:agent_type],
             model: m[:model],
             status: m[:status] || :idle,
             health: :unknown,
@@ -94,6 +95,7 @@ defmodule ObservatoryWeb.Components.CommandComponents do
     %{
       agent_id: session_id,
       name: if(cwd, do: Path.basename(cwd), else: String.slice(session_id, 0, 8)),
+      role: nil,
       model: model,
       status: status,
       health: :unknown,
@@ -215,7 +217,9 @@ defmodule ObservatoryWeb.Components.CommandComponents do
     teams
     |> Enum.flat_map(fn team ->
       Enum.map(team.members, fn m ->
-        {m[:agent_id] || m[:session_id], Map.merge(m, %{team_name: team.name})}
+        role = m[:name] || m[:agent_type]
+        data = Map.merge(m, %{team_name: team.name, role: role})
+        {m[:agent_id] || m[:session_id], data}
       end)
     end)
     |> Map.new()
@@ -269,6 +273,18 @@ defmodule ObservatoryWeb.Components.CommandComponents do
 
   defp progress_pct(%{total: 0}), do: 0
   defp progress_pct(%{total: t, completed: c}), do: round(c / t * 100)
+
+
+  defp role_badge_class(role) when is_binary(role) do
+    cond do
+      String.contains?(role, "lead") -> "bg-violet-500/20 text-violet-400"
+      String.contains?(role, "coordinator") -> "bg-amber-500/20 text-amber-400"
+      String.contains?(role, "worker") -> "bg-cyan-500/20 text-cyan-400"
+      true -> "bg-zinc-700 text-zinc-400"
+    end
+  end
+
+  defp role_badge_class(_), do: "bg-zinc-700 text-zinc-400"
 
   defp status_dot_color(:active), do: "bg-emerald-400"
   defp status_dot_color(:idle), do: "bg-zinc-500"

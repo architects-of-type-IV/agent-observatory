@@ -488,44 +488,52 @@ defmodule ObservatoryWeb.DashboardLive do
     do: {:noreply, handle_send_targeted_message(p, s) |> prepare_assigns()}
 
   def handle_event("connect_tmux", %{"session" => session_name}, socket) do
-    cmd = "tmux attach -t #{session_name}"
+    # Check Observatory socket first, fall back to default
+    obs_socket = Path.expand("~/.observatory/tmux/obs.sock")
 
-    socket =
-      Phoenix.LiveView.push_event(socket, "toast", %{
-        message: cmd,
-        type: "info"
-      })
+    cmd =
+      if File.exists?(obs_socket) do
+        "tmux -S #{obs_socket} attach -t #{session_name}"
+      else
+        "tmux attach -t #{session_name}"
+      end
 
-    {:noreply, socket}
+    {:noreply, push_event(socket, "toast", %{message: cmd, type: "info"})}
   end
 
-  def handle_event("launch_session", %{"cwd" => cwd} = params, socket) do
+  @observatory_socket Path.expand("~/.observatory/tmux/obs.sock")
+
+  def handle_event("launch_session", %{"cwd" => cwd} = params, socket) when cwd != "" do
     session_name = "obs-#{:os.system_time(:second)}"
     command = params["command"] || "claude"
 
-    # Launch in a new tmux session
+    # Ensure socket directory exists
+    File.mkdir_p!(Path.dirname(@observatory_socket))
+
+    # Launch on Observatory's own tmux socket
     case System.cmd("tmux", [
+           "-S", @observatory_socket,
            "new-session", "-d", "-s", session_name, "-c", cwd,
            command
          ], stderr_to_stdout: true) do
       {_output, 0} ->
-        socket =
-          Phoenix.LiveView.push_event(socket, "toast", %{
-            message: "Launched #{session_name} in #{Path.basename(cwd)}",
-            type: "success"
-          })
-
-        {:noreply, socket}
+        {:noreply,
+         push_event(socket, "toast", %{
+           message: "Launched #{session_name} in #{Path.basename(cwd)}",
+           type: "success"
+         })}
 
       {error, _code} ->
-        socket =
-          Phoenix.LiveView.push_event(socket, "toast", %{
-            message: "Launch failed: #{String.slice(error, 0, 80)}",
-            type: "error"
-          })
-
-        {:noreply, socket}
+        {:noreply,
+         push_event(socket, "toast", %{
+           message: "Launch failed: #{String.slice(error, 0, 80)}",
+           type: "error"
+         })}
     end
+  end
+
+  def handle_event("launch_session", _params, socket) do
+    {:noreply, push_event(socket, "toast", %{message: "Select a project first", type: "error"})}
   end
 
   # Swarm handlers

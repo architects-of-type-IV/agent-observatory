@@ -273,27 +273,60 @@ defmodule Observatory.Gateway.AgentRegistry do
   defp derive_role(_), do: :worker
 
   defp poll_tmux_sessions do
-    case System.cmd("tmux", ["list-sessions", "-F", "\#{session_name}"], stderr_to_stdout: true) do
-      {output, 0} ->
-        tmux_sessions = output |> String.split("\n", trim: true) |> MapSet.new()
+    # Collect sessions from default server + custom sockets
+    tmux_sessions = collect_all_tmux_sessions()
 
-        :ets.tab2list(@table)
-        |> Enum.each(fn {session_id, agent} ->
-          # Match tmux sessions by agent id prefix
-          matched_tmux =
-            Enum.find(tmux_sessions, fn s ->
-              String.starts_with?(s, agent.id) or String.contains?(s, agent.id)
-            end)
-
-          if matched_tmux != agent.channels.tmux do
-            updated_channels = Map.put(agent.channels, :tmux, matched_tmux)
-            :ets.insert(@table, {session_id, %{agent | channels: updated_channels}})
-          end
+    :ets.tab2list(@table)
+    |> Enum.each(fn {session_id, agent} ->
+      # Match tmux sessions by agent id prefix
+      matched_tmux =
+        Enum.find(tmux_sessions, fn s ->
+          String.starts_with?(s, agent.id) or String.contains?(s, agent.id)
         end)
 
-      _ ->
-        :ok
-    end
+      if matched_tmux != agent.channels.tmux do
+        updated_channels = Map.put(agent.channels, :tmux, matched_tmux)
+        :ets.insert(@table, {session_id, %{agent | channels: updated_channels}})
+      end
+    end)
+  end
+
+  defp collect_all_tmux_sessions do
+    # Default tmux server
+    default =
+      case System.cmd("tmux", ["list-sessions", "-F", "\#{session_name}"],
+             stderr_to_stdout: true
+           ) do
+        {output, 0} -> output |> String.split("\n", trim: true)
+        _ -> []
+      end
+
+    # Custom sockets (Observatory-managed, e.g. ~/.observatory/tmux/)
+    socket_dir =
+      System.get_env("OBSERVATORY_TMUX_SOCKET_DIR") ||
+        Path.expand("~/.observatory/tmux")
+
+    custom =
+      case File.ls(socket_dir) do
+        {:ok, entries} ->
+          entries
+          |> Enum.filter(&String.ends_with?(&1, ".sock"))
+          |> Enum.flat_map(fn sock_name ->
+            sock_path = Path.join(socket_dir, sock_name)
+
+            case System.cmd("tmux", ["-S", sock_path, "list-sessions", "-F", "\#{session_name}"],
+                   stderr_to_stdout: true
+                 ) do
+              {output, 0} -> String.split(output, "\n", trim: true)
+              _ -> []
+            end
+          end)
+
+        _ ->
+          []
+      end
+
+    MapSet.new(default ++ custom)
   end
 
   defp schedule_tmux_poll do
