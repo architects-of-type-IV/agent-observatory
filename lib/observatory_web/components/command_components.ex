@@ -27,14 +27,43 @@ defmodule ObservatoryWeb.Components.CommandComponents do
 
     # Enrich with team data
     team_index = build_team_index(teams)
+    event_sids = MapSet.new(event_agents, & &1.agent_id)
 
-    event_agents
-    |> Enum.map(fn agent ->
-      case Map.get(team_index, agent.agent_id) do
-        nil -> agent
-        team_data -> Map.merge(agent, team_data)
-      end
-    end)
+    enriched =
+      event_agents
+      |> Enum.map(fn agent ->
+        case Map.get(team_index, agent.agent_id) do
+          nil -> agent
+          team_data -> Map.merge(agent, team_data)
+        end
+      end)
+
+    # Add team members not seen in events (disk-only agents)
+    disk_agents =
+      teams
+      |> Enum.flat_map(fn team ->
+        team.members
+        |> Enum.filter(fn m -> m[:agent_id] && not MapSet.member?(event_sids, m[:agent_id]) end)
+        |> Enum.map(fn m ->
+          %{
+            agent_id: m[:agent_id],
+            name: m[:name] || m[:agent_type] || String.slice(m[:agent_id] || "", 0, 8),
+            model: m[:model],
+            status: m[:status] || :idle,
+            health: :unknown,
+            current_tool: nil,
+            event_count: m[:event_count] || 0,
+            tool_count: 0,
+            cwd: m[:cwd],
+            source_app: nil,
+            project: if(m[:cwd], do: Path.basename(m[:cwd]), else: nil),
+            health_issues: [],
+            team_name: team.name
+          }
+        end)
+      end)
+
+    (enriched ++ disk_agents)
     |> Enum.sort_by(fn a -> {status_sort(a.status), a.name} end)
   end
 
@@ -172,6 +201,7 @@ defmodule ObservatoryWeb.Components.CommandComponents do
   defp task_status_color("in_progress"), do: "text-blue-400"
   defp task_status_color("failed"), do: "text-red-400"
   defp task_status_color("pending"), do: "text-zinc-400"
+  defp task_status_color("blocked"), do: "text-amber-400"
   defp task_status_color(_), do: "text-zinc-500"
 
   defp short_model(nil), do: ""

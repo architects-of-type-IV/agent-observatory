@@ -27,9 +27,42 @@
   proto_cmdq = get_in(protocol_stats, [:command_queue, :total_pending]) || 0
 %>
 <div class="p-4 flex flex-col gap-3">
-  <%!-- Mesh Topology --%>
-  <div id="fleet-topology-hook" phx-hook="TopologyMap" phx-update="ignore" data-event="fleet_topology_update" class="bg-zinc-900/30 border border-zinc-800 rounded-lg p-4 min-h-[280px] relative">
-    <h3 class="topo-title text-[10px] font-semibold text-zinc-600 uppercase tracking-wider mb-2">Topology</h3>
+  <%!-- Agent Cards --%>
+  <div :if={agents != []} class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+    <div
+      :for={agent <- agents}
+      phx-click="select_command_agent"
+      phx-value-id={agent.agent_id}
+      class={[
+        "p-2.5 rounded-lg border cursor-pointer transition hover:bg-zinc-800/60",
+        if(@selected_command_agent && @selected_command_agent[:agent_id] == agent.agent_id,
+          do: "border-indigo-500/50 bg-zinc-800/60 ring-1 ring-indigo-500/30",
+          else: "border-zinc-800 bg-zinc-900/50"
+        )
+      ]}
+    >
+      <div class="flex items-center gap-2 mb-1.5">
+        <span class={["w-2 h-2 rounded-full shrink-0", status_dot_color(agent.status)]} />
+        <span class="text-xs font-semibold text-zinc-200 truncate">{agent.name}</span>
+      </div>
+      <div class="flex items-center gap-2 text-[10px] font-mono">
+        <span :if={agent.model} class="text-indigo-400">{short_model(agent.model)}</span>
+        <span class={status_text_color(agent.status)}>{agent.status}</span>
+      </div>
+      <div :if={agent[:current_tool]} class="mt-1 text-[10px] font-mono text-cyan-400 truncate">
+        {agent.current_tool.tool_name} ({agent.current_tool.elapsed}s)
+      </div>
+      <div class="mt-1 flex items-center gap-2 text-[10px] text-zinc-600">
+        <span>{agent.event_count}ev</span>
+        <span>{agent.tool_count}t</span>
+        <span :if={agent[:team_name]} class="text-cyan-600">{agent.team_name}</span>
+      </div>
+      <div :if={agent.cwd} class="mt-0.5 text-[10px] font-mono text-zinc-700 truncate">{Path.basename(agent.cwd)}</div>
+    </div>
+  </div>
+
+  <div :if={agents == []} class="bg-zinc-900/30 border border-zinc-800 rounded-lg p-6 text-center">
+    <span class="text-xs text-zinc-600">No agents detected. Start a Claude session to see it here.</span>
   </div>
 
   <%!-- Fleet Status Bar -- all dimensions at a glance --%>

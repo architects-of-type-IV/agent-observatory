@@ -887,7 +887,9 @@ defmodule ObservatoryWeb.DashboardLive do
       end)
       |> Map.new()
 
-    topo_nodes =
+    session_sids = MapSet.new(all_sessions, & &1.session_id)
+
+    session_nodes =
       all_sessions
       |> Enum.map(fn s ->
         status =
@@ -912,6 +914,29 @@ defmodule ObservatoryWeb.DashboardLive do
           duration: session_duration_sec(dur)
         }
       end)
+
+    # Add team members not yet seen in events (disk-only agents)
+    member_nodes =
+      teams
+      |> Enum.flat_map(fn team ->
+        team.members
+        |> Enum.filter(fn m -> m[:agent_id] && not MapSet.member?(session_sids, m[:agent_id]) end)
+        |> Enum.map(fn m ->
+          %{
+            trace_id: m[:agent_id],
+            agent_id: m[:agent_id],
+            state: to_string(m[:status] || :idle),
+            label: m[:name] || m[:agent_type] || String.slice(m[:agent_id] || "", 0, 8),
+            model: short_model_name(m[:model]),
+            team: team.name,
+            events: m[:event_count] || 0,
+            cwd: if(m[:cwd], do: Path.basename(m[:cwd]), else: nil),
+            duration: nil
+          }
+        end)
+      end)
+
+    topo_nodes = session_nodes ++ member_nodes
 
     # Edges: sessions in the same team are connected
     topo_edges =

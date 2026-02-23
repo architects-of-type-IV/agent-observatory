@@ -1,15 +1,12 @@
 defmodule Observatory.EventBuffer do
   @moduledoc """
-  Write-behind buffer for hook events. Accepts events via `ingest/1`,
-  broadcasts immediately via PubSub, and flushes to SQLite in batches
-  every 2 seconds. This decouples HTTP response time from DB write latency.
+  In-memory event buffer. Accepts events via `ingest/1` and returns
+  immediately. No SQLite -- everything is ETS + PubSub.
   """
   use GenServer
-  require Logger
 
-  @flush_interval_ms 2_000
-  @buffer_table :event_buffer
-  @max_buffer_size 500
+  @events_table :event_buffer_events
+  @max_events 5_000
 
   # ── Public API ──────────────────────────────────────────────────
 
@@ -18,15 +15,36 @@ defmodule Observatory.EventBuffer do
   end
 
   @doc """
-  Ingest a hook event. Builds an event struct, broadcasts immediately,
-  and queues the DB write for async batch flush.
-
-  Returns {:ok, event} where event is a map with all expected fields.
+  Ingest a hook event. Builds an event map and stores in ETS.
+  Returns {:ok, event} immediately.
   """
   def ingest(event_attrs) when is_map(event_attrs) do
     event = build_event(event_attrs)
-    GenServer.cast(__MODULE__, {:buffer, event_attrs, event})
+    ensure_table()
+    :ets.insert(@events_table, {event.id, event})
+    maybe_evict()
     {:ok, event}
+  end
+
+  @doc "Get all events from the buffer (most recent first)."
+  def list_events do
+    ensure_table()
+
+    @events_table
+    |> :ets.tab2list()
+    |> Enum.map(fn {_id, event} -> event end)
+    |> Enum.sort_by(& &1.inserted_at, {:desc, DateTime})
+  end
+
+  @doc "Get events for a specific session."
+  def events_for_session(session_id) do
+    ensure_table()
+
+    @events_table
+    |> :ets.tab2list()
+    |> Enum.map(fn {_id, event} -> event end)
+    |> Enum.filter(&(&1.session_id == session_id))
+    |> Enum.sort_by(& &1.inserted_at, {:desc, DateTime})
   end
 
   # ── GenServer Callbacks ─────────────────────────────────────────
@@ -34,127 +52,40 @@ defmodule Observatory.EventBuffer do
   @impl true
   def init(_opts) do
     init_table()
-    schedule_flush()
-    {:ok, %{flush_count: 0}}
-  end
-
-  @impl true
-  def handle_cast({:buffer, event_attrs, event}, state) do
-    # Buffer for async DB write
-    :ets.insert(@buffer_table, {event.id, event_attrs, System.monotonic_time(:millisecond)})
-
-    # Enforce max buffer size (drop oldest if exceeded)
-    if :ets.info(@buffer_table, :size) > @max_buffer_size do
-      case :ets.first(@buffer_table) do
-        :"$end_of_table" -> :ok
-        key -> :ets.delete(@buffer_table, key)
-      end
-    end
-
-    {:noreply, state}
-  end
-
-  @impl true
-  def handle_info(:flush, state) do
-    flushed = flush_buffer()
-    schedule_flush()
-    {:noreply, %{state | flush_count: state.flush_count + flushed}}
+    {:ok, %{}}
   end
 
   # ── Private ─────────────────────────────────────────────────────
 
   defp init_table do
-    try do
-      :ets.new(@buffer_table, [:named_table, :public, :ordered_set])
-    rescue
-      ArgumentError -> :ok
-    end
+    ensure_table()
   end
 
-  defp schedule_flush do
-    Process.send_after(self(), :flush, @flush_interval_ms)
-  end
-
-  defp flush_buffer do
-    entries = :ets.tab2list(@buffer_table)
-
-    if entries == [] do
-      0
-    else
-      Enum.each(entries, fn {id, attrs, _ts} ->
+  defp ensure_table do
+    case :ets.whereis(@events_table) do
+      :undefined ->
         try do
-          case Observatory.Events.Event
-               |> Ash.Changeset.for_create(:create, attrs)
-               |> Ash.create() do
-            {:ok, _event} ->
-              :ets.delete(@buffer_table, id)
-              maybe_upsert_session_async(attrs)
-
-            {:error, changeset} ->
-              Logger.warning("EventBuffer flush failed for #{id}: #{inspect(changeset.errors)}")
-              :ets.delete(@buffer_table, id)
-          end
+          :ets.new(@events_table, [:named_table, :public, :set])
         rescue
-          e ->
-            Logger.warning("EventBuffer flush error: #{inspect(e)}")
-            :ets.delete(@buffer_table, id)
-        catch
-          :exit, _ ->
-            :ets.delete(@buffer_table, id)
-            :ok
-        end
-      end)
-
-      length(entries)
-    end
-  end
-
-  defp maybe_upsert_session_async(attrs) do
-    hook_type = attrs[:hook_event_type] || attrs["hook_event_type"]
-
-    case to_string(hook_type) do
-      "SessionStart" ->
-        payload = attrs[:payload] || attrs["payload"] || %{}
-
-        try do
-          Observatory.Events.Session
-          |> Ash.Changeset.for_create(:create, %{
-            session_id: attrs[:session_id] || attrs["session_id"],
-            source_app: attrs[:source_app] || attrs["source_app"],
-            agent_type: payload["agent_type"],
-            model: payload["model"],
-            started_at: DateTime.utc_now()
-          })
-          |> Ash.create()
-        rescue
-          _ -> :ok
-        catch
-          :exit, _ -> :ok
-        end
-
-      "SessionEnd" ->
-        sid = attrs[:session_id] || attrs["session_id"]
-        app = attrs[:source_app] || attrs["source_app"]
-
-        try do
-          require Ash.Query
-
-          Observatory.Events.Session
-          |> Ash.Query.filter(session_id == ^sid and source_app == ^app)
-          |> Ash.read_one()
-          |> case do
-            {:ok, nil} -> :ok
-            {:ok, session} -> session |> Ash.Changeset.for_update(:mark_ended) |> Ash.update()
-            _ -> :ok
-          end
-        rescue
-          _ -> :ok
-        catch
-          :exit, _ -> :ok
+          ArgumentError -> :ok
         end
 
       _ ->
         :ok
+    end
+  end
+
+  defp maybe_evict do
+    size = :ets.info(@events_table, :size)
+
+    if size > @max_events do
+      # Drop oldest entries to stay under cap
+      @events_table
+      |> :ets.tab2list()
+      |> Enum.map(fn {id, event} -> {id, event.inserted_at} end)
+      |> Enum.sort_by(&elem(&1, 1), {:asc, DateTime})
+      |> Enum.take(size - @max_events)
+      |> Enum.each(fn {id, _} -> :ets.delete(@events_table, id) end)
     end
   end
 

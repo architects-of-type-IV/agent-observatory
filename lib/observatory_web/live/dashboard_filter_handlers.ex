@@ -39,7 +39,26 @@ defmodule ObservatoryWeb.DashboardFilterHandlers do
   end
 
   def handle_filter_session(sid, socket) do
-    socket |> assign(:filter_session_id, sid)
+    # Find this session's agent info from teams
+    agent =
+      socket.assigns.teams
+      |> Enum.flat_map(& &1.members)
+      |> Enum.find(fn m -> m[:agent_id] == sid || m[:session_id] == sid end)
+
+    agent_info =
+      agent ||
+        %{
+          agent_id: sid,
+          name: String.slice(sid, 0, 8),
+          status: :unknown,
+          health: :unknown,
+          health_issues: []
+        }
+
+    socket
+    |> assign(:filter_session_id, sid)
+    |> assign(:selected_command_agent, agent_info)
+    |> Phoenix.LiveView.push_event("highlight_node", %{session_id: sid})
   end
 
   def handle_set_view(mode, socket) do

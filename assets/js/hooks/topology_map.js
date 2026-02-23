@@ -34,6 +34,11 @@ const TopologyMap = {
       this.render()
     })
 
+    this.handleEvent('highlight_node', ({ session_id }) => {
+      this.selectedId = session_id
+      this.render()
+    })
+
     this._resizeObserver = new ResizeObserver(() => this.render())
     this._resizeObserver.observe(this.el)
 
