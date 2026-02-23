@@ -10,6 +10,9 @@ defmodule Observatory.Gateway.TopologyBuilder do
 
   require Logger
 
+  @sweep_interval :timer.hours(1)
+  @stale_ttl_seconds 7_200
+
   def start_link(opts \\ []) do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
   end
@@ -22,7 +25,8 @@ defmodule Observatory.Gateway.TopologyBuilder do
 
   @impl true
   def init(_opts) do
-    {:ok, %{sessions: MapSet.new()}}
+    schedule_sweep()
+    {:ok, %{sessions: MapSet.new(), session_last_active: %{}}}
   end
 
   @impl true
@@ -38,6 +42,8 @@ defmodule Observatory.Gateway.TopologyBuilder do
 
   @impl true
   def handle_info(%{event: "dag_delta", session_id: session_id}, state) do
+    state = put_in(state.session_last_active[session_id], System.monotonic_time(:second))
+
     case Observatory.Mesh.CausalDAG.get_session_dag(session_id) do
       {:ok, node_map} ->
         # Derive nodes list
@@ -85,5 +91,33 @@ defmodule Observatory.Gateway.TopologyBuilder do
         Logger.debug("TopologyBuilder: session not found for session_id=#{session_id}")
         {:noreply, state}
     end
+  end
+
+  def handle_info(:sweep, state) do
+    cutoff = System.monotonic_time(:second) - @stale_ttl_seconds
+
+    stale_sids =
+      state.session_last_active
+      |> Enum.filter(fn {_sid, ts} -> ts < cutoff end)
+      |> Enum.map(&elem(&1, 0))
+
+    # Unsubscribe from stale sessions
+    Enum.each(stale_sids, fn sid ->
+      Phoenix.PubSub.unsubscribe(Observatory.PubSub, "session:dag:#{sid}")
+    end)
+
+    new_sessions = Enum.reduce(stale_sids, state.sessions, &MapSet.delete(&2, &1))
+    new_last_active = Map.drop(state.session_last_active, stale_sids)
+
+    schedule_sweep()
+    {:noreply, %{state | sessions: new_sessions, session_last_active: new_last_active}}
+  end
+
+  def handle_info(_msg, state), do: {:noreply, state}
+
+  # ── Private ──────────────────────────────────────────────────────
+
+  defp schedule_sweep do
+    Process.send_after(self(), :sweep, @sweep_interval)
   end
 end

@@ -1,7 +1,6 @@
 <%
   agents = collect_agents(@teams, @events, @now)
   stats = fleet_stats(agents)
-  clusters = build_clusters(agents)
   pipeline = @swarm_state.pipeline
   health = @swarm_state.health
   stale = @swarm_state.stale_tasks
@@ -27,7 +26,12 @@
   proto_mailbox = get_in(protocol_stats, [:mailbox, :total_pending]) || 0
   proto_cmdq = get_in(protocol_stats, [:command_queue, :total_pending]) || 0
 %>
-<div class="p-4 flex flex-col gap-3 h-full">
+<div class="p-4 flex flex-col gap-3">
+  <%!-- Mesh Topology --%>
+  <div id="fleet-topology-hook" phx-hook="TopologyMap" phx-update="ignore" data-event="fleet_topology_update" class="bg-zinc-900/30 border border-zinc-800 rounded-lg p-4 min-h-[280px] relative">
+    <h3 class="topo-title text-[10px] font-semibold text-zinc-600 uppercase tracking-wider mb-2">Topology</h3>
+  </div>
+
   <%!-- Fleet Status Bar -- all dimensions at a glance --%>
   <div class="bg-zinc-900/50 border border-zinc-800 rounded-lg px-4 py-2">
     <div class="flex items-center gap-4 flex-wrap">
@@ -111,77 +115,9 @@
     </div>
   </div>
 
-  <%!-- Main: Clusters + Activity + Detail --%>
-  <div class="flex gap-4 flex-1 min-h-0">
-    <%!-- Left: Clusters + Activity --%>
-    <div class="flex-1 overflow-y-auto min-w-0 space-y-3">
-      <%!-- Project Cluster Cards --%>
-      <div
-        :for={cluster <- clusters}
-        class={["rounded-lg border bg-zinc-900/30", cluster_health_color(cluster.stats)]}
-      >
-        <%!-- Cluster Header --%>
-        <div class="flex items-center gap-3 px-3 py-2 border-b border-zinc-800/50">
-          <span class="text-sm font-semibold text-zinc-200">{cluster.project}</span>
-          <span class="text-xs font-mono text-zinc-500">{cluster.stats.total}</span>
-          <div class="flex items-center gap-2 text-[10px] font-mono">
-            <span :if={cluster.stats.active > 0} class="text-emerald-400">{cluster.stats.active}a</span>
-            <span :if={cluster.stats.idle > 0} class="text-zinc-400">{cluster.stats.idle}i</span>
-            <span :if={cluster.stats.ended > 0} class="text-zinc-600">{cluster.stats.ended}e</span>
-          </div>
-          <span class="flex-1" />
-          <span class="text-[10px] font-mono text-zinc-600">{cluster.stats.events}ev {cluster.stats.tools}t</span>
-          <span :if={cluster.swarms != []} class="text-[10px] text-cyan-600">
-            {length(cluster.swarms)} swarm{if length(cluster.swarms) != 1, do: "s"}
-          </span>
-        </div>
-
-        <%!-- Swarm Groups --%>
-        <div :for={swarm <- cluster.swarms} class="mx-2 mt-2 mb-1">
-          <div class="rounded border border-cyan-900/30 bg-cyan-950/10">
-            <div class="flex items-center gap-2 px-3 py-1.5 border-b border-cyan-900/20">
-              <span class="text-[10px] text-cyan-500 uppercase tracking-wider">swarm</span>
-              <span class="text-xs font-medium text-cyan-300">{swarm.name}</span>
-              <span class="text-[10px] font-mono text-zinc-500">{swarm.stats.total}</span>
-              <div class="flex items-center gap-1.5 text-[10px] font-mono">
-                <span :if={swarm.stats.active > 0} class="text-emerald-400">{swarm.stats.active}a</span>
-                <span :if={swarm.stats.idle > 0} class="text-zinc-400">{swarm.stats.idle}i</span>
-              </div>
-            </div>
-            <div class="divide-y divide-zinc-800/30">
-              <% visible_swarm = Enum.take(swarm.agents, swarm_agent_cap()) %>
-              <% swarm_overflow = swarm.stats.total - length(visible_swarm) %>
-              <.agent_row :for={agent <- visible_swarm} agent={agent} selected={@selected_command_agent} />
-              <div :if={swarm_overflow > 0} class="px-3 py-1 text-[10px] text-zinc-600 text-center">
-                +{swarm_overflow} more
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <%!-- Standalone agents --%>
-        <div :if={cluster.standalone != []} class={[if(cluster.swarms != [], do: "border-t border-zinc-800/50")]}>
-          <div :if={cluster.swarms != []} class="px-3 py-1">
-            <span class="text-[10px] text-zinc-600 uppercase tracking-wider">standalone</span>
-          </div>
-          <div class="divide-y divide-zinc-800/30">
-            <% visible_sa = Enum.take(cluster.standalone, cluster_agent_cap()) %>
-            <% sa_overflow = length(cluster.standalone) - length(visible_sa) %>
-            <.agent_row :for={agent <- visible_sa} agent={agent} selected={@selected_command_agent} />
-            <div :if={sa_overflow > 0} class="px-3 py-1 text-[10px] text-zinc-600 text-center">
-              +{sa_overflow} more
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <%!-- Empty state --%>
-      <div :if={clusters == []} class="flex items-center justify-center h-24 text-zinc-600 text-sm">
-        No nodes detected. Sessions appear as hook events stream in.
-      </div>
-
-      <%!-- ═══ Activity Section ═══ --%>
-
+  <%!-- Activity + Detail --%>
+  <div class="flex gap-4">
+    <div class="flex-1 min-w-0 space-y-3">
       <%!-- Errors --%>
       <div :if={recent_errors != []} class="rounded-lg border border-red-900/30 bg-red-950/10">
         <div class="flex items-center gap-2 px-3 py-1.5 border-b border-red-900/20">

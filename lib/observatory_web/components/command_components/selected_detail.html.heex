@@ -62,6 +62,13 @@
       >
         Shutdown
       </button>
+      <button
+        phx-click="open_agent_slideout"
+        phx-value-session_id={@agent[:agent_id]}
+        class="px-2 py-1 bg-indigo-600/20 text-indigo-400 rounded text-xs hover:bg-indigo-600/30 transition"
+      >
+        Expand
+      </button>
     </div>
 
     <%!-- Message form --%>
@@ -124,13 +131,29 @@
         </div>
       </div>
     </div>
-    <div class="flex gap-1.5 mt-4">
+    <div class="flex flex-wrap gap-1.5 mt-4">
       <button
         phx-click="heal_task"
         phx-value-id={@task.id}
         class="px-2 py-1 bg-amber-600/20 text-amber-400 rounded text-xs hover:bg-amber-600/30 transition"
       >
         Reset to Pending
+      </button>
+      <button
+        phx-click="reassign_swarm_task"
+        phx-value-id={@task.id}
+        phx-value-owner=""
+        class="px-2 py-1 bg-zinc-700 text-zinc-300 rounded text-xs hover:bg-zinc-600 transition"
+      >
+        Unassign
+      </button>
+      <button
+        phx-click="claim_swarm_task"
+        phx-value-id={@task.id}
+        phx-value-agent="dashboard"
+        class="px-2 py-1 bg-zinc-700 text-zinc-300 rounded text-xs hover:bg-zinc-600 transition"
+      >
+        Claim
       </button>
     </div>
   </div>

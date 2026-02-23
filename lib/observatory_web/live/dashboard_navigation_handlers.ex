@@ -1,9 +1,7 @@
 defmodule ObservatoryWeb.DashboardNavigationHandlers do
   @moduledoc """
   Cross-view navigation event handlers for the dashboard.
-  Handles navigation jumps between different views (Feed, Timeline, Agents, etc).
-
-  Usage: defdelegate handle_event(event, params, socket), to: ObservatoryWeb.DashboardNavigationHandlers
+  Handles navigation jumps between different views and sub-tabs.
   """
 
   require Logger
@@ -11,33 +9,36 @@ defmodule ObservatoryWeb.DashboardNavigationHandlers do
   def handle_event("restore_view_mode", %{"value" => value}, socket) do
     view_mode =
       case value do
-        "fleet_command" -> :fleet_command
-        "session_cluster" -> :session_cluster
-        "registry" -> :registry
-        "scheduler" -> :scheduler
+        # New consolidated screens
+        "command" -> :command
+        "activity" -> :activity
+        "pipeline" -> :pipeline
         "forensic" -> :forensic
-        "god_mode" -> :god_mode
-        # Legacy view modes from Swarm Control Center era
-        "command" -> :fleet_command
-        "overview" -> :fleet_command
-        "feed" -> :fleet_command
-        "timeline" -> :fleet_command
-        "agents" -> :fleet_command
-        "tasks" -> :scheduler
-        "analytics" -> :forensic
-        "messages" -> :fleet_command
-        "notes" -> :fleet_command
-        "protocols" -> :forensic
-        "errors" -> :forensic
-        "teams" -> :fleet_command
+        "control" -> :control
+        # Legacy view modes -> consolidated screens
+        "fleet_command" -> :command
+        "overview" -> :command
+        "agents" -> :command
+        "teams" -> :command
+        "feed" -> :activity
+        "timeline" -> :activity
+        "analytics" -> :activity
+        "messages" -> :activity
+        "errors" -> :activity
+        "tasks" -> :pipeline
+        "scheduler" -> :pipeline
+        "protocols" -> :command
+        "registry" -> :forensic
+        "god_mode" -> :control
+        "session_cluster" -> :control
         _ ->
           Logger.warning("Unrecognized view_mode: #{inspect(value)}")
-          :fleet_command
+          :command
       end
 
     socket
     |> Phoenix.Component.assign(:view_mode, view_mode)
-    |> Phoenix.LiveView.push_event("view_mode_changed", %{view_mode: value})
+    |> Phoenix.LiveView.push_event("view_mode_changed", %{view_mode: Atom.to_string(view_mode)})
   end
 
   def handle_event("jump_to_timeline", params, socket),
@@ -58,7 +59,8 @@ defmodule ObservatoryWeb.DashboardNavigationHandlers do
 
   defp handle_jump_to_timeline(%{"session_id" => sid}, socket) do
     socket
-    |> Phoenix.Component.assign(:view_mode, :timeline)
+    |> Phoenix.Component.assign(:view_mode, :activity)
+    |> Phoenix.Component.assign(:activity_tab, :timeline)
     |> Phoenix.Component.assign(:filter_session_id, sid)
     |> Phoenix.Component.assign(:selected_event, nil)
     |> Phoenix.Component.assign(:selected_task, nil)
@@ -66,7 +68,8 @@ defmodule ObservatoryWeb.DashboardNavigationHandlers do
 
   defp handle_jump_to_feed(%{"session_id" => sid}, socket) do
     socket
-    |> Phoenix.Component.assign(:view_mode, :feed)
+    |> Phoenix.Component.assign(:view_mode, :activity)
+    |> Phoenix.Component.assign(:activity_tab, :feed)
     |> Phoenix.Component.assign(:filter_session_id, sid)
     |> Phoenix.Component.assign(:selected_event, nil)
     |> Phoenix.Component.assign(:selected_task, nil)
@@ -74,7 +77,7 @@ defmodule ObservatoryWeb.DashboardNavigationHandlers do
 
   defp handle_jump_to_agents(%{"session_id" => sid}, socket) do
     socket
-    |> Phoenix.Component.assign(:view_mode, :agents)
+    |> Phoenix.Component.assign(:view_mode, :command)
     |> Phoenix.Component.assign(:filter_session_id, sid)
     |> Phoenix.Component.assign(:selected_event, nil)
     |> Phoenix.Component.assign(:selected_task, nil)
@@ -82,25 +85,27 @@ defmodule ObservatoryWeb.DashboardNavigationHandlers do
 
   defp handle_jump_to_tasks(%{"session_id" => sid}, socket) do
     socket
-    |> Phoenix.Component.assign(:view_mode, :tasks)
+    |> Phoenix.Component.assign(:view_mode, :pipeline)
+    |> Phoenix.Component.assign(:pipeline_tab, :board)
     |> Phoenix.Component.assign(:filter_session_id, sid)
     |> Phoenix.Component.assign(:selected_event, nil)
     |> Phoenix.Component.assign(:selected_task, nil)
   end
 
   defp handle_select_timeline_event(%{"id" => id}, socket) do
-    # Find event in the full list and switch to feed view with it selected
     selected = Enum.find(socket.assigns.events, &(&1.id == id))
 
     socket
-    |> Phoenix.Component.assign(:view_mode, :feed)
+    |> Phoenix.Component.assign(:view_mode, :activity)
+    |> Phoenix.Component.assign(:activity_tab, :feed)
     |> Phoenix.Component.assign(:selected_event, selected)
     |> Phoenix.Component.assign(:selected_task, nil)
   end
 
   defp handle_filter_agent_tasks(%{"session_id" => sid}, socket) do
     socket
-    |> Phoenix.Component.assign(:view_mode, :tasks)
+    |> Phoenix.Component.assign(:view_mode, :pipeline)
+    |> Phoenix.Component.assign(:pipeline_tab, :board)
     |> Phoenix.Component.assign(:filter_session_id, sid)
     |> Phoenix.Component.assign(:selected_event, nil)
     |> Phoenix.Component.assign(:selected_task, nil)
@@ -108,7 +113,8 @@ defmodule ObservatoryWeb.DashboardNavigationHandlers do
 
   defp handle_filter_analytics_tool(%{"tool" => tool}, socket) do
     socket
-    |> Phoenix.Component.assign(:view_mode, :feed)
+    |> Phoenix.Component.assign(:view_mode, :activity)
+    |> Phoenix.Component.assign(:activity_tab, :feed)
     |> Phoenix.Component.assign(:search_feed, tool)
     |> Phoenix.Component.assign(:selected_event, nil)
     |> Phoenix.Component.assign(:selected_task, nil)

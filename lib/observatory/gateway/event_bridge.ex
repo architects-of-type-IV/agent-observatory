@@ -18,10 +18,14 @@ defmodule Observatory.Gateway.EventBridge do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
   end
 
+  @sweep_interval :timer.hours(1)
+  @stale_ttl_seconds 7_200
+
   @impl true
   def init(_opts) do
     Phoenix.PubSub.subscribe(Observatory.PubSub, "events:stream")
-    {:ok, %{last_event: %{}}}
+    schedule_sweep()
+    {:ok, %{last_event: %{}, last_seen: %{}}}
   end
 
   @impl true
@@ -41,7 +45,28 @@ defmodule Observatory.Gateway.EventBridge do
     {:noreply, state}
   end
 
+  def handle_info(:sweep, state) do
+    cutoff = System.monotonic_time(:second) - @stale_ttl_seconds
+
+    stale_sids =
+      state.last_seen
+      |> Enum.filter(fn {_sid, ts} -> ts < cutoff end)
+      |> Enum.map(&elem(&1, 0))
+
+    new_last_event = Map.drop(state.last_event, stale_sids)
+    new_last_seen = Map.drop(state.last_seen, stale_sids)
+
+    schedule_sweep()
+    {:noreply, %{state | last_event: new_last_event, last_seen: new_last_seen}}
+  end
+
   def handle_info(_msg, state), do: {:noreply, state}
+
+  # ── Private ──────────────────────────────────────────────────────
+
+  defp schedule_sweep do
+    Process.send_after(self(), :sweep, @sweep_interval)
+  end
 
   # ── Transform ────────────────────────────────────────────────────
 
@@ -263,7 +288,11 @@ defmodule Observatory.Gateway.EventBridge do
 
       CausalDAG.insert(session_id, node)
 
-      %{state | last_event: Map.put(state.last_event, session_id, event_id)}
+      %{
+        state
+        | last_event: Map.put(state.last_event, session_id, event_id),
+          last_seen: Map.put(state.last_seen, session_id, System.monotonic_time(:second))
+      }
     else
       _ -> state
     end

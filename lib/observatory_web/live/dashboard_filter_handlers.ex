@@ -43,9 +43,51 @@ defmodule ObservatoryWeb.DashboardFilterHandlers do
   end
 
   def handle_set_view(mode, socket) do
+    {view_mode, sub_tab_assigns} = normalize_view_mode(mode)
+
     socket
-    |> assign(:view_mode, String.to_existing_atom(mode))
-    |> Phoenix.LiveView.push_event("view_mode_changed", %{view_mode: mode})
+    |> assign(:view_mode, view_mode)
+    |> then(fn s -> Enum.reduce(sub_tab_assigns, s, fn {k, v}, acc -> assign(acc, k, v) end) end)
+    |> Phoenix.LiveView.push_event("view_mode_changed", %{view_mode: Atom.to_string(view_mode)})
+  end
+
+  # Map legacy view modes to new consolidated screens + sub-tabs
+  defp normalize_view_mode(mode) when is_binary(mode) do
+    case mode do
+      # Primary screens
+      "command" -> {:command, []}
+      "activity" -> {:activity, []}
+      "pipeline" -> {:pipeline, []}
+      "forensic" -> {:forensic, []}
+      "control" -> {:control, []}
+      # Legacy -> Command
+      "fleet_command" -> {:command, []}
+      "overview" -> {:command, []}
+      "agents" -> {:command, []}
+      "teams" -> {:command, []}
+      "protocols" -> {:command, []}
+      # Legacy -> Activity (with sub-tab)
+      "feed" -> {:activity, [{:activity_tab, :feed}]}
+      "timeline" -> {:activity, [{:activity_tab, :timeline}]}
+      "analytics" -> {:activity, [{:activity_tab, :analytics}]}
+      "messages" -> {:activity, [{:activity_tab, :messages}]}
+      "errors" -> {:activity, [{:activity_tab, :errors}]}
+      # Legacy -> Pipeline
+      "tasks" -> {:pipeline, [{:pipeline_tab, :board}]}
+      "scheduler" -> {:pipeline, [{:pipeline_tab, :scheduler}]}
+      # Legacy -> Forensic
+      "registry" -> {:forensic, [{:forensic_tab, :registry}]}
+      # Legacy -> Control
+      "god_mode" -> {:control, [{:control_tab, :emergency}]}
+      "session_cluster" -> {:control, [{:control_tab, :sessions}]}
+      # Fallback
+      other ->
+        try do
+          {String.to_existing_atom(other), []}
+        rescue
+          ArgumentError -> {:command, []}
+        end
+    end
   end
 
   def handle_filter_team(name, socket) do
@@ -68,7 +110,7 @@ defmodule ObservatoryWeb.DashboardFilterHandlers do
   end
 
   def handle_filter_agent(sid, socket) do
-    socket |> assign(:filter_session_id, sid) |> assign(:view_mode, :feed)
+    socket |> assign(:filter_session_id, sid) |> assign(:view_mode, :activity) |> assign(:activity_tab, :feed)
   end
 
   def handle_apply_preset(preset, socket) do

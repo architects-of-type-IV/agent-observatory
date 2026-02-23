@@ -54,7 +54,14 @@ defmodule ObservatoryWeb.DashboardLive do
       |> assign(:expanded_events, [])
       |> assign(:now, DateTime.utc_now())
       |> assign(:page_title, "Observatory")
-      |> assign(:view_mode, :fleet_command)
+      |> assign(:view_mode, :command)
+      |> assign(:activity_tab, :feed)
+      |> assign(:pipeline_tab, :dag)
+      |> assign(:forensic_tab, :archive)
+      |> assign(:control_tab, :emergency)
+      |> assign(:agent_slideout, nil)
+      |> assign(:slideout_terminal, "")
+      |> assign(:slideout_activity, [])
       |> assign(:expanded_sessions, MapSet.new())
       |> assign(:disk_teams, disk_teams)
       |> assign(:swarm_state, Observatory.SwarmMonitor.get_state())
@@ -85,6 +92,7 @@ defmodule ObservatoryWeb.DashboardLive do
       |> assign(:latency_metrics, %{})
       |> assign(:mtls_status, "Not configured")
       |> assign(:agent_grid_open, false)
+      |> assign(:selected_topology_node, nil)
       # Phase 5 - Session Cluster & Registry (task 3)
       |> assign(:entropy_filter_active, false)
       |> assign(:entropy_threshold, 0.7)
@@ -141,14 +149,22 @@ defmodule ObservatoryWeb.DashboardLive do
   end
 
   def handle_info({:teams_updated, teams}, socket) do
+    # teams arrives as a map (%{name => struct}) from TeamWatcher -- keep as map
+    # since merge_team_sources/2 expects Map.values() on it
+    disk_teams =
+      case teams do
+        t when is_map(t) -> t
+        _ -> %{}
+      end
+
     # Prune inspected teams that no longer exist
-    team_names = Enum.map(teams, & &1["name"]) |> MapSet.new()
+    team_names = disk_teams |> Map.values() |> Enum.map(fn t -> t[:name] || t["name"] end) |> MapSet.new()
 
     pruned =
       Enum.filter(socket.assigns.inspected_teams, fn t -> MapSet.member?(team_names, t[:name]) end)
 
     {:noreply,
-     socket |> assign(:disk_teams, teams) |> assign(:inspected_teams, pruned) |> prepare_assigns()}
+     socket |> assign(:disk_teams, disk_teams) |> assign(:inspected_teams, pruned) |> prepare_assigns()}
   end
 
   def handle_info({:new_mailbox_message, message}, socket) do
@@ -207,6 +223,14 @@ defmodule ObservatoryWeb.DashboardLive do
   # Per-session DAG delta from CausalDAG
   def handle_info(%{event: "dag_delta"} = msg, socket) do
     {:noreply, handle_gateway_info(msg, socket)}
+  end
+
+  def handle_info({:terminal_output, session_id, output}, socket) do
+    if socket.assigns.agent_slideout && socket.assigns.agent_slideout[:session_id] == session_id do
+      {:noreply, assign(socket, :slideout_terminal, output)}
+    else
+      {:noreply, socket}
+    end
   end
 
   @impl true
@@ -476,11 +500,71 @@ defmodule ObservatoryWeb.DashboardLive do
   def handle_event("run_health_check", _p, s),
     do: {:noreply, handle_run_health_check(%{}, s) |> prepare_assigns()}
 
+  def handle_event("reassign_swarm_task", p, s),
+    do: {:noreply, handle_reassign_swarm_task(p, s) |> prepare_assigns()}
+
+  def handle_event("claim_swarm_task", p, s),
+    do: {:noreply, handle_claim_swarm_task(p, s) |> prepare_assigns()}
+
+  def handle_event("trigger_gc", p, s),
+    do: {:noreply, handle_trigger_gc(p, s) |> prepare_assigns()}
+
   def handle_event("select_dag_node", p, s),
     do: {:noreply, handle_select_dag_node(p, s) |> prepare_assigns()}
 
   def handle_event("select_command_agent", p, s),
     do: {:noreply, handle_select_command_agent(p, s) |> prepare_assigns()}
+
+  def handle_event("node_selected", %{"trace_id" => trace_id}, socket) do
+    # Look up session info from events by matching session_id or trace_id
+    events = socket.assigns.events
+    now = socket.assigns.now
+
+    session_events =
+      Enum.filter(events, fn e -> e.session_id == trace_id end)
+
+    info =
+      if session_events != [] do
+        sorted = Enum.sort_by(session_events, & &1.inserted_at, {:desc, DateTime})
+        latest = hd(sorted)
+        ended? = Enum.any?(session_events, &(&1.hook_event_type == :SessionEnd))
+
+        model =
+          Enum.find_value(session_events, fn e ->
+            if e.hook_event_type == :SessionStart,
+              do: (e.payload || %{})["model"] || e.model_name
+          end) || Enum.find_value(session_events, & &1.model_name)
+
+        status =
+          cond do
+            ended? -> :ended
+            DateTime.diff(now, latest.inserted_at, :second) > 120 -> :idle
+            true -> :active
+          end
+
+        first = Enum.min_by(session_events, & &1.inserted_at, DateTime)
+        dur_sec = DateTime.diff(now, first.inserted_at, :second)
+
+        %{
+          session_id: trace_id,
+          model: model,
+          status: status,
+          event_count: length(session_events),
+          tool_count: Enum.count(session_events, &(&1.hook_event_type == :PreToolUse)),
+          source_app: latest.source_app,
+          cwd: latest.cwd || Enum.find_value(session_events, & &1.cwd),
+          last_tool: latest.tool_name,
+          duration: session_duration_sec(dur_sec)
+        }
+      else
+        %{session_id: trace_id, status: :unknown, event_count: 0}
+      end
+
+    {:noreply, assign(socket, :selected_topology_node, info)}
+  end
+
+  def handle_event("clear_topology_selection", _p, s),
+    do: {:noreply, assign(s, :selected_topology_node, nil)}
 
   def handle_event("clear_command_selection", _p, s),
     do: {:noreply, handle_clear_command_selection(%{}, s) |> prepare_assigns()}
@@ -506,6 +590,62 @@ defmodule ObservatoryWeb.DashboardLive do
      s
      |> assign(:sidebar_collapsed, new_val)
      |> push_event("filters_changed", %{sidebar_collapsed: to_string(new_val)})}
+  end
+
+  # Sub-tab switching within consolidated screens
+  def handle_event("set_sub_tab", %{"screen" => screen, "tab" => tab}, s) do
+    key =
+      case screen do
+        "activity" -> :activity_tab
+        "pipeline" -> :pipeline_tab
+        "forensic" -> :forensic_tab
+        "control" -> :control_tab
+        _ -> nil
+      end
+
+    if key do
+      {:noreply, s |> assign(key, String.to_existing_atom(tab)) |> prepare_assigns()}
+    else
+      {:noreply, s}
+    end
+  end
+
+  # Agent slideout panel (right side panel in Command screen)
+  def handle_event("open_agent_slideout", %{"session_id" => sid}, s) do
+    # Unwatch previous agent if any
+    if s.assigns.agent_slideout do
+      prev_sid = s.assigns.agent_slideout[:session_id]
+      if prev_sid, do: Phoenix.PubSub.unsubscribe(Observatory.PubSub, "agent:#{prev_sid}:activity")
+      if prev_sid, do: Observatory.Gateway.AgentRegistry.unwatch(prev_sid)
+    end
+
+    agent = Observatory.Gateway.AgentRegistry.get(sid)
+    Phoenix.PubSub.subscribe(Observatory.PubSub, "agent:#{sid}:activity")
+    Observatory.Gateway.AgentRegistry.watch(sid)
+
+    # Build initial activity stream
+    activity = build_slideout_activity(sid, s.assigns.events, s.assigns.messages)
+
+    {:noreply,
+     s
+     |> assign(:agent_slideout, agent || %{session_id: sid})
+     |> assign(:slideout_terminal, "")
+     |> assign(:slideout_activity, activity)
+     |> prepare_assigns()}
+  end
+
+  def handle_event("close_agent_slideout", _p, s) do
+    if s.assigns.agent_slideout do
+      sid = s.assigns.agent_slideout[:session_id]
+      if sid, do: Phoenix.PubSub.unsubscribe(Observatory.PubSub, "agent:#{sid}:activity")
+      if sid, do: Observatory.Gateway.AgentRegistry.unwatch(sid)
+    end
+
+    {:noreply,
+     s
+     |> assign(:agent_slideout, nil)
+     |> assign(:slideout_terminal, "")
+     |> assign(:slideout_activity, [])}
   end
 
   def handle_event("toggle_add_project", _p, s),
@@ -639,6 +779,40 @@ defmodule ObservatoryWeb.DashboardLive do
     |> assign(:selected_agent, nil)
   end
 
+  defp build_slideout_activity(session_id, events, messages) do
+    # Hook events for this agent
+    event_items =
+      events
+      |> Enum.filter(fn e -> e.session_id == session_id end)
+      |> Enum.map(fn e ->
+        %{
+          type: :event,
+          timestamp: e.inserted_at,
+          content: "#{e.hook_event_type}#{if e.tool_name, do: " - #{e.tool_name}", else: ""}",
+          id: "ev-#{e.id}"
+        }
+      end)
+
+    # Messages involving this agent
+    message_items =
+      messages
+      |> Enum.filter(fn m ->
+        m[:session_id] == session_id || m[:to] == session_id || m[:from] == session_id
+      end)
+      |> Enum.map(fn m ->
+        %{
+          type: :message,
+          timestamp: m[:timestamp] || m[:inserted_at],
+          content: m[:content] || m[:message] || "",
+          id: "msg-#{m[:id] || :erlang.unique_integer([:positive])}"
+        }
+      end)
+
+    (event_items ++ message_items)
+    |> Enum.sort_by(& &1.timestamp, {:desc, DateTime})
+    |> Enum.take(100)
+  end
+
   defp prepare_assigns(socket) do
     assigns = socket.assigns
     all_sessions = active_sessions(assigns.events)
@@ -704,6 +878,54 @@ defmodule ObservatoryWeb.DashboardLive do
         []
       end
 
+    # Build session-level topology nodes (1 per session, not per event)
+    # Look up team membership for labeling
+    team_member_index =
+      teams
+      |> Enum.flat_map(fn t ->
+        Enum.map(t.members, fn m -> {m[:agent_id], %{team: t.name, role: m[:name] || m[:agent_type]}} end)
+      end)
+      |> Map.new()
+
+    topo_nodes =
+      all_sessions
+      |> Enum.map(fn s ->
+        status =
+          cond do
+            s.ended? -> "dead"
+            DateTime.diff(assigns.now, s.latest_event.inserted_at, :second) > 120 -> "idle"
+            true -> "active"
+          end
+
+        team_info = Map.get(team_member_index, s.session_id, %{})
+        dur = DateTime.diff(assigns.now, s.first_event.inserted_at, :second)
+
+        %{
+          trace_id: s.session_id,
+          agent_id: s.session_id,
+          state: status,
+          label: team_info[:role] || s.source_app || String.slice(s.session_id, 0, 8),
+          model: short_model_name(s.model),
+          team: team_info[:team],
+          events: s.event_count,
+          cwd: if(s.cwd, do: Path.basename(s.cwd), else: nil),
+          duration: session_duration_sec(dur)
+        }
+      end)
+
+    # Edges: sessions in the same team are connected
+    topo_edges =
+      teams
+      |> Enum.flat_map(fn team ->
+        sids = Enum.map(team.members, & &1[:agent_id]) |> Enum.reject(&is_nil/1)
+
+        sids
+        |> Enum.chunk_every(2, 1, :discard)
+        |> Enum.map(fn [from, to] ->
+          %{from: from, to: to, traffic_volume: 0, latency_ms: 0, status: "active"}
+        end)
+      end)
+
     socket
     |> assign(:visible_events, filtered_events(assigns))
     |> assign(:feed_groups, feed_groups)
@@ -723,5 +945,6 @@ defmodule ObservatoryWeb.DashboardLive do
     |> assign(:error_groups, error_groups)
     |> assign(:analytics, analytics)
     |> assign(:timeline, timeline)
+    |> push_event("fleet_topology_update", %{nodes: topo_nodes, edges: topo_edges})
   end
 end

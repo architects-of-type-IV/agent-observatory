@@ -35,7 +35,7 @@ defmodule ObservatoryWeb.DashboardUIHandlers do
   end
 
   def handle_close_agent_focus(_params, socket) do
-    socket |> Phoenix.Component.assign(:view_mode, :agents)
+    socket |> Phoenix.Component.assign(:view_mode, :command)
   end
 
   def handle_keyboard_escape(_params, socket) do
@@ -47,7 +47,7 @@ defmodule ObservatoryWeb.DashboardUIHandlers do
 
   def handle_keyboard_navigate(%{"direction" => direction}, socket) do
     # Simple implementation: just move selection in feed view
-    if socket.assigns.view_mode == :feed && socket.assigns.visible_events != [] do
+    if socket.assigns.view_mode == :activity && socket.assigns.visible_events != [] do
       current = socket.assigns.selected_event
       events = socket.assigns.visible_events
 

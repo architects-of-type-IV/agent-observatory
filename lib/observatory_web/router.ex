@@ -29,6 +29,7 @@ defmodule ObservatoryWeb.Router do
     post "/messages", GatewayController, :create
     post "/heartbeat", HeartbeatController, :create
     post "/webhooks/:webhook_id", WebhookController, :create
+    post "/rpc", GatewayRpcController, :create
   end
 
   scope "/gateway/sessions/:session_id", ObservatoryWeb do

@@ -56,11 +56,14 @@ defmodule Observatory.Mesh.CausalDAG do
   ## GenServer Callbacks
 
   @impl true
+  @session_sweep_interval :timer.minutes(30)
+
   def init(_opts) do
     :ets.new(:causal_dag_session_registry, [:set, :public, :named_table])
     :ets.new(:causal_dag_orphan_buffer, [:bag, :public, :named_table])
     Process.send_after(self(), :check_orphans, 5_000)
-    {:ok, %{pending_deletions: %{}}}
+    schedule_session_sweep()
+    {:ok, %{pending_deletions: %{}, session_last_insert: %{}}}
   end
 
   @impl true
@@ -68,6 +71,7 @@ defmodule Observatory.Mesh.CausalDAG do
     case validate_fields(node) do
       :ok ->
         table = ensure_session_table(session_id)
+        state = put_in(state.session_last_insert[session_id], System.monotonic_time(:second))
         do_insert(session_id, table, node, state)
 
       {:error, _} = error ->
@@ -105,7 +109,7 @@ defmodule Observatory.Mesh.CausalDAG do
     # Cancel any pending deletion timers
     Enum.each(state.pending_deletions, fn {_sid, ref} -> Process.cancel_timer(ref) end)
 
-    {:reply, :ok, %{state | pending_deletions: %{}}}
+    {:reply, :ok, %{state | pending_deletions: %{}, session_last_insert: %{}}}
   end
 
   def handle_call({:get_children, session_id, trace_id}, _from, state) do
@@ -173,10 +177,53 @@ defmodule Observatory.Mesh.CausalDAG do
     end
 
     :ets.delete(:causal_dag_session_registry, session_id)
-    {:noreply, %{state | pending_deletions: Map.delete(state.pending_deletions, session_id)}}
+
+    {:noreply,
+     %{
+       state
+       | pending_deletions: Map.delete(state.pending_deletions, session_id),
+         session_last_insert: Map.delete(state.session_last_insert, session_id)
+     }}
+  end
+
+  def handle_info(:sweep_stale_sessions, state) do
+    cutoff = System.monotonic_time(:second) - 1_800
+
+    stale_sessions =
+      state.session_last_insert
+      |> Enum.filter(fn {sid, last_ts} ->
+        last_ts < cutoff and not Map.has_key?(state.pending_deletions, sid)
+      end)
+      |> Enum.map(&elem(&1, 0))
+
+    new_state =
+      Enum.reduce(stale_sessions, state, fn sid, acc ->
+        table = :"dag_#{sid}"
+
+        try do
+          :ets.delete(table)
+        rescue
+          ArgumentError -> :ok
+        end
+
+        :ets.delete(:causal_dag_session_registry, sid)
+
+        %{
+          acc
+          | session_last_insert: Map.delete(acc.session_last_insert, sid),
+            pending_deletions: Map.delete(acc.pending_deletions, sid)
+        }
+      end)
+
+    schedule_session_sweep()
+    {:noreply, new_state}
   end
 
   ## Private Functions
+
+  defp schedule_session_sweep do
+    Process.send_after(self(), :sweep_stale_sessions, @session_sweep_interval)
+  end
 
   @required_fields [:trace_id, :agent_id, :intent, :confidence_score, :entropy_score, :action_status, :timestamp]
 

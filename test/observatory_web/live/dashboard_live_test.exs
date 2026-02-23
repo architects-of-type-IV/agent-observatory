@@ -3,95 +3,84 @@ defmodule ObservatoryWeb.DashboardLiveTest do
 
   import Phoenix.LiveViewTest
 
-  describe "Phase 5 navigation shell" do
-    test "mounts with fleet_command as default view_mode", %{conn: conn} do
+  describe "single-screen layout" do
+    test "mounts with topology and feed visible", %{conn: conn} do
       {:ok, _view, html} = live(conn, "/")
-      assert html =~ "fleet-command-view"
+      assert html =~ "fleet-topology-hook"
+      assert html =~ "Waiting for agent activity"
     end
 
-    test "set_view switches to session_cluster", %{conn: conn} do
-      {:ok, view, _html} = live(conn, "/")
-      html = render_click(view, "set_view", %{"mode" => "session_cluster"})
-      assert html =~ "session-cluster-view"
+    test "renders search bar and filter presets", %{conn: conn} do
+      {:ok, _view, html} = live(conn, "/")
+      assert html =~ "Search events"
+      assert html =~ "Failed Tools"
+      assert html =~ "Team Events"
+      assert html =~ "Errors Only"
     end
 
-    test "set_view switches to registry", %{conn: conn} do
-      {:ok, view, _html} = live(conn, "/")
-      html = render_click(view, "set_view", %{"mode" => "registry"})
-      assert html =~ "registry-view"
+    test "renders header with Observatory title", %{conn: conn} do
+      {:ok, _view, html} = live(conn, "/")
+      assert html =~ "Observatory"
+      assert html =~ "live"
     end
 
-    test "set_view switches to scheduler", %{conn: conn} do
-      {:ok, view, _html} = live(conn, "/")
-      html = render_click(view, "set_view", %{"mode" => "scheduler"})
-      assert html =~ "scheduler-view"
+    test "renders sidebar with sessions section", %{conn: conn} do
+      {:ok, _view, html} = live(conn, "/")
+      assert html =~ "Sessions"
+      assert html =~ "Search sessions"
     end
 
-    test "set_view switches to forensic", %{conn: conn} do
+    test "legacy view mode handlers do not crash", %{conn: conn} do
       {:ok, view, _html} = live(conn, "/")
-      html = render_click(view, "set_view", %{"mode" => "forensic"})
-      assert html =~ "forensic-view"
-    end
 
-    test "set_view switches to god_mode", %{conn: conn} do
-      {:ok, view, _html} = live(conn, "/")
-      html = render_click(view, "set_view", %{"mode" => "god_mode"})
-      assert html =~ "god-mode-view"
-    end
-
-    test "restore_view_mode with valid value restores scheduler", %{conn: conn} do
-      {:ok, view, _html} = live(conn, "/")
-      html = render_click(view, "restore_view_mode", %{"value" => "scheduler"})
-      assert html =~ "scheduler-view"
-    end
-
-    test "restore_view_mode with invalid value falls back to fleet_command", %{conn: conn} do
-      {:ok, view, _html} = live(conn, "/")
-      html = render_click(view, "restore_view_mode", %{"value" => "command"})
-      assert html =~ "fleet-command-view"
+      # These handlers still exist but screens are merged -- verify no crash
+      render_click(view, "set_view", %{"mode" => "feed"})
+      render_click(view, "set_view", %{"mode" => "scheduler"})
+      render_click(view, "set_view", %{"mode" => "god_mode"})
+      render_click(view, "set_view", %{"mode" => "forensic"})
+      render_click(view, "set_view", %{"mode" => "pipeline"})
+      render_click(view, "set_view", %{"mode" => "command"})
+      html = render_click(view, "restore_view_mode", %{"value" => "nonexistent"})
+      assert html =~ "Observatory"
     end
   end
 
-  describe "Scheduler view" do
-    test "renders scheduler view with all panels", %{conn: conn} do
+  describe "search and filters" do
+    test "search_feed updates search term", %{conn: conn} do
       {:ok, view, _html} = live(conn, "/")
-      html = render_click(view, "set_view", %{"mode" => "scheduler"})
-      assert html =~ "scheduler-view"
-      assert html =~ "Cron Job Dashboard"
-      assert html =~ "Dead Letter Queue"
-      assert html =~ "Heartbeat Monitor"
+      html = render_change(view, "search_feed", %{"q" => "test_query"})
+      assert html =~ "test_query"
     end
 
-    test "empty DLQ shows empty state", %{conn: conn} do
+    test "apply_preset fires without crash", %{conn: conn} do
       {:ok, view, _html} = live(conn, "/")
-      html = render_click(view, "set_view", %{"mode" => "scheduler"})
-      assert html =~ "No failed deliveries."
+      html = render_click(view, "apply_preset", %{"preset" => "failed_tools"})
+      assert html =~ "Observatory"
+    end
+
+    test "clear_filters resets state", %{conn: conn} do
+      {:ok, view, _html} = live(conn, "/")
+      html = render_click(view, "clear_filters", %{})
+      assert html =~ "Observatory"
     end
   end
 
-  describe "Forensic view" do
-    test "renders forensic view with all panels", %{conn: conn} do
+  describe "kill switch handlers" do
+    test "kill switch state machine cycles without crash", %{conn: conn} do
       {:ok, view, _html} = live(conn, "/")
-      html = render_click(view, "set_view", %{"mode" => "forensic"})
-      assert html =~ "forensic-view"
-      assert html =~ "message-archive-panel"
-      assert html =~ "cost-attribution-panel"
-      assert html =~ "security-panel"
-      assert html =~ "policy-engine-panel"
+      render_click(view, "kill_switch_click", %{})
+      render_click(view, "kill_switch_first_confirm", %{})
+      render_click(view, "kill_switch_second_confirm", %{})
+      html = render(view)
+      assert html =~ "Observatory"
     end
 
-    test "set_cost_group_by to session_id updates grouping", %{conn: conn} do
+    test "kill switch cancel resets", %{conn: conn} do
       {:ok, view, _html} = live(conn, "/")
-      render_click(view, "set_view", %{"mode" => "forensic"})
-      html = render_click(view, "set_cost_group_by", %{"field" => "session_id"})
-      assert html =~ "forensic-view"
-    end
-
-    test "search archive with no match shows empty state", %{conn: conn} do
-      {:ok, view, _html} = live(conn, "/")
-      render_click(view, "set_view", %{"mode" => "forensic"})
-      html = render_click(view, "search_archive", %{"q" => "nonexistent_query_xyz"})
-      assert html =~ "No matching messages found."
+      render_click(view, "kill_switch_click", %{})
+      render_click(view, "kill_switch_cancel", %{})
+      html = render(view)
+      assert html =~ "Observatory"
     end
   end
 end

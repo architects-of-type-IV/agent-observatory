@@ -124,6 +124,38 @@ defmodule Observatory.Gateway.SchemaInterceptor do
 
   def maybe_schedule_reminder(%DecisionLog{}), do: :noop
 
+  @doc """
+  Validate a Gateway Envelope for broadcast.
+  Checks that channel pattern and payload are well-formed.
+  Returns :ok or {:error, reason}.
+  """
+  @spec validate_envelope(Observatory.Gateway.Envelope.t()) :: :ok | {:error, String.t()}
+  def validate_envelope(%Observatory.Gateway.Envelope{channel: channel, payload: payload}) do
+    cond do
+      !is_binary(channel) or channel == "" ->
+        {:error, "channel must be a non-empty string"}
+
+      !valid_channel_pattern?(channel) ->
+        {:error, "invalid channel pattern: #{channel}"}
+
+      !is_map(payload) ->
+        {:error, "payload must be a map"}
+
+      true ->
+        :ok
+    end
+  end
+
+  defp valid_channel_pattern?(channel) do
+    case String.split(channel, ":", parts: 2) do
+      [prefix, value] when prefix in ~w(agent session team role fleet) ->
+        value != ""
+
+      _ ->
+        false
+    end
+  end
+
   # Private
 
   defp enrich_with_entropy(log) do

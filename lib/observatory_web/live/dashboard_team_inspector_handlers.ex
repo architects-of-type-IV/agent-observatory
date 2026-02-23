@@ -5,7 +5,6 @@ defmodule ObservatoryWeb.DashboardTeamInspectorHandlers do
 
   import Phoenix.Component, only: [assign: 3]
   import Phoenix.LiveView, only: [push_event: 3]
-  import ObservatoryWeb.DashboardTeamHelpers, only: [detect_role: 2, team_member_sids: 1]
 
   def handle_inspect_team(%{"team" => team_name}, socket) do
     inspected = socket.assigns.inspected_teams
@@ -58,50 +57,31 @@ defmodule ObservatoryWeb.DashboardTeamInspectorHandlers do
   end
 
   def handle_send_targeted_message(%{"target" => target, "content" => content}, socket) do
-    session_ids = resolve_message_targets(target, socket.assigns.teams)
+    # Convert target patterns to Gateway channel patterns
+    channel = target_to_channel(target)
 
-    case session_ids do
-      [] ->
+    case Observatory.Gateway.Router.broadcast(channel, %{content: content, from: "dashboard"}) do
+      {:ok, 0} ->
         push_event(socket, "show_toast", %{message: "No targets found", type: "warning"})
 
-      sids ->
-        Observatory.Mailbox.broadcast_to_many(sids, "dashboard", content)
-
+      {:ok, delivered} ->
         push_event(socket, "show_toast", %{
-          message: "Sent to #{length(sids)} agent(s)",
+          message: "Sent to #{delivered} agent(s)",
           type: "success"
         })
+
+      {:error, _reason} ->
+        push_event(socket, "show_toast", %{message: "Delivery failed", type: "error"})
     end
   end
 
-  # Private: resolve target string to list of session IDs
+  # Private: convert inspector target strings to Gateway channel patterns
 
-  defp resolve_message_targets("all_teams", teams) do
-    teams |> Enum.flat_map(&team_member_sids/1) |> Enum.uniq()
-  end
-
-  defp resolve_message_targets("team:" <> team_name, teams) do
-    case Enum.find(teams, fn t -> t[:name] == team_name end) do
-      nil -> []
-      team -> team_member_sids(team)
-    end
-  end
-
-  defp resolve_message_targets("lead:" <> team_name, teams) do
-    case Enum.find(teams, fn t -> t[:name] == team_name end) do
-      nil ->
-        []
-
-      team ->
-        team[:members]
-        |> Enum.filter(fn m -> detect_role(team, m) == :lead end)
-        |> Enum.map(& &1[:agent_id])
-        |> Enum.reject(&is_nil/1)
-    end
-  end
-
-  defp resolve_message_targets("member:" <> session_id, _teams), do: [session_id]
-  defp resolve_message_targets(_, _teams), do: []
+  defp target_to_channel("all_teams"), do: "fleet:all"
+  defp target_to_channel("team:" <> name), do: "team:#{name}"
+  defp target_to_channel("lead:" <> _name), do: "role:lead"
+  defp target_to_channel("member:" <> session_id), do: "session:#{session_id}"
+  defp target_to_channel(target), do: "agent:#{target}"
 
   defp safe_size_atom("collapsed"), do: :collapsed
   defp safe_size_atom("default"), do: :default

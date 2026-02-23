@@ -1,271 +1,255 @@
+// TopologyMap -- ReactFlow-style HTML node cards + SVG bezier edges
+// No canvas. No animation. Renders on data change only.
+
+const NODE_W = 160
+const NODE_H = 72
+const PAD_X = 40
+const PAD_Y = 24
+const EDGE_CURVE = 60
+
+const STATUS_COLORS = {
+  active:           { border: '#3b82f6', bg: '#3b82f620', dot: '#3b82f6', text: '#93c5fd' },
+  idle:             { border: '#52525b', bg: '#27272a80', dot: '#6b7280', text: '#a1a1aa' },
+  dead:             { border: '#3f3f46', bg: '#18181b80', dot: '#52525b', text: '#71717a' },
+  alert_entropy:    { border: '#ef4444', bg: '#ef444420', dot: '#ef4444', text: '#fca5a5' },
+  schema_violation: { border: '#f97316', bg: '#f9731620', dot: '#f97316', text: '#fdba74' },
+  blocked:          { border: '#f59e0b', bg: '#f59e0b20', dot: '#f59e0b', text: '#fcd34d' },
+  success:          { border: '#3b82f6', bg: '#3b82f620', dot: '#3b82f6', text: '#93c5fd' },
+  pending:          { border: '#52525b', bg: '#27272a80', dot: '#6b7280', text: '#a1a1aa' },
+  failure:          { border: '#ef4444', bg: '#ef444420', dot: '#ef4444', text: '#fca5a5' },
+}
+
+const DEFAULT_COLOR = STATUS_COLORS.idle
+
 const TopologyMap = {
   mounted() {
-    this.canvas = this.el.querySelector('canvas')
-    if (this.canvas === null) {
-      console.error("TopologyMap: canvas element not found")
-      return
-    }
-
-    this.ctx = this.canvas.getContext('2d')
     this.nodes = []
     this.edges = []
+    this.selectedId = null
 
-    // Zoom and pan state
-    this.scale = 1.0
-    this.offsetX = 0
-    this.offsetY = 0
-    this.isPanning = false
-    this.lastPanX = 0
-    this.lastPanY = 0
-
-    // Handle topology updates from server (configurable via data-event attribute)
-    this.eventName = this.el.dataset.event || "topology_update"
-    this.handleEvent(this.eventName, ({nodes, edges}) => {
-      this.nodes = nodes
-      this.edges = edges
-    })
-
-    // Click listener
-    this.canvas.addEventListener('click', this.handleClick.bind(this))
-
-    // Zoom listener
-    this.canvas.addEventListener('wheel', this.handleWheel.bind(this), { passive: false })
-
-    // Pan listeners
-    this.canvas.addEventListener('mousedown', this.handleMouseDown.bind(this))
-    this.canvas.addEventListener('mousemove', this.handleMouseMove.bind(this))
-    this.canvas.addEventListener('mouseup', this.handleMouseUp.bind(this))
-
-    this.startAnimationLoop()
-  },
-
-  startAnimationLoop() {
-    this._raf = requestAnimationFrame(() => {
+    this.eventName = this.el.dataset.event || 'topology_update'
+    this.handleEvent(this.eventName, ({ nodes, edges }) => {
+      this.nodes = nodes || []
+      this.edges = edges || []
       this.render()
-      this.startAnimationLoop()
     })
+
+    this._resizeObserver = new ResizeObserver(() => this.render())
+    this._resizeObserver.observe(this.el)
+
+    this.render()
   },
 
   destroyed() {
-    cancelAnimationFrame(this._raf)
+    if (this._resizeObserver) this._resizeObserver.disconnect()
   },
 
   render() {
-    // Initialize node positions if not set
-    this.nodes.forEach(node => {
-      if (node.x === null || node.x === undefined) {
-        node.x = Math.random() * this.canvas.width
-        node.y = Math.random() * this.canvas.height
-      }
-    })
+    const container = this.el
+    // Clear previous render (keep the h3 title if present)
+    const title = container.querySelector('.topo-title')
+    container.querySelectorAll('.topo-layer').forEach(el => el.remove())
 
-    // Force-directed layout
-    this.nodes.forEach((node, i) => {
-      // Repulsive forces from all other nodes: F_repel = 500 / distance^2
-      let frx = 0
-      let fry = 0
+    const n = this.nodes.length
 
-      this.nodes.forEach((other, j) => {
-        if (i !== j) {
-          const dx = node.x - other.x
-          const dy = node.y - other.y
-          const dist = Math.hypot(dx, dy) || 1
-          const force = 500 / (dist * dist)
-          frx += (dx / dist) * force
-          fry += (dy / dist) * force
-        }
-      })
+    if (n === 0) {
+      const empty = document.createElement('div')
+      empty.className = 'topo-layer'
+      empty.style.cssText = 'display:flex;align-items:center;justify-content:center;height:120px;'
+      empty.innerHTML = '<span style="color:#52525b;font:12px ui-monospace,monospace">Waiting for sessions...</span>'
+      container.appendChild(empty)
+      return
+    }
 
-      // Cap total repulsive displacement at 10px per frame to prevent explosion
-      const repulsMag = Math.hypot(frx, fry)
-      if (repulsMag > 10) {
-        frx = (frx / repulsMag) * 10
-        fry = (fry / repulsMag) * 10
-      }
+    // Compute layout
+    const positions = this.layout(n, container.clientWidth)
+    const totalH = positions.height
 
-      // Attractive spring forces per edge: F_attract = (distance - 80) * 0.01
-      let fax = 0
-      let fay = 0
+    // SVG edge layer (behind nodes)
+    const svgNS = 'http://www.w3.org/2000/svg'
+    const svg = document.createElementNS(svgNS, 'svg')
+    svg.classList.add('topo-layer')
+    svg.style.cssText = `position:absolute;top:0;left:0;width:100%;height:${totalH}px;pointer-events:none;`
+    svg.setAttribute('viewBox', `0 0 ${container.clientWidth} ${totalH}`)
 
-      this.edges.forEach(edge => {
-        let other = null
-        if (edge.from === node.trace_id) {
-          other = this.nodes.find(n => n.trace_id === edge.to)
-        } else if (edge.to === node.trace_id) {
-          other = this.nodes.find(n => n.trace_id === edge.from)
-        }
+    // Defs for arrow marker
+    const defs = document.createElementNS(svgNS, 'defs')
+    const marker = document.createElementNS(svgNS, 'marker')
+    marker.setAttribute('id', 'topo-arrow')
+    marker.setAttribute('viewBox', '0 0 10 6')
+    marker.setAttribute('refX', '10')
+    marker.setAttribute('refY', '3')
+    marker.setAttribute('markerWidth', '8')
+    marker.setAttribute('markerHeight', '6')
+    marker.setAttribute('orient', 'auto-start-reverse')
+    const arrow = document.createElementNS(svgNS, 'path')
+    arrow.setAttribute('d', 'M 0 0 L 10 3 L 0 6 z')
+    arrow.setAttribute('fill', '#3f3f46')
+    marker.appendChild(arrow)
+    defs.appendChild(marker)
+    svg.appendChild(defs)
 
-        if (other) {
-          const dx = other.x - node.x
-          const dy = other.y - node.y
-          const dist = Math.hypot(dx, dy) || 1
-          const force = (dist - 80) * 0.01
-          fax += (dx / dist) * force
-          fay += (dy / dist) * force
-        }
-      })
+    // Draw edges as bezier curves
+    const nodeIndex = new Map(this.nodes.map((nd, i) => [nd.trace_id, i]))
 
-      node.x += frx + fax
-      node.y += fry + fay
-    })
-
-    // Clear canvas
-    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height)
-
-    // Apply transformations
-    this.ctx.save()
-    this.ctx.translate(this.offsetX, this.offsetY)
-    this.ctx.scale(this.scale, this.scale)
-
-    // Draw edges
     this.edges.forEach(edge => {
-      const sourceNode = this.nodes.find(n => n.trace_id === edge.from)
-      const targetNode = this.nodes.find(n => n.trace_id === edge.to)
+      const si = nodeIndex.get(edge.from)
+      const ti = nodeIndex.get(edge.to)
+      if (si === undefined || ti === undefined) return
 
-      if (sourceNode && targetNode) {
-        edge.from_x = sourceNode.x
-        edge.from_y = sourceNode.y
-        edge.to_x = targetNode.x
-        edge.to_y = targetNode.y
+      const sp = positions.nodes[si]
+      const tp = positions.nodes[ti]
 
-        this.ctx.strokeStyle = '#9ca3af'
-        this.ctx.lineWidth = 2
-        this.ctx.beginPath()
-        this.ctx.moveTo(sourceNode.x, sourceNode.y)
-        this.ctx.lineTo(targetNode.x, targetNode.y)
-        this.ctx.stroke()
-      }
+      // Source: right center. Target: left center.
+      const sx = sp.x + NODE_W
+      const sy = sp.y + NODE_H / 2
+      const tx = tp.x
+      const ty = tp.y + NODE_H / 2
+
+      const path = document.createElementNS(svgNS, 'path')
+      const cx = Math.abs(tx - sx) * 0.4
+      const d = `M ${sx} ${sy} C ${sx + cx} ${sy}, ${tx - cx} ${ty}, ${tx} ${ty}`
+      path.setAttribute('d', d)
+      path.setAttribute('fill', 'none')
+      path.setAttribute('stroke', '#3f3f46')
+      path.setAttribute('stroke-width', '1.5')
+      path.setAttribute('marker-end', 'url(#topo-arrow)')
+      svg.appendChild(path)
     })
 
-    // Draw nodes
-    this.nodes.forEach(node => {
-      const color = NODE_COLORS[node.state] || NODE_COLORS.idle
+    // Node layer
+    const nodeLayer = document.createElement('div')
+    nodeLayer.className = 'topo-layer'
+    nodeLayer.style.cssText = `position:relative;height:${totalH}px;`
 
-      if (node.state === 'alert_entropy') {
-        this.ctx.globalAlpha = 0.5 + 0.5 * Math.sin(Date.now() / 300)
-      } else {
-        this.ctx.globalAlpha = 1.0
+    this.nodes.forEach((node, i) => {
+      const pos = positions.nodes[i]
+      const colors = STATUS_COLORS[node.state] || DEFAULT_COLOR
+
+      const card = document.createElement('div')
+      card.style.cssText = [
+        `position:absolute`,
+        `left:${pos.x}px`,
+        `top:${pos.y}px`,
+        `width:${NODE_W}px`,
+        `height:${NODE_H}px`,
+        `border:1px solid ${colors.border}`,
+        `background:${colors.bg}`,
+        `border-radius:8px`,
+        `padding:8px 10px`,
+        `cursor:pointer`,
+        `transition:box-shadow 0.15s ease, border-color 0.15s ease`,
+        `box-shadow:${this.selectedId === node.trace_id ? `0 0 0 2px ${colors.border}40` : 'none'}`,
+        `display:flex`,
+        `flex-direction:column`,
+        `justify-content:space-between`,
+        `overflow:hidden`,
+      ].join(';')
+
+      card.addEventListener('mouseenter', () => {
+        card.style.boxShadow = `0 0 0 2px ${colors.border}40`
+      })
+      card.addEventListener('mouseleave', () => {
+        if (this.selectedId !== node.trace_id) card.style.boxShadow = 'none'
+      })
+
+      card.addEventListener('click', () => {
+        this.selectedId = node.trace_id
+        this.pushEvent('node_selected', { trace_id: node.trace_id })
+        this.render()
+      })
+
+      // Row 1: status dot + label
+      const row1 = document.createElement('div')
+      row1.style.cssText = 'display:flex;align-items:center;gap:6px;'
+
+      const dot = document.createElement('span')
+      dot.style.cssText = `width:6px;height:6px;border-radius:50%;background:${colors.dot};flex-shrink:0;`
+      row1.appendChild(dot)
+
+      const label = document.createElement('span')
+      label.style.cssText = `font:11px/1.2 ui-monospace,monospace;color:${colors.text};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;`
+      label.textContent = node.label || shortId(node.agent_id)
+      row1.appendChild(label)
+
+      if (node.model) {
+        const model = document.createElement('span')
+        model.style.cssText = 'font:9px/1 ui-monospace,monospace;color:#6366f1;margin-left:auto;flex-shrink:0;'
+        model.textContent = node.model
+        row1.appendChild(model)
       }
 
-      this.ctx.fillStyle = color
-      this.ctx.beginPath()
-      this.ctx.arc(node.x, node.y, 12, 0, Math.PI * 2)
-      this.ctx.fill()
+      card.appendChild(row1)
+
+      // Row 2: meta line
+      const row2 = document.createElement('div')
+      row2.style.cssText = 'display:flex;align-items:center;gap:6px;'
+
+      const meta = []
+      if (node.events) meta.push(`${node.events} ev`)
+      if (node.duration) meta.push(node.duration)
+      if (node.cwd) meta.push(node.cwd)
+
+      const metaSpan = document.createElement('span')
+      metaSpan.style.cssText = 'font:9px/1.2 ui-monospace,monospace;color:#71717a;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;'
+      metaSpan.textContent = meta.join(' / ')
+      row2.appendChild(metaSpan)
+
+      card.appendChild(row2)
+
+      // Row 3: team badge
+      if (node.team) {
+        const row3 = document.createElement('div')
+        const badge = document.createElement('span')
+        badge.style.cssText = 'font:8px/1 ui-monospace,monospace;color:#06b6d4;background:#06b6d410;padding:1px 5px;border-radius:3px;'
+        badge.textContent = node.team
+        row3.appendChild(badge)
+        card.appendChild(row3)
+      }
+
+      nodeLayer.appendChild(card)
     })
 
-    this.ctx.globalAlpha = 1.0
-    this.ctx.restore()
+    container.appendChild(svg)
+    container.appendChild(nodeLayer)
   },
 
-  handleClick(e) {
-    const rect = this.canvas.getBoundingClientRect()
-    const x = e.clientX - rect.left
-    const y = e.clientY - rect.top
+  layout(n, containerW) {
+    const usable = containerW - PAD_X * 2
+    const nodes = []
 
-    // Transform coordinates by inverse of zoom and pan
-    const canvasX = (x - this.offsetX) / this.scale
-    const canvasY = (y - this.offsetY) / this.scale
-
-    const HIT_RADIUS = 14
-    const EDGE_TOLERANCE = 6
-
-    // Check node hits first
-    for (const node of this.nodes) {
-      if (Math.hypot(canvasX - node.x, canvasY - node.y) <= HIT_RADIUS) {
-        this.pushEvent("node_selected", { trace_id: node.trace_id })
-        return
+    if (n <= 6) {
+      // Single row
+      const totalW = n * NODE_W + (n - 1) * PAD_X
+      const startX = Math.max(PAD_X, (containerW - totalW) / 2)
+      for (let i = 0; i < n; i++) {
+        nodes.push({ x: startX + i * (NODE_W + PAD_X), y: PAD_Y })
       }
+      return { nodes, height: NODE_H + PAD_Y * 2 }
     }
 
-    // Check edge hits
-    for (const edge of this.edges) {
-      const dist = this.pointToSegmentDistance(
-        canvasX, canvasY,
-        edge.from_x || 0, edge.from_y || 0,
-        edge.to_x || 0, edge.to_y || 0
-      )
-      if (dist <= EDGE_TOLERANCE) {
-        this.pushEvent("edge_selected", {
-          traffic_volume: edge.traffic_volume || 0,
-          latency_ms: edge.latency_ms || 0,
-          status: edge.status || "unknown"
-        })
-        return
-      }
-    }
-  },
+    // Multi-row grid
+    const cols = Math.min(n, Math.floor(usable / (NODE_W + PAD_X)) || 1)
+    const rows = Math.ceil(n / cols)
+    const totalW = cols * NODE_W + (cols - 1) * PAD_X
+    const startX = Math.max(PAD_X, (containerW - totalW) / 2)
 
-  pointToSegmentDistance(px, py, x1, y1, x2, y2) {
-    const dx = x2 - x1
-    const dy = y2 - y1
-    const lenSq = dx * dx + dy * dy
-
-    if (lenSq === 0) {
-      return Math.hypot(px - x1, py - y1)
+    for (let i = 0; i < n; i++) {
+      const col = i % cols
+      const row = Math.floor(i / cols)
+      nodes.push({
+        x: startX + col * (NODE_W + PAD_X),
+        y: PAD_Y + row * (NODE_H + PAD_Y),
+      })
     }
 
-    let t = ((px - x1) * dx + (py - y1) * dy) / lenSq
-    t = Math.max(0, Math.min(1, t))
-
-    const projX = x1 + t * dx
-    const projY = y1 + t * dy
-
-    return Math.hypot(px - projX, py - projY)
+    return { nodes, height: rows * (NODE_H + PAD_Y) + PAD_Y }
   },
-
-  handleWheel(e) {
-    e.preventDefault()
-
-    const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1
-    const newScale = Math.max(0.1, Math.min(5.0, this.scale * zoomFactor))
-
-    // Zoom toward mouse
-    const rect = this.canvas.getBoundingClientRect()
-    const mouseX = e.clientX - rect.left
-    const mouseY = e.clientY - rect.top
-
-    const scaleDiff = newScale - this.scale
-    this.offsetX -= mouseX * scaleDiff / this.scale
-    this.offsetY -= mouseY * scaleDiff / this.scale
-
-    this.scale = newScale
-  },
-
-  handleMouseDown(e) {
-    this.isPanning = true
-    this.lastPanX = e.clientX
-    this.lastPanY = e.clientY
-  },
-
-  handleMouseMove(e) {
-    if (this.isPanning) {
-      const dx = e.clientX - this.lastPanX
-      const dy = e.clientY - this.lastPanY
-      this.offsetX += dx
-      this.offsetY += dy
-      this.lastPanX = e.clientX
-      this.lastPanY = e.clientY
-    }
-  },
-
-  handleMouseUp(e) {
-    this.isPanning = false
-  }
 }
 
-// Colors match ADR-016: idle=#6b7280, active=#3b82f6, alert_entropy=#ef4444, schema_violation=#f97316, dead=#374151, blocked=#f59e0b
-const NODE_COLORS = {
-  idle: "#6b7280",
-  active: "#3b82f6",
-  alert_entropy: "#ef4444",
-  schema_violation: "#f97316",
-  dead: "#374151",
-  blocked: "#f59e0b",
-  // Action status atoms (from CausalDAG nodes)
-  success: "#3b82f6",
-  pending: "#6b7280",
-  failure: "#ef4444",
-  skipped: "#f59e0b"
+function shortId(id) {
+  if (!id) return '?'
+  return id.length > 10 ? id.slice(0, 8) + '..' : id
 }
 
 export default TopologyMap

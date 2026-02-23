@@ -108,9 +108,9 @@ defmodule Observatory.AgentTools.Inbox do
         to = input.arguments.to_session_id
         content = input.arguments.content
 
-        case Observatory.Mailbox.send_message(to, from, content, type: :text) do
-          {:ok, message} ->
-            {:ok, %{"status" => "sent", "message_id" => message.id, "to" => to}}
+        case Observatory.Gateway.Router.broadcast("agent:#{to}", %{content: content, from: from}) do
+          {:ok, _delivered} ->
+            {:ok, %{"status" => "sent", "to" => to}}
 
           {:error, reason} ->
             {:error, "Failed to send message: #{inspect(reason)}"}

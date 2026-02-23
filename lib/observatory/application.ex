@@ -8,35 +8,30 @@ defmodule Observatory.Application do
   @impl true
   def start(_type, _args) do
     children = [
+      # Infrastructure (must start first -- everything depends on these)
       ObservatoryWeb.Telemetry,
       Observatory.Repo,
       {Ecto.Migrator,
        repos: Application.fetch_env!(:observatory, :ecto_repos), skip: skip_migrations?()},
       {DNSCluster, query: Application.get_env(:observatory, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: Observatory.PubSub},
-      {Observatory.Mailbox, []},
-      {Observatory.CommandQueue, []},
-      {Observatory.TeamWatcher, []},
-      {Observatory.SwarmMonitor, []},
-      {Observatory.ProtocolTracker, []},
-      {Observatory.MemoryStore, []},
-      {Observatory.AgentMonitor, []},
-      {Observatory.Notes, []},
-      {Observatory.EventJanitor, []},
-      {Observatory.Mesh.CausalDAG, []},
-      {Observatory.Gateway.EntropyTracker, []},
-      {Observatory.Gateway.CapabilityMap, []},
-      {Observatory.Gateway.TopologyBuilder, []},
-      {Observatory.Gateway.HeartbeatManager, []},
-      {Observatory.Gateway.CronScheduler, []},
-      {Observatory.Gateway.WebhookRouter, []},
-      {Observatory.Gateway.HITLRelay, []},
-      {Observatory.Gateway.EventBridge, []},
+
+      # Core services (mailbox, command queue, teams, notes, janitor, memory)
+      Observatory.CoreSupervisor,
+
+      # Gateway services (rest_for_one: registry first, then downstream)
+      Observatory.GatewaySupervisor,
+
+      # Mesh/DAG services (rest_for_one: DAG first, then topology + event bridge)
+      Observatory.MeshSupervisor,
+
+      # Monitoring services (independent observers)
+      Observatory.MonitorSupervisor,
+
+      # Web endpoint (must start last -- depends on all services above)
       ObservatoryWeb.Endpoint
     ]
 
-    # See https://hexdocs.pm/elixir/Supervisor.html
-    # for other strategies and supported options
     opts = [strategy: :one_for_one, name: Observatory.Supervisor]
     Supervisor.start_link(children, opts)
   end

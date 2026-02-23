@@ -11,6 +11,8 @@ defmodule Observatory.Gateway.HITLRelay do
   alias Observatory.Gateway.HITLEvents.{GateOpenEvent, GateCloseEvent}
 
   @ets_table :hitl_buffer
+  @sweep_interval :timer.minutes(30)
+  @abandoned_ttl_seconds 1_800
 
   # --- Public API ---
 
@@ -59,7 +61,8 @@ defmodule Observatory.Gateway.HITLRelay do
   @impl true
   def init(_opts) do
     :ets.new(@ets_table, [:ordered_set, :public, :named_table])
-    {:ok, %{sessions: %{}}}
+    schedule_sweep()
+    {:ok, %{sessions: %{}, paused_at: %{}}}
   end
 
   @impl true
@@ -80,7 +83,8 @@ defmodule Observatory.Gateway.HITLRelay do
         Phoenix.PubSub.broadcast(Observatory.PubSub, "session:hitl:#{session_id}", {:hitl, event})
 
         new_sessions = Map.put(state.sessions, session_id, :paused)
-        {:reply, :ok, %{state | sessions: new_sessions}}
+        new_paused_at = Map.put(state.paused_at, session_id, DateTime.utc_now())
+        {:reply, :ok, %{state | sessions: new_sessions, paused_at: new_paused_at}}
     end
   end
 
@@ -100,7 +104,8 @@ defmodule Observatory.Gateway.HITLRelay do
         Phoenix.PubSub.broadcast(Observatory.PubSub, "session:hitl:#{session_id}", {:hitl, event})
 
         new_sessions = Map.put(state.sessions, session_id, :normal)
-        {:reply, {:ok, flushed_count}, %{state | sessions: new_sessions}}
+        new_paused_at = Map.delete(state.paused_at, session_id)
+        {:reply, {:ok, flushed_count}, %{state | sessions: new_sessions, paused_at: new_paused_at}}
 
       _ ->
         {:reply, {:ok, :not_paused}, state}
@@ -146,7 +151,35 @@ defmodule Observatory.Gateway.HITLRelay do
     {:reply, status, state}
   end
 
+  @impl true
+  def handle_info(:sweep, state) do
+    cutoff = DateTime.add(DateTime.utc_now(), -@abandoned_ttl_seconds, :second)
+
+    abandoned =
+      Enum.filter(state.paused_at, fn {_sid, paused_time} ->
+        DateTime.compare(paused_time, cutoff) == :lt
+      end)
+      |> Enum.map(&elem(&1, 0))
+
+    # Flush and clear abandoned paused sessions
+    Enum.each(abandoned, fn sid ->
+      flush_buffer(sid)
+    end)
+
+    new_sessions = Map.drop(state.sessions, abandoned)
+    new_paused_at = Map.drop(state.paused_at, abandoned)
+
+    schedule_sweep()
+    {:noreply, %{state | sessions: new_sessions, paused_at: new_paused_at}}
+  end
+
+  def handle_info(_msg, state), do: {:noreply, state}
+
   # --- Private ---
+
+  defp schedule_sweep do
+    Process.send_after(self(), :sweep, @sweep_interval)
+  end
 
   defp flush_buffer(session_id) do
     messages =

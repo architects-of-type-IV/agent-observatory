@@ -17,49 +17,6 @@
     <div class="px-4 py-3 flex items-center justify-between">
       <div class="flex items-center gap-3">
         <h1 class="text-lg font-bold tracking-tight">Observatory</h1>
-        <%!-- View mode tabs --%>
-        <nav
-          class="flex items-center gap-0.5 bg-zinc-800 rounded-lg p-0.5 flex-wrap"
-          id="view-mode-toggle"
-          phx-hook="StatePersistence"
-        >
-          <%
-            tabs = [
-              {:fleet_command, "Fleet"},
-              {:session_cluster, "Sessions"},
-              {:registry, "Registry"},
-              {:scheduler, "Scheduler"},
-              {:forensic, "Forensic"},
-              {:god_mode, "God"},
-              {:overview, "Overview"},
-              {:command, "Command"},
-              {:pipeline, "Pipeline"},
-              {:agents, "Agents"},
-              {:protocols, "Protocols"},
-              {:feed, "Feed"},
-              {:tasks, "Tasks"},
-              {:messages, "Messages"},
-              {:errors, "Errors"},
-              {:analytics, "Analytics"},
-              {:timeline, "Timeline"},
-              {:teams, "Teams"}
-            ]
-          %>
-          <button
-            :for={{mode, label} <- tabs}
-            phx-click="set_view"
-            phx-value-mode={mode}
-            class={"px-2 py-1 text-xs rounded-md transition #{if @view_mode == mode, do: "bg-zinc-700 text-zinc-200 shadow-sm", else: "text-zinc-500 hover:text-zinc-300"}"}
-          >
-            {label}
-            <span :if={mode == :overview && @swarm_state.pipeline.total > 0} class="ml-1 text-zinc-600">
-              ({@swarm_state.pipeline.completed}/{@swarm_state.pipeline.total})
-            </span>
-            <span :if={mode == :errors && @errors != []} class="ml-1 px-1 bg-red-500/20 text-red-400 rounded">
-              {length(@errors)}
-            </span>
-          </button>
-        </nav>
       </div>
       <div class="flex items-center gap-3">
         <div class="flex items-center gap-1.5 text-sm">
@@ -120,8 +77,8 @@
       </div>
     </div>
 
-    <%!-- Search + Filters (only in feed mode) --%>
-    <div :if={@view_mode == :feed} class="px-4 pb-2 flex items-center gap-2">
+    <%!-- Search + Filters --%>
+    <div class="px-4 pb-2 flex items-center gap-2">
       <form phx-change="search_feed" class="flex-1">
         <input
           type="text"
@@ -175,8 +132,8 @@
       </button>
     </div>
 
-    <%!-- Filter Presets (only in feed mode) --%>
-    <div :if={@view_mode == :feed} class="px-4 pb-2 flex items-center gap-2">
+    <%!-- Filter Presets --%>
+    <div class="px-4 pb-2 flex items-center gap-2">
       <span class="text-xs text-zinc-600">Presets:</span>
       <button
         phx-click="apply_preset"
@@ -276,6 +233,26 @@
                     </span>
                   </div>
                 </div>
+
+                <%!-- Team Controls --%>
+                <div class="flex gap-1.5 mt-2">
+                  <button
+                    phx-click="inspect_team"
+                    phx-value-team={team.name}
+                    class="flex-1 px-2 py-1 text-xs bg-zinc-800 text-zinc-400 rounded hover:bg-zinc-700 hover:text-zinc-300 transition"
+                  >
+                    Inspect
+                  </button>
+                  <button
+                    phx-click="send_team_broadcast"
+                    phx-value-team={team.name}
+                    phx-value-content="status"
+                    class="px-2 py-1 text-xs bg-cyan-600/20 text-cyan-400 rounded hover:bg-cyan-600/30 transition"
+                    title={"Ping all agents in #{team.name}"}
+                  >
+                    Ping
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -332,9 +309,19 @@
 
     <%!-- ═══ Main Content Area ═══ --%>
     <main class="flex-1 overflow-y-auto overflow-x-hidden">
-      <%!-- View Dispatcher --%>
-      <%!-- Overview: Unified control plane --%>
-      <div :if={@view_mode == :overview}>
+      <%!-- Agent focus view (overlay, triggered from agent actions) --%>
+      <ObservatoryWeb.Components.AgentActivityComponents.agent_focus_view
+        :if={@view_mode == :agent_focus && @selected_agent}
+        agent={@selected_agent}
+        events={agent_events(@events, @selected_agent[:agent_id])}
+        tasks={agent_tasks(@active_tasks, @selected_agent[:agent_id])}
+        expanded_events={@expanded_events}
+        now={@now}
+      />
+
+      <%!-- ═══ One Screen: Topology + Feed + Controls ═══ --%>
+      <div :if={@view_mode != :agent_focus}>
+        <%!-- Topology + Fleet Bar + Activity --%>
         <ObservatoryWeb.Components.CommandComponents.command_view
           swarm_state={@swarm_state}
           teams={@teams}
@@ -348,185 +335,142 @@
           active_tasks={@active_tasks}
           analytics={@analytics}
         />
-      </div>
 
-      <%!-- Standalone views --%>
-      <ObservatoryWeb.Components.CommandComponents.command_view
-        :if={@view_mode == :command}
-        swarm_state={@swarm_state}
-        teams={@teams}
-        events={@events}
-        errors={@errors}
-        now={@now}
-        selected_command_agent={@selected_command_agent}
-        selected_command_task={@selected_command_task}
-        messages={@messages}
-        protocol_stats={@protocol_stats}
-        active_tasks={@active_tasks}
-        analytics={@analytics}
-      />
+        <%!-- Topology node info card --%>
+        <div :if={@selected_topology_node} class="mx-4 mt-2 px-4 py-3 bg-zinc-900/70 border border-zinc-700 rounded-lg flex items-center gap-6 text-xs">
+          <div class="flex items-center gap-2">
+            <span class={"w-2 h-2 rounded-full #{if @selected_topology_node.status == :active, do: "bg-emerald-400", else: if(@selected_topology_node.status == :idle, do: "bg-zinc-500", else: "bg-zinc-700")}"} />
+            <span class="font-mono text-zinc-300">{String.slice(@selected_topology_node.session_id, 0, 12)}</span>
+          </div>
+          <span :if={@selected_topology_node[:source_app]} class="text-zinc-400">{@selected_topology_node.source_app}</span>
+          <span :if={@selected_topology_node[:model]} class="text-indigo-400">{@selected_topology_node.model}</span>
+          <span :if={@selected_topology_node[:event_count]} class="text-zinc-500">{@selected_topology_node.event_count} events</span>
+          <span :if={@selected_topology_node[:tool_count]} class="text-zinc-500">{@selected_topology_node.tool_count} tools</span>
+          <span :if={@selected_topology_node[:duration]} class="text-zinc-500">{@selected_topology_node.duration}</span>
+          <span :if={@selected_topology_node[:cwd]} class="font-mono text-zinc-600 truncate max-w-[200px]">{@selected_topology_node.cwd}</span>
+          <span :if={@selected_topology_node[:last_tool]} class="text-cyan-500">{@selected_topology_node.last_tool}</span>
+          <button phx-click="clear_topology_selection" class="ml-auto text-zinc-600 hover:text-zinc-400">x</button>
+        </div>
 
-      <ObservatoryWeb.Components.PipelineComponents.pipeline_view
-        :if={@view_mode == :pipeline}
-        swarm_state={@swarm_state}
-        selected_dag_task={@selected_dag_task}
-        show_add_project={@show_add_project}
-        now={@now}
-      />
-
-      <ObservatoryWeb.Components.AgentsComponents.agents_view
-        :if={@view_mode == :agents}
-        teams={@teams}
-        active_tasks={@active_tasks}
-        selected_agent={@selected_agent}
-        mailbox_counts={@mailbox_counts}
-        now={@now}
-      />
-
-      <ObservatoryWeb.Components.ProtocolComponents.protocols_view
-        :if={@view_mode == :protocols}
-        protocol_stats={@protocol_stats}
-        now={@now}
-      />
-
-      <ObservatoryWeb.Components.FeedComponents.feed_view
-        :if={@view_mode == :feed}
-        feed_groups={@feed_groups}
-        visible_events={@visible_events}
-        selected_event={@selected_event}
-        event_notes={@event_notes}
-        expanded_sessions={@expanded_sessions}
-        now={@now}
-      />
-
-      <ObservatoryWeb.Components.TasksComponents.tasks_view
-        :if={@view_mode == :tasks}
-        active_tasks={@active_tasks}
-        selected_team={@selected_team}
-        sel_team={@sel_team}
-      />
-
-      <ObservatoryWeb.Components.MessagesComponents.messages_view
-        :if={@view_mode == :messages}
-        messages={@messages}
-        message_threads={@message_threads}
-        search_messages={@search_messages}
-        collapsed_threads={@collapsed_threads}
-        now={@now}
-      />
-
-      <ObservatoryWeb.Components.AgentActivityComponents.agent_focus_view
-        :if={@view_mode == :agent_focus && @selected_agent}
-        agent={@selected_agent}
-        events={agent_events(@events, @selected_agent[:agent_id])}
-        tasks={agent_tasks(@active_tasks, @selected_agent[:agent_id])}
-        expanded_events={@expanded_events}
-        now={@now}
-      />
-
-      <ObservatoryWeb.Components.ErrorsComponents.errors_view
-        :if={@view_mode == :errors}
-        errors={@errors}
-        error_groups={@error_groups}
-        now={@now}
-      />
-
-      <ObservatoryWeb.Components.AnalyticsComponents.analytics_view
-        :if={@view_mode == :analytics}
-        analytics={@analytics}
-      />
-
-      <ObservatoryWeb.Components.TimelineComponents.timeline_view
-        :if={@view_mode == :timeline}
-        timeline={@timeline}
-      />
-
-      <div :if={@view_mode == :teams} class="space-y-4">
-        <ObservatoryWeb.Components.TeamsComponents.teams_view
-          teams={@teams}
-          inspected_teams={Enum.map(@inspected_teams, & &1[:name])}
-          now={@now}
-        />
-        <div phx-update="ignore" id="message-composer-stable" phx-hook="ClearFormOnSubmit">
-          <ObservatoryWeb.Components.TeamMessageComponents.message_composer
-            :if={@teams != []}
-            teams={@teams}
-            selected_message_target={@selected_message_target}
+        <%!-- Live Feed --%>
+        <div class="px-4 pt-2">
+          <ObservatoryWeb.Components.FeedComponents.feed_view
+            feed_groups={@feed_groups}
+            visible_events={@visible_events}
+            selected_event={@selected_event}
+            event_notes={@event_notes}
+            expanded_sessions={@expanded_sessions}
+            now={@now}
           />
+        </div>
+
+        <%!-- Message Composer --%>
+        <div :if={@teams != []} class="px-4 pb-4">
+          <div phx-update="ignore" id="message-composer-stable" phx-hook="ClearFormOnSubmit">
+            <ObservatoryWeb.Components.TeamMessageComponents.message_composer
+              teams={@teams}
+              selected_message_target={@selected_message_target}
+            />
+          </div>
         </div>
       </div>
 
-      <%!-- Phase 5: Hypervisor views --%>
-      <ObservatoryWeb.Components.FleetCommandComponents.fleet_command_view
-        :if={@view_mode == :fleet_command}
-        swarm_state={@swarm_state}
-        throughput_rate={@throughput_rate}
-        cost_heatmap={@cost_heatmap}
-        node_status={@node_status}
-        latency_metrics={@latency_metrics}
-        mtls_status={@mtls_status}
-        agent_grid_open={@agent_grid_open}
-        teams={@teams}
-        events={@events}
-        errors={@errors}
-        now={@now}
-        selected_command_agent={@selected_command_agent}
-        selected_command_task={@selected_command_task}
-        messages={@messages}
-        protocol_stats={@protocol_stats}
-        active_tasks={@active_tasks}
-        analytics={@analytics}
-      />
+      <%!-- Agent slideout panel (right side, triggered from Command) --%>
+      <aside
+        :if={@agent_slideout}
+        class="fixed right-0 top-0 bottom-0 w-96 bg-zinc-900 border-l border-zinc-800 overflow-y-auto z-40 shadow-2xl"
+      >
+        <div class="sticky top-0 bg-zinc-900/95 backdrop-blur border-b border-zinc-800 px-4 py-3 flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+            <span class="text-sm font-semibold text-zinc-200">{@agent_slideout[:id] || @agent_slideout[:session_id]}</span>
+          </div>
+          <button phx-click="close_agent_slideout" class="text-zinc-500 hover:text-zinc-300 transition p-1">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+            </svg>
+          </button>
+        </div>
+        <div class="p-4 space-y-3 text-xs">
+          <%!-- Agent metadata --%>
+          <div class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5">
+            <span class="text-zinc-600">Session</span>
+            <span class="font-mono text-zinc-400 break-all">{@agent_slideout[:session_id]}</span>
+            <span :if={@agent_slideout[:team]} class="text-zinc-600">Team</span>
+            <span :if={@agent_slideout[:team]} class="font-mono text-zinc-400">{@agent_slideout[:team]}</span>
+            <span :if={@agent_slideout[:role]} class="text-zinc-600">Role</span>
+            <span :if={@agent_slideout[:role]} class="font-mono text-zinc-400">{@agent_slideout[:role]}</span>
+            <span :if={@agent_slideout[:model]} class="text-zinc-600">Model</span>
+            <span :if={@agent_slideout[:model]} class="font-mono text-zinc-400">{@agent_slideout[:model]}</span>
+            <span :if={@agent_slideout[:current_tool]} class="text-zinc-600">Tool</span>
+            <span :if={@agent_slideout[:current_tool]} class="font-mono text-indigo-400">{@agent_slideout[:current_tool]}</span>
+          </div>
 
-      <ObservatoryWeb.Components.SessionClusterComponents.session_cluster_view
-        :if={@view_mode == :session_cluster}
-        sessions={@sessions}
-        entropy_filter_active={@entropy_filter_active}
-        entropy_threshold={@entropy_threshold}
-        selected_session_id={@selected_session_id}
-        scratchpad_intents={@scratchpad_intents}
-        feed_panel_open={@feed_panel_open}
-        messages_panel_open={@messages_panel_open}
-        tasks_panel_open={@tasks_panel_open}
-        protocols_panel_open={@protocols_panel_open}
-      />
+          <%!-- Message input --%>
+          <div class="pt-3 border-t border-zinc-800">
+            <h4 class="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">Send Message</h4>
+            <div phx-update="ignore" id="slideout-message-form" phx-hook="ClearFormOnSubmit">
+              <form phx-submit="send_agent_message" class="flex gap-1">
+                <input type="hidden" name="session_id" value={@agent_slideout[:session_id]} />
+                <input
+                  type="text"
+                  name="content"
+                  placeholder="Message..."
+                  class="flex-1 bg-zinc-800 border border-zinc-700 rounded px-2 py-1 text-xs text-zinc-300 placeholder-zinc-600 focus:border-indigo-500 focus:ring-0 focus:outline-none"
+                />
+                <button type="submit" class="px-2 py-1 bg-indigo-600/20 text-indigo-400 rounded text-xs hover:bg-indigo-600/30 transition">
+                  Send
+                </button>
+              </form>
+            </div>
+          </div>
 
-      <ObservatoryWeb.Components.RegistryComponents.registry_view
-        :if={@view_mode == :registry}
-        agent_types={@agent_types}
-        route_weights={@route_weights}
-        capability_sort_field={@capability_sort_field}
-        capability_sort_dir={@capability_sort_dir}
-        route_weight_errors={@route_weight_errors}
-      />
+          <%!-- Push Context --%>
+          <div class="pt-3 border-t border-zinc-800">
+            <h4 class="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">Push Context</h4>
+            <form phx-submit="push_context" class="flex gap-1">
+              <input type="hidden" name="session_id" value={@agent_slideout[:session_id]} />
+              <input
+                type="text"
+                name="file_path"
+                placeholder="/path/to/file..."
+                class="flex-1 bg-zinc-800 border border-zinc-700 rounded px-2 py-1 text-xs text-zinc-300 placeholder-zinc-600 focus:border-indigo-500 focus:ring-0 focus:outline-none"
+              />
+              <button type="submit" class="px-2 py-1 bg-amber-600/20 text-amber-400 rounded text-xs hover:bg-amber-600/30 transition">
+                Push
+              </button>
+            </form>
+          </div>
 
-      <ObservatoryWeb.Components.SchedulerComponents.scheduler_view
-        :if={@view_mode == :scheduler}
-        cron_jobs={@cron_jobs}
-        dlq_entries={@dlq_entries}
-        zombie_agents={@zombie_agents}
-      />
+          <%!-- Terminal output (capture-pane, live) --%>
+          <div :if={@slideout_terminal != ""} class="pt-3 border-t border-zinc-800">
+            <h4 class="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">Terminal</h4>
+            <pre class="bg-black/50 rounded p-2 text-[10px] font-mono text-green-400 overflow-x-auto max-h-48 overflow-y-auto whitespace-pre-wrap">{@slideout_terminal}</pre>
+          </div>
 
-      <ObservatoryWeb.Components.ForensicComponents.forensic_view
-        :if={@view_mode == :forensic}
-        archive_search={@archive_search}
-        archive_results={@archive_results}
-        cost_group_by={@cost_group_by}
-        cost_attribution={@cost_attribution}
-        webhook_logs={@webhook_logs}
-        policy_rules={@policy_rules}
-        forensic_audit_open={@forensic_audit_open}
-        forensic_topology_open={@forensic_topology_open}
-        forensic_entropy_open={@forensic_entropy_open}
-      />
-
-      <ObservatoryWeb.Components.GodModeComponents.god_mode_view
-        :if={@view_mode == :god_mode}
-        kill_switch_confirm_step={@kill_switch_confirm_step}
-        agent_classes={@agent_classes}
-        instructions_confirm_pending={@instructions_confirm_pending}
-        instructions_banner={@instructions_banner}
-      />
+          <%!-- Unified activity stream --%>
+          <div class="pt-3 border-t border-zinc-800">
+            <h4 class="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">
+              Activity ({length(@slideout_activity)})
+            </h4>
+            <div class="space-y-1 max-h-96 overflow-y-auto">
+              <div
+                :for={item <- @slideout_activity}
+                class="flex items-start gap-2 py-1 border-b border-zinc-800/50"
+              >
+                <span :if={item.type == :event} class="w-1.5 h-1.5 mt-1 rounded-full bg-indigo-500 shrink-0"></span>
+                <span :if={item.type == :message} class="w-1.5 h-1.5 mt-1 rounded-full bg-cyan-500 shrink-0"></span>
+                <span :if={item.type == :terminal} class="w-1.5 h-1.5 mt-1 rounded-full bg-green-500 shrink-0"></span>
+                <span class="text-zinc-500 shrink-0">{format_time(item.timestamp)}</span>
+                <span class="text-zinc-300 break-all">{item.content}</span>
+              </div>
+              <div :if={@slideout_activity == []} class="text-zinc-600 py-4 text-center">
+                No activity yet.
+              </div>
+            </div>
+          </div>
+        </div>
+      </aside>
     </main>
 
     <%!-- ═══ Detail Panel ═══ --%>

@@ -22,20 +22,27 @@ defmodule Observatory.EventJanitor do
   @impl true
   def handle_info(:purge, state) do
     Process.send_after(self(), :purge, @interval_ms)
-    cutoff = DateTime.add(DateTime.utc_now(), -@retention_days, :day)
 
-    {events, _} =
-      from(e in "events", where: e.inserted_at < ^cutoff)
-      |> Observatory.Repo.delete_all()
+    try do
+      cutoff = DateTime.add(DateTime.utc_now(), -@retention_days, :day)
 
-    {sessions, _} =
-      from(s in "sessions", where: s.inserted_at < ^cutoff)
-      |> Observatory.Repo.delete_all()
+      {events, _} =
+        from(e in "events", where: e.inserted_at < ^cutoff)
+        |> Observatory.Repo.delete_all()
 
-    if events > 0 or sessions > 0 do
-      Logger.info(
-        "EventJanitor: purged #{events} events, #{sessions} sessions older than #{@retention_days} days"
-      )
+      {sessions, _} =
+        from(s in "sessions", where: s.inserted_at < ^cutoff)
+        |> Observatory.Repo.delete_all()
+
+      if events > 0 or sessions > 0 do
+        Logger.info(
+          "EventJanitor: purged #{events} events, #{sessions} sessions older than #{@retention_days} days"
+        )
+      end
+    rescue
+      e -> Logger.warning("EventJanitor: purge error: #{inspect(e)}")
+    catch
+      :exit, _ -> :ok
     end
 
     {:noreply, state}

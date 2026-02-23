@@ -48,10 +48,8 @@ defmodule ObservatoryWeb.Components.SessionClusterComponents do
 
       <%!-- Drill-Down Panel (visible when session selected) --%>
       <div :if={@selected_session_id} class="space-y-4">
-        <div id="session-dag-hook" phx-hook="TopologyMap" data-event="session_dag_update" class="bg-zinc-900/50 border border-zinc-800 rounded-lg p-4">
-          <h3 class="text-sm font-semibold text-zinc-400 uppercase tracking-wider mb-2">Causal DAG</h3>
-          <p class="text-xs text-zinc-500 mb-2">{@selected_session_id |> String.slice(0..11)}</p>
-          <canvas width="800" height="250" class="w-full rounded"></canvas>
+        <div id="session-dag-hook" phx-hook="TopologyMap" phx-update="ignore" data-event="session_dag_update" class="bg-zinc-900/30 border border-zinc-800 rounded-lg p-4 min-h-[120px] relative">
+          <h3 class="topo-title text-[10px] font-semibold text-zinc-600 uppercase tracking-wider mb-2">Causal DAG: {@selected_session_id |> String.slice(0..11)}</h3>
         </div>
 
         <div id="live-scratchpad-panel" class="bg-zinc-900/50 border border-zinc-800 rounded-lg p-4">

@@ -1,7 +1,6 @@
 defmodule ObservatoryWeb.EventController do
   use ObservatoryWeb, :controller
   require Logger
-  require Ash.Query
 
   # ETS table for tracking PreToolUse timestamps by tool_use_id
   @tool_start_table :observatory_tool_starts
@@ -48,30 +47,23 @@ defmodule ObservatoryWeb.EventController do
       duration_ms: duration_ms
     }
 
-    case Observatory.Events.Event
-         |> Ash.Changeset.for_create(:create, event_attrs)
-         |> Ash.create() do
-      {:ok, event} ->
-        maybe_upsert_session(event)
-        handle_channel_events(event)
+    # Non-blocking: buffer for async DB write, broadcast immediately
+    {:ok, event} = Observatory.EventBuffer.ingest(event_attrs)
 
-        Phoenix.PubSub.broadcast(
-          Observatory.PubSub,
-          "events:stream",
-          {:new_event, event}
-        )
+    handle_channel_events(event)
 
-        conn
-        |> put_status(:created)
-        |> json(%{ok: true, id: event.id})
+    Phoenix.PubSub.broadcast(
+      Observatory.PubSub,
+      "events:stream",
+      {:new_event, event}
+    )
 
-      {:error, changeset} ->
-        Logger.warning("Failed to create event: #{inspect(changeset)}")
+    # Feed event into the unified Gateway pipeline
+    Observatory.Gateway.Router.ingest(event)
 
-        conn
-        |> put_status(:unprocessable_entity)
-        |> json(%{error: "Invalid event", details: inspect(changeset.errors)})
-    end
+    conn
+    |> put_status(:created)
+    |> json(%{ok: true, id: event.id})
   end
 
   # Strip large fields (tool_response, tool_input file contents) to avoid DB bloat
@@ -111,39 +103,6 @@ defmodule ObservatoryWeb.EventController do
   end
 
   defp compute_duration(_, _), do: nil
-
-  defp maybe_upsert_session(event) do
-    case event.hook_event_type do
-      :SessionStart ->
-        payload = event.payload
-
-        Observatory.Events.Session
-        |> Ash.Changeset.for_create(:create, %{
-          session_id: event.session_id,
-          source_app: event.source_app,
-          agent_type: payload["agent_type"],
-          model: payload["model"],
-          started_at: DateTime.utc_now()
-        })
-        |> Ash.create()
-
-      :SessionEnd ->
-        sid = event.session_id
-        app = event.source_app
-
-        Observatory.Events.Session
-        |> Ash.Query.filter(session_id == ^sid and source_app == ^app)
-        |> Ash.read_one()
-        |> case do
-          {:ok, nil} -> :ok
-          {:ok, session} -> session |> Ash.Changeset.for_update(:mark_ended) |> Ash.update()
-          _ -> :ok
-        end
-
-      _ ->
-        :ok
-    end
-  end
 
   defp handle_channel_events(event) do
     case event.hook_event_type do

@@ -10,9 +10,8 @@ defmodule ObservatoryWeb.DashboardMessagingHandlers do
   def handle_send_agent_message(%{"session_id" => sid, "content" => content}, socket) do
     from_session = socket.assigns[:current_session_id] || "dashboard"
 
-    case Observatory.Mailbox.send_message(sid, from_session, content, type: :text) do
-      {:ok, _message} ->
-        # Get agent name from session
+    case Observatory.Gateway.Router.broadcast("agent:#{sid}", %{content: content, from: from_session}) do
+      {:ok, _delivered} ->
         agent_name =
           socket.assigns[:sessions]
           |> Enum.find(fn s -> s.session_id == sid end)
@@ -46,21 +45,25 @@ defmodule ObservatoryWeb.DashboardMessagingHandlers do
   def handle_send_team_broadcast(%{"team" => team_name, "content" => content}, socket) do
     from_session = socket.assigns[:current_session_id] || "dashboard"
 
-    # Get all member agent_ids for this team
-    member_ids =
-      get_team_members(socket, team_name)
-      |> Enum.map(& &1.session_id)
+    case Observatory.Gateway.Router.broadcast("team:#{team_name}", %{content: content, from: from_session}) do
+      {:ok, delivered} ->
+        socket =
+          Phoenix.LiveView.push_event(socket, "toast", %{
+            message: "Broadcast sent to #{team_name} (#{delivered} delivered)",
+            type: "success"
+          })
 
-    # Use Mailbox.broadcast_to_many for consistent delivery (ETS + CommandQueue + PubSub)
-    Observatory.Mailbox.broadcast_to_many(member_ids, from_session, content, type: :text)
+        {:noreply, socket}
 
-    socket =
-      Phoenix.LiveView.push_event(socket, "toast", %{
-        message: "Broadcast sent to #{team_name} (#{length(member_ids)} agents)",
-        type: "success"
-      })
+      {:error, _reason} ->
+        socket =
+          Phoenix.LiveView.push_event(socket, "toast", %{
+            message: "Failed to broadcast to #{team_name}",
+            type: "error"
+          })
 
-    {:noreply, socket}
+        {:noreply, socket}
+    end
   end
 
   @doc """
@@ -147,17 +150,4 @@ defmodule ObservatoryWeb.DashboardMessagingHandlers do
     socket |> Phoenix.Component.assign(:collapsed_threads, collapsed_map)
   end
 
-  defp get_team_members(socket, team_name) do
-    team = Enum.find(socket.assigns[:teams] || [], &(&1.name == team_name))
-
-    case team do
-      nil ->
-        []
-
-      %{members: members} ->
-        members
-        |> Enum.filter(& &1[:agent_id])
-        |> Enum.map(fn m -> %{session_id: m[:agent_id]} end)
-    end
-  end
 end
