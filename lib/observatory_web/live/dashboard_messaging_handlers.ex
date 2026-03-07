@@ -73,7 +73,7 @@ defmodule ObservatoryWeb.DashboardMessagingHandlers do
   end
 
   def handle_new_mailbox_message(_message, socket) do
-    {:noreply, socket |> refresh_mailbox_assigns()}
+    {:noreply, socket |> refresh_mailbox_assigns() |> Phoenix.Component.assign(:dirty, true)}
   end
 
   def refresh_mailbox_assigns(socket) do

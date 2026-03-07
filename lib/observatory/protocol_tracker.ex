@@ -9,7 +9,6 @@ defmodule Observatory.ProtocolTracker do
 
   @table_name :protocol_traces
   @max_traces 200
-  @stats_interval 5_000
 
   # ═══════════════════════════════════════════════════════
   # Client API
@@ -48,7 +47,7 @@ defmodule Observatory.ProtocolTracker do
   def init(_opts) do
     :ets.new(@table_name, [:named_table, :public, :set])
     Phoenix.PubSub.subscribe(Observatory.PubSub, "events:stream")
-    Process.send_after(self(), :broadcast_stats, @stats_interval)
+    Phoenix.PubSub.subscribe(Observatory.PubSub, "heartbeat")
 
     {:ok, %{trace_count: 0}}
   end
@@ -59,8 +58,7 @@ defmodule Observatory.ProtocolTracker do
     {:noreply, state}
   end
 
-  def handle_info(:broadcast_stats, state) do
-    Process.send_after(self(), :broadcast_stats, @stats_interval)
+  def handle_info({:heartbeat, _count}, state) do
     stats = compute_stats()
 
     Phoenix.PubSub.broadcast(
@@ -233,63 +231,6 @@ defmodule Observatory.ProtocolTracker do
   defp compute_stats do
     traces = :ets.tab2list(@table_name) |> Enum.map(&elem(&1, 1))
     mailbox_stats = Observatory.Mailbox.get_stats()
-    queue_stats = Observatory.CommandQueue.get_queue_stats()
-
-    # Enrich mailbox stats with recent messages for expandable detail
-    mailbox_detail =
-      Enum.map(mailbox_stats, fn stat ->
-        recent =
-          Observatory.Mailbox.get_messages(stat.agent_id)
-          |> Enum.take(5)
-          |> Enum.map(fn m ->
-            %{
-              id: m.id,
-              from: m.from,
-              content: truncate(m.content, 120),
-              type: m.type,
-              read: m.read,
-              timestamp: m.timestamp
-            }
-          end)
-
-        Map.put(stat, :recent_messages, recent)
-      end)
-
-    # Enrich queue stats with pending command previews
-    queue_detail =
-      Enum.map(queue_stats, fn stat ->
-        commands =
-          Observatory.CommandQueue.get_pending_commands(stat.session_id)
-          |> Enum.map(fn cmd ->
-            %{
-              id: cmd["id"],
-              from: cmd["from"] || "unknown",
-              content: truncate(cmd["content"], 120),
-              type: cmd["type"] || cmd["message_type"] || "command",
-              timestamp: cmd["timestamp"]
-            }
-          end)
-
-        Map.put(stat, :pending_commands, commands)
-      end)
-
-    # Recent traces for left column summary
-    recent_traces =
-      traces
-      |> Enum.sort_by(& &1.timestamp, {:desc, DateTime})
-      |> Enum.take(10)
-      |> Enum.map(fn t ->
-        %{
-          id: t.id,
-          type: t.type,
-          from: t.from,
-          to: t.to,
-          content_preview: t[:content_preview],
-          timestamp: t.timestamp,
-          hop_count: length(t.hops),
-          last_status: List.last(t.hops)[:status]
-        }
-      end)
 
     %{
       traces: length(traces),
@@ -299,12 +240,9 @@ defmodule Observatory.ProtocolTracker do
         total_unread: Enum.reduce(mailbox_stats, 0, fn s, acc -> acc + s.unread end)
       },
       command_queue: %{
-        sessions: length(queue_stats),
-        total_pending: Enum.reduce(queue_stats, 0, fn s, acc -> acc + s.pending_count end)
-      },
-      mailbox_detail: mailbox_detail,
-      queue_detail: queue_detail,
-      recent_traces: recent_traces
+        sessions: 0,
+        total_pending: 0
+      }
     }
   end
 

@@ -32,7 +32,38 @@ defmodule Observatory.Operator do
       metadata: metadata
     }
 
-    Router.broadcast(channel, payload)
+    case Router.broadcast(channel, payload) do
+      {:ok, 0} ->
+        # Gateway found no registered recipients -- fall back to direct Mailbox delivery
+        # for session/agent targets so messages always land in ETS + CommandQueue
+        fallback_deliver(channel, content, msg_type, metadata)
+
+      other ->
+        other
+    end
+  end
+
+  defp fallback_deliver("team:" <> _name, _content, _type, _metadata), do: {:ok, 0}
+  defp fallback_deliver("fleet:" <> _, _content, _type, _metadata), do: {:ok, 0}
+  defp fallback_deliver("role:" <> _, _content, _type, _metadata), do: {:ok, 0}
+
+  defp fallback_deliver(target, content, msg_type, metadata) do
+    # Extract session_id from target (strip prefixes if present)
+    session_id =
+      case target do
+        "agent:" <> sid -> sid
+        "session:" <> sid -> sid
+        "member:" <> sid -> sid
+        raw -> raw
+      end
+
+    case Observatory.Mailbox.send_message(session_id, @from, content,
+           type: msg_type,
+           metadata: Map.put(metadata, :via_fallback, true)
+         ) do
+      {:ok, _msg} -> {:ok, 1}
+      {:error, reason} -> {:error, reason}
+    end
   end
 
   defp normalize_target("agent:" <> _ = channel), do: channel

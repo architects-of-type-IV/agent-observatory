@@ -28,8 +28,9 @@ defmodule ObservatoryWeb.DashboardLive do
       Phoenix.PubSub.subscribe(Observatory.PubSub, "agent:operator")
       Phoenix.PubSub.subscribe(Observatory.PubSub, "swarm:update")
       Phoenix.PubSub.subscribe(Observatory.PubSub, "protocols:update")
+      Phoenix.PubSub.subscribe(Observatory.PubSub, "heartbeat")
       subscribe_gateway_topics()
-      :timer.send_interval(1000, self(), :tick)
+      :ok
     end
 
     events = []
@@ -63,7 +64,7 @@ defmodule ObservatoryWeb.DashboardLive do
       |> assign(:expanded_sessions, MapSet.new())
       |> assign(:disk_teams, disk_teams)
       |> assign(:swarm_state, Observatory.SwarmMonitor.get_state())
-      |> assign(:protocol_stats, Observatory.ProtocolTracker.get_stats())
+      |> assign(:protocol_stats, %{})
       |> assign(:selected_dag_task, nil)
       |> assign(:selected_command_agent, nil)
       |> assign(:selected_command_task, nil)
@@ -84,6 +85,7 @@ defmodule ObservatoryWeb.DashboardLive do
       |> assign(:current_session_id, "operator")
       |> assign(:collapsed_fleet_teams, MapSet.new())
       |> assign(:comms_team_filter, nil)
+      |> assign(:dirty, true)
       |> assign(:sidebar_collapsed, false)
       |> assign(:active_tmux_session, nil)
       |> assign(:tmux_output, "")
@@ -157,18 +159,26 @@ defmodule ObservatoryWeb.DashboardLive do
   @impl true
   def handle_info({:new_event, event}, socket) do
     events = [event | socket.assigns.events] |> Enum.take(@max_events)
-    {:noreply, socket |> assign(:events, events) |> recompute()}
+
+    {:noreply,
+     socket
+     |> assign(:events, events)
+     |> assign(:now, DateTime.utc_now())
+     |> recompute()}
   end
 
-  def handle_info(:tick, socket) do
-    tmux_sessions = Observatory.Gateway.Channels.Tmux.list_sessions()
-
+  def handle_info({:heartbeat, _count}, socket) do
     socket =
-      socket
-      |> assign(:now, DateTime.utc_now())
-      |> assign(:tmux_sessions, tmux_sessions)
-      |> maybe_poll_tmux()
-      |> recompute()
+      case socket.assigns[:active_tmux_session] do
+        nil ->
+          socket
+
+        session ->
+          case Observatory.Gateway.Channels.Tmux.capture_pane(session, lines: 80) do
+            {:ok, output} -> assign(socket, :tmux_output, output)
+            {:error, _} -> assign(socket, active_tmux_session: nil, tmux_output: "Session ended.")
+          end
+      end
 
     {:noreply, socket}
   end
@@ -201,11 +211,11 @@ defmodule ObservatoryWeb.DashboardLive do
   end
 
   def handle_info({:protocol_update, stats}, socket) do
-    {:noreply, socket |> assign(:protocol_stats, stats)}
+    {:noreply, socket |> assign(:protocol_stats, stats) |> assign(:dirty, true)}
   end
 
   def handle_info({:message_read, _read_info}, socket) do
-    {:noreply, socket |> assign(:protocol_stats, Observatory.ProtocolTracker.get_stats())}
+    {:noreply, socket |> assign(:protocol_stats, Observatory.ProtocolTracker.get_stats()) |> assign(:dirty, true)}
   end
 
   def handle_info({:agent_crashed, session_id, team_name, reassigned_count}, socket) do
@@ -565,7 +575,15 @@ defmodule ObservatoryWeb.DashboardLive do
             ["send-keys", "-t", session, keys, "Enter"]
 
         System.cmd("tmux", args, stderr_to_stdout: true)
-        {:noreply, socket}
+
+        # Refresh output after sending keys (event-driven, not polled)
+        output =
+          case Observatory.Gateway.Channels.Tmux.capture_pane(session, lines: 80) do
+            {:ok, text} -> text
+            {:error, _} -> socket.assigns.tmux_output
+          end
+
+        {:noreply, assign(socket, :tmux_output, output)}
     end
   end
 
@@ -961,12 +979,4 @@ defmodule ObservatoryWeb.DashboardLive do
     |> Enum.take(100)
   end
 
-  defp maybe_poll_tmux(%{assigns: %{active_tmux_session: nil}} = socket), do: socket
-
-  defp maybe_poll_tmux(%{assigns: %{active_tmux_session: session}} = socket) do
-    case Observatory.Gateway.Channels.Tmux.capture_pane(session, lines: 80) do
-      {:ok, output} -> assign(socket, :tmux_output, output)
-      {:error, _} -> assign(socket, active_tmux_session: nil, tmux_output: "Session ended.")
-    end
-  end
 end

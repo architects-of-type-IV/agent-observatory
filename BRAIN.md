@@ -25,19 +25,30 @@
 - AshAi nests tool arguments under `"input"` key
 - 5 tools: check_inbox, acknowledge_message, send_message, get_tasks, update_task_status
 
+## Heartbeat System (2026-03-08)
+- `Observatory.Heartbeat` GenServer in MonitorSupervisor, 5s interval
+- Publishes to PubSub "heartbeat" AND Gateway "fleet:heartbeat"
+- Subscribers: ProtocolTracker (stats broadcast), LiveView (tmux refresh when overlay open)
+- Single timer for the system -- no individual GenServer timers
+
 ## Messaging Pipeline
-- Dashboard -> Agent: LiveView form -> Mailbox.send_message/4 -> ETS + CommandQueue (filesystem)
-- Agent -> Dashboard: MCP send_message -> Mailbox -> ETS + PubSub "agent:dashboard"
+- Dashboard -> Agent: Operator.send -> Gateway.Router.broadcast -> MailboxAdapter -> Mailbox ETS + CommandQueue filesystem
+- **Fallback**: When Gateway returns 0 recipients, Operator falls back to direct Mailbox.send_message (bypasses registry)
+- Agent -> Dashboard: MCP send_message -> Gateway.Router.broadcast (same pipeline)
 - CommandQueue: `~/.claude/inbox/{session_id}/{id}.json`
 - acknowledge_message cleans both ETS and CommandQueue files
-- **phx-update="ignore" forms still fire phx-submit** -- use JS hooks for post-submit DOM updates
 - **ClearFormOnSubmit** hook clears text inputs 50ms after submit
 
-## LiveView Timer Gotchas
-- `:tick` (1s) updates assigns -> full template re-render -> select dropdowns close
-- `phx-update="ignore"` prevents re-render but also prevents server-side updates to that DOM region
-- Select dropdowns must be rendered server-side (NOT inside phx-update="ignore")
-- Text inputs that need to survive tick: wrap in `phx-update="ignore"` with stable `id`
+## ProtocolTracker Performance (CRITICAL)
+- `compute_stats/0` must NEVER do N+1 GenServer calls or filesystem scans
+- Old version called `Mailbox.get_messages` per agent + `CommandQueue.get_pending_commands` per session -> timeout on mount
+- Current version: ETS reads only + single `Mailbox.get_stats` call
+- Mount uses `%{}` default for protocol_stats, NOT `get_stats` (avoids blocking)
+
+## LiveView Re-render Stability
+- `phx-update="ignore"` on select dropdowns prevents closing on re-render
+- `phx-update="ignore"` on text inputs preserves user typing
+- No polling timers in LiveView -- fully PubSub-driven + heartbeat
 
 ## Fleet Tree Rendering
 - FleetHelpers.sort_members: classifies by member name string ("coordinator" -> depth 0, "lead" -> depth 1, "worker" -> depth 2)

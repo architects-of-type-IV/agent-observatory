@@ -12,6 +12,7 @@ defmodule Observatory.MonitorSupervisor do
   @impl true
   def init(_opts) do
     children = [
+      {Observatory.Heartbeat, []},
       {Observatory.SwarmMonitor, []},
       {Observatory.ProtocolTracker, []},
       {Observatory.AgentMonitor, []}

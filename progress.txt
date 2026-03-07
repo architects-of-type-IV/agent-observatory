@@ -1,9 +1,22 @@
 Observatory Progress
 ====================
 
-## Current: AccessStruct Removal + Fleet Fixes (2026-03-07)
+## Current: Heartbeat + Messaging Fixes (2026-03-08)
 
-### This Session (continued)
+### This Session
+- [x] Wrapped select dropdowns in phx-update="ignore" (target + project selects)
+- [x] Added Operator.send fallback -- direct Mailbox delivery when Gateway returns 0
+- [x] Fixed ProtocolTracker timeout -- removed N+1 GenServer calls from compute_stats
+- [x] Mount no longer blocks on ProtocolTracker.get_stats (uses %{} default)
+- [x] Created Heartbeat GenServer (5s, PubSub + Gateway broadcast)
+- [x] ProtocolTracker subscribes to heartbeat instead of own timer
+- [x] LiveView heartbeat handler refreshes tmux when overlay open
+- [x] Removed all polling (poll_tmux, maybe_poll_tmux dead code)
+- [x] Removed longpoll transport from endpoint.ex
+- [ ] Verify messages actually deliver end-to-end
+- [ ] Auto-discover teams/agents question from user
+
+### Previous Session (2026-03-07)
 - [x] Created FleetHelpers module (modular pure functions for fleet tree)
 - [x] Rewrote command_view.html.heex: 3-column layout with project grouping
 - [x] Fixed command bar select frozen in phx-update="ignore"
@@ -15,10 +28,6 @@ Observatory Progress
 - [x] Converted ~25 bracket access sites to dot access across 10+ files
 - [x] Removed longPollFallbackMs from app.js
 - [x] Added obs.sock auto-start to Application
-- [ ] Fix detail panel not showing on agent click (was blocked by compile crash)
-- [ ] Fix grey dots on team members (status display)
-- [ ] Gateway unification
-- [ ] Tmux multi-panel integration
 
 ### Ash Domain Modeling Refactor (Steps 1-6 of 9 complete)
 - [x] Step 1-6: Fleet/Activity domains, resources, preparations, DashboardState
