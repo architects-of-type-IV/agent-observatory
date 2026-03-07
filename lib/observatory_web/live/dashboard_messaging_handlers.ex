@@ -1,29 +1,27 @@
 defmodule ObservatoryWeb.DashboardMessagingHandlers do
   @moduledoc """
   LiveView event handlers for messaging functionality in the Observatory Dashboard.
-  Handles agent messages, team broadcasts, and mailbox updates.
+  All outbound messages route through Observatory.Operator for unified delivery.
   """
 
-  @doc """
-  Handle sending a message to a specific agent.
-  """
   def handle_send_agent_message(%{"session_id" => sid, "content" => content}, socket) do
-    from_session = socket.assigns[:current_session_id] || "dashboard"
-
-    case Observatory.Gateway.Router.broadcast("agent:#{sid}", %{content: content, from: from_session}) do
-      {:ok, _delivered} ->
-        agent_name =
-          socket.assigns[:sessions]
-          |> Enum.find(fn s -> s.session_id == sid end)
-          |> case do
-            %{name: name} -> name
-            _ -> String.slice(sid, 0..7)
-          end
+    case Observatory.Operator.send(sid, content) do
+      {:ok, delivered} when delivered > 0 ->
+        label = resolve_label(sid, socket)
 
         socket =
           Phoenix.LiveView.push_event(socket, "toast", %{
-            message: "Message sent to #{agent_name}",
+            message: "Sent to #{label}",
             type: "success"
+          })
+
+        {:noreply, socket}
+
+      {:ok, 0} ->
+        socket =
+          Phoenix.LiveView.push_event(socket, "toast", %{
+            message: "No delivery channel found",
+            type: "warning"
           })
 
         {:noreply, socket}
@@ -39,17 +37,12 @@ defmodule ObservatoryWeb.DashboardMessagingHandlers do
     end
   end
 
-  @doc """
-  Handle sending a broadcast to a team.
-  """
   def handle_send_team_broadcast(%{"team" => team_name, "content" => content}, socket) do
-    from_session = socket.assigns[:current_session_id] || "dashboard"
-
-    case Observatory.Gateway.Router.broadcast("team:#{team_name}", %{content: content, from: from_session}) do
+    case Observatory.Operator.send("team:#{team_name}", content) do
       {:ok, delivered} ->
         socket =
           Phoenix.LiveView.push_event(socket, "toast", %{
-            message: "Broadcast sent to #{team_name} (#{delivered} delivered)",
+            message: "Sent to #{team_name} (#{delivered} delivered)",
             type: "success"
           })
 
@@ -66,23 +59,10 @@ defmodule ObservatoryWeb.DashboardMessagingHandlers do
     end
   end
 
-  @doc """
-  Handle sending context (file contents) to an agent.
-  """
   def handle_push_context(%{"session_id" => sid, "file_path" => path}, socket) do
-    from_session = socket.assigns[:current_session_id] || "dashboard"
-
     case File.read(path) do
       {:ok, content} ->
-        # Send via mailbox (which now also writes to CommandQueue)
-        Observatory.Mailbox.send_message(
-          sid,
-          from_session,
-          content,
-          type: :context_push,
-          metadata: %{file_path: path}
-        )
-
+        Observatory.Operator.send(sid, content, type: :context_push, metadata: %{file_path: path})
         {:noreply, socket}
 
       {:error, _reason} ->
@@ -90,20 +70,11 @@ defmodule ObservatoryWeb.DashboardMessagingHandlers do
     end
   end
 
-  @doc """
-  Handle incoming mailbox message notification.
-  Updates the UI to show new messages.
-  """
   def handle_new_mailbox_message(_message, socket) do
-    # Refresh mailbox data in assigns
     {:noreply, socket |> refresh_mailbox_assigns()}
   end
 
-  @doc """
-  Refresh mailbox-related assigns (called after message events).
-  """
   def refresh_mailbox_assigns(socket) do
-    # Get unread counts for all active sessions
     sessions = socket.assigns[:sessions] || []
 
     mailbox_counts =
@@ -116,9 +87,6 @@ defmodule ObservatoryWeb.DashboardMessagingHandlers do
     Phoenix.Component.assign(socket, :mailbox_counts, mailbox_counts)
   end
 
-  @doc """
-  Subscribe to agent mailbox channels for all active sessions.
-  """
   def subscribe_to_mailboxes(sessions) do
     Enum.each(sessions, fn s ->
       Observatory.Channels.subscribe_agent(s.session_id)
@@ -150,4 +118,10 @@ defmodule ObservatoryWeb.DashboardMessagingHandlers do
     socket |> Phoenix.Component.assign(:collapsed_threads, collapsed_map)
   end
 
+  defp resolve_label(sid, socket) do
+    case Enum.find(socket.assigns[:sessions] || [], fn s -> s.session_id == sid end) do
+      %{name: name} when is_binary(name) -> name
+      _ -> String.slice(sid, 0..7)
+    end
+  end
 end

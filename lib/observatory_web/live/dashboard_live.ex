@@ -127,6 +127,7 @@ defmodule ObservatoryWeb.DashboardLive do
       |> assign(:forensic_audit_open, false)
       |> assign(:forensic_topology_open, false)
       |> assign(:forensic_entropy_open, false)
+      |> assign(:expanded_protocol_items, MapSet.new())
       # Seed gateway data from GenServer queries
       |> seed_gateway_assigns()
       |> recompute()
@@ -137,6 +138,18 @@ defmodule ObservatoryWeb.DashboardLive do
     end
 
     {:ok, socket}
+  end
+
+  @impl true
+  def handle_params(params, _uri, socket) do
+    nav_view =
+      case params["view"] do
+        "fleet" -> :fleet
+        "protocols" -> :protocols
+        _ -> :pipeline
+      end
+
+    {:noreply, assign(socket, :nav_view, nav_view)}
   end
 
   @impl true
@@ -187,6 +200,10 @@ defmodule ObservatoryWeb.DashboardLive do
 
   def handle_info({:protocol_update, stats}, socket) do
     {:noreply, socket |> assign(:protocol_stats, stats)}
+  end
+
+  def handle_info({:message_read, _read_info}, socket) do
+    {:noreply, socket |> assign(:protocol_stats, Observatory.ProtocolTracker.get_stats())}
   end
 
   def handle_info({:agent_crashed, session_id, team_name, reassigned_count}, socket) do
@@ -818,6 +835,17 @@ defmodule ObservatoryWeb.DashboardLive do
   def handle_event("toggle_forensic_panel", %{"panel" => panel}, s) do
     key = String.to_existing_atom("forensic_#{panel}_open")
     {:noreply, s |> assign(key, !Map.get(s.assigns, key, false)) |> recompute()}
+  end
+
+  def handle_event("toggle_protocol_item", %{"id" => id}, s) do
+    expanded = s.assigns.expanded_protocol_items
+
+    expanded =
+      if MapSet.member?(expanded, id),
+        do: MapSet.delete(expanded, id),
+        else: MapSet.put(expanded, id)
+
+    {:noreply, assign(s, :expanded_protocol_items, expanded)}
   end
 
   # Phase 5 - God Mode handlers (delegated to DashboardSessionControlHandlers)

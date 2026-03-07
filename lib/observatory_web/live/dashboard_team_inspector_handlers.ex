@@ -57,10 +57,7 @@ defmodule ObservatoryWeb.DashboardTeamInspectorHandlers do
   end
 
   def handle_send_targeted_message(%{"target" => target, "content" => content}, socket) do
-    # Convert target patterns to Gateway channel patterns
-    channel = target_to_channel(target)
-
-    case Observatory.Gateway.Router.broadcast(channel, %{content: content, from: "dashboard"}) do
+    case Observatory.Operator.send(target, content) do
       {:ok, 0} ->
         push_event(socket, "toast", %{message: "No targets found", type: "warning"})
 
@@ -74,14 +71,6 @@ defmodule ObservatoryWeb.DashboardTeamInspectorHandlers do
         push_event(socket, "toast", %{message: "Delivery failed", type: "error"})
     end
   end
-
-  # Private: convert inspector target strings to Gateway channel patterns
-
-  defp target_to_channel("all_teams"), do: "fleet:all"
-  defp target_to_channel("team:" <> name), do: "team:#{name}"
-  defp target_to_channel("lead:" <> _name), do: "role:lead"
-  defp target_to_channel("member:" <> session_id), do: "session:#{session_id}"
-  defp target_to_channel(target), do: "agent:#{target}"
 
   defp safe_size_atom("collapsed"), do: :collapsed
   defp safe_size_atom("default"), do: :default

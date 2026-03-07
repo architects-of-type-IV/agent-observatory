@@ -17,7 +17,7 @@ defmodule ObservatoryWeb.Components.Feed.FeedView do
 
   def feed_view(assigns) do
     ~H"""
-    <div class="p-3 space-y-3">
+    <div class="space-y-3">
       <.empty_state
         :if={Enum.empty?(@feed_groups)}
         title="Waiting for agent activity..."

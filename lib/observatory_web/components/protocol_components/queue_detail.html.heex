@@ -1,26 +1,60 @@
-<% detail = @stats[:queue_detail] || [] %>
-<div class="bg-zinc-900/50 border border-zinc-800 rounded-lg p-3">
-  <h3 class="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">
-    CommandQueue (Filesystem)
-  </h3>
+<%
+  detail = @stats[:queue_detail] || []
+  agent_name_map = build_agent_name_map(@teams)
+%>
+<div>
+  <div class="px-2 py-1.5 border-b border-zinc-800/50">
+    <h5 class="text-[9px] font-semibold uppercase tracking-wider text-zinc-500">
+      Queue <span class="text-zinc-600 normal-case font-normal">{length(detail)} sessions</span>
+    </h5>
+  </div>
   <%= if detail == [] do %>
-    <p class="text-xs text-zinc-600">No pending commands</p>
+    <p class="text-[9px] text-zinc-600 px-2 py-2">No pending commands</p>
   <% else %>
-    <table class="w-full text-xs">
-      <thead>
-        <tr class="text-zinc-600 text-left">
-          <th class="pb-1 font-medium">Session</th>
-          <th class="pb-1 font-medium text-right">Pending</th>
-          <th class="pb-1 font-medium text-right">Oldest</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr :for={entry <- detail} class="border-t border-zinc-800/50">
-          <td class="py-1 text-zinc-400 font-mono">{short_id(entry.session_id)}</td>
-          <td class="py-1 text-zinc-500 text-right">{entry.pending_count}</td>
-          <td class="py-1 text-zinc-600 text-right">{format_seconds(entry.oldest_age_sec)}</td>
-        </tr>
-      </tbody>
-    </table>
+    <div>
+      <div :for={entry <- detail}>
+        <%
+          key = "queue:#{entry.session_id}"
+          expanded = MapSet.member?(@expanded_items, key)
+          session_label = resolve_agent_label(entry.session_id, agent_name_map)
+        %>
+        <div
+          class="px-2 py-1 flex items-center gap-1.5 cursor-pointer hover:bg-zinc-800/30 transition"
+          phx-click="toggle_protocol_item"
+          phx-value-id={key}
+        >
+          <svg class={"w-2.5 h-2.5 text-zinc-600 transition-transform #{if expanded, do: "rotate-90"}"} fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+          </svg>
+          <div class="flex-1 min-w-0">
+            <span class="text-[9px] font-mono text-zinc-400 truncate" title={entry.session_id}>{session_label}</span>
+          </div>
+          <span class={"text-[9px] tabular-nums #{if entry.pending_count > 0, do: "text-amber-400 font-semibold", else: "text-zinc-600"}"}>
+            {entry.pending_count} pending
+          </span>
+        </div>
+        <%= if expanded do %>
+          <div class="px-5 pb-1.5 pt-0.5">
+            <%= if (entry[:pending_commands] || []) == [] do %>
+              <div class="text-[9px] text-zinc-700">No command files</div>
+            <% else %>
+              <div class="space-y-px">
+                <div :for={cmd <- entry[:pending_commands] || []} class="flex gap-1.5 py-0.5">
+                  <span class="w-1 h-1 rounded-full mt-1 shrink-0 bg-amber-400"></span>
+                  <div class="flex-1 min-w-0">
+                    <div class="flex items-baseline gap-1">
+                      <span class="text-[9px] font-mono text-zinc-400">{cmd.type}</span>
+                      <span class="text-[9px] text-zinc-600">from</span>
+                      <span class="text-[9px] font-mono text-zinc-400">{resolve_agent_label(cmd.from, agent_name_map)}</span>
+                    </div>
+                    <p class="text-[9px] text-zinc-500 truncate">{cmd.content}</p>
+                  </div>
+                </div>
+              </div>
+            <% end %>
+          </div>
+        <% end %>
+      </div>
+    </div>
   <% end %>
 </div>

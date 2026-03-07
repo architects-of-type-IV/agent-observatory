@@ -169,6 +169,13 @@ defmodule Observatory.Mailbox do
       end)
 
     :ets.insert(@table_name, {agent_id, updated_messages})
+
+    Phoenix.PubSub.broadcast(
+      Observatory.PubSub,
+      "protocols:update",
+      {:message_read, %{agent_id: agent_id, message_id: message_id}}
+    )
+
     {:reply, :ok, state}
   end
 

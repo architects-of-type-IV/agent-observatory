@@ -6,7 +6,6 @@ defmodule ObservatoryWeb.Components.ProtocolComponents do
 
   use Phoenix.Component
   import ObservatoryWeb.DashboardFormatHelpers
-  import ObservatoryWeb.ObservatoryComponents
 
   embed_templates "protocol_components/*"
 
@@ -45,8 +44,42 @@ defmodule ObservatoryWeb.Components.ProtocolComponents do
   defp hop_status_text(:read), do: "text-emerald-500"
   defp hop_status_text(_), do: "text-zinc-600"
 
-  defp format_seconds(0), do: "-"
-  defp format_seconds(s) when s < 60, do: "#{s}s"
-  defp format_seconds(s) when s < 3600, do: "#{div(s, 60)}m"
-  defp format_seconds(s), do: "#{div(s, 3600)}h"
+  defp build_agent_name_map(teams) when is_list(teams) do
+    Enum.flat_map(teams, fn team ->
+      team_name = team[:name] || team.name
+
+      (team[:members] || team.members || [])
+      |> Enum.flat_map(fn member ->
+        id = member[:agent_id] || member[:session_id]
+        name = member[:name] || member[:agent_type]
+        if id && name, do: [{id, "#{name}@#{team_name}"}], else: []
+      end)
+    end)
+    |> Map.new()
+  end
+
+  defp build_agent_name_map(_), do: %{}
+
+  defp resolve_agent_label(nil, _map), do: "?"
+  defp resolve_agent_label("unknown", _map), do: "?"
+  defp resolve_agent_label("system", _map), do: "system"
+  defp resolve_agent_label("broadcast", _map), do: "broadcast"
+  defp resolve_agent_label("dashboard", _map), do: "dashboard"
+
+  defp resolve_agent_label(id, name_map) do
+    case Map.get(name_map, id) do
+      nil ->
+        case String.split(id, "@") do
+          [agent, team] -> "#{agent}@#{team}"
+          _ when byte_size(id) > 16 -> String.slice(id, 0, 8) <> "..."
+          _ -> id
+        end
+
+      name ->
+        name
+    end
+  end
+
+  defp format_timestamp(%DateTime{} = dt), do: Calendar.strftime(dt, "%H:%M:%S")
+  defp format_timestamp(_), do: ""
 end

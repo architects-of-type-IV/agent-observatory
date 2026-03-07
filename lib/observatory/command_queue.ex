@@ -88,6 +88,34 @@ defmodule Observatory.CommandQueue do
     |> Enum.filter(fn s -> s.pending_count > 0 end)
   end
 
+  @doc """
+  Read pending command files for a session. Returns a list of parsed command maps.
+  """
+  def get_pending_commands(session_id) do
+    session_inbox = Path.join(@inbox_dir, session_id)
+
+    case File.ls(session_inbox) do
+      {:ok, entries} ->
+        entries
+        |> Enum.filter(&String.ends_with?(&1, ".json"))
+        |> Enum.map(fn file ->
+          path = Path.join(session_inbox, file)
+
+          with {:ok, content} <- File.read(path),
+               {:ok, parsed} <- Jason.decode(content) do
+            parsed
+          else
+            _ -> %{"id" => file, "error" => "unreadable"}
+          end
+        end)
+        |> Enum.sort_by(& &1["timestamp"], &>=/2)
+        |> Enum.take(10)
+
+      _ ->
+        []
+    end
+  end
+
   # ═══════════════════════════════════════════════════════
   # Server Callbacks
   # ═══════════════════════════════════════════════════════

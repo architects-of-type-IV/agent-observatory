@@ -10,6 +10,115 @@ defmodule ObservatoryWeb.Components.CommandComponents do
 
   embed_templates "command_components/*"
 
+  def fleet_status_bar(assigns) do
+    agents = collect_agents(assigns.teams, assigns.events, assigns.now)
+    tmux_agents = collect_tmux_agents(assigns[:tmux_sessions] || [], agents)
+    agents = agents ++ tmux_agents
+    stats = fleet_stats(agents)
+    pipeline = assigns.swarm_state.pipeline
+    health = assigns.swarm_state.health
+    errors = assigns[:errors] || []
+    messages = assigns[:messages] || []
+    protocol_stats = assigns[:protocol_stats] || %{}
+    active_tasks = assigns[:active_tasks] || []
+
+    error_count = length(errors)
+    msg_count = length(messages)
+    task_count = length(active_tasks)
+    task_done = Enum.count(active_tasks, fn t -> t[:status] == "completed" end)
+    tool_count = agents |> Enum.map(fn a -> if is_integer(a.tool_count), do: a.tool_count, else: 0 end) |> Enum.sum()
+
+    proto_traces = protocol_stats[:traces] || 0
+    proto_mailbox = get_in(protocol_stats, [:mailbox, :total_pending]) || 0
+    proto_cmdq = get_in(protocol_stats, [:command_queue, :total_pending]) || 0
+
+    visible_count = length(assigns[:visible_events] || [])
+    event_count = length(assigns[:events] || [])
+
+    assigns =
+      assigns
+      |> assign(:stats, stats)
+      |> assign(:pipeline, pipeline)
+      |> assign(:health, health)
+      |> assign(:error_count, error_count)
+      |> assign(:msg_count, msg_count)
+      |> assign(:task_count, task_count)
+      |> assign(:task_done, task_done)
+      |> assign(:tool_count, tool_count)
+      |> assign(:proto_traces, proto_traces)
+      |> assign(:proto_mailbox, proto_mailbox)
+      |> assign(:proto_cmdq, proto_cmdq)
+      |> assign(:visible_count, visible_count)
+      |> assign(:event_count, event_count)
+
+    ~H"""
+    <div class="flex items-center gap-2 text-[10px]">
+      <div class="obs-tip obs-tip-bottom flex items-center gap-1" data-tip={"#{@stats.total} agents: #{@stats.active} active, #{@stats.idle} idle, #{@stats.ended} ended"}>
+        <span class="font-bold text-zinc-200">{@stats.total}</span>
+        <div class="flex items-center gap-1 font-mono">
+          <span :if={@stats.active > 0} class="text-emerald-400">{@stats.active}a</span>
+          <span :if={@stats.idle > 0} class="text-zinc-400">{@stats.idle}i</span>
+          <span :if={@stats.ended > 0} class="text-zinc-600">{@stats.ended}e</span>
+        </div>
+      </div>
+      <span class="w-px h-3 bg-zinc-800" />
+      <div class={["obs-tip obs-tip-bottom flex items-center gap-1", if(@error_count > 0, do: "text-red-400", else: "text-zinc-600")]} data-tip={"#{@error_count} tool errors"}>
+        <span class={["w-1.5 h-1.5 rounded-full", if(@error_count > 0, do: "bg-red-400", else: "bg-zinc-700")]} />
+        <span class="font-mono">{@error_count}</span><span>err</span>
+      </div>
+      <div class="obs-tip obs-tip-bottom flex items-center gap-1 text-zinc-500" data-tip={"#{@msg_count} messages in mailbox"}>
+        <span class="font-mono">{@msg_count}</span><span>msg</span>
+      </div>
+      <div class="obs-tip obs-tip-bottom flex items-center gap-1 text-zinc-500" data-tip={"#{@tool_count} total tool calls"}>
+        <span class="font-mono">{@tool_count}</span><span>tools</span>
+      </div>
+      <div class="obs-tip obs-tip-bottom flex items-center gap-1 text-zinc-500" data-tip={"#{@visible_count} visible / #{@event_count} total events"}>
+        <span class="font-mono">{@visible_count}/{@event_count}</span><span>events</span>
+      </div>
+      <span class="w-px h-3 bg-zinc-800" />
+      <div :if={@task_count > 0} class="obs-tip obs-tip-bottom flex items-center gap-1" data-tip={"Tasks: #{@task_done} completed / #{@task_count} total (#{if @task_count > 0, do: round(@task_done / @task_count * 100), else: 0}%)"}>
+        <% pct = if @task_count > 0, do: round(@task_done / @task_count * 100), else: 0 %>
+        <div class="w-12 h-1 bg-zinc-800 rounded-full overflow-hidden">
+          <div class="h-full bg-emerald-500 rounded-full" style={"width: #{pct}%"} />
+        </div>
+        <span class="font-mono text-zinc-500">{@task_done}/{@task_count}</span>
+      </div>
+      <div :if={@pipeline.total > 0 && @pipeline.total != @task_count} class="obs-tip obs-tip-bottom flex items-center gap-1" data-tip={"Pipeline: #{@pipeline.completed} completed / #{@pipeline.total} total"}>
+        <% ppct = progress_pct(@pipeline) %>
+        <div class="w-10 h-1 bg-zinc-800 rounded-full overflow-hidden">
+          <div class="h-full bg-cyan-500 rounded-full" style={"width: #{ppct}%"} />
+        </div>
+        <span class="font-mono text-zinc-500">{@pipeline.completed}/{@pipeline.total}</span>
+      </div>
+      <div
+        class={[
+          "obs-tip obs-tip-bottom flex items-center gap-1 obs-badge",
+          if(@health.healthy && @error_count == 0,
+            do: "obs-badge-green",
+            else: "obs-badge-red"
+          )
+        ]}
+        data-tip={if(@health.healthy && @error_count == 0, do: "Fleet healthy", else: "#{@error_count} errors, #{length(@health.issues)} health issues")}
+      >
+        <span class={[
+          "w-1.5 h-1.5 rounded-full",
+          if(@health.healthy && @error_count == 0, do: "bg-emerald-400", else: "bg-red-400 animate-pulse")
+        ]} />
+        {cond do
+          @error_count > 0 && !@health.healthy -> "#{@error_count + length(@health.issues)}!"
+          @error_count > 0 -> "#{@error_count}!"
+          !@health.healthy -> "#{length(@health.issues)}!"
+          true -> "OK"
+        end}
+      </div>
+      <div :if={@proto_traces + @proto_mailbox + @proto_cmdq > 0} class="obs-tip obs-tip-bottom flex items-center gap-1 font-mono text-zinc-600" data-tip={"Protocol: #{@proto_traces} traces, #{@proto_mailbox} mailbox pending, #{@proto_cmdq} command queue pending"}>
+        <span :if={@proto_traces > 0}>T:{@proto_traces}</span>
+        <span :if={@proto_mailbox > 0}>M:{@proto_mailbox}</span>
+        <span :if={@proto_cmdq > 0}>Q:{@proto_cmdq}</span>
+      </div>
+    </div>
+    """
+  end
 
   @idle_threshold_seconds 120
 

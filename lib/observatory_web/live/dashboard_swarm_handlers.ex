@@ -113,7 +113,7 @@ defmodule ObservatoryWeb.DashboardSwarmHandlers do
 
   def handle_send_command_message(%{"to" => to, "content" => content}, socket) do
     if content != "" do
-      Observatory.Mailbox.send_message(to, "dashboard", content)
+      Observatory.Operator.send(to, content)
     end
 
     socket

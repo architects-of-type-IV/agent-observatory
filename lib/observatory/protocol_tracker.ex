@@ -197,6 +197,62 @@ defmodule Observatory.ProtocolTracker do
     mailbox_stats = Observatory.Mailbox.get_stats()
     queue_stats = Observatory.CommandQueue.get_queue_stats()
 
+    # Enrich mailbox stats with recent messages for expandable detail
+    mailbox_detail =
+      Enum.map(mailbox_stats, fn stat ->
+        recent =
+          Observatory.Mailbox.get_messages(stat.agent_id)
+          |> Enum.take(5)
+          |> Enum.map(fn m ->
+            %{
+              id: m.id,
+              from: m.from,
+              content: truncate(m.content, 120),
+              type: m.type,
+              read: m.read,
+              timestamp: m.timestamp
+            }
+          end)
+
+        Map.put(stat, :recent_messages, recent)
+      end)
+
+    # Enrich queue stats with pending command previews
+    queue_detail =
+      Enum.map(queue_stats, fn stat ->
+        commands =
+          Observatory.CommandQueue.get_pending_commands(stat.session_id)
+          |> Enum.map(fn cmd ->
+            %{
+              id: cmd["id"],
+              from: cmd["from"] || "unknown",
+              content: truncate(cmd["content"], 120),
+              type: cmd["type"] || cmd["message_type"] || "command",
+              timestamp: cmd["timestamp"]
+            }
+          end)
+
+        Map.put(stat, :pending_commands, commands)
+      end)
+
+    # Recent traces for left column summary
+    recent_traces =
+      traces
+      |> Enum.sort_by(& &1.timestamp, {:desc, DateTime})
+      |> Enum.take(10)
+      |> Enum.map(fn t ->
+        %{
+          id: t.id,
+          type: t.type,
+          from: t.from,
+          to: t.to,
+          content_preview: t[:content_preview],
+          timestamp: t.timestamp,
+          hop_count: length(t.hops),
+          last_status: List.last(t.hops)[:status]
+        }
+      end)
+
     %{
       traces: length(traces),
       by_type: Enum.frequencies_by(traces, & &1.type),
@@ -208,8 +264,9 @@ defmodule Observatory.ProtocolTracker do
         sessions: length(queue_stats),
         total_pending: Enum.reduce(queue_stats, 0, fn s, acc -> acc + s.pending_count end)
       },
-      mailbox_detail: mailbox_stats,
-      queue_detail: queue_stats
+      mailbox_detail: mailbox_detail,
+      queue_detail: queue_detail,
+      recent_traces: recent_traces
     }
   end
 

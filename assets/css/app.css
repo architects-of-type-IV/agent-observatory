@@ -185,6 +185,36 @@
   @apply border-zinc-700;
 }
 
+/* Tooltip popover -- CSS-only, reusable */
+.obs-tip {
+  @apply relative;
+}
+.obs-tip::after {
+  content: attr(data-tip);
+  @apply absolute z-50 invisible opacity-0 transition-all duration-150
+    bottom-full left-1/2 -translate-x-1/2 mb-1.5
+    px-2 py-1 rounded text-[10px] leading-tight
+    bg-zinc-800 text-zinc-300 border border-zinc-700
+    whitespace-nowrap pointer-events-none shadow-lg;
+}
+.obs-tip:hover::after {
+  @apply visible opacity-100;
+}
+/* Wide variant for longer text */
+.obs-tip-wide::after {
+  @apply whitespace-normal w-48 text-center;
+}
+/* Position variants */
+.obs-tip-right::after {
+  @apply left-full top-1/2 -translate-y-1/2 translate-x-0 bottom-auto ml-1.5;
+}
+.obs-tip-left::after {
+  @apply right-full left-auto top-1/2 -translate-y-1/2 translate-x-0 bottom-auto mr-1.5;
+}
+.obs-tip-bottom::after {
+  @apply top-full bottom-auto mt-1.5 mb-0;
+}
+
 /* Badges -- status, priority, role */
 .obs-badge {
   @apply text-[9px] font-semibold px-1.5 py-0.5 rounded;
@@ -216,6 +246,15 @@
 /* Kanban columns */
 .obs-kanban-col h6 {
   @apply text-[9px] font-semibold uppercase tracking-wider text-zinc-500 mb-1.5;
+}
+
+/* Joined pill -- makes inner wrappers (form, phx-update divs) layout-transparent */
+.obs-pill {
+  @apply flex items-stretch rounded overflow-hidden border border-zinc-700/60;
+}
+.obs-pill > form,
+.obs-pill > form > div[phx-update] {
+  display: contents;
 }
 
 /* Inputs and forms */

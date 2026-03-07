@@ -1,6 +1,5 @@
 <%
   tasks = @swarm_state.tasks
-  pipeline = @swarm_state.pipeline
   active_project = @swarm_state.active_project
   projects = @swarm_state.watched_projects
   dag = @swarm_state.dag
@@ -26,153 +25,152 @@
   waves = dag.waves
   critical_path = MapSet.new(dag.critical_path)
 %>
-<div class="flex flex-col gap-3">
-  <%!-- Project bar + progress --%>
-  <div class="flex items-center justify-between gap-3 flex-wrap mb-1">
-    <div class="flex items-center gap-2">
-      <span class="text-[10px] text-zinc-600">Projects:</span>
-      <div class="flex items-center gap-1">
-        <span :for={{key, _path} <- projects} class="obs-badge obs-badge-zinc font-mono">
-          {key}
-        </span>
-        <span :if={map_size(projects) == 0} class="text-[10px] text-zinc-600">Auto-detecting...</span>
-      </div>
-      <button
-        :if={active_project && active_project != ""}
-        phx-click="trigger_gc"
-        phx-value-team={active_project}
-        class="obs-btn obs-btn-danger"
-        data-confirm="Run garbage collection on this project?"
-      >
-        GC
-      </button>
-      <button phx-click="run_health_check" class="obs-btn obs-btn-muted">Health</button>
-      <button
-        phx-click="reset_all_stale"
-        class="obs-btn bg-amber-600/15 text-amber-400 hover:bg-amber-600/25"
-        data-confirm="Reset all stale tasks to pending?"
-      >
-        Reset Stale
-      </button>
-    </div>
-
-    <div :if={pipeline.total > 0} class="flex items-center gap-1.5">
-      <span class="obs-badge obs-badge-green">{pipeline.completed} done</span>
-      <span class="obs-badge obs-badge-blue">{pipeline.in_progress} running</span>
-      <span class="obs-badge obs-badge-zinc">{pipeline.pending} pending</span>
-      <span :if={pipeline.blocked > 0} class="obs-badge obs-badge-amber">{pipeline.blocked} blocked</span>
-      <span :if={pipeline.failed > 0} class="obs-badge obs-badge-red">{pipeline.failed} failed</span>
-    </div>
-  </div>
-
-  <%= if tasks == [] do %>
-    <.empty_state
-      title="No pipeline active"
-      description="Projects with tasks.jsonl are auto-detected from session events"
-    />
-  <% else %>
-    <%!-- Kanban Board --%>
-    <div class="grid grid-cols-[repeat(auto-fit,minmax(140px,1fr))] gap-2">
-      <div
-        :for={{status, label, border_color, text_color} <- columns}
-        :if={kanban[status] != []}
-        class="flex flex-col obs-kanban-col"
-      >
-        <div class="flex items-center gap-2 mb-1.5 px-0.5">
-          <h6 class={text_color}>{label}</h6>
-          <span class="text-[9px] font-mono text-zinc-700">{length(kanban[status])}</span>
+<div class="flex gap-0 h-full">
+  <%!-- Left Sidebar: Projects + Stats + Task Detail --%>
+  <div class="w-[240px] shrink-0 flex flex-col gap-3 bg-zinc-900/30 border-r border-zinc-800 p-3 overflow-x-hidden overflow-y-auto">
+    <%!-- Projects --%>
+    <div>
+      <div class="flex flex-col gap-2">
+        <span class="text-[10px] text-zinc-600 uppercase tracking-wider">Projects</span>
+        <div class="flex flex-wrap gap-1">
+          <span :for={{key, _path} <- projects} class="obs-badge obs-badge-zinc font-mono">
+            {key}
+          </span>
+          <span :if={map_size(projects) == 0} class="text-[10px] text-zinc-600">Auto-detecting...</span>
         </div>
-
-        <div class="space-y-1 max-h-[280px] overflow-y-auto pr-0.5">
-          <div
-            :for={task <- kanban[status]}
-            phx-click="select_dag_node"
-            phx-value-id={task.id}
-            class={[
-              "obs-card-compact cursor-pointer",
-              border_color,
-              @selected_dag_task && @selected_dag_task.id == task.id && "!ring-1 !ring-indigo-500/50 !bg-zinc-800/60"
-            ]}
+        <div class="flex flex-wrap gap-1">
+          <button
+            :if={active_project && active_project != ""}
+            phx-click="trigger_gc"
+            phx-value-team={active_project}
+            class="obs-btn obs-btn-danger"
+            data-confirm="Run garbage collection on this project?"
           >
-            <div class="flex items-center gap-1 mb-0.5">
-              <span :if={task[:project] && task.project != ""} class="text-[9px] font-mono text-violet-400/60">{task.project}</span>
-              <span class="text-[9px] font-mono text-zinc-600">{task.id}</span>
-              <span :if={task.priority} class={"text-[9px] #{priority_color(task.priority)}"}>{task.priority}</span>
-            </div>
-            <div class="text-[10px] text-zinc-300 leading-tight line-clamp-2">{task.subject}</div>
-            <div :if={task.owner && task.owner != ""} class="mt-0.5 text-[9px] font-mono text-zinc-500">
-              {task.owner}
-            </div>
-            <div :if={task.blocked_by != []} class="mt-0.5 flex items-center gap-1">
-              <span class="text-[9px] text-amber-500">blocks:</span>
-              <span class="text-[9px] font-mono text-zinc-600">{Enum.join(task.blocked_by, ", ")}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <%!-- DAG Dependency Graph --%>
-    <div :if={waves != []} class="border border-zinc-800/60 rounded-md p-3 overflow-x-auto bg-zinc-900/20">
-      <h3 class="text-[10px] font-semibold text-zinc-600 uppercase tracking-wider mb-2">
-        Dependency Graph
-        <span :if={dag.critical_path != []} class="text-zinc-600 normal-case font-normal ml-2">
-          Critical path: {length(dag.critical_path)} tasks
-        </span>
-      </h3>
-      <div class="flex gap-6 overflow-x-auto pb-2 min-h-[120px]">
-        <div
-          :for={{wave, wave_idx} <- Enum.with_index(waves)}
-          class="flex flex-col gap-2 min-w-[140px]"
-        >
-          <div class="text-[10px] text-zinc-600 uppercase tracking-wider mb-1 text-center">
-            Wave {wave_idx}
-          </div>
-          <.dag_node
-            :for={task_id <- wave}
-            task={Map.get(task_map, task_id)}
-            task_id={task_id}
-            is_critical={MapSet.member?(critical_path, task_id)}
-            is_selected={@selected_dag_task && @selected_dag_task.id == task_id}
-          />
+            GC
+          </button>
+          <button phx-click="run_health_check" class="obs-btn obs-btn-muted">Health</button>
+          <button
+            phx-click="reset_all_stale"
+            class="obs-btn bg-amber-600/15 text-amber-400 hover:bg-amber-600/25"
+            data-confirm="Reset all stale tasks to pending?"
+          >
+            Reset Stale
+          </button>
         </div>
       </div>
     </div>
 
     <%!-- Task Detail (selected) --%>
-    <div :if={@selected_dag_task} class="obs-card p-3">
-      <div class="flex items-center justify-between mb-2">
-        <div class="flex items-center gap-2">
-          <span :if={@selected_dag_task[:project]} class="text-[10px] font-mono text-violet-400">{@selected_dag_task.project}</span>
-          <span class="text-xs font-mono text-zinc-400">#{@selected_dag_task.id}</span>
-          <span class={task_badge_class(@selected_dag_task.status)}>{@selected_dag_task.status}</span>
-          <span :if={@selected_dag_task.priority} class="text-[10px] text-zinc-500">{@selected_dag_task.priority}</span>
-        </div>
-        <div class="flex items-center gap-1">
-          <button
-            phx-click="reassign_swarm_task"
-            phx-value-id={@selected_dag_task.id}
-            phx-value-owner=""
-            class="obs-btn obs-btn-muted"
-          >
-            Unassign
-          </button>
-          <button
-            phx-click="reset_swarm_task"
-            phx-value-id={@selected_dag_task.id}
-            class="obs-btn bg-amber-600/15 text-amber-400 hover:bg-amber-600/25"
-          >
-            Reset
-          </button>
-        </div>
+    <div :if={@selected_dag_task} class="obs-card p-3 min-w-0 overflow-hidden">
+      <span class="text-[10px] text-zinc-600 uppercase tracking-wider">Task Detail</span>
+      <div class="flex items-center gap-2 flex-wrap mt-2 mb-2">
+        <span :if={@selected_dag_task[:project]} class="text-[10px] font-mono text-violet-400 truncate">{@selected_dag_task.project}</span>
+        <span class="text-xs font-mono text-zinc-400">#{@selected_dag_task.id}</span>
+        <span class={task_badge_class(@selected_dag_task.status)}>{@selected_dag_task.status}</span>
+        <span :if={@selected_dag_task.priority} class="text-[10px] text-zinc-500">{@selected_dag_task.priority}</span>
       </div>
-      <div class="text-xs text-zinc-200 mb-1">{@selected_dag_task.subject}</div>
-      <div :if={@selected_dag_task[:description]} class="text-xs text-zinc-500 mb-1 line-clamp-3">{@selected_dag_task.description}</div>
-      <div class="flex items-center gap-3 text-[10px] text-zinc-600">
-        <span :if={@selected_dag_task.owner && @selected_dag_task.owner != ""}>owner: {@selected_dag_task.owner}</span>
-        <span :if={@selected_dag_task.blocked_by != []}>blocked by: {Enum.join(@selected_dag_task.blocked_by, ", ")}</span>
+      <div class="text-xs text-zinc-200 mb-1 break-words">{@selected_dag_task.subject}</div>
+      <div :if={@selected_dag_task[:description]} class="text-xs text-zinc-500 mb-2 break-words">{@selected_dag_task.description}</div>
+      <div class="flex flex-col gap-1 text-[10px] text-zinc-600 mb-2 break-all">
+        <span :if={@selected_dag_task.owner && @selected_dag_task.owner != ""} class="truncate">owner: {@selected_dag_task.owner}</span>
+        <span :if={@selected_dag_task.blocked_by != []} class="truncate">blocked by: {Enum.join(@selected_dag_task.blocked_by, ", ")}</span>
         <span :if={@selected_dag_task[:updated]}>updated: {short_timestamp(@selected_dag_task.updated)}</span>
       </div>
+      <div class="flex flex-wrap gap-1">
+        <button
+          phx-click="reassign_swarm_task"
+          phx-value-id={@selected_dag_task.id}
+          phx-value-owner=""
+          class="obs-btn obs-btn-muted"
+        >
+          Unassign
+        </button>
+        <button
+          phx-click="reset_swarm_task"
+          phx-value-id={@selected_dag_task.id}
+          class="obs-btn bg-amber-600/15 text-amber-400 hover:bg-amber-600/25"
+        >
+          Reset
+        </button>
+      </div>
     </div>
-  <% end %>
+  </div>
+
+  <%!-- Right: Kanban + DAG --%>
+  <div class="flex flex-col gap-3 min-w-0 flex-1 overflow-y-auto p-3">
+    <%= if tasks == [] do %>
+      <.empty_state
+        title="No pipeline active"
+        description="Projects with tasks.jsonl are auto-detected from session events"
+      />
+    <% else %>
+      <%!-- Kanban Board --%>
+      <div class="grid grid-cols-[repeat(auto-fit,minmax(140px,1fr))] gap-2">
+        <div
+          :for={{status, label, border_color, text_color} <- columns}
+          :if={kanban[status] != []}
+          class="flex flex-col obs-kanban-col"
+        >
+          <div class="flex items-center gap-2 mb-1.5 px-0.5">
+            <h6 class={text_color}>{label}</h6>
+            <span class="text-[9px] font-mono text-zinc-700">{length(kanban[status])}</span>
+          </div>
+
+          <div class="space-y-1 max-h-[280px] overflow-y-auto pr-0.5">
+            <div
+              :for={task <- kanban[status]}
+              phx-click="select_dag_node"
+              phx-value-id={task.id}
+              class={[
+                "obs-card-compact cursor-pointer",
+                border_color,
+                @selected_dag_task && @selected_dag_task.id == task.id && "!ring-1 !ring-indigo-500/50 !bg-zinc-800/60"
+              ]}
+            >
+              <div class="flex items-center gap-1 mb-0.5">
+                <span :if={task[:project] && task.project != ""} class="text-[9px] font-mono text-violet-400/60">{task.project}</span>
+                <span class="text-[9px] font-mono text-zinc-600">{task.id}</span>
+                <span :if={task.priority} class={"text-[9px] #{priority_color(task.priority)}"}>{task.priority}</span>
+              </div>
+              <div class="text-[10px] text-zinc-300 leading-tight line-clamp-2">{task.subject}</div>
+              <div :if={task.owner && task.owner != ""} class="mt-0.5 text-[9px] font-mono text-zinc-500">
+                {task.owner}
+              </div>
+              <div :if={task.blocked_by != []} class="mt-0.5 flex items-center gap-1">
+                <span class="text-[9px] text-amber-500">blocks:</span>
+                <span class="text-[9px] font-mono text-zinc-600">{Enum.join(task.blocked_by, ", ")}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <%!-- DAG Dependency Graph --%>
+      <div :if={waves != []} class="border border-zinc-800/60 rounded-md p-3 overflow-x-auto bg-zinc-900/20">
+        <h3 class="text-[10px] font-semibold text-zinc-600 uppercase tracking-wider mb-2">
+          Dependency Graph
+          <span :if={dag.critical_path != []} class="text-zinc-600 normal-case font-normal ml-2">
+            Critical path: {length(dag.critical_path)} tasks
+          </span>
+        </h3>
+        <div class="flex gap-6 overflow-x-auto pb-2 min-h-[120px]">
+          <div
+            :for={{wave, wave_idx} <- Enum.with_index(waves)}
+            class="flex flex-col gap-2 min-w-[140px]"
+          >
+            <div class="text-[10px] text-zinc-600 uppercase tracking-wider mb-1 text-center">
+              Wave {wave_idx}
+            </div>
+            <.dag_node
+              :for={task_id <- wave}
+              task={Map.get(task_map, task_id)}
+              task_id={task_id}
+              is_critical={MapSet.member?(critical_path, task_id)}
+              is_selected={@selected_dag_task && @selected_dag_task.id == task_id}
+            />
+          </div>
+        </div>
+      </div>
+    <% end %>
+  </div>
 </div>

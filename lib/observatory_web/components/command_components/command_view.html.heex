@@ -2,151 +2,66 @@
   agents = collect_agents(@teams, @events, @now)
   tmux_agents = collect_tmux_agents(assigns[:tmux_sessions] || [], agents)
   agents = agents ++ tmux_agents
-  stats = fleet_stats(agents)
-  pipeline = @swarm_state.pipeline
   health = @swarm_state.health
   stale = @swarm_state.stale_tasks
   alerts = build_alerts(health.issues, stale)
   errors = @errors
-  messages = assigns[:messages] || []
-  protocol_stats = assigns[:protocol_stats] || %{}
-  active_tasks = assigns[:active_tasks] || []
-  # Aggregate counts for fleet bar
   error_count = length(errors)
-  msg_count = length(messages)
-  task_count = length(active_tasks)
-  task_done = Enum.count(active_tasks, fn t -> t[:status] == "completed" end)
-  tool_count = agents |> Enum.map(fn a -> if is_integer(a.tool_count), do: a.tool_count, else: 0 end) |> Enum.sum()
-
-  # Recent errors (top 3)
   recent_errors = Enum.take(errors, 3)
-
-  # Protocol summary
-  proto_traces = protocol_stats[:traces] || 0
-  proto_mailbox = get_in(protocol_stats, [:mailbox, :total_pending]) || 0
-  proto_cmdq = get_in(protocol_stats, [:command_queue, :total_pending]) || 0
 
   # Group agents by tmux session for cluster view
   tmux_groups = agents |> Enum.filter(& &1[:tmux_session]) |> Enum.group_by(& &1.tmux_session)
   ungrouped = Enum.reject(agents, & &1[:tmux_session])
 %>
-<div class="flex flex-col gap-3">
-  <%!-- Fleet Status Bar --%>
-  <div class="bg-zinc-900/50 border border-zinc-800 rounded-lg px-3 py-1.5">
-    <div class="flex items-center gap-3 flex-wrap">
-      <div class="flex items-center gap-1.5">
-        <span class="text-lg font-bold text-zinc-200">{stats.total}</span>
-        <div class="flex items-center gap-1 text-[10px] font-mono">
-          <span :if={stats.active > 0} class="text-emerald-400">{stats.active}a</span>
-          <span :if={stats.idle > 0} class="text-zinc-400">{stats.idle}i</span>
-          <span :if={stats.ended > 0} class="text-zinc-600">{stats.ended}e</span>
-        </div>
-      </div>
-      <span class="w-px h-4 bg-zinc-800" />
-      <div class={["flex items-center gap-1 text-xs", if(error_count > 0, do: "text-red-400", else: "text-zinc-600")]}>
-        <span class={["w-1.5 h-1.5 rounded-full", if(error_count > 0, do: "bg-red-400", else: "bg-zinc-700")]} />
-        <span class="font-mono">{error_count}</span><span class="text-[10px]">err</span>
-      </div>
-      <div class="flex items-center gap-1 text-xs text-zinc-500">
-        <span class="font-mono">{msg_count}</span><span class="text-[10px]">msg</span>
-      </div>
-      <div class="flex items-center gap-1 text-xs text-zinc-500">
-        <span class="font-mono">{tool_count}</span><span class="text-[10px]">tools</span>
-      </div>
-      <span class="flex-1" />
-      <div :if={task_count > 0} class="flex items-center gap-1.5">
-        <% pct = if task_count > 0, do: round(task_done / task_count * 100), else: 0 %>
-        <div class="w-16 h-1.5 bg-zinc-800 rounded-full overflow-hidden">
-          <div class="h-full bg-emerald-500 rounded-full" style={"width: #{pct}%"} />
-        </div>
-        <span class="text-[10px] font-mono text-zinc-500">{task_done}/{task_count}</span>
-      </div>
-      <div :if={pipeline.total > 0 && pipeline.total != task_count} class="flex items-center gap-1.5">
-        <% ppct = progress_pct(pipeline) %>
-        <div class="w-12 h-1.5 bg-zinc-800 rounded-full overflow-hidden">
-          <div class="h-full bg-cyan-500 rounded-full" style={"width: #{ppct}%"} />
-        </div>
-        <span class="text-[10px] font-mono text-zinc-500">{pipeline.completed}/{pipeline.total}</span>
-      </div>
-      <div class={[
-        "flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium",
-        if(health.healthy && error_count == 0,
-          do: "bg-emerald-500/15 text-emerald-400",
-          else: "bg-red-500/15 text-red-400"
-        )
-      ]}>
-        <span class={[
-          "w-1.5 h-1.5 rounded-full",
-          if(health.healthy && error_count == 0, do: "bg-emerald-400", else: "bg-red-400 animate-pulse")
-        ]} />
-        {cond do
-          error_count > 0 && !health.healthy -> "#{error_count + length(health.issues)}!"
-          error_count > 0 -> "#{error_count}!"
-          !health.healthy -> "#{length(health.issues)}!"
-          true -> "OK"
-        end}
-      </div>
-      <div :if={proto_traces + proto_mailbox + proto_cmdq > 0} class="flex items-center gap-1.5 text-[10px] font-mono text-zinc-600">
-        <span :if={proto_traces > 0}>T:{proto_traces}</span>
-        <span :if={proto_mailbox > 0}>M:{proto_mailbox}</span>
-        <span :if={proto_cmdq > 0}>Q:{proto_cmdq}</span>
-      </div>
-    </div>
-  </div>
-
-  <%!-- Command Bar: Message + Launch --%>
-  <div class="flex gap-1.5 flex-wrap">
-    <form phx-submit="send_targeted_message" id="command-msg-form" phx-hook="ClearFormOnSubmit" class="flex gap-1 flex-1 min-w-0">
-      <.stable_select id="select-target" name="target" class="obs-select shrink-0">
-        <option value="">Target...</option>
-        <optgroup label="Broadcast">
-          <option value="all">All Agents</option>
-          <%= for team <- @teams do %>
-            <option value={"team:#{team.name}"}>Team: {team.name}</option>
+<div class="flex flex-col h-full">
+  <%!-- Header bar: command bar + launch --%>
+  <div class="px-3 py-1.5 border-b border-zinc-800 bg-zinc-900/30 shrink-0">
+    <div class="flex gap-1.5 flex-wrap">
+      <form phx-submit="send_targeted_message" id="command-msg-form" phx-hook="ClearFormOnSubmit" class="flex gap-1 flex-1 min-w-0">
+        <.stable_select id="select-target" name="target" class="obs-select shrink-0">
+          <option value="">Target...</option>
+          <optgroup label="Broadcast">
+            <option value="all">All Agents</option>
+            <%= for team <- @teams do %>
+              <option value={"team:#{team.name}"}>Team: {team.name}</option>
+            <% end %>
+          </optgroup>
+          <optgroup label="Agents">
+            <%= for agent <- agents do %>
+              <option value={"agent:#{agent.agent_id}"}>{agent.name}{if agent[:team_name], do: " (#{agent.team_name})", else: ""}</option>
+            <% end %>
+          </optgroup>
+        </.stable_select>
+        <input type="text" name="content" placeholder="Message..." class="flex-1 obs-input min-w-0" />
+        <button type="submit" class="obs-btn obs-btn-primary shrink-0">Send</button>
+      </form>
+      <form phx-submit="launch_session" class="flex gap-1 shrink-0">
+        <.stable_select id="select-cwd" name="cwd">
+          <option value="">Project...</option>
+          <%= for {key, path} <- @swarm_state.watched_projects do %>
+            <option value={path}>{key}</option>
           <% end %>
-        </optgroup>
-        <optgroup label="Agents">
-          <%= for agent <- agents do %>
-            <option value={"agent:#{agent.agent_id}"}>{agent.name}{if agent[:team_name], do: " (#{agent.team_name})", else: ""}</option>
-          <% end %>
-        </optgroup>
-      </.stable_select>
-      <input type="text" name="content" placeholder="Message..." class="flex-1 obs-input min-w-0" />
-      <button type="submit" class="obs-btn obs-btn-primary shrink-0">Send</button>
-    </form>
-    <form phx-submit="launch_session" class="flex gap-1 shrink-0">
-      <.stable_select id="select-cwd" name="cwd">
-        <option value="">Project...</option>
-        <%= for {key, path} <- @swarm_state.watched_projects do %>
-          <option value={path}>{key}</option>
-        <% end %>
-      </.stable_select>
-      <button type="submit" class="obs-btn obs-btn-success shrink-0">Launch</button>
-    </form>
+        </.stable_select>
+        <button type="submit" class="obs-btn obs-btn-success shrink-0">Launch</button>
+      </form>
+    </div>
   </div>
 
-  <%!-- Errors banner --%>
-  <div :if={recent_errors != []} class="rounded border border-red-900/30 bg-red-950/10 px-3 py-1.5">
-    <div class="flex items-center gap-2 mb-1">
-      <span class="text-[10px] text-red-500 uppercase tracking-wider">errors</span>
-      <span class="text-xs font-mono text-red-400">{error_count}</span>
-    </div>
-    <div class="space-y-0.5">
-      <div :for={err <- recent_errors} class="text-xs text-red-300/80 truncate">
-        <span class="text-red-500 font-mono mr-1">{err[:tool_name] || err[:hook_event_type] || "error"}</span>
-        <span class="text-zinc-500">{if err[:cwd], do: Path.basename(err[:cwd]), else: short_id(err[:session_id])}</span>
+  <%!-- Alerts strip --%>
+  <div :if={recent_errors != [] || alerts != []} class="px-3 py-1 border-b border-zinc-800/50 bg-zinc-950/30 shrink-0 space-y-0.5">
+    <div :if={recent_errors != []} class="flex items-center gap-2">
+      <span class="text-[10px] text-red-500 uppercase tracking-wider shrink-0">errors</span>
+      <span class="text-[10px] font-mono text-red-400 shrink-0">{error_count}</span>
+      <div class="flex gap-3 overflow-hidden flex-1">
+        <span :for={err <- recent_errors} class="text-[10px] text-red-300/80 truncate">
+          <span class="text-red-500 font-mono mr-1">{Map.get(err, :tool_name) || Map.get(err, :hook_event_type) || "error"}</span>
+          <span class="text-zinc-500">{if Map.get(err, :cwd), do: Path.basename(err.cwd), else: short_id(Map.get(err, :session_id))}</span>
+        </span>
       </div>
     </div>
-  </div>
-
-  <%!-- Alerts --%>
-  <div :if={alerts != []} class="space-y-0.5">
-    <div
-      :for={alert <- Enum.take(alerts, 5)}
-      class="flex items-center gap-2 px-3 py-1 rounded bg-zinc-900/50 border border-zinc-800"
-    >
+    <div :for={alert <- Enum.take(alerts, 3)} class="flex items-center gap-2">
       <span class={["w-1.5 h-1.5 rounded-full shrink-0", severity_color(alert.severity)]} />
-      <span class={"text-xs flex-1 truncate #{severity_text_color(alert.severity)}"}>{alert.message}</span>
+      <span class={"text-[10px] flex-1 truncate #{severity_text_color(alert.severity)}"}>{alert.message}</span>
       <button
         :if={alert.action}
         phx-click={alert.action}
@@ -158,34 +73,49 @@
     </div>
   </div>
 
-  <%!-- Agent Cards: grouped by tmux session --%>
-  <div :if={agents != []} class="space-y-2">
-    <%!-- Tmux-grouped agents --%>
-    <div :for={{tmux_name, group_agents} <- tmux_groups} class="rounded-lg border border-zinc-800 bg-zinc-900/30">
-      <div class="flex items-center gap-2 px-3 py-1.5 border-b border-zinc-800/50">
-        <span class="text-[10px] text-amber-500 font-mono">{tmux_name}</span>
-        <span class="text-[10px] text-zinc-600">{length(group_agents)} agents</span>
-        <span class="flex-1" />
-        <button
-          phx-click="connect_tmux"
-          phx-value-session={tmux_name}
-          class="text-[10px] px-1.5 py-0.5 rounded bg-amber-600/20 text-amber-400 hover:bg-amber-600/30 transition"
-          title={"Attach to #{tmux_name}"}
-        >
-          Connect
-        </button>
+  <%!-- Main: Left sidebar (agents) + Right content (feed) --%>
+  <div class="flex flex-1 min-h-0">
+    <%!-- Left sidebar: Agent list --%>
+    <div class="w-[280px] shrink-0 border-r border-zinc-800 bg-zinc-900/30 overflow-y-auto">
+      <div :if={agents != []} class="divide-y divide-zinc-800/30">
+        <%!-- Tmux-grouped agents --%>
+        <div :for={{tmux_name, group_agents} <- tmux_groups}>
+          <div class="flex items-center gap-2 px-3 py-1.5 bg-zinc-900/50">
+            <span class="text-[10px] text-amber-500 font-mono">{tmux_name}</span>
+            <span class="text-[10px] text-zinc-600">{length(group_agents)}</span>
+            <span class="flex-1" />
+            <button
+              phx-click="connect_tmux"
+              phx-value-session={tmux_name}
+              class="text-[10px] px-1.5 py-0.5 rounded bg-amber-600/20 text-amber-400 hover:bg-amber-600/30"
+            >
+              Connect
+            </button>
+          </div>
+          <.agent_card :for={agent <- group_agents} agent={agent} />
+        </div>
+
+        <%!-- Ungrouped agents --%>
+        <.agent_card :for={agent <- ungrouped} agent={agent} />
       </div>
-      <div class="divide-y divide-zinc-800/30">
-        <.agent_card :for={agent <- group_agents} agent={agent} />
+
+      <div :if={agents == []} class="px-3 py-8 text-center">
+        <div class="text-[10px] text-zinc-600 uppercase tracking-wider mb-1">No agents detected</div>
+        <div class="text-[10px] text-zinc-700">Start a Claude session to see it here.</div>
       </div>
     </div>
 
-    <%!-- Ungrouped agents (no tmux or standalone) --%>
-    <.agent_card :for={agent <- ungrouped} agent={agent} />
-  </div>
-
-  <div :if={agents == []} class="obs-empty">
-    <div class="obs-empty-title">No agents detected</div>
-    <div class="obs-empty-desc">Start a Claude session to see it here.</div>
+    <%!-- Right content: Live Feed --%>
+    <div class="flex-1 min-w-0 overflow-y-auto p-3">
+      <div class="text-[10px] text-zinc-600 uppercase tracking-wider mb-2">Live Feed</div>
+      <ObservatoryWeb.Components.FeedComponents.feed_view
+        feed_groups={@feed_groups}
+        visible_events={@visible_events}
+        selected_event={@selected_event}
+        event_notes={@event_notes}
+        expanded_sessions={@expanded_sessions}
+        now={@now}
+      />
+    </div>
   </div>
 </div>

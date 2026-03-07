@@ -49,6 +49,7 @@ defmodule ObservatoryWeb.Router do
     pipe_through :browser
 
     live "/", DashboardLive
+    live "/:view", DashboardLive
     get "/export/events", ExportController, :index
   end
 
