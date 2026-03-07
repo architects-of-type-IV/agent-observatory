@@ -28,44 +28,40 @@
 %>
 <div class="flex flex-col gap-3">
   <%!-- Project bar + progress --%>
-  <div class="bg-zinc-900/50 border border-zinc-800 rounded-lg p-3">
-    <div class="flex items-center justify-between gap-4">
-      <div class="flex items-center gap-3">
-        <span class="text-xs text-zinc-500">Projects:</span>
-        <div class="flex items-center gap-1.5">
-          <span :for={{key, _path} <- projects} class="text-[10px] px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400 font-mono">
-            {key}
-          </span>
-          <span :if={map_size(projects) == 0} class="text-[10px] text-zinc-600">Auto-detecting from sessions...</span>
-        </div>
-        <button
-          :if={active_project && active_project != ""}
-          phx-click="trigger_gc"
-          phx-value-team={active_project}
-          class="text-xs px-2 py-1 rounded bg-red-600/10 text-red-400 hover:bg-red-600/20 transition"
-          data-confirm="Run garbage collection on this project?"
-        >
-          GC
-        </button>
-        <button phx-click="run_health_check" class="text-xs px-2 py-1 rounded bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-zinc-300 transition">
-          Health
-        </button>
-        <button
-          phx-click="reset_all_stale"
-          class="text-xs px-2 py-1 rounded bg-amber-600/10 text-amber-400 hover:bg-amber-600/20 transition"
-          data-confirm="Reset all stale tasks to pending?"
-        >
-          Reset Stale
-        </button>
+  <div class="flex items-center justify-between gap-3 flex-wrap mb-1">
+    <div class="flex items-center gap-2">
+      <span class="text-[10px] text-zinc-600">Projects:</span>
+      <div class="flex items-center gap-1">
+        <span :for={{key, _path} <- projects} class="obs-badge obs-badge-zinc font-mono">
+          {key}
+        </span>
+        <span :if={map_size(projects) == 0} class="text-[10px] text-zinc-600">Auto-detecting...</span>
       </div>
+      <button
+        :if={active_project && active_project != ""}
+        phx-click="trigger_gc"
+        phx-value-team={active_project}
+        class="obs-btn obs-btn-danger"
+        data-confirm="Run garbage collection on this project?"
+      >
+        GC
+      </button>
+      <button phx-click="run_health_check" class="obs-btn obs-btn-muted">Health</button>
+      <button
+        phx-click="reset_all_stale"
+        class="obs-btn bg-amber-600/15 text-amber-400 hover:bg-amber-600/25"
+        data-confirm="Reset all stale tasks to pending?"
+      >
+        Reset Stale
+      </button>
+    </div>
 
-      <div :if={pipeline.total > 0} class="flex items-center gap-3 text-xs text-zinc-500">
-        <span class="px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-400">{pipeline.completed} done</span>
-        <span class="px-1.5 py-0.5 rounded bg-blue-500/15 text-blue-400">{pipeline.in_progress} running</span>
-        <span class="px-1.5 py-0.5 rounded bg-zinc-700 text-zinc-400">{pipeline.pending} pending</span>
-        <span :if={pipeline.blocked > 0} class="px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400">{pipeline.blocked} blocked</span>
-        <span :if={pipeline.failed > 0} class="px-1.5 py-0.5 rounded bg-red-500/15 text-red-400">{pipeline.failed} failed</span>
-      </div>
+    <div :if={pipeline.total > 0} class="flex items-center gap-1.5">
+      <span class="obs-badge obs-badge-green">{pipeline.completed} done</span>
+      <span class="obs-badge obs-badge-blue">{pipeline.in_progress} running</span>
+      <span class="obs-badge obs-badge-zinc">{pipeline.pending} pending</span>
+      <span :if={pipeline.blocked > 0} class="obs-badge obs-badge-amber">{pipeline.blocked} blocked</span>
+      <span :if={pipeline.failed > 0} class="obs-badge obs-badge-red">{pipeline.failed} failed</span>
     </div>
   </div>
 
@@ -76,15 +72,15 @@
     />
   <% else %>
     <%!-- Kanban Board --%>
-    <div class="grid grid-cols-[repeat(auto-fit,minmax(160px,1fr))] gap-2">
+    <div class="grid grid-cols-[repeat(auto-fit,minmax(140px,1fr))] gap-2">
       <div
         :for={{status, label, border_color, text_color} <- columns}
         :if={kanban[status] != []}
-        class="flex flex-col"
+        class="flex flex-col obs-kanban-col"
       >
-        <div class="flex items-center gap-2 mb-1.5 px-1">
-          <span class={"text-[10px] font-semibold uppercase tracking-wider #{text_color}"}>{label}</span>
-          <span class="text-[10px] font-mono text-zinc-600">{length(kanban[status])}</span>
+        <div class="flex items-center gap-2 mb-1.5 px-0.5">
+          <h6 class={text_color}>{label}</h6>
+          <span class="text-[9px] font-mono text-zinc-700">{length(kanban[status])}</span>
         </div>
 
         <div class="space-y-1 max-h-[280px] overflow-y-auto pr-0.5">
@@ -93,10 +89,9 @@
             phx-click="select_dag_node"
             phx-value-id={task.id}
             class={[
-              "p-1.5 rounded border cursor-pointer transition hover:bg-zinc-800/60",
+              "obs-card-compact cursor-pointer",
               border_color,
-              "bg-zinc-900/50",
-              @selected_dag_task && @selected_dag_task.id == task.id && "ring-1 ring-indigo-500/50 bg-zinc-800/60"
+              @selected_dag_task && @selected_dag_task.id == task.id && "!ring-1 !ring-indigo-500/50 !bg-zinc-800/60"
             ]}
           >
             <div class="flex items-center gap-1 mb-0.5">
@@ -104,7 +99,7 @@
               <span class="text-[9px] font-mono text-zinc-600">{task.id}</span>
               <span :if={task.priority} class={"text-[9px] #{priority_color(task.priority)}"}>{task.priority}</span>
             </div>
-            <div class="text-[11px] text-zinc-300 leading-tight line-clamp-2">{task.subject}</div>
+            <div class="text-[10px] text-zinc-300 leading-tight line-clamp-2">{task.subject}</div>
             <div :if={task.owner && task.owner != ""} class="mt-0.5 text-[9px] font-mono text-zinc-500">
               {task.owner}
             </div>
@@ -118,8 +113,8 @@
     </div>
 
     <%!-- DAG Dependency Graph --%>
-    <div :if={waves != []} class="bg-zinc-900/50 border border-zinc-800 rounded-lg p-4 overflow-x-auto">
-      <h3 class="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-3">
+    <div :if={waves != []} class="border border-zinc-800/60 rounded-md p-3 overflow-x-auto bg-zinc-900/20">
+      <h3 class="text-[10px] font-semibold text-zinc-600 uppercase tracking-wider mb-2">
         Dependency Graph
         <span :if={dag.critical_path != []} class="text-zinc-600 normal-case font-normal ml-2">
           Critical path: {length(dag.critical_path)} tasks
@@ -145,7 +140,7 @@
     </div>
 
     <%!-- Task Detail (selected) --%>
-    <div :if={@selected_dag_task} class="bg-zinc-900/50 border border-zinc-800 rounded-lg p-3">
+    <div :if={@selected_dag_task} class="obs-card p-3">
       <div class="flex items-center justify-between mb-2">
         <div class="flex items-center gap-2">
           <span :if={@selected_dag_task[:project]} class="text-[10px] font-mono text-violet-400">{@selected_dag_task.project}</span>
@@ -158,14 +153,14 @@
             phx-click="reassign_swarm_task"
             phx-value-id={@selected_dag_task.id}
             phx-value-owner=""
-            class="px-2 py-0.5 text-[10px] bg-zinc-800 text-zinc-400 rounded hover:bg-zinc-700 transition"
+            class="obs-btn obs-btn-muted"
           >
             Unassign
           </button>
           <button
             phx-click="reset_swarm_task"
             phx-value-id={@selected_dag_task.id}
-            class="px-2 py-0.5 text-[10px] bg-amber-600/10 text-amber-400 rounded hover:bg-amber-600/20 transition"
+            class="obs-btn bg-amber-600/15 text-amber-400 hover:bg-amber-600/25"
           >
             Reset
           </button>

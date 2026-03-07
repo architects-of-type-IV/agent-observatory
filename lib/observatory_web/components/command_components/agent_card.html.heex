@@ -1,4 +1,4 @@
-<div class="rounded-lg border border-zinc-800 bg-zinc-900/50 p-2.5">
+<div class="obs-card">
   <%!-- Row 1: Identity + role + status + tmux --%>
   <div class="flex items-center gap-2 mb-1">
     <span class={["w-2 h-2 rounded-full shrink-0", status_dot_color(@agent.status)]} />
@@ -35,14 +35,14 @@
     <form phx-submit="send_agent_message" class="flex gap-1 flex-1 min-w-0">
       <input type="hidden" name="session_id" value={@agent.agent_id} />
       <input type="text" name="content" placeholder="Message..."
-        class="flex-1 bg-zinc-800 border border-zinc-700 rounded px-2 py-0.5 text-[11px] text-zinc-300 placeholder-zinc-600 focus:border-indigo-500 focus:ring-0 focus:outline-none min-w-0" />
-      <button type="submit" class="px-1.5 py-0.5 bg-indigo-600/20 text-indigo-400 rounded text-[10px] hover:bg-indigo-600/30 transition shrink-0">Msg</button>
+        class="flex-1 obs-input min-w-0" />
+      <button type="submit" class="obs-btn obs-btn-primary shrink-0">Msg</button>
     </form>
     <form phx-submit="push_context" class="flex gap-1 shrink-0">
       <input type="hidden" name="session_id" value={@agent.agent_id} />
       <input type="text" name="file_path" placeholder="/path..."
-        class="w-28 bg-zinc-800 border border-zinc-700 rounded px-2 py-0.5 text-[11px] text-zinc-300 placeholder-zinc-600 focus:border-indigo-500 focus:ring-0 focus:outline-none" />
-      <button type="submit" class="px-1.5 py-0.5 bg-amber-600/20 text-amber-400 rounded text-[10px] hover:bg-amber-600/30 transition shrink-0">Push</button>
+        class="w-28 obs-input" />
+      <button type="submit" class="obs-btn bg-amber-600/20 text-amber-400 hover:bg-amber-600/30 shrink-0">Push</button>
     </form>
   </div>
 </div>

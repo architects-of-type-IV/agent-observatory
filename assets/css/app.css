@@ -104,6 +104,152 @@
 
 /* This file is for your main application CSS */
 
+/* ═══ Observatory Design System ═══ */
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #27272a; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #3f3f46; }
+
+/* Section blocks -- the rounded containers for each column */
+.obs-section {
+  @apply border border-zinc-800 rounded-lg bg-zinc-900/30 overflow-hidden flex flex-col min-h-0;
+}
+.obs-section-header {
+  @apply px-2 py-1.5 border-b border-zinc-800 bg-zinc-900/50 flex items-center justify-between shrink-0;
+}
+.obs-section-header h5,
+.obs-section-header .obs-section-title {
+  @apply text-[10px] font-semibold uppercase tracking-wider text-zinc-500;
+}
+.obs-section-body {
+  @apply p-2 flex-1 overflow-y-auto;
+}
+
+/* Section title used in sidebar, detail panel, inspector */
+.obs-section-title {
+  @apply text-[9px] font-semibold uppercase tracking-wider text-zinc-600;
+}
+
+/* Sidebar items -- team/session rows */
+.obs-sidebar-item {
+  @apply px-1.5 py-1 rounded border border-transparent bg-zinc-800/40 cursor-pointer transition-all;
+}
+.obs-sidebar-item:hover {
+  @apply border-zinc-700/50;
+}
+.obs-sidebar-item.active {
+  @apply border-indigo-500/40 bg-zinc-800/60;
+}
+.obs-sidebar-item .si-title {
+  @apply text-[10px] font-mono text-zinc-300;
+}
+.obs-sidebar-item .si-meta {
+  @apply text-[9px] text-zinc-600;
+}
+
+/* Detail panel field rows */
+.obs-detail-field {
+  @apply flex items-baseline gap-2;
+}
+.obs-detail-field .df-label {
+  @apply text-[9px] text-zinc-600 shrink-0;
+}
+.obs-detail-field .df-value {
+  @apply text-[10px] font-mono text-zinc-400;
+}
+
+/* Inspector agent panels */
+.obs-inspector-panel {
+  @apply border border-zinc-800 rounded bg-zinc-900/50 p-1.5;
+}
+.obs-inspector-panel .ip-name {
+  @apply text-[10px] font-mono text-zinc-300 mb-0.5;
+}
+.obs-inspector-panel .ip-output {
+  @apply text-[9px] font-mono text-zinc-600;
+}
+
+/* Cards -- agent cards, kanban cards, sidebar items */
+.obs-card {
+  @apply p-2 rounded-md border border-zinc-800 bg-zinc-900/50 transition-all;
+}
+.obs-card:hover {
+  @apply border-zinc-700 bg-zinc-800/60;
+}
+.obs-card-compact {
+  @apply px-2 py-1.5 rounded border border-zinc-800 bg-zinc-900/50 transition-all;
+}
+.obs-card-compact:hover {
+  @apply border-zinc-700;
+}
+
+/* Badges -- status, priority, role */
+.obs-badge {
+  @apply text-[9px] font-semibold px-1.5 py-0.5 rounded;
+}
+.obs-badge-green { @apply bg-emerald-500/15 text-emerald-400; }
+.obs-badge-blue { @apply bg-blue-500/15 text-blue-400; }
+.obs-badge-amber { @apply bg-amber-500/15 text-amber-400; }
+.obs-badge-red { @apply bg-red-500/15 text-red-400; }
+.obs-badge-zinc { @apply bg-zinc-800 text-zinc-400; }
+.obs-badge-cyan { @apply bg-cyan-500/15 text-cyan-400; }
+.obs-badge-indigo { @apply bg-indigo-500/15 text-indigo-400; }
+
+/* Status dots */
+.obs-dot { @apply w-[5px] h-[5px] rounded-full shrink-0 inline-block; }
+.obs-dot-green { @apply bg-emerald-400; }
+.obs-dot-blue { @apply bg-blue-400; }
+.obs-dot-amber { @apply bg-amber-400; }
+.obs-dot-red { @apply bg-red-400; }
+.obs-dot-gray { @apply bg-zinc-600; }
+
+/* Feed items */
+.obs-feed-item {
+  @apply py-1 px-2 border-l-2 border-zinc-800;
+}
+.obs-feed-item-tool { @apply border-l-indigo-500/60; }
+.obs-feed-item-msg { @apply border-l-cyan-500/60; }
+.obs-feed-item-err { @apply border-l-red-500/60; }
+
+/* Kanban columns */
+.obs-kanban-col h6 {
+  @apply text-[9px] font-semibold uppercase tracking-wider text-zinc-500 mb-1.5;
+}
+
+/* Inputs and forms */
+.obs-input {
+  @apply bg-zinc-800/80 border border-zinc-700/60 rounded px-2 py-1 text-[11px] text-zinc-300 placeholder-zinc-600 focus:border-indigo-500/50 focus:ring-0 focus:outline-none transition;
+}
+.obs-select {
+  @apply bg-zinc-800/80 border border-zinc-700/60 rounded px-1.5 py-1 text-[11px] text-zinc-300 focus:border-indigo-500/50 focus:ring-0 focus:outline-none transition;
+}
+.obs-btn {
+  @apply px-2 py-1 rounded text-[10px] transition font-medium;
+}
+.obs-btn-primary { @apply bg-indigo-600/20 text-indigo-400 hover:bg-indigo-600/30; }
+.obs-btn-success { @apply bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600/30; }
+.obs-btn-danger { @apply bg-red-600/20 text-red-400 hover:bg-red-600/30; }
+.obs-btn-muted { @apply bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-zinc-300; }
+
+/* Empty state */
+.obs-empty {
+  @apply flex flex-col items-center justify-center py-8 text-center;
+}
+.obs-empty-title { @apply text-xs font-medium text-zinc-500 mb-1; }
+.obs-empty-desc { @apply text-[10px] text-zinc-600; }
+
+/* Dividers */
+.obs-divider { @apply w-px h-4 bg-zinc-800; }
+
+/* Pulse animation for live indicators */
+@keyframes obs-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+.obs-pulse { animation: obs-pulse 2s ease-in-out infinite; }
+
 /* Inspector drawer */
 .inspector-drawer {
   transition: height 200ms ease-in-out;
