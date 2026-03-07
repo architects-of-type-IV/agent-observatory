@@ -5,19 +5,17 @@ defmodule ObservatoryWeb.DashboardLive do
   import ObservatoryWeb.DashboardFormatHelpers
   import ObservatoryWeb.DashboardMessagingHandlers
   import ObservatoryWeb.DashboardTaskHandlers
-  import ObservatoryWeb.DashboardTimelineHelpers
   import ObservatoryWeb.DashboardSessionHelpers
   import ObservatoryWeb.DashboardUIHandlers
   import ObservatoryWeb.DashboardNotificationHandlers
   import ObservatoryWeb.DashboardFilterHandlers
-  import ObservatoryWeb.DashboardMessageHelpers
   import ObservatoryWeb.DashboardNotesHandlers
   import ObservatoryWeb.DashboardAgentHelpers
   import ObservatoryWeb.DashboardAgentActivityHelpers
-  import ObservatoryWeb.DashboardFeedHelpers
   import ObservatoryWeb.DashboardTeamInspectorHandlers
   import ObservatoryWeb.DashboardSwarmHandlers
   import ObservatoryWeb.DashboardGatewayHandlers
+  import ObservatoryWeb.DashboardState, only: [recompute: 1]
 
   @max_events 500
 
@@ -131,7 +129,7 @@ defmodule ObservatoryWeb.DashboardLive do
       |> assign(:forensic_entropy_open, false)
       # Seed gateway data from GenServer queries
       |> seed_gateway_assigns()
-      |> prepare_assigns()
+      |> recompute()
 
     # Subscribe to mailbox channels for all active sessions
     if connected?(socket) do
@@ -144,7 +142,7 @@ defmodule ObservatoryWeb.DashboardLive do
   @impl true
   def handle_info({:new_event, event}, socket) do
     events = [event | socket.assigns.events] |> Enum.take(@max_events)
-    {:noreply, socket |> assign(:events, events) |> prepare_assigns()}
+    {:noreply, socket |> assign(:events, events) |> recompute()}
   end
 
   def handle_info(:tick, socket) do
@@ -155,7 +153,7 @@ defmodule ObservatoryWeb.DashboardLive do
       |> assign(:now, DateTime.utc_now())
       |> assign(:tmux_sessions, tmux_sessions)
       |> maybe_poll_tmux()
-      |> prepare_assigns()
+      |> recompute()
 
     {:noreply, socket}
   end
@@ -176,7 +174,7 @@ defmodule ObservatoryWeb.DashboardLive do
       Enum.filter(socket.assigns.inspected_teams, fn t -> MapSet.member?(team_names, t[:name]) end)
 
     {:noreply,
-     socket |> assign(:disk_teams, disk_teams) |> assign(:inspected_teams, pruned) |> prepare_assigns()}
+     socket |> assign(:disk_teams, disk_teams) |> assign(:inspected_teams, pruned) |> recompute()}
   end
 
   def handle_info({:new_mailbox_message, message}, socket) do
@@ -184,7 +182,7 @@ defmodule ObservatoryWeb.DashboardLive do
   end
 
   def handle_info({:swarm_state, state}, socket) do
-    {:noreply, socket |> assign(:swarm_state, state) |> prepare_assigns()}
+    {:noreply, socket |> assign(:swarm_state, state) |> recompute()}
   end
 
   def handle_info({:protocol_update, stats}, socket) do
@@ -193,37 +191,37 @@ defmodule ObservatoryWeb.DashboardLive do
 
   def handle_info({:agent_crashed, session_id, team_name, reassigned_count}, socket) do
     {:noreply,
-     handle_agent_crashed(session_id, team_name, reassigned_count, socket) |> prepare_assigns()}
+     handle_agent_crashed(session_id, team_name, reassigned_count, socket) |> recompute()}
   end
 
   # Gateway PubSub handlers
   def handle_info({:decision_log, _log} = msg, socket) do
-    {:noreply, handle_gateway_info(msg, socket) |> prepare_assigns()}
+    {:noreply, handle_gateway_info(msg, socket) |> recompute()}
   end
 
   def handle_info({:schema_violation, _event} = msg, socket) do
-    {:noreply, handle_gateway_info(msg, socket) |> prepare_assigns()}
+    {:noreply, handle_gateway_info(msg, socket) |> recompute()}
   end
 
   def handle_info({:node_state_update, _data} = msg, socket) do
-    {:noreply, handle_gateway_info(msg, socket) |> prepare_assigns()}
+    {:noreply, handle_gateway_info(msg, socket) |> recompute()}
   end
 
   def handle_info({:dead_letter, _delivery} = msg, socket) do
-    {:noreply, handle_gateway_info(msg, socket) |> prepare_assigns()}
+    {:noreply, handle_gateway_info(msg, socket) |> recompute()}
   end
 
   def handle_info({:capability_update, _agents} = msg, socket) do
-    {:noreply, handle_gateway_info(msg, socket) |> prepare_assigns()}
+    {:noreply, handle_gateway_info(msg, socket) |> recompute()}
   end
 
   def handle_info(%{event_type: "entropy_alert"} = msg, socket) do
-    {:noreply, handle_gateway_info(msg, socket) |> prepare_assigns()}
+    {:noreply, handle_gateway_info(msg, socket) |> recompute()}
   end
 
   def handle_info(%{session_id: _sid, state: _state} = msg, socket)
       when is_map_key(msg, :session_id) and is_map_key(msg, :state) and map_size(msg) == 2 do
-    {:noreply, handle_gateway_info(msg, socket) |> prepare_assigns()}
+    {:noreply, handle_gateway_info(msg, socket) |> recompute()}
   end
 
   # Fleet topology refresh from TopologyBuilder
@@ -246,24 +244,24 @@ defmodule ObservatoryWeb.DashboardLive do
   end
 
   @impl true
-  def handle_event("filter", p, s), do: {:noreply, handle_filter(p, s) |> prepare_assigns()}
+  def handle_event("filter", p, s), do: {:noreply, handle_filter(p, s) |> recompute()}
 
   def handle_event("clear_filters", _p, s),
-    do: {:noreply, handle_clear_filters(s) |> prepare_assigns()}
+    do: {:noreply, handle_clear_filters(s) |> recompute()}
 
   def handle_event("apply_preset", %{"preset" => preset}, s),
-    do: {:noreply, handle_apply_preset(preset, s) |> prepare_assigns()}
+    do: {:noreply, handle_apply_preset(preset, s) |> recompute()}
 
   def handle_event("search_feed", %{"q" => q}, s),
-    do: {:noreply, handle_search_feed(q, s) |> prepare_assigns()}
+    do: {:noreply, handle_search_feed(q, s) |> recompute()}
 
   def handle_event("search_sessions", %{"q" => q}, s),
-    do: {:noreply, handle_search_sessions(q, s) |> prepare_assigns()}
+    do: {:noreply, handle_search_sessions(q, s) |> recompute()}
 
   def handle_event("select_event", %{"id" => id}, socket) do
     cur = socket.assigns.selected_event
     sel = if cur && cur.id == id, do: nil, else: Enum.find(socket.assigns.events, &(&1.id == id))
-    {:noreply, socket |> clear_selections() |> assign(:selected_event, sel) |> prepare_assigns()}
+    {:noreply, socket |> clear_selections() |> assign(:selected_event, sel) |> recompute()}
   end
 
   def handle_event("select_task", %{"id" => id}, socket) do
@@ -274,7 +272,7 @@ defmodule ObservatoryWeb.DashboardLive do
         do: nil,
         else: Enum.find(socket.assigns.active_tasks, &(&1[:id] == id))
 
-    {:noreply, socket |> clear_selections() |> assign(:selected_task, sel) |> prepare_assigns()}
+    {:noreply, socket |> clear_selections() |> assign(:selected_task, sel) |> recompute()}
   end
 
   def handle_event("select_agent", %{"id" => id}, socket) do
@@ -283,69 +281,69 @@ defmodule ObservatoryWeb.DashboardLive do
     sel =
       if cur && cur[:agent_id] == id, do: nil, else: find_agent_by_id(socket.assigns.teams, id)
 
-    {:noreply, socket |> clear_selections() |> assign(:selected_agent, sel) |> prepare_assigns()}
+    {:noreply, socket |> clear_selections() |> assign(:selected_agent, sel) |> recompute()}
   end
 
   def handle_event(e, p, s) when e in ["close_detail", "close_task_detail"] do
     h =
       if e == "close_detail", do: handle_close_detail(p, s), else: handle_close_task_detail(p, s)
 
-    {:noreply, h |> prepare_assigns()}
+    {:noreply, h |> recompute()}
   end
 
   def handle_event("filter_tool", %{"tool" => t}, s),
-    do: {:noreply, handle_filter_tool(t, s) |> prepare_assigns()}
+    do: {:noreply, handle_filter_tool(t, s) |> recompute()}
 
   def handle_event("filter_tool_use_id", %{"tuid" => t}, s),
-    do: {:noreply, handle_filter_tool_use_id(t, s) |> prepare_assigns()}
+    do: {:noreply, handle_filter_tool_use_id(t, s) |> recompute()}
 
   def handle_event("clear_events", _p, s),
-    do: {:noreply, s |> assign(:events, []) |> prepare_assigns()}
+    do: {:noreply, s |> assign(:events, []) |> recompute()}
 
   def handle_event("filter_session", %{"sid" => sid}, s),
-    do: {:noreply, handle_filter_session(sid, s) |> prepare_assigns()}
+    do: {:noreply, handle_filter_session(sid, s) |> recompute()}
 
   def handle_event("set_view", %{"mode" => m}, s),
-    do: {:noreply, handle_set_view(m, s) |> prepare_assigns()}
+    do: {:noreply, handle_set_view(m, s) |> recompute()}
 
   def handle_event("restore_view_mode", p, s),
     do:
       {:noreply,
        ObservatoryWeb.DashboardNavigationHandlers.handle_event("restore_view_mode", p, s)
-       |> prepare_assigns()}
+       |> recompute()}
 
   def handle_event("restore_state", p, s),
-    do: {:noreply, handle_restore_state(p, s) |> prepare_assigns()}
+    do: {:noreply, handle_restore_state(p, s) |> recompute()}
 
   def handle_event("select_team", %{"name" => name}, s) do
     sel = if s.assigns.selected_team == name, do: nil, else: name
-    {:noreply, s |> assign(:selected_team, sel) |> prepare_assigns()}
+    {:noreply, s |> assign(:selected_team, sel) |> recompute()}
   end
 
   def handle_event("filter_team", %{"name" => n}, s),
-    do: {:noreply, handle_filter_team(n, s) |> prepare_assigns()}
+    do: {:noreply, handle_filter_team(n, s) |> recompute()}
 
   def handle_event("filter_agent", %{"session_id" => sid}, s),
-    do: {:noreply, handle_filter_agent(sid, s) |> prepare_assigns()}
+    do: {:noreply, handle_filter_agent(sid, s) |> recompute()}
 
   def handle_event("send_agent_message", p, s), do: handle_send_agent_message(p, s)
   def handle_event("send_team_broadcast", p, s), do: handle_send_team_broadcast(p, s)
   def handle_event("push_context", p, s), do: handle_push_context(p, s)
 
   def handle_event("toggle_shortcuts_help", p, s),
-    do: {:noreply, handle_toggle_shortcuts_help(p, s) |> prepare_assigns()}
+    do: {:noreply, handle_toggle_shortcuts_help(p, s) |> recompute()}
 
   def handle_event("toggle_create_task_modal", p, s),
-    do: {:noreply, handle_toggle_create_task_modal(p, s) |> prepare_assigns()}
+    do: {:noreply, handle_toggle_create_task_modal(p, s) |> recompute()}
 
   def handle_event("toggle_event_detail", p, s),
-    do: {:noreply, handle_toggle_event_detail(p, s) |> prepare_assigns()}
+    do: {:noreply, handle_toggle_event_detail(p, s) |> recompute()}
 
   def handle_event("focus_agent", p, s),
-    do: {:noreply, handle_focus_agent(p, s) |> prepare_assigns()}
+    do: {:noreply, handle_focus_agent(p, s) |> recompute()}
 
   def handle_event("close_agent_focus", p, s),
-    do: {:noreply, handle_close_agent_focus(p, s) |> prepare_assigns()}
+    do: {:noreply, handle_close_agent_focus(p, s) |> recompute()}
 
   def handle_event("toggle_session_collapse", %{"session_id" => sid}, s) do
     expanded = s.assigns.expanded_sessions
@@ -395,24 +393,24 @@ defmodule ObservatoryWeb.DashboardLive do
     do:
       {:noreply,
        ObservatoryWeb.DashboardSessionControlHandlers.handle_pause_agent(p, s)
-       |> prepare_assigns()}
+       |> recompute()}
 
   def handle_event("resume_agent", p, s),
     do:
       {:noreply,
        ObservatoryWeb.DashboardSessionControlHandlers.handle_resume_agent(p, s)
-       |> prepare_assigns()}
+       |> recompute()}
 
   def handle_event("shutdown_agent", p, s),
     do:
       {:noreply,
        ObservatoryWeb.DashboardSessionControlHandlers.handle_shutdown_agent(p, s)
-       |> prepare_assigns()}
+       |> recompute()}
 
   def handle_event("create_task", p, s) do
     case handle_create_task(p, s) do
       {:noreply, upd} ->
-        {:noreply, upd |> assign(:show_create_task_modal, false) |> prepare_assigns()}
+        {:noreply, upd |> assign(:show_create_task_modal, false) |> recompute()}
 
       other ->
         other
@@ -421,83 +419,83 @@ defmodule ObservatoryWeb.DashboardLive do
 
   def handle_event("update_task_status", p, s) do
     case handle_update_task_status(p, s) do
-      {:noreply, upd} -> {:noreply, upd |> prepare_assigns()}
+      {:noreply, upd} -> {:noreply, upd |> recompute()}
       other -> other
     end
   end
 
   def handle_event("reassign_task", p, s) do
     case handle_reassign_task(p, s) do
-      {:noreply, upd} -> {:noreply, upd |> prepare_assigns()}
+      {:noreply, upd} -> {:noreply, upd |> recompute()}
       other -> other
     end
   end
 
   def handle_event("delete_task", p, s) do
     case handle_delete_task(p, s) do
-      {:noreply, upd} -> {:noreply, upd |> prepare_assigns()}
+      {:noreply, upd} -> {:noreply, upd |> recompute()}
       other -> other
     end
   end
 
   def handle_event("keyboard_escape", p, s),
-    do: {:noreply, handle_keyboard_escape(p, s) |> prepare_assigns()}
+    do: {:noreply, handle_keyboard_escape(p, s) |> recompute()}
 
   def handle_event("keyboard_navigate", p, s),
-    do: {:noreply, handle_keyboard_navigate(p, s) |> prepare_assigns()}
+    do: {:noreply, handle_keyboard_navigate(p, s) |> recompute()}
 
   def handle_event("add_note", p, s) do
     {:noreply, res} = handle_add_note(p, s)
-    {:noreply, res |> prepare_assigns()}
+    {:noreply, res |> recompute()}
   end
 
   def handle_event("delete_note", p, s) do
     {:noreply, res} = handle_delete_note(p, s)
-    {:noreply, res |> prepare_assigns()}
+    {:noreply, res |> recompute()}
   end
 
   def handle_event("search_messages", p, s),
-    do: {:noreply, handle_search_messages(p, s) |> prepare_assigns()}
+    do: {:noreply, handle_search_messages(p, s) |> recompute()}
 
   def handle_event("toggle_thread", p, s),
-    do: {:noreply, handle_toggle_thread(p, s) |> prepare_assigns()}
+    do: {:noreply, handle_toggle_thread(p, s) |> recompute()}
 
   def handle_event("expand_all_threads", _p, s),
-    do: {:noreply, handle_expand_all_threads(s) |> prepare_assigns()}
+    do: {:noreply, handle_expand_all_threads(s) |> recompute()}
 
   def handle_event("collapse_all_threads", _p, s),
-    do: {:noreply, handle_collapse_all_threads(s) |> prepare_assigns()}
+    do: {:noreply, handle_collapse_all_threads(s) |> recompute()}
 
   # Inspector handlers
   def handle_event("inspect_team", p, s),
-    do: {:noreply, handle_inspect_team(p, s) |> prepare_assigns()}
+    do: {:noreply, handle_inspect_team(p, s) |> recompute()}
 
   def handle_event("remove_from_inspector", p, s),
-    do: {:noreply, handle_remove_from_inspector(p, s) |> prepare_assigns()}
+    do: {:noreply, handle_remove_from_inspector(p, s) |> recompute()}
 
   def handle_event("close_all_inspector", _p, s),
-    do: {:noreply, handle_close_all_inspector(s) |> prepare_assigns()}
+    do: {:noreply, handle_close_all_inspector(s) |> recompute()}
 
   def handle_event("toggle_inspector_layout", _p, s),
-    do: {:noreply, handle_toggle_inspector_layout(s) |> prepare_assigns()}
+    do: {:noreply, handle_toggle_inspector_layout(s) |> recompute()}
 
   def handle_event("toggle_maximize_inspector", _p, s),
-    do: {:noreply, handle_toggle_maximize_inspector(s) |> prepare_assigns()}
+    do: {:noreply, handle_toggle_maximize_inspector(s) |> recompute()}
 
   def handle_event("set_inspector_size", p, s),
-    do: {:noreply, handle_set_inspector_size(p, s) |> prepare_assigns()}
+    do: {:noreply, handle_set_inspector_size(p, s) |> recompute()}
 
   def handle_event("set_output_mode", p, s),
-    do: {:noreply, handle_set_output_mode(p, s) |> prepare_assigns()}
+    do: {:noreply, handle_set_output_mode(p, s) |> recompute()}
 
   def handle_event("toggle_agent_output", p, s),
-    do: {:noreply, handle_toggle_agent_output(p, s) |> prepare_assigns()}
+    do: {:noreply, handle_toggle_agent_output(p, s) |> recompute()}
 
   def handle_event("set_message_target", p, s),
-    do: {:noreply, handle_set_message_target(p, s) |> prepare_assigns()}
+    do: {:noreply, handle_set_message_target(p, s) |> recompute()}
 
   def handle_event("send_targeted_message", p, s),
-    do: {:noreply, handle_send_targeted_message(p, s) |> prepare_assigns()}
+    do: {:noreply, handle_send_targeted_message(p, s) |> recompute()}
 
   def handle_event("connect_tmux", %{"session" => session_name}, socket) do
     output =
@@ -587,31 +585,31 @@ defmodule ObservatoryWeb.DashboardLive do
 
   # Swarm handlers
   def handle_event("select_project", p, s),
-    do: {:noreply, handle_select_project(p, s) |> prepare_assigns()}
+    do: {:noreply, handle_select_project(p, s) |> recompute()}
 
   def handle_event("heal_task", p, s),
-    do: {:noreply, handle_heal_task(p, s) |> prepare_assigns()}
+    do: {:noreply, handle_heal_task(p, s) |> recompute()}
 
   def handle_event("reset_all_stale", _p, s),
-    do: {:noreply, handle_reset_all_stale(%{}, s) |> prepare_assigns()}
+    do: {:noreply, handle_reset_all_stale(%{}, s) |> recompute()}
 
   def handle_event("run_health_check", _p, s),
-    do: {:noreply, handle_run_health_check(%{}, s) |> prepare_assigns()}
+    do: {:noreply, handle_run_health_check(%{}, s) |> recompute()}
 
   def handle_event("reassign_swarm_task", p, s),
-    do: {:noreply, handle_reassign_swarm_task(p, s) |> prepare_assigns()}
+    do: {:noreply, handle_reassign_swarm_task(p, s) |> recompute()}
 
   def handle_event("claim_swarm_task", p, s),
-    do: {:noreply, handle_claim_swarm_task(p, s) |> prepare_assigns()}
+    do: {:noreply, handle_claim_swarm_task(p, s) |> recompute()}
 
   def handle_event("trigger_gc", p, s),
-    do: {:noreply, handle_trigger_gc(p, s) |> prepare_assigns()}
+    do: {:noreply, handle_trigger_gc(p, s) |> recompute()}
 
   def handle_event("select_dag_node", p, s),
-    do: {:noreply, handle_select_dag_node(p, s) |> prepare_assigns()}
+    do: {:noreply, handle_select_dag_node(p, s) |> recompute()}
 
   def handle_event("select_command_agent", p, s),
-    do: {:noreply, handle_select_command_agent(p, s) |> prepare_assigns()}
+    do: {:noreply, handle_select_command_agent(p, s) |> recompute()}
 
   def handle_event("node_selected", %{"trace_id" => trace_id}, socket) do
     # Look up session info from events by matching session_id or trace_id
@@ -665,10 +663,10 @@ defmodule ObservatoryWeb.DashboardLive do
     do: {:noreply, assign(s, :selected_topology_node, nil)}
 
   def handle_event("clear_command_selection", _p, s),
-    do: {:noreply, handle_clear_command_selection(%{}, s) |> prepare_assigns()}
+    do: {:noreply, handle_clear_command_selection(%{}, s) |> recompute()}
 
   def handle_event("send_command_message", %{"to" => to, "content" => content} = p, s) do
-    socket = handle_send_command_message(p, s) |> prepare_assigns()
+    socket = handle_send_command_message(p, s) |> recompute()
 
     socket =
       if content != "" do
@@ -702,7 +700,7 @@ defmodule ObservatoryWeb.DashboardLive do
       end
 
     if key do
-      {:noreply, s |> assign(key, String.to_existing_atom(tab)) |> prepare_assigns()}
+      {:noreply, s |> assign(key, String.to_existing_atom(tab)) |> recompute()}
     else
       {:noreply, s}
     end
@@ -729,7 +727,7 @@ defmodule ObservatoryWeb.DashboardLive do
      |> assign(:agent_slideout, agent || %{session_id: sid})
      |> assign(:slideout_terminal, "")
      |> assign(:slideout_activity, activity)
-     |> prepare_assigns()}
+     |> recompute()}
   end
 
   def handle_event("close_agent_slideout", _p, s) do
@@ -748,47 +746,47 @@ defmodule ObservatoryWeb.DashboardLive do
 
   def handle_event("toggle_add_project", _p, s),
     do:
-      {:noreply, s |> assign(:show_add_project, !s.assigns.show_add_project) |> prepare_assigns()}
+      {:noreply, s |> assign(:show_add_project, !s.assigns.show_add_project) |> recompute()}
 
   def handle_event("add_project", p, s),
     do:
       {:noreply,
-       handle_add_project(p, s) |> assign(:show_add_project, false) |> prepare_assigns()}
+       handle_add_project(p, s) |> assign(:show_add_project, false) |> recompute()}
 
   # Phase 5 - Fleet Command handlers
   def handle_event("toggle_agent_grid", _p, s) do
-    {:noreply, s |> assign(:agent_grid_open, !s.assigns.agent_grid_open) |> prepare_assigns()}
+    {:noreply, s |> assign(:agent_grid_open, !s.assigns.agent_grid_open) |> recompute()}
   end
 
   # Phase 5 - Session Cluster & Registry handlers
   def handle_event("toggle_entropy_filter", _p, s) do
-    {:noreply, s |> assign(:entropy_filter_active, !s.assigns.entropy_filter_active) |> prepare_assigns()}
+    {:noreply, s |> assign(:entropy_filter_active, !s.assigns.entropy_filter_active) |> recompute()}
   end
 
   def handle_event("select_session", %{"session_id" => sid}, s) do
     s = subscribe_session_dag(s, sid)
-    {:noreply, s |> assign(:selected_session_id, sid) |> prepare_assigns()}
+    {:noreply, s |> assign(:selected_session_id, sid) |> recompute()}
   end
 
   def handle_event("toggle_subpanel", %{"panel" => panel}, s) do
     key = String.to_existing_atom("#{panel}_panel_open")
-    {:noreply, s |> assign(key, !Map.get(s.assigns, key, false)) |> prepare_assigns()}
+    {:noreply, s |> assign(key, !Map.get(s.assigns, key, false)) |> recompute()}
   end
 
   def handle_event("sort_capability_directory", %{"field" => field}, s) do
     field_atom = String.to_existing_atom(field)
     new_dir = if s.assigns.capability_sort_field == field_atom and s.assigns.capability_sort_dir == :asc, do: :desc, else: :asc
-    {:noreply, s |> assign(:capability_sort_field, field_atom) |> assign(:capability_sort_dir, new_dir) |> prepare_assigns()}
+    {:noreply, s |> assign(:capability_sort_field, field_atom) |> assign(:capability_sort_dir, new_dir) |> recompute()}
   end
 
   def handle_event("update_route_weight", %{"agent_type" => agent_type, "weight" => weight_str}, s) do
     case Integer.parse(weight_str) do
       {w, ""} when w >= 0 and w <= 100 ->
         weights = Map.put(s.assigns.route_weights, agent_type, w)
-        {:noreply, s |> assign(:route_weights, weights) |> assign(:route_weight_errors, Map.delete(s.assigns.route_weight_errors, agent_type)) |> prepare_assigns()}
+        {:noreply, s |> assign(:route_weights, weights) |> assign(:route_weight_errors, Map.delete(s.assigns.route_weight_errors, agent_type)) |> recompute()}
       _ ->
         errors = Map.put(s.assigns.route_weight_errors, agent_type, "Must be 0-100")
-        {:noreply, s |> assign(:route_weight_errors, errors) |> prepare_assigns()}
+        {:noreply, s |> assign(:route_weight_errors, errors) |> recompute()}
     end
   end
 
@@ -797,7 +795,7 @@ defmodule ObservatoryWeb.DashboardLive do
     dlq = Enum.map(s.assigns.dlq_entries, fn entry ->
       if Map.get(entry, :id) == entry_id, do: Map.put(entry, :state, "pending"), else: entry
     end)
-    {:noreply, s |> assign(:dlq_entries, dlq) |> prepare_assigns()}
+    {:noreply, s |> assign(:dlq_entries, dlq) |> recompute()}
   end
 
   # Phase 5 - Forensic handlers
@@ -805,50 +803,50 @@ defmodule ObservatoryWeb.DashboardLive do
     results = Enum.filter(s.assigns.events, fn ev ->
       query != "" and String.contains?(String.downcase(inspect(ev)), String.downcase(query))
     end)
-    {:noreply, s |> assign(:archive_search, query) |> assign(:archive_results, results) |> prepare_assigns()}
+    {:noreply, s |> assign(:archive_search, query) |> assign(:archive_results, results) |> recompute()}
   end
 
   def handle_event("set_cost_group_by", %{"field" => field}, s) do
-    {:noreply, s |> assign(:cost_group_by, String.to_existing_atom(field)) |> prepare_assigns()}
+    {:noreply, s |> assign(:cost_group_by, String.to_existing_atom(field)) |> recompute()}
   end
 
   def handle_event("add_policy_rule", %{"name" => name, "condition" => condition, "action" => action}, s) do
     rule = %{id: System.unique_integer([:positive]), name: name, condition: condition, action: action, enabled: true}
-    {:noreply, s |> assign(:policy_rules, [rule | s.assigns.policy_rules]) |> prepare_assigns()}
+    {:noreply, s |> assign(:policy_rules, [rule | s.assigns.policy_rules]) |> recompute()}
   end
 
   def handle_event("toggle_forensic_panel", %{"panel" => panel}, s) do
     key = String.to_existing_atom("forensic_#{panel}_open")
-    {:noreply, s |> assign(key, !Map.get(s.assigns, key, false)) |> prepare_assigns()}
+    {:noreply, s |> assign(key, !Map.get(s.assigns, key, false)) |> recompute()}
   end
 
   # Phase 5 - God Mode handlers (delegated to DashboardSessionControlHandlers)
   def handle_event("kill_switch_click", p, s) do
-    {:noreply, apply(ObservatoryWeb.DashboardSessionControlHandlers, :handle_kill_switch_click, [p, s]) |> prepare_assigns()}
+    {:noreply, apply(ObservatoryWeb.DashboardSessionControlHandlers, :handle_kill_switch_click, [p, s]) |> recompute()}
   end
 
   def handle_event("kill_switch_first_confirm", p, s) do
-    {:noreply, apply(ObservatoryWeb.DashboardSessionControlHandlers, :handle_kill_switch_first_confirm, [p, s]) |> prepare_assigns()}
+    {:noreply, apply(ObservatoryWeb.DashboardSessionControlHandlers, :handle_kill_switch_first_confirm, [p, s]) |> recompute()}
   end
 
   def handle_event("kill_switch_second_confirm", p, s) do
-    {:noreply, apply(ObservatoryWeb.DashboardSessionControlHandlers, :handle_kill_switch_second_confirm, [p, s]) |> prepare_assigns()}
+    {:noreply, apply(ObservatoryWeb.DashboardSessionControlHandlers, :handle_kill_switch_second_confirm, [p, s]) |> recompute()}
   end
 
   def handle_event("kill_switch_cancel", p, s) do
-    {:noreply, apply(ObservatoryWeb.DashboardSessionControlHandlers, :handle_kill_switch_cancel, [p, s]) |> prepare_assigns()}
+    {:noreply, apply(ObservatoryWeb.DashboardSessionControlHandlers, :handle_kill_switch_cancel, [p, s]) |> recompute()}
   end
 
   def handle_event("push_instructions_intent", p, s) do
-    {:noreply, apply(ObservatoryWeb.DashboardSessionControlHandlers, :handle_push_instructions_intent, [p, s]) |> prepare_assigns()}
+    {:noreply, apply(ObservatoryWeb.DashboardSessionControlHandlers, :handle_push_instructions_intent, [p, s]) |> recompute()}
   end
 
   def handle_event("push_instructions_confirm", p, s) do
-    {:noreply, apply(ObservatoryWeb.DashboardSessionControlHandlers, :handle_push_instructions_confirm, [p, s]) |> prepare_assigns()}
+    {:noreply, apply(ObservatoryWeb.DashboardSessionControlHandlers, :handle_push_instructions_confirm, [p, s]) |> recompute()}
   end
 
   def handle_event("push_instructions_cancel", p, s) do
-    {:noreply, apply(ObservatoryWeb.DashboardSessionControlHandlers, :handle_push_instructions_cancel, [p, s]) |> prepare_assigns()}
+    {:noreply, apply(ObservatoryWeb.DashboardSessionControlHandlers, :handle_push_instructions_cancel, [p, s]) |> recompute()}
   end
 
   # Navigation handlers
@@ -863,7 +861,7 @@ defmodule ObservatoryWeb.DashboardLive do
              "filter_analytics_tool"
            ] do
     ObservatoryWeb.DashboardNavigationHandlers.handle_event(e, p, s)
-    |> then(&{:noreply, prepare_assigns(&1)})
+    |> then(&{:noreply, recompute(&1)})
   end
 
   defp find_agent_by_id(teams, agent_id) do
@@ -909,222 +907,6 @@ defmodule ObservatoryWeb.DashboardLive do
     (event_items ++ message_items)
     |> Enum.sort_by(& &1.timestamp, {:desc, DateTime})
     |> Enum.take(100)
-  end
-
-  defp prepare_assigns(socket) do
-    assigns = socket.assigns
-    all_sessions = active_sessions(assigns.events)
-
-    # Merge tmux sessions not already represented in events
-    known_tmux =
-      assigns.events
-      |> Enum.map(& &1.tmux_session)
-      |> Enum.reject(&is_nil/1)
-      |> MapSet.new()
-
-    tmux_only =
-      (assigns[:tmux_sessions] || [])
-      |> Enum.reject(fn name -> MapSet.member?(known_tmux, name) end)
-      |> Enum.map(fn name ->
-        now = assigns.now
-
-        %{
-          source_app: name,
-          session_id: "tmux:#{name}",
-          event_count: 0,
-          latest_event: %{inserted_at: now},
-          first_event: %{inserted_at: now},
-          ended?: false,
-          model: nil,
-          permission_mode: nil,
-          cwd: nil,
-          tmux_session: name
-        }
-      end)
-
-    all_sessions = all_sessions ++ tmux_only
-
-    all_teams = derive_teams(assigns.events, assigns.disk_teams)
-    all_teams = Enum.map(all_teams, &enrich_team_members(&1, assigns.events, assigns.now))
-    all_teams = detect_dead_teams(all_teams, assigns.now)
-    teams = Enum.reject(all_teams, & &1[:dead?])
-    team_sids = all_team_sids(all_teams)
-    standalone = Enum.reject(all_sessions, fn s -> MapSet.member?(team_sids, s.session_id) end)
-
-    event_tasks = derive_tasks(assigns.events)
-    messages = derive_messages(assigns.events)
-    filtered_messages = search_messages(messages, assigns.search_messages)
-    message_threads = group_messages_by_thread(filtered_messages)
-
-    event_notes = Observatory.Notes.list_notes()
-
-    # For the selected team, merge disk tasks with event tasks
-    # Auto-select team when only 1 exists
-    selected_team =
-      cond do
-        assigns.selected_team -> assigns.selected_team
-        length(teams) == 1 -> hd(teams).name
-        true -> nil
-      end
-
-    sel_team = Enum.find(teams, fn t -> t.name == selected_team end)
-
-    active_tasks =
-      cond do
-        sel_team && sel_team.tasks != [] -> sel_team.tasks
-        event_tasks != [] -> event_tasks
-        true -> []
-      end
-
-    has_teams? = teams != []
-
-    # Compute error and analytics data
-    errors = extract_errors(assigns.events)
-    error_groups = group_errors(errors)
-    analytics = compute_tool_analytics(assigns.events)
-    timeline = compute_timeline_data(assigns.events)
-
-    feed_groups = build_feed_groups(assigns.events, teams)
-
-    # Add tmux-only sessions to the feed as presence entries
-    feed_groups = feed_groups ++ Enum.map(tmux_only, fn s ->
-      %{
-        session_id: s.session_id,
-        agent_name: s.tmux_session,
-        role: :standalone,
-        events: [],
-        turns: [],
-        turn_count: 0,
-        session_start: nil,
-        session_end: nil,
-        stop_event: nil,
-        model: nil,
-        cwd: nil,
-        permission_mode: nil,
-        source_app: s.source_app,
-        event_count: 0,
-        tool_count: 0,
-        subagent_count: 0,
-        total_duration_ms: nil,
-        start_time: assigns.now,
-        end_time: nil,
-        is_active: true
-      }
-    end)
-
-    # Refresh inspected teams with current enriched data
-    inspected_names = Enum.map(assigns.inspected_teams, & &1[:name])
-    refreshed_inspected = Enum.filter(teams, fn t -> t[:name] in inspected_names end)
-
-    # Compute inspector events: filter to only events from inspected team members
-    inspector_member_sids =
-      refreshed_inspected
-      |> Enum.flat_map(&team_member_sids/1)
-      |> MapSet.new()
-
-    inspector_events =
-      if MapSet.size(inspector_member_sids) > 0 do
-        assigns.events
-        |> Enum.filter(fn e -> MapSet.member?(inspector_member_sids, e.session_id) end)
-        |> Enum.sort_by(& &1.inserted_at, {:desc, DateTime})
-        |> Enum.take(200)
-      else
-        []
-      end
-
-    # Build session-level topology nodes (1 per session, not per event)
-    # Look up team membership for labeling
-    team_member_index =
-      teams
-      |> Enum.flat_map(fn t ->
-        Enum.map(t.members, fn m -> {m[:agent_id], %{team: t.name, role: m[:name] || m[:agent_type]}} end)
-      end)
-      |> Map.new()
-
-    session_sids = MapSet.new(all_sessions, & &1.session_id)
-
-    session_nodes =
-      all_sessions
-      |> Enum.map(fn s ->
-        status =
-          cond do
-            s.ended? -> "dead"
-            DateTime.diff(assigns.now, s.latest_event.inserted_at, :second) > 120 -> "idle"
-            true -> "active"
-          end
-
-        team_info = Map.get(team_member_index, s.session_id, %{})
-        dur = DateTime.diff(assigns.now, s.first_event.inserted_at, :second)
-
-        %{
-          trace_id: s.session_id,
-          agent_id: s.session_id,
-          state: status,
-          label: team_info[:role] || s.source_app || String.slice(s.session_id, 0, 8),
-          model: short_model_name(s.model),
-          team: team_info[:team],
-          events: s.event_count,
-          cwd: if(s.cwd, do: Path.basename(s.cwd), else: nil),
-          duration: session_duration_sec(dur)
-        }
-      end)
-
-    # Add team members not yet seen in events (disk-only agents)
-    member_nodes =
-      teams
-      |> Enum.flat_map(fn team ->
-        team.members
-        |> Enum.filter(fn m -> m[:agent_id] && not MapSet.member?(session_sids, m[:agent_id]) end)
-        |> Enum.map(fn m ->
-          %{
-            trace_id: m[:agent_id],
-            agent_id: m[:agent_id],
-            state: to_string(m[:status] || :idle),
-            label: m[:name] || m[:agent_type] || String.slice(m[:agent_id] || "", 0, 8),
-            model: short_model_name(m[:model]),
-            team: team.name,
-            events: m[:event_count] || 0,
-            cwd: if(m[:cwd], do: Path.basename(m[:cwd]), else: nil),
-            duration: nil
-          }
-        end)
-      end)
-
-    topo_nodes = session_nodes ++ member_nodes
-
-    # Edges: sessions in the same team are connected
-    topo_edges =
-      teams
-      |> Enum.flat_map(fn team ->
-        sids = Enum.map(team.members, & &1[:agent_id]) |> Enum.reject(&is_nil/1)
-
-        sids
-        |> Enum.chunk_every(2, 1, :discard)
-        |> Enum.map(fn [from, to] ->
-          %{from: from, to: to, traffic_volume: 0, latency_ms: 0, status: "active"}
-        end)
-      end)
-
-    socket
-    |> assign(:visible_events, filtered_events(assigns))
-    |> assign(:feed_groups, feed_groups)
-    |> assign(:inspected_teams, refreshed_inspected)
-    |> assign(:inspector_events, inspector_events)
-    |> assign(:sessions, filtered_sessions(standalone, assigns.search_sessions))
-    |> assign(:total_sessions, length(all_sessions))
-    |> assign(:teams, teams)
-    |> assign(:has_teams, has_teams?)
-    |> assign(:active_tasks, active_tasks)
-    |> assign(:messages, messages)
-    |> assign(:message_threads, message_threads)
-    |> assign(:event_notes, event_notes)
-    |> assign(:selected_team, selected_team)
-    |> assign(:sel_team, sel_team)
-    |> assign(:errors, errors)
-    |> assign(:error_groups, error_groups)
-    |> assign(:analytics, analytics)
-    |> assign(:timeline, timeline)
-    |> push_event("fleet_topology_update", %{nodes: topo_nodes, edges: topo_edges})
   end
 
   defp maybe_poll_tmux(%{assigns: %{active_tmux_session: nil}} = socket), do: socket

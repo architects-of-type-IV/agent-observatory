@@ -1,9 +1,17 @@
 # Observatory - Brain
 
 ## Architecture
-- Event-driven: hooks -> POST /api/events -> Ash.create + PubSub.broadcast -> LiveView
+- Event-driven: hooks -> POST /api/events -> EventBuffer ETS + PubSub -> LiveView
 - Dual data sources: event-derived state + disk-based team/task state (TeamWatcher)
-- prepare_assigns/1 called from mount and every handle_event/handle_info
+- DashboardState.recompute/1 called from mount and every handle_event/handle_info
+- Ash domains: Events (SQLite), Costs (SQLite), AgentTools (MCP), Fleet (Simple/ETS), Activity (Simple/ETS)
+
+## Ash Domain Model (2026-03-07)
+- Fleet domain: Agent + Team resources, backed by Ash.DataLayer.Simple
+- Activity domain: Message + Task + Error resources, backed by Ash.DataLayer.Simple
+- Pattern: shared Preparations load data via set_data/2, Ash applies filter DSL
+- Code interfaces: Fleet.Agent.active!(), Fleet.Team.alive!(), Activity.Error.by_tool!()
+- LoadAgents calls Fleet.Team.alive!() for team enrichment (no circular dep: LoadTeams doesn't call agents)
 
 ## MCP Server (Agent Tools)
 - Route: `forward "/mcp", AshAi.Mcp.Router` in router.ex (no pipeline)

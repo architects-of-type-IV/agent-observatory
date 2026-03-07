@@ -1,221 +1,51 @@
 Observatory Progress
 ====================
 
-## Current: Dashboard-to-Backend Wiring COMPLETE (2026-02-22)
+## Current: Ash Domain Modeling Refactor IN PROGRESS (2026-03-07)
 
-### Dashboard Wiring Completed
-- [x] DashboardGatewayHandlers module (PubSub subs, DecisionLog processing, topology push)
-- [x] EventBridge GenServer (events:stream -> gateway:messages + CausalDAG feeding)
-- [x] CausalDAG + TopologyBuilder added to supervision tree
-- [x] Fleet Command canvas: real TopologyMap hook replacing placeholder
-- [x] Session Cluster DAG canvas: real TopologyMap hook replacing placeholder
-- [x] topology_map.js: configurable data-event attribute for dual instances
-- [x] dashboard_live.ex: handle_info for topology + DAG delta routing
-- [x] Per-session DAG subscription on select_session
-- [x] CausalDAG reset/0 API for test isolation
-- [x] 286 tests, 0 failures, zero warnings
-- [x] /distill launched (tmux distill-1771791211)
+### Completed Steps (1-6 of 9)
+- [x] Step 1: Fleet domain + Agent/Team resources + LoadAgents/LoadTeams preparations
+- [x] Step 2: Activity domain + Message/Task/Error resources + 3 preparations
+- [x] Step 3: (Deferred) Enhance Events.Event with new read actions
+- [x] Step 4: Register Fleet + Activity domains in config.exs
+- [x] Step 5: Create DashboardState.recompute/1 using Ash domain calls
+- [x] Step 6: Refactor dashboard_live.ex to use DashboardState (1138 -> 920 lines)
 
-### Phase 5 Completed
-- [x] Task 1: Six-View Navigation Shell (opus) -- view_mode contract, 6 stubs, keyboard 1-6, localStorage
-- [x] Task 2: Fleet Command View (sonnet) -- 6 panels + all dashboard_live.ex mount/event wiring
-- [x] Task 3: Session Cluster + Registry Views (sonnet) -- entropy filter, drill-down, sortable directory
-- [x] Task 4: Scheduler + Forensic Inspector Views (sonnet) -- cron dashboard, DLQ retry, message archive
-- [x] Task 5: God Mode View (sonnet) -- kill switch double-confirm, danger CSS, global instructions
-- [x] Task 6: Final validation (haiku) -- 233 tests, 0 failures, zero warnings
-- [x] EXP-003: Model tiering ADOPT -- opus anchor, sonnet components, haiku verification
-- [x] Build: zero warnings
+### Remaining Steps
+- [ ] Step 7: Move inline handlers to existing modules
+- [ ] Step 8: Retire absorbed helper modules
+- [ ] Step 9: Final compile + smoke test
 
-## Previous: Phase 4 Gateway Infrastructure & HITL COMPLETE (2026-02-22)
+### Key Metrics
+- dashboard_live.ex: 1138 -> 920 lines (-218 lines, -19%)
+- prepare_assigns removed (215 lines) -> DashboardState.recompute (270 lines)
+- 13 new files created (2 domains, 5 resources, 5 preparations, 1 state module)
+- Zero warnings throughout
 
-### Completed
-- [x] Nav redesign: 9 tabs -> 4 primary (Overview, Protocols, Feed, Errors) + More dropdown
-- [x] Overview tab: Command + Pipeline + Agents stacked
-- [x] SwarmMonitor GenServer (tasks.jsonl, health-check.sh, DAG)
-- [x] ProtocolTracker GenServer (cross-protocol message tracing)
-- [x] Command view (agent grid, health bar, alerts, detail panel)
-- [x] Pipeline view (DAG waves, task table, project selector)
-- [x] Protocols view (message flow, channel stats)
-- [x] DashboardSwarmHandlers (all event handlers)
-- [x] TeamWatcher: preserve cwd, model, color, joined_at fields
-- [x] Mailbox.get_stats/0, CommandQueue.get_queue_stats/0
-- [x] Supervision tree updated
-- [x] JS keyboard shortcuts 1-4 + MoreDropdown hook
-- [x] Live test: server starts, pages render, zero runtime errors
-- [x] SwarmMonitor discovers memories project from team config
+## Previous milestones preserved below...
 
-- [x] Feed: segment-based architecture with subagent blocks
-  - Investigated real SubagentStart/SubagentStop payloads in Observatory DB (264 events)
-  - Discovered: subagent events fire on PARENT session_id with short hash agent_id
-  - Rewrote dashboard_feed_helpers.ex: segment_by_spans splits events into parent/subagent segments
-  - Rewrote session_group.ex: renders segments with collapsible subagent blocks (cyan-themed)
-  - Collapse/expand at both session level AND subagent level (MapSet keys: session_id, "sub:{agent_id}")
-- [x] Build: zero warnings
+### Dashboard Rearrangement (2026-03-07)
+- [x] 3-column layout: Fleet sidebar | Pipeline center | Feed right
+- [x] Auto-discovery of projects from hook events
+- [x] Original DAG wave visualization restored
+- [x] Observatory tmux socket for session management
+- [x] Rich agent cards with live activity streams
+- [x] Targeted + broadcast messaging
+- [x] Session launcher from UI
 
-- [x] File split: embed_templates refactor (4 modules -> .ex + .heex)
-  - command_components: 535 -> 102 lines + 6 templates
-  - pipeline_components: 276 -> 61 lines + 2 templates
-  - protocol_components: 272 -> 52 lines + 5 templates
-  - session_group: 388 -> 98 lines + 3 templates
-- [x] Feed nesting: tool chain component
-  - build_segment_timeline/2 interleaves tools + events chronologically
-  - Consecutive tools grouped into collapsible chains
-  - chain_tool_summary, chain_total_duration, chain_status helpers
-  - Recursive rendering: multi-chain -> single-tool children
-- [x] Build: zero warnings
+### Phase 5: Hypervisor UI COMPLETE (2026-02-22)
+- [x] Six view modes with keyboard shortcuts
+- [x] Fleet Command, Session Cluster, Registry, Scheduler, Forensic, God Mode
+- [x] 233 tests, 0 failures, zero warnings
 
-- [x] Command view: agents derived from events (not just teams)
-  - build_agent_from_events: session_id, model, cwd, status, current_tool
-  - Fleet status bar: total nodes, active/idle/ended, project clusters
-  - Compact row layout (handles 100+ agents)
-  - Agent selection works with event-derived agents
-- [x] Feed naming fix: cwd basename instead of "compact" source
-- [x] SwarmMonitor: re-discovers projects on each poll cycle (not just startup)
-- [x] Verified: SwarmMonitor reads memories tasks.jsonl (8 tasks, 6 waves)
-- [x] Build: zero warnings
+### Phase 4: Gateway Infrastructure & HITL COMPLETE (2026-02-22)
+- [x] HeartbeatManager, CapabilityMap, CronScheduler, WebhookRouter, HITLRelay
+- [x] 204 tests, 0 failures, zero warnings
 
-- [x] Navigation: flat tab bar replacing broken More dropdown
-  - All 12 views visible: Overview, Command, Pipeline, Agents, Protocols, Feed, Tasks, Messages, Errors, Analytics, Timeline, Teams
-  - Keyboard shortcuts 1-9,0 for first 10 views
-  - Removed MoreDropdown JS hook
-- [x] Command view: NOC-style cluster hierarchy
-  - build_clusters/1: groups agents by project, then by team (swarm)
-  - Project cluster cards with health-colored borders
-  - Swarm groups (cyan-bordered) within each cluster
-  - Standalone agents below swarm groups
-  - Scale caps: swarm 10, standalone 20, with overflow indicators
-  - agent_row component extracted for reuse
-- [x] Message form: shows "To: {name} ({session_id})" target + toast feedback on send
-- [x] Build: zero warnings
+### Phase 3: Topology & Entropy COMPLETE
+- [x] CausalDAG, EntropyTracker, TopologyBuilder
+- [x] 113 tests, 0 failures, zero warnings
 
-- [x] Overview: unified control plane (not stacked components)
-  - Fleet bar: nodes, errors, messages, tools, task pipeline, protocol stats, health
-  - Activity section: recent errors, recent messages, alerts
-  - Passes @errors, @messages, @protocol_stats, @active_tasks to command_view
-  - Pipeline only shown when active (no empty "add project" noise)
-- [x] Collapsible sidebar: toggle button, state persisted in localStorage
-- [x] Fixed ArithmeticError: protocol_stats values are nested maps not ints
-- [x] Fixed tool_count guard: team-enriched agents may have non-integer tool_count
-- [x] Build: zero warnings
-
-- [x] Letta-compatible agent memory system
-  - MemoryStore GenServer: 4 ETS tables, disk persistence to ~/.observatory/memory/
-  - Three tiers: core blocks (2000 char limit), recall (200 FIFO), archival (500 ETS + disk overflow)
-  - 10 MCP tools: read_memory, memory_replace, memory_insert, memory_rethink,
-    conversation_search, conversation_search_date, archival_memory_insert,
-    archival_memory_search, create_agent, list_agents
-  - Block sharing between agents via IDs, read_only protection
-  - Memory.compile() renders blocks as XML for system prompt injection
-  - ETS memory caps: 100 agents, 1000 blocks, 500 archival/agent in ETS
-  - Archival append-only on disk, search falls back to disk when ETS at capacity
-  - Smoke tested: all operations verified end-to-end
-- [x] Build: zero warnings
-
-- [x] Mode B Pipeline (Monad Method: Define)
-  - 12 accepted ADRs -> 6 FRDs (79 FRs) -> 79 UCs with Gherkin scenarios
-  - 3 parallel FRD writer agents + 3 parallel UC writer agents
-  - Gate 1: FAIL->fixed->PASS (2 frontmatter mismatches)
-  - Gate 2: PASS (18 minor notes, non-blocking)
-  - Checkpoint: SPECS/checkpoints/1740153600-checkpoint.md
-  - All 88 artifact files committed
-
-- [x] Decision-log skill: ADR + Conversation artifact templates, SPECS_HARVESTED output dir
-- [x] ADRs 009-012: updated References sections to proper format
-
-- [x] Feed redesign: turn-based conversation grouping (tasks 1-13)
-  - build_turns/1: splits events by UserPromptSubmit/Stop boundaries
-  - classify_tool/1: research/build/verify/delegate/communicate/think/other
-  - group_into_phases/1: groups consecutive same-category tool pairs
-  - Inverted collapse: expanded_sessions (collapsed by default, active auto-expand)
-  - New templates: conversation_turn.html.heex, activity_phase.html.heex
-  - Old segment templates moved to trash
-- [x] Build: zero warnings
-
-### Ready for Swarm
-- SwarmMonitor active, polling memories/tasks.jsonl every 3s
-- Pipeline view has 8 tasks in 6 DAG waves
-- Global hooks configured for all 13 event types -> Observatory
-- Command view shows agents from events as they appear
-
-- [x] Mode C Pipeline (Monad Method: Build)
-  - 7 FRDs -> 5 phases, 24 sections, 77 tasks, 225 subtasks
-  - Phase-to-DAG: deterministic section-to-task conversion with dependency detection
-  - Implementation specs in SPECS/implementation/
-
-- [x] Phase 1: DecisionLog Schema (DAG run, 4 tasks)
-  - lib/observatory/mesh/decision_log.ex (207 lines)
-  - 6 inner embedded schemas: Meta, Identity, Cognition, Action, StateDelta, Control
-  - Public API: changeset/2, root?/1, major_version/1, put_gateway_entropy_score/2, from_json/1
-  - test/observatory/mesh/decision_log_test.exs (36 tests, 0 failures)
-  - Workers: 1 Opus + 3 Sonnet (Sonnet handles well-specified schema tasks fine)
-  - Commit: 2a10e77
-
-- [x] Phase-to-DAG Script Improvements
-  - Fixed jq template: $DONE_WHEN variable instead of hardcoded string (line 648)
-  - All 4 phases validated with --dry-run (phases 2-5)
-  - All sed replaced with perl -pe (macOS compatibility)
-  - pipefail fix: grep || true for zero-match cases
-  - Section summary extraction + auto-generated test AC
-
-- [x] Skill Enforcement: /phase-to-dag
-  - Rule: ~/.claude/rules/rule-always-phase-to-dag.md (alwaysApply: true)
-  - Hook: ~/.claude/hooks/enforce-skill/phase-to-dag-gate.sh (PreToolUse, exit 2 to block)
-  - Bypass: PHASE_TO_DAG_SKILL=1 env var prefix (stateless, per-invocation only)
-  - Wired in settings.json PreToolUse hooks
-  - Tested: direct bash call blocked, skill-invoked call allowed
-
-- [x] Phase 2: Gateway Core (DAG run, 5 tasks)
-  - lib/observatory/gateway/schema_interceptor.ex -- validate/1, build_violation_event/3
-  - lib/observatory/mesh/entropy_tracker.ex -- stub (Phase 3)
-  - lib/observatory_web/controllers/gateway_controller.ex -- POST /gateway/messages (202/422)
-  - PubSub: gateway:violations, gateway:messages, gateway:topology
-  - Raw payload security: SHA-256 hash only, never logged/stored/broadcast
-  - Topology :schema_violation state with 30s clearance timer
-  - 65 tests, 0 failures, zero warnings
-  - Workers: 5 (worker-1 through worker-5), all Opus
-
-- [x] Phase 3 Gate Validation (pre-DAG)
-  - Mode C Gate + ADR Alignment review: 3 warnings, 2 informational findings
-  - Fixed all 5: subscription model rewrite, cross-phase warning, zoom/pan task, force-directed algo, FRD-009 return types
-  - Checkpoint: SPECS/checkpoints/1771771271-checkpoint.md
-  - Conversation: SPECS/conversations/CONV-003-phase3-gate-validation.md
-  - MONAD_LESSON_LOG.md: 5 lessons on upstream mode leaks (pending evaluation)
-
-- [x] Phase 3: Topology & Entropy (DAG run, 7 tasks, 4 waves)
-  - Team: dag-phase3 (archived)
-  - Wave 1: CausalDAG ETS Store (opus) + EntropyTracker Sliding Window (opus)
-  - Wave 2: DAG Query API (sonnet) + Canvas Topology Renderer (haiku+sonnet) + Entropy Alerting (pre-satisfied)
-  - Wave 3: Entropy PubSub & SchemaInterceptor Integration (sonnet)
-  - Wave 4: Final migration + test suite (lead)
-  - 113 tests, 0 failures, zero warnings
-  - 6 new modules, 2 modified
-  - EXP-001: haiku+sonnet pair -- INCONCLUSIVE (needs better stage-2 prompt)
-  - New rule: ~/.claude/rules/rule-skill-coordinator.md (outer coordinator protocol)
-  - New file: PIPELINE_EXPERIMENTS.md (experiment log)
-
-- [x] Phase 4: Gateway Infrastructure & HITL (DAG run, 7 tasks, 6 waves)
-  - Team: dag-phase4 (archived)
-  - 13 new modules, 3 modified, 4 migrations
-  - HeartbeatManager (90s eviction) + real CapabilityMap GenServer
-  - CronScheduler (persistent jobs, DB recovery)
-  - WebhookRouter (exponential backoff retry + DLQ + HMAC-SHA256)
-  - HITLRelay (pause/unpause state machine + ETS buffer)
-  - HITL HTTP endpoints (4 endpoints + OperatorAuth + audit trail)
-  - Auto-pause (SchemaInterceptor + SessionDrilldownLive)
-  - 204 tests, 0 failures, zero warnings
-  - EXP-002: parallel code reviewer -- INCONCLUSIVE (0 issues found)
-  - Sonnet used for task 7 (verification) -- good cost optimization
-  - Commit: eba293d
-
-- [x] Distill Skill Fix (2026-02-22)
-  - Root cause: set -euo pipefail + claude -p | tee = silent failure (0-byte logs)
-  - Fix: run_phase helper, explicit error handling, stream separation, status.txt
-  - Added 17 jq recipes (8 general + 9 coordinator/lead patterns)
-  - Enforced jq-only JSONL parsing (never Read tool on .jsonl)
-  - File: ~/.claude/skills/distill/scripts/launch.sh
-
-## Next
-- [ ] Fix phase-to-dag.sh: --start-id flag + append mode (line 495 DAG_ID=1, line 791 cp)
-- [ ] Extract shared panel component (repeated CSS classes across Phase 5 components)
-- [ ] Visual verification: browser test of topology rendering
-- [ ] MONAD_LESSON_LOG.md evaluation for upstream skill amendments
+### Phase 2: Gateway Core COMPLETE
+- [x] SchemaInterceptor, GatewayController
+- [x] 65 tests, 0 failures, zero warnings

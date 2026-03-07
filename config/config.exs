@@ -13,7 +13,9 @@ config :observatory,
   ash_domains: [
     Observatory.Events,
     Observatory.AgentTools,
-    Observatory.Costs
+    Observatory.Costs,
+    Observatory.Fleet,
+    Observatory.Activity
   ]
 
 # Configure the endpoint
