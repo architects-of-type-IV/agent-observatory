@@ -7,6 +7,8 @@ defmodule ObservatoryWeb.Components.CommandComponents do
   use Phoenix.Component
   import ObservatoryWeb.DashboardFormatHelpers
   import ObservatoryWeb.ObservatoryComponents
+  alias ObservatoryWeb.Components.FleetHelpers, as: FH
+  import Phoenix.HTML, only: [raw: 1]
 
   embed_templates "command_components/*"
 
@@ -29,7 +31,7 @@ defmodule ObservatoryWeb.Components.CommandComponents do
     tool_count = agents |> Enum.map(fn a -> if is_integer(a.tool_count), do: a.tool_count, else: 0 end) |> Enum.sum()
 
     proto_traces = protocol_stats[:traces] || 0
-    proto_mailbox = get_in(protocol_stats, [:mailbox, :total_pending]) || 0
+    proto_mailbox = get_in(protocol_stats, [:mailbox, :total_unread]) || 0
     proto_cmdq = get_in(protocol_stats, [:command_queue, :total_pending]) || 0
 
     visible_count = length(assigns[:visible_events] || [])
@@ -187,7 +189,7 @@ defmodule ObservatoryWeb.Components.CommandComponents do
     |> Enum.reject(fn name -> MapSet.member?(known_tmux, name) end)
     |> Enum.map(fn name ->
       %{
-        agent_id: "tmux:#{name}",
+        agent_id: name,
         name: name,
         role: nil,
         model: nil,
@@ -480,4 +482,5 @@ defmodule ObservatoryWeb.Components.CommandComponents do
   defp format_health_issue(:looping), do: "looping"
   defp format_health_issue(:high_failure_rate), do: "high fail"
   defp format_health_issue(other), do: to_string(other)
+
 end

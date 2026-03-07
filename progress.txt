@@ -1,26 +1,34 @@
 Observatory Progress
 ====================
 
-## Current: Ash Domain Modeling Refactor IN PROGRESS (2026-03-07)
+## Current: Fleet View + Messaging (2026-03-07)
 
-### Completed Steps (1-6 of 9)
+### This Session
+- [x] Created FleetHelpers module (modular pure functions for fleet tree)
+- [x] Rewrote command_view.html.heex: 3-column layout with project grouping
+- [x] Fixed command bar select frozen in phx-update="ignore"
+- [x] Diagnosed messaging "not sending" -- root cause: no agents registered (no active sessions)
+- [x] Created docs/messaging-architecture.md (full flow map, 5 paths, bypass routes)
+- [ ] Gateway unification (route all sends through Gateway)
+- [ ] Tmux multi-panel integration
+- [ ] Ash-ify messaging stores
+
+### Ash Domain Modeling Refactor (Steps 1-6 of 9 complete)
 - [x] Step 1: Fleet domain + Agent/Team resources + LoadAgents/LoadTeams preparations
 - [x] Step 2: Activity domain + Message/Task/Error resources + 3 preparations
 - [x] Step 3: (Deferred) Enhance Events.Event with new read actions
 - [x] Step 4: Register Fleet + Activity domains in config.exs
 - [x] Step 5: Create DashboardState.recompute/1 using Ash domain calls
 - [x] Step 6: Refactor dashboard_live.ex to use DashboardState (1138 -> 920 lines)
-
-### Remaining Steps
 - [ ] Step 7: Move inline handlers to existing modules
 - [ ] Step 8: Retire absorbed helper modules
 - [ ] Step 9: Final compile + smoke test
 
 ### Key Metrics
 - dashboard_live.ex: 1138 -> 920 lines (-218 lines, -19%)
-- prepare_assigns removed (215 lines) -> DashboardState.recompute (270 lines)
-- 13 new files created (2 domains, 5 resources, 5 preparations, 1 state module)
+- 13 new files created (domains, resources, preparations, state module)
 - Zero warnings throughout
+- Fleet view: teams grouped by project, tree connectors, role hierarchy
 
 ## Previous milestones preserved below...
 
@@ -35,17 +43,12 @@ Observatory Progress
 
 ### Phase 5: Hypervisor UI COMPLETE (2026-02-22)
 - [x] Six view modes with keyboard shortcuts
-- [x] Fleet Command, Session Cluster, Registry, Scheduler, Forensic, God Mode
-- [x] 233 tests, 0 failures, zero warnings
 
 ### Phase 4: Gateway Infrastructure & HITL COMPLETE (2026-02-22)
 - [x] HeartbeatManager, CapabilityMap, CronScheduler, WebhookRouter, HITLRelay
-- [x] 204 tests, 0 failures, zero warnings
 
 ### Phase 3: Topology & Entropy COMPLETE
 - [x] CausalDAG, EntropyTracker, TopologyBuilder
-- [x] 113 tests, 0 failures, zero warnings
 
 ### Phase 2: Gateway Core COMPLETE
 - [x] SchemaInterceptor, GatewayController
-- [x] 65 tests, 0 failures, zero warnings

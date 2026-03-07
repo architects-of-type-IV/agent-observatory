@@ -4,6 +4,8 @@ defmodule ObservatoryWeb.DashboardMessagingHandlers do
   All outbound messages route through Observatory.Operator for unified delivery.
   """
 
+  def handle_send_agent_message(%{"content" => ""}, socket), do: {:noreply, socket}
+
   def handle_send_agent_message(%{"session_id" => sid, "content" => content}, socket) do
     case Observatory.Operator.send(sid, content) do
       {:ok, delivered} when delivered > 0 ->

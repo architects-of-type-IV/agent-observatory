@@ -135,7 +135,7 @@ defmodule ObservatoryWeb.DashboardState do
 
       %{
         source_app: name,
-        session_id: "tmux:#{name}",
+        session_id: name,
         event_count: 0,
         latest_event: %{inserted_at: now},
         first_event: %{inserted_at: now},

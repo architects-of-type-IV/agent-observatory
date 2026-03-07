@@ -1,121 +1,350 @@
 <%
   agents = collect_agents(@teams, @events, @now)
   tmux_agents = collect_tmux_agents(assigns[:tmux_sessions] || [], agents)
-  agents = agents ++ tmux_agents
-  health = @swarm_state.health
-  stale = @swarm_state.stale_tasks
-  alerts = build_alerts(health.issues, stale)
-  errors = @errors
-  error_count = length(errors)
-  recent_errors = Enum.take(errors, 3)
+  all_agents = agents ++ tmux_agents
+  total_agents = length(all_agents)
+  agent_index = Map.new(all_agents, fn a -> {a.agent_id, a} end)
 
-  # Group agents by tmux session for cluster view
-  tmux_groups = agents |> Enum.filter(& &1[:tmux_session]) |> Enum.group_by(& &1.tmux_session)
-  ungrouped = Enum.reject(agents, & &1[:tmux_session])
+  # Name map for comms display
+  names = FH.name_map(@teams, all_agents)
+
+  # Mailbox messages for comms timeline
+  mailbox_messages = Observatory.Mailbox.all_messages(50)
+  comms_filter = assigns[:comms_team_filter]
+  filtered_messages = FH.filter_by_team(mailbox_messages, comms_filter, @teams)
+
+  # Standalone agents (not in any team)
+  team_ids = @teams |> Enum.flat_map(& &1.members) |> Enum.map(& &1[:agent_id]) |> MapSet.new()
+  standalone = Enum.reject(all_agents, fn a -> MapSet.member?(team_ids, a.agent_id) end)
+
+  # Group teams by project
+  project_groups = FH.group_teams_by_project(@teams)
+
+  collapsed = assigns[:collapsed_fleet_teams] || MapSet.new()
+  selected = @selected_command_agent
 %>
-<div class="flex flex-col h-full">
-  <%!-- Header bar: command bar + launch --%>
-  <div class="px-3 py-1.5 border-b border-zinc-800 bg-zinc-900/30 shrink-0">
-    <div class="flex gap-1.5 flex-wrap">
-      <form phx-submit="send_targeted_message" id="command-msg-form" phx-hook="ClearFormOnSubmit" class="flex gap-1 flex-1 min-w-0">
-        <.stable_select id="select-target" name="target" class="obs-select shrink-0">
-          <option value="">Target...</option>
-          <optgroup label="Broadcast">
-            <option value="all">All Agents</option>
-            <%= for team <- @teams do %>
-              <option value={"team:#{team.name}"}>Team: {team.name}</option>
-            <% end %>
-          </optgroup>
-          <optgroup label="Agents">
-            <%= for agent <- agents do %>
-              <option value={"agent:#{agent.agent_id}"}>{agent.name}{if agent[:team_name], do: " (#{agent.team_name})", else: ""}</option>
-            <% end %>
-          </optgroup>
-        </.stable_select>
-        <input type="text" name="content" placeholder="Message..." class="flex-1 obs-input min-w-0" />
-        <button type="submit" class="obs-btn obs-btn-primary shrink-0">Send</button>
-      </form>
-      <form phx-submit="launch_session" class="flex gap-1 shrink-0">
-        <.stable_select id="select-cwd" name="cwd">
-          <option value="">Project...</option>
-          <%= for {key, path} <- @swarm_state.watched_projects do %>
-            <option value={path}>{key}</option>
-          <% end %>
-        </.stable_select>
-        <button type="submit" class="obs-btn obs-btn-success shrink-0">Launch</button>
-      </form>
+<div class="flex h-full">
+  <%!-- Left: Fleet Tree (360px) --%>
+  <div class="w-[360px] shrink-0 border-r border-zinc-800 bg-zinc-900/30 flex flex-col overflow-hidden">
+    <div class="px-2.5 py-1.5 border-b border-zinc-800 flex items-center justify-between shrink-0">
+      <h3 class="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Fleet</h3>
+      <span class="text-[9px] text-zinc-600">{total_agents} agents</span>
     </div>
-  </div>
-
-  <%!-- Alerts strip --%>
-  <div :if={recent_errors != [] || alerts != []} class="px-3 py-1 border-b border-zinc-800/50 bg-zinc-950/30 shrink-0 space-y-0.5">
-    <div :if={recent_errors != []} class="flex items-center gap-2">
-      <span class="text-[10px] text-red-500 uppercase tracking-wider shrink-0">errors</span>
-      <span class="text-[10px] font-mono text-red-400 shrink-0">{error_count}</span>
-      <div class="flex gap-3 overflow-hidden flex-1">
-        <span :for={err <- recent_errors} class="text-[10px] text-red-300/80 truncate">
-          <span class="text-red-500 font-mono mr-1">{Map.get(err, :tool_name) || Map.get(err, :hook_event_type) || "error"}</span>
-          <span class="text-zinc-500">{if Map.get(err, :cwd), do: Path.basename(err.cwd), else: short_id(Map.get(err, :session_id))}</span>
-        </span>
-      </div>
-    </div>
-    <div :for={alert <- Enum.take(alerts, 3)} class="flex items-center gap-2">
-      <span class={["w-1.5 h-1.5 rounded-full shrink-0", severity_color(alert.severity)]} />
-      <span class={"text-[10px] flex-1 truncate #{severity_text_color(alert.severity)}"}>{alert.message}</span>
-      <button
-        :if={alert.action}
-        phx-click={alert.action}
-        phx-value-task_id={alert.target_id}
-        class="text-[10px] px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400 hover:text-zinc-200"
-      >
-        {alert.action_label}
-      </button>
-    </div>
-  </div>
-
-  <%!-- Main: Left sidebar (agents) + Right content (feed) --%>
-  <div class="flex flex-1 min-h-0">
-    <%!-- Left sidebar: Agent list --%>
-    <div class="w-[280px] shrink-0 border-r border-zinc-800 bg-zinc-900/30 overflow-y-auto">
-      <div :if={agents != []} class="divide-y divide-zinc-800/30">
-        <%!-- Tmux-grouped agents --%>
-        <div :for={{tmux_name, group_agents} <- tmux_groups}>
-          <div class="flex items-center gap-2 px-3 py-1.5 bg-zinc-900/50">
-            <span class="text-[10px] text-amber-500 font-mono">{tmux_name}</span>
-            <span class="text-[10px] text-zinc-600">{length(group_agents)}</span>
-            <span class="flex-1" />
-            <button
-              phx-click="connect_tmux"
-              phx-value-session={tmux_name}
-              class="text-[10px] px-1.5 py-0.5 rounded bg-amber-600/20 text-amber-400 hover:bg-amber-600/30"
-            >
-              Connect
-            </button>
+    <div class="flex-1 overflow-y-auto">
+      <%!-- Teams grouped by project --%>
+      <%= for {project, teams} <- project_groups do %>
+        <div class="border-b border-zinc-800/50">
+          <%!-- Project header --%>
+          <div class="px-2.5 pt-2 pb-0.5 flex items-center gap-1.5">
+            <span class="w-1.5 h-1.5 rounded-sm bg-indigo-500/40 shrink-0" />
+            <span class="text-[9px] font-semibold text-zinc-500 uppercase tracking-wider">{project}</span>
           </div>
-          <.agent_card :for={agent <- group_agents} agent={agent} />
-        </div>
 
-        <%!-- Ungrouped agents --%>
-        <.agent_card :for={agent <- ungrouped} agent={agent} />
+          <%!-- Teams under this project --%>
+          <%= for team <- teams do %>
+            <% is_collapsed = MapSet.member?(collapsed, team.name) %>
+            <div>
+              <div
+                class="flex items-center gap-2 pl-5 pr-2.5 py-1 cursor-pointer hover:bg-zinc-800/30 transition"
+                phx-click="toggle_fleet_team"
+                phx-value-name={team.name}
+              >
+                <span class={"text-[9px] text-zinc-600 inline-block transition-transform #{if is_collapsed, do: "", else: "rotate-90"}"}>&#x25B8;</span>
+                <span class="text-[11px] font-semibold text-zinc-300">{team.name}</span>
+                <span class="text-[9px] text-zinc-600 font-mono">{length(team.members)}</span>
+                <span class="flex-1" />
+                <button
+                  phx-click="set_comms_filter"
+                  phx-value-team={team.name}
+                  class={"text-[9px] px-1.5 py-0.5 rounded cursor-pointer #{if comms_filter == team.name, do: "bg-indigo-500/15 text-indigo-400", else: "text-zinc-600 hover:text-zinc-400"}"}
+                >
+                  comms
+                </button>
+              </div>
+
+              <%= unless is_collapsed do %>
+                <div class="pb-1">
+                  <% sorted = FH.sort_members(team.members, agent_index) %>
+                  <% member_count = length(sorted) %>
+                  <%= for {{member, agent_data, d}, idx} <- Enum.with_index(sorted) do %>
+                    <% indent = 20 + d * 32 %>
+                    <% mid = member[:agent_id] %>
+                    <% is_last = idx == member_count - 1 %>
+                    <% is_selected = selected && (selected[:agent_id] == mid || selected[:name] == (member[:name] || member[:agent_type])) %>
+                    <% role = FH.classify_role(member[:name] || member[:agent_type]) %>
+                    <% connector = if is_last, do: "&#x2514;", else: "&#x251C;" %>
+                    <div
+                      class={"flex items-center gap-1.5 py-0.5 cursor-pointer transition border-l-2 #{if is_selected, do: "bg-indigo-500/10 border-indigo-500", else: "border-transparent hover:bg-zinc-800/20"}"}
+                      style={"padding-left: #{indent}px; padding-right: 10px;"}
+                      phx-click="select_command_agent"
+                      phx-value-id={mid}
+                    >
+                      <span class="text-[9px] text-zinc-700 w-2.5 shrink-0 text-center"><%= raw(connector) %></span>
+                      <span class={"w-1.5 h-1.5 rounded-full shrink-0 #{status_dot_color(agent_data[:status] || member[:status] || :idle)}"} />
+                      <span class="text-[11px] text-zinc-300 truncate flex-1">{member[:name] || member[:agent_type] || "?"}</span>
+                      <span :if={role != :member} class={"text-[8px] font-bold uppercase px-1 py-0.5 rounded border #{FH.badge_class(role)}"}>{FH.abbrev(role)}</span>
+                      <span class="text-[9px] text-indigo-400">{short_model(agent_data[:model] || member[:model])}</span>
+                    </div>
+                  <% end %>
+                </div>
+              <% end %>
+            </div>
+          <% end %>
+        </div>
+      <% end %>
+
+      <%!-- Standalone agents --%>
+      <div :if={standalone != []} class="border-b border-zinc-800/50">
+        <div class="px-2.5 py-1.5 text-[10px] text-zinc-600 uppercase tracking-wider">Standalone</div>
+        <%= for agent <- standalone do %>
+          <% is_selected = selected && selected[:agent_id] == agent.agent_id %>
+          <div
+            class={"flex items-center gap-1.5 px-5 py-1 cursor-pointer transition border-l-2 #{if is_selected, do: "bg-indigo-500/10 border-indigo-500", else: "border-transparent hover:bg-zinc-800/20"}"}
+            phx-click="select_command_agent"
+            phx-value-id={agent.agent_id}
+          >
+            <span class={"w-1.5 h-1.5 rounded-full shrink-0 #{status_dot_color(agent.status)}"} />
+            <span class="text-[11px] text-zinc-300 truncate flex-1">{agent.name}</span>
+            <span :if={agent[:tmux_session]} class="text-[9px] text-amber-500 font-mono shrink-0">tmux</span>
+            <span class="text-[9px] text-indigo-400">{short_model(agent.model)}</span>
+          </div>
+        <% end %>
       </div>
 
-      <div :if={agents == []} class="px-3 py-8 text-center">
+      <div :if={@teams == [] && standalone == []} class="px-3 py-8 text-center">
         <div class="text-[10px] text-zinc-600 uppercase tracking-wider mb-1">No agents detected</div>
         <div class="text-[10px] text-zinc-700">Start a Claude session to see it here.</div>
       </div>
     </div>
+  </div>
 
-    <%!-- Right content: Live Feed --%>
-    <div class="flex-1 min-w-0 overflow-y-auto p-3">
-      <div class="text-[10px] text-zinc-600 uppercase tracking-wider mb-2">Live Feed</div>
-      <ObservatoryWeb.Components.FeedComponents.feed_view
-        feed_groups={@feed_groups}
-        visible_events={@visible_events}
-        selected_event={@selected_event}
-        event_notes={@event_notes}
-        expanded_sessions={@expanded_sessions}
-        now={@now}
-      />
+  <%!-- Center: Comms Timeline --%>
+  <div class="flex-1 min-w-0 flex flex-col overflow-hidden">
+    <%!-- Command bar --%>
+    <div class="px-3 py-1.5 border-b border-zinc-800 bg-zinc-900/30 shrink-0">
+      <div class="flex gap-1.5 flex-wrap">
+        <form phx-submit="send_targeted_message" id="command-msg-form" class="flex gap-1 flex-1 min-w-0">
+          <select name="target" class="obs-select shrink-0">
+            <option value="">Target...</option>
+            <optgroup label="Broadcast">
+              <option value="all">All Agents</option>
+              <%= for team <- @teams do %>
+                <option value={"team:#{team.name}"}>Team: {team.name}</option>
+              <% end %>
+            </optgroup>
+            <optgroup label="Agents">
+              <%= for agent <- all_agents do %>
+                <option value={agent.agent_id}>{agent.name}{if agent[:team_name], do: " (#{agent.team_name})", else: ""}</option>
+              <% end %>
+            </optgroup>
+          </select>
+          <div id="cmd-input-stable" phx-update="ignore" phx-hook="ClearFormOnSubmit" class="flex-1 min-w-0">
+            <input type="text" name="content" placeholder="Message..." class="w-full obs-input" />
+          </div>
+          <button type="submit" class="obs-btn obs-btn-primary shrink-0">Send</button>
+        </form>
+        <form phx-submit="launch_session" class="flex gap-1 shrink-0">
+          <select name="cwd" class="obs-select">
+            <option value="">Project...</option>
+            <%= for {key, path} <- @swarm_state.watched_projects do %>
+              <option value={path}>{key}</option>
+            <% end %>
+          </select>
+          <button type="submit" class="obs-btn obs-btn-success shrink-0">Launch</button>
+        </form>
+      </div>
+    </div>
+
+    <%!-- Filter pills --%>
+    <div class="px-3 py-1 border-b border-zinc-800 flex items-center justify-between shrink-0">
+      <h3 class="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Comms</h3>
+      <div class="flex gap-1">
+        <span
+          phx-click="set_comms_filter"
+          phx-value-team=""
+          class={"text-[9px] px-1.5 py-0.5 rounded cursor-pointer transition #{if !comms_filter, do: "bg-indigo-500/15 text-indigo-400", else: "text-zinc-500 hover:text-zinc-300"}"}
+        >All</span>
+        <%= for team <- @teams do %>
+          <span
+            phx-click="set_comms_filter"
+            phx-value-team={team.name}
+            class={"text-[9px] px-1.5 py-0.5 rounded cursor-pointer transition #{if comms_filter == team.name, do: "bg-indigo-500/15 text-indigo-400", else: "text-zinc-500 hover:text-zinc-300"}"}
+          >{team.name}</span>
+        <% end %>
+        <span class="text-[9px] text-zinc-600 ml-1">{length(filtered_messages)} msgs</span>
+      </div>
+    </div>
+
+    <%!-- Message timeline --%>
+    <%= if filtered_messages == [] do %>
+      <div class="flex-1 flex items-center justify-center p-6">
+        <div class="text-center max-w-xs">
+          <p class="text-[11px] text-zinc-500 mb-2">No messages yet</p>
+          <p class="text-[10px] text-zinc-600 leading-relaxed">
+            Send a message from the command bar above, or use the MCP API.
+          </p>
+        </div>
+      </div>
+    <% else %>
+      <div class="flex-1 overflow-y-auto">
+        <div class="divide-y divide-zinc-800/30">
+          <%= for msg <- filtered_messages do %>
+            <% from_label = FH.resolve_label(msg.from, names) %>
+            <% to_label = FH.resolve_label(msg.to, names) %>
+            <% is_operator = msg.from == "operator" || msg.from == "dashboard" %>
+            <div class={"px-4 py-2.5 hover:bg-zinc-800/20 transition #{if is_operator, do: "border-l-2 border-amber-500/30", else: ""}"}>
+              <div class="flex items-center gap-2 mb-1">
+                <span class={"text-[10px] font-semibold #{if is_operator, do: "text-amber-400", else: "text-zinc-300"}"}>{from_label}</span>
+                <svg class="w-3 h-3 text-zinc-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                </svg>
+                <span class={"text-[10px] font-semibold #{if msg.to == "operator", do: "text-amber-400", else: "text-zinc-300"}"}>{to_label}</span>
+                <span class="flex-1" />
+                <span class={"text-[9px] px-1.5 py-0.5 rounded #{if msg.read, do: "text-emerald-500", else: "text-amber-400 bg-amber-500/10"}"}>{if msg.read, do: "read", else: "unread"}</span>
+                <span class="text-[9px] text-zinc-600 font-mono tabular-nums">{FH.format_timestamp(msg.timestamp)}</span>
+              </div>
+              <p class="text-[11px] text-zinc-400 leading-relaxed pl-0.5">{msg.content}</p>
+              <div class="flex items-center gap-3 mt-1 pl-0.5">
+                <span class="flex items-center gap-1">
+                  <span class="w-1 h-1 rounded-full bg-emerald-400" />
+                  <span class="text-[9px] text-zinc-600">mailbox</span>
+                </span>
+                <span :if={msg.type && msg.type != :text} class="text-[9px] text-zinc-600">{msg.type}</span>
+              </div>
+            </div>
+          <% end %>
+        </div>
+      </div>
+    <% end %>
+  </div>
+
+  <%!-- Right: Detail Panel (400px, conditional) --%>
+  <div :if={selected} class="w-[400px] shrink-0 border-l border-zinc-800 bg-zinc-900/30 flex flex-col overflow-hidden">
+    <%
+      sel_id = selected[:agent_id] || selected[:name]
+      sel_agent = Map.get(agent_index, sel_id, selected)
+      sel_name = selected[:name] || sel_agent[:name] || sel_id
+      sel_team = Enum.find(@teams, fn t -> Enum.any?(t.members, fn m -> m[:agent_id] == sel_id end) end)
+      sel_member = if sel_team, do: Enum.find(sel_team.members, fn m -> m[:agent_id] == sel_id end)
+      sel_role = if sel_member, do: FH.classify_role(sel_member[:name] || sel_member[:agent_type])
+
+      # Chain of command
+      {reports_to, manages} = if sel_team do
+        sorted = FH.sort_members(sel_team.members, agent_index)
+        FH.chain_of_command(sel_member, sorted)
+      else
+        {nil, []}
+      end
+
+      # Tmux session for this agent
+      sel_tmux = sel_agent[:tmux_session] || (sel_member && sel_member[:tmux_session])
+
+      # Recent messages
+      agent_msgs = Enum.filter(mailbox_messages, fn m -> m.from == sel_id || m.to == sel_id end) |> Enum.take(4)
+    %>
+    <div class="px-3 py-1.5 border-b border-zinc-800 flex items-center justify-between shrink-0">
+      <h3 class="text-[11px] font-semibold text-zinc-300">{sel_name}</h3>
+      <button phx-click="clear_command_selection" class="text-[11px] text-zinc-600 hover:text-zinc-300 cursor-pointer">x</button>
+    </div>
+    <div class="flex-1 overflow-y-auto">
+      <%!-- Info --%>
+      <div class="px-3 py-2.5 border-b border-zinc-800/50">
+        <h4 class="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider mb-2">Info</h4>
+        <dl class="space-y-1 text-[11px]">
+          <div class="flex justify-between">
+            <dt class="text-zinc-500">Status</dt>
+            <dd class={status_text_color(sel_agent[:status] || :unknown)}>{sel_agent[:status] || :unknown}</dd>
+          </div>
+          <div :if={sel_agent[:model] || (sel_member && sel_member[:model])} class="flex justify-between">
+            <dt class="text-zinc-500">Model</dt>
+            <dd class="text-indigo-400">{sel_agent[:model] || sel_member[:model]}</dd>
+          </div>
+          <div :if={sel_role && sel_role != :member} class="flex justify-between">
+            <dt class="text-zinc-500">Role</dt>
+            <dd class="text-zinc-300">{sel_role}</dd>
+          </div>
+          <div :if={sel_team} class="flex justify-between">
+            <dt class="text-zinc-500">Team</dt>
+            <dd class="text-zinc-300">{sel_team.name}</dd>
+          </div>
+          <div class="flex justify-between">
+            <dt class="text-zinc-500">Events</dt>
+            <dd class="text-zinc-300">{sel_agent[:event_count] || 0}</dd>
+          </div>
+          <div :if={sel_agent[:current_tool]} class="flex justify-between">
+            <dt class="text-zinc-500">Current tool</dt>
+            <dd class="text-cyan-400">{sel_agent.current_tool.tool_name} ({sel_agent.current_tool.elapsed}s)</dd>
+          </div>
+          <div :if={sel_agent[:cwd]} class="flex justify-between">
+            <dt class="text-zinc-500">cwd</dt>
+            <dd class="text-zinc-300 font-mono truncate max-w-[200px]" title={sel_agent[:cwd]}>{Path.basename(sel_agent[:cwd])}</dd>
+          </div>
+        </dl>
+      </div>
+
+      <%!-- Chain of Command --%>
+      <div :if={reports_to || manages != []} class="px-3 py-2.5 border-b border-zinc-800/50">
+        <h4 class="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider mb-2">Chain of Command</h4>
+        <div :if={reports_to} class="text-[10px] text-zinc-500 mb-2">
+          Reports to:
+          <span
+            class="text-zinc-300 cursor-pointer hover:text-indigo-400 transition"
+            phx-click="select_command_agent"
+            phx-value-id={reports_to[:agent_id]}
+          >{reports_to[:name] || reports_to[:agent_type]}</span>
+        </div>
+        <div :if={manages != []} class="text-[10px] text-zinc-500 mb-1">Manages:</div>
+        <div :for={sub <- manages} class="flex items-center gap-1.5 pl-2 mb-1">
+          <span class="text-[9px] text-zinc-700">&#x251C;</span>
+          <span class={"w-1.5 h-1.5 rounded-full #{status_dot_color(Map.get(agent_index, sub[:agent_id], %{})[:status] || :idle)}"} />
+          <span
+            class="text-[10px] text-zinc-300 cursor-pointer hover:text-indigo-400 transition"
+            phx-click="select_command_agent"
+            phx-value-id={sub[:agent_id]}
+          >{sub[:name] || sub[:agent_type]}</span>
+        </div>
+      </div>
+
+      <%!-- Recent Messages --%>
+      <div :if={agent_msgs != []} class="px-3 py-2.5 border-b border-zinc-800/50">
+        <h4 class="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider mb-2">Recent Messages</h4>
+        <div :for={msg <- agent_msgs} class="mb-2.5">
+          <div class="flex items-center gap-1.5 mb-0.5">
+            <% is_sent = msg.from == sel_id %>
+            <span class={"text-[9px] #{if is_sent, do: "text-indigo-400", else: "text-emerald-400"}"}>{if is_sent, do: "sent", else: "recv"}</span>
+            <span class="text-[9px] text-zinc-500">{if is_sent, do: "to", else: "from"}</span>
+            <span class="text-[9px] text-zinc-300">{FH.resolve_label(if(is_sent, do: msg.to, else: msg.from), names)}</span>
+            <span class="flex-1" />
+            <span class="text-[9px] text-zinc-600 font-mono">{FH.format_timestamp(msg.timestamp)}</span>
+          </div>
+          <p class="text-[10px] text-zinc-400 leading-relaxed pl-0.5 line-clamp-2">{msg.content}</p>
+        </div>
+      </div>
+
+      <%!-- Actions --%>
+      <div class="px-3 py-2.5 border-b border-zinc-800/50">
+        <h4 class="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider mb-2">Actions</h4>
+        <div class="flex flex-wrap gap-1.5">
+          <button :if={sel_tmux} phx-click="connect_tmux" phx-value-session={sel_tmux} class="obs-btn bg-amber-600/15 text-amber-400 hover:bg-amber-600/25">Tmux</button>
+          <button phx-click="open_agent_slideout" phx-value-session_id={sel_id} class="obs-btn obs-btn-primary">Focus</button>
+          <button phx-click="pause_agent" phx-value-session_id={sel_id} class="obs-btn obs-btn-muted">Pause</button>
+          <button phx-click="resume_agent" phx-value-session_id={sel_id} class="obs-btn obs-btn-muted">Resume</button>
+          <button phx-click="shutdown_agent" phx-value-session_id={sel_id} class="obs-btn obs-btn-muted text-red-400" data-confirm="Shut down this agent?">Shutdown</button>
+        </div>
+      </div>
+
+      <%!-- Direct Message --%>
+      <div class="px-3 py-2.5">
+        <h4 class="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider mb-2">Send Message</h4>
+        <div class="text-[10px] text-zinc-600 mb-1">To: <span class="text-zinc-400 font-mono">{sel_name}</span></div>
+        <div phx-update="ignore" id={"fleet-msg-#{sel_id}"} phx-hook="ClearFormOnSubmit">
+          <form phx-submit="send_command_message" class="flex gap-1.5">
+            <input type="hidden" name="to" value={sel_id} />
+            <input type="text" name="content" placeholder={"Message #{sel_name}..."} class="flex-1 obs-input" />
+            <button type="submit" class="obs-btn obs-btn-primary">Send</button>
+          </form>
+        </div>
+      </div>
     </div>
   </div>
 </div>
