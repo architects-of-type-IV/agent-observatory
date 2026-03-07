@@ -71,6 +71,33 @@ defmodule ObservatoryWeb.Components.CommandComponents do
     |> Enum.sort_by(fn a -> {status_sort(a.status), a.name} end)
   end
 
+  defp collect_tmux_agents(tmux_sessions, existing_agents) do
+    known_tmux = existing_agents |> Enum.map(& &1[:tmux_session]) |> Enum.reject(&is_nil/1) |> MapSet.new()
+
+    tmux_sessions
+    |> Enum.reject(fn name -> MapSet.member?(known_tmux, name) end)
+    |> Enum.map(fn name ->
+      %{
+        agent_id: "tmux:#{name}",
+        name: name,
+        role: nil,
+        model: nil,
+        status: :active,
+        health: :unknown,
+        current_tool: nil,
+        event_count: 0,
+        tool_count: 0,
+        cwd: nil,
+        source_app: nil,
+        project: nil,
+        health_issues: [],
+        team_name: nil,
+        tmux_session: name,
+        recent_activity: []
+      }
+    end)
+  end
+
   defp build_agent_from_events(session_id, events, now) do
     sorted = Enum.sort_by(events, & &1.inserted_at, {:desc, DateTime})
     latest = hd(sorted)
@@ -250,7 +277,7 @@ defmodule ObservatoryWeb.Components.CommandComponents do
           severity: String.downcase(issue.severity),
           message: issue.description,
           action: if(issue.type in ["dead_agent", "stale_task"], do: "heal_task"),
-          action_label: "Heal",
+          action_label: "Reset",
           target_id: issue.task_id
         }
       end)

@@ -80,6 +80,7 @@ defmodule ObservatoryWeb do
       import Phoenix.HTML
       # Core UI components
       import ObservatoryWeb.CoreComponents
+      import ObservatoryWeb.ObservatoryComponents, only: [stable_select: 1]
 
       # Common modules used in templates
       alias Phoenix.LiveView.JS

@@ -85,6 +85,9 @@ defmodule ObservatoryWeb.DashboardLive do
       |> assign(:inspector_events, [])
       |> assign(:current_session_id, "dashboard")
       |> assign(:sidebar_collapsed, false)
+      |> assign(:active_tmux_session, nil)
+      |> assign(:tmux_output, "")
+      |> assign(:tmux_sessions, [])
       # Phase 5 - Fleet Command (task 2)
       |> assign(:throughput_rate, nil)
       |> assign(:cost_heatmap, [])
@@ -145,7 +148,16 @@ defmodule ObservatoryWeb.DashboardLive do
   end
 
   def handle_info(:tick, socket) do
-    {:noreply, socket |> assign(:now, DateTime.utc_now()) |> prepare_assigns()}
+    tmux_sessions = Observatory.Gateway.Channels.Tmux.list_sessions()
+
+    socket =
+      socket
+      |> assign(:now, DateTime.utc_now())
+      |> assign(:tmux_sessions, tmux_sessions)
+      |> maybe_poll_tmux()
+      |> prepare_assigns()
+
+    {:noreply, socket}
   end
 
   def handle_info({:teams_updated, teams}, socket) do
@@ -488,17 +500,54 @@ defmodule ObservatoryWeb.DashboardLive do
     do: {:noreply, handle_send_targeted_message(p, s) |> prepare_assigns()}
 
   def handle_event("connect_tmux", %{"session" => session_name}, socket) do
-    # Check Observatory socket first, fall back to default
-    obs_socket = Path.expand("~/.observatory/tmux/obs.sock")
-
-    cmd =
-      if File.exists?(obs_socket) do
-        "tmux -S #{obs_socket} attach -t #{session_name}"
-      else
-        "tmux attach -t #{session_name}"
+    output =
+      case Observatory.Gateway.Channels.Tmux.capture_pane(session_name, lines: 80) do
+        {:ok, text} -> text
+        {:error, _} -> "Failed to capture pane output."
       end
 
-    {:noreply, push_event(socket, "toast", %{message: cmd, type: "info"})}
+    {:noreply,
+     socket
+     |> assign(active_tmux_session: session_name, tmux_output: output)
+     |> push_event("toast", %{message: "Connected to #{session_name}", type: "success"})}
+  end
+
+  def handle_event("disconnect_tmux", _params, socket) do
+    {:noreply, assign(socket, active_tmux_session: nil, tmux_output: "")}
+  end
+
+  def handle_event("send_tmux_keys", %{"keys" => keys}, socket) do
+    case socket.assigns.active_tmux_session do
+      nil ->
+        {:noreply, socket}
+
+      session ->
+        args =
+          Observatory.Gateway.Channels.Tmux.socket_args() ++
+            ["send-keys", "-t", session, keys, "Enter"]
+
+        System.cmd("tmux", args, stderr_to_stdout: true)
+        {:noreply, socket}
+    end
+  end
+
+  def handle_event("kill_tmux_session", _params, socket) do
+    case socket.assigns.active_tmux_session do
+      nil ->
+        {:noreply, socket}
+
+      session ->
+        args =
+          Observatory.Gateway.Channels.Tmux.socket_args() ++
+            ["kill-session", "-t", session]
+
+        System.cmd("tmux", args, stderr_to_stdout: true)
+
+        {:noreply,
+         socket
+         |> assign(active_tmux_session: nil, tmux_output: "")
+         |> push_event("toast", %{message: "Killed #{session}", type: "warning"})}
+    end
   end
 
   @observatory_socket Path.expand("~/.observatory/tmux/obs.sock")
@@ -865,6 +914,36 @@ defmodule ObservatoryWeb.DashboardLive do
   defp prepare_assigns(socket) do
     assigns = socket.assigns
     all_sessions = active_sessions(assigns.events)
+
+    # Merge tmux sessions not already represented in events
+    known_tmux =
+      assigns.events
+      |> Enum.map(& &1.tmux_session)
+      |> Enum.reject(&is_nil/1)
+      |> MapSet.new()
+
+    tmux_only =
+      (assigns[:tmux_sessions] || [])
+      |> Enum.reject(fn name -> MapSet.member?(known_tmux, name) end)
+      |> Enum.map(fn name ->
+        now = assigns.now
+
+        %{
+          source_app: name,
+          session_id: "tmux:#{name}",
+          event_count: 0,
+          latest_event: %{inserted_at: now},
+          first_event: %{inserted_at: now},
+          ended?: false,
+          model: nil,
+          permission_mode: nil,
+          cwd: nil,
+          tmux_session: name
+        }
+      end)
+
+    all_sessions = all_sessions ++ tmux_only
+
     all_teams = derive_teams(assigns.events, assigns.disk_teams)
     all_teams = Enum.map(all_teams, &enrich_team_members(&1, assigns.events, assigns.now))
     all_teams = detect_dead_teams(all_teams, assigns.now)
@@ -906,6 +985,32 @@ defmodule ObservatoryWeb.DashboardLive do
     timeline = compute_timeline_data(assigns.events)
 
     feed_groups = build_feed_groups(assigns.events, teams)
+
+    # Add tmux-only sessions to the feed as presence entries
+    feed_groups = feed_groups ++ Enum.map(tmux_only, fn s ->
+      %{
+        session_id: s.session_id,
+        agent_name: s.tmux_session,
+        role: :standalone,
+        events: [],
+        turns: [],
+        turn_count: 0,
+        session_start: nil,
+        session_end: nil,
+        stop_event: nil,
+        model: nil,
+        cwd: nil,
+        permission_mode: nil,
+        source_app: s.source_app,
+        event_count: 0,
+        tool_count: 0,
+        subagent_count: 0,
+        total_duration_ms: nil,
+        start_time: assigns.now,
+        end_time: nil,
+        is_active: true
+      }
+    end)
 
     # Refresh inspected teams with current enriched data
     inspected_names = Enum.map(assigns.inspected_teams, & &1[:name])
@@ -1020,5 +1125,14 @@ defmodule ObservatoryWeb.DashboardLive do
     |> assign(:analytics, analytics)
     |> assign(:timeline, timeline)
     |> push_event("fleet_topology_update", %{nodes: topo_nodes, edges: topo_edges})
+  end
+
+  defp maybe_poll_tmux(%{assigns: %{active_tmux_session: nil}} = socket), do: socket
+
+  defp maybe_poll_tmux(%{assigns: %{active_tmux_session: session}} = socket) do
+    case Observatory.Gateway.Channels.Tmux.capture_pane(session, lines: 80) do
+      {:ok, output} -> assign(socket, :tmux_output, output)
+      {:error, _} -> assign(socket, active_tmux_session: nil, tmux_output: "Session ended.")
+    end
   end
 end

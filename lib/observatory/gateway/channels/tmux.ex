@@ -122,7 +122,7 @@ defmodule Observatory.Gateway.Channels.Tmux do
     end
   end
 
-  defp socket_args do
+  def socket_args do
     if File.exists?(@observatory_socket),
       do: ["-S", @observatory_socket],
       else: []

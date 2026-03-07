@@ -62,16 +62,16 @@ defmodule ObservatoryWeb.DashboardTeamInspectorHandlers do
 
     case Observatory.Gateway.Router.broadcast(channel, %{content: content, from: "dashboard"}) do
       {:ok, 0} ->
-        push_event(socket, "show_toast", %{message: "No targets found", type: "warning"})
+        push_event(socket, "toast", %{message: "No targets found", type: "warning"})
 
       {:ok, delivered} ->
-        push_event(socket, "show_toast", %{
+        push_event(socket, "toast", %{
           message: "Sent to #{delivered} agent(s)",
           type: "success"
         })
 
       {:error, _reason} ->
-        push_event(socket, "show_toast", %{message: "Delivery failed", type: "error"})
+        push_event(socket, "toast", %{message: "Delivery failed", type: "error"})
     end
   end
 

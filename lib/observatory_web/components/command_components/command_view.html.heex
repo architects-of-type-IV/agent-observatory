@@ -1,5 +1,7 @@
 <%
   agents = collect_agents(@teams, @events, @now)
+  tmux_agents = collect_tmux_agents(assigns[:tmux_sessions] || [], agents)
+  agents = agents ++ tmux_agents
   stats = fleet_stats(agents)
   pipeline = @swarm_state.pipeline
   health = @swarm_state.health
@@ -94,8 +96,8 @@
 
   <%!-- Command Bar: Message + Launch --%>
   <div class="flex gap-1.5 flex-wrap">
-    <form phx-submit="send_targeted_message" class="flex gap-1 flex-1 min-w-0">
-      <select name="target" class="obs-select shrink-0">
+    <form phx-submit="send_targeted_message" id="command-msg-form" phx-hook="ClearFormOnSubmit" class="flex gap-1 flex-1 min-w-0">
+      <.stable_select id="select-target" name="target" class="obs-select shrink-0">
         <option value="">Target...</option>
         <optgroup label="Broadcast">
           <option value="all">All Agents</option>
@@ -108,17 +110,17 @@
             <option value={"agent:#{agent.agent_id}"}>{agent.name}{if agent[:team_name], do: " (#{agent.team_name})", else: ""}</option>
           <% end %>
         </optgroup>
-      </select>
+      </.stable_select>
       <input type="text" name="content" placeholder="Message..." class="flex-1 obs-input min-w-0" />
       <button type="submit" class="obs-btn obs-btn-primary shrink-0">Send</button>
     </form>
     <form phx-submit="launch_session" class="flex gap-1 shrink-0">
-      <select name="cwd" class="obs-select">
+      <.stable_select id="select-cwd" name="cwd">
         <option value="">Project...</option>
         <%= for {key, path} <- @swarm_state.watched_projects do %>
           <option value={path}>{key}</option>
         <% end %>
-      </select>
+      </.stable_select>
       <button type="submit" class="obs-btn obs-btn-success shrink-0">Launch</button>
     </form>
   </div>

@@ -66,14 +66,9 @@ let Hooks = {
   },
   Toast: {
     mounted() {
-      this.handleToast = (e) => {
-        const { message, type } = e.detail
+      this.handleEvent("toast", ({ message, type }) => {
         this.showToast(message, type || "info")
-      }
-      window.addEventListener("phx:toast", this.handleToast)
-    },
-    destroyed() {
-      window.removeEventListener("phx:toast", this.handleToast)
+      })
     },
     showToast(message, type) {
       const toast = document.createElement("div")
