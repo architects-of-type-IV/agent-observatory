@@ -60,6 +60,15 @@ defmodule Observatory.Mailbox do
     Enum.map(session_ids, fn sid -> send_message(sid, from, content, opts) end)
   end
 
+  @doc "Return all messages across all agents, sorted newest first, capped at `limit`."
+  def all_messages(limit \\ 100) do
+    :ets.tab2list(@table_name)
+    |> Enum.flat_map(fn {_agent_id, messages} -> messages end)
+    |> Enum.uniq_by(& &1.id)
+    |> Enum.sort_by(& &1.timestamp, {:desc, DateTime})
+    |> Enum.take(limit)
+  end
+
   @doc """
   Get per-agent mailbox statistics from ETS.
   Returns a list of %{agent_id, total, unread, oldest_unread_age_sec}.

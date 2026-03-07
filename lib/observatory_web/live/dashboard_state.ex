@@ -63,8 +63,8 @@ defmodule ObservatoryWeb.DashboardState do
     feed_groups = feed_groups ++ Enum.map(tmux_only, &tmux_feed_entry(&1, assigns.now))
 
     # Inspector
-    inspected_names = Enum.map(assigns.inspected_teams, & &1[:name])
-    refreshed_inspected = Enum.filter(teams, fn t -> t[:name] in inspected_names end)
+    inspected_names = Enum.map(assigns.inspected_teams, & &1.name)
+    refreshed_inspected = Enum.filter(teams, fn t -> t.name in inspected_names end)
 
     inspector_events = compute_inspector_events(refreshed_inspected, assigns.events)
 

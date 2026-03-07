@@ -46,9 +46,9 @@ defmodule ObservatoryWeb.Components.ProtocolComponents do
 
   defp build_agent_name_map(teams) when is_list(teams) do
     Enum.flat_map(teams, fn team ->
-      team_name = team[:name] || team.name
+      team_name = team.name
 
-      (team[:members] || team.members || [])
+      team.members
       |> Enum.flat_map(fn member ->
         id = member[:agent_id] || member[:session_id]
         name = member[:name] || member[:agent_type]
@@ -64,7 +64,8 @@ defmodule ObservatoryWeb.Components.ProtocolComponents do
   defp resolve_agent_label("unknown", _map), do: "?"
   defp resolve_agent_label("system", _map), do: "system"
   defp resolve_agent_label("broadcast", _map), do: "broadcast"
-  defp resolve_agent_label("dashboard", _map), do: "dashboard"
+  defp resolve_agent_label("operator", _map), do: "operator"
+  defp resolve_agent_label("dashboard", _map), do: "operator"
 
   defp resolve_agent_label(id, name_map) do
     case Map.get(name_map, id) do

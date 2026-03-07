@@ -3,6 +3,11 @@ defmodule Observatory.Gateway.Channels.Tmux do
   Delivers messages to agents via tmux send-keys.
   Writes payload to a temp file and executes via send-keys to avoid escaping issues.
   Can also capture pane output for the unified activity stream.
+
+  Tries multiple tmux server options in order:
+    1. -S ~/.observatory/tmux/obs.sock (explicit socket path)
+    2. -L obs (named server)
+    3. default server
   """
 
   @behaviour Observatory.Gateway.Channel
@@ -10,21 +15,18 @@ defmodule Observatory.Gateway.Channels.Tmux do
   require Logger
 
   @observatory_socket Path.expand("~/.observatory/tmux/obs.sock")
+  @observatory_server "obs"
 
   @impl true
   def deliver(session_name, payload) when is_binary(session_name) do
     content = payload[:content] || payload["content"] || Jason.encode!(payload)
     from = payload[:from] || payload["from"] || "observatory"
 
-    # Write message to temp file, then send via tmux
     tmp_path = "/tmp/observatory_msg_#{:crypto.strong_rand_bytes(4) |> Base.encode16(case: :lower)}.txt"
-
     File.write!(tmp_path, "[#{from}] #{content}")
 
-    args = socket_args() ++ ["send-keys", "-t", session_name, "cat #{tmp_path}", "Enter"]
-
-    case System.cmd("tmux", args, stderr_to_stdout: true) do
-      {_output, 0} ->
+    case try_tmux(["send-keys", "-t", session_name, "cat #{tmp_path}", "Enter"]) do
+      {:ok, _} ->
         spawn(fn ->
           Process.sleep(5_000)
           File.rm(tmp_path)
@@ -32,41 +34,15 @@ defmodule Observatory.Gateway.Channels.Tmux do
 
         :ok
 
-      {error, _code} ->
-        # Retry on default server if Observatory socket failed
-        case System.cmd("tmux", ["send-keys", "-t", session_name, "cat #{tmp_path}", "Enter"],
-               stderr_to_stdout: true
-             ) do
-          {_output, 0} ->
-            spawn(fn ->
-              Process.sleep(5_000)
-              File.rm(tmp_path)
-            end)
-
-            :ok
-
-          _ ->
-            File.rm(tmp_path)
-            {:error, {:tmux_send_failed, error}}
-        end
+      {:error, reason} ->
+        File.rm(tmp_path)
+        {:error, {:tmux_send_failed, reason}}
     end
   end
 
   @impl true
   def available?(session_name) when is_binary(session_name) do
-    # Check Observatory socket first, fall back to default
-    case System.cmd("tmux", socket_args() ++ ["has-session", "-t", session_name],
-           stderr_to_stdout: true
-         ) do
-      {_output, 0} ->
-        true
-
-      _ ->
-        case System.cmd("tmux", ["has-session", "-t", session_name], stderr_to_stdout: true) do
-          {_output, 0} -> true
-          _ -> false
-        end
-    end
+    match?({:ok, _}, try_tmux(["has-session", "-t", session_name]))
   end
 
   @doc """
@@ -76,59 +52,56 @@ defmodule Observatory.Gateway.Channels.Tmux do
   """
   def capture_pane(session_name, opts \\ []) do
     lines = Keyword.get(opts, :lines, 50)
-    base_args = ["-t", session_name, "-p", "-S", "-#{lines}"]
 
-    # Try Observatory socket first, fall back to default
-    args = socket_args() ++ ["capture-pane" | base_args]
-
-    case System.cmd("tmux", args, stderr_to_stdout: true) do
-      {output, 0} ->
-        {:ok, strip_ansi(output)}
-
-      _ ->
-        case System.cmd("tmux", ["capture-pane" | base_args], stderr_to_stdout: true) do
-          {output, 0} -> {:ok, strip_ansi(output)}
-          {error, _code} -> {:error, {:capture_failed, error}}
-        end
+    case try_tmux(["capture-pane", "-t", session_name, "-p", "-S", "-#{lines}"]) do
+      {:ok, output} -> {:ok, strip_ansi(output)}
+      {:error, reason} -> {:error, {:capture_failed, reason}}
     end
   end
 
-  @doc "List all active tmux sessions across all known sockets."
+  @doc "List all active tmux sessions across all known servers/sockets."
   def list_sessions do
-    obs = list_sessions_on_socket(@observatory_socket)
-    default = list_sessions_default()
-    Enum.uniq(obs ++ default)
-  end
-
-  defp list_sessions_on_socket(socket_path) do
-    if File.exists?(socket_path) do
-      case System.cmd("tmux", ["-S", socket_path, "list-sessions", "-F", "\#{session_name}"],
+    server_arg_sets()
+    |> Enum.flat_map(fn args ->
+      case System.cmd("tmux", args ++ ["list-sessions", "-F", "\#{session_name}"],
              stderr_to_stdout: true
            ) do
         {output, 0} -> String.split(output, "\n", trim: true)
         _ -> []
       end
-    else
-      []
-    end
+    end)
+    |> Enum.uniq()
   end
 
-  defp list_sessions_default do
-    case System.cmd("tmux", ["list-sessions", "-F", "\#{session_name}"],
-           stderr_to_stdout: true
-         ) do
-      {output, 0} -> String.split(output, "\n", trim: true)
-      _ -> []
-    end
-  end
-
+  @doc "Return tmux args for the first responsive observatory server."
   def socket_args do
-    if File.exists?(@observatory_socket),
-      do: ["-S", @observatory_socket],
-      else: []
+    Enum.find(server_arg_sets(), [], fn args ->
+      case System.cmd("tmux", args ++ ["list-sessions"], stderr_to_stdout: true) do
+        {_, 0} -> true
+        _ -> false
+      end
+    end)
   end
 
-  # Strip ANSI escape codes using a regex
+  # Try a tmux command across all known server options, return first success.
+  defp try_tmux(cmd_args) do
+    Enum.find_value(server_arg_sets(), {:error, :no_server}, fn server_args ->
+      case System.cmd("tmux", server_args ++ cmd_args, stderr_to_stdout: true) do
+        {output, 0} -> {:ok, output}
+        _ -> nil
+      end
+    end)
+  end
+
+  defp server_arg_sets do
+    [
+      if(File.exists?(@observatory_socket), do: ["-S", @observatory_socket]),
+      ["-L", @observatory_server],
+      []
+    ]
+    |> Enum.reject(&is_nil/1)
+  end
+
   defp strip_ansi(text) do
     Regex.replace(~r/\e\[[0-9;]*[a-zA-Z]/, text, "")
   end

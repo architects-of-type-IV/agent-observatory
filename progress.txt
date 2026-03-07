@@ -1,34 +1,30 @@
 Observatory Progress
 ====================
 
-## Current: Fleet View + Messaging (2026-03-07)
+## Current: AccessStruct Removal + Fleet Fixes (2026-03-07)
 
-### This Session
+### This Session (continued)
 - [x] Created FleetHelpers module (modular pure functions for fleet tree)
 - [x] Rewrote command_view.html.heex: 3-column layout with project grouping
 - [x] Fixed command bar select frozen in phx-update="ignore"
-- [x] Diagnosed messaging "not sending" -- root cause: no agents registered (no active sessions)
-- [x] Created docs/messaging-architecture.md (full flow map, 5 paths, bypass routes)
-- [ ] Gateway unification (route all sends through Gateway)
+- [x] Diagnosed messaging "not sending" -- root cause: no agents registered
+- [x] Created docs/messaging-architecture.md (full flow map)
+- [x] Fixed Fleet.Team Access error (created AccessStruct macro)
+- [x] Fixed fleet indentation (sort_members classify_role was passing wrong arg)
+- [x] Removed AccessStruct macro -- incompatible with Ash compilation hooks
+- [x] Converted ~25 bracket access sites to dot access across 10+ files
+- [x] Removed longPollFallbackMs from app.js
+- [x] Added obs.sock auto-start to Application
+- [ ] Fix detail panel not showing on agent click (was blocked by compile crash)
+- [ ] Fix grey dots on team members (status display)
+- [ ] Gateway unification
 - [ ] Tmux multi-panel integration
-- [ ] Ash-ify messaging stores
 
 ### Ash Domain Modeling Refactor (Steps 1-6 of 9 complete)
-- [x] Step 1: Fleet domain + Agent/Team resources + LoadAgents/LoadTeams preparations
-- [x] Step 2: Activity domain + Message/Task/Error resources + 3 preparations
-- [x] Step 3: (Deferred) Enhance Events.Event with new read actions
-- [x] Step 4: Register Fleet + Activity domains in config.exs
-- [x] Step 5: Create DashboardState.recompute/1 using Ash domain calls
-- [x] Step 6: Refactor dashboard_live.ex to use DashboardState (1138 -> 920 lines)
+- [x] Step 1-6: Fleet/Activity domains, resources, preparations, DashboardState
 - [ ] Step 7: Move inline handlers to existing modules
 - [ ] Step 8: Retire absorbed helper modules
 - [ ] Step 9: Final compile + smoke test
-
-### Key Metrics
-- dashboard_live.ex: 1138 -> 920 lines (-218 lines, -19%)
-- 13 new files created (domains, resources, preparations, state module)
-- Zero warnings throughout
-- Fleet view: teams grouped by project, tree connectors, role hierarchy
 
 ## Previous milestones preserved below...
 
@@ -37,9 +33,6 @@ Observatory Progress
 - [x] Auto-discovery of projects from hook events
 - [x] Original DAG wave visualization restored
 - [x] Observatory tmux socket for session management
-- [x] Rich agent cards with live activity streams
-- [x] Targeted + broadcast messaging
-- [x] Session launcher from UI
 
 ### Phase 5: Hypervisor UI COMPLETE (2026-02-22)
 - [x] Six view modes with keyboard shortcuts

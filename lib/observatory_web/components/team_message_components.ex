@@ -17,11 +17,11 @@ defmodule ObservatoryWeb.Components.TeamMessageComponents do
         <option value="">Select target...</option>
         <option value="all_teams">All teams ({length(@teams)} teams)</option>
         <%= for team <- @teams do %>
-          <optgroup label={team[:name]}>
-            <option value={"team:#{team[:name]}"}>
-              All members ({length(team[:members] || [])})
+          <optgroup label={team.name}>
+            <option value={"team:#{team.name}"}>
+              All members ({length(team.members)})
             </option>
-            <%= for member <- (team[:members] || []) do %>
+            <%= for member <- (team.members) do %>
               <option value={"member:#{member[:agent_id]}"}>
                 {member[:name]} {if detect_role(team, member) == :lead, do: "(lead)", else: ""}
               </option>

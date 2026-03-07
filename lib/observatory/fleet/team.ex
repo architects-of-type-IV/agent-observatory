@@ -6,6 +6,7 @@ defmodule Observatory.Fleet.Team do
 
   use Ash.Resource, domain: Observatory.Fleet
 
+
   attributes do
     attribute :name, :string, primary_key?: true, allow_nil?: false, public?: true
     attribute :lead_session, :string, public?: true

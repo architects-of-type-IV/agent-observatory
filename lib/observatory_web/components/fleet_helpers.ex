@@ -48,7 +48,7 @@ defmodule ObservatoryWeb.Components.FleetHelpers do
     |> Enum.map(fn m ->
       sid = m[:session_id] || m[:agent_id] || m["session_id"]
       agent = Map.get(agent_index, sid)
-      role = classify_role(m)
+      role = classify_role(m[:name] || m[:agent_type] || m["name"])
       {m, agent, depth(role)}
     end)
     |> Enum.sort_by(fn {_m, _a, d} -> d end)
@@ -83,7 +83,7 @@ defmodule ObservatoryWeb.Components.FleetHelpers do
   def name_map(teams, agents) do
     team_entries =
       for t <- teams,
-          m <- t[:members] || [],
+          m <- Map.get(t, :members, []),
           sid = m[:session_id] || m["session_id"],
           sid != nil,
           into: %{} do
@@ -110,13 +110,13 @@ defmodule ObservatoryWeb.Components.FleetHelpers do
   def filter_by_team(messages, nil, _teams), do: messages
 
   def filter_by_team(messages, team_name, teams) do
-    case Enum.find(teams, fn t -> t[:name] == team_name end) do
+    case Enum.find(teams, fn t -> t.name == team_name end) do
       nil ->
         messages
 
       t ->
         sids =
-          (t[:members] || [])
+          Map.get(t, :members, [])
           |> Enum.map(fn m -> m[:session_id] || m["session_id"] end)
           |> MapSet.new()
 

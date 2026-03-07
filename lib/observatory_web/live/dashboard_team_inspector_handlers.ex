@@ -9,9 +9,9 @@ defmodule ObservatoryWeb.DashboardTeamInspectorHandlers do
   def handle_inspect_team(%{"team" => team_name}, socket) do
     inspected = socket.assigns.inspected_teams
     teams = socket.assigns.teams
-    team = Enum.find(teams, fn t -> t[:name] == team_name end)
+    team = Enum.find(teams, fn t -> t.name == team_name end)
 
-    if team && team_name not in Enum.map(inspected, & &1[:name]) do
+    if team && team_name not in Enum.map(inspected, & &1.name) do
       assign(socket, :inspected_teams, inspected ++ [team])
     else
       socket
@@ -19,7 +19,7 @@ defmodule ObservatoryWeb.DashboardTeamInspectorHandlers do
   end
 
   def handle_remove_from_inspector(%{"team" => team_name}, socket) do
-    inspected = Enum.reject(socket.assigns.inspected_teams, fn t -> t[:name] == team_name end)
+    inspected = Enum.reject(socket.assigns.inspected_teams, fn t -> t.name == team_name end)
     assign(socket, :inspected_teams, inspected)
   end
 
@@ -55,6 +55,12 @@ defmodule ObservatoryWeb.DashboardTeamInspectorHandlers do
   def handle_set_message_target(%{"target" => target}, socket) do
     assign(socket, :selected_message_target, target)
   end
+
+  def handle_send_targeted_message(%{"target" => "", "content" => _}, socket) do
+    push_event(socket, "toast", %{message: "Select a target first", type: "warning"})
+  end
+
+  def handle_send_targeted_message(%{"target" => _, "content" => ""}, socket), do: socket
 
   def handle_send_targeted_message(%{"target" => target, "content" => content}, socket) do
     case Observatory.Operator.send(target, content) do

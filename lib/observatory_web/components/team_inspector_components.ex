@@ -82,25 +82,25 @@ defmodule ObservatoryWeb.Components.TeamInspectorComponents do
     <div class="flex-1 min-w-0 min-h-0 bg-[#18181b] flex flex-col overflow-hidden">
       <div class="flex items-center justify-between px-2 py-1 border-b border-zinc-800/50 shrink-0">
         <div class="flex items-center gap-2">
-          <span class="text-[10px] font-semibold text-zinc-300 font-mono truncate">{@team[:name]}</span>
-          <span class="text-[9px] text-zinc-600 font-mono">{length(@team[:members] || [])} agents</span>
+          <span class="text-[10px] font-semibold text-zinc-300 font-mono truncate">{@team.name}</span>
+          <span class="text-[9px] text-zinc-600 font-mono">{length(@team.members)} agents</span>
         </div>
         <button
           phx-click="remove_from_inspector"
-          phx-value-team={@team[:name]}
+          phx-value-team={@team.name}
           class="text-zinc-600 hover:text-zinc-400 text-[10px] transition px-1"
         >
           x
         </button>
       </div>
       <div
-        id={"inspector-panel-#{@team[:name]}"}
+        id={"inspector-panel-#{@team.name}"}
         phx-hook="AutoScrollPane"
         class="flex-1 overflow-y-auto p-1.5"
       >
         <div class="grid grid-cols-2 gap-1.5">
           <div
-            :for={member <- @team[:members] || []}
+            :for={member <- @team.members}
             class="obs-inspector-panel"
           >
             <div class="flex items-center gap-1.5 ip-name">

@@ -426,7 +426,7 @@ defmodule ObservatoryWeb.DashboardFeedHelpers do
     team_names =
       teams
       |> Enum.flat_map(fn team ->
-        (team[:members] || [])
+        Map.get(team, :members, [])
         |> Enum.flat_map(fn m ->
           entries = []
           entries = if m[:session_id], do: [{m[:session_id], m[:name]}] ++ entries, else: entries

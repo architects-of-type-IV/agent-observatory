@@ -35,6 +35,11 @@ defmodule Observatory.ProtocolTracker do
     GenServer.cast(__MODULE__, {:command_write, session_id, command_id})
   end
 
+  # Called by Gateway.Router when a message is broadcast through the pipeline
+  def track_gateway_broadcast(data) do
+    GenServer.cast(__MODULE__, {:gateway_broadcast, data})
+  end
+
   # ═══════════════════════════════════════════════════════
   # Server
   # ═══════════════════════════════════════════════════════
@@ -83,6 +88,39 @@ defmodule Observatory.ProtocolTracker do
   def handle_cast({:command_write, session_id, command_id}, state) do
     update_trace_hop(command_id, :command_queue, :pending, session_id)
     {:noreply, state}
+  end
+
+  def handle_cast({:gateway_broadcast, data}, state) do
+    to_label =
+      case data.recipients do
+        [single] -> single
+        list when is_list(list) -> "#{length(list)} agents"
+        _ -> data.channel
+      end
+
+    hops =
+      [
+        %{protocol: :gateway, status: :routed, at: data.timestamp, detail: data.channel}
+      ] ++
+        if data.delivered > 0 do
+          [%{protocol: :mailbox, status: :delivered, at: DateTime.utc_now(), detail: "#{data.delivered} delivered"}]
+        else
+          [%{protocol: :mailbox, status: :failed, at: DateTime.utc_now(), detail: "no recipients"}]
+        end
+
+    trace = %{
+      id: data.trace_id,
+      type: :send_message,
+      from: data.from || "unknown",
+      to: to_label,
+      content_preview: data.content_preview,
+      message_type: "gateway",
+      timestamp: data.timestamp,
+      hops: hops
+    }
+
+    insert_trace(trace)
+    {:noreply, %{state | trace_count: state.trace_count + 1}}
   end
 
   # ═══════════════════════════════════════════════════════
@@ -258,7 +296,7 @@ defmodule Observatory.ProtocolTracker do
       by_type: Enum.frequencies_by(traces, & &1.type),
       mailbox: %{
         agents: length(mailbox_stats),
-        total_pending: Enum.reduce(mailbox_stats, 0, fn s, acc -> acc + s.unread end)
+        total_unread: Enum.reduce(mailbox_stats, 0, fn s, acc -> acc + s.unread end)
       },
       command_queue: %{
         sessions: length(queue_stats),

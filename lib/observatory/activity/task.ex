@@ -6,6 +6,7 @@ defmodule Observatory.Activity.Task do
 
   use Ash.Resource, domain: Observatory.Activity
 
+
   attributes do
     attribute :id, :string, primary_key?: true, allow_nil?: false, public?: true
     attribute :subject, :string, public?: true

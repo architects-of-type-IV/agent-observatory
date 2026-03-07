@@ -282,6 +282,20 @@ let Hooks = {
       }
     }
   },
+  SyncSelect: {
+    mounted() {
+      this.handleEvent("sync_select_options", ({id, options}) => {
+        const select = document.getElementById(id)
+        if (!select) return
+        const current = select.value
+        select.innerHTML = options
+        // Restore selection if still valid
+        if (current && select.querySelector(`option[value="${CSS.escape(current)}"]`)) {
+          select.value = current
+        }
+      })
+    }
+  },
   ClearFormOnSubmit: {
     mounted() {
       const form = this.el.querySelector("form") || this.el.closest("form")
@@ -300,7 +314,6 @@ let Hooks = {
 
 const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
 const liveSocket = new LiveSocket("/live", Socket, {
-  longPollFallbackMs: 2500,
   params: {_csrf_token: csrfToken},
   hooks: {...colocatedHooks, ...Hooks},
 })

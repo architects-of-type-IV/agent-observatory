@@ -7,6 +7,8 @@ defmodule Observatory.Application do
 
   @impl true
   def start(_type, _args) do
+    ensure_tmux_server()
+
     children = [
       # Infrastructure (must start first -- everything depends on these)
       ObservatoryWeb.Telemetry,
@@ -42,6 +44,25 @@ defmodule Observatory.Application do
   def config_change(changed, _new, removed) do
     ObservatoryWeb.Endpoint.config_change(changed, removed)
     :ok
+  end
+
+  @observatory_socket Path.expand("~/.observatory/tmux/obs.sock")
+
+  defp ensure_tmux_server do
+    socket_dir = Path.dirname(@observatory_socket)
+    File.mkdir_p!(socket_dir)
+
+    case System.cmd("tmux", ["-S", @observatory_socket, "list-sessions"], stderr_to_stdout: true) do
+      {_, 0} ->
+        :ok
+
+      _ ->
+        System.cmd("tmux", ["-S", @observatory_socket, "new-session", "-d", "-s", "obs"],
+          stderr_to_stdout: true
+        )
+
+        :ok
+    end
   end
 
   defp skip_migrations?() do

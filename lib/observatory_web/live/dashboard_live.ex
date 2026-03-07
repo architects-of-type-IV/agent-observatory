@@ -25,7 +25,7 @@ defmodule ObservatoryWeb.DashboardLive do
       Phoenix.PubSub.subscribe(Observatory.PubSub, "events:stream")
       Phoenix.PubSub.subscribe(Observatory.PubSub, "teams:update")
       Phoenix.PubSub.subscribe(Observatory.PubSub, "agent:crashes")
-      Phoenix.PubSub.subscribe(Observatory.PubSub, "agent:dashboard")
+      Phoenix.PubSub.subscribe(Observatory.PubSub, "agent:operator")
       Phoenix.PubSub.subscribe(Observatory.PubSub, "swarm:update")
       Phoenix.PubSub.subscribe(Observatory.PubSub, "protocols:update")
       subscribe_gateway_topics()
@@ -81,7 +81,9 @@ defmodule ObservatoryWeb.DashboardLive do
       |> assign(:agent_toggles, %{})
       |> assign(:selected_message_target, nil)
       |> assign(:inspector_events, [])
-      |> assign(:current_session_id, "dashboard")
+      |> assign(:current_session_id, "operator")
+      |> assign(:collapsed_fleet_teams, MapSet.new())
+      |> assign(:comms_team_filter, nil)
       |> assign(:sidebar_collapsed, false)
       |> assign(:active_tmux_session, nil)
       |> assign(:tmux_output, "")
@@ -145,7 +147,7 @@ defmodule ObservatoryWeb.DashboardLive do
     nav_view =
       case params["view"] do
         "fleet" -> :fleet
-        "protocols" -> :protocols
+        "protocols" -> :fleet
         _ -> :pipeline
       end
 
@@ -184,7 +186,7 @@ defmodule ObservatoryWeb.DashboardLive do
     team_names = disk_teams |> Map.values() |> Enum.map(fn t -> t[:name] || t["name"] end) |> MapSet.new()
 
     pruned =
-      Enum.filter(socket.assigns.inspected_teams, fn t -> MapSet.member?(team_names, t[:name]) end)
+      Enum.filter(socket.assigns.inspected_teams, fn t -> MapSet.member?(team_names, t.name) end)
 
     {:noreply,
      socket |> assign(:disk_teams, disk_teams) |> assign(:inspected_teams, pruned) |> recompute()}
@@ -514,6 +516,27 @@ defmodule ObservatoryWeb.DashboardLive do
   def handle_event("send_targeted_message", p, s),
     do: {:noreply, handle_send_targeted_message(p, s) |> recompute()}
 
+  def handle_event("toggle_fleet_team", %{"name" => team_name}, s) do
+    collapsed = s.assigns.collapsed_fleet_teams
+
+    collapsed =
+      if MapSet.member?(collapsed, team_name),
+        do: MapSet.delete(collapsed, team_name),
+        else: MapSet.put(collapsed, team_name)
+
+    {:noreply, assign(s, :collapsed_fleet_teams, collapsed)}
+  end
+
+  def handle_event("set_comms_filter", %{"team" => ""}, s) do
+    {:noreply, assign(s, :comms_team_filter, nil)}
+  end
+
+  def handle_event("set_comms_filter", %{"team" => team_name}, s) do
+    current = s.assigns.comms_team_filter
+    new_filter = if current == team_name, do: nil, else: team_name
+    {:noreply, assign(s, :comms_team_filter, new_filter)}
+  end
+
   def handle_event("connect_tmux", %{"session" => session_name}, socket) do
     output =
       case Observatory.Gateway.Channels.Tmux.capture_pane(session_name, lines: 80) do
@@ -574,11 +597,12 @@ defmodule ObservatoryWeb.DashboardLive do
     # Ensure socket directory exists
     File.mkdir_p!(Path.dirname(@observatory_socket))
 
-    # Launch on Observatory's own tmux socket
-    case System.cmd("tmux", [
-           "-S", @observatory_socket,
+    # Launch on Observatory's tmux server, clearing CLAUDECODE to allow nested sessions
+    socket_args = Observatory.Gateway.Channels.Tmux.socket_args()
+
+    case System.cmd("tmux", socket_args ++ [
            "new-session", "-d", "-s", session_name, "-c", cwd,
-           command
+           "env", "-u", "CLAUDECODE", command
          ], stderr_to_stdout: true) do
       {_output, 0} ->
         {:noreply,

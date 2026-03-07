@@ -1,46 +1,35 @@
 # Observatory - Handoff
 
-## Current Status: Fleet View + Messaging Debug (2026-03-07)
+## Current Status: AccessStruct Removal + Fleet Fixes (2026-03-07)
 
 ### Just Completed
-- **Fixed command bar select freeze** -- Select dropdown was inside `phx-update="ignore"`, preventing it from updating when agents come online. Moved select outside, only text input wrapped in `phx-update="ignore"`.
-- **Created FleetHelpers module** -- Extracted pure fleet tree functions into `ObservatoryWeb.Components.FleetHelpers` (modular Elixir pattern).
-- **3-column fleet view** -- Fleet tree (360px) | Comms timeline (flex) | Detail panel (400px). Teams grouped by project with tree connectors.
-- **Messaging architecture doc** -- `docs/messaging-architecture.md` maps all 5 message flow paths, PubSub topics, bypass routes, unification opportunities.
+- **Removed AccessStruct macro from all Ash resources** -- `use Observatory.AccessStruct` was incompatible with Ash's compilation hooks. `fetch/2` was stripped at compile time, causing runtime `UndefinedFunctionError` crashes on every `:tick`. Removed from Fleet.Team, Fleet.Agent, Activity.Error, Activity.Task, Activity.Message.
+- **Converted all bracket access on Ash structs to dot access** -- Fixed ~25 callsites across 10 files: fleet_helpers.ex, dashboard_state.ex, dashboard_team_inspector_handlers.ex, dashboard_live.ex, dashboard_team_helpers.ex, dashboard_feed_helpers.ex, team_inspector_components.ex, team_message_components.ex, teams_components.ex, protocol_components.ex, team_tmux_components.ex.
+- **Removed longPollFallbackMs** -- Was set to 2500 in app.js, removed per user request.
+- **Fleet indentation fix** -- `sort_members` was passing whole member map to `classify_role` (catch-all `:member`). Fixed to pass `m[:name] || m[:agent_type]` for correct role->depth mapping.
 
-### Key Finding: Messages Not Sending (Root Cause)
-The forms and handlers work correctly. When agents are registered in AgentRegistry, delivery succeeds (confirmed via MCP curl). The issue was:
-1. No active Claude sessions -> no hook events -> AgentRegistry empty (only "operator")
-2. Command bar select was frozen at mount time due to `phx-update="ignore"` -> no agents to select
-3. User is now booting a real team which will trigger hook events and populate the registry.
+### Key Learning: Ash Structs and Access
+Ash resource structs do NOT support bracket access `[:field]`. The `@behaviour Access` + `@impl Access` functions defined via `use` macro get stripped by Ash's `@before_compile` hooks. Use dot access (`struct.field`) or `Map.get(struct, :field, default)` instead. Team members (from `{:array, :map}` attributes) ARE plain maps and DO support bracket access.
 
-### What's Working
-- `Operator.send` -> `Gateway.Router.broadcast` -> `MailboxAdapter` + `Tmux` + `Webhook` pipeline
-- MCP tools (check_inbox, send_message, acknowledge_message)
-- FleetHelpers: role classification, hierarchy sorting, chain of command, project grouping
-- Fleet tree with tree connectors, role badges, project headers
-- Comms timeline with team filtering
-- Detail panel with chain of command, recent messages, tmux button, direct message form
-
-### What Needs Attention
-1. **Gateway unification** -- 5 bypass paths skip Gateway Router (see docs/messaging-architecture.md)
-2. **Tmux panel integration** -- User wants multi-tmux view, not just single "Tmux" button
-3. **Ash-ify messaging** -- Mailbox/CommandQueue/AgentRegistry are plain GenServers, could use Ash resources
-4. **Steps 7-9 of Ash refactor** -- Move inline handlers, retire helpers, final validation (task 9)
+### Open Issues (User Reported)
+1. **Grey dots on comms-test team** -- Team members from config.json without hook events show `:idle` status (grey). This is correct behavior if agents aren't active, but user questions if team is offline.
+2. **Detail panel not showing on click** -- `handle_select_command_agent` sets `selected_command_agent` assign, template shows panel with `:if={selected}`. Was blocked by compilation crash (AccessStruct). Should work now with clean compile.
+3. **User notes**: "Most helpers could be Ash resource actions" and "Write idiomatic Elixir, no mixing imperative/declarative"
 
 ### Architecture
 - Phoenix LiveView on port 4005
 - Event-driven: hooks -> POST /api/events -> EventBuffer ETS + PubSub -> LiveView
-- Gateway Router: Validate -> Route -> Deliver -> Audit pipeline
-- AgentRegistry: ETS-backed, populated by hook events + TeamWatcher + tmux polling
+- Ash domains: Fleet (Team, Agent), Activity (Message, Task, Error) -- all `Ash.DataLayer.Simple`
 - Zero warnings: `mix compile --warnings-as-errors`
-- Module size limit: 200-300 lines max
 
 ### Key Files Modified This Session
 | File | Change |
 |------|--------|
-| `lib/observatory_web/components/fleet_helpers.ex` | Created: pure fleet tree helper functions |
-| `lib/observatory_web/components/command_components/command_view.html.heex` | Rewritten: 3-column layout, fixed select freeze |
-| `lib/observatory_web/components/command_components.ex` | Added FleetHelpers alias, removed inline helpers |
-| `lib/observatory_web/live/dashboard_live.ex` | Added fleet assigns, removed debug logging |
-| `docs/messaging-architecture.md` | Created: full messaging architecture map |
+| `lib/observatory/fleet/team.ex` | Removed AccessStruct |
+| `lib/observatory/fleet/agent.ex` | Removed AccessStruct |
+| `lib/observatory/activity/{error,task,message}.ex` | Removed AccessStruct |
+| `lib/observatory_web/components/fleet_helpers.ex` | `t[:members]` -> `Map.get(t, :members, [])`, `t[:name]` -> `t.name` |
+| `lib/observatory_web/live/dashboard_state.ex` | `t[:name]` -> `t.name` |
+| `lib/observatory_web/live/dashboard_team_helpers.ex` | `team[:members]` -> `Map.get(team, :members, [])`, `team[:lead_session]` -> `team.lead_session` |
+| `lib/observatory_web/components/{team_inspector,team_message,teams,protocol,team_tmux}_components.ex` | All bracket -> dot access |
+| `assets/js/app.js` | Removed longPollFallbackMs |

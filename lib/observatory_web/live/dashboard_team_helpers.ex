@@ -271,7 +271,7 @@ defmodule ObservatoryWeb.DashboardTeamHelpers do
     cond do
       member[:agent_type] == "lead" -> :lead
       member[:agent_type] == "team-lead" -> :lead
-      team[:lead_session] != nil and member[:agent_id] == team[:lead_session] -> :lead
+      team.lead_session != nil and member[:agent_id] == team.lead_session -> :lead
       true -> :member
     end
   end
@@ -281,7 +281,7 @@ defmodule ObservatoryWeb.DashboardTeamHelpers do
   Priority: :critical > :warning > :healthy > :unknown
   """
   def team_health(team) do
-    healths = Enum.map(team[:members] || [], & &1[:health])
+    healths = Enum.map(Map.get(team, :members, []), & &1[:health])
 
     cond do
       :critical in healths -> :critical
@@ -295,7 +295,7 @@ defmodule ObservatoryWeb.DashboardTeamHelpers do
   Calculate task progress (completed vs total).
   """
   def task_progress(team) do
-    tasks = team[:tasks] || []
+    tasks = Map.get(team, :tasks, [])
     total = length(tasks)
 
     completed =
@@ -313,8 +313,8 @@ defmodule ObservatoryWeb.DashboardTeamHelpers do
     %{
       health: team_health(team),
       progress: {completed, total},
-      member_count: length(team[:members] || []),
-      active_count: Enum.count(team[:members] || [], fn m -> m[:status] == :active end)
+      member_count: length(Map.get(team, :members, [])),
+      active_count: Enum.count(Map.get(team, :members, []), fn m -> m[:status] == :active end)
     }
   end
 

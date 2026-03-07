@@ -53,10 +53,10 @@ defmodule ObservatoryWeb.Components.TeamTmuxComponents do
     ~H"""
     <div class="bg-zinc-950 flex flex-col overflow-hidden">
       <div class="flex items-center justify-between px-3 py-1.5 bg-zinc-900 border-b border-zinc-800 shrink-0">
-        <span class="text-xs font-medium text-zinc-300">{@team[:name]}</span>
+        <span class="text-xs font-medium text-zinc-300">{@team.name}</span>
         <div class="flex items-center gap-2">
           <label
-            :for={member <- @team[:members] || []}
+            :for={member <- @team.members}
             class="flex items-center gap-1 text-xs text-zinc-500 cursor-pointer"
           >
             <input
@@ -71,7 +71,7 @@ defmodule ObservatoryWeb.Components.TeamTmuxComponents do
         </div>
       </div>
       <div
-        id={"tmux-pane-#{@team[:name]}"}
+        id={"tmux-pane-#{@team.name}"}
         phx-hook="AutoScrollPane"
         class="flex-1 overflow-y-auto font-mono"
       >
@@ -120,7 +120,7 @@ defmodule ObservatoryWeb.Components.TeamTmuxComponents do
 
   defp filter_by_mode(events, :leads_only, team) do
     lead_sids =
-      (team[:members] || [])
+      team.members
       |> Enum.filter(fn m -> detect_role(team, m) == :lead end)
       |> Enum.map(& &1[:agent_id])
       |> MapSet.new()

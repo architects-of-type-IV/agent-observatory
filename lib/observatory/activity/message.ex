@@ -6,6 +6,7 @@ defmodule Observatory.Activity.Message do
 
   use Ash.Resource, domain: Observatory.Activity
 
+
   attributes do
     attribute :id, :string, primary_key?: true, allow_nil?: false, public?: true
     attribute :sender_session, :string, public?: true

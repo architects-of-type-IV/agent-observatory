@@ -242,7 +242,7 @@
 
   <div :if={agent[:agent_id]} class="px-3 py-2 border-b border-zinc-800/50">
     <h3 class="obs-section-title mb-1.5">Send Message</h3>
-    <div phx-update="ignore" id="agent-message-form-stable" phx-hook="ClearFormOnSubmit">
+    <div phx-update="ignore" id={"agent-msg-form-#{agent[:agent_id]}"} phx-hook="ClearFormOnSubmit">
       <form phx-submit="send_agent_message" class="flex gap-1">
         <input type="hidden" name="session_id" value={agent[:agent_id]} />
         <input type="text" name="content" placeholder="Message to agent..." class="flex-1 obs-input" />

@@ -98,6 +98,16 @@ defmodule Observatory.Gateway.AgentRegistry do
   def init(_opts) do
     :ets.new(@table, [:named_table, :public, :set])
 
+    # Register the operator (dashboard UI) as a permanent agent for message delivery
+    operator =
+      default_agent("operator")
+      |> Map.put(:id, "operator")
+      |> Map.put(:role, :operator)
+      |> Map.put(:status, :active)
+      |> Map.put(:channels, %{tmux: nil, mailbox: "operator", webhook: nil})
+
+    :ets.insert(@table, {"operator", operator})
+
     Phoenix.PubSub.subscribe(Observatory.PubSub, "teams:update")
 
     schedule_tmux_poll()
@@ -273,12 +283,24 @@ defmodule Observatory.Gateway.AgentRegistry do
   defp derive_role(_), do: :worker
 
   defp poll_tmux_sessions do
-    # Collect sessions from default server + custom sockets
-    tmux_sessions = collect_all_tmux_sessions()
+    tmux_sessions = Observatory.Gateway.Channels.Tmux.list_sessions()
+    known_ids = :ets.tab2list(@table) |> Enum.map(fn {_sid, a} -> a.id end) |> MapSet.new()
 
+    # Auto-register tmux sessions not yet in the registry
+    for session_name <- tmux_sessions,
+        not MapSet.member?(known_ids, session_name),
+        is_nil(get(session_name)) do
+      agent =
+        default_agent(session_name)
+        |> Map.put(:id, session_name)
+        |> Map.put(:channels, %{tmux: session_name, mailbox: session_name, webhook: nil})
+
+      :ets.insert(@table, {session_name, agent})
+    end
+
+    # Enrich existing entries with tmux channel info
     :ets.tab2list(@table)
     |> Enum.each(fn {session_id, agent} ->
-      # Match tmux sessions by agent id prefix
       matched_tmux =
         Enum.find(tmux_sessions, fn s ->
           String.starts_with?(s, agent.id) or String.contains?(s, agent.id)
@@ -289,44 +311,8 @@ defmodule Observatory.Gateway.AgentRegistry do
         :ets.insert(@table, {session_id, %{agent | channels: updated_channels}})
       end
     end)
-  end
 
-  defp collect_all_tmux_sessions do
-    # Default tmux server
-    default =
-      case System.cmd("tmux", ["list-sessions", "-F", "\#{session_name}"],
-             stderr_to_stdout: true
-           ) do
-        {output, 0} -> output |> String.split("\n", trim: true)
-        _ -> []
-      end
-
-    # Custom sockets (Observatory-managed, e.g. ~/.observatory/tmux/)
-    socket_dir =
-      System.get_env("OBSERVATORY_TMUX_SOCKET_DIR") ||
-        Path.expand("~/.observatory/tmux")
-
-    custom =
-      case File.ls(socket_dir) do
-        {:ok, entries} ->
-          entries
-          |> Enum.filter(&String.ends_with?(&1, ".sock"))
-          |> Enum.flat_map(fn sock_name ->
-            sock_path = Path.join(socket_dir, sock_name)
-
-            case System.cmd("tmux", ["-S", sock_path, "list-sessions", "-F", "\#{session_name}"],
-                   stderr_to_stdout: true
-                 ) do
-              {output, 0} -> String.split(output, "\n", trim: true)
-              _ -> []
-            end
-          end)
-
-        _ ->
-          []
-      end
-
-    MapSet.new(default ++ custom)
+    broadcast_registry_update()
   end
 
   defp schedule_tmux_poll do

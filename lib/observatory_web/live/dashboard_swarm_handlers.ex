@@ -113,9 +113,24 @@ defmodule ObservatoryWeb.DashboardSwarmHandlers do
 
   def handle_send_command_message(%{"to" => to, "content" => content}, socket) do
     if content != "" do
-      Observatory.Operator.send(to, content)
-    end
+      case Observatory.Operator.send(to, content) do
+        {:ok, delivered} when delivered > 0 ->
+          socket
 
-    socket
+        {:ok, 0} ->
+          Phoenix.LiveView.push_event(socket, "toast", %{
+            message: "No delivery channel for #{String.slice(to, 0, 12)}",
+            type: "warning"
+          })
+
+        {:error, _} ->
+          Phoenix.LiveView.push_event(socket, "toast", %{
+            message: "Send failed",
+            type: "error"
+          })
+      end
+    else
+      socket
+    end
   end
 end

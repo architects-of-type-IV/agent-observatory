@@ -24,6 +24,7 @@ defmodule Observatory.Gateway.Router do
          recipients when recipients != [] <- route(envelope),
          delivered <- deliver(envelope, recipients) do
       audit(envelope, recipients, delivered)
+      track_protocol_trace(envelope, recipients, delivered)
       {:ok, delivered}
     else
       {:error, reason} ->
@@ -84,47 +85,41 @@ defmodule Observatory.Gateway.Router do
   end
 
   defp deliver_to_agent(agent, payload) do
-    delivered = deliver_primary(agent, payload)
+    # Always write to mailbox so check_inbox works regardless of delivery channel
+    mailbox_ok =
+      if agent.channels[:mailbox] do
+        MailboxAdapter.deliver(agent.channels.mailbox, payload) == :ok
+      else
+        false
+      end
 
-    # Webhook is additive -- fire alongside primary when configured
+    # Tmux is additive -- push to terminal when available
+    if agent.channels[:tmux] && Tmux.available?(agent.channels.tmux) do
+      Tmux.deliver(agent.channels.tmux, payload)
+    end
+
+    # Webhook is additive -- fire alongside when configured
     if agent.channels[:webhook] do
       webhook_payload = Map.put(payload, :agent_id, agent.session_id)
       WebhookAdapter.deliver(agent.channels.webhook, webhook_payload)
     end
 
-    delivered
+    if mailbox_ok, do: 1, else: 0
   end
 
-  defp deliver_primary(agent, payload) do
-    # Priority: tmux > mailbox
-    cond do
-      agent.channels[:tmux] && Tmux.available?(agent.channels.tmux) ->
-        case Tmux.deliver(agent.channels.tmux, payload) do
-          :ok -> 1
-          {:error, _} -> deliver_fallback_mailbox(agent, payload)
-        end
+  defp track_protocol_trace(envelope, recipients, delivered) do
+    recipient_ids = Enum.map(recipients, & &1.id)
+    content = envelope.payload[:content] || envelope.payload["content"] || ""
 
-      agent.channels[:mailbox] ->
-        case MailboxAdapter.deliver(agent.channels.mailbox, payload) do
-          :ok -> 1
-          {:error, _} -> 0
-        end
-
-      true ->
-        Logger.debug("No delivery channel for agent #{agent.id}")
-        0
-    end
-  end
-
-  defp deliver_fallback_mailbox(agent, payload) do
-    if agent.channels[:mailbox] do
-      case MailboxAdapter.deliver(agent.channels.mailbox, payload) do
-        :ok -> 1
-        {:error, _} -> 0
-      end
-    else
-      0
-    end
+    Observatory.ProtocolTracker.track_gateway_broadcast(%{
+      trace_id: envelope.trace_id,
+      from: envelope.from,
+      channel: envelope.channel,
+      recipients: recipient_ids,
+      delivered: delivered,
+      content_preview: String.slice(content, 0, 100),
+      timestamp: envelope.timestamp
+    })
   end
 
   defp audit(envelope, recipients, delivered_count) do

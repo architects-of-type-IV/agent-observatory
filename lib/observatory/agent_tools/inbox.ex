@@ -109,8 +109,17 @@ defmodule Observatory.AgentTools.Inbox do
         content = input.arguments.content
 
         case Observatory.Gateway.Router.broadcast("agent:#{to}", %{content: content, from: from}) do
-          {:ok, _delivered} ->
-            {:ok, %{"status" => "sent", "to" => to}}
+          {:ok, delivered} when delivered > 0 ->
+            {:ok, %{"status" => "sent", "to" => to, "delivered" => delivered}}
+
+          {:ok, 0} ->
+            {:ok,
+             %{
+               "status" => "no_recipients",
+               "to" => to,
+               "delivered" => 0,
+               "error" => "No delivery channel found for #{to}. Agent may not be registered."
+             }}
 
           {:error, reason} ->
             {:error, "Failed to send message: #{inspect(reason)}"}

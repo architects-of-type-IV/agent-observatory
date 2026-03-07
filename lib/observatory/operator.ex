@@ -40,6 +40,7 @@ defmodule Observatory.Operator do
   defp normalize_target("team:" <> _ = channel), do: channel
   defp normalize_target("fleet:" <> _ = channel), do: channel
   defp normalize_target("role:" <> _ = channel), do: channel
+  defp normalize_target("all"), do: "fleet:all"
   defp normalize_target("all_teams"), do: "fleet:all"
   defp normalize_target("lead:" <> _name), do: "role:lead"
   defp normalize_target("member:" <> sid), do: "session:#{sid}"

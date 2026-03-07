@@ -17,8 +17,12 @@ defmodule Observatory.Gateway.Channels.MailboxAdapter do
       |> Map.put(:via_gateway, true)
 
     case Observatory.Mailbox.send_message(session_id, from, content, type: msg_type, metadata: metadata) do
-      {:ok, _message} -> :ok
-      {:error, reason} -> {:error, reason}
+      {:ok, message} ->
+        Observatory.ProtocolTracker.track_mailbox_delivery(message.id, session_id, from)
+        :ok
+
+      {:error, reason} ->
+        {:error, reason}
     end
   end
 

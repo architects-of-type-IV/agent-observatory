@@ -12,7 +12,7 @@ defmodule ObservatoryWeb.DashboardSessionControlHandlers do
     command = %{
       "type" => "session_control",
       "action" => "pause",
-      "from" => "dashboard",
+      "from" => "operator",
       "timestamp" => DateTime.utc_now() |> DateTime.to_iso8601()
     }
 
@@ -22,7 +22,7 @@ defmodule ObservatoryWeb.DashboardSessionControlHandlers do
     # Send via Mailbox
     Observatory.Mailbox.send_message(
       session_id,
-      "dashboard",
+      "operator",
       "Pause requested by dashboard",
       type: :session_control,
       metadata: %{action: "pause"}
@@ -43,7 +43,7 @@ defmodule ObservatoryWeb.DashboardSessionControlHandlers do
     command = %{
       "type" => "session_control",
       "action" => "resume",
-      "from" => "dashboard",
+      "from" => "operator",
       "timestamp" => DateTime.utc_now() |> DateTime.to_iso8601()
     }
 
@@ -53,7 +53,7 @@ defmodule ObservatoryWeb.DashboardSessionControlHandlers do
     # Send via Mailbox
     Observatory.Mailbox.send_message(
       session_id,
-      "dashboard",
+      "operator",
       "Resume requested by dashboard",
       type: :session_control,
       metadata: %{action: "resume"}
@@ -74,7 +74,7 @@ defmodule ObservatoryWeb.DashboardSessionControlHandlers do
     command = %{
       "type" => "session_control",
       "action" => "shutdown",
-      "from" => "dashboard",
+      "from" => "operator",
       "timestamp" => DateTime.utc_now() |> DateTime.to_iso8601()
     }
 
@@ -84,7 +84,7 @@ defmodule ObservatoryWeb.DashboardSessionControlHandlers do
     # Send via Mailbox
     Observatory.Mailbox.send_message(
       session_id,
-      "dashboard",
+      "operator",
       "Shutdown requested by dashboard",
       type: :session_control,
       metadata: %{action: "shutdown"}

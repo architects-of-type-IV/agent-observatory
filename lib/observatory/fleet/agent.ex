@@ -6,6 +6,7 @@ defmodule Observatory.Fleet.Agent do
 
   use Ash.Resource, domain: Observatory.Fleet
 
+
   attributes do
     attribute :agent_id, :string, primary_key?: true, allow_nil?: false, public?: true
     attribute :name, :string, public?: true
