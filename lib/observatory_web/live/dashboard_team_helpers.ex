@@ -6,9 +6,6 @@ defmodule ObservatoryWeb.DashboardTeamHelpers do
 
   import ObservatoryWeb.DashboardAgentHealthHelpers
 
-  # A team with no activity for this long (seconds) and no disk presence is dead
-  @dead_team_threshold_sec 300
-
   @doc """
   Derive teams from both events and disk state, merging them appropriately.
   Disk teams are authoritative when available.
@@ -109,170 +106,16 @@ defmodule ObservatoryWeb.DashboardTeamHelpers do
   end
 
   @doc """
-  Enrich team members with event-based status and activity data.
-  """
-  def enrich_team_members(team, events, now) do
-    Map.update!(team, :members, fn members ->
-      Enum.map(members, fn m ->
-        member_events =
-          if m[:agent_id] do
-            Enum.filter(events, &(&1.session_id == m[:agent_id]))
-          else
-            []
-          end
-
-        latest =
-          member_events
-          |> Enum.sort_by(& &1.inserted_at, {:desc, DateTime})
-          |> List.first()
-
-        status =
-          cond do
-            latest == nil -> :unknown
-            latest.hook_event_type == :SessionEnd -> :ended
-            DateTime.diff(now, latest.inserted_at, :second) > 30 -> :idle
-            true -> :active
-          end
-
-        # Compute health metrics
-        health_data = compute_agent_health(member_events, now)
-
-        # Extract model from SessionStart event
-        model = extract_model_from_events(member_events)
-
-        # Extract cwd from events
-        cwd = extract_cwd_from_events(member_events)
-
-        # Extract permission mode from SessionStart event
-        permission_mode = extract_permission_mode(member_events)
-
-        # Detect current running tool (PreToolUse without matching PostToolUse)
-        current_tool = detect_current_tool(member_events, now)
-
-        # Calculate session uptime
-        first_event = Enum.min_by(member_events, & &1.inserted_at, DateTime, fn -> nil end)
-
-        uptime =
-          if first_event, do: DateTime.diff(now, first_event.inserted_at, :second), else: nil
-
-        Map.merge(m, %{
-          event_count: length(member_events),
-          latest_event: latest,
-          status: status,
-          health: health_data.health,
-          health_issues: health_data.issues,
-          failure_rate: health_data.failure_rate,
-          model: model,
-          cwd: cwd,
-          permission_mode: permission_mode,
-          current_tool: current_tool,
-          uptime: uptime
-        })
-      end)
-    end)
-  end
-
-  defp extract_model_from_events(events) do
-    session_start = Enum.find(events, &(&1.hook_event_type == :SessionStart))
-
-    if session_start do
-      (session_start.payload || %{})["model"] || session_start.model_name
-    else
-      Enum.find_value(events, fn e -> e.model_name || (e.payload || %{})["model"] end)
-    end
-  end
-
-  defp extract_cwd_from_events(events) do
-    events
-    |> Enum.sort_by(& &1.inserted_at, {:desc, DateTime})
-    |> Enum.find_value(fn e -> e.cwd end)
-  end
-
-  defp extract_permission_mode(events) do
-    session_start = Enum.find(events, &(&1.hook_event_type == :SessionStart))
-
-    if session_start do
-      (session_start.payload || %{})["permission_mode"]
-    else
-      nil
-    end
-  end
-
-  defp detect_current_tool(events, now) do
-    # Find most recent PreToolUse
-    pre_tool_events =
-      events
-      |> Enum.filter(&(&1.hook_event_type == :PreToolUse))
-      |> Enum.sort_by(& &1.inserted_at, {:desc, DateTime})
-
-    latest_pre = List.first(pre_tool_events)
-
-    if latest_pre do
-      # Check if there's a matching PostToolUse or PostToolUseFailure
-      matching_post =
-        events
-        |> Enum.filter(fn e ->
-          (e.hook_event_type == :PostToolUse or e.hook_event_type == :PostToolUseFailure) and
-            e.inserted_at >= latest_pre.inserted_at and
-            e.tool_name == latest_pre.tool_name
-        end)
-        |> Enum.sort_by(& &1.inserted_at, {:asc, DateTime})
-        |> List.first()
-
-      if !matching_post do
-        elapsed = DateTime.diff(now, latest_pre.inserted_at, :second)
-        %{tool_name: latest_pre.tool_name, elapsed: elapsed}
-      else
-        nil
-      end
-    else
-      nil
-    end
-  end
-
-  @doc """
-  Mark teams as dead when they have no disk presence and all members are inactive.
-  A dead team is one derived only from events where:
-  - No corresponding directory/file exists in ~/.claude/teams/
-  - All members are :ended, :idle, or :unknown
-  - The most recent member activity exceeds the dead team threshold
-  """
-  def detect_dead_teams(teams, now) do
-    Enum.map(teams, fn team ->
-      if team.source == :disk do
-        Map.put(team, :dead?, false)
-      else
-        latest_member_event =
-          team.members
-          |> Enum.map(& &1[:latest_event])
-          |> Enum.reject(&is_nil/1)
-          |> Enum.max_by(& &1.inserted_at, DateTime, fn -> nil end)
-
-        all_inactive? =
-          Enum.all?(team.members, fn m ->
-            m[:status] in [:ended, :idle, :unknown, nil]
-          end)
-
-        stale? =
-          case latest_member_event do
-            nil -> true
-            event -> DateTime.diff(now, event.inserted_at, :second) > @dead_team_threshold_sec
-          end
-
-        Map.put(team, :dead?, all_inactive? and stale?)
-      end
-    end)
-  end
-
-  @doc """
   Detect whether a team member is a lead or regular member.
+  Delegates agent_type classification to AgentRegistry.derive_role/1.
   """
   def detect_role(team, member) do
-    cond do
-      member[:agent_type] == "lead" -> :lead
-      member[:agent_type] == "team-lead" -> :lead
-      team.lead_session != nil and member[:agent_id] == team.lead_session -> :lead
-      true -> :member
+    case Observatory.Gateway.AgentRegistry.derive_role(member[:agent_type]) do
+      role when role in [:lead, :coordinator] -> :lead
+      _ ->
+        if team.lead_session != nil and member[:agent_id] == team.lead_session,
+          do: :lead,
+          else: :member
     end
   end
 

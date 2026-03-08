@@ -10,18 +10,14 @@
     |> Enum.uniq_by(fn a -> a[:session_id] || a[:agent_id] end)
   total_agents = length(all_agents)
 
-  # HITL paused sessions
-  hitl_paused = try do
-    Observatory.Gateway.HITLRelay.paused_sessions() |> MapSet.new()
-  rescue
-    _ -> MapSet.new()
-  end
+  # HITL paused sessions (populated in DashboardState.recompute)
+  hitl_paused = assigns[:paused_sessions] || MapSet.new()
 
   # Name map for comms display
   names = FH.name_map(@teams, all_agents)
 
-  # Mailbox messages for comms timeline
-  mailbox_messages = Observatory.Mailbox.all_messages(50)
+  # Mailbox messages for comms timeline (populated in DashboardState.recompute)
+  mailbox_messages = assigns[:mailbox_messages] || []
   comms_filter = assigns[:comms_team_filter]
   agent_filter = assigns[:comms_agent_filter] || []
   filtered_messages = mailbox_messages

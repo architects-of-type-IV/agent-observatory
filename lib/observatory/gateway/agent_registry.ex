@@ -536,11 +536,11 @@ defmodule Observatory.Gateway.AgentRegistry do
 
   defp derive_status(_event, existing), do: existing.status
 
-  defp derive_role(nil), do: :standalone
-  defp derive_role("team-lead"), do: :lead
-  defp derive_role("lead"), do: :lead
-  defp derive_role("coordinator"), do: :coordinator
-  defp derive_role(_), do: :worker
+  def derive_role(nil), do: :standalone
+  def derive_role("team-lead"), do: :lead
+  def derive_role("lead"), do: :lead
+  def derive_role("coordinator"), do: :coordinator
+  def derive_role(_), do: :worker
 
   defp poll_tmux_sessions do
     tmux_sessions = Observatory.Gateway.Channels.Tmux.list_sessions()

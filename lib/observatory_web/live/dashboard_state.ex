@@ -6,13 +6,13 @@ defmodule ObservatoryWeb.DashboardState do
 
   import Phoenix.Component, only: [assign: 3]
   import Phoenix.LiveView, only: [push_event: 3]
-  import ObservatoryWeb.DashboardDataHelpers, only: [filtered_events: 1, filtered_sessions: 2, compute_tool_analytics: 1]
+  import ObservatoryWeb.DashboardDataHelpers, only: [filtered_events: 1, filtered_sessions: 2]
   import ObservatoryWeb.DashboardMessageHelpers, only: [search_messages: 2, group_messages_by_thread: 1]
-  import ObservatoryWeb.DashboardTeamHelpers, only: [team_member_sids: 1, all_team_sids: 1]
+  import ObservatoryWeb.DashboardTeamHelpers, only: [all_team_sids: 1]
   import ObservatoryWeb.DashboardFeedHelpers, only: [build_feed_groups: 2]
-  import ObservatoryWeb.DashboardTimelineHelpers, only: [compute_timeline_data: 1]
-  import ObservatoryWeb.DashboardSessionHelpers, only: [short_model_name: 1]
-  import ObservatoryWeb.DashboardFormatHelpers, only: [session_duration_sec: 1]
+
+  alias Observatory.Activity.EventAnalysis
+  alias Observatory.Fleet.Queries, as: FQ
 
   def default_assigns(disk_teams) do
     %{
@@ -116,6 +116,8 @@ defmodule ObservatoryWeb.DashboardState do
       expanded_protocol_items: MapSet.new(),
       cost_data: %{by_model: [], by_session: [], totals: %{}},
       agent_index: %{},
+      paused_sessions: MapSet.new(),
+      mailbox_messages: [],
       # Workshop team builder
       ws_agents: [],
       ws_spawn_links: [],
@@ -142,8 +144,9 @@ defmodule ObservatoryWeb.DashboardState do
     errors = Observatory.Activity.Error.recent!()
     error_groups = Observatory.Activity.Error.by_tool!()
 
-    # Session derivation (still needed for feed, topology, filtering)
-    all_sessions = active_sessions_from_events(assigns.events, assigns)
+    # Session derivation (Fleet.Queries)
+    all_sessions = FQ.active_sessions(assigns.events, tmux: assigns[:tmux_sessions] || [], now: assigns.now)
+    tmux_only = FQ.active_sessions([], tmux: assigns[:tmux_sessions] || [], now: assigns.now)
     team_sids = all_team_sids(all_teams)
     standalone = Enum.reject(all_sessions, fn s -> MapSet.member?(team_sids, s.session_id) end)
 
@@ -170,31 +173,31 @@ defmodule ObservatoryWeb.DashboardState do
         true -> []
       end
 
-    # Analytics
-    analytics = compute_tool_analytics(assigns.events)
-    timeline = compute_timeline_data(assigns.events)
+    # Analytics (Activity.EventAnalysis)
+    analytics = EventAnalysis.tool_analytics(assigns.events)
+    timeline = EventAnalysis.timeline(assigns.events)
 
     # Feed
     feed_groups = build_feed_groups(assigns.events, teams)
-    tmux_only = build_tmux_only(assigns, all_sessions)
     feed_groups = feed_groups ++ Enum.map(tmux_only, &tmux_feed_entry(&1, assigns.now))
 
-    # Inspector
+    # Inspector (Fleet.Queries)
     inspected_names = Enum.map(assigns.inspected_teams, & &1.name)
     refreshed_inspected = Enum.filter(teams, fn t -> t.name in inspected_names end)
+    inspector_events = FQ.inspector_events(refreshed_inspected, assigns.events)
 
-    inspector_events = compute_inspector_events(refreshed_inspected, assigns.events)
-
-    # Topology
-    {topo_nodes, topo_edges} = compute_topology(all_sessions, teams, assigns)
+    # Topology (Fleet.Queries)
+    {topo_nodes, topo_edges} = FQ.topology(all_sessions, teams, assigns.now)
 
     # Costs (load from SQLite, lightweight aggregation)
     cost_data = Observatory.Costs.CostAggregator.load_cost_data()
 
-    # Unified agent index: registry (authoritative) merged with event-derived data
-    # Maps ALL known identifiers (id, session_id, short_name) to the same agent record
-    registry_agents = Observatory.Gateway.AgentRegistry.list_all()
-    agent_index = build_agent_index(registry_agents, assigns.events, assigns.now)
+    # Unified agent index from Fleet.Agent (LoadAgents merges events + registry + BEAM)
+    agent_index = build_agent_lookup(Observatory.Fleet.Agent.all!())
+
+    # Template-layer data (moved out of heex preprocessing)
+    paused_sessions = safe_paused_sessions()
+    mailbox_messages = Observatory.Mailbox.all_messages(50)
 
     socket
     |> assign(:agent_index, agent_index)
@@ -217,174 +220,35 @@ defmodule ObservatoryWeb.DashboardState do
     |> assign(:error_groups, error_groups)
     |> assign(:analytics, analytics)
     |> assign(:timeline, timeline)
+    |> assign(:paused_sessions, paused_sessions)
+    |> assign(:mailbox_messages, mailbox_messages)
     |> push_event("fleet_topology_update", %{nodes: topo_nodes, edges: topo_edges})
   end
 
-  # ── Unified Agent Index ──────────────────────────────────────────────
-  #
-  # Builds a map keyed by ALL known identifiers for each agent.
-  # Registry is authoritative for status, cwd, team, role.
-  # Events provide live data: current_tool, recent_activity, event_count.
-  #
-  # Keys per agent: id, session_id, short_name (all pointing to the same map)
-  defp build_agent_index(registry_agents, events, now) do
-    # Event data grouped by session_id
-    event_data =
-      events
-      |> Enum.group_by(& &1.session_id)
-      |> Map.new(fn {sid, evts} -> {sid, summarize_events(evts, now)} end)
+  defp safe_paused_sessions do
+    Observatory.Gateway.HITLRelay.paused_sessions() |> MapSet.new()
+  rescue
+    _ -> MapSet.new()
+  end
 
-    # Build entries from registry agents, enriched with event data
-    registry_agents
-    |> Enum.flat_map(fn reg ->
-      ev = Map.get(event_data, reg.session_id, %{})
+  # Build multi-key lookup from Fleet.Agent structs (agent_id, session_id, short_name -> map)
+  defp build_agent_lookup(agents) do
+    agents
+    |> Enum.flat_map(fn a ->
+      agent_map = Map.from_struct(a)
+      # Add computed fields expected by templates
+      agent_map = Map.merge(agent_map, %{
+        team: a.team_name,
+        project: if(a.cwd, do: Path.basename(a.cwd), else: nil),
+        tmux_session: get_in(a.channels || %{}, [:tmux]) || a.tmux_session
+      })
 
-      agent = %{
-        agent_id: reg.id,
-        session_id: reg.session_id,
-        short_name: reg.short_name,
-        name: reg.short_name || reg.id,
-        status: reg.status || :idle,
-        role: reg.role,
-        team: reg.team,
-        model: reg.model,
-        cwd: reg.cwd,
-        project: if(reg.cwd, do: Path.basename(reg.cwd), else: nil),
-        source_app: ev[:source_app],
-        host: Map.get(reg, :host, "local"),
-        channels: reg.channels,
-        tmux_session: get_in(reg, [:channels, :tmux]),
-        current_tool: ev[:current_tool],
-        event_count: ev[:event_count] || 0,
-        tool_count: ev[:tool_count] || 0,
-        recent_activity: ev[:recent_activity] || [],
-        last_event_at: reg.last_event_at
-      }
-
-      # Map all known keys to the same agent record
-      keys = Enum.uniq([reg.id, reg.session_id, reg.short_name]) |> Enum.reject(&is_nil/1)
-      Enum.map(keys, fn k -> {k, agent} end)
+      [a.agent_id, a.session_id, a.short_name]
+      |> Enum.reject(&is_nil/1)
+      |> Enum.uniq()
+      |> Enum.map(&{&1, agent_map})
     end)
     |> Observatory.Gateway.AgentRegistry.dedup_by_status()
-  end
-
-  defp summarize_events(events, now) do
-    sorted = Enum.sort_by(events, & &1.inserted_at, {:desc, DateTime})
-
-    %{
-      event_count: length(events),
-      tool_count: Enum.count(events, &(&1.hook_event_type == :PreToolUse)),
-      current_tool: find_current_tool(sorted, now),
-      recent_activity: build_recent_activity(sorted, now),
-      source_app: Enum.find_value(events, & &1.source_app)
-    }
-  end
-
-  defp find_current_tool(sorted_events, now) do
-    post_ids =
-      sorted_events
-      |> Enum.filter(&(&1.hook_event_type in [:PostToolUse, :PostToolUseFailure]))
-      |> MapSet.new(& &1.tool_use_id)
-
-    sorted_events
-    |> Enum.filter(&(&1.hook_event_type == :PreToolUse))
-    |> Enum.find(fn e -> e.tool_use_id && not MapSet.member?(post_ids, e.tool_use_id) end)
-    |> case do
-      nil -> nil
-      pre -> %{tool_name: pre.tool_name, elapsed: div(DateTime.diff(now, pre.inserted_at, :millisecond), 1000)}
-    end
-  end
-
-  defp build_recent_activity(sorted_events, now) do
-    sorted_events
-    |> Enum.take(20)
-    |> Enum.flat_map(&event_to_activity(&1, now))
-    |> Enum.take(5)
-  end
-
-  defp event_to_activity(e, now) do
-    age = DateTime.diff(now, e.inserted_at, :second)
-    age_str = format_age(age)
-
-    case e.hook_event_type do
-      :PreToolUse ->
-        tool = e.tool_name || "?"
-        [%{type: :tool, tool: tool, detail: "", age: age_str}]
-
-      :PostToolUseFailure ->
-        tool = e.tool_name || "?"
-        [%{type: :error, tool: tool, detail: "failed", age: age_str}]
-
-      :Notification ->
-        text = (e.payload || %{})["message"] || (e.payload || %{})["content"] || e.summary || ""
-        if text != "", do: [%{type: :notify, detail: String.slice(text, 0, 120), age: age_str}], else: []
-
-      :TaskCompleted ->
-        task_id = (e.payload || %{})["task_id"] || "?"
-        [%{type: :task_done, detail: "Task #{task_id} completed", age: age_str}]
-
-      _ ->
-        []
-    end
-  end
-
-  defp format_age(seconds) when seconds < 60, do: "#{seconds}s"
-  defp format_age(seconds) when seconds < 3600, do: "#{div(seconds, 60)}m"
-  defp format_age(seconds), do: "#{div(seconds, 3600)}h"
-
-  # Session derivation from raw events (still needed for feed groups, topology)
-  defp active_sessions_from_events(events, assigns) do
-    sessions =
-      events
-      |> Enum.group_by(&{&1.source_app, &1.session_id})
-      |> Enum.map(fn {{app, sid}, evts} ->
-        sorted = Enum.sort_by(evts, & &1.inserted_at, {:desc, DateTime})
-        latest = hd(sorted)
-        ended? = Enum.any?(evts, &(&1.hook_event_type == :SessionEnd))
-
-        %{
-          source_app: app,
-          session_id: sid,
-          event_count: length(evts),
-          latest_event: latest,
-          first_event: List.last(sorted),
-          ended?: ended?,
-          model: find_model(evts),
-          permission_mode: latest.permission_mode,
-          cwd: latest.cwd || find_cwd(evts)
-        }
-      end)
-      |> Enum.sort_by(& &1.latest_event.inserted_at, {:desc, DateTime})
-
-    # Append tmux-only sessions
-    sessions ++ build_tmux_only(assigns, sessions)
-  end
-
-  defp build_tmux_only(assigns, _existing_sessions) do
-    known_tmux =
-      assigns.events
-      |> Enum.map(& &1.tmux_session)
-      |> Enum.reject(&is_nil/1)
-      |> MapSet.new()
-
-    (assigns[:tmux_sessions] || [])
-    |> Enum.reject(fn name -> MapSet.member?(known_tmux, name) end)
-    |> Enum.map(fn name ->
-      now = assigns.now
-
-      %{
-        source_app: name,
-        session_id: name,
-        event_count: 0,
-        latest_event: %{inserted_at: now},
-        first_event: %{inserted_at: now},
-        ended?: false,
-        model: nil,
-        permission_mode: nil,
-        cwd: nil,
-        tmux_session: name
-      }
-    end)
   end
 
   defp tmux_feed_entry(s, now) do
@@ -411,99 +275,4 @@ defmodule ObservatoryWeb.DashboardState do
       is_active: true
     }
   end
-
-  defp compute_inspector_events(inspected_teams, events) do
-    sids =
-      inspected_teams
-      |> Enum.flat_map(&team_member_sids/1)
-      |> MapSet.new()
-
-    if MapSet.size(sids) > 0 do
-      events
-      |> Enum.filter(fn e -> MapSet.member?(sids, e.session_id) end)
-      |> Enum.sort_by(& &1.inserted_at, {:desc, DateTime})
-      |> Enum.take(200)
-    else
-      []
-    end
-  end
-
-  defp compute_topology(all_sessions, teams, assigns) do
-    team_member_index =
-      teams
-      |> Enum.flat_map(fn t ->
-        Enum.map(t.members, fn m ->
-          {m[:agent_id], %{team: t.name, role: m[:name] || m[:agent_type]}}
-        end)
-      end)
-      |> Map.new()
-
-    session_sids = MapSet.new(all_sessions, & &1.session_id)
-
-    session_nodes =
-      Enum.map(all_sessions, fn s ->
-        status =
-          cond do
-            s.ended? -> "dead"
-            DateTime.diff(assigns.now, s.latest_event.inserted_at, :second) > 120 -> "idle"
-            true -> "active"
-          end
-
-        team_info = Map.get(team_member_index, s.session_id, %{})
-        dur = DateTime.diff(assigns.now, s.first_event.inserted_at, :second)
-
-        %{
-          trace_id: s.session_id,
-          agent_id: s.session_id,
-          state: status,
-          label: team_info[:role] || s.source_app || String.slice(s.session_id, 0, 8),
-          model: short_model_name(s.model),
-          team: team_info[:team],
-          events: s.event_count,
-          cwd: if(s.cwd, do: Path.basename(s.cwd), else: nil),
-          duration: session_duration_sec(dur)
-        }
-      end)
-
-    member_nodes =
-      teams
-      |> Enum.flat_map(fn team ->
-        team.members
-        |> Enum.filter(fn m -> m[:agent_id] && not MapSet.member?(session_sids, m[:agent_id]) end)
-        |> Enum.map(fn m ->
-          %{
-            trace_id: m[:agent_id],
-            agent_id: m[:agent_id],
-            state: to_string(m[:status] || :idle),
-            label: m[:name] || m[:agent_type] || String.slice(m[:agent_id] || "", 0, 8),
-            model: short_model_name(m[:model]),
-            team: team.name,
-            events: m[:event_count] || 0,
-            cwd: if(m[:cwd], do: Path.basename(m[:cwd]), else: nil),
-            duration: nil
-          }
-        end)
-      end)
-
-    topo_nodes = session_nodes ++ member_nodes
-
-    topo_edges =
-      teams
-      |> Enum.flat_map(fn team ->
-        sids = Enum.map(team.members, & &1[:agent_id]) |> Enum.reject(&is_nil/1)
-
-        sids
-        |> Enum.chunk_every(2, 1, :discard)
-        |> Enum.map(fn [from, to] ->
-          %{from: from, to: to, traffic_volume: 0, latency_ms: 0, status: "active"}
-        end)
-      end)
-
-    {topo_nodes, topo_edges}
-  end
-
-  defp find_model(events),
-    do: Enum.find_value(events, fn e -> e.payload["model"] || e.model_name end)
-
-  defp find_cwd(events), do: Enum.find_value(events, fn e -> e.cwd end)
 end

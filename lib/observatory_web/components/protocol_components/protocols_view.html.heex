@@ -2,7 +2,7 @@
   stats = @protocol_stats
   total_unread = get_in(stats, [:mailbox, :total_unread]) || 0
   total_queue = get_in(stats, [:command_queue, :total_pending]) || 0
-  messages = Observatory.Mailbox.all_messages(50)
+  messages = assigns[:mailbox_messages] || []
   agent_name_map = build_agent_name_map(@teams)
 %>
 <div class="flex gap-0 h-full">

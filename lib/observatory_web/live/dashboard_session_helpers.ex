@@ -1,38 +1,8 @@
 defmodule ObservatoryWeb.DashboardSessionHelpers do
   @moduledoc """
-  Session enrichment and derivation helpers for the Observatory Dashboard.
-  Handles extracting model names, working directories, and other session metadata.
+  Session display helpers for the Observatory Dashboard.
+  Handles abbreviation and formatting of session metadata.
   """
-
-  @doc """
-  Extract model name from session events.
-  Checks SessionStart events and fallback to model_name field.
-  """
-  def extract_session_model(events) do
-    # Try SessionStart first
-    session_start =
-      events
-      |> Enum.find(fn e ->
-        e.hook_event_type == :SessionStart
-      end)
-
-    if session_start do
-      (session_start.payload || %{})["model"] || session_start.model_name
-    else
-      # Fallback to first event with model_name
-      Enum.find_value(events, fn e -> e.model_name || (e.payload || %{})["model"] end)
-    end
-  end
-
-  @doc """
-  Extract working directory from session events.
-  Returns the most recent cwd.
-  """
-  def extract_session_cwd(events) do
-    events
-    |> Enum.sort_by(& &1.inserted_at, {:desc, DateTime})
-    |> Enum.find_value(fn e -> e.cwd end)
-  end
 
   @doc """
   Abbreviate working directory path for display.

@@ -5,10 +5,14 @@ defmodule ObservatoryWeb.Components.FleetHelpers do
   """
 
   # -- Role classification --
+  # Delegates to AgentRegistry.derive_role/1 for canonical agent_type mapping.
+  # Adds map-based and name-heuristic overloads for display contexts.
+
+  alias Observatory.Gateway.AgentRegistry
 
   def classify_role(%{role: r}) when is_atom(r), do: r
-  def classify_role(%{role: r}) when is_binary(r), do: role_atom(r)
-  def classify_role(%{"role" => r}) when is_binary(r), do: role_atom(r)
+  def classify_role(%{role: r}) when is_binary(r), do: normalize_role(AgentRegistry.derive_role(r))
+  def classify_role(%{"role" => r}) when is_binary(r), do: normalize_role(AgentRegistry.derive_role(r))
 
   def classify_role(name) when is_binary(name) do
     cond do
@@ -21,10 +25,8 @@ defmodule ObservatoryWeb.Components.FleetHelpers do
 
   def classify_role(_), do: :member
 
-  defp role_atom("coordinator"), do: :coordinator
-  defp role_atom("lead"), do: :lead
-  defp role_atom("worker"), do: :worker
-  defp role_atom(_), do: :member
+  defp normalize_role(:standalone), do: :member
+  defp normalize_role(role), do: role
 
   def depth(:coordinator), do: 0
   def depth(:lead), do: 1

@@ -15,6 +15,8 @@ defmodule Observatory.Fleet.Preparations.LoadAgents do
     teams = Observatory.Fleet.Team.alive!()
     tmux_sessions = list_tmux_sessions()
 
+    registry_agents = Observatory.Gateway.AgentRegistry.list_all()
+
     agents =
       events
       |> build_from_events(now)
@@ -22,6 +24,7 @@ defmodule Observatory.Fleet.Preparations.LoadAgents do
       |> append_disk_only_members(teams, now)
       |> append_tmux_only(tmux_sessions)
       |> merge_beam_processes(now)
+      |> merge_with_registry(registry_agents)
       |> sort_agents()
 
     Ash.DataLayer.Simple.set_data(query, agents)
@@ -201,6 +204,30 @@ defmodule Observatory.Fleet.Preparations.LoadAgents do
       end)
 
     updated ++ new_agents
+  end
+
+  # Merge AgentRegistry data into Fleet.Agent structs for unified access
+  defp merge_with_registry(agents, registry_agents) do
+    reg_index = Map.new(registry_agents, fn reg -> {reg.session_id, reg} end)
+
+    Enum.map(agents, fn agent ->
+      case Map.get(reg_index, agent.agent_id) do
+        nil ->
+          %{agent | session_id: agent.agent_id}
+
+        reg ->
+          %{agent |
+            session_id: reg.session_id,
+            short_name: reg.short_name,
+            host: Map.get(reg, :host, "local"),
+            channels: reg.channels,
+            last_event_at: reg.last_event_at,
+            name: reg.short_name || agent.name,
+            cwd: reg.cwd || agent.cwd,
+            model: reg.model || agent.model
+          }
+      end
+    end)
   end
 
   defp sort_agents(agents) do

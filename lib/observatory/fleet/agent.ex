@@ -26,6 +26,11 @@ defmodule Observatory.Fleet.Agent do
     attribute :team_name, :string, public?: true
     attribute :tmux_session, :string, public?: true
     attribute :recent_activity, {:array, :map}, default: [], public?: true
+    attribute :session_id, :string, public?: true
+    attribute :short_name, :string, public?: true
+    attribute :host, :string, default: "local", public?: true
+    attribute :channels, :map, default: %{}, public?: true
+    attribute :last_event_at, :utc_datetime_usec, public?: true
   end
 
   actions do
