@@ -186,6 +186,12 @@ defmodule ObservatoryWeb.EventController do
       "TeamCreate" ->
         if team_name = input["team_name"] do
           Observatory.Channels.create_team_channel(team_name, [])
+          ensure_team_supervisor(team_name)
+        end
+
+      "TeamDelete" ->
+        if team_name = input["team_name"] do
+          Observatory.Fleet.FleetSupervisor.disband_team(team_name)
         end
 
       "SendMessage" ->
@@ -220,6 +226,21 @@ defmodule ObservatoryWeb.EventController do
 
   defp nullify_empty(""), do: nil
   defp nullify_empty(v), do: v
+
+  @spec ensure_team_supervisor(String.t()) :: :ok
+  defp ensure_team_supervisor(team_name) do
+    unless Observatory.Fleet.TeamSupervisor.exists?(team_name) do
+      case Observatory.Fleet.FleetSupervisor.create_team(name: team_name) do
+        {:ok, _pid} -> :ok
+        {:error, :already_exists} -> :ok
+        {:error, reason} ->
+          Logger.debug("[EventController] Could not create TeamSupervisor for #{team_name}: #{inspect(reason)}")
+          :ok
+      end
+    end
+  rescue
+    _ -> :ok
+  end
 
   defp handle_send_message(event, input) do
     type = input["type"] || "message"
