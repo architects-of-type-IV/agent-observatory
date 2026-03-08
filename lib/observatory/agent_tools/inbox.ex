@@ -18,10 +18,27 @@ defmodule Observatory.AgentTools.Inbox do
 
       run(fn input, _context ->
         session_id = input.arguments.session_id
-        messages = Observatory.Mailbox.get_messages(session_id)
 
-        unread =
-          messages
+        # Try BEAM-native AgentProcess first, then fall back to legacy Mailbox
+        process_messages =
+          if Observatory.Fleet.AgentProcess.alive?(session_id) do
+            Observatory.Fleet.AgentProcess.get_unread(session_id)
+            |> Enum.map(fn msg ->
+              %{
+                "id" => msg[:id] || Ecto.UUID.generate(),
+                "from" => msg[:from] || "system",
+                "content" => msg[:content] || inspect(msg),
+                "type" => to_string(msg[:type] || :message),
+                "timestamp" => DateTime.to_iso8601(msg[:timestamp] || DateTime.utc_now())
+              }
+            end)
+          else
+            []
+          end
+
+        # Also check legacy Mailbox for messages from non-process senders
+        mailbox_messages =
+          Observatory.Mailbox.get_messages(session_id)
           |> Enum.filter(fn msg -> !msg.read end)
           |> Enum.map(fn msg ->
             %{
@@ -33,7 +50,8 @@ defmodule Observatory.AgentTools.Inbox do
             }
           end)
 
-        {:ok, unread}
+        # Merge both sources, process messages first (newer delivery)
+        {:ok, process_messages ++ mailbox_messages}
       end)
     end
 
@@ -108,21 +126,33 @@ defmodule Observatory.AgentTools.Inbox do
         to = input.arguments.to_session_id
         content = input.arguments.content
 
-        case Observatory.Gateway.Router.broadcast("agent:#{to}", %{content: content, from: from}) do
-          {:ok, delivered} when delivered > 0 ->
-            {:ok, %{"status" => "sent", "to" => to, "delivered" => delivered}}
+        # Try BEAM-native delivery first
+        if Observatory.Fleet.AgentProcess.alive?(to) do
+          Observatory.Fleet.AgentProcess.send_message(to, %{
+            content: content,
+            from: from,
+            type: :message
+          })
 
-          {:ok, 0} ->
-            {:ok,
-             %{
-               "status" => "no_recipients",
-               "to" => to,
-               "delivered" => 0,
-               "error" => "No delivery channel found for #{to}. Agent may not be registered."
-             }}
+          {:ok, %{"status" => "sent", "to" => to, "delivered" => 1}}
+        else
+          # Fall back to Gateway.Router for legacy agents
+          case Observatory.Gateway.Router.broadcast("agent:#{to}", %{content: content, from: from}) do
+            {:ok, delivered} when delivered > 0 ->
+              {:ok, %{"status" => "sent", "to" => to, "delivered" => delivered}}
 
-          {:error, reason} ->
-            {:error, "Failed to send message: #{inspect(reason)}"}
+            {:ok, 0} ->
+              {:ok,
+               %{
+                 "status" => "no_recipients",
+                 "to" => to,
+                 "delivered" => 0,
+                 "error" => "No delivery channel found for #{to}. Agent may not be registered."
+               }}
+
+            {:error, reason} ->
+              {:error, "Failed to send message: #{inspect(reason)}"}
+          end
         end
       end)
     end

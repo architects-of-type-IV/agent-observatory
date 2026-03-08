@@ -26,6 +26,7 @@ defmodule Observatory.Fleet.Preparations.LoadTeams do
       events
       |> derive_from_events()
       |> merge_with_disk(disk_teams)
+      |> merge_with_beam_teams()
       |> Enum.map(&enrich_members(&1, events_by_session, now, registry_by_id))
       |> mark_dead(now)
       |> Enum.map(&to_resource/1)
@@ -97,6 +98,48 @@ defmodule Observatory.Fleet.Preparations.LoadTeams do
     disk_list ++ event_only
   end
 
+  # Merge BEAM-native teams (from TeamSupervisor/FleetSupervisor) with legacy sources
+  defp merge_with_beam_teams(existing_teams) do
+    beam_teams = Observatory.Fleet.TeamSupervisor.list_all()
+    existing_names = MapSet.new(existing_teams, & &1.name)
+
+    new_teams =
+      beam_teams
+      |> Enum.reject(fn {name, _meta} -> MapSet.member?(existing_names, name) end)
+      |> Enum.map(fn {name, meta} ->
+        member_ids = Observatory.Fleet.TeamSupervisor.member_ids(name)
+
+        members =
+          Enum.map(member_ids, fn id ->
+            case Observatory.Fleet.AgentProcess.lookup(id) do
+              {_pid, agent_meta} ->
+                %{
+                  name: id,
+                  agent_id: id,
+                  agent_type: to_string(agent_meta[:role] || :worker),
+                  status: agent_meta[:status] || :active
+                }
+
+              nil ->
+                %{name: id, agent_id: id, agent_type: "worker"}
+            end
+          end)
+
+        %{
+          name: name,
+          lead_session: nil,
+          description: nil,
+          members: members,
+          tasks: [],
+          source: :beam,
+          created_at: nil,
+          project: meta[:project]
+        }
+      end)
+
+    existing_teams ++ new_teams
+  end
+
   defp enrich_members(team, events_by_session, now, registry_by_id) do
     enriched_members =
       Enum.map(team.members, fn m ->
@@ -146,7 +189,8 @@ defmodule Observatory.Fleet.Preparations.LoadTeams do
 
   defp mark_dead(teams, now) do
     Enum.map(teams, fn team ->
-      if team.source == :disk do
+      if team.source in [:disk, :beam] do
+        # Disk teams and BEAM-supervised teams are never marked dead by staleness
         Map.put(team, :dead?, false)
       else
         latest_member_event =

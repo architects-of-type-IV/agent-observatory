@@ -183,15 +183,25 @@ defmodule Observatory.Fleet.AgentProcess do
     # Always buffer in message history
     messages = Enum.take([msg | state.messages], @max_message_buffer)
 
-    # Deliver to backend if active; buffer as unread if paused
-    if state.status == :active do
-      deliver_to_backend(state.backend, msg)
-      broadcast_message(state.id, msg)
-      {:noreply, %{state | messages: messages}}
-    else
-      unread = [msg | state.unread]
-      broadcast_message(state.id, msg)
-      {:noreply, %{state | messages: messages, unread: unread}}
+    # Deliver to backend if active; buffer as unread if paused or no backend
+    cond do
+      state.status != :active ->
+        # Paused: buffer everything for later delivery
+        unread = [msg | state.unread]
+        broadcast_message(state.id, msg)
+        {:noreply, %{state | messages: messages, unread: unread}}
+
+      state.backend == nil ->
+        # No backend (MCP/poll agents): buffer as unread for check_inbox retrieval
+        unread = [msg | state.unread]
+        broadcast_message(state.id, msg)
+        {:noreply, %{state | messages: messages, unread: unread}}
+
+      true ->
+        # Active with backend: deliver immediately
+        deliver_to_backend(state.backend, msg)
+        broadcast_message(state.id, msg)
+        {:noreply, %{state | messages: messages}}
     end
   end
 

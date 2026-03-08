@@ -47,10 +47,27 @@ defmodule Observatory.AgentSpawner do
          {:ok, _pid} <- create_tmux_session(session_name, cwd, opts) do
       agent_id = session_name
       capability = opts[:capability] || "builder"
-
-      # Register in AgentRegistry with parent-child relationship
       role = capability_to_role(capability)
 
+      # Start a BEAM-native AgentProcess backed by the tmux session
+      process_opts = [
+        id: agent_id,
+        role: role,
+        team: opts[:team_name],
+        backend: %{type: :tmux, session: session_name},
+        capabilities: capabilities_for(capability),
+        metadata: %{cwd: cwd, model: opts[:model] || "sonnet", parent_id: opts[:parent_id]}
+      ]
+
+      case start_agent_process(process_opts, opts[:team_name]) do
+        {:ok, _pid} ->
+          Logger.info("AgentSpawner: Spawned agent #{name} (BEAM process + tmux) at #{cwd}")
+
+        {:error, reason} ->
+          Logger.warning("AgentSpawner: BEAM process failed (#{inspect(reason)}), tmux-only for #{name}")
+      end
+
+      # Also register in legacy AgentRegistry for backward compatibility
       Observatory.Gateway.AgentRegistry.register_spawned(agent_id,
         name: name,
         role: role,
@@ -58,14 +75,6 @@ defmodule Observatory.AgentSpawner do
         cwd: cwd,
         parent_id: opts[:parent_id],
         channels: %{tmux: session_name}
-      )
-
-      Logger.info("AgentSpawner: Spawned agent #{name} in session #{session_name} at #{cwd}")
-
-      Phoenix.PubSub.broadcast(
-        Observatory.PubSub,
-        "agent:spawned",
-        {:agent_spawned, agent_id, name, capability}
       )
 
       {:ok, %{session_name: session_name, agent_id: agent_id, name: name, cwd: cwd}}
@@ -79,12 +88,24 @@ defmodule Observatory.AgentSpawner do
     |> Enum.filter(&String.starts_with?(&1, "obs-"))
   end
 
-  @doc "Stop a spawned agent by sending /exit to its tmux session."
+  @doc "Stop a spawned agent by sending /exit to its tmux session and terminating its BEAM process."
   @spec stop_agent(String.t()) :: :ok | {:error, term()}
   def stop_agent(session_name) do
+    # Terminate the BEAM process if it exists
+    if Observatory.Fleet.AgentProcess.alive?(session_name) do
+      state = Observatory.Fleet.AgentProcess.get_state(session_name)
+
+      if state.team do
+        Observatory.Fleet.TeamSupervisor.terminate_member(state.team, session_name)
+      else
+        Observatory.Fleet.FleetSupervisor.terminate_agent(session_name)
+      end
+    end
+
+    # Send /exit to the tmux session
     case Tmux.run_command(["send-keys", "-t", session_name, "/exit", "Enter"]) do
       {_, 0} ->
-        Logger.info("AgentSpawner: Sent /exit to #{session_name}")
+        Logger.info("AgentSpawner: Stopped #{session_name}")
         :ok
 
       {output, code} ->
@@ -217,6 +238,27 @@ defmodule Observatory.AgentSpawner do
       ["-L", "obs"]
     end
   end
+
+  defp start_agent_process(process_opts, nil) do
+    # Standalone agent -- direct child of FleetSupervisor
+    Observatory.Fleet.FleetSupervisor.spawn_agent(process_opts)
+  end
+
+  defp start_agent_process(process_opts, team_name) do
+    # Team member -- ensure team exists, then spawn under it
+    unless Observatory.Fleet.TeamSupervisor.exists?(team_name) do
+      Observatory.Fleet.FleetSupervisor.create_team(name: team_name)
+    end
+
+    Observatory.Fleet.TeamSupervisor.spawn_member(team_name, process_opts)
+  end
+
+  defp capabilities_for("lead"), do: [:read, :write, :spawn, :assign, :escalate]
+  defp capabilities_for("coordinator"), do: [:read, :write, :spawn, :assign, :escalate, :kill]
+  defp capabilities_for("scout"), do: [:read]
+  defp capabilities_for("reviewer"), do: [:read, :write]
+  defp capabilities_for("builder"), do: [:read, :write]
+  defp capabilities_for(_), do: [:read, :write]
 
   defp capability_to_role("lead"), do: :lead
   defp capability_to_role("coordinator"), do: :coordinator

@@ -14,6 +14,7 @@ defmodule Observatory.Operator do
   """
 
   alias Observatory.Gateway.Router
+  alias Observatory.Fleet.{AgentProcess, TeamSupervisor}
 
   @from "operator"
 
@@ -31,6 +32,9 @@ defmodule Observatory.Operator do
 
   @doc """
   Send a message to any target. Returns `{:ok, delivered_count}` or `{:error, reason}`.
+
+  Tries BEAM-native AgentProcess first (instant GenServer.cast delivery).
+  Falls back to Gateway.Router.broadcast for agents not yet migrated to processes.
   """
   def send(target, content, opts \\ []) when is_binary(target) and is_binary(content) do
     channel = normalize_target(target)
@@ -44,14 +48,68 @@ defmodule Observatory.Operator do
       metadata: metadata
     }
 
-    case Router.broadcast(channel, payload) do
-      {:ok, 0} ->
-        # Gateway found no registered recipients -- fall back to direct Mailbox delivery
-        # for session/agent targets so messages always land in ETS + CommandQueue
-        fallback_deliver(channel, content, msg_type, metadata)
+    # Try BEAM-native delivery first for single-agent targets
+    case try_native_delivery(channel, payload) do
+      {:ok, count} when count > 0 ->
+        {:ok, count}
 
-      other ->
-        other
+      _ ->
+        # Fall back to Gateway.Router for legacy agents or pattern targets
+        case Router.broadcast(channel, payload) do
+          {:ok, 0} ->
+            fallback_deliver(channel, content, msg_type, metadata)
+
+          other ->
+            other
+        end
+    end
+  end
+
+  # Deliver via AgentProcess if the target has a living process
+  defp try_native_delivery("agent:" <> id, payload) do
+    deliver_to_process(id, payload)
+  end
+
+  defp try_native_delivery("session:" <> id, payload) do
+    deliver_to_process(id, payload)
+  end
+
+  defp try_native_delivery("team:" <> name, payload) do
+    if TeamSupervisor.exists?(name) do
+      ids = TeamSupervisor.member_ids(name)
+
+      Enum.each(ids, fn id ->
+        AgentProcess.send_message(id, payload)
+      end)
+
+      {:ok, length(ids)}
+    else
+      {:ok, 0}
+    end
+  end
+
+  defp try_native_delivery("fleet:all", payload) do
+    agents = AgentProcess.list_all()
+
+    if agents != [] do
+      Enum.each(agents, fn {id, _meta} ->
+        AgentProcess.send_message(id, payload)
+      end)
+
+      {:ok, length(agents)}
+    else
+      {:ok, 0}
+    end
+  end
+
+  defp try_native_delivery(_channel, _payload), do: {:ok, 0}
+
+  defp deliver_to_process(id, payload) do
+    if AgentProcess.alive?(id) do
+      AgentProcess.send_message(id, payload)
+      {:ok, 1}
+    else
+      {:ok, 0}
     end
   end
 
@@ -60,7 +118,6 @@ defmodule Observatory.Operator do
   defp fallback_deliver("role:" <> _, _content, _type, _metadata), do: {:ok, 0}
 
   defp fallback_deliver(target, content, msg_type, metadata) do
-    # Extract session_id from target (strip prefixes if present)
     session_id =
       case target do
         "agent:" <> sid -> sid

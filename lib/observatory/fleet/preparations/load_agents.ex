@@ -21,6 +21,7 @@ defmodule Observatory.Fleet.Preparations.LoadAgents do
       |> enrich_with_teams(teams)
       |> append_disk_only_members(teams, now)
       |> append_tmux_only(tmux_sessions)
+      |> merge_beam_processes(now)
       |> sort_agents()
 
     Ash.DataLayer.Simple.set_data(query, agents)
@@ -155,6 +156,51 @@ defmodule Observatory.Fleet.Preparations.LoadAgents do
       end)
 
     agents ++ tmux_agents
+  end
+
+  # Merge BEAM-native agent processes: enrich existing agents or add process-only agents
+  defp merge_beam_processes(agents, _now) do
+    process_agents = Observatory.Fleet.AgentProcess.list_all()
+    known_ids = MapSet.new(agents, & &1.agent_id)
+
+    # Add process-only agents (not yet visible via events or tmux)
+    new_agents =
+      process_agents
+      |> Enum.reject(fn {id, _meta} -> MapSet.member?(known_ids, id) end)
+      |> Enum.map(fn {id, meta} ->
+        struct!(Observatory.Fleet.Agent, %{
+          agent_id: id,
+          name: id,
+          role: to_string(meta[:role] || :worker),
+          model: nil,
+          status: if(meta[:status] == :paused, do: :idle, else: :active),
+          health: :healthy,
+          current_tool: nil,
+          event_count: 0,
+          tool_count: 0,
+          cwd: nil,
+          source_app: nil,
+          project: nil,
+          health_issues: [],
+          team_name: meta[:team],
+          tmux_session: nil,
+          recent_activity: []
+        })
+      end)
+
+    # Mark existing agents as :active if they have a living process
+    process_ids = MapSet.new(process_agents, fn {id, _} -> id end)
+
+    updated =
+      Enum.map(agents, fn agent ->
+        if MapSet.member?(process_ids, agent.agent_id) and agent.status == :ended do
+          %{agent | status: :active}
+        else
+          agent
+        end
+      end)
+
+    updated ++ new_agents
   end
 
   defp sort_agents(agents) do
