@@ -115,7 +115,10 @@ defmodule ObservatoryWeb.DashboardSwarmHandlers do
     if content != "" do
       case Observatory.Operator.send(to, content) do
         {:ok, delivered} when delivered > 0 ->
-          socket
+          Phoenix.LiveView.push_event(socket, "toast", %{
+            message: "Sent to #{String.slice(to, 0, 12)} (#{delivered} channel#{if delivered > 1, do: "s", else: ""})",
+            type: "success"
+          })
 
         {:ok, 0} ->
           Phoenix.LiveView.push_event(socket, "toast", %{

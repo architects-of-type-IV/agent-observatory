@@ -312,11 +312,14 @@
         {nil, []}
       end
 
-      # Tmux session for this agent
-      sel_tmux = sel_agent[:tmux_session] || (sel_member && sel_member[:tmux_session])
+      # Tmux session for this agent (disk members use :tmux_pane_id, registry uses :tmux_session)
+      sel_tmux = sel_agent[:tmux_session] || (sel_member && (sel_member[:tmux_session] || sel_member[:tmux_pane_id]))
 
-      # Recent messages
-      agent_msgs = Enum.filter(mailbox_messages, fn m -> m.from == sel_id || m.to == sel_id end) |> Enum.take(4)
+      # Recent messages -- match by all known identifiers (qualified name, session_id, short_name)
+      sel_session_id = sel_agent[:session_id]
+      sel_short = sel_agent[:short_name]
+      sel_ids = [sel_id, sel_session_id, sel_short] |> Enum.reject(&is_nil/1) |> MapSet.new()
+      agent_msgs = Enum.filter(mailbox_messages, fn m -> MapSet.member?(sel_ids, m.from) || MapSet.member?(sel_ids, m.to) end) |> Enum.take(4)
     %>
     <div class="px-3 py-1.5 border-b border-zinc-800 flex items-center justify-between shrink-0">
       <h3 class="text-[11px] font-semibold text-zinc-300">{sel_name}</h3>

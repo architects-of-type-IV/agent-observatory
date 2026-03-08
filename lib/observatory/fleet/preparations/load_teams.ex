@@ -16,11 +16,17 @@ defmodule Observatory.Fleet.Preparations.LoadTeams do
     disk_teams = Observatory.TeamWatcher.get_state()
     now = DateTime.utc_now()
 
+    registry_by_id =
+      Observatory.Gateway.AgentRegistry.list_all()
+      |> Observatory.Gateway.AgentRegistry.build_lookup()
+
+    events_by_session = Enum.group_by(events, & &1.session_id)
+
     teams =
       events
       |> derive_from_events()
       |> merge_with_disk(disk_teams)
-      |> Enum.map(&enrich_members(&1, events, now))
+      |> Enum.map(&enrich_members(&1, events_by_session, now, registry_by_id))
       |> mark_dead(now)
       |> Enum.map(&to_resource/1)
 
@@ -91,21 +97,24 @@ defmodule Observatory.Fleet.Preparations.LoadTeams do
     disk_list ++ event_only
   end
 
-  defp enrich_members(team, events, now) do
+  defp enrich_members(team, events_by_session, now, registry_by_id) do
     enriched_members =
       Enum.map(team.members, fn m ->
-        member_events =
-          if m[:agent_id],
-            do: Enum.filter(events, &(&1.session_id == m[:agent_id])),
-            else: []
+        # Find registry entry for this member (correlates short names with UUIDs)
+        reg = Map.get(registry_by_id, m[:agent_id])
+        event_sid = if(reg, do: reg.session_id, else: m[:agent_id])
+
+        member_events = Map.get(events_by_session, event_sid, [])
 
         latest =
           member_events
           |> Enum.sort_by(& &1.inserted_at, {:desc, DateTime})
           |> List.first()
 
+        # Registry is authoritative for status; fall back to event-derived
         status =
           cond do
+            reg != nil -> reg.status
             latest == nil -> :unknown
             latest.hook_event_type == :SessionEnd -> :ended
             DateTime.diff(now, latest.inserted_at, :second) > 30 -> :idle
@@ -113,8 +122,8 @@ defmodule Observatory.Fleet.Preparations.LoadTeams do
           end
 
         health_data = compute_agent_health(member_events, now)
-        model = extract_model(member_events)
-        cwd = extract_cwd(member_events)
+        model = extract_model(member_events) || m[:model]
+        cwd = extract_cwd(member_events) || m[:cwd]
 
         first_event = Enum.min_by(member_events, & &1.inserted_at, DateTime, fn -> nil end)
         uptime = if first_event, do: DateTime.diff(now, first_event.inserted_at, :second), else: nil

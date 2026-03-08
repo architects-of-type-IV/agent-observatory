@@ -18,11 +18,18 @@ defmodule Observatory.Application do
       {DNSCluster, query: Application.get_env(:observatory, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: Observatory.PubSub},
 
+      # BEAM-native fleet registries (must start before FleetSupervisor)
+      {Registry, keys: :unique, name: Observatory.Fleet.ProcessRegistry},
+      {Registry, keys: :unique, name: Observatory.Fleet.TeamRegistry},
+
       # Core services (mailbox, command queue, teams, notes, janitor, memory)
       Observatory.CoreSupervisor,
 
       # Gateway services (rest_for_one: registry first, then downstream)
       Observatory.GatewaySupervisor,
+
+      # Fleet supervisor (BEAM-native teams + agents, after Gateway for channel access)
+      Observatory.Fleet.FleetSupervisor,
 
       # Mesh/DAG services (rest_for_one: DAG first, then topology + event bridge)
       Observatory.MeshSupervisor,

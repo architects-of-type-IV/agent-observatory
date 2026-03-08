@@ -1,89 +1,36 @@
 ICHOR IV Progress (formerly Observatory)
 ========================================
 
-## Current: Vendor-Agnostic Fleet Control (2026-03-08)
+## Current: BEAM-Native Agent Architecture (2026-03-08)
 
-### This Session: Unified Agent Index + Fleet Panel Fix
-- [x] Unified agent index: DashboardState.build_agent_index/3 merges registry + events
-- [x] Fleet panel status: subscribes to gateway:registry, uses registry status (authoritative)
-- [x] Project name fix: falls back to registry cwd when team member cwd is nil
-- [x] Cost ingestion: EventController.maybe_record_token_usage/2 creates TokenUsage records
-- [x] Fleet panel width: reduced from 360px to 280px
-- [x] Dead code removal: ~250 lines of collect_agents logic moved to DashboardState
-- [x] Migration: 20260308120000_create_token_usages.exs
+### This Session: Type IV Foundation
+- [x] ADR-023: BEAM-native agent processes (GenServer + Registry)
+- [x] ADR-024: Team supervision trees (DynamicSupervisor per team)
+- [x] ADR-025: Native BEAM messaging (single delivery path)
+- [x] AgentProcess GenServer: PID identity, process mailbox, backend-pluggable delivery
+- [x] TeamSupervisor DynamicSupervisor: configurable restart strategies, member spawn/terminate
+- [x] FleetSupervisor: top-level DynamicSupervisor for teams + standalone agents
+- [x] Two Elixir.Registry instances wired into application.ex
+- [x] Clean compile: mix compile --warnings-as-errors
+- [x] /simplify code review on 4 changed files (load_teams.ex, command_components.ex, etc.)
+- [x] Fixed messaging bug: unconditional success toast + ID mismatch in recent messages filter
+- [x] Extracted build_lookup/1 and dedup_by_status/1 to AgentRegistry
+- [x] Hoisted registry lookup + events grouping out of per-team loop in LoadTeams (O(T*M*E) -> O(N))
 
-### Prior: ICHOR IV Architecture
-- [x] ADR-001: Vendor-agnostic fleet control architecture (gap analysis + 5-step plan)
-- [x] ADR-002: ICHOR IV identity and vision (Architect, Archon, agency-as-resource)
-- [x] Channel registry: Router uses runtime config instead of hardcoded dispatch
-- [x] Channel behaviour: added channel_key/0 and optional skip?/1 callbacks
-- [x] All 3 adapters updated: MailboxAdapter, Tmux, WebhookAdapter
-- [x] PaneMonitor GenServer: captures tmux output, parses DONE/BLOCKED signals
-- [x] AgentRegistry.touch/1: activity timestamp updates from pane monitoring
-- [x] Host + tree fields: host, parent_id, children in agent registry entries
-- [x] PaneMonitor added to MonitorSupervisor
-- [x] SSH tmux channel adapter: SshTmux with session@host addressing
-- [x] ssh_tmux channel key added to AgentRegistry default agent
-- [x] PaneMonitor updated to capture from both local Tmux and remote SshTmux
-- [x] Tested message routing with live observatory-crew team (workers %12-%15)
+### Prior: Vendor-Agnostic Fleet Control (2026-03-08)
+- [x] ADR-001 + ADR-002 (vendor-agnostic architecture, ICHOR IV identity)
+- [x] Channel registry, PaneMonitor, SSH tmux, host+tree fields, agent tree tracking
+- [x] Unified agent index, cost ingestion, HITL controls, tmux multi-panel
+- [x] Conversation tracing, progressive nudging, quality gates, instruction overlays
+- [x] AgentSpawner, NudgeEscalator, QualityGate GenServers
 
-### Prior: Overstory-Inspired Features (2026-03-08)
-- [x] Removed heartbeat Gateway broadcast (was flooding comms, evicting traces)
-- [x] Ghost agent cleanup: observatory_session? filter, UUID-only registration, sweep rule
-- [x] Fixed DashboardAgentHealthHelpers layering inversion -> Fleet.AgentHealth domain module
-- [x] Extracted DashboardPhase5Handlers (104 lines out of dashboard_live.ex)
-- [x] Extracted DashboardSlideoutHandlers (125 lines out of dashboard_live.ex)
-- [x] Consolidated mount assigns into DashboardState.default_assigns/1
-- [x] dashboard_live.ex: 887 -> 458 lines
-- [x] Wired FeedComponents.feed_view into command_view via Comms/Feed tab toggle
-- [x] HITL controls: wired pause/resume to HITLRelay, buffer viewer, approve/reject in detail panel
-- [x] HITLRelay API: buffered_messages/1, paused_sessions/0, reject/3
-- [x] Fleet tree PAUSED badge + detail panel HITL Gate Open section
-- [x] Tmux multi-panel: tabbed + tiled layout, multiple sessions, heartbeat refreshes all
-- [x] New assigns: tmux_panels, tmux_outputs, tmux_layout
-- [x] Conversation tracing: filter comms by agent pair, violet pills, Trace button in detail panel
-- [x] filter_by_agents/3 in FleetHelpers for single-agent and pair filtering
-- [x] comms_agent_filter assign (0-2 agent IDs), toggle semantics, auto-switch to comms tab
-- [x] Cost dashboard: Costs tab in command_view, CostAggregator SQL queries, CostComponents UI
-- [x] Progressive nudging: NudgeEscalator GenServer, 4-level escalation (warn/nudge/pause/zombie)
-- [x] Agent spawning: AgentSpawner, Operator.spawn_agent/stop_agent, tmux session pipeline
-- [x] Quality gate enforcement: QualityGate GenServer, TaskCompleted -> done_when -> nudge on fail
-- [x] Instruction overlays: InstructionOverlay.generate/1, role/task/scope/gates/comms per agent
+### Prior: Dashboard + Ash Refactor (2026-03-07)
+- [x] Fleet/Activity Ash domains with DataLayer.Simple
+- [x] 3-column layout, FleetHelpers, messaging architecture doc
+- [x] DashboardState.recompute/1, default_assigns/1
 
-### Prior: Code Quality Hardening via /simplify (2026-03-08)
-- [x] Replaced is_uuid?/parse_uuid with Ecto.UUID.cast
-- [x] Hoisted correlate_by_cwd: pre-built cwd index (O(M*N) -> O(N))
-- [x] maybe_absorb_team_entry uses ets.match_object (was tab2list on every hook event)
-- [x] Named tmux buffers + Tmux.run_command/1 public API + server_arg_sets cache
-- [x] broadcast_registry_update sends :registry_changed signal (not full table)
-
-### Prior: Identity Merge + Gateway Trace (2026-03-08)
-- [x] Identity merge in AgentRegistry (CWD correlation, canonical UUID keys)
-- [x] Ash domain refactor steps 7-9 (imported handlers, extracted DashboardTmuxHandlers)
-- [x] Tmux deliver fix (set-buffer+paste-buffer, no temp files)
-- [x] Heartbeat tmux filter, debug endpoints, Gateway unification
-- [x] dashboard_live.ex: 982 -> 887 lines
-
-### Prior: Heartbeat + Stability (2026-03-08)
-- [x] Wrapped select dropdowns in phx-update="ignore"
-- [x] Added Operator.send fallback
-- [x] Fixed ProtocolTracker timeout
-- [x] Created Heartbeat GenServer + removed all polling
-
-### Previous Session (2026-03-07)
-- [x] Created FleetHelpers module + 3-column layout
-- [x] Diagnosed messaging root cause + created messaging-architecture.md
-- [x] Removed AccessStruct macro, converted bracket access
-
-### Ash Domain Modeling Refactor (COMPLETE)
-- [x] Steps 1-9: Fleet/Activity domains, resources, preparations, DashboardState
-
-## Previous milestones preserved below...
-
-### Dashboard Rearrangement (2026-03-07)
-- [x] 3-column layout, auto-discovery, DAG visualization, tmux socket
-
-### Phase 5: Hypervisor UI COMPLETE (2026-02-22)
-### Phase 4: Gateway Infrastructure & HITL COMPLETE (2026-02-22)
-### Phase 3: Topology & Entropy COMPLETE
-### Phase 2: Gateway Core COMPLETE
+### Previous milestones preserved below...
+- Phase 5: Hypervisor UI COMPLETE (2026-02-22)
+- Phase 4: Gateway Infrastructure & HITL COMPLETE (2026-02-22)
+- Phase 3: Topology & Entropy COMPLETE
+- Phase 2: Gateway Core COMPLETE

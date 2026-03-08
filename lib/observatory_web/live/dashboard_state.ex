@@ -237,6 +237,8 @@ defmodule ObservatoryWeb.DashboardState do
         team: reg.team,
         model: reg.model,
         cwd: reg.cwd,
+        project: if(reg.cwd, do: Path.basename(reg.cwd), else: nil),
+        source_app: ev[:source_app],
         host: Map.get(reg, :host, "local"),
         channels: reg.channels,
         tmux_session: get_in(reg, [:channels, :tmux]),
@@ -251,7 +253,7 @@ defmodule ObservatoryWeb.DashboardState do
       keys = Enum.uniq([reg.id, reg.session_id, reg.short_name]) |> Enum.reject(&is_nil/1)
       Enum.map(keys, fn k -> {k, agent} end)
     end)
-    |> Map.new()
+    |> Observatory.Gateway.AgentRegistry.dedup_by_status()
   end
 
   defp summarize_events(events, now) do
@@ -261,7 +263,8 @@ defmodule ObservatoryWeb.DashboardState do
       event_count: length(events),
       tool_count: Enum.count(events, &(&1.hook_event_type == :PreToolUse)),
       current_tool: find_current_tool(sorted, now),
-      recent_activity: build_recent_activity(sorted, now)
+      recent_activity: build_recent_activity(sorted, now),
+      source_app: Enum.find_value(events, & &1.source_app)
     }
   end
 

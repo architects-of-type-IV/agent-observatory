@@ -47,6 +47,32 @@ defmodule Observatory.Gateway.AgentRegistry do
     ArgumentError -> []
   end
 
+  @doc """
+  Build a map keyed by all known identifiers (id, session_id, short_name) for each agent.
+  When multiple entries collide on the same key, the active agent wins over ended.
+  """
+  def build_lookup(agents) do
+    agents
+    |> Enum.flat_map(fn a ->
+      keys = [a.id, a.session_id, a.short_name] |> Enum.reject(&is_nil/1) |> Enum.uniq()
+      Enum.map(keys, fn k -> {k, a} end)
+    end)
+    |> dedup_by_status()
+  end
+
+  @doc """
+  Dedup a list of `{key, entry}` pairs: when multiple entries share a key,
+  the one with `status: :active` wins.
+  """
+  def dedup_by_status(pairs) do
+    Enum.reduce(pairs, %{}, fn {k, entry}, acc ->
+      case Map.get(acc, k) do
+        nil -> Map.put(acc, k, entry)
+        existing -> if existing.status == :active, do: acc, else: Map.put(acc, k, entry)
+      end
+    end)
+  end
+
   @doc "Find agents matching a channel pattern."
   def resolve_channel(pattern) do
     case parse_channel(pattern) do

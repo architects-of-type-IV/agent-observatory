@@ -265,10 +265,8 @@ defmodule ObservatoryWeb.DashboardLive do
   def handle_event("send_team_broadcast", p, s), do: handle_send_team_broadcast(p, s)
   def handle_event("push_context", p, s), do: handle_push_context(p, s)
 
-  def handle_event("send_command_message", %{"to" => to, "content" => content} = p, s) do
-    socket = handle_send_command_message(p, s) |> recompute()
-    socket = if content != "", do: push_event(socket, "toast", %{message: "Sent to #{String.slice(to, 0, 8)}", type: "success"}), else: socket
-    {:noreply, socket}
+  def handle_event("send_command_message", p, s) do
+    {:noreply, handle_send_command_message(p, s) |> recompute()}
   end
 
   def handle_event("toggle_thread", p, s), do: {:noreply, handle_toggle_thread(p, s) |> recompute()}

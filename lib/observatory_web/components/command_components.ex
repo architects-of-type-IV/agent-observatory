@@ -131,8 +131,7 @@ defmodule ObservatoryWeb.Components.CommandComponents do
       total: length(agents),
       active: Enum.count(agents, &(&1.status == :active)),
       idle: Enum.count(agents, &(&1.status == :idle)),
-      ended: Enum.count(agents, &(&1.status == :ended)),
-      by_project: agents |> Enum.frequencies_by(& &1.project) |> Enum.sort_by(&elem(&1, 1), :desc)
+      ended: Enum.count(agents, &(&1.status == :ended))
     }
   end
 

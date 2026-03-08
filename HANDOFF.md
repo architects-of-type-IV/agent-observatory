@@ -1,79 +1,58 @@
 # ICHOR IV (formerly Observatory) - Handoff
 
-## Current Status: Vendor-Agnostic Fleet Control Architecture (2026-03-08)
+## Current Status: BEAM-Native Agent Architecture (2026-03-08)
 
-### Vision Shift
-Observatory is becoming **ICHOR IV** -- a sovereign control plane for autonomous agents. Not a monitoring dashboard, but a facility where agency is manufactured, distributed, monitored, and upgraded. Part of the Kardashev Type IV application suite.
+### Just Completed: Foundation Layer (ADR-023/024/025 Implementation)
 
-Key concepts:
-- **Architect** (user) has authority over everything
-- **Archon** (coordinator Type IV) is ICHOR IV personified -- interprets Architect's will, drives fleet execution
-- Agents arrive from anywhere (any vendor, any host, any protocol) and join the facility
-- ICHOR observes, manages, controls, rearranges, and dictates
+Built the BEAM-native fleet foundation -- three new modules + supervision wiring:
 
-### Just Completed: Unified Agent Index + Cost Ingestion
+**New modules:**
+- `lib/observatory/fleet/agent_process.ex` -- GenServer per agent. PID = identity, process mailbox = delivery target. Registers in `Observatory.Fleet.ProcessRegistry` (Elixir.Registry). Supports pause/resume, metadata updates, instruction overlays. Backend-pluggable delivery (tmux, SSH, webhook).
+- `lib/observatory/fleet/team_supervisor.ex` -- DynamicSupervisor per team. Configurable restart strategies (:one_for_one, :rest_for_one, :one_for_all). Registers in `Observatory.Fleet.TeamRegistry`. Spawns/terminates members.
+- `lib/observatory/fleet/fleet_supervisor.ex` -- Top-level DynamicSupervisor. Creates teams, spawns standalone agents. Entry point for all fleet operations.
 
-**Unified Agent Index** -- Single source of truth for fleet panel data.
-- `DashboardState.build_agent_index/3` merges AgentRegistry (authoritative status, cwd, channels) with event-derived data (current_tool, recent_activity)
-- Maps ALL known identifiers (registry id, session_id UUID, short_name) to the same agent record
-- Eliminated `collect_agents` duplication from CommandComponents (~250 lines removed)
-- Fleet tree now correctly reflects agent status (active/idle/ended) from registry
-- Project name resolved via registry cwd fallback (no more "unknown")
+**Wired into supervision tree** (`application.ex`):
+- Two `Registry` instances: `Fleet.ProcessRegistry` (agents) and `Fleet.TeamRegistry` (teams)
+- `Fleet.FleetSupervisor` starts after Gateway (needs channel access)
 
-**Cost Ingestion Pipeline** -- Wired hook events to TokenUsage records.
-- `EventController.maybe_record_token_usage/2` extracts token data from hook payloads
-- Creates `TokenUsage` Ash records async (won't block event pipeline)
-- Rough cost estimation by model (opus/sonnet/haiku per-1M-token rates)
-- Migration: `20260308120000_create_token_usages.exs`
+**ADRs written:**
+- ADR-023: BEAM-Native Agent Processes (GenServer + Registry replacing ETS AgentRegistry)
+- ADR-024: Team Supervision Trees (DynamicSupervisor replacing TeamWatcher disk polling)
+- ADR-025: Native BEAM Messaging (single path replacing 5 messaging paths)
 
-**Dashboard subscribes to `"gateway:registry"`** -- Recomputes on `:registry_changed` from AgentRegistry.
+**Build status:** `mix compile --warnings-as-errors` clean.
 
-### Prior: ADR-001 Steps 1-4
+### Migration Path (Not Yet Done)
 
-**1. Channel Registry in Router** -- Runtime channel registration replaces hardcoded dispatch.
-- `Channel` behaviour extended with `channel_key/0` and optional `skip?/1` callbacks
-- Router reads `config :observatory, :channels` (list of `{module, opts}` tuples)
-- Default: MailboxAdapter (primary), Tmux, WebhookAdapter
-- New adapters just implement the behaviour and add to config -- no Router edits needed
+The new BEAM-native layer coexists with the old ETS-based layer. Both run simultaneously. Next steps to complete the migration:
 
-**2. PaneMonitor GenServer** -- Makes hookless agents first-class citizens.
-- Captures tmux pane output every 5s, parses `OBSERVATORY_DONE:`/`OBSERVATORY_BLOCKED:` signals
-- Broadcasts on `"pane:signals"` PubSub topic, updates `AgentRegistry.touch/1`
-- Supports both local Tmux and remote SshTmux capture
-
-**3. Host + Tree Fields in AgentRegistry** -- Foundation for distributed agents and hierarchy.
-- Added `host`, `parent_id`, `children`, `ssh_tmux` channel to agent entries
-
-**4. SSH Tmux Channel Adapter** -- Remote agent management via SSH.
-- `lib/observatory/gateway/channels/ssh_tmux.ex` -- full Channel behaviour implementation
-- Address format: `"session@host"` (e.g., `"obs-builder@gpu-server-1"`)
-- Uses `ssh -o BatchMode=yes -o ConnectTimeout=5` for passwordless auth
-- Configurable via `config :observatory, SshTmux, socket_path: ..., ssh_opts: [...]`
-- PaneMonitor captures from both local and remote tmux sessions
-- Tested with live observatory-crew team -- message routing confirmed working
-
-### Prior: Overstory-Inspired Features (still present)
-- Cost Dashboard, Progressive Nudging, Agent Spawning, Quality Gates, Instruction Overlays
-- See `SPECS/decisions/ADR-001-vendor-agnostic-fleet-control.md` for full gap analysis
-- See `SPECS/decisions/ADR-002-ichor-iv-identity.md` for vision/naming
+1. **Wire Operator.send to AgentProcess** -- When an AgentProcess exists for a target, deliver via GenServer.cast instead of Gateway.Router.broadcast.
+2. **Wire AgentSpawner to FleetSupervisor** -- `spawn_agent/1` should `FleetSupervisor.spawn_agent/1` instead of raw tmux commands.
+3. **Update LoadAgents preparation** -- Read from `Fleet.ProcessRegistry` alongside EventBuffer/tmux sources.
+4. **Update LoadTeams preparation** -- Read from `Fleet.TeamRegistry` alongside TeamWatcher.
+5. **MCP check_inbox** -- Read from AgentProcess.get_unread instead of Mailbox ETS.
+6. **Eliminate CommandQueue** -- Once all agents use AgentProcess, remove disk-based inbox.
+7. **Eliminate TeamWatcher** -- Once all teams use TeamSupervisor, remove disk polling.
+8. **Eliminate Mailbox** -- Once all messages route through AgentProcess, remove ETS mailbox.
 
 ### Architecture Summary
 
-| Layer | Before | After |
-|-------|--------|-------|
-| Transport | 3 hardcoded adapters in Router | Runtime channel registry via config |
-| Agent observation | Claude hooks only | Hooks + PaneMonitor (tmux capture) |
-| Agent identity | session_id only | session_id + host + parent_id + children |
-| Naming | Observatory | ICHOR IV (codebase rename pending) |
+| Layer | Old (still running) | New (BEAM-native) |
+|-------|-------|-------|
+| Agent identity | ETS row in AgentRegistry | GenServer PID in Fleet.ProcessRegistry |
+| Team tracking | TeamWatcher polls ~/.claude/teams/ | TeamSupervisor (DynamicSupervisor) |
+| Messaging | Mailbox ETS + CommandQueue disk | AgentProcess.send_message/2 |
+| Discovery | AgentRegistry.list_all + dedup | Registry.lookup/select |
+| Lifecycle | Heartbeat sweep marks stale | Supervisor restart strategies + monitors |
+| Transport | Router iterates channels | AgentProcess delegates to backend |
 
-### Remaining ADR-001 Steps
-All 5 steps complete. Next: team builder UI, codebase rename.
-
-### Design Notes
-- **Roles are NOT hardcoded** -- user directive. The team builder (upcoming) will define roles dynamically. Current `capability_to_role/1` in AgentSpawner is a temporary mapping; the team builder will replace it.
-- **Agent IDs disambiguated** -- `qualify_agent_id/3` now appends session prefix when multiple agents share the same name@team (e.g., `team-lead-046c@observatory-crew`)
+### Prior Work
+- ADR-001: vendor-agnostic fleet control (5 steps, all complete)
+- ADR-002: ICHOR IV identity and vision
+- Unified agent index, cost ingestion, SSH tmux, PaneMonitor, HITL, multi-panel tmux
+- See progress.txt for full history
 
 ### Open Issues
-1. `ash_ai 0.5.0` SSE `{:error, :closed}` on MCP disconnect -- benign noise from upstream dep
-2. Agent spawn UI -- no form yet, triggered via events only
-3. Codebase rename from Observatory to ICHOR IV -- incremental, not yet started
+1. `ash_ai 0.5.0` SSE `{:error, :closed}` on MCP disconnect -- benign noise
+2. Agent spawn UI -- no form yet
+3. Codebase rename from Observatory to ICHOR IV -- not started
