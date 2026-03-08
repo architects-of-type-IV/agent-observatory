@@ -1,7 +1,8 @@
 defmodule Observatory.AgentTools.Inbox do
   @moduledoc """
   Ash Resource exposing agent inbox operations as MCP tools.
-  Uses generic actions that delegate to the existing Mailbox GenServer.
+  Delegates to Fleet domain code interfaces for agent operations,
+  with legacy Mailbox/Gateway fallback for unregistered agents.
   """
   use Ash.Resource, domain: Observatory.AgentTools
 
@@ -126,33 +127,29 @@ defmodule Observatory.AgentTools.Inbox do
         to = input.arguments.to_session_id
         content = input.arguments.content
 
-        # Try BEAM-native delivery first
-        if Observatory.Fleet.AgentProcess.alive?(to) do
-          Observatory.Fleet.AgentProcess.send_message(to, %{
-            content: content,
-            from: from,
-            type: :message
-          })
+        # Delegate to Fleet domain (canonical entry point)
+        case Observatory.Fleet.Agent.send_message(to, content, %{from: from}) do
+          {:ok, result} ->
+            {:ok, %{"status" => "sent", "to" => to, "delivered" => 1, "via" => "fleet"}}
 
-          {:ok, %{"status" => "sent", "to" => to, "delivered" => 1}}
-        else
-          # Fall back to Gateway.Router for legacy agents
-          case Observatory.Gateway.Router.broadcast("agent:#{to}", %{content: content, from: from}) do
-            {:ok, delivered} when delivered > 0 ->
-              {:ok, %{"status" => "sent", "to" => to, "delivered" => delivered}}
+          {:error, _reason} ->
+            # Fall back to Gateway.Router for legacy/unregistered agents
+            case Observatory.Gateway.Router.broadcast("agent:#{to}", %{content: content, from: from}) do
+              {:ok, delivered} when delivered > 0 ->
+                {:ok, %{"status" => "sent", "to" => to, "delivered" => delivered}}
 
-            {:ok, 0} ->
-              {:ok,
-               %{
-                 "status" => "no_recipients",
-                 "to" => to,
-                 "delivered" => 0,
-                 "error" => "No delivery channel found for #{to}. Agent may not be registered."
-               }}
+              {:ok, 0} ->
+                {:ok,
+                 %{
+                   "status" => "no_recipients",
+                   "to" => to,
+                   "delivered" => 0,
+                   "error" => "No delivery channel found for #{to}. Agent may not be registered."
+                 }}
 
-            {:error, reason} ->
-              {:error, "Failed to send message: #{inspect(reason)}"}
-          end
+              {:error, reason} ->
+                {:error, "Failed to send message: #{inspect(reason)}"}
+            end
         end
       end)
     end
