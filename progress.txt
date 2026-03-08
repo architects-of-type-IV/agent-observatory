@@ -12,6 +12,9 @@ Observatory Progress
 - [x] Consolidated mount assigns into DashboardState.default_assigns/1
 - [x] dashboard_live.ex: 887 -> 458 lines
 - [x] Wired FeedComponents.feed_view into command_view via Comms/Feed tab toggle
+- [x] HITL controls: wired pause/resume to HITLRelay, buffer viewer, approve/reject in detail panel
+- [x] HITLRelay API: buffered_messages/1, paused_sessions/0, reject/3
+- [x] Fleet tree PAUSED badge + detail panel HITL Gate Open section
 
 ### Prior: Code Quality Hardening via /simplify (2026-03-08)
 - [x] Replaced is_uuid?/parse_uuid with Ecto.UUID.cast

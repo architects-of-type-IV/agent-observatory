@@ -5,6 +5,13 @@
   total_agents = length(all_agents)
   agent_index = Map.new(all_agents, fn a -> {a.agent_id, a} end)
 
+  # HITL paused sessions
+  hitl_paused = try do
+    Observatory.Gateway.HITLRelay.paused_sessions() |> MapSet.new()
+  rescue
+    _ -> MapSet.new()
+  end
+
   # Name map for comms display
   names = FH.name_map(@teams, all_agents)
 
@@ -83,6 +90,7 @@
                       <span class={"w-1.5 h-1.5 rounded-full shrink-0 #{status_dot_color(agent_data[:status] || member[:status] || :idle)}"} />
                       <span class="text-[11px] text-zinc-300 truncate flex-1">{member[:name] || member[:agent_type] || "?"}</span>
                       <span :if={role != :member} class={"text-[8px] font-bold uppercase px-1 py-0.5 rounded border #{FH.badge_class(role)}"}>{FH.abbrev(role)}</span>
+                      <span :if={mid && MapSet.member?(hitl_paused, mid)} class="text-[8px] font-bold uppercase px-1 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-500/30">PAUSED</span>
                       <span class="text-[9px] text-indigo-400">{short_model(agent_data[:model] || member[:model])}</span>
                     </div>
                   <% end %>
@@ -105,6 +113,7 @@
           >
             <span class={"w-1.5 h-1.5 rounded-full shrink-0 #{status_dot_color(agent.status)}"} />
             <span class="text-[11px] text-zinc-300 truncate flex-1">{agent.name}</span>
+            <span :if={MapSet.member?(hitl_paused, agent.agent_id)} class="text-[8px] font-bold uppercase px-1 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-500/30">PAUSED</span>
             <span :if={agent[:tmux_session]} class="text-[9px] text-amber-500 font-mono shrink-0">tmux</span>
             <span class="text-[9px] text-indigo-400">{short_model(agent.model)}</span>
           </div>
@@ -288,7 +297,10 @@
         <dl class="space-y-1 text-[11px]">
           <div class="flex justify-between">
             <dt class="text-zinc-500">Status</dt>
-            <dd class={status_text_color(sel_agent[:status] || :unknown)}>{sel_agent[:status] || :unknown}</dd>
+            <dd class={status_text_color(sel_agent[:status] || :unknown)}>
+              {sel_agent[:status] || :unknown}
+              <span :if={MapSet.member?(hitl_paused, sel_id)} class="text-amber-400 ml-1">(HITL paused)</span>
+            </dd>
           </div>
           <div :if={sel_agent[:model] || (sel_member && sel_member[:model])} class="flex justify-between">
             <dt class="text-zinc-500">Model</dt>
@@ -357,14 +369,65 @@
       </div>
 
       <%!-- Actions --%>
+      <%
+        is_hitl_paused = MapSet.member?(hitl_paused, sel_id)
+        hitl_buffer = if is_hitl_paused do
+          try do
+            Observatory.Gateway.HITLRelay.buffered_messages(sel_id)
+          rescue
+            _ -> []
+          end
+        else
+          []
+        end
+      %>
       <div class="px-3 py-2.5 border-b border-zinc-800/50">
         <h4 class="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider mb-2">Actions</h4>
         <div class="flex flex-wrap gap-1.5">
           <button :if={sel_tmux} phx-click="connect_tmux" phx-value-session={sel_tmux} class="obs-btn bg-amber-600/15 text-amber-400 hover:bg-amber-600/25">Tmux</button>
           <button phx-click="open_agent_slideout" phx-value-session_id={sel_id} class="obs-btn obs-btn-primary">Focus</button>
-          <button phx-click="pause_agent" phx-value-session_id={sel_id} class="obs-btn obs-btn-muted">Pause</button>
-          <button phx-click="resume_agent" phx-value-session_id={sel_id} class="obs-btn obs-btn-muted">Resume</button>
+          <button :if={!is_hitl_paused} phx-click="pause_agent" phx-value-session_id={sel_id} class="obs-btn obs-btn-muted">Pause</button>
+          <button :if={is_hitl_paused} phx-click="resume_agent" phx-value-session_id={sel_id} class="obs-btn obs-btn-muted">Resume</button>
           <button phx-click="shutdown_agent" phx-value-session_id={sel_id} class="obs-btn obs-btn-muted text-red-400" data-confirm="Shut down this agent?">Shutdown</button>
+        </div>
+      </div>
+
+      <%!-- HITL Buffer (when paused) --%>
+      <div :if={is_hitl_paused} class="px-3 py-2.5 border-b border-zinc-800/50">
+        <div class="flex items-center justify-between mb-2">
+          <h4 class="text-[10px] font-semibold text-amber-400 uppercase tracking-wider">HITL Gate Open</h4>
+          <span class="text-[9px] text-zinc-500 font-mono">{length(hitl_buffer)} buffered</span>
+        </div>
+        <div class="bg-amber-500/5 border border-amber-500/20 rounded p-2 mb-2">
+          <p class="text-[10px] text-amber-300/80 mb-2">Messages to this agent are being buffered. Review and approve or reject.</p>
+          <%= if hitl_buffer == [] do %>
+            <p class="text-[10px] text-zinc-600 italic">No messages buffered yet.</p>
+          <% else %>
+            <div class="space-y-1.5 max-h-32 overflow-y-auto mb-2">
+              <%= for {msg, idx} <- Enum.with_index(hitl_buffer) do %>
+                <div class="flex items-start gap-1.5 text-[10px]">
+                  <span class="text-zinc-600 font-mono shrink-0">#{idx + 1}</span>
+                  <div class="min-w-0">
+                    <span :if={msg[:agent_id]} class="text-zinc-500">from: {msg.agent_id |> to_string() |> String.slice(0, 8)}</span>
+                    <p class="text-zinc-400 truncate">{inspect(msg[:payload] || msg[:content] || msg, limit: 120)}</p>
+                  </div>
+                </div>
+              <% end %>
+            </div>
+          <% end %>
+          <div class="flex gap-1.5 mt-2">
+            <button
+              phx-click="hitl_approve"
+              phx-value-session_id={sel_id}
+              class="obs-btn bg-emerald-600/15 text-emerald-400 hover:bg-emerald-600/25 flex-1"
+            >Approve & Flush</button>
+            <button
+              phx-click="hitl_reject"
+              phx-value-session_id={sel_id}
+              class="obs-btn bg-red-600/15 text-red-400 hover:bg-red-600/25 flex-1"
+              data-confirm="Discard all buffered messages?"
+            >Reject</button>
+          </div>
         </div>
       </div>
 

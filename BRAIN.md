@@ -92,6 +92,15 @@
 - Tree connectors: unicode characters
 - Status dots: `:active` = emerald, `:idle` = zinc-500, `:ended` = zinc-700
 
+## HITL Pipeline (2026-03-08)
+- HITLRelay GenServer buffers messages when session paused, flushes on approve, discards on reject
+- API: `pause/4`, `unpause/3`, `reject/3`, `buffered_messages/1`, `paused_sessions/0`, `session_status/1`
+- PubSub: `session:hitl:{session_id}` -- GateOpenEvent / GateCloseEvent
+- Dashboard subscribes on pause, handle_info recomputes on gate events
+- Auto-abandons after 30min (sweep timer)
+- Pause sends BOTH HITLRelay.pause + CommandQueue/Mailbox command to agent
+- Fleet tree shows amber PAUSED badge, detail panel shows buffer viewer + approve/reject
+
 ## Component Patterns
 - Large components split: `.ex` (logic) + `.heex` (templates via `embed_templates`)
 - Module size limit: 200-300 lines max

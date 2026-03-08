@@ -56,6 +56,26 @@ defmodule Observatory.Gateway.HITLRelay do
     GenServer.call(__MODULE__, {:session_status, session_id})
   end
 
+  @doc "Return all buffered messages for a paused session."
+  @spec buffered_messages(String.t()) :: [map()]
+  def buffered_messages(session_id) do
+    :ets.match_object(@ets_table, {{session_id, :_}, :_})
+    |> Enum.sort_by(fn {{_sid, ts}, _msg} -> ts end)
+    |> Enum.map(fn {{_sid, _ts}, msg} -> msg end)
+  end
+
+  @doc "Return all currently paused session IDs."
+  @spec paused_sessions() :: [String.t()]
+  def paused_sessions do
+    GenServer.call(__MODULE__, :paused_sessions)
+  end
+
+  @doc "Discard all buffered messages for a session and unpause."
+  @spec reject(String.t(), String.t(), String.t()) :: :ok
+  def reject(session_id, agent_id, operator_id) do
+    GenServer.call(__MODULE__, {:reject, session_id, agent_id, operator_id})
+  end
+
   # --- GenServer callbacks ---
 
   @impl true
@@ -149,6 +169,30 @@ defmodule Observatory.Gateway.HITLRelay do
   def handle_call({:session_status, session_id}, _from, state) do
     status = Map.get(state.sessions, session_id, :normal)
     {:reply, status, state}
+  end
+
+  def handle_call(:paused_sessions, _from, state) do
+    paused = state.sessions |> Enum.filter(fn {_k, v} -> v == :paused end) |> Enum.map(&elem(&1, 0))
+    {:reply, paused, state}
+  end
+
+  def handle_call({:reject, session_id, agent_id, operator_id}, _from, state) do
+    # Delete buffered messages without flushing
+    :ets.match_delete(@ets_table, {{session_id, :_}, :_})
+
+    event = %GateCloseEvent{
+      session_id: session_id,
+      agent_id: agent_id,
+      operator_id: operator_id,
+      timestamp: DateTime.utc_now(),
+      flushed_count: 0
+    }
+
+    Phoenix.PubSub.broadcast(Observatory.PubSub, "session:hitl:#{session_id}", {:hitl, event})
+
+    new_sessions = Map.put(state.sessions, session_id, :normal)
+    new_paused_at = Map.delete(state.paused_at, session_id)
+    {:reply, :ok, %{state | sessions: new_sessions, paused_at: new_paused_at}}
   end
 
   @impl true

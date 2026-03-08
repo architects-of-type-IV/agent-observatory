@@ -126,6 +126,11 @@ defmodule ObservatoryWeb.DashboardLive do
     end
   end
 
+  # HITL gate events (pause/unpause)
+  def handle_info({:hitl, _event}, socket) do
+    {:noreply, recompute(socket)}
+  end
+
   # Gateway PubSub (topology, DAG deltas, decisions, violations, etc.)
   def handle_info(msg, socket) when is_tuple(msg) and elem(msg, 0) in [
     :decision_log, :schema_violation, :node_state_update, :dead_letter, :capability_update
@@ -355,6 +360,8 @@ defmodule ObservatoryWeb.DashboardLive do
   def handle_event("pause_agent", p, s), do: {:noreply, handle_pause_agent(p, s) |> recompute()}
   def handle_event("resume_agent", p, s), do: {:noreply, handle_resume_agent(p, s) |> recompute()}
   def handle_event("shutdown_agent", p, s), do: {:noreply, handle_shutdown_agent(p, s) |> recompute()}
+  def handle_event("hitl_approve", p, s), do: {:noreply, handle_hitl_approve(p, s) |> recompute()}
+  def handle_event("hitl_reject", p, s), do: {:noreply, handle_hitl_reject(p, s) |> recompute()}
 
   def handle_event("kill_switch_click", p, s), do: {:noreply, handle_kill_switch_click(p, s) |> recompute()}
   def handle_event("kill_switch_first_confirm", p, s), do: {:noreply, handle_kill_switch_first_confirm(p, s) |> recompute()}

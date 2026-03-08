@@ -2,13 +2,23 @@ defmodule ObservatoryWeb.DashboardSessionControlHandlers do
   @moduledoc """
   LiveView event handlers for session control functionality.
   Handles pause, resume, and shutdown operations for agents.
+  Pause/resume goes through HITLRelay for message buffering.
   """
+
+  alias Observatory.Gateway.HITLRelay
 
   @doc """
   Handle pausing an agent session.
-  Writes pause command to CommandQueue and sends via Mailbox.
+  Pauses via HITLRelay (buffers messages) AND sends pause command to agent.
   """
   def handle_pause_agent(%{"session_id" => session_id}, socket) do
+    # Pause via HITLRelay for message buffering
+    HITLRelay.pause(session_id, session_id, "operator", "Operator paused from dashboard")
+
+    # Subscribe to HITL events for this session
+    Phoenix.PubSub.subscribe(Observatory.PubSub, "session:hitl:#{session_id}")
+
+    # Also send pause command to agent via CommandQueue + Mailbox
     command = %{
       "type" => "session_control",
       "action" => "pause",
@@ -16,10 +26,8 @@ defmodule ObservatoryWeb.DashboardSessionControlHandlers do
       "timestamp" => DateTime.utc_now() |> DateTime.to_iso8601()
     }
 
-    # Write to CommandQueue
     Observatory.CommandQueue.write_command(session_id, command)
 
-    # Send via Mailbox
     Observatory.Mailbox.send_message(
       session_id,
       "operator",
@@ -31,15 +39,18 @@ defmodule ObservatoryWeb.DashboardSessionControlHandlers do
     socket
     |> Phoenix.LiveView.put_flash(
       :info,
-      "Pause command sent to agent #{String.slice(session_id, 0..7)}"
+      "Agent paused -- messages will be buffered"
     )
   end
 
   @doc """
   Handle resuming an agent session.
-  Writes resume command to CommandQueue and sends via Mailbox.
+  Unpauses via HITLRelay (flushes buffered messages) AND sends resume command.
   """
   def handle_resume_agent(%{"session_id" => session_id}, socket) do
+    # Unpause via HITLRelay -- flushes buffered messages
+    HITLRelay.unpause(session_id, session_id, "operator")
+
     command = %{
       "type" => "session_control",
       "action" => "resume",
@@ -47,10 +58,8 @@ defmodule ObservatoryWeb.DashboardSessionControlHandlers do
       "timestamp" => DateTime.utc_now() |> DateTime.to_iso8601()
     }
 
-    # Write to CommandQueue
     Observatory.CommandQueue.write_command(session_id, command)
 
-    # Send via Mailbox
     Observatory.Mailbox.send_message(
       session_id,
       "operator",
@@ -62,8 +71,31 @@ defmodule ObservatoryWeb.DashboardSessionControlHandlers do
     socket
     |> Phoenix.LiveView.put_flash(
       :info,
-      "Resume command sent to agent #{String.slice(session_id, 0..7)}"
+      "Agent resumed -- buffered messages flushed"
     )
+  end
+
+  @doc """
+  Handle approving buffered messages (same as resume -- flush and unpause).
+  """
+  def handle_hitl_approve(%{"session_id" => session_id}, socket) do
+    case HITLRelay.unpause(session_id, session_id, "operator") do
+      {:ok, count} ->
+        Phoenix.LiveView.put_flash(socket, :info, "Approved: #{count} buffered messages flushed")
+
+      {:ok, :not_paused} ->
+        Phoenix.LiveView.put_flash(socket, :info, "Session was not paused")
+    end
+  end
+
+  @doc """
+  Handle rejecting buffered messages (discard buffer and unpause).
+  """
+  def handle_hitl_reject(%{"session_id" => session_id}, socket) do
+    HITLRelay.reject(session_id, session_id, "operator")
+
+    socket
+    |> Phoenix.LiveView.put_flash(:warning, "Rejected: buffered messages discarded")
   end
 
   @doc """
@@ -78,10 +110,8 @@ defmodule ObservatoryWeb.DashboardSessionControlHandlers do
       "timestamp" => DateTime.utc_now() |> DateTime.to_iso8601()
     }
 
-    # Write to CommandQueue
     Observatory.CommandQueue.write_command(session_id, command)
 
-    # Send via Mailbox
     Observatory.Mailbox.send_message(
       session_id,
       "operator",
