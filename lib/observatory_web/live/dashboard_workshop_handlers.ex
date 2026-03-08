@@ -45,6 +45,14 @@ defmodule ObservatoryWeb.DashboardWorkshopHandlers do
     end
   end
 
+  def handle_event("ws_new_blueprint", _params, socket) do
+    socket
+    |> clear_ws()
+    |> assign(:ws_blueprint_id, nil)
+    |> push_ws_state()
+    |> then(&{:noreply, &1})
+  end
+
   def handle_event("ws_list_blueprints", _params, socket) do
     {:noreply, assign(socket, :ws_blueprints, list_blueprints())}
   end

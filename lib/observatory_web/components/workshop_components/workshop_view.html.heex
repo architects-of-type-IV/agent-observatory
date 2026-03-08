@@ -54,15 +54,15 @@
         <%!-- Team config --%>
         <div class="px-3 py-2.5 border-b border-zinc-800/50">
           <h4 class="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider mb-2">Team Configuration</h4>
-          <div class="space-y-2">
+          <form phx-change="ws_update_team" phx-submit="ws_update_team" class="space-y-2">
             <div>
               <label class="block text-[10px] font-semibold text-zinc-500 uppercase tracking-wider mb-1">Team Name</label>
-              <input type="text" class="w-full obs-input" value={@ws_team_name} phx-blur="ws_update_team" phx-value-name={@ws_team_name} name="name" />
+              <input type="text" class="w-full obs-input" value={@ws_team_name} name="name" phx-debounce="300" />
             </div>
             <div class="flex gap-2">
               <div class="flex-1">
                 <label class="block text-[10px] font-semibold text-zinc-500 uppercase tracking-wider mb-1">Strategy</label>
-                <select class="w-full obs-select" phx-change="ws_update_team" name="strategy">
+                <select class="w-full obs-select" name="strategy">
                   <option value="one_for_one" selected={@ws_strategy == "one_for_one"}>one_for_one</option>
                   <option value="rest_for_one" selected={@ws_strategy == "rest_for_one"}>rest_for_one</option>
                   <option value="one_for_all" selected={@ws_strategy == "one_for_all"}>one_for_all</option>
@@ -70,7 +70,7 @@
               </div>
               <div class="flex-1">
                 <label class="block text-[10px] font-semibold text-zinc-500 uppercase tracking-wider mb-1">Default Model</label>
-                <select class="w-full obs-select" phx-change="ws_update_team" name="default_model">
+                <select class="w-full obs-select" name="default_model">
                   <option value="sonnet" selected={@ws_default_model == "sonnet"}>sonnet</option>
                   <option value="opus" selected={@ws_default_model == "opus"}>opus</option>
                   <option value="haiku" selected={@ws_default_model == "haiku"}>haiku</option>
@@ -79,53 +79,53 @@
             </div>
             <div>
               <label class="block text-[10px] font-semibold text-zinc-500 uppercase tracking-wider mb-1">Project / CWD</label>
-              <input type="text" class="w-full obs-input font-mono" value={@ws_cwd} phx-blur="ws_update_team" name="cwd" />
+              <input type="text" class="w-full obs-input font-mono" value={@ws_cwd} name="cwd" phx-debounce="300" />
             </div>
-          </div>
+          </form>
         </div>
 
         <%!-- Selected agent config --%>
         <div :if={selected} class="px-3 py-2.5 border-b border-zinc-800/50">
           <h4 class="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider mb-2">Agent Configuration</h4>
-          <div class="space-y-2">
+          <form phx-change="ws_update_agent" phx-submit="ws_update_agent" class="space-y-2">
             <div>
               <label class="block text-[10px] font-semibold text-zinc-500 uppercase tracking-wider mb-1">Name</label>
-              <input type="text" class="w-full obs-input" value={selected.name} phx-blur="ws_update_agent" name="name" />
+              <input type="text" class="w-full obs-input" value={selected.name} name="name" phx-debounce="300" />
             </div>
             <div class="flex gap-2">
               <div class="flex-1">
                 <label class="block text-[10px] font-semibold text-zinc-500 uppercase tracking-wider mb-1">Capability</label>
-                <select class="w-full obs-select" phx-change="ws_update_agent" name="capability">
+                <select class="w-full obs-select" name="capability">
                   <option :for={cap <- ~w(builder scout reviewer lead coordinator)} value={cap} selected={selected.capability == cap}>{cap}</option>
                 </select>
               </div>
               <div class="flex-1">
                 <label class="block text-[10px] font-semibold text-zinc-500 uppercase tracking-wider mb-1">Model</label>
-                <select class="w-full obs-select" phx-change="ws_update_agent" name="model">
+                <select class="w-full obs-select" name="model">
                   <option :for={m <- ~w(sonnet opus haiku)} value={m} selected={selected.model == m}>{m}</option>
                 </select>
               </div>
             </div>
             <div>
               <label class="block text-[10px] font-semibold text-zinc-500 uppercase tracking-wider mb-1">Permission Mode</label>
-              <select class="w-full obs-select" phx-change="ws_update_agent" name="permission">
+              <select class="w-full obs-select" name="permission">
                 <option :for={p <- ~w(default plan dangerously_skip)} value={p} selected={selected.permission == p}>{p}</option>
               </select>
             </div>
             <div>
               <label class="block text-[10px] font-semibold text-zinc-500 uppercase tracking-wider mb-1">Persona / System Prompt</label>
-              <textarea class="w-full obs-input" rows="3" phx-blur="ws_update_agent" name="persona" placeholder="You are a focused backend engineer...">{selected.persona}</textarea>
+              <textarea class="w-full obs-input" rows="3" name="persona" phx-debounce="500" placeholder="You are a focused backend engineer...">{selected.persona}</textarea>
             </div>
             <div>
               <label class="block text-[10px] font-semibold text-zinc-500 uppercase tracking-wider mb-1">File Scope (one per line)</label>
-              <textarea class="w-full obs-input font-mono" rows="2" phx-blur="ws_update_agent" name="file_scope" placeholder="lib/observatory/fleet/&#10;lib/observatory_web/live/">{selected.file_scope}</textarea>
+              <textarea class="w-full obs-input font-mono" rows="2" name="file_scope" phx-debounce="500" placeholder="lib/observatory/fleet/&#10;lib/observatory_web/live/">{selected.file_scope}</textarea>
             </div>
             <div>
               <label class="block text-[10px] font-semibold text-zinc-500 uppercase tracking-wider mb-1">Quality Gates (one per line)</label>
-              <textarea class="w-full obs-input font-mono" rows="2" phx-blur="ws_update_agent" name="quality_gates" placeholder="mix compile --warnings-as-errors">{selected.quality_gates}</textarea>
+              <textarea class="w-full obs-input font-mono" rows="2" name="quality_gates" phx-debounce="500" placeholder="mix compile --warnings-as-errors">{selected.quality_gates}</textarea>
             </div>
-            <button phx-click="ws_remove_agent" class="w-full obs-btn obs-btn-danger">Remove Agent</button>
-          </div>
+          </form>
+          <button phx-click="ws_remove_agent" class="w-full obs-btn obs-btn-danger mt-2">Remove Agent</button>
         </div>
 
         <%!-- Spawn hierarchy tree --%>
@@ -141,11 +141,14 @@
           <% else %>
             <div class="space-y-0.5">
               <%= for {{node, depth}, _idx} <- Enum.with_index(tree) do %>
-                <div class="flex items-center gap-1" style={"padding-left: #{depth * 16}px"}>
+                <div class="flex items-center gap-1 group" style={"padding-left: #{depth * 16}px"}>
                   <span :if={depth > 0} class="text-[9px] text-zinc-700 font-mono w-3">&boxur;</span>
                   <span class="w-[5px] h-[5px] rounded-full shrink-0" style={"background: #{wc.cap_dot(node.capability)}"} />
-                  <span class="text-[10px] text-zinc-300">{node.name}</span>
+                  <span class="text-[10px] text-zinc-300 flex-1">{node.name}</span>
                   <span class={"text-[7px] font-bold uppercase px-1 py-0.5 rounded #{wc.cap_badge(node.capability)}"}>{wc.cap_abbr(node.capability)}</span>
+                  <%!-- Find spawn link index for removal (child nodes only) --%>
+                  <% link_idx = if depth > 0, do: Enum.find_index(@ws_spawn_links, fn l -> l.to == node.id end) %>
+                  <button :if={link_idx} phx-click="ws_remove_spawn_link" phx-value-index={link_idx} class="text-zinc-700 hover:text-red-400 opacity-0 group-hover:opacity-100 cursor-pointer text-[10px]" title="Remove spawn link">&times;</button>
                 </div>
               <% end %>
             </div>
@@ -189,9 +192,12 @@
         <div class="px-3 py-2.5 border-b border-zinc-800/50">
           <div class="flex items-center justify-between mb-2">
             <h4 class="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Saved Blueprints</h4>
-            <button :if={@ws_agents != []} phx-click="ws_save_blueprint" class="obs-btn obs-btn-muted text-[9px]">
-              {if @ws_blueprint_id, do: "Update", else: "Save"}
-            </button>
+            <div class="flex gap-1">
+              <button :if={@ws_blueprint_id} phx-click="ws_new_blueprint" class="obs-btn obs-btn-muted text-[9px]">New</button>
+              <button :if={@ws_agents != []} phx-click="ws_save_blueprint" class="obs-btn obs-btn-muted text-[9px]">
+                {if @ws_blueprint_id, do: "Update", else: "Save"}
+              </button>
+            </div>
           </div>
           <%= if @ws_blueprints == [] do %>
             <div class="text-[10px] text-zinc-600">No saved blueprints yet.</div>
