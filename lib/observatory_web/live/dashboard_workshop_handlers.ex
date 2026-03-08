@@ -293,7 +293,9 @@ defmodule ObservatoryWeb.DashboardWorkshopHandlers do
 
     case persist_blueprint(bp_id, team_params) do
       {:ok, blueprint} ->
-        assign(socket, :ws_blueprint_id, blueprint.id)
+        socket
+        |> assign(:ws_blueprint_id, blueprint.id)
+        |> assign(:ws_blueprints, list_blueprints())
 
       {:error, _} ->
         socket
