@@ -8,15 +8,32 @@
 - ADR-001: vendor-agnostic fleet control, ADR-002: ICHOR IV identity
 - ADR-023/024/025: BEAM-native agent processes, team supervision, native messaging
 
-## Archon Architecture (2026-03-08)
+## Archon Architecture (2026-03-09)
 - **Observatory.Archon** -- parent Ash domain (empty, for future conversation state / memory resources)
-- **Observatory.Archon.Tools** -- AshAi subdomain with 7 tools across 4 resources
+- **Observatory.Archon.Tools** -- AshAi subdomain with 10 tools across 5 resources
   - `Tools.Agents`: list_agents, agent_status (AgentRegistry queries)
   - `Tools.Teams`: list_teams (TeamWatcher queries)
   - `Tools.Messages`: recent_messages (Mailbox), send_message (Operator)
   - `Tools.System`: system_health (process liveness), tmux_sessions (Tmux + agent mapping)
-- All tools are in-process calls, no HTTP overhead
+  - `Tools.Memory`: search_memory, remember, query_memory (Memories HTTP API)
+- Fleet tools are in-process calls; Memory tools call Memories HTTP API at localhost:4000
 - Operator agent (role: :operator) excluded from NudgeEscalator stale detection
+
+## Archon Memories Integration (2026-03-09)
+- **MemoriesClient** (`lib/observatory/archon/memories_client.ex`): HTTP client using Req
+  - `search/2`: hybrid vector+BM25+graph search, returns hydrated facts/entities/episodes
+  - `ingest/2`: fire-and-forget episode creation (async digestion extracts entities/facts)
+  - `query_memory/2`: LLM-grounded Q&A with provenance
+- **Archon namespace**: group_id `0f8eae17-15fc-5af1-8761-0093dc9b5027`, user_id `8fe50fd6-f0da-5adc-9251-6417dc3092e8`
+- Memories server must be running on port 4000 for tools to work
+
+## Memories Project Bugs Fixed (2026-03-09, in /Users/xander/code/www/memories)
+- **Reranker dispatch**: `:rrf` shorthand atom used as module name. Added `@shorthand_to_module` in `API.Reranker`
+- **SearchVector**: only searched `episodes` table. Now searches `episodes` + `graph_nodes` + `graph_edges`
+- **Entity/Fact embeddings missing**: DigestEpisode pipeline didn't embed entities or facts. Added Step 4.5 (`EmbedEntities`) and Step 5.7 (`EmbedFacts`)
+- **Result hydration**: `Client.Local` returned raw IDs+scores. Now loads full records from DB
+- **group_id resolution**: `resolve_group_id/1` now prefers explicit `:group_id` over `user_id`
+- **Server reload**: Reactor steps don't auto-reload in dev. Must restart server after code changes.
 
 ## AgentTools Domain (Refactored 2026-03-08)
 - 6 focused resources replacing 2 bloated files (726 -> 498 lines)
@@ -28,23 +45,28 @@
 - `Agents`: create_agent, list_agents (MemoryStore agent management)
 - MCP route only exposes 5 inbox tools. Memory tools are defined but unrouted.
 
+## Memories Project (External, /Users/xander/code/www/memories)
+- Zep/Graphiti-style knowledge graph with vector embeddings + BM25
+- Core concepts: Episodes (raw memory), Entities (semantic nodes), Facts (temporal edges)
+- HTTP API: /api/episodes/ingest, /api/graph/search, /api/graph/edges/:uuid, /api/memories/query
+- Embedder: Ortex (local ONNX, s2 stack, 1024-dim multilingual-e5-base on /Volumes/T5/models/ONNX)
+- Docker: postgres (port 5434, vchord-suite), falkordb (port 6379)
+- Stale .md files -- don't trust docs, read source code
+- NOT replacing MemoryStore yet -- only Archon gets Memories integration
+
 ## Architecture After Ash Refactor (2026-03-08)
 - **DashboardState.recompute/1**: thin coordinator calling Ash code interfaces + Fleet.Queries + EventAnalysis
 - **Fleet.Agent**: attributes include session_id, short_name, host, channels, last_event_at
-- **LoadAgents preparation**: events -> teams -> disk -> tmux -> BEAM processes -> AgentRegistry merge -> sort
-- **agent_index**: built from `Fleet.Agent.all!()` via `build_agent_lookup/1`
 - **Fleet.Queries**: pure functions for active_sessions, inspector_events, topology
 - **Activity.EventAnalysis**: tool_analytics, timeline, pair_tool_events
 
 ## Event Pipeline
 - **EventController**: thin HTTP adapter (~66 lines)
 - **EventBuffer**: payload sanitization + tool duration tracking
-- **Costs.CostAggregator.record_usage/2**: async token usage recording
 - **Gateway.Router.ingest/1**: registry update + channel side effects
 
 ## Workshop Architecture
-- 4 handler modules: Handlers (canvas CRUD), Persistence (blueprint Ash ops), Presets (declarative configs), Types (AgentType CRUD)
-- DashboardLive routing: specific event names first, `"ws_" <> _` catch-all last
+- 4 handler modules: Handlers, Persistence, Presets, Types
 - AgentType: Ash resource with sorted!() code interface, SQLite-backed
 
 ## BEAM-Native Fleet Architecture (Type IV Foundation)
@@ -54,42 +76,12 @@
 - **PubSub topics**: "fleet:lifecycle", "messages:stream"
 
 ## Gateway Registry Decomposition (2026-03-09, COMPLETE)
-AgentRegistry was 894 lines. Now 669 lines after decomposition + dead code removal:
+- AgentRegistry: 894 -> 669 lines. Extracted OutputCapture + TmuxDiscovery GenServers.
+- Dead tree code removed (children/parent/chain_of_command/reparent)
 
-**Extracted modules:**
-- `Gateway.OutputCapture` (108 lines) -- terminal output polling. Own GenServer in GatewaySupervisor.
-- `Gateway.TmuxDiscovery` (115 lines) -- tmux session discovery + channel wiring. Own GenServer in GatewaySupervisor.
-
-**Removed dead code:**
-- Tree API: `children/1`, `parent/1`, `chain_of_command/1`, `reparent/2`, `add_child/2`, `remove_child/2`, `build_chain/2`
-- `children: []` field from default_agent map
-
-**Remaining in AgentRegistry (669 lines):**
-- Event registration, team sync + identity merge, sweep/lifecycle, channel resolution, lookup helpers, BEAM process bridge
-- Still over 200-line limit; team sync + identity merge (~130 lines) is the largest remaining extraction candidate
-
-## Distribution Architecture (2026-03-09, FOUNDATION COMPLETE)
-Multi-host agent fleet via BEAM clustering. Key design decisions:
-
-**Supervision stays local** -- each node supervises its own AgentProcesses via local DynamicSupervisor.
-**Discovery is global** -- `:pg` (OTP process groups) spans the BEAM cluster.
-**Messaging works natively** -- `GenServer.call/cast(pid)` works across connected nodes (PIDs encode node ID).
-**PubSub already distributed** -- `Phoenix.PubSub` broadcasts across connected nodes.
-
-**New modules and APIs:**
-- `Fleet.HostRegistry` GenServer (169 lines): tracks BEAM nodes, `:net_kernel.monitor_nodes/2`, `:pg` group `:observatory_hosts`
-- `AgentProcess`: joins `:pg` group `{:agent, id}`. New: `lookup_cluster/1` (local-first, falls back to `:pg`), `list_cluster/0`
-- `TeamSupervisor`: joins `:pg` group `{:team, name}`. New: `list_cluster/0`
-- `FleetSupervisor.spawn_agent_on/2`: routes to local `spawn_agent/1` or remote via `:rpc.call`
-- `AgentSpawner`: accepts `:host` option. `spawn_remote/2` calls target node's `spawn_local/1` via `:rpc`
-- `:pg` scope `:observatory_agents` started in application supervisor
-- `DNSCluster` already in supervision tree (set to `:ignore`), configure for production clustering
-
-**Remaining gaps:**
-- Clustering config (node naming, DNSCluster query)
-- AgentRegistry ETS is node-local -- long-term: BEAM-native fleet via `:pg` replaces ETS
-- Remote tmux delivery (SSH-based tmux commands for agents on remote hosts)
-- AgentSpawner at 318 lines (over 200-line limit)
+## Distribution Architecture (FOUNDATION COMPLETE)
+- Fleet.HostRegistry, :pg groups, FleetSupervisor.spawn_agent_on/2
+- Gaps: clustering config, remote tmux delivery, AgentSpawner 318 lines
 
 ## Ash Domain Style
 - Alias resources at top of domain module

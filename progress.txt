@@ -1,25 +1,30 @@
 ICHOR IV Progress (formerly Observatory)
 ========================================
 
-## Current: Distribution Foundation (2026-03-09)
+## Current: Archon Memories Integration (2026-03-09)
 
-### This Session (continued)
-- [x] Feed UI: compacted session headers, plain text badges, markdown responses (Earmark)
-- [x] Launch button: uses AgentSpawner pipeline, env -u CLAUDECODE for session identity
-- [x] Extracted Gateway.OutputCapture (108 lines) from AgentRegistry
-- [x] Extracted Gateway.TmuxDiscovery (115 lines) from AgentRegistry
-- [x] AgentRegistry: 894 -> 669 lines (dead tree code removed)
-- [x] Dead code removed: children/parent/chain_of_command/reparent/add_child/remove_child/build_chain
-- [x] Fleet.HostRegistry GenServer (169 lines): BEAM node tracking, :net_kernel.monitor_nodes
-- [x] AgentProcess: :pg group join, lookup_cluster/1, list_cluster/0
-- [x] TeamSupervisor: :pg group join, list_cluster/0
-- [x] FleetSupervisor: spawn_agent_on/2 for remote node spawning via :rpc
-- [x] AgentSpawner: :host option, spawn_local/spawn_remote routing
-- [x] :pg scope :observatory_agents in application supervisor
-- [x] Clean compile: mix compile --warnings-as-errors
-- [ ] Clustering config (node naming, DNSCluster)
-- [ ] Remote tmux delivery (SSH-based)
-- [ ] AgentSpawner refactor (318 lines, over limit)
+### This Session
+- [x] Fixed Memories reranker dispatch bug (:rrf atom -> API.Reranker.RRF module)
+- [x] Fixed SearchVector to query all 3 tables (episodes, graph_nodes, graph_edges)
+- [x] Added EmbedEntities step (Step 4.5) to DigestEpisode pipeline
+- [x] Added EmbedFacts step (Step 5.7) to DigestEpisode pipeline
+- [x] Added :set_embedding update actions to Entity and Fact resources
+- [x] Added result hydration in Client.Local (full records, not just IDs)
+- [x] Fixed resolve_group_id to prefer explicit group_id
+- [x] Created Observatory.Archon.MemoriesClient (HTTP client)
+- [x] Created Observatory.Archon.Tools.Memory (3 Ash tools: search, remember, query)
+- [x] Wired Memory into Archon.Tools domain (now 10 tools)
+- [x] Ingested 3 test episodes, verified entity/fact extraction + embedding
+- [x] Verified end-to-end search: query -> vector+BM25+graph -> RRF -> hydrate
+- [x] Both projects compile clean: mix compile --warnings-as-errors
+- [ ] "Space" concept: extra namespacing on top of group_id
+- [ ] Archon LLM wiring (Claude API + AshAi tools)
+- [ ] Archon chat UI (dashboard drawer/panel)
+
+### Prior Session: Distribution Foundation (2026-03-09)
+- [x] Dead code removal: AgentRegistry 894 -> 669 lines
+- [x] Fleet.HostRegistry, :pg groups, spawn_agent_on/2
+- [x] OutputCapture + TmuxDiscovery extraction
 
 ### Prior Session: Archon Domain + AgentTools Refactor (2026-03-08)
 - [x] Archon domain + Tools subdomain (7 tools)
