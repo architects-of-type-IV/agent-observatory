@@ -1,39 +1,44 @@
 # ICHOR IV (formerly Observatory) - Handoff
 
-## Current Status: BEAM-Native Agent Architecture (2026-03-08)
+## Current Status: BEAM-Native Fleet + Elixir Style Guide Refactor (2026-03-08)
 
-### Just Completed: Foundation Layer (ADR-023/024/025 Implementation)
+### Just Completed: Style Guide Refactor + Domain Audit
 
-Built the BEAM-native fleet foundation -- three new modules + supervision wiring:
+Refactored the BEAM-native fleet modules per the Elixir style guide:
+- **Split `agent_process.ex`** (302 -> 229 lines): Extracted `AgentProcess.Delivery` (76 lines) for message normalization + backend dispatch. Pure, stateless module.
+- **Added `@doc`/`@spec`** to all public functions across AgentProcess (11), TeamSupervisor (7), FleetSupervisor (5), Delivery (3)
+- **Added `@spec`** to all private functions (without `@doc`)
+- **Added `@type`** definitions: `status`, `t` on AgentProcess
+- **Fixed `backend_from_channels`** in agent_registry.ex: pattern matching function heads instead of `cond`
+- **Fixed Team resource**: Added `:beam` to `:source` constraint (was rejecting BEAM-supervised teams)
+- **Fixed `update_registry_meta/4`** -> `update_registry/2` (was violating <=3 args rule)
 
-**New modules:**
-- `lib/observatory/fleet/agent_process.ex` -- GenServer per agent. PID = identity, process mailbox = delivery target. Registers in `Observatory.Fleet.ProcessRegistry` (Elixir.Registry). Supports pause/resume, metadata updates, instruction overlays. Backend-pluggable delivery (tmux, SSH, webhook).
-- `lib/observatory/fleet/team_supervisor.ex` -- DynamicSupervisor per team. Configurable restart strategies (:one_for_one, :rest_for_one, :one_for_all). Registers in `Observatory.Fleet.TeamRegistry`. Spawns/terminates members.
-- `lib/observatory/fleet/fleet_supervisor.ex` -- Top-level DynamicSupervisor. Creates teams, spawns standalone agents. Entry point for all fleet operations.
+### BEAM-Native Foundation (Prior This Session)
+- AgentProcess GenServer, TeamSupervisor DynamicSupervisor, FleetSupervisor
+- Two Elixir.Registry instances (ProcessRegistry, TeamRegistry)
+- `ensure_agent_process` bridge in AgentRegistry.register_from_event
+- Operator.send tries native delivery first
+- AgentSpawner creates both tmux + BEAM process
+- LoadAgents/LoadTeams merge BEAM processes into Ash read layer
+- AgentTools.Inbox reads from AgentProcess.get_unread first
 
-**Wired into supervision tree** (`application.ex`):
-- Two `Registry` instances: `Fleet.ProcessRegistry` (agents) and `Fleet.TeamRegistry` (teams)
-- `Fleet.FleetSupervisor` starts after Gateway (needs channel access)
+### ADRs Written
+- ADR-001: Vendor-agnostic fleet control (channel registry, SSH, pane monitor, hierarchy)
+- ADR-002: ICHOR IV identity and vision (Architect -> Archon -> Fleets -> Agents)
+- ADR-023: BEAM-native agent processes (GenServer + Registry replacing ETS)
+- ADR-024: Team supervision trees (DynamicSupervisor replacing TeamWatcher)
+- ADR-025: Native BEAM messaging (single path replacing 5 messaging paths)
 
-**ADRs written:**
-- ADR-023: BEAM-Native Agent Processes (GenServer + Registry replacing ETS AgentRegistry)
-- ADR-024: Team Supervision Trees (DynamicSupervisor replacing TeamWatcher disk polling)
-- ADR-025: Native BEAM Messaging (single path replacing 5 messaging paths)
+### Next: Ash Domain Model Redesign (ADR-001 + ADR-002 = the goal)
 
-**Build status:** `mix compile --warnings-as-errors` clean.
+The user confirmed ADR-001 and ADR-002 are THE goal. Current Ash domain model has Fleet as read-only. Need to:
 
-### Migration Path (Not Yet Done)
-
-The new BEAM-native layer coexists with the old ETS-based layer. Both run simultaneously. Next steps to complete the migration:
-
-1. **Wire Operator.send to AgentProcess** -- When an AgentProcess exists for a target, deliver via GenServer.cast instead of Gateway.Router.broadcast.
-2. **Wire AgentSpawner to FleetSupervisor** -- `spawn_agent/1` should `FleetSupervisor.spawn_agent/1` instead of raw tmux commands.
-3. **Update LoadAgents preparation** -- Read from `Fleet.ProcessRegistry` alongside EventBuffer/tmux sources.
-4. **Update LoadTeams preparation** -- Read from `Fleet.TeamRegistry` alongside TeamWatcher.
-5. **MCP check_inbox** -- Read from AgentProcess.get_unread instead of Mailbox ETS.
-6. **Eliminate CommandQueue** -- Once all agents use AgentProcess, remove disk-based inbox.
-7. **Eliminate TeamWatcher** -- Once all teams use TeamSupervisor, remove disk polling.
-8. **Eliminate Mailbox** -- Once all messages route through AgentProcess, remove ETS mailbox.
+1. **Add generic actions to Fleet.Agent**: :spawn, :pause, :resume, :terminate, :send_message, :update_instructions -- each delegates to GenServer layer
+2. **Add generic actions to Fleet.Team**: :create_team, :disband, :spawn_member -- delegates to DynamicSupervisor
+3. **Add code interfaces**: `Fleet.Agent.spawn!/1`, `Fleet.Agent.pause!/1`, etc.
+4. **Rewire AgentTools.Inbox** to use Fleet code interfaces instead of raw GenServer calls
+5. **Eliminate legacy layers**: CommandQueue, Mailbox ETS, TeamWatcher disk polling
+6. **Archon as permanent agent**: Operator module renamed/refactored to Archon
 
 ### Architecture Summary
 
@@ -45,14 +50,7 @@ The new BEAM-native layer coexists with the old ETS-based layer. Both run simult
 | Discovery | AgentRegistry.list_all + dedup | Registry.lookup/select |
 | Lifecycle | Heartbeat sweep marks stale | Supervisor restart strategies + monitors |
 | Transport | Router iterates channels | AgentProcess delegates to backend |
+| Ash API | Read-only (preparations) | Read + Write (generic actions) |
 
-### Prior Work
-- ADR-001: vendor-agnostic fleet control (5 steps, all complete)
-- ADR-002: ICHOR IV identity and vision
-- Unified agent index, cost ingestion, SSH tmux, PaneMonitor, HITL, multi-panel tmux
-- See progress.txt for full history
-
-### Open Issues
-1. `ash_ai 0.5.0` SSE `{:error, :closed}` on MCP disconnect -- benign noise
-2. Agent spawn UI -- no form yet
-3. Codebase rename from Observatory to ICHOR IV -- not started
+### Build Status
+`mix compile --warnings-as-errors` clean.

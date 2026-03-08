@@ -19,6 +19,8 @@ defmodule Observatory.Fleet.FleetSupervisor do
 
   # ── Public API ──────────────────────────────────────────────────────
 
+  @doc "Start the fleet supervisor."
+  @spec start_link(keyword()) :: Supervisor.on_start()
   def start_link(opts) do
     DynamicSupervisor.start_link(__MODULE__, opts, name: __MODULE__)
   end
@@ -31,6 +33,7 @@ defmodule Observatory.Fleet.FleetSupervisor do
     - `strategy` - supervision strategy (:one_for_one | :rest_for_one | :one_for_all)
     - `project` - project key or path
   """
+  @spec create_team(keyword()) :: DynamicSupervisor.on_start_child() | {:error, :already_exists}
   def create_team(opts) do
     name = Keyword.fetch!(opts, :name)
 
@@ -42,6 +45,7 @@ defmodule Observatory.Fleet.FleetSupervisor do
   end
 
   @doc "Disband a team, terminating all its members."
+  @spec disband_team(String.t()) :: :ok | {:error, :not_found}
   def disband_team(team_name) do
     case Registry.lookup(Observatory.Fleet.TeamRegistry, team_name) do
       [{pid, _}] ->
@@ -59,11 +63,13 @@ defmodule Observatory.Fleet.FleetSupervisor do
   end
 
   @doc "Spawn a standalone agent (not part of any team)."
+  @spec spawn_agent(keyword()) :: DynamicSupervisor.on_start_child()
   def spawn_agent(opts) do
     DynamicSupervisor.start_child(__MODULE__, {Observatory.Fleet.AgentProcess, opts})
   end
 
-  @doc "Terminate a standalone agent."
+  @doc "Terminate a standalone agent by ID."
+  @spec terminate_agent(String.t()) :: :ok | {:error, :not_found}
   def terminate_agent(agent_id) do
     case Registry.lookup(Observatory.Fleet.ProcessRegistry, agent_id) do
       [{pid, _}] -> DynamicSupervisor.terminate_child(__MODULE__, pid)
@@ -71,7 +77,8 @@ defmodule Observatory.Fleet.FleetSupervisor do
     end
   end
 
-  @doc "List all teams and standalone agents."
+  @doc "Report fleet status: child count, teams, and agents."
+  @spec status() :: map()
   def status do
     children = DynamicSupervisor.which_children(__MODULE__)
     teams = Observatory.Fleet.TeamSupervisor.list_all()

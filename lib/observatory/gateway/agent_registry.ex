@@ -878,13 +878,16 @@ defmodule Observatory.Gateway.AgentRegistry do
     _ -> :ok
   end
 
-  defp backend_from_channels(channels) when is_map(channels) do
-    cond do
-      channels[:tmux] -> %{type: :tmux, session: channels[:tmux]}
-      channels[:ssh_tmux] -> %{type: :ssh_tmux, session: channels[:ssh_tmux]}
-      channels[:webhook] -> %{type: :webhook, url: channels[:webhook]}
-      true -> nil
-    end
+  defp backend_from_channels(%{tmux: session}) when is_binary(session) do
+    %{type: :tmux, session: session}
+  end
+
+  defp backend_from_channels(%{ssh_tmux: session}) when is_binary(session) do
+    %{type: :ssh_tmux, session: session}
+  end
+
+  defp backend_from_channels(%{webhook: url}) when is_binary(url) do
+    %{type: :webhook, url: url}
   end
 
   defp backend_from_channels(_), do: nil

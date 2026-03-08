@@ -10,24 +10,43 @@
 ## BEAM-Native Fleet Architecture (Type IV Foundation)
 - **AgentProcess** GenServer: PID = identity, process mailbox = delivery target
   - Registers in `Observatory.Fleet.ProcessRegistry` (Elixir.Registry, :unique)
-  - Backend-pluggable: `state.backend` dispatches to tmux/SSH/webhook channel
+  - Backend-pluggable: `state.backend` dispatches via `Delivery` module (pattern-matched heads)
   - Pause/resume: buffers messages when paused, delivers on resume
   - `send_message/2`, `get_state/1`, `get_unread/1`, `pause/1`, `resume/1`
+- **AgentProcess.Delivery**: Pure stateless module for message normalization + backend dispatch
+  - `normalize/2` (map or string input), `deliver/2` (nil/tmux/ssh_tmux/webhook), `broadcast/2`
 - **TeamSupervisor** DynamicSupervisor: one per team, children are AgentProcesses
   - Registers in `Observatory.Fleet.TeamRegistry` (Elixir.Registry, :unique)
   - Configurable restart strategies: :one_for_one, :rest_for_one, :one_for_all
-  - `spawn_member/2`, `terminate_member/2`, `member_ids/1`
 - **FleetSupervisor** DynamicSupervisor: top-level, holds teams + standalone agents
-  - `create_team/1`, `disband_team/1`, `spawn_agent/1`
-- **Coexistence**: old ETS-based system (AgentRegistry, TeamWatcher, Mailbox, CommandQueue) still runs alongside. Migration is incremental.
-- **PubSub topic**: `"fleet:lifecycle"` for agent_started/stopped/paused/resumed, team_created/disbanded
-- **PubSub topic**: `"messages:stream"` for message_delivered events
+- **Coexistence**: old ETS-based system still runs alongside. Migration is incremental.
+- **PubSub topics**: `"fleet:lifecycle"`, `"messages:stream"`
+
+## Ash Domain Model (Current -- Needs Redesign)
+- **Fleet domain**: Agent + Team (DataLayer.Simple, read-only via preparations)
+  - Gap: No write actions. All writes bypass Ash (raw GenServer calls)
+  - Need: Generic actions on Agent/Team that delegate to GenServer layer
+  - Need: Code interfaces for lifecycle operations
+- **Activity domain**: Message + Task + Error (DataLayer.Simple, read-only)
+- **AgentTools domain**: Inbox + Memory (generic actions for MCP)
+  - Duplicates Fleet logic (send_message, check_inbox call GenServers directly)
+  - Should delegate to Fleet code interfaces instead
+- **Events domain**: Event + Session (SQLite)
+- **Costs domain**: TokenUsage (SQLite)
+
+## Elixir Style Guide (Enforced)
+- Pattern matching on function heads, NOT if/else/cond
+- `@doc`/`@spec` on publics, `@spec` on privates (no @doc)
+- `@type` definitions for key data shapes
+- Modules <=200 lines (GenServers may exceed with full annotations)
+- Functions <=20 lines, args <=2-3
+- No nested modules, one defmodule per file
+- Pipelines for data flow, case for simple tuple matching
+- Skip @doc on @impl callback functions
 
 ## Architecture (Legacy Layer -- Still Running)
 - Event-driven: hooks -> POST /api/events -> EventBuffer ETS + PubSub -> LiveView
-- **Unified agent index**: `DashboardState.build_agent_index/3` merges AgentRegistry + events
 - DashboardState.recompute/1 called from mount and every handle_event/handle_info
-- Dashboard subscribes to `"gateway:registry"` -- recomputes on `:registry_changed`
 - Ash domains: Events (SQLite), Costs (SQLite), AgentTools (MCP), Fleet (Simple/ETS), Activity (Simple/ETS)
 
 ## Ash Struct Access (CRITICAL)
@@ -38,51 +57,33 @@
 ## MCP Server (Agent Tools)
 - Route: `forward "/mcp", AshAi.Mcp.Router` in router.ex (no pipeline)
 - AshAi nests tool arguments under `"input"` key
-- 5 tools: check_inbox, acknowledge_message, send_message, get_tasks, update_task_status
+- 15 tools: 5 inbox + 10 memory (Letta-compatible)
 
 ## Heartbeat System
 - `Observatory.Heartbeat` GenServer in MonitorSupervisor, 5s interval
 - **PubSub only** -- no Gateway routing. Internal ticks must NOT flow through messaging pipeline.
-- Subscribers: ProtocolTracker (stats), LiveView (tmux refresh when overlay open)
 - Single timer for the system -- no individual GenServer timers
 
-## Gateway Pipeline (Legacy -- Being Replaced)
+## Gateway Pipeline (Legacy -- Being Replaced by BEAM-native)
 - 3 message paths through Router: Dashboard, Hook intercept, MCP send_message
 - Channel registry: `config :observatory, :channels` -- list of `{module, opts}` tuples
 - Channel behaviour: `channel_key/0`, `deliver/2`, `available?/1`, optional `skip?/1`
 - **Fallback**: When Gateway returns 0 recipients, Operator falls back to direct Mailbox.send_message
-- CommandQueue: `~/.claude/inbox/{session_id}/{id}.json`
 
 ## Tmux Delivery (CRITICAL)
 - **Use named `set-buffer` + `paste-buffer`** -- NOT temp files with `cat`
 - Named buffers (`obs-{unique_int}`) prevent concurrent corruption
-- `Tmux.run_command/1`: public API, all callers should use this
 - Observatory tmux socket: `~/.observatory/tmux/obs.sock`
-
-## SSH Tmux Channel
-- Address format: `"session_name@host"`, `ssh -o BatchMode=yes`
-- PaneMonitor captures from both local and remote tmux sessions
-
-## AgentRegistry (Legacy ETS)
-- `build_lookup/1`: expands all known IDs (id, session_id, short_name) into deduped map
-- `dedup_by_status/1`: prefers active over ended entries for same key
-- Identity merge: CWD correlation merges UUID-keyed (hook) and short-name-keyed (team)
-- Stale sweep: 3-tier (dead teams, ended 30min, stale standalone 1h)
-
-## ProtocolTracker Performance (CRITICAL)
-- `compute_stats/0` must NEVER do N+1 GenServer calls or filesystem scans
-- Mount uses `%{}` default for protocol_stats, NOT get_stats
 
 ## Component Patterns
 - Large components split: `.ex` (logic) + `.heex` (templates via `embed_templates`)
-- Module size limit: 200-300 lines max
 - Handler modules: imported via `import`
-- **Feed wiring**: activity_tab assign (:comms | :feed | :costs) controls view
+- **Format-on-save race**: Edit tool fails when hooks modify file between Read and Edit
 
 ## User Preferences
 - Zero warnings policy: `mix compile --warnings-as-errors`
 - Minimal JavaScript -- "LiveView was made to limit JS usage"
-- Write idiomatic Elixir, no mixing imperative/declarative
-- Roadmap files: flat directory, dotted numbering, NO subdirectories
 - **BEAM-native vision**: "Supervisor, genserver, process with mailboxes. These are primitives."
 - **Agent agnostic**: the BEAM process IS the agent identity, tmux/SSH is just swappable backend
+- **"It all needs to be rooted in Elixir and idiomatic Ash"**
+- ADR-001 + ADR-002 = THE GOAL. Everything works toward sovereign fleet control.

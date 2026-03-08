@@ -3,34 +3,41 @@ ICHOR IV Progress (formerly Observatory)
 
 ## Current: BEAM-Native Agent Architecture (2026-03-08)
 
-### This Session: Type IV Foundation
+### This Session: Style Guide Refactor + Domain Audit
+- [x] Split agent_process.ex (302->229): extracted AgentProcess.Delivery (76 lines, pure/stateless)
+- [x] Added @doc/@spec to all public functions (11+7+5+3 = 26 functions annotated)
+- [x] Added @spec to all private functions
+- [x] Added @type definitions (status, t)
+- [x] Fixed backend_from_channels: pattern matching instead of cond
+- [x] Fixed Team resource :source constraint: added :beam
+- [x] Fixed update_registry_meta/4 -> update_registry/2 (args <= 3 rule)
+- [x] Audited all modules against Elixir style guide
+- [x] Read all ADRs (001, 002, 023, 024, 025)
+- [x] Mapped current Ash domain model (5 domains, read-only Fleet gap identified)
+- [x] Designed target: Fleet generic actions + code interfaces for write operations
+- [ ] NEXT: Implement Ash generic actions on Fleet.Agent and Fleet.Team
+
+### Prior This Session: Type IV Foundation
 - [x] ADR-023: BEAM-native agent processes (GenServer + Registry)
 - [x] ADR-024: Team supervision trees (DynamicSupervisor per team)
 - [x] ADR-025: Native BEAM messaging (single delivery path)
 - [x] AgentProcess GenServer: PID identity, process mailbox, backend-pluggable delivery
-- [x] TeamSupervisor DynamicSupervisor: configurable restart strategies, member spawn/terminate
-- [x] FleetSupervisor: top-level DynamicSupervisor for teams + standalone agents
+- [x] TeamSupervisor DynamicSupervisor: configurable restart strategies
+- [x] FleetSupervisor: top-level DynamicSupervisor
 - [x] Two Elixir.Registry instances wired into application.ex
+- [x] ensure_agent_process bridge in AgentRegistry.register_from_event
+- [x] Operator.send tries native delivery first
+- [x] AgentSpawner creates tmux + BEAM process
+- [x] LoadAgents/LoadTeams merge BEAM processes
+- [x] AgentTools.Inbox reads from AgentProcess first
 - [x] Clean compile: mix compile --warnings-as-errors
-- [x] /simplify code review on 4 changed files (load_teams.ex, command_components.ex, etc.)
-- [x] Fixed messaging bug: unconditional success toast + ID mismatch in recent messages filter
-- [x] Extracted build_lookup/1 and dedup_by_status/1 to AgentRegistry
-- [x] Hoisted registry lookup + events grouping out of per-team loop in LoadTeams (O(T*M*E) -> O(N))
 
 ### Prior: Vendor-Agnostic Fleet Control (2026-03-08)
 - [x] ADR-001 + ADR-002 (vendor-agnostic architecture, ICHOR IV identity)
-- [x] Channel registry, PaneMonitor, SSH tmux, host+tree fields, agent tree tracking
+- [x] Channel registry, PaneMonitor, SSH tmux, host+tree fields
 - [x] Unified agent index, cost ingestion, HITL controls, tmux multi-panel
-- [x] Conversation tracing, progressive nudging, quality gates, instruction overlays
-- [x] AgentSpawner, NudgeEscalator, QualityGate GenServers
 
 ### Prior: Dashboard + Ash Refactor (2026-03-07)
 - [x] Fleet/Activity Ash domains with DataLayer.Simple
 - [x] 3-column layout, FleetHelpers, messaging architecture doc
 - [x] DashboardState.recompute/1, default_assigns/1
-
-### Previous milestones preserved below...
-- Phase 5: Hypervisor UI COMPLETE (2026-02-22)
-- Phase 4: Gateway Infrastructure & HITL COMPLETE (2026-02-22)
-- Phase 3: Topology & Entropy COMPLETE
-- Phase 2: Gateway Core COMPLETE
