@@ -121,7 +121,24 @@ export default {
       canvas.appendChild(el)
     })
 
+    this.resizeCanvas()
     this.renderLines()
+  },
+
+  resizeCanvas() {
+    const pad = 250
+    let maxX = 0, maxY = 0
+    this.state.agents.forEach(a => {
+      if (a.x + pad > maxX) maxX = a.x + pad
+      if (a.y + pad > maxY) maxY = a.y + pad
+    })
+    const canvas = this.canvas
+    const svg = this.svg
+    // Only expand beyond container, never shrink below 100%
+    canvas.style.width = maxX > canvas.parentElement.clientWidth ? maxX + 'px' : '100%'
+    canvas.style.height = maxY > canvas.parentElement.clientHeight ? maxY + 'px' : '100%'
+    svg.setAttribute('width', canvas.scrollWidth)
+    svg.setAttribute('height', canvas.scrollHeight)
   },
 
   renderLines() {
