@@ -40,8 +40,19 @@ defmodule Observatory.Heartbeat do
       count: next
     })
 
+    # Maintenance jobs on heartbeat intervals
+    run_maintenance(next)
+
     schedule()
     {:noreply, %{state | count: next}}
+  end
+
+  # Run maintenance at different cadences based on heartbeat count
+  defp run_maintenance(count) do
+    # Every 60 beats (5min): sweep stale agents from registry
+    if rem(count, 60) == 0 do
+      spawn(fn -> Observatory.Gateway.AgentRegistry.purge_stale() end)
+    end
   end
 
   defp schedule, do: Process.send_after(self(), :beat, @interval)

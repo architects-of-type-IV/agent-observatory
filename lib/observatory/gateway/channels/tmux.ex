@@ -41,8 +41,14 @@ defmodule Observatory.Gateway.Channels.Tmux do
   end
 
   @impl true
-  def available?(session_name) when is_binary(session_name) do
-    match?({:ok, _}, try_tmux(["has-session", "-t", session_name]))
+  def available?(target) when is_binary(target) do
+    # Pane IDs start with %, session names don't
+    if String.starts_with?(target, "%") do
+      # For pane targets, check if the pane exists via list-panes
+      match?({:ok, _}, try_tmux(["display-message", "-t", target, "-p", ""]))
+    else
+      match?({:ok, _}, try_tmux(["has-session", "-t", target]))
+    end
   end
 
   @doc """
@@ -57,6 +63,39 @@ defmodule Observatory.Gateway.Channels.Tmux do
       {:ok, output} -> {:ok, strip_ansi(output)}
       {:error, reason} -> {:error, {:capture_failed, reason}}
     end
+  end
+
+  @pane_format "\#{pane_id}\t\#{session_name}\t\#{pane_title}\t\#{pane_pid}"
+
+  @doc "List all panes across all known servers/sockets with pane_id, session, and title."
+  def list_panes do
+    server_arg_sets()
+    |> Enum.flat_map(fn args ->
+      case System.cmd("tmux", args ++ ["list-panes", "-a", "-F", @pane_format],
+             stderr_to_stdout: true
+           ) do
+        {output, 0} ->
+          output
+          |> String.split("\n", trim: true)
+          |> Enum.map(fn line ->
+            case String.split(line, "\t") do
+              [pane_id, session, title, pid] ->
+                %{pane_id: pane_id, session: session, title: title, pid: pid}
+
+              [pane_id, session, title] ->
+                %{pane_id: pane_id, session: session, title: title, pid: nil}
+
+              _ ->
+                nil
+            end
+          end)
+          |> Enum.reject(&is_nil/1)
+
+        _ ->
+          []
+      end
+    end)
+    |> Enum.uniq_by(& &1.pane_id)
   end
 
   @doc "List all active tmux sessions across all known servers/sockets."

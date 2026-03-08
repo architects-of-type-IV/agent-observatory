@@ -11,8 +11,8 @@ defmodule Observatory.Gateway.AgentRegistry do
   @table :gateway_agent_registry
   @tmux_poll_interval 5_000
   @capture_poll_interval 1_500
-  @sweep_interval :timer.hours(1)
-  @ended_ttl_seconds 7_200
+  @ended_ttl_seconds 1_800
+  @stale_ttl_seconds 3_600
 
   # ── Client API ───────────────────────────────────────────────────────
 
@@ -92,6 +92,11 @@ defmodule Observatory.Gateway.AgentRegistry do
     GenServer.cast(__MODULE__, {:unwatch, session_id})
   end
 
+  @doc "Purge all stale/ended agents immediately. Returns count of purged entries."
+  def purge_stale do
+    GenServer.call(__MODULE__, :purge_stale)
+  end
+
   # ── Server Callbacks ────────────────────────────────────────────────
 
   @impl true
@@ -111,7 +116,6 @@ defmodule Observatory.Gateway.AgentRegistry do
     Phoenix.PubSub.subscribe(Observatory.PubSub, "teams:update")
 
     schedule_tmux_poll()
-    schedule_sweep()
     {:ok, %{watched: MapSet.new(), last_capture: %{}}}
   end
 
@@ -140,20 +144,44 @@ defmodule Observatory.Gateway.AgentRegistry do
         _ -> []
       end
 
+    # Track which team names are currently alive
+    live_team_names = Enum.map(teams_list, & &1.name) |> MapSet.new()
+
+    # Sweep agents from teams that no longer exist
+    :ets.tab2list(@table)
+    |> Enum.each(fn {session_id, agent} ->
+      if agent.team && not MapSet.member?(live_team_names, agent.team) do
+        :ets.delete(@table, session_id)
+      end
+    end)
+
     for team <- teams_list, member <- team.members do
       session_id = member[:agent_id] || member[:session_id]
 
       if session_id do
         existing = get(session_id) || default_agent(session_id)
 
+        # Build channel map: always set mailbox, wire tmux_pane_id when available
+        tmux_target = resolve_tmux_target(member[:tmux_pane_id], existing.channels.tmux)
+
+        updated_channels =
+          existing.channels
+          |> Map.put(:mailbox, session_id)
+          |> Map.put(:tmux, tmux_target)
+
+        qualified_id = qualify_agent_id(member[:name], team.name)
+        is_active = member[:is_active] == true
+
         updated =
           existing
-          |> Map.put(:id, member[:name] || existing.id)
+          |> Map.put(:id, qualified_id)
+          |> Map.put(:short_name, member[:name] || existing.id)
           |> Map.put(:team, team.name)
           |> Map.put(:role, derive_role(member[:agent_type]))
           |> Map.put(:model, member[:model] || existing.model)
           |> Map.put(:cwd, member[:cwd] || existing.cwd)
-          |> Map.merge(%{channels: Map.merge(existing.channels, %{mailbox: session_id})})
+          |> Map.put(:channels, updated_channels)
+          |> Map.put(:status, if(is_active, do: :active, else: :ended))
 
         :ets.insert(@table, {session_id, updated})
       end
@@ -191,6 +219,16 @@ defmodule Observatory.Gateway.AgentRegistry do
   end
 
   @impl true
+  def handle_call(:purge_stale, _from, state) do
+    before = :ets.info(@table, :size)
+    sweep_ended_agents()
+    new_capture = sweep_stale_captures(state.watched, state.last_capture)
+    after_count = :ets.info(@table, :size)
+    broadcast_registry_update()
+    {:reply, {:ok, before - after_count}, %{state | last_capture: new_capture}}
+  end
+
+  @impl true
   def handle_info({:teams_updated, teams}, state) do
     sync_teams(teams)
     {:noreply, state}
@@ -212,13 +250,6 @@ defmodule Observatory.Gateway.AgentRegistry do
     {:noreply, %{state | last_capture: new_last}}
   end
 
-  def handle_info(:sweep, state) do
-    sweep_ended_agents()
-    new_capture = sweep_stale_captures(state.watched, state.last_capture)
-    schedule_sweep()
-    {:noreply, %{state | last_capture: new_capture}}
-  end
-
   def handle_info(_msg, state), do: {:noreply, state}
 
   # ── Private ─────────────────────────────────────────────────────────
@@ -226,6 +257,7 @@ defmodule Observatory.Gateway.AgentRegistry do
   defp default_agent(session_id) do
     %{
       id: short_id(session_id),
+      short_name: short_id(session_id),
       session_id: session_id,
       team: nil,
       role: :standalone,
@@ -242,6 +274,9 @@ defmodule Observatory.Gateway.AgentRegistry do
       }
     }
   end
+
+  defp qualify_agent_id(nil, _team_name), do: nil
+  defp qualify_agent_id(name, team_name), do: "#{name}@#{team_name}"
 
   defp maybe_update_from_event(agent, event) do
     agent
@@ -284,6 +319,7 @@ defmodule Observatory.Gateway.AgentRegistry do
 
   defp poll_tmux_sessions do
     tmux_sessions = Observatory.Gateway.Channels.Tmux.list_sessions()
+    tmux_panes = Observatory.Gateway.Channels.Tmux.list_panes()
     known_ids = :ets.tab2list(@table) |> Enum.map(fn {_sid, a} -> a.id end) |> MapSet.new()
 
     # Auto-register tmux sessions not yet in the registry
@@ -299,21 +335,51 @@ defmodule Observatory.Gateway.AgentRegistry do
     end
 
     # Enrich existing entries with tmux channel info
+    # Match by: exact session name, pane ID from team config, or fuzzy name match
     :ets.tab2list(@table)
     |> Enum.each(fn {session_id, agent} ->
-      matched_tmux =
-        Enum.find(tmux_sessions, fn s ->
-          String.starts_with?(s, agent.id) or String.contains?(s, agent.id)
-        end)
+      current_tmux = agent.channels.tmux
 
-      if matched_tmux != agent.channels.tmux do
-        updated_channels = Map.put(agent.channels, :tmux, matched_tmux)
-        :ets.insert(@table, {session_id, %{agent | channels: updated_channels}})
+      # Skip if already has a valid tmux target
+      unless current_tmux && tmux_target_alive?(current_tmux, tmux_sessions, tmux_panes) do
+        matched_tmux = find_tmux_target(agent, tmux_sessions, tmux_panes)
+
+        if matched_tmux && matched_tmux != current_tmux do
+          updated_channels = Map.put(agent.channels, :tmux, matched_tmux)
+          :ets.insert(@table, {session_id, %{agent | channels: updated_channels}})
+        end
       end
     end)
 
     broadcast_registry_update()
   end
+
+  defp find_tmux_target(agent, sessions, panes) do
+    # 1. Exact session name match
+    exact = Enum.find(sessions, &(&1 == agent.id))
+
+    if exact do
+      exact
+    else
+      # 2. Fuzzy session name match
+      Enum.find(sessions, fn s ->
+        String.starts_with?(s, agent.id) or String.contains?(s, agent.id)
+      end)
+      # 3. Check if any pane title contains agent name
+      || Enum.find_value(panes, fn p ->
+        if String.contains?(p.title || "", agent.id), do: p.pane_id
+      end)
+    end
+  end
+
+  defp tmux_target_alive?(target, sessions, panes) do
+    target in sessions or Enum.any?(panes, &(&1.pane_id == target))
+  end
+
+  # Prefer tmux_pane_id from team config, fall back to existing channel value
+  defp resolve_tmux_target(nil, existing), do: existing
+  defp resolve_tmux_target("", existing), do: existing
+  defp resolve_tmux_target(pane_id, _existing), do: pane_id
 
   defp schedule_tmux_poll do
     Process.send_after(self(), :poll_tmux, @tmux_poll_interval)
@@ -366,8 +432,11 @@ defmodule Observatory.Gateway.AgentRegistry do
     # Try exact session_id match first
     case get(name) do
       nil ->
-        # Search by agent name (id field)
-        list_all() |> Enum.filter(fn a -> a.id == name end)
+        # Search by qualified id (e.g., "coordinator@my-team"), short_name, or legacy id
+        list_all()
+        |> Enum.filter(fn a ->
+          a.id == name or Map.get(a, :short_name) == name
+        end)
 
       agent ->
         [agent]
@@ -397,17 +466,42 @@ defmodule Observatory.Gateway.AgentRegistry do
     )
   end
 
-  defp schedule_sweep do
-    Process.send_after(self(), :sweep, @sweep_interval)
-  end
-
   defp sweep_ended_agents do
-    cutoff = DateTime.add(DateTime.utc_now(), -@ended_ttl_seconds, :second)
+    now = DateTime.utc_now()
+    ended_cutoff = DateTime.add(now, -@ended_ttl_seconds, :second)
+    stale_cutoff = DateTime.add(now, -@stale_ttl_seconds, :second)
+
+    # Get live team names from TeamWatcher
+    live_teams =
+      try do
+        Observatory.TeamWatcher.get_state() |> Map.keys() |> MapSet.new()
+      rescue
+        _ -> nil
+      end
 
     :ets.tab2list(@table)
     |> Enum.each(fn {session_id, agent} ->
-      if agent.status == :ended && DateTime.compare(agent.last_event_at, cutoff) == :lt do
-        :ets.delete(@table, session_id)
+      cond do
+        # Never sweep the operator
+        agent.id == "operator" ->
+          :ok
+
+        # Sweep agents from deleted teams
+        agent.team && live_teams && not MapSet.member?(live_teams, agent.team) ->
+          :ets.delete(@table, session_id)
+
+        # Sweep ended agents after 30min
+        agent.status == :ended &&
+            DateTime.compare(agent.last_event_at, ended_cutoff) == :lt ->
+          :ets.delete(@table, session_id)
+
+        # Sweep standalone agents with no events in 1h (test probes, old sessions)
+        agent.role == :standalone && is_nil(agent.team) &&
+            DateTime.compare(agent.last_event_at, stale_cutoff) == :lt ->
+          :ets.delete(@table, session_id)
+
+        true ->
+          :ok
       end
     end)
   rescue

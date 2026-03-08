@@ -8,7 +8,6 @@
 
 ## Ash Struct Access (CRITICAL)
 - **Ash resource structs do NOT support bracket access** `[:field]`
-- `use Observatory.AccessStruct` was tried and FAILED -- Ash's `@before_compile` hooks strip the `fetch/2` function
 - Team members from `{:array, :map}` attributes ARE plain maps -- bracket access `m[:name]` works
 - Rule: use dot access `struct.field` on Ash resources, bracket access on plain maps only
 - `Map.get(struct, :field, default)` works on structs when you need a fallback
@@ -18,7 +17,6 @@
 - Activity domain: Message + Task + Error resources, backed by Ash.DataLayer.Simple
 - Pattern: shared Preparations load data via set_data/2, Ash applies filter DSL
 - Code interfaces: Fleet.Agent.active!(), Fleet.Team.alive!(), Activity.Error.by_tool!()
-- LoadAgents calls Fleet.Team.alive!() for team enrichment (no circular dep)
 
 ## MCP Server (Agent Tools)
 - Route: `forward "/mcp", AshAi.Mcp.Router` in router.ex (no pipeline)
@@ -29,19 +27,36 @@
 - `Observatory.Heartbeat` GenServer in MonitorSupervisor, 5s interval
 - Publishes to PubSub "heartbeat" AND Gateway "fleet:heartbeat"
 - Subscribers: ProtocolTracker (stats broadcast), LiveView (tmux refresh when overlay open)
+- **Maintenance**: every 60 beats (5min), spawns `AgentRegistry.purge_stale()`
 - Single timer for the system -- no individual GenServer timers
 
-## Messaging Pipeline
-- Dashboard -> Agent: Operator.send -> Gateway.Router.broadcast -> MailboxAdapter -> Mailbox ETS + CommandQueue filesystem
-- **Fallback**: When Gateway returns 0 recipients, Operator falls back to direct Mailbox.send_message (bypasses registry)
-- Agent -> Dashboard: MCP send_message -> Gateway.Router.broadcast (same pipeline)
+## Gateway Pipeline (3 message paths, all unified through Router)
+1. **Dashboard -> Agent**: Operator.send -> Gateway.Router.broadcast -> MailboxAdapter + Tmux + Webhook
+2. **Hook intercept -> Agent**: EventController handle_send_message -> Gateway.Router.broadcast (was direct Mailbox, now unified)
+3. **Agent -> Dashboard**: MCP send_message -> Gateway.Router.broadcast
+- **Fallback**: When Gateway returns 0 recipients, Operator falls back to direct Mailbox.send_message
 - CommandQueue: `~/.claude/inbox/{session_id}/{id}.json`
-- acknowledge_message cleans both ETS and CommandQueue files
 - **ClearFormOnSubmit** hook clears text inputs 50ms after submit
+
+## AgentRegistry (2026-03-08)
+- ETS table `:gateway_agent_registry`, merges hook events + TeamWatcher + tmux polling
+- **Qualified IDs**: `"name@team"` format, with `short_name` for backward lookups
+- **Tmux pane delivery**: sync_teams wires `tmux_pane_id` from team config into channels
+- **Stale sweep**: 3-tier (dead teams, ended agents 30min TTL, stale standalones 1h TTL)
+- **Operator**: permanent agent registered at init, never swept
+- `find_by_name_or_session` matches both qualified `id` and `short_name`
+- **Identity merge gap**: Hook UUID session_ids and TeamWatcher agent_id@team keys don't merge yet
+
+## Debug Endpoints (2026-03-08)
+- `GET /api/debug/registry` -- all agents with channels, status, team
+- `GET /api/debug/health` -- registry, team_watcher, pubsub, mailbox, event_buffer, ets_tables
+- `GET /api/debug/traces?limit=50&type=message` -- ProtocolTracker traces with hops
+- `GET /api/debug/mailboxes` -- per-agent stats + recent messages
+- `GET /api/debug/tmux` -- sessions, panes, agents_with_tmux, socket_args
+- `POST /api/debug/purge` -- manual stale agent sweep
 
 ## ProtocolTracker Performance (CRITICAL)
 - `compute_stats/0` must NEVER do N+1 GenServer calls or filesystem scans
-- Old version called `Mailbox.get_messages` per agent + `CommandQueue.get_pending_commands` per session -> timeout on mount
 - Current version: ETS reads only + single `Mailbox.get_stats` call
 - Mount uses `%{}` default for protocol_stats, NOT `get_stats` (avoids blocking)
 
@@ -53,15 +68,14 @@
 ## Fleet Tree Rendering
 - FleetHelpers.sort_members: classifies by member name string ("coordinator" -> depth 0, "lead" -> depth 1, "worker" -> depth 2)
 - Hierarchy via indent: `20 + depth * 32` px padding-left
-- Tree connectors: unicode characters (U+2514 corner, U+251C tee)
-- Status dots: `:active` = emerald, `:idle` = zinc-500 (grey), `:ended` = zinc-700
+- Tree connectors: unicode characters
+- Status dots: `:active` = emerald, `:idle` = zinc-500, `:ended` = zinc-700
 - Teams grouped by project (derived from member cwds)
 
 ## Component Patterns
 - Large components split: `.ex` (logic) + `.heex` (templates via `embed_templates`)
 - Module size limit: 200-300 lines max
 - Preprocessing in `<% %>` blocks at top of .heex templates
-- Multi-head pattern-matched dispatch stays as `defp` in .ex
 
 ## Observatory tmux socket
 - Path: `~/.observatory/tmux/obs.sock`
@@ -72,5 +86,4 @@
 - Zero warnings policy: `mix compile --warnings-as-errors`
 - Minimal JavaScript -- "LiveView was made to limit JS usage"
 - Write idiomatic Elixir, no mixing imperative/declarative
-- Helpers could be Ash resource actions (user suggestion for future refactor)
 - Roadmap files: flat directory, dotted numbering, NO subdirectories

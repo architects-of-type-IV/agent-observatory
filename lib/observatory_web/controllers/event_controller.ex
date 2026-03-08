@@ -168,28 +168,28 @@ defmodule ObservatoryWeb.EventController do
     recipient = input["recipient"]
     content = input["content"] || input["summary"] || ""
 
+    payload = %{
+      content: content,
+      from: event.session_id,
+      type: :text,
+      metadata: %{
+        source_app: event.source_app,
+        summary: input["summary"],
+        via: :hook_intercept
+      }
+    }
+
     case type do
       "message" when is_binary(recipient) ->
-        Observatory.Mailbox.send_message(
-          recipient,
-          event.session_id,
-          content,
-          type: :text,
-          metadata: %{
-            source_app: event.source_app,
-            summary: input["summary"]
-          }
-        )
+        Observatory.Gateway.Router.broadcast("agent:#{recipient}", payload)
 
       "broadcast" ->
-        # Broadcast to team (requires team context from event)
         if team_name = input["team_name"] do
-          Observatory.Channels.publish_to_team(team_name, %{
-            from: event.session_id,
-            content: content,
-            timestamp: DateTime.utc_now()
-          })
+          Observatory.Gateway.Router.broadcast("team:#{team_name}", payload)
         end
+
+      "shutdown_request" when is_binary(recipient) ->
+        Observatory.Gateway.Router.broadcast("agent:#{recipient}", payload)
 
       _ ->
         :ok

@@ -22,6 +22,12 @@ defmodule ObservatoryWeb.Router do
     pipe_through :api
 
     post "/events", EventController, :create
+    get "/debug/registry", DebugController, :registry
+    get "/debug/health", DebugController, :health
+    get "/debug/traces", DebugController, :traces
+    get "/debug/mailboxes", DebugController, :mailboxes
+    get "/debug/tmux", DebugController, :tmux
+    post "/debug/purge", DebugController, :purge
   end
 
   scope "/gateway", ObservatoryWeb do

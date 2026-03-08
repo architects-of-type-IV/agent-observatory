@@ -1,36 +1,44 @@
 # Observatory - Handoff
 
-## Current Status: Heartbeat + Messaging Fixes (2026-03-08)
+## Current Status: Gateway Pipeline Unification + Debug Endpoints (2026-03-08)
 
 ### Just Completed
-- **Heartbeat GenServer** -- `Observatory.Heartbeat` publishes `{:heartbeat, count}` every 5s to PubSub `"heartbeat"` topic AND routes through Gateway (`"fleet:heartbeat"`). Added to MonitorSupervisor. Single timer for the whole system.
-- **ProtocolTracker timeout fix** -- `compute_stats/0` was doing N+1 GenServer calls (per-agent `get_messages` + per-session filesystem scans). Mount called `get_stats` synchronously -> 5s timeout -> LiveView crash. Fixed: mount uses `%{}` default, `compute_stats` now only reads ETS (fast). Removed `mailbox_detail`, `queue_detail`, `recent_traces` from stats. ProtocolTracker now subscribes to heartbeat instead of its own timer.
-- **Dropdown stability** -- Wrapped target select and project select in `phx-update="ignore"` divs in `command_view.html.heex`. Selects no longer close on re-render from PubSub events.
-- **Message delivery fallback** -- `Operator.send` now falls back to direct `Mailbox.send_message` when Gateway routing returns 0 recipients (agents not registered in AgentRegistry). Messages always land in ETS + `~/.claude/inbox/`.
-- **Removed all polling** -- No more `poll_tmux` timer. Tmux refreshes on heartbeat (only when overlay is open) and after `send_tmux_keys`.
-- **Removed longpoll transport** from endpoint.ex.
+- **Debug endpoints** -- 6 new routes under `/api/debug/` for system diagnostics: registry dump, health checks, protocol traces, mailbox inspection, tmux state, manual purge
+- **EventController Gateway unification** -- `handle_send_message` was calling `Mailbox.send_message` directly (bypassing Gateway). Now routes through `Gateway.Router.broadcast` for consistent audit/tracing
+- **Tmux pane-level delivery** -- `sync_teams` now wires `tmux_pane_id` from team config into agent channels. `poll_tmux_sessions` uses new `Tmux.list_panes()` for pane-level discovery
+- **Qualified agent naming** -- Agents get `"name@team"` IDs (e.g., `"coordinator@my-team"`) with `short_name` for backward-compatible lookups. Disambiguates duplicate names across teams
+- **Stale agent sweep** -- 3-tier: dead teams, ended agents (30min TTL), stale standalones (1h TTL). Manual purge via `/api/debug/purge`. Auto-sweep every 60 heartbeats (5min) via `Observatory.Heartbeat`
+- **Agent blocks updated** -- `~/.claude/agents/blocks/shared/gateway-comms.md` teaches agents about Gateway architecture, qualified IDs, delivery channels
+
+### Prior Session (same day)
+- Heartbeat GenServer (5s interval, PubSub + Gateway broadcast)
+- ProtocolTracker timeout fix (removed N+1 GenServer calls)
+- Dropdown stability (phx-update="ignore" on selects)
+- Message delivery fallback (direct Mailbox when Gateway returns 0)
+- Removed all polling, removed longpoll transport
 
 ### Open Issues
-1. **Build lock contention** -- Phoenix dev server holds build lock continuously. `mix compile` from CLI waits indefinitely. Dev server auto-compiles on file change though.
-2. **Grey dots on team members** -- Agents from config.json without hook events default to `:idle`. Correct behavior.
-3. **Detail panel click** -- Should work now (AccessStruct crash resolved in prior session).
-4. **User wants**: heartbeat through gateway (done), auto-discover teams/agents (exists in AgentRegistry + TeamWatcher + SwarmMonitor).
+1. **Identity merge** -- Hook events arrive with UUID session_ids, TeamWatcher registers with `agent_id@team` keys. These two ETS entries never merge into one unified agent record
+2. **Session ID uniformity** -- User asked: "Session ids.. shouldn't those be claude code sessions or uniform?" -- not yet addressed
+3. **Build lock contention** -- Phoenix dev server holds build lock; `mix compile` from CLI waits indefinitely
+4. **Ash domain refactor steps 7-9** -- Move inline handlers, retire helpers, final validation
 
 ### Architecture
 - Phoenix LiveView on port 4005
 - Event-driven: hooks -> POST /api/events -> EventBuffer ETS + PubSub -> LiveView
+- **3 message paths (all now through Gateway)**: Dashboard (Operator.send), Hook intercept (EventController), MCP (AgentTools.Inbox)
 - **Heartbeat**: `Observatory.Heartbeat` -> PubSub "heartbeat" + Gateway "fleet:heartbeat"
-- Subscribers react to heartbeat: ProtocolTracker (stats), LiveView (tmux refresh when overlay open)
+- **AgentRegistry**: ETS-backed, merges hook events + TeamWatcher + tmux polling. Qualified IDs. Sweep on heartbeat
 - Ash domains: Fleet (Team, Agent), Activity (Message, Task, Error) -- all `Ash.DataLayer.Simple`
-- Zero warnings: `mix compile --warnings-as-errors`
 
 ### Key Files Modified This Session
 | File | Change |
 |------|--------|
-| `lib/observatory/heartbeat.ex` | NEW -- heartbeat GenServer, PubSub + Gateway broadcast |
-| `lib/observatory/operator.ex` | Fallback to direct Mailbox when Gateway returns 0 |
-| `lib/observatory/protocol_tracker.ex` | Removed N+1 stats, subscribe to heartbeat |
-| `lib/observatory/monitor_supervisor.ex` | Added Heartbeat to children |
-| `lib/observatory_web/live/dashboard_live.ex` | Heartbeat handler (tmux), empty protocol_stats default, removed poll_tmux |
-| `lib/observatory_web/components/command_components/command_view.html.heex` | phx-update="ignore" on selects |
-| `lib/observatory_web/endpoint.ex` | Removed longpoll transport |
+| `lib/observatory_web/controllers/debug_controller.ex` | NEW -- 6 diagnostic endpoints |
+| `lib/observatory_web/router.ex` | Added debug routes under /api |
+| `lib/observatory_web/controllers/event_controller.ex` | Unified send_message through Gateway |
+| `lib/observatory/gateway/agent_registry.ex` | Qualified IDs, tmux pane wiring, stale sweep, purge_stale |
+| `lib/observatory/gateway/channels/tmux.ex` | Added list_panes(), fixed available?() for pane IDs |
+| `lib/observatory/heartbeat.ex` | Added run_maintenance (registry purge every 60 beats) |
+| `~/.claude/agents/blocks/registry.json` | Added gateway-comms block |
+| `~/.claude/agents/blocks/shared/gateway-comms.md` | NEW -- Gateway architecture knowledge for agents |
