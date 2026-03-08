@@ -1,15 +1,36 @@
 defmodule Observatory.Gateway.Router do
   @moduledoc """
-  Central message bus for the Observatory Gateway.
+  Central message bus for the Gateway.
   Provides `broadcast/2` for outbound messages and `ingest/1` for inbound events.
 
   Pipeline: Validate -> Route -> Deliver -> Audit
+
+  Channels are registered at runtime via config:
+
+      config :observatory, :channels, [
+        {Observatory.Gateway.Channels.MailboxAdapter, primary: true},
+        {Observatory.Gateway.Channels.Tmux, primary: false},
+        {Observatory.Gateway.Channels.WebhookAdapter, primary: false}
+      ]
+
+  Any module implementing the `Observatory.Gateway.Channel` behaviour can be added.
+  The first channel marked `primary: true` determines the delivery count.
   """
 
   require Logger
 
   alias Observatory.Gateway.{AgentRegistry, Envelope, SchemaInterceptor}
-  alias Observatory.Gateway.Channels.{MailboxAdapter, Tmux, WebhookAdapter}
+
+  @default_channels [
+    {Observatory.Gateway.Channels.MailboxAdapter, primary: true},
+    {Observatory.Gateway.Channels.Tmux, primary: false},
+    {Observatory.Gateway.Channels.WebhookAdapter, primary: false}
+  ]
+
+  @doc "Return the configured channel adapters as `[{module, opts}]`."
+  def channels do
+    Application.get_env(:observatory, :channels, @default_channels)
+  end
 
   @doc """
   Broadcast a message to a channel pattern.
@@ -85,29 +106,24 @@ defmodule Observatory.Gateway.Router do
   end
 
   defp deliver_to_agent(agent, payload) do
-    # Always write to mailbox so check_inbox works regardless of delivery channel
-    mailbox_ok =
-      if agent.channels[:mailbox] do
-        MailboxAdapter.deliver(agent.channels.mailbox, payload) == :ok
+    Enum.reduce(channels(), 0, fn {mod, opts}, count ->
+      key = mod.channel_key()
+      address = agent.channels[key]
+
+      skip? = function_exported?(mod, :skip?, 1) and mod.skip?(payload)
+
+      if address && !skip? && mod.available?(address) do
+        # Webhook gets agent_id injected for routing
+        deliver_payload = if key == :webhook, do: Map.put(payload, :agent_id, agent.session_id), else: payload
+
+        case mod.deliver(address, deliver_payload) do
+          :ok -> if Keyword.get(opts, :primary, false), do: count + 1, else: count
+          {:error, _} -> count
+        end
       else
-        false
+        count
       end
-
-    # Tmux is additive -- push to terminal when available
-    # Skip system messages (heartbeat, etc.) to avoid flooding agent terminals
-    tmux_eligible = payload[:type] not in [:heartbeat, :system]
-
-    if tmux_eligible && agent.channels[:tmux] && Tmux.available?(agent.channels.tmux) do
-      Tmux.deliver(agent.channels.tmux, payload)
-    end
-
-    # Webhook is additive -- fire alongside when configured
-    if agent.channels[:webhook] do
-      webhook_payload = Map.put(payload, :agent_id, agent.session_id)
-      WebhookAdapter.deliver(agent.channels.webhook, webhook_payload)
-    end
-
-    if mailbox_ok, do: 1, else: 0
+    end)
   end
 
   defp track_protocol_trace(envelope, recipients, delivered) do

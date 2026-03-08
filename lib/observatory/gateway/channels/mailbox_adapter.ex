@@ -7,6 +7,9 @@ defmodule Observatory.Gateway.Channels.MailboxAdapter do
   @behaviour Observatory.Gateway.Channel
 
   @impl true
+  def channel_key, do: :mailbox
+
+  @impl true
   def deliver(session_id, payload) when is_binary(session_id) do
     content = payload[:content] || payload["content"] || ""
     from = payload[:from] || payload["from"] || "observatory"

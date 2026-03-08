@@ -1,4 +1,11 @@
-# Observatory - Brain
+# ICHOR IV (formerly Observatory) - Brain
+
+## Identity
+- **ICHOR IV**: sovereign control plane for autonomous agents, part of Kardashev Type IV suite
+- **Architect**: the user -- has authority over everything
+- **Archon**: ICHOR IV personified as top-level coordinator -- interprets Architect's will, drives fleet
+- ADR-001: vendor-agnostic fleet control architecture
+- ADR-002: ICHOR IV identity and vision
 
 ## Architecture
 - Event-driven: hooks -> POST /api/events -> EventBuffer ETS + PubSub -> LiveView
@@ -38,9 +45,14 @@
 - Three-layer defense: registration gate, poll filter, sweep cleanup
 
 ## Gateway Pipeline (3 message paths, all unified through Router)
-1. **Dashboard -> Agent**: Operator.send -> Gateway.Router.broadcast -> MailboxAdapter + Tmux + Webhook
+1. **Dashboard -> Agent**: Operator.send -> Gateway.Router.broadcast -> channel registry iteration
 2. **Hook intercept -> Agent**: EventController handle_send_message -> Gateway.Router.broadcast
 3. **Agent -> Dashboard**: MCP send_message -> Gateway.Router.broadcast
+- **Channel registry**: `config :observatory, :channels` -- list of `{module, opts}` tuples
+- Default: `[{MailboxAdapter, primary: true}, {Tmux, primary: false}, {WebhookAdapter, primary: false}]`
+- Each adapter implements `Channel` behaviour: `channel_key/0`, `deliver/2`, `available?/1`, optional `skip?/1`
+- Router iterates all channels, only primary channels count toward delivery total
+- New adapters (SSH, WebSocket, relay) just add to config -- no Router edits needed
 - **Fallback**: When Gateway returns 0 recipients, Operator falls back to direct Mailbox.send_message
 - CommandQueue: `~/.claude/inbox/{session_id}/{id}.json`
 - **ClearFormOnSubmit** hook clears text inputs 50ms after submit
@@ -57,6 +69,8 @@
 
 ## AgentRegistry (2026-03-08)
 - ETS table `:gateway_agent_registry`, merges hook events + TeamWatcher + tmux polling
+- **Agent entry fields**: id, short_name, session_id, host ("local" default), parent_id, children, team, role, status, model, cwd, current_tool, started_at, last_event_at, channels
+- **`touch/1`**: updates `last_event_at` directly in ETS (used by PaneMonitor for activity detection)
 - **Qualified IDs**: `"name@team"` format, with `short_name` for backward lookups
 - **Identity merge**: CWD correlation merges UUID-keyed (hook) and short-name-keyed (team) entries
   - `find_canonical_entry/4`: takes pre-built cwd index, tries existing team match, then cwd lookup, then fallback
@@ -148,6 +162,15 @@
 - `refresh_tmux_panels/1` refreshes ALL open sessions on heartbeat (not just active)
 - Tiled layout: 2-column grid, all panes visible, click to focus. Active gets amber ring.
 - `active_tmux_session` still tracks which tab has keyboard focus for send_keys
+
+## PaneMonitor (2026-03-08, vendor-agnostic)
+- GenServer in MonitorSupervisor, subscribes to heartbeat
+- Captures tmux pane output for ALL active agents with tmux channels
+- Parses signals: `OBSERVATORY_DONE: <summary>`, `OBSERVATORY_BLOCKED: <reason>`
+- Deduplicates signals (same signal text = no re-broadcast)
+- Broadcasts on `"pane:signals"` PubSub topic
+- Calls `AgentRegistry.touch/1` on any new output (activity detection for hookless agents)
+- Makes any agent in a tmux session observable regardless of vendor
 
 ## Observatory tmux socket
 - Path: `~/.observatory/tmux/obs.sock`

@@ -7,6 +7,9 @@ defmodule Observatory.Gateway.Channels.WebhookAdapter do
   @behaviour Observatory.Gateway.Channel
 
   @impl true
+  def channel_key, do: :webhook
+
+  @impl true
   def deliver(webhook_url, payload) when is_binary(webhook_url) do
     agent_id = payload[:agent_id] || payload["agent_id"] || "unknown"
     secret = payload[:webhook_secret] || payload["webhook_secret"] || default_secret()

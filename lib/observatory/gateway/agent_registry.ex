@@ -82,6 +82,19 @@ defmodule Observatory.Gateway.AgentRegistry do
     GenServer.cast(__MODULE__, {:mark_ended, session_id})
   end
 
+  @doc "Update last_event_at timestamp for an agent (activity signal from pane monitor)."
+  def touch(session_id) do
+    case :ets.lookup(@table, session_id) do
+      [{^session_id, agent}] ->
+        :ets.insert(@table, {session_id, %{agent | last_event_at: DateTime.utc_now()}})
+
+      [] ->
+        :ok
+    end
+  rescue
+    ArgumentError -> :ok
+  end
+
   @doc "Start watching an agent for terminal output (capture-pane polling)."
   def watch(session_id) do
     GenServer.cast(__MODULE__, {:watch, session_id})
@@ -283,6 +296,9 @@ defmodule Observatory.Gateway.AgentRegistry do
       id: short_id(session_id),
       short_name: short_id(session_id),
       session_id: session_id,
+      host: "local",
+      parent_id: nil,
+      children: [],
       team: nil,
       role: :standalone,
       status: :active,

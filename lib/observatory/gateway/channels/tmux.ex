@@ -13,6 +13,14 @@ defmodule Observatory.Gateway.Channels.Tmux do
 
   require Logger
 
+  @impl true
+  def channel_key, do: :tmux
+
+  @impl true
+  def skip?(payload) do
+    payload[:type] in [:heartbeat, :system]
+  end
+
   @observatory_socket Path.expand("~/.observatory/tmux/obs.sock")
   @observatory_server "obs"
   @server_arg_sets_ttl_ms 5_000

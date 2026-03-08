@@ -17,7 +17,8 @@ defmodule Observatory.MonitorSupervisor do
       {Observatory.ProtocolTracker, []},
       {Observatory.AgentMonitor, []},
       {Observatory.NudgeEscalator, []},
-      {Observatory.QualityGate, []}
+      {Observatory.QualityGate, []},
+      {Observatory.PaneMonitor, []}
     ]
 
     Supervisor.init(children, strategy: :one_for_one)

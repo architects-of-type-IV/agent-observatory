@@ -1,51 +1,57 @@
-# Observatory - Handoff
+# ICHOR IV (formerly Observatory) - Handoff
 
-## Current Status: Overstory-Inspired Features (2026-03-08)
+## Current Status: Vendor-Agnostic Fleet Control Architecture (2026-03-08)
 
-### Just Completed (5 features inspired by Overstory multi-agent orchestrator)
+### Vision Shift
+Observatory is becoming **ICHOR IV** -- a sovereign control plane for autonomous agents. Not a monitoring dashboard, but a facility where agency is manufactured, distributed, monitored, and upgraded. Part of the Kardashev Type IV application suite.
 
-1. **Cost Dashboard** -- New `:costs` activity tab in fleet control view. Queries SQLite `token_usages` table via `CostAggregator`. Shows: total cost/input/output/cache summary cards, by-model breakdown with color-coded bars, per-agent cost bars with model labels. All data was already persisted -- this adds the UI.
+Key concepts:
+- **Architect** (user) has authority over everything
+- **Archon** (coordinator Type IV) is ICHOR IV personified -- interprets Architect's will, drives fleet execution
+- Agents arrive from anywhere (any vendor, any host, any protocol) and join the facility
+- ICHOR observes, manages, controls, rearranges, and dictates
 
-2. **Progressive Nudging** (`NudgeEscalator`) -- GenServer that subscribes to heartbeat + events. 4-level escalation for stale agents:
-   - Level 0: warn (log + PubSub broadcast)
-   - Level 1: nudge (tmux message asking "are you still working?")
-   - Level 2: escalate (HITL pause + operator alert)
-   - Level 3: terminate (mark as zombie)
-   Configurable thresholds via `config :observatory, NudgeEscalator`.
+### Just Completed: First 3 Steps of ADR-001
 
-3. **Agent Spawning** (`AgentSpawner` + `Operator.spawn_agent/1`) -- Spawns Claude Code agents in tmux sessions via observatory socket. Pipeline: validate -> write overlay -> write hooks -> create tmux session -> launch claude. Dashboard events: `spawn_agent`, `stop_spawned_agent`.
+**1. Channel Registry in Router** -- Runtime channel registration replaces hardcoded dispatch.
+- `Channel` behaviour extended with `channel_key/0` and optional `skip?/1` callbacks
+- Router reads `config :observatory, :channels` (list of `{module, opts}` tuples)
+- Default: MailboxAdapter (primary), Tmux, WebhookAdapter
+- New adapters just implement the behaviour and add to config -- no Router edits needed
+- Files: `channel.ex`, `router.ex`, all 3 adapter `.ex` files
 
-4. **Quality Gate Enforcement** (`QualityGate`) -- GenServer that listens for `TaskCompleted` hook events. Looks up `done_when` from SwarmMonitor tasks. Runs the command. If it fails, sends a nudge to the agent via tmux/mailbox with the failure output. Broadcasts on `quality:gate` PubSub topic.
+**2. PaneMonitor GenServer** -- Makes hookless agents first-class citizens.
+- Subscribes to heartbeat, captures tmux pane output every 5s for all active agents
+- Parses for signals: `OBSERVATORY_DONE: <summary>`, `OBSERVATORY_BLOCKED: <reason>`
+- Deduplicates signals, broadcasts on `"pane:signals"` PubSub topic
+- Updates `last_event_at` via new `AgentRegistry.touch/1` on any output activity
+- Any agent in a tmux session is now observable regardless of vendor
+- File: `lib/observatory/pane_monitor.ex` (NEW)
 
-5. **Instruction Overlays** (`InstructionOverlay`) -- Generates per-agent CLAUDE.md files with: role definition (builder/scout/reviewer/lead), task assignment with acceptance criteria, file scope restrictions, quality gates, communication protocol (MCP inbox), completion protocol. Written to `.claude/OBSERVATORY_OVERLAY.md` in the agent's cwd.
+**3. Host + Tree Fields in AgentRegistry** -- Foundation for distributed agents and hierarchy.
+- Added `host` (default: `"local"`), `parent_id`, `children` to default agent entry
+- Enables host-qualified agent identity and spawn chain tracking
+- File: `lib/observatory/gateway/agent_registry.ex` (MODIFIED)
 
-### Architecture Changes
-- **MonitorSupervisor**: Added `NudgeEscalator` and `QualityGate` GenServers
-- **DashboardLive**: Subscribes to `agent:nudge`, `agent:spawned`, `quality:gate` PubSub topics
-- **DashboardState**: Added `cost_data` assign, loaded via `CostAggregator.load_cost_data/0` in `recompute/1`
-- **command_view.html.heex**: Added Costs tab (alongside Comms/Feed), fixed tab filtering logic
+### Prior: Overstory-Inspired Features (still present)
+- Cost Dashboard, Progressive Nudging, Agent Spawning, Quality Gates, Instruction Overlays
+- See `SPECS/decisions/ADR-001-vendor-agnostic-fleet-control.md` for full gap analysis
+- See `SPECS/decisions/ADR-002-ichor-iv-identity.md` for vision/naming
 
-### New Files
-| File | Purpose |
-|------|---------|
-| `lib/observatory/nudge_escalator.ex` | Progressive 4-level agent nudging |
-| `lib/observatory/agent_spawner.ex` | Tmux-based agent spawn pipeline |
-| `lib/observatory/instruction_overlay.ex` | Per-agent CLAUDE.md generation |
-| `lib/observatory/quality_gate.ex` | TaskCompleted quality gate enforcement |
-| `lib/observatory/costs/cost_aggregator.ex` | SQLite cost data aggregation |
-| `lib/observatory_web/components/cost_components.ex` | Cost dashboard UI component |
+### Architecture Summary
 
-### Modified Files
-| File | Change |
-|------|--------|
-| `lib/observatory/monitor_supervisor.ex` | Added NudgeEscalator + QualityGate children |
-| `lib/observatory/operator.ex` | Added spawn_agent/stop_agent delegates |
-| `lib/observatory_web/live/dashboard_live.ex` | Spawn events, nudge/gate PubSub, 3 new topics |
-| `lib/observatory_web/live/dashboard_state.ex` | cost_data assign + CostAggregator in recompute |
-| `lib/observatory_web/live/dashboard_live.html.heex` | Pass cost_data to command_view |
-| `lib/observatory_web/components/command_components/command_view.html.heex` | Costs tab, fixed tab filtering |
+| Layer | Before | After |
+|-------|--------|-------|
+| Transport | 3 hardcoded adapters in Router | Runtime channel registry via config |
+| Agent observation | Claude hooks only | Hooks + PaneMonitor (tmux capture) |
+| Agent identity | session_id only | session_id + host + parent_id + children |
+| Naming | Observatory | ICHOR IV (codebase rename pending) |
+
+### Remaining ADR-001 Steps
+4. **SSH tmux channel** -- `SshTmux` adapter wrapping commands in `ssh user@host`
+5. **Agent tree** -- spawn chain tracking, scoped authority, flexible hierarchy
 
 ### Open Issues
-1. **dashboard_live.ex at ~520 lines** -- Growing with spawn events. Still mostly one-line delegations.
-2. **Task 8** -- Non-blocking event pipeline validation (load test). Low priority.
-3. **Agent spawn UI** -- spawn_agent/stop_spawned_agent events wired but no form in the UI yet. Can be triggered via LiveView JS console or future spawn modal.
+1. `ash_ai 0.5.0` SSE `{:error, :closed}` on MCP disconnect -- benign noise from upstream dep
+2. Agent spawn UI -- no form yet, triggered via events only
+3. Codebase rename from Observatory to ICHOR IV -- incremental, not yet started
