@@ -96,7 +96,7 @@ defmodule Observatory.Fleet.HostRegistry do
   end
 
   def handle_call({:register, node_name, metadata}, _from, state) do
-    status = if available?(node_name), do: :connected, else: :registered
+    status = registration_status(node_name)
     entry = host_entry(node_name, status) |> Map.put(:metadata, metadata)
     hosts = Map.put(state.hosts, node_name, entry)
 
@@ -143,9 +143,19 @@ defmodule Observatory.Fleet.HostRegistry do
       hostname: node_hostname(node),
       status: status,
       capabilities: [:tmux, :spawn],
-      connected_at: if(status == :connected, do: DateTime.utc_now()),
+      connected_at: connected_timestamp(status),
       metadata: %{}
     }
+  end
+
+  defp connected_timestamp(:connected), do: DateTime.utc_now()
+  defp connected_timestamp(_), do: nil
+
+  defp registration_status(node_name) do
+    case available?(node_name) do
+      true -> :connected
+      false -> :registered
+    end
   end
 
   defp node_hostname(node) do

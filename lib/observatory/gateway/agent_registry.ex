@@ -657,8 +657,8 @@ defmodule Observatory.Gateway.AgentRegistry do
     %{type: :tmux, session: session}
   end
 
-  defp backend_from_channels(%{ssh_tmux: session}) when is_binary(session) do
-    %{type: :ssh_tmux, session: session}
+  defp backend_from_channels(%{ssh_tmux: address}) when is_binary(address) do
+    %{type: :ssh_tmux, address: address}
   end
 
   defp backend_from_channels(%{webhook: url}) when is_binary(url) do

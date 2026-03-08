@@ -34,18 +34,16 @@ defmodule Observatory.InstructionOverlay do
     team_name = opts[:team_name]
     extra = opts[:extra_instructions]
 
-    sections = [
+    [
       header(name, capability),
       role_section(capability),
-      if(task, do: task_section(task)),
-      if(file_scope != [], do: file_scope_section(file_scope)),
+      maybe_task_section(task),
+      maybe_file_scope_section(file_scope),
       quality_gates_section(quality_gates),
       communication_section(name, team_name),
       completion_section(capability, quality_gates),
-      if(extra, do: "\n## Additional Instructions\n\n#{extra}\n")
+      maybe_extra_section(extra)
     ]
-
-    sections
     |> Enum.reject(&is_nil/1)
     |> Enum.join("\n")
   end
@@ -115,22 +113,14 @@ defmodule Observatory.InstructionOverlay do
     """
   end
 
-  defp task_section(task) when is_map(task) do
+  defp maybe_task_section(nil), do: nil
+  defp maybe_task_section(task) when is_map(task), do: task_section(task)
+
+  defp task_section(task) do
     subject = task["subject"] || task[:subject] || "Untitled"
     description = task["description"] || task[:description] || ""
     criteria = task["acceptance_criteria"] || task[:acceptance_criteria] || []
     done_when = task["done_when"] || task[:done_when]
-
-    criteria_text =
-      if criteria != [] do
-        criteria
-        |> Enum.map(&"- [ ] #{&1}")
-        |> Enum.join("\n")
-      else
-        "- [ ] Implementation matches task description"
-      end
-
-    done_text = if done_when, do: "\n**Verification command:** `#{done_when}`\n", else: ""
 
     """
     ## Task Assignment
@@ -141,10 +131,25 @@ defmodule Observatory.InstructionOverlay do
 
     ### Acceptance Criteria
 
-    #{criteria_text}
-    #{done_text}
+    #{format_criteria(criteria)}
+    #{format_done_when(done_when)}
     """
   end
+
+  defp format_criteria([]), do: "- [ ] Implementation matches task description"
+
+  defp format_criteria(criteria) do
+    criteria |> Enum.map(&"- [ ] #{&1}") |> Enum.join("\n")
+  end
+
+  defp format_done_when(nil), do: ""
+  defp format_done_when(cmd), do: "\n**Verification command:** `#{cmd}`\n"
+
+  defp maybe_file_scope_section([]), do: nil
+  defp maybe_file_scope_section(files), do: file_scope_section(files)
+
+  defp maybe_extra_section(nil), do: nil
+  defp maybe_extra_section(text), do: "\n## Additional Instructions\n\n#{text}\n"
 
   defp file_scope_section(files) do
     file_list = files |> Enum.map(&"- `#{&1}`") |> Enum.join("\n")
@@ -181,11 +186,9 @@ defmodule Observatory.InstructionOverlay do
       Application.get_env(:observatory, ObservatoryWeb.Endpoint, [])
       |> get_in([:http, :port]) || 4005
 
-    team_text = if team_name, do: "\nYou are a member of team **#{team_name}**.", else: ""
-
     """
     ## Communication Protocol
-    #{team_text}
+    #{team_text(team_name)}
     Your agent name is **#{name}**. Use the MCP tools to communicate:
 
     - `check_inbox` -- Check for new messages every few turns
@@ -195,6 +198,9 @@ defmodule Observatory.InstructionOverlay do
     Observatory is running at `http://localhost:#{port}`.
     """
   end
+
+  defp team_text(nil), do: ""
+  defp team_text(name), do: "\nYou are a member of team **#{name}**."
 
   defp completion_section(capability, _quality_gates) when capability in ["scout", "reviewer"] do
     """
@@ -230,5 +236,75 @@ defmodule Observatory.InstructionOverlay do
 
   defp default_gates do
     ["mix compile --warnings-as-errors", "mix test"]
+  end
+
+  # ── File Writing ───────────────────────────────────────────────────
+
+  @doc """
+  Write the overlay and hooks files to the agent's working directory.
+
+  Creates:
+    - `.claude/OBSERVATORY_OVERLAY.md` -- instruction overlay
+    - `.claude/settings.local.json` -- hooks pointing back to Observatory
+  """
+  @spec write_session_files(String.t(), map()) :: :ok
+  def write_session_files(cwd, opts) do
+    overlay_content = generate(opts)
+    overlay_path = Path.join(cwd, ".claude/OBSERVATORY_OVERLAY.md")
+
+    File.mkdir_p!(Path.dirname(overlay_path))
+    File.write!(overlay_path, overlay_content)
+
+    write_hooks(cwd, opts)
+    :ok
+  end
+
+  defp write_hooks(cwd, opts) do
+    settings_path = Path.join(cwd, ".claude/settings.local.json")
+
+    port =
+      Application.get_env(:observatory, ObservatoryWeb.Endpoint, [])
+      |> get_in([:http, :port]) || 4005
+
+    agent_name = opts[:name] || "agent"
+
+    hooks = %{
+      "hooks" => %{
+        "PostToolUse" => [
+          %{
+            "matcher" => "",
+            "hooks" => [
+              %{
+                "type" => "command",
+                "command" =>
+                  "curl -s -X POST http://localhost:#{port}/api/events " <>
+                    "-H 'Content-Type: application/json' " <>
+                    "-d '{\"event_type\": \"PostToolUse\", \"agent_name\": \"#{agent_name}\"}' " <>
+                    "> /dev/null 2>&1 || true"
+              }
+            ]
+          }
+        ]
+      }
+    }
+
+    existing =
+      case File.read(settings_path) do
+        {:ok, content} ->
+          case Jason.decode(content) do
+            {:ok, map} -> map
+            _ -> %{}
+          end
+
+        _ ->
+          %{}
+      end
+
+    merged = Map.merge(existing, hooks)
+
+    case Jason.encode(merged, pretty: true) do
+      {:ok, json} -> File.write!(settings_path, json)
+      _ -> :ok
+    end
   end
 end

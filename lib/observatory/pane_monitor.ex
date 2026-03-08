@@ -63,19 +63,15 @@ defmodule Observatory.PaneMonitor do
     end)
   end
 
-  # Resolve which channel to capture from and the appropriate capture function
-  defp resolve_capture_target(agent) do
-    cond do
-      agent.channels[:tmux] ->
-        {agent.channels[:tmux], &Tmux.capture_pane(&1, lines: @capture_lines)}
-
-      agent.channels[:ssh_tmux] ->
-        {agent.channels[:ssh_tmux], &SshTmux.capture_pane(&1, lines: @capture_lines)}
-
-      true ->
-        nil
-    end
+  defp resolve_capture_target(%{channels: %{tmux: target}}) when is_binary(target) do
+    {target, &Tmux.capture_pane(&1, lines: @capture_lines)}
   end
+
+  defp resolve_capture_target(%{channels: %{ssh_tmux: target}}) when is_binary(target) do
+    {target, &SshTmux.capture_pane(&1, lines: @capture_lines)}
+  end
+
+  defp resolve_capture_target(_), do: nil
 
   defp scan_agent(agent, tmux_target, capture_fn, state) do
     case capture_fn.(tmux_target) do

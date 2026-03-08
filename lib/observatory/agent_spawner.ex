@@ -1,23 +1,22 @@
 defmodule Observatory.AgentSpawner do
   @moduledoc """
-  Spawns Claude Code agents in isolated tmux sessions.
+  Spawns Claude Code agents in isolated tmux sessions with BEAM process backing.
 
-  Pipeline:
-    1. Create tmux session via observatory socket
-    2. Generate instruction overlay (CLAUDE.md) with role, task, file scope
-    3. Write overlay + settings.local.json hooks to worktree
-    4. Launch `claude` in the tmux session
-    5. Register in AgentRegistry
-
-  Inspired by Overstory's `ov sling` 14-step spawn pipeline.
+  Pipeline: validate -> write overlay -> create tmux session -> start AgentProcess -> register.
+  Supports remote spawning on connected BEAM nodes via `:host` option.
   """
+
   require Logger
 
+  alias Observatory.Fleet.AgentProcess
+  alias Observatory.Fleet.FleetSupervisor
+  alias Observatory.Fleet.HostRegistry
+  alias Observatory.Fleet.TeamSupervisor
+  alias Observatory.Gateway.AgentRegistry
   alias Observatory.Gateway.Channels.Tmux
+  alias Observatory.InstructionOverlay
 
   @observatory_socket Path.expand("~/.observatory/tmux/obs.sock")
-
-  alias Observatory.Fleet.HostRegistry
 
   @type spawn_opts :: %{
           optional(:name) => String.t(),
@@ -33,21 +32,18 @@ defmodule Observatory.AgentSpawner do
           optional(:host) => node()
         }
 
-  @doc """
-  Spawn a new Claude Code agent in a tmux session.
+  # ── Public API ──────────────────────────────────────────────────────
 
-  Returns `{:ok, %{session_name: String.t(), session_id: String.t()}}` or `{:error, reason}`.
-  """
+  @doc "Spawn a new Claude Code agent. Routes to local or remote node based on `:host` option."
   @spec spawn_agent(spawn_opts()) :: {:ok, map()} | {:error, term()}
-  def spawn_agent(opts) do
-    target_node = opts[:host] || Node.self()
-
-    if target_node != Node.self() and HostRegistry.available?(target_node) do
-      spawn_remote(target_node, opts)
-    else
-      spawn_local(opts)
+  def spawn_agent(%{host: target} = opts) when target != nil do
+    case HostRegistry.available?(target) do
+      true -> spawn_remote(target, opts)
+      false -> {:error, {:host_unavailable, target}}
     end
   end
+
+  def spawn_agent(opts), do: spawn_local(opts)
 
   @doc false
   def spawn_local(opts) do
@@ -56,70 +52,10 @@ defmodule Observatory.AgentSpawner do
     session_name = "obs-#{name}"
 
     with :ok <- validate_no_conflict(session_name),
-         :ok <- ensure_cwd(cwd),
-         :ok <- write_overlay(cwd, opts),
-         {:ok, _pid} <- create_tmux_session(session_name, cwd, opts) do
-      agent_id = session_name
-      capability = opts[:capability] || "builder"
-      role = capability_to_role(capability)
-
-      # Start a BEAM-native AgentProcess backed by the tmux session
-      process_opts = [
-        id: agent_id,
-        role: role,
-        team: opts[:team_name],
-        backend: %{type: :tmux, session: session_name},
-        capabilities: capabilities_for(capability),
-        metadata: %{cwd: cwd, model: opts[:model] || "sonnet", parent_id: opts[:parent_id]}
-      ]
-
-      case start_agent_process(process_opts, opts[:team_name]) do
-        {:ok, _pid} ->
-          Logger.info("AgentSpawner: Spawned agent #{name} (BEAM process + tmux) at #{cwd}")
-
-        {:error, reason} ->
-          Logger.warning("AgentSpawner: BEAM process failed (#{inspect(reason)}), tmux-only for #{name}")
-      end
-
-      # Also register in legacy AgentRegistry for backward compatibility
-      Observatory.Gateway.AgentRegistry.register_spawned(agent_id,
-        name: name,
-        role: role,
-        team: opts[:team_name],
-        cwd: cwd,
-        parent_id: opts[:parent_id],
-        host: Atom.to_string(Node.self()),
-        channels: %{tmux: session_name}
-      )
-
-      {:ok, %{session_name: session_name, agent_id: agent_id, name: name, cwd: cwd, node: Node.self()}}
-    end
-  end
-
-  defp spawn_remote(node, opts) do
-    Logger.info("AgentSpawner: Spawning agent on remote node #{node}")
-
-    case :rpc.call(node, __MODULE__, :spawn_local, [opts]) do
-      {:badrpc, reason} ->
-        Logger.error("AgentSpawner: Remote spawn failed on #{node}: #{inspect(reason)}")
-        {:error, {:remote_spawn_failed, node, reason}}
-
-      {:ok, result} ->
-        # Register in local (hub) AgentRegistry for visibility
-        Observatory.Gateway.AgentRegistry.register_spawned(result.agent_id,
-          name: result.name,
-          role: capability_to_role(opts[:capability] || "builder"),
-          team: opts[:team_name],
-          cwd: result.cwd,
-          parent_id: opts[:parent_id],
-          host: Atom.to_string(node),
-          channels: %{tmux: result.session_name}
-        )
-
-        {:ok, Map.put(result, :node, node)}
-
-      {:error, _reason} = error ->
-        error
+         :ok <- validate_cwd(cwd),
+         :ok <- InstructionOverlay.write_session_files(cwd, opts),
+         {:ok, _} <- create_tmux_session(session_name, cwd, opts) do
+      register_agent(session_name, name, cwd, opts)
     end
   end
 
@@ -130,24 +66,177 @@ defmodule Observatory.AgentSpawner do
     |> Enum.filter(&String.starts_with?(&1, "obs-"))
   end
 
-  @doc "Stop a spawned agent by sending /exit to its tmux session and terminating its BEAM process."
+  @doc "Stop a spawned agent by terminating its BEAM process and sending /exit to tmux."
   @spec stop_agent(String.t()) :: :ok | {:error, term()}
   def stop_agent(session_name) do
-    # Terminate the BEAM process if it exists
-    if Observatory.Fleet.AgentProcess.alive?(session_name) do
-      state = Observatory.Fleet.AgentProcess.get_state(session_name)
+    terminate_beam_process(session_name)
+    send_tmux_exit(session_name)
+  end
 
-      if state.team do
-        Observatory.Fleet.TeamSupervisor.terminate_member(state.team, session_name)
-      else
-        Observatory.Fleet.FleetSupervisor.terminate_agent(session_name)
-      end
+  # ── Private: Spawn Pipeline ────────────────────────────────────────
+
+  defp spawn_remote(node, opts) do
+    Logger.info("[AgentSpawner] Spawning on remote node #{node}")
+
+    case :rpc.call(node, __MODULE__, :spawn_local, [opts]) do
+      {:badrpc, reason} ->
+        {:error, {:remote_spawn_failed, node, reason}}
+
+      {:ok, result} ->
+        host = node_to_host(node)
+
+        AgentRegistry.register_spawned(result.agent_id,
+          name: result.name,
+          role: capability_to_role(opts[:capability] || "builder"),
+          team: opts[:team_name],
+          cwd: result.cwd,
+          parent_id: opts[:parent_id],
+          host: Atom.to_string(node),
+          channels: %{ssh_tmux: "#{result.session_name}@#{host}"}
+        )
+
+        {:ok, Map.put(result, :node, node)}
+
+      {:error, _} = error ->
+        error
     end
+  end
 
-    # Send /exit to the tmux session
+  defp register_agent(session_name, name, cwd, opts) do
+    capability = opts[:capability] || "builder"
+    role = capability_to_role(capability)
+
+    process_opts = [
+      id: session_name,
+      role: role,
+      team: opts[:team_name],
+      backend: %{type: :tmux, session: session_name},
+      capabilities: capabilities_for(capability),
+      metadata: %{cwd: cwd, model: opts[:model] || "sonnet", parent_id: opts[:parent_id]}
+    ]
+
+    start_agent_process(process_opts, opts[:team_name], name, cwd)
+
+    AgentRegistry.register_spawned(session_name,
+      name: name,
+      role: role,
+      team: opts[:team_name],
+      cwd: cwd,
+      parent_id: opts[:parent_id],
+      host: Atom.to_string(Node.self()),
+      channels: %{tmux: session_name}
+    )
+
+    {:ok, %{session_name: session_name, agent_id: session_name, name: name, cwd: cwd, node: Node.self()}}
+  end
+
+  defp start_agent_process(process_opts, nil, name, cwd) do
+    case FleetSupervisor.spawn_agent(process_opts) do
+      {:ok, _pid} -> Logger.info("[AgentSpawner] Spawned #{name} (BEAM + tmux) at #{cwd}")
+      {:error, reason} -> Logger.warning("[AgentSpawner] BEAM process failed: #{inspect(reason)}")
+    end
+  end
+
+  defp start_agent_process(process_opts, team_name, name, cwd) do
+    ensure_team(team_name)
+
+    case TeamSupervisor.spawn_member(team_name, process_opts) do
+      {:ok, _pid} -> Logger.info("[AgentSpawner] Spawned #{name} in team #{team_name} at #{cwd}")
+      {:error, reason} -> Logger.warning("[AgentSpawner] BEAM process failed: #{inspect(reason)}")
+    end
+  end
+
+  defp ensure_team(name) do
+    case TeamSupervisor.exists?(name) do
+      true -> :ok
+      false -> FleetSupervisor.create_team(name: name)
+    end
+  end
+
+  # ── Private: Validation ────────────────────────────────────────────
+
+  defp validate_no_conflict(session_name) do
+    case Tmux.available?(session_name) do
+      true -> {:error, {:session_exists, session_name}}
+      false -> :ok
+    end
+  end
+
+  defp validate_cwd(cwd) do
+    case File.dir?(cwd) do
+      true -> :ok
+      false -> {:error, {:cwd_not_found, cwd}}
+    end
+  end
+
+  # ── Private: Tmux Session ─────────────────────────────────────────
+
+  defp create_tmux_session(session_name, cwd, opts) do
+    command = build_command(opts)
+    args = tmux_server_args() ++ ["new-session", "-d", "-s", session_name, "-c", cwd, command]
+
+    case System.cmd("tmux", args, stderr_to_stdout: true) do
+      {_, 0} -> {:ok, session_name}
+      {output, code} -> {:error, {:tmux_create_failed, output, code}}
+    end
+  end
+
+  defp build_command(opts) do
+    model = opts[:model] || "sonnet"
+    capability = opts[:capability] || "builder"
+    claude_args = build_claude_args(model, capability, opts)
+    "env -u CLAUDECODE claude #{Enum.join(claude_args, " ")}"
+  end
+
+  defp build_claude_args(model, capability, opts) do
+    ["--model", model]
+    |> add_permission_args(capability)
+    |> add_task_args(opts[:task])
+  end
+
+  defp add_permission_args(args, cap) when cap in ["builder", "lead"],
+    do: args ++ ["--dangerously-skip-permissions"]
+
+  defp add_permission_args(args, "scout"),
+    do: args ++ ["--allowedTools", "Read,Glob,Grep,Bash(read-only)"]
+
+  defp add_permission_args(args, _), do: args
+
+  defp add_task_args(args, nil), do: args
+
+  defp add_task_args(args, task) do
+    subject = task["subject"] || task[:subject]
+    description = task["description"] || task[:description] || ""
+    args ++ ["-p", "\"Work on task: #{subject}. #{description}\""]
+  end
+
+  defp tmux_server_args do
+    case File.exists?(@observatory_socket) do
+      true -> ["-S", @observatory_socket]
+      false -> ["-L", "obs"]
+    end
+  end
+
+  # ── Private: Stop ──────────────────────────────────────────────────
+
+  defp terminate_beam_process(session_name) do
+    case AgentProcess.alive?(session_name) do
+      false ->
+        :ok
+
+      true ->
+        state = AgentProcess.get_state(session_name)
+        do_terminate(state, session_name)
+    end
+  end
+
+  defp do_terminate(%{team: nil}, session_name), do: FleetSupervisor.terminate_agent(session_name)
+  defp do_terminate(%{team: team}, session_name), do: TeamSupervisor.terminate_member(team, session_name)
+
+  defp send_tmux_exit(session_name) do
     case Tmux.run_command(["send-keys", "-t", session_name, "/exit", "Enter"]) do
       {_, 0} ->
-        Logger.info("AgentSpawner: Stopped #{session_name}")
+        Logger.info("[AgentSpawner] Stopped #{session_name}")
         :ok
 
       {output, code} ->
@@ -155,164 +244,23 @@ defmodule Observatory.AgentSpawner do
     end
   end
 
-  # ── Private ──────────────────────────────────────────────────────────
-
-  defp validate_no_conflict(session_name) do
-    if Tmux.available?(session_name) do
-      {:error, {:session_exists, session_name}}
-    else
-      :ok
-    end
-  end
-
-  defp ensure_cwd(cwd) do
-    if File.dir?(cwd), do: :ok, else: {:error, {:cwd_not_found, cwd}}
-  end
-
-  defp write_overlay(cwd, opts) do
-    overlay_content = Observatory.InstructionOverlay.generate(opts)
-    overlay_path = Path.join(cwd, ".claude/OBSERVATORY_OVERLAY.md")
-
-    File.mkdir_p!(Path.dirname(overlay_path))
-    File.write!(overlay_path, overlay_content)
-
-    # Write hooks that point back to Observatory
-    write_hooks(cwd, opts)
-
-    :ok
-  end
-
-  defp write_hooks(cwd, opts) do
-    settings_path = Path.join(cwd, ".claude/settings.local.json")
-
-    port = Application.get_env(:observatory, ObservatoryWeb.Endpoint, [])
-           |> get_in([:http, :port]) || 4005
-
-    agent_name = opts[:name] || "agent"
-
-    hooks = %{
-      "hooks" => %{
-        "PostToolUse" => [
-          %{
-            "matcher" => "",
-            "hooks" => [
-              %{
-                "type" => "command",
-                "command" => "curl -s -X POST http://localhost:#{port}/api/events -H 'Content-Type: application/json' -d '{\"event_type\": \"PostToolUse\", \"agent_name\": \"#{agent_name}\"}' > /dev/null 2>&1 || true"
-              }
-            ]
-          }
-        ]
-      }
-    }
-
-    # Merge with existing settings if present
-    existing =
-      case File.read(settings_path) do
-        {:ok, content} ->
-          case Jason.decode(content) do
-            {:ok, map} -> map
-            _ -> %{}
-          end
-        _ -> %{}
-      end
-
-    merged = Map.merge(existing, hooks)
-
-    case Jason.encode(merged, pretty: true) do
-      {:ok, json} -> File.write!(settings_path, json)
-      _ -> :ok
-    end
-  end
-
-  defp create_tmux_session(session_name, cwd, opts) do
-    model = opts[:model] || "sonnet"
-    capability = opts[:capability] || "builder"
-
-    # Build claude command with appropriate flags
-    # env -u CLAUDECODE ensures the spawned agent gets its own identity
-    # instead of being treated as nested inside the parent session
-    claude_args = build_claude_args(model, capability, cwd, opts)
-    command = "env -u CLAUDECODE claude #{Enum.join(claude_args, " ")}"
-
-    server_args = tmux_server_args()
-
-    args =
-      server_args ++
-        ["new-session", "-d", "-s", session_name, "-c", cwd, command]
-
-    case System.cmd("tmux", args, stderr_to_stdout: true) do
-      {_, 0} ->
-        {:ok, session_name}
-
-      {output, code} ->
-        Logger.error("AgentSpawner: Failed to create tmux session: #{output}")
-        {:error, {:tmux_create_failed, output, code}}
-    end
-  end
-
-  defp build_claude_args(model, capability, _cwd, opts) do
-    args = ["--model", model]
-
-    # Set permission mode based on capability
-    args =
-      case capability do
-        cap when cap in ["builder", "lead"] -> args ++ ["--dangerously-skip-permissions"]
-        "scout" -> args ++ ["--allowedTools", "Read,Glob,Grep,Bash(read-only)"]
-        _ -> args
-      end
-
-    # Add initial prompt if task provided
-    args =
-      if opts[:task] do
-        task = opts[:task]
-        prompt = "Work on task: #{task["subject"] || task[:subject]}. #{task["description"] || task[:description] || ""}"
-        args ++ ["-p", "\"#{prompt}\""]
-      else
-        args
-      end
-
-    args
-  end
-
-  defp tmux_server_args do
-    if File.exists?(@observatory_socket) do
-      ["-S", @observatory_socket]
-    else
-      ["-L", "obs"]
-    end
-  end
-
-  defp start_agent_process(process_opts, nil) do
-    # Standalone agent -- direct child of FleetSupervisor
-    Observatory.Fleet.FleetSupervisor.spawn_agent(process_opts)
-  end
-
-  defp start_agent_process(process_opts, team_name) do
-    # Team member -- ensure team exists, then spawn under it
-    unless Observatory.Fleet.TeamSupervisor.exists?(team_name) do
-      Observatory.Fleet.FleetSupervisor.create_team(name: team_name)
-    end
-
-    Observatory.Fleet.TeamSupervisor.spawn_member(team_name, process_opts)
-  end
+  # ── Private: Role Mapping ──────────────────────────────────────────
 
   defp capabilities_for("lead"), do: [:read, :write, :spawn, :assign, :escalate]
   defp capabilities_for("coordinator"), do: [:read, :write, :spawn, :assign, :escalate, :kill]
   defp capabilities_for("scout"), do: [:read]
-  defp capabilities_for("reviewer"), do: [:read, :write]
-  defp capabilities_for("builder"), do: [:read, :write]
   defp capabilities_for(_), do: [:read, :write]
 
   defp capability_to_role("lead"), do: :lead
   defp capability_to_role("coordinator"), do: :coordinator
-  defp capability_to_role("scout"), do: :worker
-  defp capability_to_role("reviewer"), do: :worker
-  defp capability_to_role("builder"), do: :worker
   defp capability_to_role(_), do: :worker
 
   defp generate_name(capability) do
     suffix = :rand.uniform(9999) |> Integer.to_string() |> String.pad_leading(4, "0")
     "#{capability}-#{suffix}"
+  end
+
+  defp node_to_host(node) do
+    node |> Atom.to_string() |> String.split("@") |> List.last()
   end
 end

@@ -47,10 +47,14 @@ defmodule Observatory.Fleet.AgentProcess.Delivery do
     Observatory.Gateway.Channels.Tmux.deliver(session, %{content: content})
   end
 
-  def deliver(%{type: :ssh_tmux} = backend, msg) do
-    address = "#{backend.session}@#{backend.host}"
+  def deliver(%{type: :ssh_tmux, address: address}, msg) do
     content = msg[:content] || inspect(msg)
     Observatory.Gateway.Channels.SshTmux.deliver(address, %{content: content})
+  end
+
+  def deliver(%{type: :ssh_tmux, session: session, host: host}, msg) do
+    content = msg[:content] || inspect(msg)
+    Observatory.Gateway.Channels.SshTmux.deliver("#{session}@#{host}", %{content: content})
   end
 
   def deliver(%{type: :webhook, url: url}, msg) do
