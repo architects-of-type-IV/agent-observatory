@@ -61,6 +61,38 @@
 - **FleetSupervisor** DynamicSupervisor: top-level
 - **PubSub topics**: "fleet:lifecycle", "messages:stream"
 
+## Gateway Registry Decomposition (2026-03-09, IN PROGRESS)
+AgentRegistry was a 894-line god module doing 6 jobs. Decomposing into focused modules:
+
+**Completed extractions:**
+- `Gateway.OutputCapture` (108 lines) -- polls tmux pane output for watched agents, broadcasts changes. Own GenServer in GatewaySupervisor.
+- `Gateway.TmuxDiscovery` (115 lines) -- polls tmux sessions, auto-registers unknown ones, wires tmux channels to agents. Own GenServer in GatewaySupervisor.
+
+**Remaining in AgentRegistry (767 lines):**
+- Event registration (core, stays)
+- Team sync + identity merge (~130 lines, tightly coupled to ETS)
+- Tree API: parent/child/chain_of_command/reparent (~100 lines, DEAD CODE -- zero external callers except register_spawned)
+- Sweep/lifecycle (~50 lines)
+- Channel resolution (~30 lines, core)
+- Lookup helpers (~40 lines, core)
+- BEAM process bridge (~40 lines, could move to FleetSupervisor)
+
+**New public APIs on AgentRegistry:**
+- `list_all_raw/0` -- returns raw `{session_id, agent}` ETS tuples
+- `register_tmux_session/1` -- registers a tmux-discovered session
+- `update_tmux_channel/2` -- updates tmux channel for an agent
+- `broadcast_update/0` -- broadcasts registry change notification
+
+**Next: remove dead tree code, then focus on distribution support.**
+
+## Distribution Architecture (PLANNED)
+Target: multi-host agent fleet via BEAM clustering.
+- Each host runs tmux with local `obs.sock`, agents are AgentProcesses on that node
+- Observatory BEAM node is the coordination hub
+- `send(pid)` works across connected BEAM nodes (PIDs encode node ID)
+- Registry, PubSub, supervision all distribution-aware in OTP
+- Gaps to close: host registry, remote spawning via AgentSpawner, FleetSupervisor multi-node
+
 ## Ash Domain Style
 - Alias resources at top of domain module
 - Short references in resources/tools blocks

@@ -1,34 +1,35 @@
 # ICHOR IV (formerly Observatory) - Handoff
 
-## Current Status: Archon Domain + AgentTools Refactor (2026-03-08)
+## Current Status: Registry Decomposition + Distribution Prep (2026-03-09)
 
-### Just Completed: Archon Domain + Tool Splits
+### Just Completed
 
-1. **Archon domain** -- the Architect's agent interface to ICHOR IV
-   - `Observatory.Archon` parent domain (for future resources)
-   - `Observatory.Archon.Tools` subdomain with AshAi (7 tools)
-   - 4 focused resources: Agents, Teams, Messages, System
-   - All in-process calls (no HTTP overhead) to AgentRegistry, TeamWatcher, Mailbox, Tmux
+1. **Feed UI improvements** -- compacted session headers, stripped pill badges to plain text, markdown-rendered agent responses (Earmark dependency added)
 
-2. **AgentTools refactor** -- split 2 bloated files (726 lines) into 7 focused resources (498 lines)
-   - Inbox (check, acknowledge, send), Tasks, Memory (core ops), Recall, Archival, Agents
-   - Domain uses alias pattern, all resources under 120 lines
+2. **Launch button fix** -- `handle_launch_session` now uses `AgentSpawner.spawn_agent/1` (full pipeline: tmux + overlay + BEAM process + registry). Added `env -u CLAUDECODE` for fresh session identity.
 
-3. **NudgeEscalator fix** -- skip operator agent (role: :operator) from stale detection
-   - Operator is the Architect (human), not an autonomous agent
-   - Was being escalated to zombie (level 3) every time
+3. **AgentRegistry decomposition** (IN PROGRESS) -- extracted 2 modules from 894-line god module:
+   - `Gateway.OutputCapture` (108 lines) -- terminal output polling
+   - `Gateway.TmuxDiscovery` (115 lines) -- tmux session discovery + channel wiring
+   - Both are GenServers in GatewaySupervisor
+   - AgentRegistry down to 767 lines, still has dead tree code to remove
 
-4. **Killed rogue scheduled task** -- PID 15813, Claude session sending "ping the coordinators of active teams" every 60s
+### Next Steps (ordered)
 
-5. **Disabled SQL query debug log** -- `log: false` in dev.exs Repo config
+1. **Remove dead tree code** -- `children/1`, `parent/1`, `chain_of_command/1`, `reparent/2` and helpers have zero external callers
+2. **Distribution support** -- BEAM clustering for multi-host agent fleet:
+   - Host registry (which remote servers exist)
+   - AgentSpawner remote spawning via SSH
+   - FleetSupervisor multi-node awareness
+   - PubSub already distribution-aware
 
-### Prior: Workshop Refactor + Ash-Disciplined Refactor (Phases 1-7)
+### Prior Work
+- Archon domain + AgentTools refactor (2026-03-08)
+- Workshop refactor + Ash-disciplined refactor (Phases 1-7)
 
-### Remaining
-- **Memories integration** -- read Zep docs, test Memories API from Observatory, wire into Archon tools
-- **Archon LLM** -- connect Archon to Claude API with AshAi tools
-- **Archon chat UI** -- dashboard drawer/panel for conversing with Archon
-- **Phase 8**: ICHOR IV rename (deferred -- Archon will be built as a real agent, not a rename of Operator)
+### Remaining (backlog)
+- Memories integration, Archon LLM, Archon chat UI
+- Phase 8: ICHOR IV rename (deferred)
 
 ### Build Status
 `mix compile --warnings-as-errors` clean.

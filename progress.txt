@@ -1,21 +1,22 @@
 ICHOR IV Progress (formerly Observatory)
 ========================================
 
-## Current: Archon Domain + AgentTools Refactor (2026-03-08)
+## Current: Registry Decomposition + Distribution Prep (2026-03-09)
 
 ### This Session
-- [x] NudgeEscalator: skip operator agent from stale detection
-- [x] Killed rogue scheduled task (PID 15813, "ping coordinators" loop)
-- [x] Disabled SQL query debug log (log: false in dev.exs)
-- [x] Created Observatory.Archon parent domain
-- [x] Created Observatory.Archon.Tools AshAi subdomain (7 tools)
-  - Tools.Agents: list_agents, agent_status
-  - Tools.Teams: list_teams
-  - Tools.Messages: recent_messages, send_message
-  - Tools.System: system_health, tmux_sessions
-- [x] Refactored AgentTools domain (726->498 lines, 2->7 files)
-  - Inbox, Tasks, Memory, Recall, Archival, Agents
+- [x] Feed UI: compacted session headers, plain text badges, markdown responses (Earmark)
+- [x] Launch button: uses AgentSpawner pipeline, env -u CLAUDECODE for session identity
+- [x] Extracted Gateway.OutputCapture (108 lines) from AgentRegistry
+- [x] Extracted Gateway.TmuxDiscovery (115 lines) from AgentRegistry
+- [x] AgentRegistry: 894 -> 767 lines, new public APIs for extracted modules
+- [ ] Remove dead tree code (children/parent/chain_of_command/reparent)
+- [ ] Distribution support: host registry, remote spawning, multi-node fleet
 - [x] Clean compile: mix compile --warnings-as-errors
+
+### Prior Session: Archon Domain + AgentTools Refactor (2026-03-08)
+- [x] Archon domain + Tools subdomain (7 tools)
+- [x] AgentTools refactor (726->498 lines)
+- [x] NudgeEscalator fix, rogue task killed, SQL debug disabled
 
 ### Prior Session: Workshop Refactor + Phase 6
 - [x] Phase 6: EventController extraction (277->66 lines)

@@ -16,12 +16,14 @@ defmodule Observatory.GatewaySupervisor do
   def init(_opts) do
     children = [
       {Observatory.Gateway.AgentRegistry, []},
+      {Observatory.Gateway.TmuxDiscovery, []},
       {Observatory.Gateway.EntropyTracker, []},
       {Observatory.Gateway.CapabilityMap, []},
       {Observatory.Gateway.HeartbeatManager, []},
       {Observatory.Gateway.CronScheduler, []},
       {Observatory.Gateway.WebhookRouter, []},
-      {Observatory.Gateway.HITLRelay, []}
+      {Observatory.Gateway.HITLRelay, []},
+      {Observatory.Gateway.OutputCapture, []}
     ]
 
     Supervisor.init(children, strategy: :rest_for_one)

@@ -9,7 +9,6 @@ defmodule Observatory.Gateway.AgentRegistry do
   require Logger
 
   @table :gateway_agent_registry
-  @tmux_poll_interval 5_000
   @ended_ttl_seconds 1_800
   @stale_ttl_seconds 3_600
 
@@ -44,6 +43,44 @@ defmodule Observatory.Gateway.AgentRegistry do
     :ets.tab2list(@table) |> Enum.map(&elem(&1, 1))
   rescue
     ArgumentError -> []
+  end
+
+  @doc "List all raw ETS entries as `{session_id, agent}` tuples."
+  def list_all_raw do
+    :ets.tab2list(@table)
+  rescue
+    ArgumentError -> []
+  end
+
+  @doc "Register a tmux session discovered by TmuxDiscovery."
+  def register_tmux_session(session_name) do
+    agent =
+      default_agent(session_name)
+      |> Map.put(:id, session_name)
+      |> Map.put(:channels, %{tmux: session_name, mailbox: session_name, webhook: nil})
+
+    :ets.insert(@table, {session_name, agent})
+  rescue
+    ArgumentError -> :ok
+  end
+
+  @doc "Update the tmux channel for an existing agent."
+  def update_tmux_channel(session_id, tmux_target) do
+    case :ets.lookup(@table, session_id) do
+      [{^session_id, agent}] ->
+        updated_channels = Map.put(agent.channels, :tmux, tmux_target)
+        :ets.insert(@table, {session_id, %{agent | channels: updated_channels}})
+
+      [] ->
+        :ok
+    end
+  rescue
+    ArgumentError -> :ok
+  end
+
+  @doc "Broadcast a registry change notification."
+  def broadcast_update do
+    broadcast_registry_update()
   end
 
   @doc """
@@ -271,7 +308,6 @@ defmodule Observatory.Gateway.AgentRegistry do
     # Defer operator AgentProcess creation until FleetSupervisor is up
     Process.send_after(self(), :ensure_operator_process, 1_000)
 
-    schedule_tmux_poll()
     {:ok, %{}}
   end
 
@@ -407,12 +443,6 @@ defmodule Observatory.Gateway.AgentRegistry do
     {:noreply, state}
   end
 
-  def handle_info(:poll_tmux, state) do
-    poll_tmux_sessions()
-    schedule_tmux_poll()
-    {:noreply, state}
-  end
-
   def handle_info(:ensure_operator_process, state) do
     ensure_agent_process("operator", role: :operator)
     {:noreply, state}
@@ -507,86 +537,6 @@ defmodule Observatory.Gateway.AgentRegistry do
   def derive_role("coordinator"), do: :coordinator
   def derive_role(_), do: :worker
 
-  defp poll_tmux_sessions do
-    tmux_sessions = Observatory.Gateway.Channels.Tmux.list_sessions()
-    tmux_panes = Observatory.Gateway.Channels.Tmux.list_panes()
-    all_entries = :ets.tab2list(@table)
-    known_ids = all_entries |> Enum.map(fn {_sid, a} -> a.id end) |> MapSet.new()
-
-    # Collect all tmux targets already wired to existing agents
-    known_tmux_targets =
-      all_entries
-      |> Enum.flat_map(fn {_sid, a} ->
-        case a.channels.tmux do
-          nil -> []
-          target -> [target]
-        end
-      end)
-      |> MapSet.new()
-
-    # Auto-register tmux sessions not yet in the registry
-    # Skip: Observatory infrastructure sessions, already-known IDs, already-wired targets
-    for session_name <- tmux_sessions,
-        not observatory_session?(session_name),
-        not MapSet.member?(known_ids, session_name),
-        not MapSet.member?(known_tmux_targets, session_name),
-        is_nil(get(session_name)) do
-      agent =
-        default_agent(session_name)
-        |> Map.put(:id, session_name)
-        |> Map.put(:channels, %{tmux: session_name, mailbox: session_name, webhook: nil})
-
-      :ets.insert(@table, {session_name, agent})
-    end
-
-    # Enrich existing entries with tmux channel info
-    # Match by: exact session name, pane ID from team config, or fuzzy name match
-    # Reuse all_entries from above -- newly auto-registered sessions already have tmux set
-    all_entries
-    |> Enum.each(fn {session_id, agent} ->
-      current_tmux = agent.channels.tmux
-
-      # Skip if already has a valid tmux target
-      unless current_tmux && tmux_target_alive?(current_tmux, tmux_sessions, tmux_panes) do
-        matched_tmux = find_tmux_target(agent, tmux_sessions, tmux_panes)
-
-        if matched_tmux && matched_tmux != current_tmux do
-          updated_channels = Map.put(agent.channels, :tmux, matched_tmux)
-          :ets.insert(@table, {session_id, %{agent | channels: updated_channels}})
-        end
-      end
-    end)
-
-    broadcast_registry_update()
-  end
-
-  defp find_tmux_target(agent, sessions, panes) do
-    # 1. Exact session name match
-    exact = Enum.find(sessions, &(&1 == agent.id))
-
-    if exact do
-      exact
-    else
-      # 2. Fuzzy session name match
-      Enum.find(sessions, fn s ->
-        String.starts_with?(s, agent.id) or String.contains?(s, agent.id)
-      end)
-      # 3. Check if any pane title contains agent name
-      || Enum.find_value(panes, fn p ->
-        if String.contains?(p.title || "", agent.id), do: p.pane_id
-      end)
-    end
-  end
-
-  defp tmux_target_alive?(target, sessions, panes) do
-    target in sessions or Enum.any?(panes, &(&1.pane_id == target))
-  end
-
-  # Skip Observatory infrastructure tmux sessions (the dev server, launched sessions, numeric indices)
-  defp observatory_session?("obs"), do: true
-  defp observatory_session?("obs-" <> _), do: true
-  defp observatory_session?(name), do: match?({_, ""}, Integer.parse(name))
-
   # Prefer tmux_pane_id from team config, fall back to existing channel value
   defp resolve_tmux_target(nil, existing), do: existing
   defp resolve_tmux_target("", existing), do: existing
@@ -679,9 +629,6 @@ defmodule Observatory.Gateway.AgentRegistry do
   defp is_uuid?(str) when is_binary(str), do: match?({:ok, _}, Ecto.UUID.cast(str))
   defp is_uuid?(_), do: false
 
-  defp schedule_tmux_poll do
-    Process.send_after(self(), :poll_tmux, @tmux_poll_interval)
-  end
 
   defp parse_channel("agent:" <> name), do: {:agent, name}
   defp parse_channel("session:" <> sid), do: {:session, sid}
@@ -761,7 +708,7 @@ defmodule Observatory.Gateway.AgentRegistry do
           :ets.delete(@table, session_id)
 
         # Sweep Observatory infrastructure sessions and non-UUID standalones (test probes)
-        observatory_session?(session_id) ->
+        Observatory.Gateway.TmuxDiscovery.infrastructure_session?(session_id) ->
           :ets.delete(@table, session_id)
 
         agent.role == :standalone && is_nil(agent.team) && not is_uuid?(session_id) ->
