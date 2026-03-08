@@ -1,43 +1,31 @@
 ICHOR IV Progress (formerly Observatory)
 ========================================
 
-## Current: BEAM-Native Agent Architecture (2026-03-08)
+## Current: Workshop Ash Persistence (2026-03-08)
 
-### This Session: Style Guide Refactor + Domain Audit
-- [x] Split agent_process.ex (302->229): extracted AgentProcess.Delivery (76 lines, pure/stateless)
-- [x] Added @doc/@spec to all public functions (11+7+5+3 = 26 functions annotated)
-- [x] Added @spec to all private functions
-- [x] Added @type definitions (status, t)
-- [x] Fixed backend_from_channels: pattern matching instead of cond
-- [x] Fixed Team resource :source constraint: added :beam
-- [x] Fixed update_registry_meta/4 -> update_registry/2 (args <= 3 rule)
-- [x] Audited all modules against Elixir style guide
-- [x] Read all ADRs (001, 002, 023, 024, 025)
-- [x] Mapped current Ash domain model (5 domains, read-only Fleet gap identified)
-- [x] Designed target: Fleet generic actions + code interfaces for write operations
-- [ ] NEXT: Implement Ash generic actions on Fleet.Agent and Fleet.Team
-
-### Prior This Session: Type IV Foundation
-- [x] ADR-023: BEAM-native agent processes (GenServer + Registry)
-- [x] ADR-024: Team supervision trees (DynamicSupervisor per team)
-- [x] ADR-025: Native BEAM messaging (single delivery path)
-- [x] AgentProcess GenServer: PID identity, process mailbox, backend-pluggable delivery
-- [x] TeamSupervisor DynamicSupervisor: configurable restart strategies
-- [x] FleetSupervisor: top-level DynamicSupervisor
-- [x] Two Elixir.Registry instances wired into application.ex
-- [x] ensure_agent_process bridge in AgentRegistry.register_from_event
-- [x] Operator.send tries native delivery first
-- [x] AgentSpawner creates tmux + BEAM process
-- [x] LoadAgents/LoadTeams merge BEAM processes
-- [x] AgentTools.Inbox reads from AgentProcess first
+### This Session: Workshop Blueprint UI + Persistence
+- [x] Created 4 Workshop Ash resources: TeamBlueprint, AgentBlueprint, SpawnLink, CommRule
+- [x] manage_relationship(:direct_control) for nested CRUD through parent actions
+- [x] Generated + applied migration (20260308152059_create_workshop_blueprints.exs)
+- [x] Rewrote DashboardWorkshopHandlers with auto_save persistence on every mutation
+- [x] Canvas <-> Ash mapping (slot/canvas_x/canvas_y/from_slot/to_slot)
+- [x] Event delegation: "ws_" prefix from DashboardLive -> WorkshopHandlers
+- [x] Added ws_blueprint_id + ws_blueprints to DashboardState.default_assigns
+- [x] Added Saved Blueprints panel to workshop_view.html.heex
+- [x] Load blueprints from SQLite on workshop nav entry
+- [x] Ash.load!(:agent_blueprints) for agent count display
 - [x] Clean compile: mix compile --warnings-as-errors
+- [ ] NEXT: Verify end-to-end persistence works in browser
+- [ ] NEXT: Continue with Ash Fleet domain generic actions (task 42)
 
-### Prior: Vendor-Agnostic Fleet Control (2026-03-08)
-- [x] ADR-001 + ADR-002 (vendor-agnostic architecture, ICHOR IV identity)
+### Prior Session: BEAM-Native Fleet + Style Guide (2026-03-08)
+- [x] Split agent_process.ex (302->229): extracted AgentProcess.Delivery (76 lines)
+- [x] Added @doc/@spec/@type to all BEAM-native public/private functions
+- [x] ADRs 023/024/025 for BEAM-native architecture
+- [x] AgentProcess GenServer, TeamSupervisor, FleetSupervisor, Registry instances
+- [x] Operator.send native delivery, AgentSpawner BEAM+tmux, LoadAgents/LoadTeams merge
+
+### Prior: Vendor-Agnostic + Dashboard (2026-03-07/08)
 - [x] Channel registry, PaneMonitor, SSH tmux, host+tree fields
 - [x] Unified agent index, cost ingestion, HITL controls, tmux multi-panel
-
-### Prior: Dashboard + Ash Refactor (2026-03-07)
-- [x] Fleet/Activity Ash domains with DataLayer.Simple
-- [x] 3-column layout, FleetHelpers, messaging architecture doc
-- [x] DashboardState.recompute/1, default_assigns/1
+- [x] Fleet/Activity Ash domains, 3-column layout, FleetHelpers

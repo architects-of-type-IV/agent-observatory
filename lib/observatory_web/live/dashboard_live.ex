@@ -17,6 +17,7 @@ defmodule ObservatoryWeb.DashboardLive do
   import ObservatoryWeb.DashboardGatewayHandlers
   import ObservatoryWeb.DashboardSessionControlHandlers
   import ObservatoryWeb.DashboardTmuxHandlers
+  import ObservatoryWeb.DashboardWorkshopHandlers
   import ObservatoryWeb.DashboardState, only: [recompute: 1, default_assigns: 1]
 
   alias ObservatoryWeb.DashboardPhase5Handlers, as: P5
@@ -62,10 +63,23 @@ defmodule ObservatoryWeb.DashboardLive do
       case params["view"] do
         "fleet" -> :fleet
         "protocols" -> :fleet
+        "workshop" -> :workshop
         _ -> :pipeline
       end
 
-    {:noreply, assign(socket, :nav_view, nav_view)}
+    socket = assign(socket, :nav_view, nav_view)
+
+    # Push initial canvas state when entering workshop
+    socket =
+      if nav_view == :workshop do
+        socket
+        |> assign(:ws_blueprints, list_blueprints())
+        |> push_ws_state()
+      else
+        socket
+      end
+
+    {:noreply, socket}
   end
 
   # ── handle_info ──────────────────────────────────────────────────────
@@ -524,6 +538,12 @@ defmodule ObservatoryWeb.DashboardLive do
     expanded = s.assigns.expanded_protocol_items
     expanded = if MapSet.member?(expanded, id), do: MapSet.delete(expanded, id), else: MapSet.put(expanded, id)
     {:noreply, assign(s, :expanded_protocol_items, expanded)}
+  end
+
+  # ── handle_event: workshop (full-module delegation) ─────────────────
+
+  def handle_event("ws_" <> _ = e, p, s) do
+    ObservatoryWeb.DashboardWorkshopHandlers.handle_event(e, p, s)
   end
 
   # ── handle_event: navigation (full-module, cannot import) ───────────
