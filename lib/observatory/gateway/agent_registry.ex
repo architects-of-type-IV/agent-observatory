@@ -278,6 +278,9 @@ defmodule Observatory.Gateway.AgentRegistry do
 
     Phoenix.PubSub.subscribe(Observatory.PubSub, "teams:update")
 
+    # Defer operator AgentProcess creation until FleetSupervisor is up
+    Process.send_after(self(), :ensure_operator_process, 1_000)
+
     schedule_tmux_poll()
     {:ok, %{watched: MapSet.new(), last_capture: %{}}}
   end
@@ -298,6 +301,14 @@ defmodule Observatory.Gateway.AgentRegistry do
       updated = maybe_absorb_team_entry(session_id, updated)
 
       :ets.insert(@table, {session_id, updated})
+
+      # Ensure a BEAM-native AgentProcess exists for this agent
+      ensure_agent_process(session_id,
+        role: updated.role || :worker,
+        team: updated.team,
+        backend: backend_from_channels(updated.channels)
+      )
+
       broadcast_registry_update()
     end
 
@@ -435,6 +446,11 @@ defmodule Observatory.Gateway.AgentRegistry do
     end
 
     {:noreply, %{state | last_capture: new_last}}
+  end
+
+  def handle_info(:ensure_operator_process, state) do
+    ensure_agent_process("operator", role: :operator)
+    {:noreply, state}
   end
 
   def handle_info(_msg, state), do: {:noreply, state}
@@ -838,4 +854,38 @@ defmodule Observatory.Gateway.AgentRegistry do
   defp sweep_stale_captures(watched, last_capture) do
     Map.filter(last_capture, fn {sid, _} -> MapSet.member?(watched, sid) end)
   end
+
+  # ── BEAM Process Bridge ─────────────────────────────────────────────
+
+  defp ensure_agent_process(id, opts) do
+    unless Observatory.Fleet.AgentProcess.alive?(id) do
+      process_opts = [
+        id: id,
+        role: opts[:role] || :worker,
+        team: opts[:team],
+        backend: opts[:backend]
+      ]
+
+      case Observatory.Fleet.FleetSupervisor.spawn_agent(process_opts) do
+        {:ok, _pid} -> :ok
+        {:error, {:already_started, _pid}} -> :ok
+        {:error, reason} ->
+          Logger.debug("[AgentRegistry] Could not start AgentProcess for #{id}: #{inspect(reason)}")
+      end
+    end
+  rescue
+    # FleetSupervisor may not be started yet during init
+    _ -> :ok
+  end
+
+  defp backend_from_channels(channels) when is_map(channels) do
+    cond do
+      channels[:tmux] -> %{type: :tmux, session: channels[:tmux]}
+      channels[:ssh_tmux] -> %{type: :ssh_tmux, session: channels[:ssh_tmux]}
+      channels[:webhook] -> %{type: :webhook, url: channels[:webhook]}
+      true -> nil
+    end
+  end
+
+  defp backend_from_channels(_), do: nil
 end

@@ -14,6 +14,21 @@ defmodule Observatory.Fleet.AgentProcess do
   @max_message_buffer 200
   @type_iv_registry Observatory.Fleet.ProcessRegistry
 
+  @type t :: %__MODULE__{
+          id: String.t(),
+          pid: pid() | nil,
+          role: atom(),
+          team: String.t() | nil,
+          backend: map() | nil,
+          capabilities: [atom()],
+          instructions: String.t() | nil,
+          status: :initializing | :active | :paused | :terminating,
+          spawned_at: DateTime.t() | nil,
+          metadata: map(),
+          messages: [map()],
+          unread: [map()]
+        }
+
   defstruct [
     :id,
     :pid,
@@ -179,30 +194,9 @@ defmodule Observatory.Fleet.AgentProcess do
   @impl true
   def handle_cast({:message, message}, state) do
     msg = normalize_message(message, state.id)
-
-    # Always buffer in message history
     messages = Enum.take([msg | state.messages], @max_message_buffer)
-
-    # Deliver to backend if active; buffer as unread if paused or no backend
-    cond do
-      state.status != :active ->
-        # Paused: buffer everything for later delivery
-        unread = [msg | state.unread]
-        broadcast_message(state.id, msg)
-        {:noreply, %{state | messages: messages, unread: unread}}
-
-      state.backend == nil ->
-        # No backend (MCP/poll agents): buffer as unread for check_inbox retrieval
-        unread = [msg | state.unread]
-        broadcast_message(state.id, msg)
-        {:noreply, %{state | messages: messages, unread: unread}}
-
-      true ->
-        # Active with backend: deliver immediately
-        deliver_to_backend(state.backend, msg)
-        broadcast_message(state.id, msg)
-        {:noreply, %{state | messages: messages}}
-    end
+    broadcast_message(state.id, msg)
+    {:noreply, route_message(msg, %{state | messages: messages})}
   end
 
   def handle_cast({:instructions, instructions}, state) do
@@ -226,6 +220,23 @@ defmodule Observatory.Fleet.AgentProcess do
   end
 
   # ── Internal ────────────────────────────────────────────────────────
+
+  # Paused: buffer for later delivery
+  @spec route_message(map(), t()) :: t()
+  defp route_message(msg, %{status: status} = state) when status != :active do
+    %{state | unread: [msg | state.unread]}
+  end
+
+  # No backend (MCP/poll agents): buffer as unread for check_inbox retrieval
+  defp route_message(msg, %{backend: nil} = state) do
+    %{state | unread: [msg | state.unread]}
+  end
+
+  # Active with backend: deliver immediately
+  defp route_message(msg, state) do
+    deliver_to_backend(state.backend, msg)
+    state
+  end
 
   defp normalize_message(msg, to) when is_map(msg) do
     Map.merge(
