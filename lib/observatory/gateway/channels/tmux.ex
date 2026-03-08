@@ -21,21 +21,23 @@ defmodule Observatory.Gateway.Channels.Tmux do
   def deliver(session_name, payload) when is_binary(session_name) do
     content = payload[:content] || payload["content"] || Jason.encode!(payload)
     from = payload[:from] || payload["from"] || "observatory"
+    message = "[#{from}] #{content}"
 
-    tmp_path = "/tmp/observatory_msg_#{:crypto.strong_rand_bytes(4) |> Base.encode16(case: :lower)}.txt"
-    File.write!(tmp_path, "[#{from}] #{content}")
-
-    case try_tmux(["send-keys", "-t", session_name, "cat #{tmp_path}", "Enter"]) do
+    # Use tmux load-buffer + paste-buffer to inject text without triggering
+    # file read permissions in the target pane (avoids cat /tmp/file approach)
+    case try_tmux(["set-buffer", message]) do
       {:ok, _} ->
-        spawn(fn ->
-          Process.sleep(5_000)
-          File.rm(tmp_path)
-        end)
+        case try_tmux(["paste-buffer", "-t", session_name]) do
+          {:ok, _} ->
+            # Send Enter to submit the pasted text
+            try_tmux(["send-keys", "-t", session_name, "Enter"])
+            :ok
 
-        :ok
+          {:error, reason} ->
+            {:error, {:tmux_send_failed, reason}}
+        end
 
       {:error, reason} ->
-        File.rm(tmp_path)
         {:error, {:tmux_send_failed, reason}}
     end
   end

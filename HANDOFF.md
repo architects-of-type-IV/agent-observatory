@@ -1,44 +1,37 @@
 # Observatory - Handoff
 
-## Current Status: Gateway Pipeline Unification + Debug Endpoints (2026-03-08)
+## Current Status: Identity Merge + Ash Refactor + Tmux Fix (2026-03-08)
 
 ### Just Completed
-- **Debug endpoints** -- 6 new routes under `/api/debug/` for system diagnostics: registry dump, health checks, protocol traces, mailbox inspection, tmux state, manual purge
-- **EventController Gateway unification** -- `handle_send_message` was calling `Mailbox.send_message` directly (bypassing Gateway). Now routes through `Gateway.Router.broadcast` for consistent audit/tracing
-- **Tmux pane-level delivery** -- `sync_teams` now wires `tmux_pane_id` from team config into agent channels. `poll_tmux_sessions` uses new `Tmux.list_panes()` for pane-level discovery
-- **Qualified agent naming** -- Agents get `"name@team"` IDs (e.g., `"coordinator@my-team"`) with `short_name` for backward-compatible lookups. Disambiguates duplicate names across teams
-- **Stale agent sweep** -- 3-tier: dead teams, ended agents (30min TTL), stale standalones (1h TTL). Manual purge via `/api/debug/purge`. Auto-sweep every 60 heartbeats (5min) via `Observatory.Heartbeat`
-- **Agent blocks updated** -- `~/.claude/agents/blocks/shared/gateway-comms.md` teaches agents about Gateway architecture, qualified IDs, delivery channels
+- **Identity merge in AgentRegistry** -- Hook UUID session_ids and TeamWatcher short-name keys now merge into one canonical entry. `sync_teams` correlates by CWD to find existing UUID-keyed agents. `register_from_event` absorbs orphaned team entries. `poll_tmux_sessions` skips duplicates. Ambiguous cases (shared CWD) gracefully fall back.
+- **Ash domain refactor steps 7-9** -- Imported `DashboardSessionControlHandlers` + created `DashboardTmuxHandlers` (90 lines extracted). Eliminated all `apply/3` and full-module-name calls. dashboard_live.ex: 982 -> 887 lines. All helpers still actively used. Clean compile.
+- **Tmux deliver fix** -- `deliver/2` now uses `set-buffer` + `paste-buffer` instead of writing temp files and `cat`-ing them. Agents no longer stall on file read permission prompts.
 
-### Prior Session (same day)
-- Heartbeat GenServer (5s interval, PubSub + Gateway broadcast)
-- ProtocolTracker timeout fix (removed N+1 GenServer calls)
-- Dropdown stability (phx-update="ignore" on selects)
-- Message delivery fallback (direct Mailbox when Gateway returns 0)
-- Removed all polling, removed longpoll transport
+### Prior Work (same day)
+- Debug endpoints (6 routes under /api/debug/)
+- EventController Gateway unification (was bypassing Gateway)
+- Tmux pane-level discovery + delivery
+- Qualified agent naming ("name@team" IDs)
+- Stale agent sweep (3-tier, heartbeat-driven)
+- Agent blocks updated with Gateway knowledge
 
 ### Open Issues
-1. **Identity merge** -- Hook events arrive with UUID session_ids, TeamWatcher registers with `agent_id@team` keys. These two ETS entries never merge into one unified agent record
-2. **Session ID uniformity** -- User asked: "Session ids.. shouldn't those be claude code sessions or uniform?" -- not yet addressed
-3. **Build lock contention** -- Phoenix dev server holds build lock; `mix compile` from CLI waits indefinitely
-4. **Ash domain refactor steps 7-9** -- Move inline handlers, retire helpers, final validation
+1. **DashboardAgentHealthHelpers layering inversion** -- Web-layer helper imported by `LoadTeams` (Ash domain). `compute_agent_health/2` should move to Fleet domain.
+2. **dashboard_live.ex still 887 lines** -- More Phase 5 inline handlers, node_selected, slideout logic could be extracted. Target: 200-300 lines.
+3. **Build lock contention** -- Phoenix dev server holds build lock; `mix compile` from CLI waits indefinitely.
 
 ### Architecture
 - Phoenix LiveView on port 4005
 - Event-driven: hooks -> POST /api/events -> EventBuffer ETS + PubSub -> LiveView
-- **3 message paths (all now through Gateway)**: Dashboard (Operator.send), Hook intercept (EventController), MCP (AgentTools.Inbox)
-- **Heartbeat**: `Observatory.Heartbeat` -> PubSub "heartbeat" + Gateway "fleet:heartbeat"
-- **AgentRegistry**: ETS-backed, merges hook events + TeamWatcher + tmux polling. Qualified IDs. Sweep on heartbeat
+- **3 message paths (all through Gateway)**: Dashboard (Operator.send), Hook intercept (EventController), MCP (AgentTools.Inbox)
+- **AgentRegistry**: ETS-backed, identity merge via CWD correlation, qualified IDs, sweep on heartbeat
+- **Tmux delivery**: `set-buffer` + `paste-buffer` (no temp files)
 - Ash domains: Fleet (Team, Agent), Activity (Message, Task, Error) -- all `Ash.DataLayer.Simple`
 
 ### Key Files Modified This Session
 | File | Change |
 |------|--------|
-| `lib/observatory_web/controllers/debug_controller.ex` | NEW -- 6 diagnostic endpoints |
-| `lib/observatory_web/router.ex` | Added debug routes under /api |
-| `lib/observatory_web/controllers/event_controller.ex` | Unified send_message through Gateway |
-| `lib/observatory/gateway/agent_registry.ex` | Qualified IDs, tmux pane wiring, stale sweep, purge_stale |
-| `lib/observatory/gateway/channels/tmux.ex` | Added list_panes(), fixed available?() for pane IDs |
-| `lib/observatory/heartbeat.ex` | Added run_maintenance (registry purge every 60 beats) |
-| `~/.claude/agents/blocks/registry.json` | Added gateway-comms block |
-| `~/.claude/agents/blocks/shared/gateway-comms.md` | NEW -- Gateway architecture knowledge for agents |
+| `lib/observatory/gateway/agent_registry.ex` | Identity merge: find_canonical_entry, correlate_by_cwd, maybe_absorb_team_entry, is_uuid? |
+| `lib/observatory/gateway/channels/tmux.ex` | deliver/2 uses set-buffer+paste-buffer instead of cat temp file |
+| `lib/observatory_web/live/dashboard_live.ex` | Imported SessionControlHandlers+TmuxHandlers, simplified delegations |
+| `lib/observatory_web/live/dashboard_tmux_handlers.ex` | NEW -- extracted tmux event handlers |

@@ -15,6 +15,8 @@ defmodule ObservatoryWeb.DashboardLive do
   import ObservatoryWeb.DashboardTeamInspectorHandlers
   import ObservatoryWeb.DashboardSwarmHandlers
   import ObservatoryWeb.DashboardGatewayHandlers
+  import ObservatoryWeb.DashboardSessionControlHandlers
+  import ObservatoryWeb.DashboardTmuxHandlers
   import ObservatoryWeb.DashboardState, only: [recompute: 1]
 
   @max_events 500
@@ -335,11 +337,10 @@ defmodule ObservatoryWeb.DashboardLive do
   def handle_event("set_view", %{"mode" => m}, s),
     do: {:noreply, handle_set_view(m, s) |> recompute()}
 
-  def handle_event("restore_view_mode", p, s),
-    do:
-      {:noreply,
-       ObservatoryWeb.DashboardNavigationHandlers.handle_event("restore_view_mode", p, s)
-       |> recompute()}
+  def handle_event("restore_view_mode", p, s) do
+    socket = ObservatoryWeb.DashboardNavigationHandlers.handle_event("restore_view_mode", p, s)
+    {:noreply, recompute(socket)}
+  end
 
   def handle_event("restore_state", p, s),
     do: {:noreply, handle_restore_state(p, s) |> recompute()}
@@ -419,22 +420,13 @@ defmodule ObservatoryWeb.DashboardLive do
   end
 
   def handle_event("pause_agent", p, s),
-    do:
-      {:noreply,
-       ObservatoryWeb.DashboardSessionControlHandlers.handle_pause_agent(p, s)
-       |> recompute()}
+    do: {:noreply, handle_pause_agent(p, s) |> recompute()}
 
   def handle_event("resume_agent", p, s),
-    do:
-      {:noreply,
-       ObservatoryWeb.DashboardSessionControlHandlers.handle_resume_agent(p, s)
-       |> recompute()}
+    do: {:noreply, handle_resume_agent(p, s) |> recompute()}
 
   def handle_event("shutdown_agent", p, s),
-    do:
-      {:noreply,
-       ObservatoryWeb.DashboardSessionControlHandlers.handle_shutdown_agent(p, s)
-       |> recompute()}
+    do: {:noreply, handle_shutdown_agent(p, s) |> recompute()}
 
   def handle_event("create_task", p, s) do
     case handle_create_task(p, s) do
@@ -547,100 +539,20 @@ defmodule ObservatoryWeb.DashboardLive do
     {:noreply, assign(s, :comms_team_filter, new_filter)}
   end
 
-  def handle_event("connect_tmux", %{"session" => session_name}, socket) do
-    output =
-      case Observatory.Gateway.Channels.Tmux.capture_pane(session_name, lines: 80) do
-        {:ok, text} -> text
-        {:error, _} -> "Failed to capture pane output."
-      end
+  def handle_event("connect_tmux", p, s),
+    do: {:noreply, handle_connect_tmux(p, s)}
 
-    {:noreply,
-     socket
-     |> assign(active_tmux_session: session_name, tmux_output: output)
-     |> push_event("toast", %{message: "Connected to #{session_name}", type: "success"})}
-  end
+  def handle_event("disconnect_tmux", p, s),
+    do: {:noreply, handle_disconnect_tmux(p, s)}
 
-  def handle_event("disconnect_tmux", _params, socket) do
-    {:noreply, assign(socket, active_tmux_session: nil, tmux_output: "")}
-  end
+  def handle_event("send_tmux_keys", p, s),
+    do: {:noreply, handle_send_tmux_keys(p, s)}
 
-  def handle_event("send_tmux_keys", %{"keys" => keys}, socket) do
-    case socket.assigns.active_tmux_session do
-      nil ->
-        {:noreply, socket}
+  def handle_event("kill_tmux_session", p, s),
+    do: {:noreply, handle_kill_tmux_session(p, s)}
 
-      session ->
-        args =
-          Observatory.Gateway.Channels.Tmux.socket_args() ++
-            ["send-keys", "-t", session, keys, "Enter"]
-
-        System.cmd("tmux", args, stderr_to_stdout: true)
-
-        # Refresh output after sending keys (event-driven, not polled)
-        output =
-          case Observatory.Gateway.Channels.Tmux.capture_pane(session, lines: 80) do
-            {:ok, text} -> text
-            {:error, _} -> socket.assigns.tmux_output
-          end
-
-        {:noreply, assign(socket, :tmux_output, output)}
-    end
-  end
-
-  def handle_event("kill_tmux_session", _params, socket) do
-    case socket.assigns.active_tmux_session do
-      nil ->
-        {:noreply, socket}
-
-      session ->
-        args =
-          Observatory.Gateway.Channels.Tmux.socket_args() ++
-            ["kill-session", "-t", session]
-
-        System.cmd("tmux", args, stderr_to_stdout: true)
-
-        {:noreply,
-         socket
-         |> assign(active_tmux_session: nil, tmux_output: "")
-         |> push_event("toast", %{message: "Killed #{session}", type: "warning"})}
-    end
-  end
-
-  @observatory_socket Path.expand("~/.observatory/tmux/obs.sock")
-
-  def handle_event("launch_session", %{"cwd" => cwd} = params, socket) when cwd != "" do
-    session_name = "obs-#{:os.system_time(:second)}"
-    command = params["command"] || "claude"
-
-    # Ensure socket directory exists
-    File.mkdir_p!(Path.dirname(@observatory_socket))
-
-    # Launch on Observatory's tmux server, clearing CLAUDECODE to allow nested sessions
-    socket_args = Observatory.Gateway.Channels.Tmux.socket_args()
-
-    case System.cmd("tmux", socket_args ++ [
-           "new-session", "-d", "-s", session_name, "-c", cwd,
-           "env", "-u", "CLAUDECODE", command
-         ], stderr_to_stdout: true) do
-      {_output, 0} ->
-        {:noreply,
-         push_event(socket, "toast", %{
-           message: "Launched #{session_name} in #{Path.basename(cwd)}",
-           type: "success"
-         })}
-
-      {error, _code} ->
-        {:noreply,
-         push_event(socket, "toast", %{
-           message: "Launch failed: #{String.slice(error, 0, 80)}",
-           type: "error"
-         })}
-    end
-  end
-
-  def handle_event("launch_session", _params, socket) do
-    {:noreply, push_event(socket, "toast", %{message: "Select a project first", type: "error"})}
-  end
+  def handle_event("launch_session", p, s),
+    do: {:noreply, handle_launch_session(p, s)}
 
   # Swarm handlers
   def handle_event("select_project", p, s),
@@ -890,34 +802,27 @@ defmodule ObservatoryWeb.DashboardLive do
     {:noreply, assign(s, :expanded_protocol_items, expanded)}
   end
 
-  # Phase 5 - God Mode handlers (delegated to DashboardSessionControlHandlers)
-  def handle_event("kill_switch_click", p, s) do
-    {:noreply, apply(ObservatoryWeb.DashboardSessionControlHandlers, :handle_kill_switch_click, [p, s]) |> recompute()}
-  end
+  # Phase 5 - God Mode handlers
+  def handle_event("kill_switch_click", p, s),
+    do: {:noreply, handle_kill_switch_click(p, s) |> recompute()}
 
-  def handle_event("kill_switch_first_confirm", p, s) do
-    {:noreply, apply(ObservatoryWeb.DashboardSessionControlHandlers, :handle_kill_switch_first_confirm, [p, s]) |> recompute()}
-  end
+  def handle_event("kill_switch_first_confirm", p, s),
+    do: {:noreply, handle_kill_switch_first_confirm(p, s) |> recompute()}
 
-  def handle_event("kill_switch_second_confirm", p, s) do
-    {:noreply, apply(ObservatoryWeb.DashboardSessionControlHandlers, :handle_kill_switch_second_confirm, [p, s]) |> recompute()}
-  end
+  def handle_event("kill_switch_second_confirm", p, s),
+    do: {:noreply, handle_kill_switch_second_confirm(p, s) |> recompute()}
 
-  def handle_event("kill_switch_cancel", p, s) do
-    {:noreply, apply(ObservatoryWeb.DashboardSessionControlHandlers, :handle_kill_switch_cancel, [p, s]) |> recompute()}
-  end
+  def handle_event("kill_switch_cancel", p, s),
+    do: {:noreply, handle_kill_switch_cancel(p, s) |> recompute()}
 
-  def handle_event("push_instructions_intent", p, s) do
-    {:noreply, apply(ObservatoryWeb.DashboardSessionControlHandlers, :handle_push_instructions_intent, [p, s]) |> recompute()}
-  end
+  def handle_event("push_instructions_intent", p, s),
+    do: {:noreply, handle_push_instructions_intent(p, s) |> recompute()}
 
-  def handle_event("push_instructions_confirm", p, s) do
-    {:noreply, apply(ObservatoryWeb.DashboardSessionControlHandlers, :handle_push_instructions_confirm, [p, s]) |> recompute()}
-  end
+  def handle_event("push_instructions_confirm", p, s),
+    do: {:noreply, handle_push_instructions_confirm(p, s) |> recompute()}
 
-  def handle_event("push_instructions_cancel", p, s) do
-    {:noreply, apply(ObservatoryWeb.DashboardSessionControlHandlers, :handle_push_instructions_cancel, [p, s]) |> recompute()}
-  end
+  def handle_event("push_instructions_cancel", p, s),
+    do: {:noreply, handle_push_instructions_cancel(p, s) |> recompute()}
 
   # Navigation handlers
   def handle_event(e, p, s)

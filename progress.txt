@@ -1,9 +1,15 @@
 Observatory Progress
 ====================
 
-## Current: Gateway Pipeline Unification (2026-03-08)
+## Current: Identity Merge + Refactor + Tmux Fix (2026-03-08)
 
-### This Session (Gateway Trace + Fix)
+### This Session (continued)
+- [x] Identity merge in AgentRegistry (CWD correlation, canonical UUID keys)
+- [x] Ash domain refactor steps 7-9 (imported handlers, extracted DashboardTmuxHandlers)
+- [x] Tmux deliver fix (set-buffer+paste-buffer, no temp files)
+- [x] dashboard_live.ex: 982 -> 887 lines
+
+### Earlier This Session (Gateway Trace + Fix)
 - [x] Spawned 4-agent team to test comms pipeline (170+ rounds)
 - [x] Created 6 debug endpoints (/api/debug/{registry,health,traces,mailboxes,tmux,purge})
 - [x] Unified EventController send_message through Gateway.Router.broadcast
@@ -12,47 +18,29 @@ Observatory Progress
 - [x] 3-tier stale agent sweep (dead teams, ended 30min, stale standalone 1h)
 - [x] Heartbeat-driven maintenance (purge every 60 beats / 5min)
 - [x] Updated agent blocks with Gateway architecture knowledge
-- [ ] Identity merge: hook UUID session_ids vs TeamWatcher agent_id@team
-- [ ] Session ID uniformity question from user
 
 ### Prior Session (Heartbeat + Stability, 2026-03-08)
-- [x] Wrapped select dropdowns in phx-update="ignore" (target + project selects)
-- [x] Added Operator.send fallback -- direct Mailbox delivery when Gateway returns 0
-- [x] Fixed ProtocolTracker timeout -- removed N+1 GenServer calls from compute_stats
-- [x] Created Heartbeat GenServer (5s, PubSub + Gateway broadcast)
-- [x] ProtocolTracker subscribes to heartbeat instead of own timer
+- [x] Wrapped select dropdowns in phx-update="ignore"
+- [x] Added Operator.send fallback
+- [x] Fixed ProtocolTracker timeout
+- [x] Created Heartbeat GenServer
 - [x] Removed all polling + longpoll transport
 
 ### Previous Session (2026-03-07)
-- [x] Created FleetHelpers module (modular pure functions for fleet tree)
-- [x] Rewrote command_view.html.heex: 3-column layout with project grouping
-- [x] Diagnosed messaging "not sending" -- root cause: no agents registered
-- [x] Created docs/messaging-architecture.md (full flow map)
-- [x] Removed AccessStruct macro -- incompatible with Ash compilation hooks
-- [x] Converted ~25 bracket access sites to dot access across 10+ files
+- [x] Created FleetHelpers module
+- [x] Rewrote command_view.html.heex: 3-column layout
+- [x] Diagnosed messaging root cause + created messaging-architecture.md
+- [x] Removed AccessStruct macro, converted bracket access
 
-### Ash Domain Modeling Refactor (Steps 1-6 of 9 complete)
-- [x] Step 1-6: Fleet/Activity domains, resources, preparations, DashboardState
-- [ ] Step 7: Move inline handlers to existing modules
-- [ ] Step 8: Retire absorbed helper modules
-- [ ] Step 9: Final compile + smoke test
+### Ash Domain Modeling Refactor (COMPLETE)
+- [x] Steps 1-9: Fleet/Activity domains, resources, preparations, DashboardState, handler extraction
 
 ## Previous milestones preserved below...
 
 ### Dashboard Rearrangement (2026-03-07)
-- [x] 3-column layout: Fleet sidebar | Pipeline center | Feed right
-- [x] Auto-discovery of projects from hook events
-- [x] Original DAG wave visualization restored
-- [x] Observatory tmux socket for session management
+- [x] 3-column layout, auto-discovery, DAG visualization, tmux socket
 
 ### Phase 5: Hypervisor UI COMPLETE (2026-02-22)
-- [x] Six view modes with keyboard shortcuts
-
 ### Phase 4: Gateway Infrastructure & HITL COMPLETE (2026-02-22)
-- [x] HeartbeatManager, CapabilityMap, CronScheduler, WebhookRouter, HITLRelay
-
 ### Phase 3: Topology & Entropy COMPLETE
-- [x] CausalDAG, EntropyTracker, TopologyBuilder
-
 ### Phase 2: Gateway Core COMPLETE
-- [x] SchemaInterceptor, GatewayController

@@ -32,20 +32,29 @@
 
 ## Gateway Pipeline (3 message paths, all unified through Router)
 1. **Dashboard -> Agent**: Operator.send -> Gateway.Router.broadcast -> MailboxAdapter + Tmux + Webhook
-2. **Hook intercept -> Agent**: EventController handle_send_message -> Gateway.Router.broadcast (was direct Mailbox, now unified)
+2. **Hook intercept -> Agent**: EventController handle_send_message -> Gateway.Router.broadcast
 3. **Agent -> Dashboard**: MCP send_message -> Gateway.Router.broadcast
 - **Fallback**: When Gateway returns 0 recipients, Operator falls back to direct Mailbox.send_message
 - CommandQueue: `~/.claude/inbox/{session_id}/{id}.json`
 - **ClearFormOnSubmit** hook clears text inputs 50ms after submit
 
+## Tmux Delivery (CRITICAL)
+- **Use `set-buffer` + `paste-buffer`** -- NOT temp files with `cat`
+- Old approach (`cat /tmp/observatory_msg_*.txt`) triggers file read permission in Claude Code agents
+- New approach: `set-buffer MSG` then `paste-buffer -t TARGET` then `send-keys Enter`
+- No temp files, no permission prompts, no cleanup needed
+
 ## AgentRegistry (2026-03-08)
 - ETS table `:gateway_agent_registry`, merges hook events + TeamWatcher + tmux polling
 - **Qualified IDs**: `"name@team"` format, with `short_name` for backward lookups
-- **Tmux pane delivery**: sync_teams wires `tmux_pane_id` from team config into channels
-- **Stale sweep**: 3-tier (dead teams, ended agents 30min TTL, stale standalones 1h TTL)
+- **Identity merge**: CWD correlation merges UUID-keyed (hook) and short-name-keyed (team) entries
+  - `find_canonical_entry/3`: tries existing team match, then CWD correlation, then fallback
+  - `correlate_by_cwd/2`: scans for unaffiliated UUID agents with matching cwd (exact 1 match only)
+  - `maybe_absorb_team_entry/2`: hook events absorb orphaned team metadata, delete orphan key
+  - `is_uuid?/1`: distinguishes UUID keys from short-name keys
+  - Ambiguous cases (multiple agents same CWD) gracefully fall back to separate entries
+- **Stale sweep**: 3-tier (dead teams, ended 30min TTL, stale standalones 1h TTL)
 - **Operator**: permanent agent registered at init, never swept
-- `find_by_name_or_session` matches both qualified `id` and `short_name`
-- **Identity merge gap**: Hook UUID session_ids and TeamWatcher agent_id@team keys don't merge yet
 
 ## Debug Endpoints (2026-03-08)
 - `GET /api/debug/registry` -- all agents with channels, status, team
@@ -66,16 +75,16 @@
 - No polling timers in LiveView -- fully PubSub-driven + heartbeat
 
 ## Fleet Tree Rendering
-- FleetHelpers.sort_members: classifies by member name string ("coordinator" -> depth 0, "lead" -> depth 1, "worker" -> depth 2)
+- FleetHelpers.sort_members: classifies by member name string
 - Hierarchy via indent: `20 + depth * 32` px padding-left
 - Tree connectors: unicode characters
 - Status dots: `:active` = emerald, `:idle` = zinc-500, `:ended` = zinc-700
-- Teams grouped by project (derived from member cwds)
 
 ## Component Patterns
 - Large components split: `.ex` (logic) + `.heex` (templates via `embed_templates`)
 - Module size limit: 200-300 lines max
-- Preprocessing in `<% %>` blocks at top of .heex templates
+- Handler modules: imported via `import`, NOT called with full module names or `apply/3`
+- **DashboardAgentHealthHelpers layering inversion**: web helper imported by LoadTeams (domain)
 
 ## Observatory tmux socket
 - Path: `~/.observatory/tmux/obs.sock`

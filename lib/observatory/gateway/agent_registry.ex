@@ -130,6 +130,9 @@ defmodule Observatory.Gateway.AgentRegistry do
       |> Map.put(:last_event_at, DateTime.utc_now())
       |> Map.put(:status, derive_status(event, existing))
 
+    # Identity merge: absorb team metadata from orphaned team-registered entries
+    updated = maybe_absorb_team_entry(session_id, updated)
+
     :ets.insert(@table, {session_id, updated})
     broadcast_registry_update()
     {:noreply, state}
@@ -156,17 +159,19 @@ defmodule Observatory.Gateway.AgentRegistry do
     end)
 
     for team <- teams_list, member <- team.members do
-      session_id = member[:agent_id] || member[:session_id]
+      member_key = member[:agent_id] || member[:session_id]
 
-      if session_id do
-        existing = get(session_id) || default_agent(session_id)
+      if member_key do
+        # Identity merge: find a UUID-keyed entry that matches this team member
+        # by cwd correlation, rather than creating a duplicate short-name entry
+        {canonical_key, existing} = find_canonical_entry(member_key, member, team.name)
 
         # Build channel map: always set mailbox, wire tmux_pane_id when available
         tmux_target = resolve_tmux_target(member[:tmux_pane_id], existing.channels.tmux)
 
         updated_channels =
           existing.channels
-          |> Map.put(:mailbox, session_id)
+          |> Map.put(:mailbox, canonical_key)
           |> Map.put(:tmux, tmux_target)
 
         qualified_id = qualify_agent_id(member[:name], team.name)
@@ -183,7 +188,12 @@ defmodule Observatory.Gateway.AgentRegistry do
           |> Map.put(:channels, updated_channels)
           |> Map.put(:status, if(is_active, do: :active, else: :ended))
 
-        :ets.insert(@table, {session_id, updated})
+        :ets.insert(@table, {canonical_key, updated})
+
+        # Clean up the orphaned member_key entry if we merged into a different key
+        if canonical_key != member_key do
+          :ets.delete(@table, member_key)
+        end
       end
     end
 
@@ -320,11 +330,25 @@ defmodule Observatory.Gateway.AgentRegistry do
   defp poll_tmux_sessions do
     tmux_sessions = Observatory.Gateway.Channels.Tmux.list_sessions()
     tmux_panes = Observatory.Gateway.Channels.Tmux.list_panes()
-    known_ids = :ets.tab2list(@table) |> Enum.map(fn {_sid, a} -> a.id end) |> MapSet.new()
+    all_entries = :ets.tab2list(@table)
+    known_ids = all_entries |> Enum.map(fn {_sid, a} -> a.id end) |> MapSet.new()
+
+    # Collect all tmux targets already wired to existing agents
+    known_tmux_targets =
+      all_entries
+      |> Enum.flat_map(fn {_sid, a} ->
+        case a.channels.tmux do
+          nil -> []
+          target -> [target]
+        end
+      end)
+      |> MapSet.new()
 
     # Auto-register tmux sessions not yet in the registry
+    # Skip sessions that are already wired as tmux targets on existing agents
     for session_name <- tmux_sessions,
         not MapSet.member?(known_ids, session_name),
+        not MapSet.member?(known_tmux_targets, session_name),
         is_nil(get(session_name)) do
       agent =
         default_agent(session_name)
@@ -381,6 +405,118 @@ defmodule Observatory.Gateway.AgentRegistry do
   defp resolve_tmux_target("", existing), do: existing
   defp resolve_tmux_target(pane_id, _existing), do: pane_id
 
+  # ── Identity Merge ──────────────────────────────────────────────────
+
+  # Find the canonical ETS entry for a team member. Prefers UUID-keyed entries
+  # (from hook events) over short-name-keyed entries (from TeamWatcher config).
+  # Correlation: match by cwd among unaffiliated (team-less) active agents.
+  defp find_canonical_entry(member_key, member, team_name) do
+    # First: check if we already have this member_key in ETS
+    case get(member_key) do
+      %{team: ^team_name} = existing ->
+        # Already merged from a prior sync -- keep using this key
+        {member_key, existing}
+
+      _ ->
+        # Try to find a UUID-keyed agent that correlates with this team member
+        case correlate_by_cwd(member[:cwd], team_name) do
+          {uuid_key, uuid_agent} ->
+            {uuid_key, uuid_agent}
+
+          nil ->
+            # No correlation found -- use the member_key (short name) as fallback
+            existing = get(member_key) || default_agent(member_key)
+            {member_key, existing}
+        end
+    end
+  end
+
+  # Scan ETS for a UUID-keyed agent with matching cwd that has no team yet.
+  # Returns {key, agent} or nil. Only matches if exactly one candidate exists
+  # to avoid ambiguous merges (multiple agents in same cwd).
+  defp correlate_by_cwd(nil, _team_name), do: nil
+
+  defp correlate_by_cwd(cwd, _team_name) do
+    candidates =
+      :ets.tab2list(@table)
+      |> Enum.filter(fn {key, agent} ->
+        is_uuid?(key) &&
+          is_nil(agent.team) &&
+          agent.cwd == cwd &&
+          agent.status == :active
+      end)
+
+    case candidates do
+      [{key, agent}] -> {key, agent}
+      # Zero or multiple matches -- ambiguous, skip merge
+      _ -> nil
+    end
+  rescue
+    ArgumentError -> nil
+  end
+
+  # When a hook event registers a UUID-keyed agent, check if there's an orphaned
+  # team-registered entry (short-name key) with matching cwd. If so, absorb its
+  # team metadata and delete the orphan.
+  defp maybe_absorb_team_entry(uuid_key, agent) do
+    if is_uuid?(uuid_key) && is_nil(agent.team) && agent.cwd do
+      orphan =
+        :ets.tab2list(@table)
+        |> Enum.find(fn {key, a} ->
+          not is_uuid?(key) &&
+            a.team != nil &&
+            a.cwd == agent.cwd &&
+            key != "operator"
+        end)
+
+      case orphan do
+        {orphan_key, orphan_agent} ->
+          # Absorb team metadata from the orphan
+          :ets.delete(@table, orphan_key)
+
+          agent
+          |> Map.put(:id, orphan_agent.id)
+          |> Map.put(:short_name, orphan_agent.short_name)
+          |> Map.put(:team, orphan_agent.team)
+          |> Map.put(:role, orphan_agent.role)
+          |> Map.merge(%{channels: merge_channels(agent.channels, orphan_agent.channels)})
+
+        nil ->
+          agent
+      end
+    else
+      agent
+    end
+  rescue
+    ArgumentError -> agent
+  end
+
+  defp merge_channels(hook_channels, team_channels) do
+    %{
+      tmux: team_channels.tmux || hook_channels.tmux,
+      mailbox: hook_channels.mailbox || team_channels.mailbox,
+      webhook: hook_channels.webhook || team_channels.webhook
+    }
+  end
+
+  defp is_uuid?(str) when is_binary(str) do
+    # UUID v4 pattern: 8-4-4-4-12 hex chars
+    byte_size(str) == 36 && match?({:ok, _}, parse_uuid(str))
+  end
+
+  defp is_uuid?(_), do: false
+
+  defp parse_uuid(<<a::binary-size(8), ?-, b::binary-size(4), ?-, c::binary-size(4), ?-,
+                     d::binary-size(4), ?-, e::binary-size(12)>>) do
+    if String.match?(a <> b <> c <> d <> e, ~r/^[0-9a-fA-F]+$/) do
+      {:ok, true}
+    else
+      :error
+    end
+  end
+
+  defp parse_uuid(_), do: :error
+
   defp schedule_tmux_poll do
     Process.send_after(self(), :poll_tmux, @tmux_poll_interval)
   end
@@ -429,13 +565,16 @@ defmodule Observatory.Gateway.AgentRegistry do
   defp parse_channel(_), do: :unknown
 
   defp find_by_name_or_session(name) do
-    # Try exact session_id match first
+    # Try exact ETS key match first
     case get(name) do
       nil ->
-        # Search by qualified id (e.g., "coordinator@my-team"), short_name, or legacy id
+        # Search by qualified id, short_name, or session_id field
+        # (session_id field may differ from ETS key after identity merge)
         list_all()
         |> Enum.filter(fn a ->
-          a.id == name or Map.get(a, :short_name) == name
+          a.id == name or
+            Map.get(a, :short_name) == name or
+            a.session_id == name
         end)
 
       agent ->
