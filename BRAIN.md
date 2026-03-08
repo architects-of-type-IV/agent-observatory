@@ -44,17 +44,20 @@
 - New approach: `set-buffer -b NAME MSG` then `paste-buffer -b NAME -d -t TARGET` then `send-keys Enter`
 - Named buffers (`obs-{unique_int}`) prevent concurrent deliveries from corrupting each other
 - `-d` flag auto-deletes buffer after paste
-- **Skip tmux for system messages**: Router filters out `:heartbeat` and `:system` types from tmux delivery (they flood terminals with `[system] heartbeat` -> `zsh: no matches found`)
+- **`Tmux.run_command/1`**: public API for `try_tmux` -- all callers should use this, not direct `System.cmd`
+- **`server_arg_sets` cached**: 5s TTL via `Process.put/get` to avoid repeated `File.exists?` stat calls
+- **Skip tmux for system messages**: Router filters out `:heartbeat` and `:system` types from tmux delivery
 
 ## AgentRegistry (2026-03-08)
 - ETS table `:gateway_agent_registry`, merges hook events + TeamWatcher + tmux polling
 - **Qualified IDs**: `"name@team"` format, with `short_name` for backward lookups
 - **Identity merge**: CWD correlation merges UUID-keyed (hook) and short-name-keyed (team) entries
-  - `find_canonical_entry/3`: tries existing team match, then CWD correlation, then fallback
-  - `correlate_by_cwd/2`: scans for unaffiliated UUID agents with matching cwd (exact 1 match only)
-  - `maybe_absorb_team_entry/2`: hook events absorb orphaned team metadata, delete orphan key
-  - `is_uuid?/1`: distinguishes UUID keys from short-name keys
+  - `find_canonical_entry/4`: takes pre-built cwd index, tries existing team match, then cwd lookup, then fallback
+  - `correlate_by_cwd/2`: O(1) lookup from pre-built index (was O(N) full scan per member)
+  - `maybe_absorb_team_entry/2`: uses `ets.match_object` to filter by cwd server-side (was full `tab2list`)
+  - `is_uuid?/1`: uses `Ecto.UUID.cast/1` (not hand-rolled)
   - Ambiguous cases (multiple agents same CWD) gracefully fall back to separate entries
+- **Broadcast**: sends `:registry_changed` signal, NOT full table. Subscribers call `list_all()` lazily.
 - **Stale sweep**: 3-tier (dead teams, ended 30min TTL, stale standalones 1h TTL)
 - **Operator**: permanent agent registered at init, never swept
 

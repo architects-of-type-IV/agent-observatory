@@ -1,16 +1,27 @@
 Observatory Progress
 ====================
 
-## Current: Identity Merge + Refactor + Tmux Fix (2026-03-08)
+## Current: Code Quality Hardening via /simplify (2026-03-08)
 
-### This Session (continued)
+### /simplify Review (this session)
+- [x] Replaced is_uuid?/parse_uuid with Ecto.UUID.cast
+- [x] Hoisted correlate_by_cwd: pre-built cwd index (O(M*N) -> O(N))
+- [x] maybe_absorb_team_entry uses ets.match_object (was tab2list on every hook event)
+- [x] poll_tmux_sessions reuses all_entries (eliminated redundant scan)
+- [x] Named tmux buffers + send-keys error propagation in deliver/2
+- [x] broadcast_registry_update sends :registry_changed signal (not full table)
+- [x] server_arg_sets cached with 5s TTL
+- [x] Tmux.run_command/1 public API; all callers use multi-server fallback
+- [x] Removed unused @observatory_socket from DashboardTmuxHandlers
+
+### Prior (same day)
 - [x] Identity merge in AgentRegistry (CWD correlation, canonical UUID keys)
 - [x] Ash domain refactor steps 7-9 (imported handlers, extracted DashboardTmuxHandlers)
 - [x] Tmux deliver fix (set-buffer+paste-buffer, no temp files)
 - [x] Heartbeat tmux filter (skip :heartbeat/:system types from tmux delivery)
 - [x] dashboard_live.ex: 982 -> 887 lines
 
-### Earlier This Session (Gateway Trace + Fix)
+### Earlier (Gateway Trace + Fix)
 - [x] Spawned 4-agent team to test comms pipeline (170+ rounds)
 - [x] Created 6 debug endpoints (/api/debug/{registry,health,traces,mailboxes,tmux,purge})
 - [x] Unified EventController send_message through Gateway.Router.broadcast

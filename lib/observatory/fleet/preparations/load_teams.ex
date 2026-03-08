@@ -6,7 +6,7 @@ defmodule Observatory.Fleet.Preparations.LoadTeams do
 
   use Ash.Resource.Preparation
 
-  import ObservatoryWeb.DashboardAgentHealthHelpers, only: [compute_agent_health: 2]
+  import Observatory.Fleet.AgentHealth, only: [compute_agent_health: 2]
 
   @dead_team_threshold_sec 300
 
