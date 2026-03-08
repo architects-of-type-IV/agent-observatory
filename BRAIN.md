@@ -65,7 +65,16 @@
 - `-d` flag auto-deletes buffer after paste
 - **`Tmux.run_command/1`**: public API for `try_tmux` -- all callers should use this, not direct `System.cmd`
 - **`server_arg_sets` cached**: 5s TTL via `Process.put/get` to avoid repeated `File.exists?` stat calls
-- **Skip tmux for system messages**: Router filters out `:heartbeat` and `:system` types from tmux delivery
+- **Skip tmux for system messages**: adapters with `skip?/1` callback filter `:heartbeat`/`:system` types
+
+## SSH Tmux Channel (2026-03-08, vendor-agnostic)
+- `lib/observatory/gateway/channels/ssh_tmux.ex` -- Channel behaviour for remote agents
+- Address format: `"session_name@host"` -- parsed by `parse_address/1`
+- Uses `ssh -o BatchMode=yes -o ConnectTimeout=5 host "tmux -S /tmp/obs.sock ..."`
+- Configurable: `config :observatory, SshTmux, connect_timeout: 5, socket_path: "/tmp/obs.sock", ssh_opts: [...]`
+- `channel_key/0` returns `:ssh_tmux` -- agent channels map has `ssh_tmux: "session@host"` or nil
+- PaneMonitor resolves capture target: tries `:tmux` first, then `:ssh_tmux`
+- Shell escaping: single-quote wrap for args containing metacharacters
 
 ## AgentRegistry (2026-03-08)
 - ETS table `:gateway_agent_registry`, merges hook events + TeamWatcher + tmux polling

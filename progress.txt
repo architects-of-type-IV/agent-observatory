@@ -13,6 +13,10 @@ ICHOR IV Progress (formerly Observatory)
 - [x] AgentRegistry.touch/1: activity timestamp updates from pane monitoring
 - [x] Host + tree fields: host, parent_id, children in agent registry entries
 - [x] PaneMonitor added to MonitorSupervisor
+- [x] SSH tmux channel adapter: SshTmux with session@host addressing
+- [x] ssh_tmux channel key added to AgentRegistry default agent
+- [x] PaneMonitor updated to capture from both local Tmux and remote SshTmux
+- [x] Tested message routing with live observatory-crew team (workers %12-%15)
 
 ### Prior: Overstory-Inspired Features (2026-03-08)
 - [x] Removed heartbeat Gateway broadcast (was flooding comms, evicting traces)

@@ -309,6 +309,7 @@ defmodule Observatory.Gateway.AgentRegistry do
       last_event_at: DateTime.utc_now(),
       channels: %{
         tmux: nil,
+        ssh_tmux: nil,
         mailbox: session_id,
         webhook: nil
       }

@@ -15,7 +15,7 @@ defmodule Observatory.PaneMonitor do
   require Logger
 
   alias Observatory.Gateway.AgentRegistry
-  alias Observatory.Gateway.Channels.Tmux
+  alias Observatory.Gateway.Channels.{Tmux, SshTmux}
 
   @capture_lines 30
   @topic "pane:signals"
@@ -53,18 +53,32 @@ defmodule Observatory.PaneMonitor do
     agents = AgentRegistry.list_all()
 
     Enum.reduce(agents, state, fn agent, acc ->
-      tmux_target = agent.channels[:tmux]
+      case resolve_capture_target(agent) do
+        {target, capture_fn} when agent.status == :active ->
+          scan_agent(agent, target, capture_fn, acc)
 
-      if tmux_target && agent.status == :active do
-        scan_agent(agent, tmux_target, acc)
-      else
-        acc
+        _ ->
+          acc
       end
     end)
   end
 
-  defp scan_agent(agent, tmux_target, state) do
-    case Tmux.capture_pane(tmux_target, lines: @capture_lines) do
+  # Resolve which channel to capture from and the appropriate capture function
+  defp resolve_capture_target(agent) do
+    cond do
+      agent.channels[:tmux] ->
+        {agent.channels[:tmux], &Tmux.capture_pane(&1, lines: @capture_lines)}
+
+      agent.channels[:ssh_tmux] ->
+        {agent.channels[:ssh_tmux], &SshTmux.capture_pane(&1, lines: @capture_lines)}
+
+      true ->
+        nil
+    end
+  end
+
+  defp scan_agent(agent, tmux_target, capture_fn, state) do
+    case capture_fn.(tmux_target) do
       {:ok, output} ->
         prev_output = Map.get(state.captures, tmux_target, "")
         state = put_in(state.captures[tmux_target], output)

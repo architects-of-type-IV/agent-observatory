@@ -11,27 +11,29 @@ Key concepts:
 - Agents arrive from anywhere (any vendor, any host, any protocol) and join the facility
 - ICHOR observes, manages, controls, rearranges, and dictates
 
-### Just Completed: First 3 Steps of ADR-001
+### Just Completed: ADR-001 Steps 1-4
 
 **1. Channel Registry in Router** -- Runtime channel registration replaces hardcoded dispatch.
 - `Channel` behaviour extended with `channel_key/0` and optional `skip?/1` callbacks
 - Router reads `config :observatory, :channels` (list of `{module, opts}` tuples)
 - Default: MailboxAdapter (primary), Tmux, WebhookAdapter
 - New adapters just implement the behaviour and add to config -- no Router edits needed
-- Files: `channel.ex`, `router.ex`, all 3 adapter `.ex` files
 
 **2. PaneMonitor GenServer** -- Makes hookless agents first-class citizens.
-- Subscribes to heartbeat, captures tmux pane output every 5s for all active agents
-- Parses for signals: `OBSERVATORY_DONE: <summary>`, `OBSERVATORY_BLOCKED: <reason>`
-- Deduplicates signals, broadcasts on `"pane:signals"` PubSub topic
-- Updates `last_event_at` via new `AgentRegistry.touch/1` on any output activity
-- Any agent in a tmux session is now observable regardless of vendor
-- File: `lib/observatory/pane_monitor.ex` (NEW)
+- Captures tmux pane output every 5s, parses `OBSERVATORY_DONE:`/`OBSERVATORY_BLOCKED:` signals
+- Broadcasts on `"pane:signals"` PubSub topic, updates `AgentRegistry.touch/1`
+- Supports both local Tmux and remote SshTmux capture
 
 **3. Host + Tree Fields in AgentRegistry** -- Foundation for distributed agents and hierarchy.
-- Added `host` (default: `"local"`), `parent_id`, `children` to default agent entry
-- Enables host-qualified agent identity and spawn chain tracking
-- File: `lib/observatory/gateway/agent_registry.ex` (MODIFIED)
+- Added `host`, `parent_id`, `children`, `ssh_tmux` channel to agent entries
+
+**4. SSH Tmux Channel Adapter** -- Remote agent management via SSH.
+- `lib/observatory/gateway/channels/ssh_tmux.ex` -- full Channel behaviour implementation
+- Address format: `"session@host"` (e.g., `"obs-builder@gpu-server-1"`)
+- Uses `ssh -o BatchMode=yes -o ConnectTimeout=5` for passwordless auth
+- Configurable via `config :observatory, SshTmux, socket_path: ..., ssh_opts: [...]`
+- PaneMonitor captures from both local and remote tmux sessions
+- Tested with live observatory-crew team -- message routing confirmed working
 
 ### Prior: Overstory-Inspired Features (still present)
 - Cost Dashboard, Progressive Nudging, Agent Spawning, Quality Gates, Instruction Overlays
@@ -48,7 +50,6 @@ Key concepts:
 | Naming | Observatory | ICHOR IV (codebase rename pending) |
 
 ### Remaining ADR-001 Steps
-4. **SSH tmux channel** -- `SshTmux` adapter wrapping commands in `ssh user@host`
 5. **Agent tree** -- spawn chain tracking, scoped authority, flexible hierarchy
 
 ### Open Issues
