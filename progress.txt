@@ -1,17 +1,25 @@
 ICHOR IV Progress (formerly Observatory)
 ========================================
 
-## Current: Registry Decomposition + Distribution Prep (2026-03-09)
+## Current: Distribution Foundation (2026-03-09)
 
-### This Session
+### This Session (continued)
 - [x] Feed UI: compacted session headers, plain text badges, markdown responses (Earmark)
 - [x] Launch button: uses AgentSpawner pipeline, env -u CLAUDECODE for session identity
 - [x] Extracted Gateway.OutputCapture (108 lines) from AgentRegistry
 - [x] Extracted Gateway.TmuxDiscovery (115 lines) from AgentRegistry
-- [x] AgentRegistry: 894 -> 767 lines, new public APIs for extracted modules
-- [ ] Remove dead tree code (children/parent/chain_of_command/reparent)
-- [ ] Distribution support: host registry, remote spawning, multi-node fleet
+- [x] AgentRegistry: 894 -> 669 lines (dead tree code removed)
+- [x] Dead code removed: children/parent/chain_of_command/reparent/add_child/remove_child/build_chain
+- [x] Fleet.HostRegistry GenServer (169 lines): BEAM node tracking, :net_kernel.monitor_nodes
+- [x] AgentProcess: :pg group join, lookup_cluster/1, list_cluster/0
+- [x] TeamSupervisor: :pg group join, list_cluster/0
+- [x] FleetSupervisor: spawn_agent_on/2 for remote node spawning via :rpc
+- [x] AgentSpawner: :host option, spawn_local/spawn_remote routing
+- [x] :pg scope :observatory_agents in application supervisor
 - [x] Clean compile: mix compile --warnings-as-errors
+- [ ] Clustering config (node naming, DNSCluster)
+- [ ] Remote tmux delivery (SSH-based)
+- [ ] AgentSpawner refactor (318 lines, over limit)
 
 ### Prior Session: Archon Domain + AgentTools Refactor (2026-03-08)
 - [x] Archon domain + Tools subdomain (7 tools)

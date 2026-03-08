@@ -28,14 +28,6 @@
 - `Agents`: create_agent, list_agents (MemoryStore agent management)
 - MCP route only exposes 5 inbox tools. Memory tools are defined but unrouted.
 
-## Memories Project (External, /Users/xander/code/www/memories)
-- Zep/Graphiti-style knowledge graph with vector embeddings + BM25
-- Core concepts: Episodes (raw memory), Entities (semantic nodes), Facts (temporal edges)
-- API.Client: backend-pluggable search (hybrid semantic + BM25, reranking, BFS biasing)
-- HTTP API: /api/episodes/ingest, /api/graph/search, /api/graph/edges/:uuid, etc.
-- Integration plan: Archon will call Memories HTTP API for knowledge graph queries
-- NOT replacing MemoryStore yet -- only Archon gets Memories integration
-
 ## Architecture After Ash Refactor (2026-03-08)
 - **DashboardState.recompute/1**: thin coordinator calling Ash code interfaces + Fleet.Queries + EventAnalysis
 - **Fleet.Agent**: attributes include session_id, short_name, host, channels, last_event_at
@@ -61,37 +53,43 @@
 - **FleetSupervisor** DynamicSupervisor: top-level
 - **PubSub topics**: "fleet:lifecycle", "messages:stream"
 
-## Gateway Registry Decomposition (2026-03-09, IN PROGRESS)
-AgentRegistry was a 894-line god module doing 6 jobs. Decomposing into focused modules:
+## Gateway Registry Decomposition (2026-03-09, COMPLETE)
+AgentRegistry was 894 lines. Now 669 lines after decomposition + dead code removal:
 
-**Completed extractions:**
-- `Gateway.OutputCapture` (108 lines) -- polls tmux pane output for watched agents, broadcasts changes. Own GenServer in GatewaySupervisor.
-- `Gateway.TmuxDiscovery` (115 lines) -- polls tmux sessions, auto-registers unknown ones, wires tmux channels to agents. Own GenServer in GatewaySupervisor.
+**Extracted modules:**
+- `Gateway.OutputCapture` (108 lines) -- terminal output polling. Own GenServer in GatewaySupervisor.
+- `Gateway.TmuxDiscovery` (115 lines) -- tmux session discovery + channel wiring. Own GenServer in GatewaySupervisor.
 
-**Remaining in AgentRegistry (767 lines):**
-- Event registration (core, stays)
-- Team sync + identity merge (~130 lines, tightly coupled to ETS)
-- Tree API: parent/child/chain_of_command/reparent (~100 lines, DEAD CODE -- zero external callers except register_spawned)
-- Sweep/lifecycle (~50 lines)
-- Channel resolution (~30 lines, core)
-- Lookup helpers (~40 lines, core)
-- BEAM process bridge (~40 lines, could move to FleetSupervisor)
+**Removed dead code:**
+- Tree API: `children/1`, `parent/1`, `chain_of_command/1`, `reparent/2`, `add_child/2`, `remove_child/2`, `build_chain/2`
+- `children: []` field from default_agent map
 
-**New public APIs on AgentRegistry:**
-- `list_all_raw/0` -- returns raw `{session_id, agent}` ETS tuples
-- `register_tmux_session/1` -- registers a tmux-discovered session
-- `update_tmux_channel/2` -- updates tmux channel for an agent
-- `broadcast_update/0` -- broadcasts registry change notification
+**Remaining in AgentRegistry (669 lines):**
+- Event registration, team sync + identity merge, sweep/lifecycle, channel resolution, lookup helpers, BEAM process bridge
+- Still over 200-line limit; team sync + identity merge (~130 lines) is the largest remaining extraction candidate
 
-**Next: remove dead tree code, then focus on distribution support.**
+## Distribution Architecture (2026-03-09, FOUNDATION COMPLETE)
+Multi-host agent fleet via BEAM clustering. Key design decisions:
 
-## Distribution Architecture (PLANNED)
-Target: multi-host agent fleet via BEAM clustering.
-- Each host runs tmux with local `obs.sock`, agents are AgentProcesses on that node
-- Observatory BEAM node is the coordination hub
-- `send(pid)` works across connected BEAM nodes (PIDs encode node ID)
-- Registry, PubSub, supervision all distribution-aware in OTP
-- Gaps to close: host registry, remote spawning via AgentSpawner, FleetSupervisor multi-node
+**Supervision stays local** -- each node supervises its own AgentProcesses via local DynamicSupervisor.
+**Discovery is global** -- `:pg` (OTP process groups) spans the BEAM cluster.
+**Messaging works natively** -- `GenServer.call/cast(pid)` works across connected nodes (PIDs encode node ID).
+**PubSub already distributed** -- `Phoenix.PubSub` broadcasts across connected nodes.
+
+**New modules and APIs:**
+- `Fleet.HostRegistry` GenServer (169 lines): tracks BEAM nodes, `:net_kernel.monitor_nodes/2`, `:pg` group `:observatory_hosts`
+- `AgentProcess`: joins `:pg` group `{:agent, id}`. New: `lookup_cluster/1` (local-first, falls back to `:pg`), `list_cluster/0`
+- `TeamSupervisor`: joins `:pg` group `{:team, name}`. New: `list_cluster/0`
+- `FleetSupervisor.spawn_agent_on/2`: routes to local `spawn_agent/1` or remote via `:rpc.call`
+- `AgentSpawner`: accepts `:host` option. `spawn_remote/2` calls target node's `spawn_local/1` via `:rpc`
+- `:pg` scope `:observatory_agents` started in application supervisor
+- `DNSCluster` already in supervision tree (set to `:ignore`), configure for production clustering
+
+**Remaining gaps:**
+- Clustering config (node naming, DNSCluster query)
+- AgentRegistry ETS is node-local -- long-term: BEAM-native fleet via `:pg` replaces ETS
+- Remote tmux delivery (SSH-based tmux commands for agents on remote hosts)
+- AgentSpawner at 318 lines (over 200-line limit)
 
 ## Ash Domain Style
 - Alias resources at top of domain module

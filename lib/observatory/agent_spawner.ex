@@ -17,6 +17,8 @@ defmodule Observatory.AgentSpawner do
 
   @observatory_socket Path.expand("~/.observatory/tmux/obs.sock")
 
+  alias Observatory.Fleet.HostRegistry
+
   @type spawn_opts :: %{
           optional(:name) => String.t(),
           optional(:capability) => String.t(),
@@ -27,7 +29,8 @@ defmodule Observatory.AgentSpawner do
           optional(:team_name) => String.t(),
           optional(:quality_gates) => [String.t()],
           optional(:extra_instructions) => String.t(),
-          optional(:parent_id) => String.t()
+          optional(:parent_id) => String.t(),
+          optional(:host) => node()
         }
 
   @doc """
@@ -37,6 +40,17 @@ defmodule Observatory.AgentSpawner do
   """
   @spec spawn_agent(spawn_opts()) :: {:ok, map()} | {:error, term()}
   def spawn_agent(opts) do
+    target_node = opts[:host] || Node.self()
+
+    if target_node != Node.self() and HostRegistry.available?(target_node) do
+      spawn_remote(target_node, opts)
+    else
+      spawn_local(opts)
+    end
+  end
+
+  @doc false
+  def spawn_local(opts) do
     name = opts[:name] || generate_name(opts[:capability] || "agent")
     cwd = opts[:cwd] || File.cwd!()
     session_name = "obs-#{name}"
@@ -74,10 +88,38 @@ defmodule Observatory.AgentSpawner do
         team: opts[:team_name],
         cwd: cwd,
         parent_id: opts[:parent_id],
+        host: Atom.to_string(Node.self()),
         channels: %{tmux: session_name}
       )
 
-      {:ok, %{session_name: session_name, agent_id: agent_id, name: name, cwd: cwd}}
+      {:ok, %{session_name: session_name, agent_id: agent_id, name: name, cwd: cwd, node: Node.self()}}
+    end
+  end
+
+  defp spawn_remote(node, opts) do
+    Logger.info("AgentSpawner: Spawning agent on remote node #{node}")
+
+    case :rpc.call(node, __MODULE__, :spawn_local, [opts]) do
+      {:badrpc, reason} ->
+        Logger.error("AgentSpawner: Remote spawn failed on #{node}: #{inspect(reason)}")
+        {:error, {:remote_spawn_failed, node, reason}}
+
+      {:ok, result} ->
+        # Register in local (hub) AgentRegistry for visibility
+        Observatory.Gateway.AgentRegistry.register_spawned(result.agent_id,
+          name: result.name,
+          role: capability_to_role(opts[:capability] || "builder"),
+          team: opts[:team_name],
+          cwd: result.cwd,
+          parent_id: opts[:parent_id],
+          host: Atom.to_string(node),
+          channels: %{tmux: result.session_name}
+        )
+
+        {:ok, Map.put(result, :node, node)}
+
+      {:error, _reason} = error ->
+        error
     end
   end
 

@@ -158,10 +158,8 @@ defmodule Observatory.Gateway.AgentRegistry do
   end
 
 
-  # ── Tree API ──────────────────────────────────────────────────────────
-
   @doc """
-  Register a spawned agent with an explicit parent-child relationship.
+  Register a spawned agent with optional parent tracking.
   Called by AgentSpawner after creating a tmux session.
   """
   def register_spawned(session_id, opts) do
@@ -181,105 +179,10 @@ defmodule Observatory.Gateway.AgentRegistry do
 
     :ets.insert(@table, {session_id, agent})
 
-    # Update parent's children list
-    if parent_id do
-      add_child(parent_id, session_id)
-    end
-
     broadcast_registry_update()
     agent
   rescue
     ArgumentError -> nil
-  end
-
-  @doc "Get an agent's children (direct descendants in the spawn tree)."
-  def children(session_id) do
-    case get(session_id) do
-      %{children: ids} when is_list(ids) ->
-        Enum.map(ids, &get/1) |> Enum.reject(&is_nil/1)
-
-      _ ->
-        []
-    end
-  end
-
-  @doc "Get an agent's parent in the spawn tree."
-  def parent(session_id) do
-    case get(session_id) do
-      %{parent_id: pid} when is_binary(pid) -> get(pid)
-      _ -> nil
-    end
-  end
-
-  @doc "Get the full chain of command from an agent up to the root."
-  def chain_of_command(session_id) do
-    build_chain(session_id, [])
-  end
-
-  defp build_chain(nil, acc), do: Enum.reverse(acc)
-
-  defp build_chain(session_id, acc) do
-    case get(session_id) do
-      %{parent_id: pid} = agent ->
-        if agent in acc do
-          # Cycle detection
-          Enum.reverse([agent | acc])
-        else
-          build_chain(pid, [agent | acc])
-        end
-
-      nil ->
-        Enum.reverse(acc)
-    end
-  end
-
-  @doc "Move an agent to a new parent (hierarchy reshaping)."
-  def reparent(session_id, new_parent_id) do
-    case get(session_id) do
-      %{parent_id: old_parent_id} = agent ->
-        # Remove from old parent's children
-        if old_parent_id, do: remove_child(old_parent_id, session_id)
-
-        # Update agent's parent
-        :ets.insert(@table, {session_id, %{agent | parent_id: new_parent_id}})
-
-        # Add to new parent's children
-        if new_parent_id, do: add_child(new_parent_id, session_id)
-
-        broadcast_registry_update()
-        :ok
-
-      nil ->
-        {:error, :not_found}
-    end
-  rescue
-    ArgumentError -> {:error, :not_found}
-  end
-
-  defp add_child(parent_id, child_id) do
-    case :ets.lookup(@table, parent_id) do
-      [{^parent_id, parent}] ->
-        children = Enum.uniq([child_id | parent.children || []])
-        :ets.insert(@table, {parent_id, %{parent | children: children}})
-
-      [] ->
-        :ok
-    end
-  rescue
-    ArgumentError -> :ok
-  end
-
-  defp remove_child(parent_id, child_id) do
-    case :ets.lookup(@table, parent_id) do
-      [{^parent_id, parent}] ->
-        children = List.delete(parent.children || [], child_id)
-        :ets.insert(@table, {parent_id, %{parent | children: children}})
-
-      [] ->
-        :ok
-    end
-  rescue
-    ArgumentError -> :ok
   end
 
   @doc "Purge all stale/ended agents immediately. Returns count of purged entries."
@@ -459,7 +362,6 @@ defmodule Observatory.Gateway.AgentRegistry do
       session_id: session_id,
       host: "local",
       parent_id: nil,
-      children: [],
       team: nil,
       role: :standalone,
       status: :active,

@@ -10,6 +10,7 @@ defmodule Observatory.Fleet.TeamSupervisor do
   require Logger
 
   @team_registry Observatory.Fleet.TeamRegistry
+  @pg_scope :observatory_agents
 
   defstruct [:name, :project, :strategy, :lead_id, metadata: %{}]
 
@@ -70,10 +71,21 @@ defmodule Observatory.Fleet.TeamSupervisor do
     end
   end
 
-  @doc "List all registered team names with metadata."
+  @doc "List all registered team names with metadata (local node)."
   @spec list_all() :: [{String.t(), map()}]
   def list_all do
     Registry.select(@team_registry, [{{:"$1", :_, :"$3"}, [], [{{:"$1", :"$3"}}]}])
+  end
+
+  @doc "List all team names across the cluster via :pg."
+  @spec list_cluster() :: [String.t()]
+  def list_cluster do
+    :pg.which_groups(@pg_scope)
+    |> Enum.filter(fn
+      {:team, _name} -> true
+      _ -> false
+    end)
+    |> Enum.map(fn {:team, name} -> name end)
   end
 
   # ── Server Callbacks ────────────────────────────────────────────────
@@ -95,6 +107,9 @@ defmodule Observatory.Fleet.TeamSupervisor do
       "fleet:lifecycle",
       {:team_created, name, %{project: project, strategy: strategy}}
     )
+
+    # Join :pg group for cluster-wide team discovery
+    :pg.join(@pg_scope, {:team, name}, self())
 
     Logger.info("[TeamSupervisor] Created team #{name} (strategy=#{strategy})")
     DynamicSupervisor.init(strategy: strategy, max_restarts: 5, max_seconds: 60)

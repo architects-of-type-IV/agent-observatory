@@ -68,6 +68,23 @@ defmodule Observatory.Fleet.FleetSupervisor do
     DynamicSupervisor.start_child(__MODULE__, {Observatory.Fleet.AgentProcess, opts})
   end
 
+  @doc """
+  Spawn an agent on a specific node. If the target is the local node,
+  delegates to `spawn_agent/1`. For remote nodes, calls the remote
+  FleetSupervisor via `:rpc`.
+  """
+  @spec spawn_agent_on(node(), keyword()) :: DynamicSupervisor.on_start_child() | {:error, term()}
+  def spawn_agent_on(node, opts) when node == node() do
+    spawn_agent(opts)
+  end
+
+  def spawn_agent_on(node, opts) do
+    case :rpc.call(node, __MODULE__, :spawn_agent, [opts]) do
+      {:badrpc, reason} -> {:error, {:remote_spawn_failed, node, reason}}
+      result -> result
+    end
+  end
+
   @doc "Terminate a standalone agent by ID."
   @spec terminate_agent(String.t()) :: :ok | {:error, :not_found}
   def terminate_agent(agent_id) do

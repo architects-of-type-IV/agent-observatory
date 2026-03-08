@@ -14,6 +14,7 @@ defmodule Observatory.Fleet.AgentProcess do
 
   @max_message_buffer 200
   @type_iv_registry Observatory.Fleet.ProcessRegistry
+  @pg_scope :observatory_agents
 
   @type status :: :initializing | :active | :paused | :terminating
 
@@ -122,6 +123,29 @@ defmodule Observatory.Fleet.AgentProcess do
     end
   end
 
+  @doc "Lookup an agent across all nodes in the cluster. Returns pid or nil."
+  @spec lookup_cluster(String.t()) :: pid() | nil
+  def lookup_cluster(agent_id) do
+    case lookup(agent_id) do
+      {pid, _meta} -> pid
+      nil -> lookup_remote(agent_id)
+    end
+  end
+
+  @doc "List all agent PIDs across the cluster via :pg."
+  @spec list_cluster() :: [{String.t(), pid()}]
+  def list_cluster do
+    :pg.which_groups(@pg_scope)
+    |> Enum.filter(fn
+      {:agent, _id} -> true
+      _ -> false
+    end)
+    |> Enum.flat_map(fn {:agent, id} = group ->
+      :pg.get_members(@pg_scope, group)
+      |> Enum.map(fn pid -> {id, pid} end)
+    end)
+  end
+
   # ── Server Callbacks ────────────────────────────────────────────────
 
   @impl true
@@ -144,6 +168,10 @@ defmodule Observatory.Fleet.AgentProcess do
     }
 
     update_registry(id, %{role: role, team: team, status: :active, backend_type: backend_type(state.backend)})
+
+    # Join :pg group for cluster-wide discovery
+    :pg.join(@pg_scope, {:agent, id}, self())
+
     broadcast_lifecycle({:agent_started, id, %{role: role, team: team}})
 
     Logger.info("[AgentProcess] Started #{id} (role=#{role}, team=#{team || "standalone"})")
@@ -197,6 +225,14 @@ defmodule Observatory.Fleet.AgentProcess do
 
   @spec via(String.t()) :: {:via, module(), tuple()}
   defp via(id), do: {:via, Registry, {@type_iv_registry, id, %{}}}
+
+  @spec lookup_remote(String.t()) :: pid() | nil
+  defp lookup_remote(agent_id) do
+    case :pg.get_members(@pg_scope, {:agent, agent_id}) do
+      [pid | _] -> pid
+      [] -> nil
+    end
+  end
 
   @spec route_message(map(), t()) :: t()
   defp route_message(msg, %{status: status} = state) when status != :active do

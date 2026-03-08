@@ -22,6 +22,12 @@ defmodule Observatory.Application do
       {Registry, keys: :unique, name: Observatory.Fleet.ProcessRegistry},
       {Registry, keys: :unique, name: Observatory.Fleet.TeamRegistry},
 
+      # :pg scope for cluster-wide process discovery
+      {:pg, :observatory_agents},
+
+      # Fleet host registry (tracks BEAM nodes in the cluster)
+      Observatory.Fleet.HostRegistry,
+
       # Core services (mailbox, command queue, teams, notes, janitor, memory)
       Observatory.CoreSupervisor,
 
