@@ -74,6 +74,7 @@ defmodule ObservatoryWeb.DashboardLive do
       if nav_view == :workshop do
         socket
         |> assign(:ws_blueprints, list_blueprints())
+        |> assign(:ws_agent_types, list_agent_types())
         |> push_ws_state()
       else
         socket
@@ -540,11 +541,18 @@ defmodule ObservatoryWeb.DashboardLive do
     {:noreply, assign(s, :expanded_protocol_items, expanded)}
   end
 
-  # ── handle_event: workshop (full-module delegation) ─────────────────
+  # ── handle_event: workshop (delegated by prefix) ─────────────────────
 
-  def handle_event("ws_" <> _ = e, p, s) do
-    ObservatoryWeb.DashboardWorkshopHandlers.handle_event(e, p, s)
-  end
+  def handle_event("ws_edit_type" <> _ = e, p, s), do: ObservatoryWeb.WorkshopTypes.handle_event(e, p, s)
+  def handle_event("ws_cancel_edit_type" = e, p, s), do: ObservatoryWeb.WorkshopTypes.handle_event(e, p, s)
+  def handle_event("ws_save_type" = e, p, s), do: ObservatoryWeb.WorkshopTypes.handle_event(e, p, s)
+  def handle_event("ws_delete_type" = e, p, s), do: ObservatoryWeb.WorkshopTypes.handle_event(e, p, s)
+  def handle_event("ws_save_blueprint" = e, p, s), do: ObservatoryWeb.WorkshopPersistence.handle_event(e, p, s)
+  def handle_event("ws_load_blueprint" = e, p, s), do: ObservatoryWeb.WorkshopPersistence.handle_event(e, p, s)
+  def handle_event("ws_delete_blueprint" = e, p, s), do: ObservatoryWeb.WorkshopPersistence.handle_event(e, p, s)
+  def handle_event("ws_new_blueprint" = e, p, s), do: ObservatoryWeb.WorkshopPersistence.handle_event(e, p, s)
+  def handle_event("ws_list_blueprints" = e, p, s), do: ObservatoryWeb.WorkshopPersistence.handle_event(e, p, s)
+  def handle_event("ws_" <> _ = e, p, s), do: ObservatoryWeb.DashboardWorkshopHandlers.handle_event(e, p, s)
 
   # ── handle_event: navigation (full-module, cannot import) ───────────
 

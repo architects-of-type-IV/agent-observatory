@@ -23,12 +23,13 @@
 - **Costs.CostAggregator.record_usage/2**: async token usage recording with per-model cost estimation
 - **Gateway.Router.ingest/1**: registry update + channel side effects (SessionStart -> create channel, PreToolUse -> TeamCreate/Delete/SendMessage intercepts)
 
-## Workshop Domain (Ash + SQLite)
-- **Domain**: `Observatory.Workshop` with 4 resources
-- **TeamBlueprint**: parent resource, `manage_relationship(:direct_control)` on create/update for nested CRUD
-- **Canvas <-> Ash mapping**: `id` <-> `slot`, `x/y` <-> `canvas_x/canvas_y`, `from/to` <-> `from_slot/to_slot`
-- **Auto-save**: every canvas mutation calls `auto_save/1` which persists via `Ash.Changeset.for_create/update`
-- **Preloading**: `list_blueprints/0` must call `Ash.load!(:agent_blueprints)` for agent count in UI
+## Workshop Architecture (After Split, 2026-03-08)
+- **4 handler modules**: Handlers (canvas CRUD), Persistence (blueprint Ash ops), Presets (declarative configs), Types (AgentType CRUD)
+- **DashboardLive routing**: specific event names first (types, blueprints), `"ws_" <> _` catch-all last for canvas events
+- **Presets as data**: `@presets` map with `@dag_lead`/`@dag_workers` module attributes, `apply/2` reads from map
+- **Persistence layer**: auto_save creates/updates via Ash.Changeset, canvas <-> Ash field mapping (slot/id, canvas_x/x)
+- **AgentType**: Ash resource with `sorted!()` code interface, SQLite-backed
+- **Module attribute for comprehension**: wrap `for...do...end` in parens for module attr assignment
 
 ## BEAM-Native Fleet Architecture (Type IV Foundation)
 - **AgentProcess** GenServer: PID = identity, process mailbox = delivery target
@@ -41,7 +42,7 @@
 ## Ash Domain Model
 - **Fleet domain**: Agent + Team (DataLayer.Simple, read-only via preparations)
 - **Activity domain**: Message + Task + Error (DataLayer.Simple) + EventAnalysis (plain module)
-- **Workshop domain**: TeamBlueprint + AgentBlueprint + SpawnLink + CommRule (SQLite)
+- **Workshop domain**: TeamBlueprint + AgentBlueprint + SpawnLink + CommRule + AgentType (SQLite)
 - **AgentTools domain**: Inbox + Memory (generic actions for MCP)
 - **Events domain**: Event + Session (SQLite)
 - **Costs domain**: TokenUsage (SQLite)

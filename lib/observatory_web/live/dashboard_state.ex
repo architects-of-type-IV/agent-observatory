@@ -129,7 +129,9 @@ defmodule ObservatoryWeb.DashboardState do
       ws_default_model: "sonnet",
       ws_cwd: "",
       ws_blueprint_id: nil,
-      ws_blueprints: []
+      ws_blueprints: [],
+      ws_agent_types: [],
+      ws_editing_type: nil
     }
   end
 

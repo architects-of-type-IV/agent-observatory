@@ -7,6 +7,7 @@ defmodule Observatory.Workshop do
   use Ash.Domain
 
   resources do
+    resource Observatory.Workshop.AgentType
     resource Observatory.Workshop.TeamBlueprint
     resource Observatory.Workshop.AgentBlueprint
     resource Observatory.Workshop.SpawnLink

@@ -25,7 +25,18 @@
       <div class="px-3 py-1.5 border-b border-zinc-800 flex items-center gap-2 bg-zinc-900/30 shrink-0">
         <h3 class="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Team Builder</h3>
         <span class="w-px h-3 bg-zinc-800" />
-        <button phx-click="ws_add_agent" class="obs-btn obs-btn-success">+ Agent</button>
+        <%= if @ws_agent_types != [] do %>
+          <div class="flex items-center gap-0.5">
+            <%= for type <- @ws_agent_types do %>
+              <button phx-click="ws_add_agent_from_type" phx-value-id={type.id} class="obs-btn obs-btn-muted text-[9px] flex items-center gap-1 cursor-pointer" title={"Add #{type.name} agent"}>
+                <span class="w-[5px] h-[5px] rounded-full shrink-0" style={"background: #{wc.cap_dot(type.capability)}"} />
+                + {type.name}
+              </button>
+            <% end %>
+          </div>
+        <% else %>
+          <button phx-click="ws_add_agent" class="obs-btn obs-btn-success">+ Agent</button>
+        <% end %>
         <span class="flex-1" />
         <span class="text-[10px] text-zinc-500">
           <span class="font-bold text-zinc-200">{length(@ws_agents)}</span> agents
@@ -181,11 +192,7 @@
               <% end %>
             </div>
           <% end %>
-          <div class="flex gap-1 mt-2 flex-wrap">
-            <button phx-click="ws_add_comm_rule_manual" phx-value-policy="allow" class="obs-btn obs-btn-muted text-[9px]"><span class="text-emerald-400">+</span> allow</button>
-            <button phx-click="ws_add_comm_rule_manual" phx-value-policy="deny" class="obs-btn obs-btn-muted text-[9px]"><span class="text-red-400">+</span> deny</button>
-            <button phx-click="ws_add_comm_rule_manual" phx-value-policy="route" class="obs-btn obs-btn-muted text-[9px]"><span class="text-violet-400">+</span> route-via</button>
-          </div>
+          <div class="text-[9px] text-zinc-600 mt-2">Drag cyan ports between agents to add rules</div>
         </div>
 
         <%!-- Saved Blueprints --%>
@@ -212,6 +219,81 @@
                 </div>
               <% end %>
             </div>
+          <% end %>
+        </div>
+
+        <%!-- Agent Types --%>
+        <div class="px-3 py-2.5 border-b border-zinc-800/50">
+          <div class="flex items-center justify-between mb-2">
+            <h4 class="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Agent Types</h4>
+            <button phx-click="ws_edit_type_new" class="obs-btn obs-btn-muted text-[9px] cursor-pointer">+ New Type</button>
+          </div>
+
+          <%!-- Type list --%>
+          <%= if @ws_agent_types == [] do %>
+            <div class="text-[10px] text-zinc-600">No agent types defined yet.</div>
+          <% else %>
+            <div class="space-y-1">
+              <%= for type <- @ws_agent_types do %>
+                <div class={"flex items-center gap-1.5 text-[10px] px-2 py-1.5 rounded group #{if @ws_editing_type && @ws_editing_type != :new && @ws_editing_type.id == type.id, do: "bg-cyan-500/10 border border-cyan-500/20", else: "bg-zinc-800/50 hover:bg-zinc-800"}"}>
+                  <span class="w-[5px] h-[5px] rounded-full shrink-0" style={"background: #{wc.cap_dot(type.capability)}"} />
+                  <span class="text-zinc-300 truncate flex-1">{type.name}</span>
+                  <span class={"text-[7px] font-bold uppercase px-1 py-0.5 rounded #{wc.cap_badge(type.capability)}"}>{wc.cap_abbr(type.capability)}</span>
+                  <span class="text-[9px] text-zinc-600">{type.default_model}</span>
+                  <button phx-click="ws_edit_type" phx-value-id={type.id} class="text-cyan-400 hover:text-cyan-300 opacity-0 group-hover:opacity-100 cursor-pointer text-[9px]">edit</button>
+                  <button phx-click="ws_delete_type" phx-value-id={type.id} class="text-red-400 hover:text-red-300 opacity-0 group-hover:opacity-100 cursor-pointer text-[9px]" data-confirm={"Delete type \"#{type.name}\"?"}>del</button>
+                </div>
+              <% end %>
+            </div>
+          <% end %>
+
+          <%!-- Edit/Create form --%>
+          <%= if @ws_editing_type do %>
+            <% is_new = @ws_editing_type == :new %>
+            <% t = if is_new, do: %{name: "", capability: "builder", default_model: "sonnet", default_permission: "default", default_persona: "", default_file_scope: "", default_quality_gates: "mix compile --warnings-as-errors"}, else: @ws_editing_type %>
+            <form phx-submit="ws_save_type" class="mt-2 space-y-1.5 p-2 rounded bg-zinc-800/70 border border-zinc-700/40">
+              <div class="text-[10px] font-semibold text-zinc-400 mb-1">{if is_new, do: "New Agent Type", else: "Edit: #{t.name}"}</div>
+              <div>
+                <label class="block text-[9px] text-zinc-500 mb-0.5">Name</label>
+                <input type="text" name="name" value={t.name} class="w-full obs-input text-[10px]" required />
+              </div>
+              <div class="flex gap-1.5">
+                <div class="flex-1">
+                  <label class="block text-[9px] text-zinc-500 mb-0.5">Capability</label>
+                  <select name="capability" class="w-full obs-select text-[10px]">
+                    <option :for={cap <- ~w(builder scout reviewer lead coordinator)} value={cap} selected={t.capability == cap}>{cap}</option>
+                  </select>
+                </div>
+                <div class="flex-1">
+                  <label class="block text-[9px] text-zinc-500 mb-0.5">Model</label>
+                  <select name="default_model" class="w-full obs-select text-[10px]">
+                    <option :for={m <- ~w(sonnet opus haiku)} value={m} selected={t.default_model == m}>{m}</option>
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label class="block text-[9px] text-zinc-500 mb-0.5">Permission</label>
+                <select name="default_permission" class="w-full obs-select text-[10px]">
+                  <option :for={p <- ~w(default plan dangerously_skip)} value={p} selected={t.default_permission == p}>{p}</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-[9px] text-zinc-500 mb-0.5">Persona</label>
+                <textarea name="default_persona" rows="2" class="w-full obs-input text-[10px]" phx-debounce="500">{t.default_persona}</textarea>
+              </div>
+              <div>
+                <label class="block text-[9px] text-zinc-500 mb-0.5">File Scope</label>
+                <textarea name="default_file_scope" rows="1" class="w-full obs-input font-mono text-[10px]" phx-debounce="500">{t.default_file_scope}</textarea>
+              </div>
+              <div>
+                <label class="block text-[9px] text-zinc-500 mb-0.5">Quality Gates</label>
+                <textarea name="default_quality_gates" rows="1" class="w-full obs-input font-mono text-[10px]" phx-debounce="500">{t.default_quality_gates}</textarea>
+              </div>
+              <div class="flex gap-1 pt-1">
+                <button type="submit" class="obs-btn obs-btn-success text-[9px] flex-1 cursor-pointer">{if is_new, do: "Create", else: "Save"}</button>
+                <button type="button" phx-click="ws_cancel_edit_type" class="obs-btn obs-btn-muted text-[9px] cursor-pointer">Cancel</button>
+              </div>
+            </form>
           <% end %>
         </div>
 

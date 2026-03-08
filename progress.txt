@@ -3,29 +3,38 @@ ICHOR IV Progress (formerly Observatory)
 
 ## Current: Ash-Disciplined Refactor (2026-03-08)
 
-### This Session: Ash-Disciplined Refactor (Phases 1-7)
-- [x] Phase 1: Dead code deletion (-197 lines from 3 helper modules)
-- [x] Phase 2: Canonicalize role classification (AgentRegistry.derive_role as source of truth)
-- [x] Phase 3: Unify agent index (Fleet.Agent attrs + LoadAgents merge + thin lookup)
-- [x] Phase 4: Extract sessions/inspector/topology to Fleet.Queries module
-- [x] Phase 5: Extract tool_analytics/timeline to Activity.EventAnalysis module
-- [x] Phase 7: Fix template layer violations (paused_sessions + mailbox as assigns)
+### This Session: Workshop Refactor + Phase 6
 - [x] Phase 6: EventController extraction (277->66 lines, -211 lines)
   - sanitize_payload + tool duration -> EventBuffer
   - token usage recording -> Costs.CostAggregator.record_usage/2
   - channel side effects -> Gateway.Router.ingest/1
+- [x] Workshop module split (637->198 lines handler + 3 new modules)
+  - workshop_persistence.ex (154 lines): blueprint CRUD, auto-save, Ash mapping
+  - workshop_presets.ex (120 lines): declarative @presets map, spawn_order
+  - workshop_types.ex (65 lines): AgentType CRUD events
+  - agent_type.ex: Ash resource with sorted!() code interface
+  - DashboardLive: specific event routing before ws_ catch-all
+  - Removed placeholder comm rule buttons, added drag hint
+  - Cleaned naming redundancies and junior-level code patterns
 - [x] Clean compile: mix compile --warnings-as-errors
 - [ ] REMAINING: Phase 8 (ICHOR IV rename) -- separate commits per plan
 
+### Prior Session: Ash-Disciplined Refactor (Phases 1-5, 7)
+- [x] Phase 1: Dead code deletion (-197 lines from 3 helper modules)
+- [x] Phase 2: Canonicalize role classification
+- [x] Phase 3: Unify agent index
+- [x] Phase 4: Extract sessions/inspector/topology to Fleet.Queries
+- [x] Phase 5: Extract tool_analytics/timeline to Activity.EventAnalysis
+- [x] Phase 7: Fix template layer violations
+
 ### Prior Session: Workshop Ash Persistence (2026-03-08)
 - [x] Created 4 Workshop Ash resources: TeamBlueprint, AgentBlueprint, SpawnLink, CommRule
-- [x] manage_relationship(:direct_control) for nested CRUD through parent actions
-- [x] Generated + applied migration (20260308152059_create_workshop_blueprints.exs)
+- [x] manage_relationship(:direct_control) for nested CRUD
+- [x] Generated + applied migration
 - [x] Added Saved Blueprints panel to workshop_view.html.heex
 
 ### Prior Session: BEAM-Native Fleet + Style Guide (2026-03-08)
-- [x] Split agent_process.ex (302->229): extracted AgentProcess.Delivery (76 lines)
-- [x] Added @doc/@spec/@type to all BEAM-native public/private functions
+- [x] Split agent_process.ex (302->229): extracted AgentProcess.Delivery
 - [x] ADRs 023/024/025 for BEAM-native architecture
 - [x] AgentProcess GenServer, TeamSupervisor, FleetSupervisor, Registry instances
 
