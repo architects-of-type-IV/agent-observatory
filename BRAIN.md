@@ -39,10 +39,12 @@
 - **ClearFormOnSubmit** hook clears text inputs 50ms after submit
 
 ## Tmux Delivery (CRITICAL)
-- **Use `set-buffer` + `paste-buffer`** -- NOT temp files with `cat`
+- **Use named `set-buffer` + `paste-buffer`** -- NOT temp files with `cat`
 - Old approach (`cat /tmp/observatory_msg_*.txt`) triggers file read permission in Claude Code agents
-- New approach: `set-buffer MSG` then `paste-buffer -t TARGET` then `send-keys Enter`
-- No temp files, no permission prompts, no cleanup needed
+- New approach: `set-buffer -b NAME MSG` then `paste-buffer -b NAME -d -t TARGET` then `send-keys Enter`
+- Named buffers (`obs-{unique_int}`) prevent concurrent deliveries from corrupting each other
+- `-d` flag auto-deletes buffer after paste
+- **Skip tmux for system messages**: Router filters out `:heartbeat` and `:system` types from tmux delivery (they flood terminals with `[system] heartbeat` -> `zsh: no matches found`)
 
 ## AgentRegistry (2026-03-08)
 - ETS table `:gateway_agent_registry`, merges hook events + TeamWatcher + tmux polling

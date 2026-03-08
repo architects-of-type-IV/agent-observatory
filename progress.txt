@@ -7,6 +7,7 @@ Observatory Progress
 - [x] Identity merge in AgentRegistry (CWD correlation, canonical UUID keys)
 - [x] Ash domain refactor steps 7-9 (imported handlers, extracted DashboardTmuxHandlers)
 - [x] Tmux deliver fix (set-buffer+paste-buffer, no temp files)
+- [x] Heartbeat tmux filter (skip :heartbeat/:system types from tmux delivery)
 - [x] dashboard_live.ex: 982 -> 887 lines
 
 ### Earlier This Session (Gateway Trace + Fix)

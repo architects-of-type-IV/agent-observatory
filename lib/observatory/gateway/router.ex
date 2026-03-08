@@ -94,7 +94,10 @@ defmodule Observatory.Gateway.Router do
       end
 
     # Tmux is additive -- push to terminal when available
-    if agent.channels[:tmux] && Tmux.available?(agent.channels.tmux) do
+    # Skip system messages (heartbeat, etc.) to avoid flooding agent terminals
+    tmux_eligible = payload[:type] not in [:heartbeat, :system]
+
+    if tmux_eligible && agent.channels[:tmux] && Tmux.available?(agent.channels.tmux) do
       Tmux.deliver(agent.channels.tmux, payload)
     end
 

@@ -158,13 +158,24 @@ defmodule Observatory.Gateway.AgentRegistry do
       end
     end)
 
+    # Pre-build cwd index for identity merge (avoids O(M*N) tab2list per member)
+    unaffiliated_by_cwd =
+      :ets.tab2list(@table)
+      |> Enum.reduce(%{}, fn {key, agent}, acc ->
+        if is_uuid?(key) && is_nil(agent.team) && agent.status == :active && agent.cwd do
+          Map.update(acc, agent.cwd, [{key, agent}], &[{key, agent} | &1])
+        else
+          acc
+        end
+      end)
+
     for team <- teams_list, member <- team.members do
       member_key = member[:agent_id] || member[:session_id]
 
       if member_key do
         # Identity merge: find a UUID-keyed entry that matches this team member
         # by cwd correlation, rather than creating a duplicate short-name entry
-        {canonical_key, existing} = find_canonical_entry(member_key, member, team.name)
+        {canonical_key, existing} = find_canonical_entry(member_key, member, team.name, unaffiliated_by_cwd)
 
         # Build channel map: always set mailbox, wire tmux_pane_id when available
         tmux_target = resolve_tmux_target(member[:tmux_pane_id], existing.channels.tmux)
@@ -360,7 +371,8 @@ defmodule Observatory.Gateway.AgentRegistry do
 
     # Enrich existing entries with tmux channel info
     # Match by: exact session name, pane ID from team config, or fuzzy name match
-    :ets.tab2list(@table)
+    # Reuse all_entries from above -- newly auto-registered sessions already have tmux set
+    all_entries
     |> Enum.each(fn {session_id, agent} ->
       current_tmux = agent.channels.tmux
 
@@ -410,7 +422,7 @@ defmodule Observatory.Gateway.AgentRegistry do
   # Find the canonical ETS entry for a team member. Prefers UUID-keyed entries
   # (from hook events) over short-name-keyed entries (from TeamWatcher config).
   # Correlation: match by cwd among unaffiliated (team-less) active agents.
-  defp find_canonical_entry(member_key, member, team_name) do
+  defp find_canonical_entry(member_key, member, team_name, unaffiliated_by_cwd) do
     # First: check if we already have this member_key in ETS
     case get(member_key) do
       %{team: ^team_name} = existing ->
@@ -419,7 +431,7 @@ defmodule Observatory.Gateway.AgentRegistry do
 
       _ ->
         # Try to find a UUID-keyed agent that correlates with this team member
-        case correlate_by_cwd(member[:cwd], team_name) do
+        case correlate_by_cwd(member[:cwd], unaffiliated_by_cwd) do
           {uuid_key, uuid_agent} ->
             {uuid_key, uuid_agent}
 
@@ -431,28 +443,17 @@ defmodule Observatory.Gateway.AgentRegistry do
     end
   end
 
-  # Scan ETS for a UUID-keyed agent with matching cwd that has no team yet.
+  # Look up a UUID-keyed agent with matching cwd from the pre-built index.
   # Returns {key, agent} or nil. Only matches if exactly one candidate exists
   # to avoid ambiguous merges (multiple agents in same cwd).
-  defp correlate_by_cwd(nil, _team_name), do: nil
+  defp correlate_by_cwd(nil, _index), do: nil
 
-  defp correlate_by_cwd(cwd, _team_name) do
-    candidates =
-      :ets.tab2list(@table)
-      |> Enum.filter(fn {key, agent} ->
-        is_uuid?(key) &&
-          is_nil(agent.team) &&
-          agent.cwd == cwd &&
-          agent.status == :active
-      end)
-
-    case candidates do
+  defp correlate_by_cwd(cwd, index) do
+    case Map.get(index, cwd, []) do
       [{key, agent}] -> {key, agent}
       # Zero or multiple matches -- ambiguous, skip merge
       _ -> nil
     end
-  rescue
-    ArgumentError -> nil
   end
 
   # When a hook event registers a UUID-keyed agent, check if there's an orphaned
@@ -460,12 +461,13 @@ defmodule Observatory.Gateway.AgentRegistry do
   # team metadata and delete the orphan.
   defp maybe_absorb_team_entry(uuid_key, agent) do
     if is_uuid?(uuid_key) && is_nil(agent.team) && agent.cwd do
+      # Use ets.match_object to filter server-side instead of copying the full table.
+      # Match entries where cwd matches -- then filter non-UUID keys with a team in Elixir.
       orphan =
-        :ets.tab2list(@table)
+        :ets.match_object(@table, {:_, %{cwd: agent.cwd}})
         |> Enum.find(fn {key, a} ->
           not is_uuid?(key) &&
             a.team != nil &&
-            a.cwd == agent.cwd &&
             key != "operator"
         end)
 
@@ -499,23 +501,8 @@ defmodule Observatory.Gateway.AgentRegistry do
     }
   end
 
-  defp is_uuid?(str) when is_binary(str) do
-    # UUID v4 pattern: 8-4-4-4-12 hex chars
-    byte_size(str) == 36 && match?({:ok, _}, parse_uuid(str))
-  end
-
+  defp is_uuid?(str) when is_binary(str), do: match?({:ok, _}, Ecto.UUID.cast(str))
   defp is_uuid?(_), do: false
-
-  defp parse_uuid(<<a::binary-size(8), ?-, b::binary-size(4), ?-, c::binary-size(4), ?-,
-                     d::binary-size(4), ?-, e::binary-size(12)>>) do
-    if String.match?(a <> b <> c <> d <> e, ~r/^[0-9a-fA-F]+$/) do
-      {:ok, true}
-    else
-      :error
-    end
-  end
-
-  defp parse_uuid(_), do: :error
 
   defp schedule_tmux_poll do
     Process.send_after(self(), :poll_tmux, @tmux_poll_interval)
@@ -601,7 +588,7 @@ defmodule Observatory.Gateway.AgentRegistry do
     Phoenix.PubSub.broadcast(
       Observatory.PubSub,
       "gateway:registry",
-      {:registry_update, list_all()}
+      :registry_changed
     )
   end
 

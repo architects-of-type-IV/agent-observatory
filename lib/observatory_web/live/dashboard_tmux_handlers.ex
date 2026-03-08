@@ -9,8 +9,6 @@ defmodule ObservatoryWeb.DashboardTmuxHandlers do
 
   alias Observatory.Gateway.Channels.Tmux
 
-  @observatory_socket Path.expand("~/.observatory/tmux/obs.sock")
-
   def handle_connect_tmux(%{"session" => session_name}, socket) do
     output =
       case Tmux.capture_pane(session_name, lines: 80) do
@@ -33,8 +31,7 @@ defmodule ObservatoryWeb.DashboardTmuxHandlers do
         socket
 
       session ->
-        args = Tmux.socket_args() ++ ["send-keys", "-t", session, keys, "Enter"]
-        System.cmd("tmux", args, stderr_to_stdout: true)
+        Tmux.run_command(["send-keys", "-t", session, keys, "Enter"])
 
         output =
           case Tmux.capture_pane(session, lines: 80) do
@@ -52,8 +49,7 @@ defmodule ObservatoryWeb.DashboardTmuxHandlers do
         socket
 
       session ->
-        args = Tmux.socket_args() ++ ["kill-session", "-t", session]
-        System.cmd("tmux", args, stderr_to_stdout: true)
+        Tmux.run_command(["kill-session", "-t", session])
 
         socket
         |> assign(active_tmux_session: nil, tmux_output: "")
@@ -65,22 +61,19 @@ defmodule ObservatoryWeb.DashboardTmuxHandlers do
     session_name = "obs-#{:os.system_time(:second)}"
     command = params["command"] || "claude"
 
-    File.mkdir_p!(Path.dirname(@observatory_socket))
-    socket_args = Tmux.socket_args()
-
-    case System.cmd("tmux", socket_args ++ [
+    case Tmux.run_command([
            "new-session", "-d", "-s", session_name, "-c", cwd,
            "env", "-u", "CLAUDECODE", command
-         ], stderr_to_stdout: true) do
-      {_output, 0} ->
+         ]) do
+      {:ok, _} ->
         push_event(socket, "toast", %{
           message: "Launched #{session_name} in #{Path.basename(cwd)}",
           type: "success"
         })
 
-      {error, _code} ->
+      {:error, reason} ->
         push_event(socket, "toast", %{
-          message: "Launch failed: #{String.slice(error, 0, 80)}",
+          message: "Launch failed: #{inspect(reason)}",
           type: "error"
         })
     end

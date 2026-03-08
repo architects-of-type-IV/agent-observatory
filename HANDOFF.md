@@ -1,11 +1,12 @@
 # Observatory - Handoff
 
-## Current Status: Identity Merge + Ash Refactor + Tmux Fix (2026-03-08)
+## Current Status: Tmux Delivery Hardening (2026-03-08)
 
 ### Just Completed
-- **Identity merge in AgentRegistry** -- Hook UUID session_ids and TeamWatcher short-name keys now merge into one canonical entry. `sync_teams` correlates by CWD to find existing UUID-keyed agents. `register_from_event` absorbs orphaned team entries. `poll_tmux_sessions` skips duplicates. Ambiguous cases (shared CWD) gracefully fall back.
-- **Ash domain refactor steps 7-9** -- Imported `DashboardSessionControlHandlers` + created `DashboardTmuxHandlers` (90 lines extracted). Eliminated all `apply/3` and full-module-name calls. dashboard_live.ex: 982 -> 887 lines. All helpers still actively used. Clean compile.
-- **Tmux deliver fix** -- `deliver/2` now uses `set-buffer` + `paste-buffer` instead of writing temp files and `cat`-ing them. Agents no longer stall on file read permission prompts.
+- **Heartbeat tmux filter** -- Router.deliver_to_agent skips tmux delivery for `:heartbeat` and `:system` message types. Heartbeat was being pasted into agent terminals every 5s, causing `zsh: no matches found: [system]` spam.
+- **Identity merge in AgentRegistry** -- CWD correlation merges UUID-keyed (hook) and short-name-keyed (team) entries.
+- **Ash domain refactor steps 7-9** -- Imported handlers, extracted DashboardTmuxHandlers. dashboard_live.ex: 982 -> 887 lines.
+- **Tmux deliver fix** -- `deliver/2` uses named `set-buffer` + `paste-buffer` (not temp files + `cat`). No file read permission prompts. Named buffers prevent concurrent delivery corruption.
 
 ### Prior Work (same day)
 - Debug endpoints (6 routes under /api/debug/)
