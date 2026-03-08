@@ -17,6 +17,9 @@ Observatory Progress
 - [x] Fleet tree PAUSED badge + detail panel HITL Gate Open section
 - [x] Tmux multi-panel: tabbed + tiled layout, multiple sessions, heartbeat refreshes all
 - [x] New assigns: tmux_panels, tmux_outputs, tmux_layout
+- [x] Conversation tracing: filter comms by agent pair, violet pills, Trace button in detail panel
+- [x] filter_by_agents/3 in FleetHelpers for single-agent and pair filtering
+- [x] comms_agent_filter assign (0-2 agent IDs), toggle semantics, auto-switch to comms tab
 
 ### Prior: Code Quality Hardening via /simplify (2026-03-08)
 - [x] Replaced is_uuid?/parse_uuid with Ecto.UUID.cast

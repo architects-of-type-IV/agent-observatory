@@ -101,6 +101,14 @@
 - Pause sends BOTH HITLRelay.pause + CommandQueue/Mailbox command to agent
 - Fleet tree shows amber PAUSED badge, detail panel shows buffer viewer + approve/reject
 
+## Conversation Tracing (2026-03-08)
+- `comms_agent_filter` assign: list of 0-2 agent IDs
+- Toggle semantics: click traced agent removes, click new adds, 3rd replaces all
+- `filter_by_agents/3` in FleetHelpers: 1 agent = all messages to/from, 2 agents = pair only
+- Applied after team filter in comms timeline
+- Violet pills in comms tab bar show active trace, X button clears
+- Auto-switches to :comms activity tab when trace activated
+
 ## Component Patterns
 - Large components split: `.ex` (logic) + `.heex` (templates via `embed_templates`)
 - Module size limit: 200-300 lines max

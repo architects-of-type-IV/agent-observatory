@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Observatory -- Fleet + Comms Layout Explorer</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --zinc-950: #09090b; --zinc-900: #18181b; --zinc-800: #27272a; --zinc-700: #3f3f46;
+    --zinc-600: #52525b; --zinc-500: #71717a; --zinc-400: #a1a1aa; --zinc-300: #d4d4d8;
+    --zinc-200: #e4e4e7; --zinc-100: #f4f4f5;
+    --indigo-400: #818cf8; --indigo-500: #6366f1; --indigo-600: #4f46e5;
+    --emerald-400: #34d399; --emerald-500: #10b981;
+    --amber-400: #fbbf24; --amber-500: #f59e0b;
+    --cyan-400: #22d3ee; --cyan-500: #06b6d4;
+    --red-400: #f87171; --red-500: #ef4444;
+    --blue-400: #60a5fa;
+  }
+  body { font-family: ui-monospace, 'SF Mono', 'Cascadia Code', 'Fira Code', monospace; background: var(--zinc-950); color: var(--zinc-300); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+  /* ── Top bar ── */
+  .topbar { display: flex; align-items: center; gap: 8px; padding: 6px 12px; border-bottom: 1px solid var(--zinc-800); background: rgba(24,24,27,0.7); flex-shrink: 0; }
+  .topbar .brand { font-size: 11px; font-weight: 700; color: var(--zinc-500); text-transform: uppercase; letter-spacing: 0.08em; margin-right: 8px; }
+
+  /* ── Controls bar ── */
+  .controls-bar { display: flex; align-items: center; gap: 12px; padding: 8px 12px; border-bottom: 1px solid var(--zinc-800); background: rgba(24,24,27,0.5); flex-shrink: 0; flex-wrap: wrap; }
+  .control-group { display: flex; align-items: center; gap: 6px; }
+  .control-group label { font-size: 10px; color: var(--zinc-500); text-transform: uppercase; letter-spacing: 0.05em; white-space: nowrap; }
+  .control-group select, .control-group input[type="range"] { font-size: 11px; background: var(--zinc-800); color: var(--zinc-300); border: 1px solid var(--zinc-700); border-radius: 4px; padding: 2px 6px; outline: none; }
+  .control-group select:focus, .control-group input:focus { border-color: var(--indigo-500); }
+  .control-group input[type="range"] { width: 80px; padding: 0; }
+  .preset-btn { font-size: 10px; padding: 3px 8px; background: var(--zinc-800); color: var(--zinc-400); border: 1px solid var(--zinc-700); border-radius: 4px; cursor: pointer; transition: all 0.15s; }
+  .preset-btn:hover { background: var(--zinc-700); color: var(--zinc-200); }
+  .preset-btn.active { background: rgba(99,102,241,0.2); color: var(--indigo-400); border-color: var(--indigo-500); }
+  .sep { width: 1px; height: 20px; background: var(--zinc-800); }
+
+  /* ── Main layout ── */
+  .main { display: flex; flex: 1; overflow: hidden; }
+
+  /* ── Fleet column ── */
+  .fleet-col { display: flex; flex-direction: column; border-right: 1px solid var(--zinc-800); background: rgba(24,24,27,0.3); overflow: hidden; flex-shrink: 0; }
+  .fleet-header { padding: 6px 10px; border-bottom: 1px solid var(--zinc-800); display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+  .fleet-header h3 { font-size: 10px; font-weight: 600; color: var(--zinc-500); text-transform: uppercase; letter-spacing: 0.08em; }
+  .fleet-scroll { flex: 1; overflow-y: auto; }
+
+  .team-group { border-bottom: 1px solid rgba(39,39,42,0.5); }
+  .team-header { display: flex; align-items: center; gap: 6px; padding: 6px 10px; cursor: pointer; transition: background 0.15s; }
+  .team-header:hover { background: rgba(39,39,42,0.5); }
+  .team-header .chevron { font-size: 9px; color: var(--zinc-600); transition: transform 0.2s; width: 10px; }
+  .team-header .chevron.open { transform: rotate(90deg); }
+  .team-name { font-size: 11px; font-weight: 600; color: var(--zinc-300); }
+  .team-count { font-size: 9px; color: var(--zinc-600); }
+  .team-members { overflow: hidden; }
+
+  .agent-row { display: flex; align-items: center; gap: 6px; padding: 5px 10px; cursor: pointer; transition: background 0.15s; border-left: 2px solid transparent; }
+  .agent-row:hover { background: rgba(39,39,42,0.4); }
+  .agent-row.selected { background: rgba(99,102,241,0.08); border-left-color: var(--indigo-500); }
+  .agent-row .indent { width: var(--indent, 0px); flex-shrink: 0; }
+  .agent-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+  .agent-dot.active { background: var(--emerald-400); }
+  .agent-dot.idle { background: var(--zinc-500); }
+  .agent-dot.ended { background: var(--zinc-700); }
+  .agent-name { font-size: 11px; color: var(--zinc-300); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .agent-role { font-size: 9px; font-weight: 700; text-transform: uppercase; padding: 1px 4px; border-radius: 3px; flex-shrink: 0; }
+  .agent-role.coordinator { background: rgba(251,191,36,0.15); color: var(--amber-400); }
+  .agent-role.lead { background: rgba(99,102,241,0.15); color: var(--indigo-400); }
+  .agent-role.worker { background: rgba(113,113,122,0.15); color: var(--zinc-400); }
+  .agent-model { font-size: 9px; color: var(--indigo-400); flex-shrink: 0; }
+  .agent-tool { font-size: 9px; color: var(--cyan-400); flex-shrink: 0; max-width: 60px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .agent-evcount { font-size: 9px; color: var(--zinc-600); flex-shrink: 0; }
+
+  /* Standalone section */
+  .standalone-header { padding: 6px 10px; font-size: 10px; color: var(--zinc-600); text-transform: uppercase; letter-spacing: 0.05em; border-top: 1px solid var(--zinc-800); }
+
+  /* ── Comms column ── */
+  .comms-col { display: flex; flex-direction: column; flex: 1; min-width: 0; overflow: hidden; }
+  .comms-header { padding: 6px 12px; border-bottom: 1px solid var(--zinc-800); display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+  .comms-header h3 { font-size: 10px; font-weight: 600; color: var(--zinc-500); text-transform: uppercase; letter-spacing: 0.08em; }
+  .comms-filter-pills { display: flex; gap: 4px; }
+  .comms-pill { font-size: 9px; padding: 2px 6px; border-radius: 3px; cursor: pointer; transition: all 0.15s; border: 1px solid transparent; }
+  .comms-pill.inactive { background: var(--zinc-800); color: var(--zinc-500); }
+  .comms-pill.inactive:hover { color: var(--zinc-300); }
+  .comms-pill.active { background: rgba(99,102,241,0.15); color: var(--indigo-400); border-color: rgba(99,102,241,0.3); }
+  .comms-scroll { flex: 1; overflow-y: auto; }
+  .comms-empty { display: flex; align-items: center; justify-content: center; height: 100%; color: var(--zinc-600); font-size: 11px; }
+
+  .msg-row { display: flex; flex-direction: column; padding: 8px 12px; border-bottom: 1px solid rgba(39,39,42,0.3); transition: background 0.15s; }
+  .msg-row:hover { background: rgba(39,39,42,0.2); }
+  .msg-meta { display: flex; align-items: center; gap: 6px; margin-bottom: 3px; }
+  .msg-from { font-size: 10px; font-weight: 600; color: var(--zinc-300); }
+  .msg-arrow { color: var(--zinc-600); font-size: 10px; }
+  .msg-to { font-size: 10px; font-weight: 600; color: var(--zinc-300); }
+  .msg-time { font-size: 9px; color: var(--zinc-600); margin-left: auto; font-variant-numeric: tabular-nums; }
+  .msg-status { font-size: 9px; padding: 1px 5px; border-radius: 3px; }
+  .msg-status.read { color: var(--emerald-500); }
+  .msg-status.unread { color: var(--amber-400); background: rgba(245,158,11,0.1); }
+  .msg-content { font-size: 11px; color: var(--zinc-400); line-height: 1.5; padding-left: 2px; }
+  .msg-delivery { display: flex; align-items: center; gap: 8px; margin-top: 4px; padding-left: 2px; }
+  .msg-delivery span { font-size: 9px; color: var(--zinc-600); display: flex; align-items: center; gap: 3px; }
+  .msg-delivery .dot { width: 4px; height: 4px; border-radius: 50%; }
+
+  /* Command input at bottom of comms */
+  .comms-input { padding: 8px 12px; border-top: 1px solid var(--zinc-800); display: flex; gap: 6px; flex-shrink: 0; background: rgba(24,24,27,0.5); }
+  .comms-input select { font-size: 11px; background: var(--zinc-800); color: var(--zinc-300); border: 1px solid var(--zinc-700); border-radius: 4px; padding: 4px 8px; outline: none; min-width: 120px; }
+  .comms-input input { flex: 1; font-size: 11px; background: var(--zinc-800); color: var(--zinc-300); border: 1px solid var(--zinc-700); border-radius: 4px; padding: 4px 8px; outline: none; font-family: inherit; }
+  .comms-input input::placeholder { color: var(--zinc-600); }
+  .comms-input input:focus, .comms-input select:focus { border-color: var(--indigo-500); }
+  .comms-input button { font-size: 11px; padding: 4px 12px; background: rgba(99,102,241,0.2); color: var(--indigo-400); border: 1px solid rgba(99,102,241,0.3); border-radius: 4px; cursor: pointer; transition: all 0.15s; font-family: inherit; }
+  .comms-input button:hover { background: rgba(99,102,241,0.3); }
+
+  /* ── Detail column ── */
+  .detail-col { display: flex; flex-direction: column; border-left: 1px solid var(--zinc-800); background: rgba(24,24,27,0.3); overflow: hidden; flex-shrink: 0; }
+  .detail-col.hidden { display: none; }
+  .detail-header { padding: 8px 12px; border-bottom: 1px solid var(--zinc-800); display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+  .detail-header h3 { font-size: 11px; font-weight: 600; color: var(--zinc-300); }
+  .detail-close { font-size: 11px; color: var(--zinc-600); cursor: pointer; background: none; border: none; padding: 2px 6px; }
+  .detail-close:hover { color: var(--zinc-300); }
+  .detail-scroll { flex: 1; overflow-y: auto; padding: 12px; }
+
+  .detail-section { margin-bottom: 16px; }
+  .detail-section h4 { font-size: 10px; font-weight: 600; color: var(--zinc-500); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; }
+  .detail-row { display: flex; justify-content: space-between; align-items: center; padding: 3px 0; font-size: 11px; }
+  .detail-row dt { color: var(--zinc-500); }
+  .detail-row dd { color: var(--zinc-300); }
+  .detail-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+  .detail-action { font-size: 10px; padding: 4px 10px; border-radius: 4px; cursor: pointer; border: none; font-family: inherit; transition: all 0.15s; }
+  .detail-action.primary { background: rgba(99,102,241,0.2); color: var(--indigo-400); }
+  .detail-action.primary:hover { background: rgba(99,102,241,0.3); }
+  .detail-action.muted { background: var(--zinc-800); color: var(--zinc-400); }
+  .detail-action.muted:hover { background: var(--zinc-700); color: var(--zinc-300); }
+  .detail-action.danger { background: rgba(239,68,68,0.15); color: var(--red-400); }
+  .detail-action.danger:hover { background: rgba(239,68,68,0.25); }
+
+  .detail-msg-form { display: flex; flex-direction: column; gap: 6px; }
+  .detail-msg-form .to-label { font-size: 10px; color: var(--zinc-600); }
+  .detail-msg-form .to-label span { color: var(--zinc-400); }
+  .detail-msg-form .form-row { display: flex; gap: 6px; }
+  .detail-msg-form input { flex: 1; font-size: 11px; background: var(--zinc-800); color: var(--zinc-300); border: 1px solid var(--zinc-700); border-radius: 4px; padding: 5px 8px; outline: none; font-family: inherit; }
+  .detail-msg-form input:focus { border-color: var(--indigo-500); }
+  .detail-msg-form input::placeholder { color: var(--zinc-600); }
+  .detail-msg-form button { font-size: 11px; padding: 5px 12px; background: rgba(99,102,241,0.2); color: var(--indigo-400); border: 1px solid rgba(99,102,241,0.3); border-radius: 4px; cursor: pointer; font-family: inherit; }
+
+  /* Chain of command lines */
+  .chain-line { position: relative; }
+  .chain-line::before { content: ''; position: absolute; left: var(--chain-left, 18px); top: 0; bottom: 0; width: 1px; background: var(--zinc-800); }
+
+  /* Hierarchy connector */
+  .hierarchy-connector { display: flex; align-items: center; gap: 4px; padding: 2px 10px 2px calc(var(--indent, 0px) + 10px); }
+  .h-line { width: 8px; height: 1px; background: var(--zinc-700); }
+  .h-arrow { font-size: 8px; color: var(--zinc-600); }
+
+  /* ── Prompt output ── */
+  .prompt-bar { border-top: 1px solid var(--zinc-800); background: var(--zinc-900); padding: 10px 16px; flex-shrink: 0; display: flex; gap: 12px; align-items: flex-start; }
+  .prompt-text { flex: 1; font-size: 11px; color: var(--zinc-400); line-height: 1.6; max-height: 80px; overflow-y: auto; }
+  .prompt-text strong { color: var(--zinc-300); font-weight: 600; }
+  .copy-btn { font-size: 10px; padding: 4px 12px; background: var(--zinc-800); color: var(--zinc-400); border: 1px solid var(--zinc-700); border-radius: 4px; cursor: pointer; font-family: inherit; white-space: nowrap; transition: all 0.15s; flex-shrink: 0; }
+  .copy-btn:hover { background: var(--zinc-700); color: var(--zinc-200); }
+  .copy-btn.copied { background: rgba(16,185,129,0.2); color: var(--emerald-400); border-color: rgba(16,185,129,0.3); }
+
+  /* scrollbar */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--zinc-800); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--zinc-700); }
+
+  /* tree lines */
+  .tree-branch { position: relative; }
+  .tree-branch::before {
+    content: '';
+    position: absolute;
+    left: calc(var(--tree-depth, 0) * var(--indent-size, 16px) + 14px);
+    top: 0;
+    width: 1px;
+    height: 100%;
+    background: var(--zinc-800);
+  }
+  .tree-branch:last-child::before { height: 50%; }
+  .tree-branch .tree-hook {
+    position: absolute;
+    left: calc(var(--tree-depth, 0) * var(--indent-size, 16px) + 14px);
+    top: 50%;
+    width: 8px;
+    height: 1px;
+    background: var(--zinc-800);
+  }
+</style>
+</head>
+<body>
+
+<!-- Controls bar -->
+<div class="controls-bar">
+  <div class="control-group">
+    <label>Preset</label>
+    <button class="preset-btn active" onclick="applyPreset('default')">Default</button>
+    <button class="preset-btn" onclick="applyPreset('compact')">Compact</button>
+    <button class="preset-btn" onclick="applyPreset('comms-focus')">Comms Focus</button>
+    <button class="preset-btn" onclick="applyPreset('wide-fleet')">Wide Fleet</button>
+  </div>
+  <div class="sep"></div>
+  <div class="control-group">
+    <label>Fleet W</label>
+    <input type="range" min="180" max="360" value="260" oninput="setState('fleetWidth', +this.value)">
+    <span id="fleet-w-val" style="font-size:10px;color:var(--zinc-500);width:30px">260</span>
+  </div>
+  <div class="control-group">
+    <label>Detail W</label>
+    <input type="range" min="200" max="400" value="280" oninput="setState('detailWidth', +this.value)">
+    <span id="detail-w-val" style="font-size:10px;color:var(--zinc-500);width:30px">280</span>
+  </div>
+  <div class="sep"></div>
+  <div class="control-group">
+    <label>Indent</label>
+    <input type="range" min="8" max="32" value="16" oninput="setState('indentSize', +this.value)">
+  </div>
+  <div class="control-group">
+    <label>Hierarchy</label>
+    <select onchange="setState('hierarchyStyle', this.value)">
+      <option value="indent">Indent only</option>
+      <option value="tree-lines" selected>Tree lines</option>
+      <option value="flat">Flat</option>
+    </select>
+  </div>
+  <div class="control-group">
+    <label>Comms input</label>
+    <select onchange="setState('commsInputPos', this.value)">
+      <option value="bottom" selected>Bottom</option>
+      <option value="top">Top</option>
+    </select>
+  </div>
+  <div class="control-group">
+    <label>Detail</label>
+    <select onchange="setState('detailMode', this.value)">
+      <option value="right" selected>Right panel</option>
+      <option value="overlay">Overlay</option>
+      <option value="none">Hidden</option>
+    </select>
+  </div>
+  <div class="control-group">
+    <label>Agent info</label>
+    <select onchange="setState('agentInfo', this.value)">
+      <option value="full" selected>Model + tool + events</option>
+      <option value="minimal">Name + status only</option>
+      <option value="model-only">Name + model</option>
+    </select>
+  </div>
+</div>
+
+<!-- Main preview -->
+<div class="main" id="main-layout">
+  <!-- Fleet column -->
+  <div class="fleet-col" id="fleet-col">
+    <div class="fleet-header">
+      <h3>Fleet</h3>
+      <span style="font-size:9px;color:var(--zinc-600)">7 agents</span>
+    </div>
+    <div class="fleet-scroll" id="fleet-scroll">
+      <!-- Rendered by JS -->
+    </div>
+  </div>
+
+  <!-- Comms column -->
+  <div class="comms-col" id="comms-col">
+    <div class="comms-header">
+      <h3>Comms</h3>
+      <div class="comms-filter-pills">
+        <span class="comms-pill active" onclick="toggleFilter(this, 'all')">All</span>
+        <span class="comms-pill inactive" onclick="toggleFilter(this, 'alpha')">alpha</span>
+        <span class="comms-pill inactive" onclick="toggleFilter(this, 'bravo')">bravo</span>
+      </div>
+    </div>
+    <div id="comms-input-top"></div>
+    <div class="comms-scroll" id="comms-scroll">
+      <!-- Rendered by JS -->
+    </div>
+    <div id="comms-input-bottom"></div>
+  </div>
+
+  <!-- Detail column -->
+  <div class="detail-col" id="detail-col">
+    <div class="detail-header">
+      <h3 id="detail-title">lead-alpha</h3>
+      <button class="detail-close" onclick="setState('selectedAgent', null)">x</button>
+    </div>
+    <div class="detail-scroll" id="detail-scroll">
+      <!-- Rendered by JS -->
+    </div>
+  </div>
+</div>
+
+<!-- Prompt output -->
+<div class="prompt-bar">
+  <div class="prompt-text" id="prompt-output"></div>
+  <button class="copy-btn" id="copy-btn" onclick="copyPrompt()">Copy Prompt</button>
+</div>
+
+<script>
+// ── Mock data ──
+const TEAMS = [
+  {
+    name: 'alpha',
+    collapsed: false,
+    members: [
+      { name: 'coordinator', role: 'coordinator', status: 'active', model: 'opus', tool: 'SendMessage', events: 134, spawns: ['lead-alpha', 'lead-bravo'] },
+      { name: 'lead-alpha', role: 'lead', status: 'active', model: 'opus', tool: 'Bash', events: 89, parent: 'coordinator', spawns: ['worker-1'] },
+      { name: 'worker-1', role: 'worker', status: 'active', model: 'sonnet', tool: 'Edit', events: 47, parent: 'lead-alpha' },
+    ]
+  },
+  {
+    name: 'bravo',
+    collapsed: false,
+    members: [
+      { name: 'lead-bravo', role: 'lead', status: 'active', model: 'opus', tool: 'Read', events: 62, spawns: ['worker-2'] },
+      { name: 'worker-2', role: 'worker', status: 'idle', model: 'haiku', tool: null, events: 23, parent: 'lead-bravo' },
+    ]
+  }
+];
+
+const STANDALONE = [
+  { name: 'obs-session-7a3f', role: null, status: 'active', model: 'sonnet', tool: 'Grep', events: 12 }
+];
+
+const MESSAGES = [
+  { from: 'coordinator', to: 'lead-alpha', content: "You're on build verification. Run mix compile --warnings-as-errors, check all modules compile clean.", time: '14:23:07', read: true, team: 'alpha' },
+  { from: 'coordinator', to: 'lead-bravo', content: "You're on test coverage. Check if test/ directory exists and run the suite.", time: '14:23:08', read: true, team: 'bravo' },
+  { from: 'lead-alpha', to: 'worker-1', content: "Run mix compile --warnings-as-errors and report back.", time: '14:23:15', read: true, team: 'alpha' },
+  { from: 'lead-bravo', to: 'worker-2', content: "Check test directory structure and report findings.", time: '14:23:16', read: true, team: 'bravo' },
+  { from: 'worker-1', to: 'lead-alpha', content: "Build clean. 0 warnings, 0 errors. All 47 modules compiled.", time: '14:24:02', read: true, team: 'alpha' },
+  { from: 'worker-2', to: 'lead-bravo', content: "No test/ directory found. Project has no test infrastructure.", time: '14:24:18', read: false, team: 'bravo' },
+  { from: 'lead-alpha', to: 'coordinator', content: "Build verification complete. All clear.", time: '14:24:31', read: false, team: 'alpha' },
+  { from: 'lead-bravo', to: 'coordinator', content: "Test check complete. No test directory exists.", time: '14:24:45', read: false, team: 'bravo' },
+  { from: 'operator', to: 'all', content: "Status report please.", time: '14:25:01', read: true, team: null },
+  { from: 'coordinator', to: 'operator', content: "All tasks complete. Build clean, no tests found. Awaiting further instructions.", time: '14:25:22', read: false, team: 'alpha' },
+];
+
+// ── State ──
+const DEFAULTS = {
+  fleetWidth: 260,
+  detailWidth: 280,
+  indentSize: 16,
+  hierarchyStyle: 'tree-lines',
+  commsInputPos: 'bottom',
+  detailMode: 'right',
+  agentInfo: 'full',
+  selectedAgent: 'lead-alpha',
+  commsFilter: 'all',
+};
+
+const state = { ...DEFAULTS };
+
+function setState(key, value) {
+  state[key] = value;
+  updateAll();
+}
+
+function applyPreset(name) {
+  const presets = {
+    'default': { fleetWidth: 260, detailWidth: 280, indentSize: 16, hierarchyStyle: 'tree-lines', commsInputPos: 'bottom', detailMode: 'right', agentInfo: 'full' },
+    'compact': { fleetWidth: 200, detailWidth: 240, indentSize: 12, hierarchyStyle: 'indent', commsInputPos: 'bottom', detailMode: 'right', agentInfo: 'minimal' },
+    'comms-focus': { fleetWidth: 200, detailWidth: 260, indentSize: 14, hierarchyStyle: 'tree-lines', commsInputPos: 'top', detailMode: 'none', agentInfo: 'model-only' },
+    'wide-fleet': { fleetWidth: 340, detailWidth: 300, indentSize: 20, hierarchyStyle: 'tree-lines', commsInputPos: 'bottom', detailMode: 'right', agentInfo: 'full' },
+  };
+  Object.assign(state, presets[name] || presets['default']);
+  updateAll();
+}
+
+// ── Rendering ──
+
+function getDepth(member, team) {
+  if (!member.parent) return 0;
+  const parent = team.members.find(m => m.name === member.parent);
+  return parent ? getDepth(parent, team) + 1 : 1;
+}
+
+function renderFleet() {
+  const el = document.getElementById('fleet-scroll');
+  let html = '';
+
+  for (const team of TEAMS) {
+    html += `<div class="team-group">`;
+    html += `<div class="team-header" onclick="toggleTeam('${team.name}')">`;
+    html += `<span class="chevron ${team.collapsed ? '' : 'open'}">&rsaquo;</span>`;
+    html += `<span class="team-name">${team.name}</span>`;
+    html += `<span class="team-count">${team.members.length}</span>`;
+    html += `</div>`;
+
+    if (!team.collapsed) {
+      html += `<div class="team-members">`;
+      // Sort by hierarchy: coordinator first, then leads, then workers
+      const sorted = [...team.members].sort((a, b) => {
+        const order = { coordinator: 0, lead: 1, worker: 2 };
+        return (order[a.role] || 3) - (order[b.role] || 3);
+      });
+
+      for (const member of sorted) {
+        const depth = state.hierarchyStyle === 'flat' ? 0 : getDepth(member, team);
+        const indent = depth * state.indentSize;
+        const selected = state.selectedAgent === member.name ? 'selected' : '';
+        const showTreeLines = state.hierarchyStyle === 'tree-lines' && depth > 0;
+
+        html += `<div class="agent-row ${selected}" onclick="setState('selectedAgent', '${member.name}')" style="--indent:${indent}px">`;
+        html += `<div class="indent"></div>`;
+
+        if (showTreeLines) {
+          html += `<span style="color:var(--zinc-700);font-size:9px;margin-right:2px">&#x251C;</span>`;
+        }
+
+        html += `<span class="agent-dot ${member.status}"></span>`;
+        html += `<span class="agent-name">${member.name}</span>`;
+
+        if (member.role) {
+          html += `<span class="agent-role ${member.role}">${member.role.slice(0,4)}</span>`;
+        }
+
+        if (state.agentInfo === 'full' || state.agentInfo === 'model-only') {
+          html += `<span class="agent-model">${member.model}</span>`;
+        }
+        if (state.agentInfo === 'full') {
+          if (member.tool) html += `<span class="agent-tool">${member.tool}</span>`;
+          html += `<span class="agent-evcount">${member.events}ev</span>`;
+        }
+
+        html += `</div>`;
+      }
+      html += `</div>`;
+    }
+    html += `</div>`;
+  }
+
+  // Standalone
+  if (STANDALONE.length > 0) {
+    html += `<div class="standalone-header">Standalone</div>`;
+    for (const agent of STANDALONE) {
+      const selected = state.selectedAgent === agent.name ? 'selected' : '';
+      html += `<div class="agent-row ${selected}" onclick="setState('selectedAgent', '${agent.name}')">`;
+      html += `<span class="agent-dot ${agent.status}"></span>`;
+      html += `<span class="agent-name">${agent.name}</span>`;
+      if (state.agentInfo !== 'minimal') html += `<span class="agent-model">${agent.model}</span>`;
+      if (state.agentInfo === 'full' && agent.tool) html += `<span class="agent-tool">${agent.tool}</span>`;
+      if (state.agentInfo === 'full') html += `<span class="agent-evcount">${agent.events}ev</span>`;
+      html += `</div>`;
+    }
+  }
+
+  el.innerHTML = html;
+}
+
+function renderComms() {
+  const scroll = document.getElementById('comms-scroll');
+  const filtered = state.commsFilter === 'all'
+    ? MESSAGES
+    : MESSAGES.filter(m => m.team === state.commsFilter || m.team === null);
+
+  let html = '';
+  for (const msg of filtered) {
+    const fromColor = msg.from === 'operator' ? 'color:var(--amber-400)' : '';
+    const toColor = msg.to === 'all' ? 'color:var(--cyan-400)' : msg.to === 'operator' ? 'color:var(--amber-400)' : '';
+
+    html += `<div class="msg-row">`;
+    html += `<div class="msg-meta">`;
+    html += `<span class="msg-from" style="${fromColor}">${msg.from}</span>`;
+    html += `<span class="msg-arrow">&rarr;</span>`;
+    html += `<span class="msg-to" style="${toColor}">${msg.to}</span>`;
+    html += `<span class="msg-status ${msg.read ? 'read' : 'unread'}">${msg.read ? 'read' : 'unread'}</span>`;
+    html += `<span class="msg-time">${msg.time}</span>`;
+    html += `</div>`;
+    html += `<div class="msg-content">${msg.content}</div>`;
+    html += `<div class="msg-delivery"><span><span class="dot" style="background:var(--emerald-400)"></span>mailbox</span>`;
+    if (msg.to === 'all') html += `<span>broadcast</span>`;
+    html += `</div>`;
+    html += `</div>`;
+  }
+
+  scroll.innerHTML = html;
+
+  // Comms input position
+  const inputHTML = `
+    <div class="comms-input">
+      <select>
+        <option>Target...</option>
+        <optgroup label="Broadcast">
+          <option>All Agents</option>
+          <option>Team: alpha</option>
+          <option>Team: bravo</option>
+        </optgroup>
+        <optgroup label="Agents">
+          <option>coordinator</option>
+          <option>lead-alpha</option>
+          <option>lead-bravo</option>
+          <option>worker-1</option>
+          <option>worker-2</option>
+        </optgroup>
+      </select>
+      <input type="text" placeholder="Message...">
+      <button>Send</button>
+    </div>`;
+
+  document.getElementById('comms-input-top').innerHTML = state.commsInputPos === 'top' ? inputHTML : '';
+  document.getElementById('comms-input-bottom').innerHTML = state.commsInputPos === 'bottom' ? inputHTML : '';
+}
+
+function renderDetail() {
+  const col = document.getElementById('detail-col');
+  const title = document.getElementById('detail-title');
+  const scroll = document.getElementById('detail-scroll');
+
+  if (state.detailMode === 'none' || !state.selectedAgent) {
+    col.classList.add('hidden');
+    return;
+  }
+  col.classList.remove('hidden');
+
+  // Find agent data
+  let agent = null;
+  for (const team of TEAMS) {
+    const found = team.members.find(m => m.name === state.selectedAgent);
+    if (found) { agent = { ...found, team: team.name }; break; }
+  }
+  if (!agent) agent = STANDALONE.find(a => a.name === state.selectedAgent);
+  if (!agent) { col.classList.add('hidden'); return; }
+
+  title.textContent = agent.name;
+
+  let html = '';
+
+  // Info section
+  html += `<div class="detail-section">`;
+  html += `<h4>Info</h4>`;
+  html += `<div class="detail-row"><dt>Status</dt><dd style="color:${agent.status === 'active' ? 'var(--emerald-400)' : 'var(--zinc-500)'}">${agent.status}</dd></div>`;
+  if (agent.model) html += `<div class="detail-row"><dt>Model</dt><dd style="color:var(--indigo-400)">${agent.model}</dd></div>`;
+  if (agent.role) html += `<div class="detail-row"><dt>Role</dt><dd>${agent.role}</dd></div>`;
+  if (agent.team) html += `<div class="detail-row"><dt>Team</dt><dd>${agent.team}</dd></div>`;
+  html += `<div class="detail-row"><dt>Events</dt><dd>${agent.events}</dd></div>`;
+  if (agent.tool) html += `<div class="detail-row"><dt>Current tool</dt><dd style="color:var(--cyan-400)">${agent.tool}</dd></div>`;
+  html += `</div>`;
+
+  // Chain of command
+  if (agent.parent || (agent.spawns && agent.spawns.length > 0)) {
+    html += `<div class="detail-section">`;
+    html += `<h4>Chain of Command</h4>`;
+    if (agent.parent) {
+      html += `<div style="font-size:10px;color:var(--zinc-500);margin-bottom:4px">Reports to: <span style="color:var(--zinc-300);cursor:pointer" onclick="setState('selectedAgent','${agent.parent}')">${agent.parent}</span></div>`;
+    }
+    if (agent.spawns && agent.spawns.length > 0) {
+      html += `<div style="font-size:10px;color:var(--zinc-500);margin-bottom:2px">Manages:</div>`;
+      for (const s of agent.spawns) {
+        html += `<div style="font-size:10px;color:var(--zinc-300);padding-left:8px;margin-bottom:2px;cursor:pointer" onclick="setState('selectedAgent','${s}')"><span style="color:var(--zinc-700);margin-right:4px">&#x251C;</span>${s}</div>`;
+      }
+    }
+    html += `</div>`;
+  }
+
+  // Recent messages involving this agent
+  const agentMsgs = MESSAGES.filter(m => m.from === agent.name || m.to === agent.name).slice(0, 4);
+  if (agentMsgs.length > 0) {
+    html += `<div class="detail-section">`;
+    html += `<h4>Recent Messages</h4>`;
+    for (const msg of agentMsgs) {
+      const dir = msg.from === agent.name ? 'sent' : 'received';
+      const other = msg.from === agent.name ? msg.to : msg.from;
+      const dirColor = dir === 'sent' ? 'var(--indigo-400)' : 'var(--emerald-400)';
+      const preview = msg.content.length > 60 ? msg.content.slice(0, 60) + '...' : msg.content;
+      html += `<div style="margin-bottom:8px">`;
+      html += `<div style="font-size:9px;display:flex;gap:4px;align-items:center;margin-bottom:2px">`;
+      html += `<span style="color:${dirColor}">${dir === 'sent' ? '&uarr;' : '&darr;'} ${dir}</span>`;
+      html += `<span style="color:var(--zinc-500)">${dir === 'sent' ? 'to' : 'from'}</span>`;
+      html += `<span style="color:var(--zinc-300)">${other}</span>`;
+      html += `<span style="color:var(--zinc-600);margin-left:auto">${msg.time}</span>`;
+      html += `</div>`;
+      html += `<div style="font-size:10px;color:var(--zinc-400);line-height:1.4;padding-left:2px">${preview}</div>`;
+      html += `</div>`;
+    }
+    html += `</div>`;
+  }
+
+  // Actions
+  html += `<div class="detail-section">`;
+  html += `<h4>Actions</h4>`;
+  html += `<div class="detail-actions">`;
+  html += `<button class="detail-action primary">Focus</button>`;
+  html += `<button class="detail-action muted">Pause</button>`;
+  html += `<button class="detail-action muted">Resume</button>`;
+  html += `<button class="detail-action danger">Shutdown</button>`;
+  html += `</div>`;
+  html += `</div>`;
+
+  // Direct message form
+  html += `<div class="detail-section">`;
+  html += `<h4>Send Message</h4>`;
+  html += `<div class="detail-msg-form">`;
+  html += `<div class="to-label">To: <span>${agent.name}</span></div>`;
+  html += `<div class="form-row">`;
+  html += `<input type="text" placeholder="Message ${agent.name}...">`;
+  html += `<button>Send</button>`;
+  html += `</div>`;
+  html += `</div>`;
+  html += `</div>`;
+
+  scroll.innerHTML = html;
+}
+
+function updateLayout() {
+  document.getElementById('fleet-col').style.width = state.fleetWidth + 'px';
+  document.getElementById('detail-col').style.width = state.detailWidth + 'px';
+  document.getElementById('fleet-w-val').textContent = state.fleetWidth;
+  document.getElementById('detail-w-val').textContent = state.detailWidth;
+
+  // Sync control values
+  document.querySelectorAll('.preset-btn').forEach(btn => {
+    btn.classList.remove('active');
+  });
+
+  // Sync range inputs
+  const ranges = document.querySelectorAll('input[type="range"]');
+  ranges[0].value = state.fleetWidth;
+  ranges[1].value = state.detailWidth;
+  ranges[2].value = state.indentSize;
+
+  // Sync selects
+  const selects = document.querySelectorAll('.controls-bar select');
+  selects[0].value = state.hierarchyStyle;
+  selects[1].value = state.commsInputPos;
+  selects[2].value = state.detailMode;
+  selects[3].value = state.agentInfo;
+}
+
+function updatePrompt() {
+  const parts = [];
+
+  parts.push(`<strong>Merge /fleet and /protocols into a single Fleet view</strong> with a 3-column layout`);
+
+  // Fleet column
+  const fleetDesc = [];
+  fleetDesc.push(`${state.fleetWidth}px wide`);
+  if (state.hierarchyStyle === 'tree-lines') fleetDesc.push('tree-line connectors showing spawn hierarchy');
+  else if (state.hierarchyStyle === 'indent') fleetDesc.push('indented hierarchy (no connector lines)');
+  else fleetDesc.push('flat agent list');
+  fleetDesc.push(`${state.indentSize}px indent per depth level`);
+
+  const infoDesc = state.agentInfo === 'full' ? 'model, current tool, and event count'
+    : state.agentInfo === 'model-only' ? 'model name only' : 'name and status dot only';
+  fleetDesc.push(`agent rows show ${infoDesc}`);
+  parts.push(`<br><br><strong>Left: Fleet tree</strong> -- ${fleetDesc.join('. ')}. Teams are collapsible groups. Agents ordered by role: coordinator, lead, worker. Standalone agents below teams.`);
+
+  // Comms column
+  const commsDesc = [];
+  commsDesc.push('fills remaining width');
+  commsDesc.push(`command bar (target select + message input + send) at ${state.commsInputPos}`);
+  commsDesc.push('filter pills to scope by team');
+  commsDesc.push('messages show from->to with arrow, content, read/unread badge, timestamp, delivery indicator');
+  commsDesc.push('operator messages highlighted in amber');
+  parts.push(`<br><br><strong>Center: Comms timeline</strong> -- ${commsDesc.join('. ')}.`);
+
+  // Detail column
+  if (state.detailMode === 'right') {
+    const detailDesc = [];
+    detailDesc.push(`${state.detailWidth}px wide right panel`);
+    detailDesc.push('shows on agent click, closeable');
+    detailDesc.push('sections: Info (status/model/role/team/events/current tool), Chain of Command (reports-to + manages with clickable navigation), Recent Messages (last 4 sent/received), Actions (focus/pause/resume/shutdown), Direct Message form');
+    parts.push(`<br><br><strong>Right: Detail panel</strong> -- ${detailDesc.join('. ')}.`);
+  } else if (state.detailMode === 'overlay') {
+    parts.push(`<br><br><strong>Detail: Overlay panel</strong> -- slides over comms column on agent click. Same sections as right panel.`);
+  } else {
+    parts.push(`<br><br><strong>Detail: Hidden</strong> -- no detail panel. Agent info accessible via other means.`);
+  }
+
+  parts.push(`<br><br><strong>Design system:</strong> zinc-900/950 dark theme, 10-11px monospace type, observatory component classes (obs-input, obs-btn, obs-select). Role badges: coordinator=amber, lead=indigo, worker=zinc. Status dots: active=emerald, idle=zinc-500, ended=zinc-700.`);
+
+  document.getElementById('prompt-output').innerHTML = parts.join('');
+}
+
+function toggleTeam(name) {
+  const team = TEAMS.find(t => t.name === name);
+  if (team) team.collapsed = !team.collapsed;
+  updateAll();
+}
+
+function toggleFilter(el, filter) {
+  state.commsFilter = filter;
+  document.querySelectorAll('.comms-pill').forEach(p => {
+    p.classList.remove('active');
+    p.classList.add('inactive');
+  });
+  el.classList.remove('inactive');
+  el.classList.add('active');
+  renderComms();
+}
+
+function updateAll() {
+  updateLayout();
+  renderFleet();
+  renderComms();
+  renderDetail();
+  updatePrompt();
+}
+
+function copyPrompt() {
+  const text = document.getElementById('prompt-output').innerText;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.getElementById('copy-btn');
+    btn.textContent = 'Copied!';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = 'Copy Prompt'; btn.classList.remove('copied'); }, 1500);
+  });
+}
+
+// Init
+updateAll();
+</script>
+</body>
+</html>

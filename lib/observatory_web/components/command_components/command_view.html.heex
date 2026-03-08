@@ -18,7 +18,10 @@
   # Mailbox messages for comms timeline
   mailbox_messages = Observatory.Mailbox.all_messages(50)
   comms_filter = assigns[:comms_team_filter]
-  filtered_messages = FH.filter_by_team(mailbox_messages, comms_filter, @teams)
+  agent_filter = assigns[:comms_agent_filter] || []
+  filtered_messages = mailbox_messages
+    |> FH.filter_by_team(comms_filter, @teams)
+    |> FH.filter_by_agents(agent_filter, names)
 
   # Standalone agents (not in any team)
   team_ids = @teams |> Enum.flat_map(& &1.members) |> Enum.map(& &1[:agent_id]) |> MapSet.new()
@@ -199,6 +202,19 @@
           >{team.name}</span>
         <% end %>
         <span class="text-[9px] text-zinc-600 ml-1">{length(filtered_messages)} msgs</span>
+        <%!-- Trace filter pills --%>
+        <%= if agent_filter != [] do %>
+          <span class="w-px h-3 bg-zinc-700 mx-1" />
+          <span class="text-[9px] text-violet-400 font-semibold">Trace:</span>
+          <%= for af <- agent_filter do %>
+            <span
+              phx-click="trace_agent"
+              phx-value-agent_id={af}
+              class="text-[9px] px-1.5 py-0.5 rounded bg-violet-500/15 text-violet-300 cursor-pointer hover:bg-violet-500/25 transition"
+            >{FH.resolve_label(af, names)}</span>
+          <% end %>
+          <button phx-click="clear_trace" class="text-[9px] text-zinc-600 hover:text-zinc-400 cursor-pointer ml-0.5">x</button>
+        <% end %>
       </div>
       <div :if={active_tab == :feed} class="flex gap-1">
         <button phx-click="expand_all" class="text-[9px] px-1.5 py-0.5 rounded text-zinc-500 hover:text-zinc-300 cursor-pointer transition">Expand</button>
@@ -386,6 +402,10 @@
         <div class="flex flex-wrap gap-1.5">
           <button :if={sel_tmux} phx-click="connect_tmux" phx-value-session={sel_tmux} class="obs-btn bg-amber-600/15 text-amber-400 hover:bg-amber-600/25">Tmux</button>
           <button phx-click="open_agent_slideout" phx-value-session_id={sel_id} class="obs-btn obs-btn-primary">Focus</button>
+          <% is_traced = sel_id in agent_filter %>
+          <button phx-click="trace_agent" phx-value-agent_id={sel_id} class={"obs-btn #{if is_traced, do: "bg-violet-500/15 text-violet-400", else: "obs-btn-muted"}"}>
+            {if is_traced, do: "Tracing", else: "Trace"}
+          </button>
           <button :if={!is_hitl_paused} phx-click="pause_agent" phx-value-session_id={sel_id} class="obs-btn obs-btn-muted">Pause</button>
           <button :if={is_hitl_paused} phx-click="resume_agent" phx-value-session_id={sel_id} class="obs-btn obs-btn-muted">Resume</button>
           <button phx-click="shutdown_agent" phx-value-session_id={sel_id} class="obs-btn obs-btn-muted text-red-400" data-confirm="Shut down this agent?">Shutdown</button>

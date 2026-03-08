@@ -129,6 +129,25 @@ defmodule ObservatoryWeb.Components.FleetHelpers do
     end
   end
 
+  @doc "Filter messages involving a specific agent (or pair when two agents specified)."
+  def filter_by_agents(messages, nil, _), do: messages
+  def filter_by_agents(messages, [], _), do: messages
+
+  def filter_by_agents(messages, [agent_a], _names) do
+    Enum.filter(messages, fn msg ->
+      msg.from == agent_a or msg.to == agent_a
+    end)
+  end
+
+  def filter_by_agents(messages, [agent_a, agent_b], _names) do
+    Enum.filter(messages, fn msg ->
+      (msg.from == agent_a and msg.to == agent_b) or
+        (msg.from == agent_b and msg.to == agent_a)
+    end)
+  end
+
+  def filter_by_agents(messages, _, _), do: messages
+
   def format_timestamp(nil), do: ""
   def format_timestamp(%DateTime{} = dt), do: Calendar.strftime(dt, "%H:%M:%S")
   def format_timestamp(_), do: ""

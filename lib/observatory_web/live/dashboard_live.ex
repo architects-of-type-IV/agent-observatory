@@ -310,6 +310,21 @@ defmodule ObservatoryWeb.DashboardLive do
     {:noreply, assign(s, :comms_team_filter, new_filter)}
   end
 
+  def handle_event("trace_agent", %{"agent_id" => agent_id}, s) do
+    current = s.assigns.comms_agent_filter
+
+    new_filter =
+      cond do
+        agent_id in current -> List.delete(current, agent_id)
+        length(current) >= 2 -> [agent_id]
+        true -> current ++ [agent_id]
+      end
+
+    {:noreply, s |> assign(:comms_agent_filter, new_filter) |> assign(:activity_tab, :comms)}
+  end
+
+  def handle_event("clear_trace", _p, s), do: {:noreply, assign(s, :comms_agent_filter, [])}
+
   # ── handle_event: tasks ──────────────────────────────────────────────
 
   def handle_event("create_task", p, s) do

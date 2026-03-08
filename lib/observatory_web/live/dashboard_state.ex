@@ -63,6 +63,7 @@ defmodule ObservatoryWeb.DashboardState do
       current_session_id: "operator",
       collapsed_fleet_teams: MapSet.new(),
       comms_team_filter: nil,
+      comms_agent_filter: [],
       dirty: true,
       sidebar_collapsed: false,
       active_tmux_session: nil,
