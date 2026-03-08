@@ -18,6 +18,18 @@ defmodule Observatory.Operator do
   @from "operator"
 
   @doc """
+  Spawn a new agent in a tmux session with instruction overlay.
+
+  Delegates to AgentSpawner. Returns `{:ok, agent_info}` or `{:error, reason}`.
+  """
+  defdelegate spawn_agent(opts), to: Observatory.AgentSpawner
+
+  @doc """
+  Stop a spawned agent by session name.
+  """
+  defdelegate stop_agent(session_name), to: Observatory.AgentSpawner
+
+  @doc """
   Send a message to any target. Returns `{:ok, delivered_count}` or `{:error, reason}`.
   """
   def send(target, content, opts \\ []) when is_binary(target) and is_binary(content) do

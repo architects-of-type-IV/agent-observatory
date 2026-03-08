@@ -1,36 +1,51 @@
 # Observatory - Handoff
 
-## Current Status: Conversation Tracing + Multi-Tmux + HITL (2026-03-08)
+## Current Status: Overstory-Inspired Features (2026-03-08)
 
-### Just Completed
-- **Conversation tracing** -- Filter comms by agent pair. Click "Trace" on an agent in detail panel to filter comms to that agent's messages. Click a second agent to narrow to pair conversation. Violet pills in comms tab bar show active trace. Max 2 agents; clicking 3rd replaces.
-- **Tmux multi-panel** (task 15) -- Tabbed + tiled layout. Multiple sessions open simultaneously. Heartbeat refreshes all.
-- **HITL inline controls** (task 7) -- Pause wires through HITLRelay. Buffer viewer + approve/reject in detail panel. PAUSED badge in fleet tree.
-- **Coordinator/worker visibility** -- Already working via collect_agents (events + team enrichment). Trace feature completes pair filtering.
+### Just Completed (5 features inspired by Overstory multi-agent orchestrator)
 
-### Prior Work (same day)
-- Heartbeat Gateway removal, ghost agent cleanup
-- Layering inversion fix, dashboard extraction (887->458 lines), feed view wiring
-- ETS scan optimization, named tmux buffers, identity merge, debug endpoints
+1. **Cost Dashboard** -- New `:costs` activity tab in fleet control view. Queries SQLite `token_usages` table via `CostAggregator`. Shows: total cost/input/output/cache summary cards, by-model breakdown with color-coded bars, per-agent cost bars with model labels. All data was already persisted -- this adds the UI.
 
-### Open Issues
-1. **dashboard_live.ex at 468 lines** -- Mostly one-line handle_event delegations.
-2. **Non-blocking event pipeline validation** (task 8) -- Load test hook events. Low priority.
+2. **Progressive Nudging** (`NudgeEscalator`) -- GenServer that subscribes to heartbeat + events. 4-level escalation for stale agents:
+   - Level 0: warn (log + PubSub broadcast)
+   - Level 1: nudge (tmux message asking "are you still working?")
+   - Level 2: escalate (HITL pause + operator alert)
+   - Level 3: terminate (mark as zombie)
+   Configurable thresholds via `config :observatory, NudgeEscalator`.
 
-### Architecture
-- Phoenix LiveView on port 4005
-- Event-driven: hooks -> POST /api/events -> EventBuffer ETS + PubSub -> LiveView
-- **Conversation trace**: `comms_agent_filter` (list of 0-2 agent IDs), `filter_by_agents/3` in FleetHelpers
-- **Tmux multi-panel**: tmux_panels list, tmux_outputs map, :tabs/:tiled layout
-- **HITL pipeline**: HITLRelay buffers when paused, approve flushes, reject discards
-- AgentRegistry: ETS-backed, identity merge, UUID-only registration
-- Ash domains: Fleet (Team, Agent), Activity (Message, Task, Error)
+3. **Agent Spawning** (`AgentSpawner` + `Operator.spawn_agent/1`) -- Spawns Claude Code agents in tmux sessions via observatory socket. Pipeline: validate -> write overlay -> write hooks -> create tmux session -> launch claude. Dashboard events: `spawn_agent`, `stop_spawned_agent`.
 
-### Key Files Modified This Session
+4. **Quality Gate Enforcement** (`QualityGate`) -- GenServer that listens for `TaskCompleted` hook events. Looks up `done_when` from SwarmMonitor tasks. Runs the command. If it fails, sends a nudge to the agent via tmux/mailbox with the failure output. Broadcasts on `quality:gate` PubSub topic.
+
+5. **Instruction Overlays** (`InstructionOverlay`) -- Generates per-agent CLAUDE.md files with: role definition (builder/scout/reviewer/lead), task assignment with acceptance criteria, file scope restrictions, quality gates, communication protocol (MCP inbox), completion protocol. Written to `.claude/OBSERVATORY_OVERLAY.md` in the agent's cwd.
+
+### Architecture Changes
+- **MonitorSupervisor**: Added `NudgeEscalator` and `QualityGate` GenServers
+- **DashboardLive**: Subscribes to `agent:nudge`, `agent:spawned`, `quality:gate` PubSub topics
+- **DashboardState**: Added `cost_data` assign, loaded via `CostAggregator.load_cost_data/0` in `recompute/1`
+- **command_view.html.heex**: Added Costs tab (alongside Comms/Feed), fixed tab filtering logic
+
+### New Files
+| File | Purpose |
+|------|---------|
+| `lib/observatory/nudge_escalator.ex` | Progressive 4-level agent nudging |
+| `lib/observatory/agent_spawner.ex` | Tmux-based agent spawn pipeline |
+| `lib/observatory/instruction_overlay.ex` | Per-agent CLAUDE.md generation |
+| `lib/observatory/quality_gate.ex` | TaskCompleted quality gate enforcement |
+| `lib/observatory/costs/cost_aggregator.ex` | SQLite cost data aggregation |
+| `lib/observatory_web/components/cost_components.ex` | Cost dashboard UI component |
+
+### Modified Files
 | File | Change |
 |------|--------|
-| `lib/observatory_web/components/fleet_helpers.ex` | Added filter_by_agents/3 |
-| `lib/observatory_web/live/dashboard_live.ex` | trace_agent, clear_trace events |
-| `lib/observatory_web/live/dashboard_state.ex` | comms_agent_filter assign |
-| `lib/observatory_web/components/command_components/command_view.html.heex` | Trace button, violet pills, agent filtering |
-| `lib/observatory_web/live/dashboard_live.html.heex` | Pass comms_agent_filter prop |
+| `lib/observatory/monitor_supervisor.ex` | Added NudgeEscalator + QualityGate children |
+| `lib/observatory/operator.ex` | Added spawn_agent/stop_agent delegates |
+| `lib/observatory_web/live/dashboard_live.ex` | Spawn events, nudge/gate PubSub, 3 new topics |
+| `lib/observatory_web/live/dashboard_state.ex` | cost_data assign + CostAggregator in recompute |
+| `lib/observatory_web/live/dashboard_live.html.heex` | Pass cost_data to command_view |
+| `lib/observatory_web/components/command_components/command_view.html.heex` | Costs tab, fixed tab filtering |
+
+### Open Issues
+1. **dashboard_live.ex at ~520 lines** -- Growing with spawn events. Still mostly one-line delegations.
+2. **Task 8** -- Non-blocking event pipeline validation (load test). Low priority.
+3. **Agent spawn UI** -- spawn_agent/stop_spawned_agent events wired but no form in the UI yet. Can be triggered via LiveView JS console or future spawn modal.

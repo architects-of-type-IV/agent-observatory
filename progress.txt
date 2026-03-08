@@ -20,6 +20,11 @@ Observatory Progress
 - [x] Conversation tracing: filter comms by agent pair, violet pills, Trace button in detail panel
 - [x] filter_by_agents/3 in FleetHelpers for single-agent and pair filtering
 - [x] comms_agent_filter assign (0-2 agent IDs), toggle semantics, auto-switch to comms tab
+- [x] Cost dashboard: Costs tab in command_view, CostAggregator SQL queries, CostComponents UI
+- [x] Progressive nudging: NudgeEscalator GenServer, 4-level escalation (warn/nudge/pause/zombie)
+- [x] Agent spawning: AgentSpawner, Operator.spawn_agent/stop_agent, tmux session pipeline
+- [x] Quality gate enforcement: QualityGate GenServer, TaskCompleted -> done_when -> nudge on fail
+- [x] Instruction overlays: InstructionOverlay.generate/1, role/task/scope/gates/comms per agent
 
 ### Prior: Code Quality Hardening via /simplify (2026-03-08)
 - [x] Replaced is_uuid?/parse_uuid with Ecto.UUID.cast

@@ -109,12 +109,37 @@
 - Violet pills in comms tab bar show active trace, X button clears
 - Auto-switches to :comms activity tab when trace activated
 
+## Agent Spawning (2026-03-08, Overstory-inspired)
+- `AgentSpawner.spawn_agent/1` -- creates tmux session, writes overlay + hooks, launches claude
+- Session names prefixed `obs-` (e.g., `obs-builder-1234`) for identification
+- `InstructionOverlay.generate/1` -- per-agent CLAUDE.md with role/task/scope/gates/comms
+- Overlay written to `.claude/OBSERVATORY_OVERLAY.md` (not main CLAUDE.md to avoid conflicts)
+- Hooks settings written to `.claude/settings.local.json` with curl POST back to Observatory
+- `Operator.spawn_agent/1` and `Operator.stop_agent/1` are the public API (delegates)
+
+## NudgeEscalator (2026-03-08, Overstory-inspired)
+- 4-level progressive escalation: warn -> tmux nudge -> HITL pause -> zombie
+- Subscribes to heartbeat (check stale) + events:stream (reset on activity)
+- Configurable: `config :observatory, NudgeEscalator, stale_threshold_sec: 120, nudge_interval_sec: 60`
+- PubSub topic: `agent:nudge` with typed tuples (nudge_warning, nudge_sent, nudge_escalated, nudge_zombie)
+
+## QualityGate (2026-03-08, Overstory-inspired)
+- Listens for TaskCompleted hook events, looks up `done_when` from SwarmMonitor tasks
+- Runs gate command async (Task.start), nudges agent on failure via tmux then mailbox fallback
+- PubSub topic: `quality:gate` with :gate_passed / :gate_failed
+
+## Cost Dashboard (2026-03-08, Overstory-inspired)
+- `CostAggregator.load_cost_data/0` queries SQLite directly (Ecto raw SQL for GROUP BY)
+- Returns `%{by_model: [...], by_session: [...], totals: %{}}` consumed by CostComponents
+- Activity tab `:costs` alongside `:comms` and `:feed` in command_view
+- Tab filtering: `:comms` shows comms filters, `:feed` shows expand/collapse, `:costs` shows cost view
+
 ## Component Patterns
 - Large components split: `.ex` (logic) + `.heex` (templates via `embed_templates`)
 - Module size limit: 200-300 lines max
 - Handler modules: imported via `import`, NOT called with full module names or `apply/3`
 - **Layering fix**: `Fleet.AgentHealth` (domain) owns compute_agent_health/2. Web helper delegates.
-- **Feed wiring**: FeedComponents.feed_view/1 rendered via Comms/Feed tab toggle in command_view center column. `activity_tab` assign (:comms | :feed) controls which view shows.
+- **Feed wiring**: FeedComponents.feed_view/1 rendered via Comms/Feed/Costs tab toggle in command_view center column. `activity_tab` assign (:comms | :feed | :costs) controls which view shows.
 - **Mount consolidation**: `DashboardState.default_assigns/1` returns all initial assigns as a map
 
 ## Tmux Multi-Panel (2026-03-08)

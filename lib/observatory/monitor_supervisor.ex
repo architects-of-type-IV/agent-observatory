@@ -1,7 +1,7 @@
 defmodule Observatory.MonitorSupervisor do
   @moduledoc """
   Supervises monitoring and observability services: swarm monitor, protocol tracker,
-  and agent monitor. These are independent observers, so one_for_one is appropriate.
+  agent monitor, nudge escalator, and quality gate. Independent observers, one_for_one.
   """
   use Supervisor
 
@@ -15,7 +15,9 @@ defmodule Observatory.MonitorSupervisor do
       {Observatory.Heartbeat, []},
       {Observatory.SwarmMonitor, []},
       {Observatory.ProtocolTracker, []},
-      {Observatory.AgentMonitor, []}
+      {Observatory.AgentMonitor, []},
+      {Observatory.NudgeEscalator, []},
+      {Observatory.QualityGate, []}
     ]
 
     Supervisor.init(children, strategy: :one_for_one)

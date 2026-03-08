@@ -113,7 +113,8 @@ defmodule ObservatoryWeb.DashboardState do
       forensic_audit_open: false,
       forensic_topology_open: false,
       forensic_entropy_open: false,
-      expanded_protocol_items: MapSet.new()
+      expanded_protocol_items: MapSet.new(),
+      cost_data: %{by_model: [], by_session: [], totals: %{}}
     }
   end
 
@@ -174,8 +175,12 @@ defmodule ObservatoryWeb.DashboardState do
     # Topology
     {topo_nodes, topo_edges} = compute_topology(all_sessions, teams, assigns)
 
+    # Costs (load from SQLite, lightweight aggregation)
+    cost_data = Observatory.Costs.CostAggregator.load_cost_data()
+
     socket
     |> assign(:visible_events, filtered_events(assigns))
+    |> assign(:cost_data, cost_data)
     |> assign(:feed_groups, feed_groups)
     |> assign(:inspected_teams, refreshed_inspected)
     |> assign(:inspector_events, inspector_events)

@@ -34,6 +34,9 @@ defmodule ObservatoryWeb.DashboardLive do
       Phoenix.PubSub.subscribe(Observatory.PubSub, "swarm:update")
       Phoenix.PubSub.subscribe(Observatory.PubSub, "protocols:update")
       Phoenix.PubSub.subscribe(Observatory.PubSub, "heartbeat")
+      Phoenix.PubSub.subscribe(Observatory.PubSub, "agent:nudge")
+      Phoenix.PubSub.subscribe(Observatory.PubSub, "agent:spawned")
+      Phoenix.PubSub.subscribe(Observatory.PubSub, "quality:gate")
       subscribe_gateway_topics()
     end
 
@@ -125,6 +128,27 @@ defmodule ObservatoryWeb.DashboardLive do
 
   # HITL gate events (pause/unpause)
   def handle_info({:hitl, _event}, socket) do
+    {:noreply, recompute(socket)}
+  end
+
+  # Nudge escalation events
+  def handle_info({nudge_type, _sid, _name, _level}, socket)
+      when nudge_type in [:nudge_warning, :nudge_sent, :nudge_escalated, :nudge_zombie] do
+    {:noreply, recompute(socket)}
+  end
+
+  # Quality gate events
+  def handle_info({gate_type, _sid, _task_id, _cmd}, socket)
+      when gate_type in [:gate_passed] do
+    {:noreply, recompute(socket)}
+  end
+
+  def handle_info({:gate_failed, _sid, _task_id, _cmd, _output}, socket) do
+    {:noreply, recompute(socket)}
+  end
+
+  # Agent spawned
+  def handle_info({:agent_spawned, _id, _name, _cap}, socket) do
     {:noreply, recompute(socket)}
   end
 
@@ -418,6 +442,50 @@ defmodule ObservatoryWeb.DashboardLive do
   def handle_event("trigger_gc", p, s), do: {:noreply, handle_trigger_gc(p, s) |> recompute()}
   def handle_event("select_dag_node", p, s), do: {:noreply, handle_select_dag_node(p, s) |> recompute()}
   def handle_event("select_command_agent", p, s), do: {:noreply, handle_select_command_agent(p, s) |> recompute()}
+
+  # ── handle_event: agent spawning ────────────────────────────────────
+
+  def handle_event("spawn_agent", params, s) do
+    opts = %{
+      name: params["name"],
+      capability: params["capability"] || "builder",
+      model: params["model"] || "sonnet",
+      cwd: params["cwd"],
+      team_name: params["team_name"]
+    }
+    |> Enum.reject(fn {_k, v} -> is_nil(v) || v == "" end)
+    |> Map.new()
+
+    case Observatory.Operator.spawn_agent(opts) do
+      {:ok, info} ->
+        {:noreply,
+         s
+         |> push_event("toast", %{message: "Spawned #{info.name}", type: "success"})
+         |> recompute()}
+
+      {:error, reason} ->
+        {:noreply,
+         s
+         |> push_event("toast", %{message: "Spawn failed: #{inspect(reason)}", type: "error"})
+         |> recompute()}
+    end
+  end
+
+  def handle_event("stop_spawned_agent", %{"session" => session_name}, s) do
+    case Observatory.Operator.stop_agent(session_name) do
+      :ok ->
+        {:noreply,
+         s
+         |> push_event("toast", %{message: "Stopping #{session_name}", type: "success"})
+         |> recompute()}
+
+      {:error, reason} ->
+        {:noreply,
+         s
+         |> push_event("toast", %{message: "Stop failed: #{inspect(reason)}", type: "error"})
+         |> recompute()}
+    end
+  end
 
   # ── handle_event: slideout + topology node ──────────────────────────
 

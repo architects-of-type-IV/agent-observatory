@@ -187,8 +187,14 @@
           phx-value-tab="feed"
           class={"text-[10px] font-semibold uppercase tracking-wider cursor-pointer transition #{if active_tab == :feed, do: "text-indigo-400", else: "text-zinc-600 hover:text-zinc-400"}"}
         >Feed</span>
+        <span
+          phx-click="set_sub_tab"
+          phx-value-screen="activity"
+          phx-value-tab="costs"
+          class={"text-[10px] font-semibold uppercase tracking-wider cursor-pointer transition #{if active_tab == :costs, do: "text-emerald-400", else: "text-zinc-600 hover:text-zinc-400"}"}
+        >Costs</span>
       </div>
-      <div :if={active_tab != :feed} class="flex gap-1">
+      <div :if={active_tab == :comms} class="flex gap-1">
         <span
           phx-click="set_comms_filter"
           phx-value-team=""
@@ -224,7 +230,7 @@
     </div>
 
     <%!-- Comms: Message timeline --%>
-    <div :if={active_tab != :feed} class="flex-1 overflow-y-auto">
+    <div :if={active_tab == :comms} class="flex-1 overflow-y-auto">
       <%= if filtered_messages == [] do %>
         <div class="flex-1 flex items-center justify-center p-6">
           <div class="text-center max-w-xs">
@@ -275,6 +281,11 @@
         expanded_sessions={@expanded_sessions}
         now={@now}
       />
+    </div>
+
+    <%!-- Costs: Token usage dashboard --%>
+    <div :if={active_tab == :costs} class="flex-1 overflow-hidden">
+      <ObservatoryWeb.Components.CostComponents.cost_view cost_data={assigns[:cost_data] || %{by_model: [], by_session: [], totals: %{}}} />
     </div>
   </div>
 
