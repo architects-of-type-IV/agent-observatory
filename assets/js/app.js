@@ -25,9 +25,11 @@ import {LiveSocket} from "phoenix_live_view"
 import {hooks as colocatedHooks} from "phoenix-colocated/observatory"
 import topbar from "../vendor/topbar"
 import TopologyMap from "./hooks/topology_map"
+import WorkshopCanvas from "./hooks/workshop_canvas"
 
 let Hooks = {
   TopologyMap,
+  WorkshopCanvas,
   StatePersistence: {
     mounted() {
       // Restore state from localStorage on mount

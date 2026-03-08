@@ -306,6 +306,37 @@
   border-top: none !important;
 }
 
+/* Workshop canvas nodes */
+.agent-node {
+  position: absolute;
+  width: 200px;
+  background: rgba(24,24,27,0.9);
+  border: 1px solid #27272a;
+  border-radius: 6px;
+  cursor: grab;
+  z-index: 10;
+  transition: box-shadow 0.15s, border-color 0.15s;
+  user-select: none;
+}
+.agent-node:hover { border-color: #3f3f46; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
+.agent-node.selected { border-color: rgba(99,102,241,0.5); box-shadow: 0 0 0 2px rgba(99,102,241,0.15); }
+.agent-node.dragging { cursor: grabbing; opacity: 0.85; z-index: 20; }
+.agent-node .node-header { padding: 6px 8px; border-bottom: 1px solid rgba(39,39,42,0.5); display: flex; align-items: center; gap: 6px; }
+.agent-node .node-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+.agent-node .node-name { font-size: 11px; font-weight: 600; color: #d4d4d8; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.agent-node .node-badge { font-size: 8px; font-weight: 700; text-transform: uppercase; padding: 1px 4px; border-radius: 3px; }
+.agent-node .node-body { padding: 6px 8px; }
+.agent-node .node-field { display: flex; justify-content: space-between; font-size: 10px; margin-bottom: 2px; }
+.agent-node .nf-label { color: #71717a; }
+.agent-node .nf-value { color: #d4d4d8; font-family: ui-monospace, monospace; }
+.agent-node .node-ports { display: flex; justify-content: space-between; padding: 4px 8px; border-top: 1px solid rgba(39,39,42,0.5); }
+.agent-node .port { width: 10px; height: 10px; border-radius: 50%; border: 2px solid #3f3f46; background: #18181b; cursor: crosshair; transition: all 0.15s; }
+.agent-node .port:hover { transform: scale(1.3); }
+.agent-node .port.spawn-port { border-color: #34d399; }
+.agent-node .port.spawn-port:hover { background: rgba(52,211,153,0.2); }
+.agent-node .port.comm-port { border-color: #22d3ee; }
+.agent-node .port.comm-port:hover { background: rgba(34,211,238,0.2); }
+
 /* God Mode danger zone */
 .god-mode-panel {
   @apply bg-zinc-900/50 border border-red-500/20 rounded-lg p-4;

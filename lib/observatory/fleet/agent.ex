@@ -127,6 +127,44 @@ defmodule Observatory.Fleet.Agent do
       end
     end
 
+    action :launch, :map do
+      description "Launch a full agent: tmux session + Claude Code + BEAM process + instruction overlay."
+
+      argument :name, :string, description: "Agent name (auto-generated if blank)"
+      argument :capability, :string, default: "builder", description: "Role: builder, scout, reviewer, lead"
+      argument :model, :string, default: "sonnet", description: "Claude model to use"
+      argument :cwd, :string, description: "Working directory"
+      argument :team_name, :string, description: "Team to join"
+      argument :extra_instructions, :string, description: "Additional instructions for the overlay"
+
+      run fn input, _context ->
+        args = input.arguments
+
+        opts =
+          %{}
+          |> maybe_put(:name, args[:name])
+          |> maybe_put(:capability, args[:capability])
+          |> maybe_put(:model, args[:model])
+          |> maybe_put(:cwd, args[:cwd])
+          |> maybe_put(:team_name, args[:team_name])
+          |> maybe_put(:extra_instructions, args[:extra_instructions])
+
+        case Observatory.AgentSpawner.spawn_agent(opts) do
+          {:ok, result} ->
+            {:ok, result}
+
+          {:error, {:session_exists, session}} ->
+            {:error, "Session already exists: #{session}"}
+
+          {:error, {:cwd_not_found, path}} ->
+            {:error, "Directory not found: #{path}"}
+
+          {:error, reason} ->
+            {:error, "Failed to launch agent: #{inspect(reason)}"}
+        end
+      end
+    end
+
     # ── Messaging ────────────────────────────────────────────────────
 
     action :send_message, :map do
@@ -169,6 +207,7 @@ defmodule Observatory.Fleet.Agent do
     define :active
     define :in_team, args: [:team_name]
     # Lifecycle
+    define :launch, args: []
     define :spawn, args: [:id]
     define :pause_agent, args: [:agent_id]
     define :resume_agent, args: [:agent_id]
@@ -193,4 +232,9 @@ defmodule Observatory.Fleet.Agent do
 
     Observatory.Fleet.TeamSupervisor.spawn_member(team_name, opts)
   end
+
+  @spec maybe_put(map(), atom(), term()) :: map()
+  defp maybe_put(map, _key, nil), do: map
+  defp maybe_put(map, _key, ""), do: map
+  defp maybe_put(map, key, value), do: Map.put(map, key, value)
 end

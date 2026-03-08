@@ -115,7 +115,19 @@ defmodule ObservatoryWeb.DashboardState do
       forensic_entropy_open: false,
       expanded_protocol_items: MapSet.new(),
       cost_data: %{by_model: [], by_session: [], totals: %{}},
-      agent_index: %{}
+      agent_index: %{},
+      # Workshop team builder
+      ws_agents: [],
+      ws_spawn_links: [],
+      ws_comm_rules: [],
+      ws_selected_agent: nil,
+      ws_next_id: 1,
+      ws_team_name: "alpha",
+      ws_strategy: "one_for_one",
+      ws_default_model: "sonnet",
+      ws_cwd: "",
+      ws_blueprint_id: nil,
+      ws_blueprints: []
     }
   end
 

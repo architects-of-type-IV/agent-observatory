@@ -80,11 +80,11 @@ defmodule ObservatoryWeb.DashboardSessionControlHandlers do
   """
   def handle_hitl_approve(%{"session_id" => session_id}, socket) do
     case HITLRelay.unpause(session_id, session_id, "operator") do
-      {:ok, count} ->
-        Phoenix.LiveView.put_flash(socket, :info, "Approved: #{count} buffered messages flushed")
-
       {:ok, :not_paused} ->
         Phoenix.LiveView.put_flash(socket, :info, "Session was not paused")
+
+      {:ok, count} ->
+        Phoenix.LiveView.put_flash(socket, :info, "Approved: #{count} buffered messages flushed")
     end
   end
 

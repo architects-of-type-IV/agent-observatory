@@ -15,7 +15,8 @@ config :observatory,
     Observatory.AgentTools,
     Observatory.Costs,
     Observatory.Fleet,
-    Observatory.Activity
+    Observatory.Activity,
+    Observatory.Workshop
   ]
 
 # Configure the endpoint
