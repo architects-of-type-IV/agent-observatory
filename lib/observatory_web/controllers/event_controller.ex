@@ -54,6 +54,9 @@ defmodule ObservatoryWeb.EventController do
     # Non-blocking: buffer for async DB write, broadcast immediately
     {:ok, event} = Observatory.EventBuffer.ingest(event_attrs)
 
+    # Record token usage for cost tracking (from Stop events with token data)
+    maybe_record_token_usage(event, raw)
+
     handle_channel_events(event)
 
     Phoenix.PubSub.broadcast(
@@ -107,6 +110,61 @@ defmodule ObservatoryWeb.EventController do
   end
 
   defp compute_duration(_, _), do: nil
+
+  defp maybe_record_token_usage(event, raw) when is_map(raw) do
+    # Claude hooks embed token usage in Stop/StopAssistantTurn events
+    input_tokens = raw["input_tokens"] || get_in(raw, ["usage", "input_tokens"]) || 0
+    output_tokens = raw["output_tokens"] || get_in(raw, ["usage", "output_tokens"]) || 0
+
+    if input_tokens > 0 or output_tokens > 0 do
+      cache_read = raw["cache_read_input_tokens"] ||
+        get_in(raw, ["usage", "cache_read_input_tokens"]) || 0
+      cache_write = raw["cache_creation_input_tokens"] ||
+        get_in(raw, ["usage", "cache_creation_input_tokens"]) || 0
+
+      # Estimate cost in cents (rough API pricing)
+      cost_cents = estimate_cost_cents(event.model_name, input_tokens, output_tokens, cache_read)
+
+      attrs = %{
+        session_id: event.session_id,
+        source_app: event.source_app,
+        model_name: event.model_name || "unknown",
+        input_tokens: input_tokens,
+        output_tokens: output_tokens,
+        cache_read_tokens: cache_read,
+        cache_write_tokens: cache_write,
+        estimated_cost_cents: cost_cents,
+        tool_name: event.tool_name
+      }
+
+      # Async to avoid blocking the event pipeline
+      Task.start(fn ->
+        try do
+          Observatory.Costs.TokenUsage
+          |> Ash.Changeset.for_create(:create, attrs)
+          |> Ash.create()
+        rescue
+          e -> Logger.warning("TokenUsage record failed: #{inspect(e)}")
+        end
+      end)
+    end
+  end
+
+  defp maybe_record_token_usage(_, _), do: :ok
+
+  # Rough cost estimation per 1M tokens (in cents)
+  # These are approximate and should be updated as pricing changes
+  defp estimate_cost_cents(model, input, output, cache_read) do
+    {in_rate, out_rate, cache_rate} =
+      cond do
+        model && String.contains?(model, "opus") -> {1500, 7500, 150}
+        model && String.contains?(model, "sonnet") -> {300, 1500, 30}
+        model && String.contains?(model, "haiku") -> {80, 400, 8}
+        true -> {300, 1500, 30}
+      end
+
+    trunc((input * in_rate + output * out_rate + cache_read * cache_rate) / 1_000_000)
+  end
 
   defp handle_channel_events(event) do
     case event.hook_event_type do

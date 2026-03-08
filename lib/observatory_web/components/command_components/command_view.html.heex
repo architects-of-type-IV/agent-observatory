@@ -1,9 +1,14 @@
 <%
-  agents = collect_agents(@teams, @events, @now)
-  tmux_agents = collect_tmux_agents(assigns[:tmux_sessions] || [], agents)
-  all_agents = agents ++ tmux_agents
+  # Use the unified agent_index built in DashboardState.recompute
+  # It maps ALL known identifiers (id, session_id, short_name) -> agent data
+  agent_index = assigns[:agent_index] || %{}
+
+  # Derive agent list from the index (deduplicated by session_id)
+  all_agents =
+    agent_index
+    |> Map.values()
+    |> Enum.uniq_by(fn a -> a[:session_id] || a[:agent_id] end)
   total_agents = length(all_agents)
-  agent_index = Map.new(all_agents, fn a -> {a.agent_id, a} end)
 
   # HITL paused sessions
   hitl_paused = try do
@@ -25,17 +30,17 @@
 
   # Standalone agents (not in any team)
   team_ids = @teams |> Enum.flat_map(& &1.members) |> Enum.map(& &1[:agent_id]) |> MapSet.new()
-  standalone = Enum.reject(all_agents, fn a -> MapSet.member?(team_ids, a.agent_id) end)
+  standalone = Enum.reject(all_agents, fn a -> MapSet.member?(team_ids, a[:agent_id]) end)
 
-  # Group teams by project
-  project_groups = FH.group_teams_by_project(@teams)
+  # Group teams by project using the unified index
+  project_groups = FH.group_teams_by_project(@teams, agent_index)
 
   collapsed = assigns[:collapsed_fleet_teams] || MapSet.new()
   selected = @selected_command_agent
 %>
 <div class="flex h-full">
-  <%!-- Left: Fleet Tree (360px) --%>
-  <div class="w-[360px] shrink-0 border-r border-zinc-800 bg-zinc-900/30 flex flex-col overflow-hidden">
+  <%!-- Left: Fleet Tree (280px) --%>
+  <div class="w-[280px] shrink-0 border-r border-zinc-800 bg-zinc-900/30 flex flex-col overflow-hidden">
     <div class="px-2.5 py-1.5 border-b border-zinc-800 flex items-center justify-between shrink-0">
       <h3 class="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Fleet</h3>
       <span class="text-[9px] text-zinc-600">{total_agents} agents</span>

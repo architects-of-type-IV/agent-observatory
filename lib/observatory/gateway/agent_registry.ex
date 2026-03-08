@@ -105,6 +105,130 @@ defmodule Observatory.Gateway.AgentRegistry do
     GenServer.cast(__MODULE__, {:unwatch, session_id})
   end
 
+  # ── Tree API ──────────────────────────────────────────────────────────
+
+  @doc """
+  Register a spawned agent with an explicit parent-child relationship.
+  Called by AgentSpawner after creating a tmux session.
+  """
+  def register_spawned(session_id, opts) do
+    parent_id = opts[:parent_id]
+    agent = default_agent(session_id)
+
+    agent =
+      agent
+      |> Map.put(:id, opts[:name] || agent.id)
+      |> Map.put(:short_name, opts[:name] || agent.short_name)
+      |> Map.put(:role, opts[:role] || :worker)
+      |> Map.put(:team, opts[:team])
+      |> Map.put(:cwd, opts[:cwd])
+      |> Map.put(:host, opts[:host] || "local")
+      |> Map.put(:parent_id, parent_id)
+      |> Map.put(:channels, Map.merge(agent.channels, opts[:channels] || %{}))
+
+    :ets.insert(@table, {session_id, agent})
+
+    # Update parent's children list
+    if parent_id do
+      add_child(parent_id, session_id)
+    end
+
+    broadcast_registry_update()
+    agent
+  rescue
+    ArgumentError -> nil
+  end
+
+  @doc "Get an agent's children (direct descendants in the spawn tree)."
+  def children(session_id) do
+    case get(session_id) do
+      %{children: ids} when is_list(ids) ->
+        Enum.map(ids, &get/1) |> Enum.reject(&is_nil/1)
+
+      _ ->
+        []
+    end
+  end
+
+  @doc "Get an agent's parent in the spawn tree."
+  def parent(session_id) do
+    case get(session_id) do
+      %{parent_id: pid} when is_binary(pid) -> get(pid)
+      _ -> nil
+    end
+  end
+
+  @doc "Get the full chain of command from an agent up to the root."
+  def chain_of_command(session_id) do
+    build_chain(session_id, [])
+  end
+
+  defp build_chain(nil, acc), do: Enum.reverse(acc)
+
+  defp build_chain(session_id, acc) do
+    case get(session_id) do
+      %{parent_id: pid} = agent ->
+        if agent in acc do
+          # Cycle detection
+          Enum.reverse([agent | acc])
+        else
+          build_chain(pid, [agent | acc])
+        end
+
+      nil ->
+        Enum.reverse(acc)
+    end
+  end
+
+  @doc "Move an agent to a new parent (hierarchy reshaping)."
+  def reparent(session_id, new_parent_id) do
+    case get(session_id) do
+      %{parent_id: old_parent_id} = agent ->
+        # Remove from old parent's children
+        if old_parent_id, do: remove_child(old_parent_id, session_id)
+
+        # Update agent's parent
+        :ets.insert(@table, {session_id, %{agent | parent_id: new_parent_id}})
+
+        # Add to new parent's children
+        if new_parent_id, do: add_child(new_parent_id, session_id)
+
+        broadcast_registry_update()
+        :ok
+
+      nil ->
+        {:error, :not_found}
+    end
+  rescue
+    ArgumentError -> {:error, :not_found}
+  end
+
+  defp add_child(parent_id, child_id) do
+    case :ets.lookup(@table, parent_id) do
+      [{^parent_id, parent}] ->
+        children = Enum.uniq([child_id | parent.children || []])
+        :ets.insert(@table, {parent_id, %{parent | children: children}})
+
+      [] ->
+        :ok
+    end
+  rescue
+    ArgumentError -> :ok
+  end
+
+  defp remove_child(parent_id, child_id) do
+    case :ets.lookup(@table, parent_id) do
+      [{^parent_id, parent}] ->
+        children = List.delete(parent.children || [], child_id)
+        :ets.insert(@table, {parent_id, %{parent | children: children}})
+
+      [] ->
+        :ok
+    end
+  rescue
+    ArgumentError -> :ok
+  end
+
   @doc "Purge all stale/ended agents immediately. Returns count of purged entries."
   def purge_stale do
     GenServer.call(__MODULE__, :purge_stale)
@@ -201,7 +325,7 @@ defmodule Observatory.Gateway.AgentRegistry do
           |> Map.put(:mailbox, canonical_key)
           |> Map.put(:tmux, tmux_target)
 
-        qualified_id = qualify_agent_id(member[:name], team.name)
+        qualified_id = qualify_agent_id(member[:name], team.name, canonical_key)
         is_active = member[:is_active] == true
 
         updated =
@@ -316,8 +440,26 @@ defmodule Observatory.Gateway.AgentRegistry do
     }
   end
 
-  defp qualify_agent_id(nil, _team_name), do: nil
-  defp qualify_agent_id(name, team_name), do: "#{name}@#{team_name}"
+  defp qualify_agent_id(nil, _team_name, _session_id), do: nil
+
+  defp qualify_agent_id(name, team_name, session_id) do
+    base_id = "#{name}@#{team_name}"
+
+    # If another agent already owns this ID, disambiguate with session prefix
+    collision =
+      try do
+        :ets.tab2list(@table)
+        |> Enum.any?(fn {sid, a} -> a.id == base_id && sid != session_id end)
+      rescue
+        ArgumentError -> false
+      end
+
+    if collision do
+      "#{name}-#{String.slice(session_id, 0, 4)}@#{team_name}"
+    else
+      base_id
+    end
+  end
 
   defp maybe_update_from_event(agent, event) do
     agent

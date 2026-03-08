@@ -37,6 +37,7 @@ defmodule ObservatoryWeb.DashboardLive do
       Phoenix.PubSub.subscribe(Observatory.PubSub, "agent:nudge")
       Phoenix.PubSub.subscribe(Observatory.PubSub, "agent:spawned")
       Phoenix.PubSub.subscribe(Observatory.PubSub, "quality:gate")
+      Phoenix.PubSub.subscribe(Observatory.PubSub, "gateway:registry")
       subscribe_gateway_topics()
     end
 
@@ -149,6 +150,11 @@ defmodule ObservatoryWeb.DashboardLive do
 
   # Agent spawned
   def handle_info({:agent_spawned, _id, _name, _cap}, socket) do
+    {:noreply, recompute(socket)}
+  end
+
+  # Agent registry changed (status, cwd, channels updated)
+  def handle_info(:registry_changed, socket) do
     {:noreply, recompute(socket)}
   end
 

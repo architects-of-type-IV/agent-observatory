@@ -154,11 +154,14 @@ defmodule ObservatoryWeb.Components.FleetHelpers do
 
   # -- Project grouping --
 
-  def group_teams_by_project(teams) do
+  def group_teams_by_project(teams, agent_index \\ %{}) do
     teams
     |> Enum.group_by(fn t ->
       Enum.find_value(t.members, "unknown", fn m ->
-        case m[:cwd] do
+        # Try member cwd first, then fall back to unified agent_index
+        cwd = m[:cwd] || get_in(agent_index, [m[:agent_id], :cwd])
+
+        case cwd do
           nil -> nil
           cwd -> Path.basename(cwd)
         end

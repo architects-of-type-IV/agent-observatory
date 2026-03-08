@@ -114,7 +114,8 @@ defmodule ObservatoryWeb.DashboardState do
       forensic_topology_open: false,
       forensic_entropy_open: false,
       expanded_protocol_items: MapSet.new(),
-      cost_data: %{by_model: [], by_session: [], totals: %{}}
+      cost_data: %{by_model: [], by_session: [], totals: %{}},
+      agent_index: %{}
     }
   end
 
@@ -178,7 +179,13 @@ defmodule ObservatoryWeb.DashboardState do
     # Costs (load from SQLite, lightweight aggregation)
     cost_data = Observatory.Costs.CostAggregator.load_cost_data()
 
+    # Unified agent index: registry (authoritative) merged with event-derived data
+    # Maps ALL known identifiers (id, session_id, short_name) to the same agent record
+    registry_agents = Observatory.Gateway.AgentRegistry.list_all()
+    agent_index = build_agent_index(registry_agents, assigns.events, assigns.now)
+
     socket
+    |> assign(:agent_index, agent_index)
     |> assign(:visible_events, filtered_events(assigns))
     |> assign(:cost_data, cost_data)
     |> assign(:feed_groups, feed_groups)
@@ -200,6 +207,115 @@ defmodule ObservatoryWeb.DashboardState do
     |> assign(:timeline, timeline)
     |> push_event("fleet_topology_update", %{nodes: topo_nodes, edges: topo_edges})
   end
+
+  # ── Unified Agent Index ──────────────────────────────────────────────
+  #
+  # Builds a map keyed by ALL known identifiers for each agent.
+  # Registry is authoritative for status, cwd, team, role.
+  # Events provide live data: current_tool, recent_activity, event_count.
+  #
+  # Keys per agent: id, session_id, short_name (all pointing to the same map)
+  defp build_agent_index(registry_agents, events, now) do
+    # Event data grouped by session_id
+    event_data =
+      events
+      |> Enum.group_by(& &1.session_id)
+      |> Map.new(fn {sid, evts} -> {sid, summarize_events(evts, now)} end)
+
+    # Build entries from registry agents, enriched with event data
+    registry_agents
+    |> Enum.flat_map(fn reg ->
+      ev = Map.get(event_data, reg.session_id, %{})
+
+      agent = %{
+        agent_id: reg.id,
+        session_id: reg.session_id,
+        short_name: reg.short_name,
+        name: reg.short_name || reg.id,
+        status: reg.status || :idle,
+        role: reg.role,
+        team: reg.team,
+        model: reg.model,
+        cwd: reg.cwd,
+        host: Map.get(reg, :host, "local"),
+        channels: reg.channels,
+        tmux_session: get_in(reg, [:channels, :tmux]),
+        current_tool: ev[:current_tool],
+        event_count: ev[:event_count] || 0,
+        tool_count: ev[:tool_count] || 0,
+        recent_activity: ev[:recent_activity] || [],
+        last_event_at: reg.last_event_at
+      }
+
+      # Map all known keys to the same agent record
+      keys = Enum.uniq([reg.id, reg.session_id, reg.short_name]) |> Enum.reject(&is_nil/1)
+      Enum.map(keys, fn k -> {k, agent} end)
+    end)
+    |> Map.new()
+  end
+
+  defp summarize_events(events, now) do
+    sorted = Enum.sort_by(events, & &1.inserted_at, {:desc, DateTime})
+
+    %{
+      event_count: length(events),
+      tool_count: Enum.count(events, &(&1.hook_event_type == :PreToolUse)),
+      current_tool: find_current_tool(sorted, now),
+      recent_activity: build_recent_activity(sorted, now)
+    }
+  end
+
+  defp find_current_tool(sorted_events, now) do
+    post_ids =
+      sorted_events
+      |> Enum.filter(&(&1.hook_event_type in [:PostToolUse, :PostToolUseFailure]))
+      |> MapSet.new(& &1.tool_use_id)
+
+    sorted_events
+    |> Enum.filter(&(&1.hook_event_type == :PreToolUse))
+    |> Enum.find(fn e -> e.tool_use_id && not MapSet.member?(post_ids, e.tool_use_id) end)
+    |> case do
+      nil -> nil
+      pre -> %{tool_name: pre.tool_name, elapsed: div(DateTime.diff(now, pre.inserted_at, :millisecond), 1000)}
+    end
+  end
+
+  defp build_recent_activity(sorted_events, now) do
+    sorted_events
+    |> Enum.take(20)
+    |> Enum.flat_map(&event_to_activity(&1, now))
+    |> Enum.take(5)
+  end
+
+  defp event_to_activity(e, now) do
+    age = DateTime.diff(now, e.inserted_at, :second)
+    age_str = format_age(age)
+
+    case e.hook_event_type do
+      :PreToolUse ->
+        tool = e.tool_name || "?"
+        [%{type: :tool, tool: tool, detail: "", age: age_str}]
+
+      :PostToolUseFailure ->
+        tool = e.tool_name || "?"
+        [%{type: :error, tool: tool, detail: "failed", age: age_str}]
+
+      :Notification ->
+        text = (e.payload || %{})["message"] || (e.payload || %{})["content"] || e.summary || ""
+        if text != "", do: [%{type: :notify, detail: String.slice(text, 0, 120), age: age_str}], else: []
+
+      :TaskCompleted ->
+        task_id = (e.payload || %{})["task_id"] || "?"
+        [%{type: :task_done, detail: "Task #{task_id} completed", age: age_str}]
+
+      _ ->
+        []
+    end
+  end
+
+  defp format_age(seconds) when seconds < 60, do: "#{seconds}s"
+  defp format_age(seconds) when seconds < 3600, do: "#{div(seconds, 60)}m"
+  defp format_age(seconds), do: "#{div(seconds, 3600)}h"
 
   # Session derivation from raw events (still needed for feed groups, topology)
   defp active_sessions_from_events(events, assigns) do

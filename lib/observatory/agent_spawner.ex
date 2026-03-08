@@ -26,7 +26,8 @@ defmodule Observatory.AgentSpawner do
           optional(:cwd) => String.t(),
           optional(:team_name) => String.t(),
           optional(:quality_gates) => [String.t()],
-          optional(:extra_instructions) => String.t()
+          optional(:extra_instructions) => String.t(),
+          optional(:parent_id) => String.t()
         }
 
   @doc """
@@ -45,13 +46,26 @@ defmodule Observatory.AgentSpawner do
          :ok <- write_overlay(cwd, opts),
          {:ok, _pid} <- create_tmux_session(session_name, cwd, opts) do
       agent_id = session_name
+      capability = opts[:capability] || "builder"
+
+      # Register in AgentRegistry with parent-child relationship
+      role = capability_to_role(capability)
+
+      Observatory.Gateway.AgentRegistry.register_spawned(agent_id,
+        name: name,
+        role: role,
+        team: opts[:team_name],
+        cwd: cwd,
+        parent_id: opts[:parent_id],
+        channels: %{tmux: session_name}
+      )
 
       Logger.info("AgentSpawner: Spawned agent #{name} in session #{session_name} at #{cwd}")
 
       Phoenix.PubSub.broadcast(
         Observatory.PubSub,
         "agent:spawned",
-        {:agent_spawned, agent_id, name, opts[:capability] || "builder"}
+        {:agent_spawned, agent_id, name, capability}
       )
 
       {:ok, %{session_name: session_name, agent_id: agent_id, name: name, cwd: cwd}}
@@ -203,6 +217,13 @@ defmodule Observatory.AgentSpawner do
       ["-L", "obs"]
     end
   end
+
+  defp capability_to_role("lead"), do: :lead
+  defp capability_to_role("coordinator"), do: :coordinator
+  defp capability_to_role("scout"), do: :worker
+  defp capability_to_role("reviewer"), do: :worker
+  defp capability_to_role("builder"), do: :worker
+  defp capability_to_role(_), do: :worker
 
   defp generate_name(capability) do
     suffix = :rand.uniform(9999) |> Integer.to_string() |> String.pad_leading(4, "0")

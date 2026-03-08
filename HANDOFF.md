@@ -11,7 +11,24 @@ Key concepts:
 - Agents arrive from anywhere (any vendor, any host, any protocol) and join the facility
 - ICHOR observes, manages, controls, rearranges, and dictates
 
-### Just Completed: ADR-001 Steps 1-4
+### Just Completed: Unified Agent Index + Cost Ingestion
+
+**Unified Agent Index** -- Single source of truth for fleet panel data.
+- `DashboardState.build_agent_index/3` merges AgentRegistry (authoritative status, cwd, channels) with event-derived data (current_tool, recent_activity)
+- Maps ALL known identifiers (registry id, session_id UUID, short_name) to the same agent record
+- Eliminated `collect_agents` duplication from CommandComponents (~250 lines removed)
+- Fleet tree now correctly reflects agent status (active/idle/ended) from registry
+- Project name resolved via registry cwd fallback (no more "unknown")
+
+**Cost Ingestion Pipeline** -- Wired hook events to TokenUsage records.
+- `EventController.maybe_record_token_usage/2` extracts token data from hook payloads
+- Creates `TokenUsage` Ash records async (won't block event pipeline)
+- Rough cost estimation by model (opus/sonnet/haiku per-1M-token rates)
+- Migration: `20260308120000_create_token_usages.exs`
+
+**Dashboard subscribes to `"gateway:registry"`** -- Recomputes on `:registry_changed` from AgentRegistry.
+
+### Prior: ADR-001 Steps 1-4
 
 **1. Channel Registry in Router** -- Runtime channel registration replaces hardcoded dispatch.
 - `Channel` behaviour extended with `channel_key/0` and optional `skip?/1` callbacks
@@ -50,7 +67,11 @@ Key concepts:
 | Naming | Observatory | ICHOR IV (codebase rename pending) |
 
 ### Remaining ADR-001 Steps
-5. **Agent tree** -- spawn chain tracking, scoped authority, flexible hierarchy
+All 5 steps complete. Next: team builder UI, codebase rename.
+
+### Design Notes
+- **Roles are NOT hardcoded** -- user directive. The team builder (upcoming) will define roles dynamically. Current `capability_to_role/1` in AgentSpawner is a temporary mapping; the team builder will replace it.
+- **Agent IDs disambiguated** -- `qualify_agent_id/3` now appends session prefix when multiple agents share the same name@team (e.g., `team-lead-046c@observatory-crew`)
 
 ### Open Issues
 1. `ash_ai 0.5.0` SSE `{:error, :closed}` on MCP disconnect -- benign noise from upstream dep

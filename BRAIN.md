@@ -9,8 +9,13 @@
 
 ## Architecture
 - Event-driven: hooks -> POST /api/events -> EventBuffer ETS + PubSub -> LiveView
-- Dual data sources: event-derived state + disk-based team/task state (TeamWatcher)
+- **Unified agent index**: `DashboardState.build_agent_index/3` merges AgentRegistry + events
+  - Registry is authoritative for status, cwd, team, role, channels
+  - Events provide live data: current_tool, recent_activity, event_count
+  - Index maps ALL known identifiers (id, session_id, short_name) to the same agent record
+  - Eliminates key mismatch: team members use short names, events use UUIDs, registry has both
 - DashboardState.recompute/1 called from mount and every handle_event/handle_info
+- Dashboard subscribes to `"gateway:registry"` -- recomputes on `:registry_changed`
 - Ash domains: Events (SQLite), Costs (SQLite), AgentTools (MCP), Fleet (Simple/ETS), Activity (Simple/ETS)
 
 ## Ash Struct Access (CRITICAL)
@@ -152,6 +157,9 @@
 - PubSub topic: `quality:gate` with :gate_passed / :gate_failed
 
 ## Cost Dashboard (2026-03-08, Overstory-inspired)
+- **Ingestion**: `EventController.maybe_record_token_usage/2` extracts token data from hook payloads
+- Creates `TokenUsage` Ash records async via `Task.start` (non-blocking)
+- Rough cost estimation: opus 1500/7500, sonnet 300/1500, haiku 80/400 cents per 1M tokens
 - `CostAggregator.load_cost_data/0` queries SQLite directly (Ecto raw SQL for GROUP BY)
 - Returns `%{by_model: [...], by_session: [...], totals: %{}}` consumed by CostComponents
 - Activity tab `:costs` alongside `:comms` and `:feed` in command_view

@@ -3,7 +3,16 @@ ICHOR IV Progress (formerly Observatory)
 
 ## Current: Vendor-Agnostic Fleet Control (2026-03-08)
 
-### This Session: ICHOR IV Architecture
+### This Session: Unified Agent Index + Fleet Panel Fix
+- [x] Unified agent index: DashboardState.build_agent_index/3 merges registry + events
+- [x] Fleet panel status: subscribes to gateway:registry, uses registry status (authoritative)
+- [x] Project name fix: falls back to registry cwd when team member cwd is nil
+- [x] Cost ingestion: EventController.maybe_record_token_usage/2 creates TokenUsage records
+- [x] Fleet panel width: reduced from 360px to 280px
+- [x] Dead code removal: ~250 lines of collect_agents logic moved to DashboardState
+- [x] Migration: 20260308120000_create_token_usages.exs
+
+### Prior: ICHOR IV Architecture
 - [x] ADR-001: Vendor-agnostic fleet control architecture (gap analysis + 5-step plan)
 - [x] ADR-002: ICHOR IV identity and vision (Architect, Archon, agency-as-resource)
 - [x] Channel registry: Router uses runtime config instead of hardcoded dispatch
