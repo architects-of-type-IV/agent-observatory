@@ -71,7 +71,8 @@ defmodule Observatory.MixProject do
       {:ash_phoenix, "~> 2.0"},
       {:ash_sqlite, "~> 0.2"},
       {:ash_ai, "~> 0.5"},
-      {:usage_rules, "~> 1.1", only: :dev}
+      {:usage_rules, "~> 1.1", only: :dev},
+      {:earmark, "~> 1.4"}
     ]
   end
 

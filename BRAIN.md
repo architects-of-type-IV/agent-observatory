@@ -3,62 +3,71 @@
 ## Identity
 - **ICHOR IV**: sovereign control plane for autonomous agents, part of Kardashev Type IV suite
 - **Architect**: the user -- has authority over everything
-- **Archon**: ICHOR IV personified as top-level coordinator -- interprets Architect's will, drives fleet
+- **Archon**: the Architect's agent interface. NOT a rename of Operator. Will be a real AI agent with tools + memory + LLM.
+- **Operator**: current thin messaging relay (Architect -> agents). Will eventually be replaced by Archon.
 - ADR-001: vendor-agnostic fleet control, ADR-002: ICHOR IV identity
 - ADR-023/024/025: BEAM-native agent processes, team supervision, native messaging
 
+## Archon Architecture (2026-03-08)
+- **Observatory.Archon** -- parent Ash domain (empty, for future conversation state / memory resources)
+- **Observatory.Archon.Tools** -- AshAi subdomain with 7 tools across 4 resources
+  - `Tools.Agents`: list_agents, agent_status (AgentRegistry queries)
+  - `Tools.Teams`: list_teams (TeamWatcher queries)
+  - `Tools.Messages`: recent_messages (Mailbox), send_message (Operator)
+  - `Tools.System`: system_health (process liveness), tmux_sessions (Tmux + agent mapping)
+- All tools are in-process calls, no HTTP overhead
+- Operator agent (role: :operator) excluded from NudgeEscalator stale detection
+
+## AgentTools Domain (Refactored 2026-03-08)
+- 6 focused resources replacing 2 bloated files (726 -> 498 lines)
+- `Inbox`: check_inbox, acknowledge_message, send_message (agent message exchange)
+- `Tasks`: get_tasks, update_task_status (TaskManager delegation)
+- `Memory`: read_memory, memory_replace, memory_insert, memory_rethink (core Letta blocks)
+- `Recall`: conversation_search, conversation_search_date (history queries)
+- `Archival`: archival_memory_insert, archival_memory_search (long-term passages)
+- `Agents`: create_agent, list_agents (MemoryStore agent management)
+- MCP route only exposes 5 inbox tools. Memory tools are defined but unrouted.
+
+## Memories Project (External, /Users/xander/code/www/memories)
+- Zep/Graphiti-style knowledge graph with vector embeddings + BM25
+- Core concepts: Episodes (raw memory), Entities (semantic nodes), Facts (temporal edges)
+- API.Client: backend-pluggable search (hybrid semantic + BM25, reranking, BFS biasing)
+- HTTP API: /api/episodes/ingest, /api/graph/search, /api/graph/edges/:uuid, etc.
+- Integration plan: Archon will call Memories HTTP API for knowledge graph queries
+- NOT replacing MemoryStore yet -- only Archon gets Memories integration
+
 ## Architecture After Ash Refactor (2026-03-08)
 - **DashboardState.recompute/1**: thin coordinator calling Ash code interfaces + Fleet.Queries + EventAnalysis
-- **Fleet.Agent**: attributes now include session_id, short_name, host, channels, last_event_at
+- **Fleet.Agent**: attributes include session_id, short_name, host, channels, last_event_at
 - **LoadAgents preparation**: events -> teams -> disk -> tmux -> BEAM processes -> AgentRegistry merge -> sort
-- **agent_index**: built from `Fleet.Agent.all!()` via `build_agent_lookup/1` (converts structs to maps for bracket access)
-- **AgentRegistry.derive_role/1**: canonical role classification (public), delegates from FleetHelpers + DashboardTeamHelpers
+- **agent_index**: built from `Fleet.Agent.all!()` via `build_agent_lookup/1`
 - **Fleet.Queries**: pure functions for active_sessions, inspector_events, topology
-- **Activity.EventAnalysis**: tool_analytics, timeline, pair_tool_events (shared Pre/Post pairing)
-- **Template assigns**: paused_sessions + mailbox_messages populated in recompute, not in heex
+- **Activity.EventAnalysis**: tool_analytics, timeline, pair_tool_events
 
-## Event Pipeline (After Phase 6 Extraction)
-- **EventController**: thin HTTP adapter (~66 lines). extract_envelope -> attrs -> EventBuffer.ingest -> Costs -> PubSub -> Router.ingest
-- **EventBuffer**: owns payload sanitization (strip tool_response, truncate tool_input >500 chars) + tool duration tracking (ETS @tool_start_table, Pre/Post matching)
-- **Costs.CostAggregator.record_usage/2**: async token usage recording with per-model cost estimation
-- **Gateway.Router.ingest/1**: registry update + channel side effects (SessionStart -> create channel, PreToolUse -> TeamCreate/Delete/SendMessage intercepts)
+## Event Pipeline
+- **EventController**: thin HTTP adapter (~66 lines)
+- **EventBuffer**: payload sanitization + tool duration tracking
+- **Costs.CostAggregator.record_usage/2**: async token usage recording
+- **Gateway.Router.ingest/1**: registry update + channel side effects
 
-## Workshop Architecture (After Split, 2026-03-08)
-- **4 handler modules**: Handlers (canvas CRUD), Persistence (blueprint Ash ops), Presets (declarative configs), Types (AgentType CRUD)
-- **DashboardLive routing**: specific event names first (types, blueprints), `"ws_" <> _` catch-all last for canvas events
-- **Presets as data**: `@presets` map with `@dag_lead`/`@dag_workers` module attributes, `apply/2` reads from map
-- **Persistence layer**: auto_save creates/updates via Ash.Changeset, canvas <-> Ash field mapping (slot/id, canvas_x/x)
-- **AgentType**: Ash resource with `sorted!()` code interface, SQLite-backed
-- **Module attribute for comprehension**: wrap `for...do...end` in parens for module attr assignment
+## Workshop Architecture
+- 4 handler modules: Handlers (canvas CRUD), Persistence (blueprint Ash ops), Presets (declarative configs), Types (AgentType CRUD)
+- DashboardLive routing: specific event names first, `"ws_" <> _` catch-all last
+- AgentType: Ash resource with sorted!() code interface, SQLite-backed
 
 ## BEAM-Native Fleet Architecture (Type IV Foundation)
-- **AgentProcess** GenServer: PID = identity, process mailbox = delivery target
-  - Registers in `Observatory.Fleet.ProcessRegistry` (Elixir.Registry, :unique)
-  - Backend-pluggable: `state.backend` dispatches via `Delivery` module (pattern-matched heads)
-- **TeamSupervisor** DynamicSupervisor: one per team, children are AgentProcesses
-- **FleetSupervisor** DynamicSupervisor: top-level, holds teams + standalone agents
-- **PubSub topics**: `"fleet:lifecycle"`, `"messages:stream"`
+- **AgentProcess** GenServer: PID = identity, process mailbox = delivery
+- **TeamSupervisor** DynamicSupervisor: one per team
+- **FleetSupervisor** DynamicSupervisor: top-level
+- **PubSub topics**: "fleet:lifecycle", "messages:stream"
 
-## Ash Domain Model
-- **Fleet domain**: Agent + Team (DataLayer.Simple, read-only via preparations)
-- **Activity domain**: Message + Task + Error (DataLayer.Simple) + EventAnalysis (plain module)
-- **Workshop domain**: TeamBlueprint + AgentBlueprint + SpawnLink + CommRule + AgentType (SQLite)
-- **AgentTools domain**: Inbox + Memory (generic actions for MCP)
-- **Events domain**: Event + Session (SQLite)
-- **Costs domain**: TokenUsage (SQLite)
-
-## Elixir Style Guide (Enforced)
-- Pattern matching on function heads, NOT if/else/cond
-- `@doc`/`@spec` on publics, `@spec` on privates (no @doc)
-- Modules <=200 lines, functions <=20 lines, args <=2-3
-
-## Ash Struct Access (CRITICAL)
-- **Ash resource structs do NOT support bracket access** `[:field]`
-- Use dot access `struct.field` on Ash resources, bracket access on plain maps only
-- **agent_index** maps are plain maps (Map.from_struct), so bracket access works there
+## Ash Domain Style
+- Alias resources at top of domain module
+- Short references in resources/tools blocks
+- Resources focused and small (<200 lines)
 
 ## User Preferences
 - Zero warnings policy: `mix compile --warnings-as-errors`
 - Minimal JavaScript -- "LiveView was made to limit JS usage"
-- **BEAM-native vision**: supervisor, genserver, process with mailboxes as primitives
-- ADR-001 + ADR-002 = THE GOAL. Everything works toward sovereign fleet control.
+- BEAM-native vision: supervisor, genserver, process with mailboxes
+- ADR-001 + ADR-002 = THE GOAL

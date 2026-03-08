@@ -6,28 +6,38 @@ defmodule Observatory.AgentTools do
   """
   use Ash.Domain, extensions: [AshAi]
 
+  alias Observatory.AgentTools.{Inbox, Tasks, Memory, Recall, Archival, Agents}
+
   resources do
-    resource(Observatory.AgentTools.Inbox)
-    resource(Observatory.AgentTools.Memory)
+    resource(Inbox)
+    resource(Tasks)
+    resource(Memory)
+    resource(Recall)
+    resource(Archival)
+    resource(Agents)
   end
 
   tools do
     # Inbox
-    tool(:check_inbox, Observatory.AgentTools.Inbox, :check_inbox)
-    tool(:acknowledge_message, Observatory.AgentTools.Inbox, :acknowledge_message)
-    tool(:send_message, Observatory.AgentTools.Inbox, :send_message)
-    tool(:get_tasks, Observatory.AgentTools.Inbox, :get_tasks)
-    tool(:update_task_status, Observatory.AgentTools.Inbox, :update_task_status)
-    # Memory (Letta-compatible)
-    tool(:read_memory, Observatory.AgentTools.Memory, :read_memory)
-    tool(:memory_replace, Observatory.AgentTools.Memory, :memory_replace)
-    tool(:memory_insert, Observatory.AgentTools.Memory, :memory_insert)
-    tool(:memory_rethink, Observatory.AgentTools.Memory, :memory_rethink)
-    tool(:conversation_search, Observatory.AgentTools.Memory, :conversation_search)
-    tool(:conversation_search_date, Observatory.AgentTools.Memory, :conversation_search_date)
-    tool(:archival_memory_insert, Observatory.AgentTools.Memory, :archival_memory_insert)
-    tool(:archival_memory_search, Observatory.AgentTools.Memory, :archival_memory_search)
-    tool(:create_agent, Observatory.AgentTools.Memory, :create_agent)
-    tool(:list_agents, Observatory.AgentTools.Memory, :list_agents)
+    tool(:check_inbox, Inbox, :check_inbox)
+    tool(:acknowledge_message, Inbox, :acknowledge_message)
+    tool(:send_message, Inbox, :send_message)
+    # Tasks
+    tool(:get_tasks, Tasks, :get_tasks)
+    tool(:update_task_status, Tasks, :update_task_status)
+    # Core memory
+    tool(:read_memory, Memory, :read_memory)
+    tool(:memory_replace, Memory, :memory_replace)
+    tool(:memory_insert, Memory, :memory_insert)
+    tool(:memory_rethink, Memory, :memory_rethink)
+    # Recall
+    tool(:conversation_search, Recall, :conversation_search)
+    tool(:conversation_search_date, Recall, :conversation_search_date)
+    # Archival
+    tool(:archival_memory_insert, Archival, :archival_memory_insert)
+    tool(:archival_memory_search, Archival, :archival_memory_search)
+    # Agent management
+    tool(:create_agent, Agents, :create_agent)
+    tool(:list_agents, Agents, :list_agents)
   end
 end

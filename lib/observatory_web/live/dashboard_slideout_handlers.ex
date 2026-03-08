@@ -6,6 +6,9 @@ defmodule ObservatoryWeb.DashboardSlideoutHandlers do
   import Phoenix.Component, only: [assign: 3]
   import ObservatoryWeb.DashboardFormatHelpers, only: [session_duration_sec: 1]
 
+  alias Observatory.Gateway.AgentRegistry
+  alias Observatory.Gateway.OutputCapture
+
   def handle_open_agent_slideout(sid, socket) do
     # Unwatch previous agent if any
     if socket.assigns.agent_slideout do
@@ -14,12 +17,12 @@ defmodule ObservatoryWeb.DashboardSlideoutHandlers do
       if prev_sid,
         do: Phoenix.PubSub.unsubscribe(Observatory.PubSub, "agent:#{prev_sid}:activity")
 
-      if prev_sid, do: Observatory.Gateway.AgentRegistry.unwatch(prev_sid)
+      if prev_sid, do: OutputCapture.unwatch(prev_sid)
     end
 
-    agent = Observatory.Gateway.AgentRegistry.get(sid)
+    agent = AgentRegistry.get(sid)
     Phoenix.PubSub.subscribe(Observatory.PubSub, "agent:#{sid}:activity")
-    Observatory.Gateway.AgentRegistry.watch(sid)
+    OutputCapture.watch(sid)
 
     activity = build_slideout_activity(sid, socket.assigns.events, socket.assigns.messages)
 
@@ -36,7 +39,7 @@ defmodule ObservatoryWeb.DashboardSlideoutHandlers do
       if sid,
         do: Phoenix.PubSub.unsubscribe(Observatory.PubSub, "agent:#{sid}:activity")
 
-      if sid, do: Observatory.Gateway.AgentRegistry.unwatch(sid)
+      if sid, do: OutputCapture.unwatch(sid)
     end
 
     socket

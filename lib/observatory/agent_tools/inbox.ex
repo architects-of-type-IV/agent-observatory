@@ -1,29 +1,27 @@
 defmodule Observatory.AgentTools.Inbox do
   @moduledoc """
-  Ash Resource exposing agent inbox operations as MCP tools.
-  Delegates to Fleet domain code interfaces for agent operations,
-  with legacy Mailbox/Gateway fallback for unregistered agents.
+  Message exchange tools for agents. Check, acknowledge, and send messages.
   """
   use Ash.Resource, domain: Observatory.AgentTools
 
+  alias Observatory.Fleet.AgentProcess
+  alias Observatory.Mailbox
+
   actions do
     action :check_inbox, {:array, :map} do
-      description(
-        "Check for pending messages in your Observatory inbox. Returns unread messages from the dashboard or other agents."
-      )
+      description "Check for pending messages in your Observatory inbox. Returns unread messages from the dashboard or other agents."
 
       argument :session_id, :string do
-        allow_nil?(false)
-        description("Your agent session ID")
+        allow_nil? false
+        description "Your agent session ID"
       end
 
-      run(fn input, _context ->
+      run fn input, _context ->
         session_id = input.arguments.session_id
 
-        # Try BEAM-native AgentProcess first, then fall back to legacy Mailbox
         process_messages =
-          if Observatory.Fleet.AgentProcess.alive?(session_id) do
-            Observatory.Fleet.AgentProcess.get_unread(session_id)
+          if AgentProcess.alive?(session_id) do
+            AgentProcess.get_unread(session_id)
             |> Enum.map(fn msg ->
               %{
                 "id" => msg[:id] || Ecto.UUID.generate(),
@@ -37,9 +35,8 @@ defmodule Observatory.AgentTools.Inbox do
             []
           end
 
-        # Also check legacy Mailbox for messages from non-process senders
         mailbox_messages =
-          Observatory.Mailbox.get_messages(session_id)
+          Mailbox.get_messages(session_id)
           |> Enum.filter(fn msg -> !msg.read end)
           |> Enum.map(fn msg ->
             %{
@@ -51,188 +48,93 @@ defmodule Observatory.AgentTools.Inbox do
             }
           end)
 
-        # Merge both sources, process messages first (newer delivery)
         {:ok, process_messages ++ mailbox_messages}
-      end)
+      end
     end
 
     action :acknowledge_message, :map do
-      description("Mark a message as read after processing it.")
+      description "Mark a message as read after processing it."
 
       argument :session_id, :string do
-        allow_nil?(false)
-        description("Your agent session ID")
+        allow_nil? false
+        description "Your agent session ID"
       end
 
       argument :message_id, :string do
-        allow_nil?(false)
-        description("The ID of the message to acknowledge")
+        allow_nil? false
+        description "The ID of the message to acknowledge"
       end
 
-      run(fn input, _context ->
+      run fn input, _context ->
         session_id = input.arguments.session_id
         message_id = input.arguments.message_id
-        Observatory.Mailbox.mark_read(session_id, message_id)
-
-        # Clean up legacy CommandQueue file
-        inbox_dir = Path.expand("~/.claude/inbox/#{session_id}")
-
-        if File.dir?(inbox_dir) do
-          case File.ls(inbox_dir) do
-            {:ok, files} ->
-              Enum.each(files, fn file ->
-                file_path = Path.join(inbox_dir, file)
-
-                case File.read(file_path) do
-                  {:ok, content} ->
-                    case Jason.decode(content) do
-                      {:ok, %{"id" => ^message_id}} -> File.rm(file_path)
-                      _ -> :ok
-                    end
-
-                  _ ->
-                    :ok
-                end
-              end)
-
-            _ ->
-              :ok
-          end
-        end
-
+        Mailbox.mark_read(session_id, message_id)
+        cleanup_command_queue(session_id, message_id)
         {:ok, %{"status" => "acknowledged", "message_id" => message_id}}
-      end)
+      end
     end
 
     action :send_message, :map do
-      description("Send a message to another agent or back to the Observatory dashboard.")
+      description "Send a message to another agent or back to the Observatory dashboard."
 
       argument :from_session_id, :string do
-        allow_nil?(false)
-        description("Your agent session ID (the sender)")
+        allow_nil? false
+        description "Your agent session ID (the sender)"
       end
 
       argument :to_session_id, :string do
-        allow_nil?(false)
-        description("The recipient agent's session ID")
+        allow_nil? false
+        description "The recipient agent's session ID"
       end
 
       argument :content, :string do
-        allow_nil?(false)
-        description("The message content")
+        allow_nil? false
+        description "The message content"
       end
 
-      run(fn input, _context ->
+      run fn input, _context ->
         from = input.arguments.from_session_id
         to = input.arguments.to_session_id
         content = input.arguments.content
 
-        # Delegate to Fleet domain (canonical entry point)
         case Observatory.Fleet.Agent.send_message(to, content, %{from: from}) do
-          {:ok, result} ->
+          {:ok, _result} ->
             {:ok, %{"status" => "sent", "to" => to, "delivered" => 1, "via" => "fleet"}}
 
           {:error, _reason} ->
-            # Fall back to Gateway.Router for legacy/unregistered agents
             case Observatory.Gateway.Router.broadcast("agent:#{to}", %{content: content, from: from}) do
               {:ok, delivered} when delivered > 0 ->
                 {:ok, %{"status" => "sent", "to" => to, "delivered" => delivered}}
 
               {:ok, 0} ->
-                {:ok,
-                 %{
-                   "status" => "no_recipients",
-                   "to" => to,
-                   "delivered" => 0,
-                   "error" => "No delivery channel found for #{to}. Agent may not be registered."
-                 }}
+                {:ok, %{"status" => "no_recipients", "to" => to, "delivered" => 0,
+                  "error" => "No delivery channel found for #{to}. Agent may not be registered."}}
 
               {:error, reason} ->
                 {:error, "Failed to send message: #{inspect(reason)}"}
             end
         end
-      end)
+      end
     end
+  end
 
-    action :get_tasks, {:array, :map} do
-      description("Get your assigned tasks from the Observatory task board.")
+  defp cleanup_command_queue(session_id, message_id) do
+    inbox_dir = Path.expand("~/.claude/inbox/#{session_id}")
 
-      argument :session_id, :string do
-        allow_nil?(false)
-        description("Your agent session ID")
-      end
+    if File.dir?(inbox_dir) do
+      case File.ls(inbox_dir) do
+        {:ok, files} ->
+          Enum.each(files, fn file ->
+            file_path = Path.join(inbox_dir, file)
 
-      argument :team_name, :string do
-        allow_nil?(true)
-        description("Filter tasks by team name (optional)")
-      end
-
-      run(fn input, _context ->
-        session_id = input.arguments.session_id
-        team_name = input.arguments[:team_name]
-
-        tasks =
-          if team_name do
-            Observatory.TaskManager.list_tasks(team_name)
-          else
-            []
-          end
-
-        my_tasks =
-          tasks
-          |> Enum.filter(fn task ->
-            task["owner"] == session_id || task["owner"] == nil
-          end)
-          |> Enum.map(fn task ->
-            %{
-              "id" => task["id"],
-              "subject" => task["subject"],
-              "status" => task["status"],
-              "owner" => task["owner"],
-              "description" => task["description"]
-            }
+            with {:ok, content} <- File.read(file_path),
+                 {:ok, %{"id" => ^message_id}} <- Jason.decode(content) do
+              File.rm(file_path)
+            end
           end)
 
-        {:ok, my_tasks}
-      end)
-    end
-
-    action :update_task_status, :map do
-      description("Update the status of a task you are working on.")
-
-      argument :team_name, :string do
-        allow_nil?(false)
-        description("The team name the task belongs to")
+        _ -> :ok
       end
-
-      argument :task_id, :string do
-        allow_nil?(false)
-        description("The task ID to update")
-      end
-
-      argument :status, :string do
-        allow_nil?(false)
-        description("New status: pending, in_progress, or completed")
-      end
-
-      run(fn input, _context ->
-        team = input.arguments.team_name
-        task_id = input.arguments.task_id
-        status = input.arguments.status
-
-        case Observatory.TaskManager.update_task(team, task_id, %{"status" => status}) do
-          {:ok, task} ->
-            {:ok,
-             %{
-               "status" => "updated",
-               "task_id" => task_id,
-               "new_status" => task["status"] || status
-             }}
-
-          {:error, reason} ->
-            {:error, "Failed to update task: #{inspect(reason)}"}
-        end
-      end)
     end
   end
 end

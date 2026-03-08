@@ -83,6 +83,7 @@ defmodule Observatory.NudgeEscalator do
 
     stale_agents =
       agents
+      |> Enum.reject(fn agent -> agent[:role] == :operator end)
       |> Enum.filter(fn agent ->
         agent[:status] == :active &&
           agent[:last_event_at] &&

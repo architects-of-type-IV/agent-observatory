@@ -1,44 +1,28 @@
 ICHOR IV Progress (formerly Observatory)
 ========================================
 
-## Current: Ash-Disciplined Refactor (2026-03-08)
+## Current: Archon Domain + AgentTools Refactor (2026-03-08)
 
-### This Session: Workshop Refactor + Phase 6
-- [x] Phase 6: EventController extraction (277->66 lines, -211 lines)
-  - sanitize_payload + tool duration -> EventBuffer
-  - token usage recording -> Costs.CostAggregator.record_usage/2
-  - channel side effects -> Gateway.Router.ingest/1
-- [x] Workshop module split (637->198 lines handler + 3 new modules)
-  - workshop_persistence.ex (154 lines): blueprint CRUD, auto-save, Ash mapping
-  - workshop_presets.ex (120 lines): declarative @presets map, spawn_order
-  - workshop_types.ex (65 lines): AgentType CRUD events
-  - agent_type.ex: Ash resource with sorted!() code interface
-  - DashboardLive: specific event routing before ws_ catch-all
-  - Removed placeholder comm rule buttons, added drag hint
-  - Cleaned naming redundancies and junior-level code patterns
+### This Session
+- [x] NudgeEscalator: skip operator agent from stale detection
+- [x] Killed rogue scheduled task (PID 15813, "ping coordinators" loop)
+- [x] Disabled SQL query debug log (log: false in dev.exs)
+- [x] Created Observatory.Archon parent domain
+- [x] Created Observatory.Archon.Tools AshAi subdomain (7 tools)
+  - Tools.Agents: list_agents, agent_status
+  - Tools.Teams: list_teams
+  - Tools.Messages: recent_messages, send_message
+  - Tools.System: system_health, tmux_sessions
+- [x] Refactored AgentTools domain (726->498 lines, 2->7 files)
+  - Inbox, Tasks, Memory, Recall, Archival, Agents
 - [x] Clean compile: mix compile --warnings-as-errors
-- [ ] REMAINING: Phase 8 (ICHOR IV rename) -- separate commits per plan
 
-### Prior Session: Ash-Disciplined Refactor (Phases 1-5, 7)
-- [x] Phase 1: Dead code deletion (-197 lines from 3 helper modules)
-- [x] Phase 2: Canonicalize role classification
-- [x] Phase 3: Unify agent index
-- [x] Phase 4: Extract sessions/inspector/topology to Fleet.Queries
-- [x] Phase 5: Extract tool_analytics/timeline to Activity.EventAnalysis
-- [x] Phase 7: Fix template layer violations
+### Prior Session: Workshop Refactor + Phase 6
+- [x] Phase 6: EventController extraction (277->66 lines)
+- [x] Workshop module split (637->198 lines + 3 new modules)
 
-### Prior Session: Workshop Ash Persistence (2026-03-08)
-- [x] Created 4 Workshop Ash resources: TeamBlueprint, AgentBlueprint, SpawnLink, CommRule
-- [x] manage_relationship(:direct_control) for nested CRUD
-- [x] Generated + applied migration
-- [x] Added Saved Blueprints panel to workshop_view.html.heex
+### Prior: Ash-Disciplined Refactor (Phases 1-5, 7)
+- [x] Phases 1-7 complete. Net -730 lines from web layer.
 
-### Prior Session: BEAM-Native Fleet + Style Guide (2026-03-08)
-- [x] Split agent_process.ex (302->229): extracted AgentProcess.Delivery
-- [x] ADRs 023/024/025 for BEAM-native architecture
-- [x] AgentProcess GenServer, TeamSupervisor, FleetSupervisor, Registry instances
-
-### Prior: Vendor-Agnostic + Dashboard (2026-03-07/08)
-- [x] Channel registry, PaneMonitor, SSH tmux, host+tree fields
-- [x] Unified agent index, cost ingestion, HITL controls, tmux multi-panel
-- [x] Fleet/Activity Ash domains, 3-column layout, FleetHelpers
+### Prior: Workshop Ash Persistence + BEAM-Native Fleet
+- [x] Workshop Ash domain, BEAM-native fleet foundation, ADRs 023-025

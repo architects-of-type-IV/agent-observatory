@@ -1,32 +1,34 @@
 # ICHOR IV (formerly Observatory) - Handoff
 
-## Current Status: Workshop Refactor Complete (2026-03-08)
+## Current Status: Archon Domain + AgentTools Refactor (2026-03-08)
 
-### Just Completed: Workshop Module Split + Idiomatic Polish
+### Just Completed: Archon Domain + Tool Splits
 
-Split `dashboard_workshop_handlers.ex` (637 -> 198 lines) into 4 focused modules:
+1. **Archon domain** -- the Architect's agent interface to ICHOR IV
+   - `Observatory.Archon` parent domain (for future resources)
+   - `Observatory.Archon.Tools` subdomain with AshAi (7 tools)
+   - 4 focused resources: Agents, Teams, Messages, System
+   - All in-process calls (no HTTP overhead) to AgentRegistry, TeamWatcher, Mailbox, Tmux
 
-- **`dashboard_workshop_handlers.ex`** (198 lines) -- Canvas CRUD: agents, links, rules, team config, preset, launch
-- **`workshop_persistence.ex`** (154 lines) -- Blueprint events, auto-save, Ash <-> canvas mapping, clear/load
-- **`workshop_presets.ex`** (120 lines) -- Declarative `@presets` map (dag/solo/research/review), topological spawn_order
-- **`workshop_types.ex`** (65 lines) -- AgentType CRUD events (edit/save/delete)
+2. **AgentTools refactor** -- split 2 bloated files (726 lines) into 7 focused resources (498 lines)
+   - Inbox (check, acknowledge, send), Tasks, Memory (core ops), Recall, Archival, Agents
+   - Domain uses alias pattern, all resources under 120 lines
 
-Also:
-- `workshop.ex` domain: registered AgentType resource
-- `agent_type.ex`: Ash resource with sorted!() code interface
-- Migration for workshop_agent_types table
-- DashboardLive routing: specific type/blueprint events first, `"ws_" <> _` catch-all last
-- Removed placeholder "Add Comm Rule" buttons, replaced with drag hint text
-- `dashboard_state.ex`: added `ws_blueprints` + `ws_agent_types` init assigns
-- Cleaned up naming redundancies and junior-level code patterns
+3. **NudgeEscalator fix** -- skip operator agent (role: :operator) from stale detection
+   - Operator is the Architect (human), not an autonomous agent
+   - Was being escalated to zombie (level 3) every time
 
-### Prior: Ash-Disciplined Refactor (Phases 1-7)
+4. **Killed rogue scheduled task** -- PID 15813, Claude session sending "ping the coordinators of active teams" every 60s
 
-Net -730 lines from web layer. Domain logic moved into Fleet/Activity/Workshop modules.
+5. **Disabled SQL query debug log** -- `log: false` in dev.exs Repo config
+
+### Prior: Workshop Refactor + Ash-Disciplined Refactor (Phases 1-7)
 
 ### Remaining
-- **Phase 8**: ICHOR IV rename (each rename own commit per plan)
-- Tasks 38-40: Eliminate legacy ETS (CommandQueue, TeamWatcher, Mailbox)
+- **Memories integration** -- read Zep docs, test Memories API from Observatory, wire into Archon tools
+- **Archon LLM** -- connect Archon to Claude API with AshAi tools
+- **Archon chat UI** -- dashboard drawer/panel for conversing with Archon
+- **Phase 8**: ICHOR IV rename (deferred -- Archon will be built as a real agent, not a rename of Operator)
 
 ### Build Status
 `mix compile --warnings-as-errors` clean.

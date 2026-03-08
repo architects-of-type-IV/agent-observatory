@@ -22,6 +22,15 @@ defmodule ObservatoryWeb.Components.Feed.SessionGroup do
 
   embed_templates "session_group/*"
 
+  defp render_markdown(text) when is_binary(text) do
+    text
+    |> String.slice(0, 2000)
+    |> Earmark.as_html!(compact_output: true, smartypants: false)
+    |> Phoenix.HTML.raw()
+  end
+
+  defp render_markdown(_), do: ""
+
   # ═══════════════════════════════════════════════════════
   # Composable primitives
   # ═══════════════════════════════════════════════════════
@@ -253,33 +262,24 @@ defmodule ObservatoryWeb.Components.Feed.SessionGroup do
 
   defp role_badge(%{role: :lead} = assigns) do
     ~H"""
-    <span class="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400 border border-amber-500/30">
-      LEAD
-    </span>
+    <span class="text-[10px] font-mono text-amber-500">lead</span>
     """
   end
 
   defp role_badge(%{role: :worker} = assigns) do
     ~H"""
-    <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-cyan-500/15 text-cyan-400 border border-cyan-500/30">
-      WORKER
-    </span>
+    <span class="text-[10px] font-mono text-cyan-500">worker</span>
     """
   end
 
   defp role_badge(%{role: :relay} = assigns) do
     ~H"""
-    <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-violet-500/15 text-violet-400 border border-violet-500/30">
-      RELAY
-    </span>
+    <span class="text-[10px] font-mono text-violet-500">relay</span>
     """
   end
 
   defp role_badge(assigns) do
     ~H"""
-    <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-zinc-700 text-zinc-500">
-      SESSION
-    </span>
     """
   end
 

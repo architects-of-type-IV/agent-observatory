@@ -19,10 +19,10 @@
 
   <%!-- Expanded body --%>
   <div :if={expanded} class="space-y-0">
-    <%!-- Response text --%>
-    <div :if={@item.response} class="ml-4 pl-3 py-1">
-      <div class="text-xs text-zinc-500 italic whitespace-pre-wrap max-h-32 overflow-y-auto">
-        {String.slice(@item.response, 0, 500)}{if String.length(@item.response || "") > 500, do: "...", else: ""}
+    <%!-- Response text (markdown rendered) --%>
+    <div :if={@item.response} class="ml-4 pl-3 py-1.5">
+      <div class="prose prose-xs prose-invert prose-zinc max-w-none max-h-48 overflow-y-auto text-xs text-zinc-300 [&_p]:my-1 [&_ul]:my-1 [&_ol]:my-1 [&_li]:my-0.5 [&_code]:text-indigo-400 [&_code]:bg-zinc-800 [&_code]:px-1 [&_code]:rounded [&_code]:text-[11px] [&_strong]:text-zinc-200 [&_h1]:text-sm [&_h2]:text-xs [&_h3]:text-xs [&_pre]:bg-zinc-800/80 [&_pre]:rounded [&_pre]:p-2 [&_pre]:my-1.5 [&_pre]:text-[11px] [&_a]:text-indigo-400 [&_blockquote]:border-zinc-700 [&_blockquote]:text-zinc-400">
+        {render_markdown(@item.response)}
       </div>
     </div>
 

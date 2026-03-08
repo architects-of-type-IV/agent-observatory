@@ -188,8 +188,10 @@ defmodule Observatory.AgentSpawner do
     capability = opts[:capability] || "builder"
 
     # Build claude command with appropriate flags
+    # env -u CLAUDECODE ensures the spawned agent gets its own identity
+    # instead of being treated as nested inside the parent session
     claude_args = build_claude_args(model, capability, cwd, opts)
-    command = "claude #{Enum.join(claude_args, " ")}"
+    command = "env -u CLAUDECODE claude #{Enum.join(claude_args, " ")}"
 
     server_args = tmux_server_args()
 

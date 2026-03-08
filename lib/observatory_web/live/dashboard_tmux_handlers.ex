@@ -8,6 +8,7 @@ defmodule ObservatoryWeb.DashboardTmuxHandlers do
   import Phoenix.Component, only: [assign: 2, assign: 3]
   import Phoenix.LiveView, only: [push_event: 3]
 
+  alias Observatory.AgentSpawner
   alias Observatory.Gateway.Channels.Tmux
 
   def handle_connect_tmux(%{"session" => session_name}, socket) do
@@ -100,17 +101,11 @@ defmodule ObservatoryWeb.DashboardTmuxHandlers do
     end
   end
 
-  def handle_launch_session(%{"cwd" => cwd} = params, socket) when cwd != "" do
-    session_name = "obs-#{:os.system_time(:second)}"
-    command = params["command"] || "claude"
-
-    case Tmux.run_command([
-           "new-session", "-d", "-s", session_name, "-c", cwd,
-           "env", "-u", "CLAUDECODE", command
-         ]) do
-      {:ok, _} ->
+  def handle_launch_session(%{"cwd" => cwd} = _params, socket) when cwd != "" do
+    case AgentSpawner.spawn_agent(%{cwd: cwd}) do
+      {:ok, result} ->
         push_event(socket, "toast", %{
-          message: "Launched #{session_name} in #{Path.basename(cwd)}",
+          message: "Launched #{result.name} in #{Path.basename(cwd)}",
           type: "success"
         })
 

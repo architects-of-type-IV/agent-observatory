@@ -19,7 +19,7 @@ defmodule ObservatoryWeb.Components.Observatory.ModelBadge do
     ~H"""
     <span
       :if={@model}
-      class="text-xs font-mono px-1.5 py-0.5 rounded bg-indigo-500/15 text-indigo-400 border border-indigo-500/30"
+      class="text-[10px] font-mono text-indigo-500"
     >
       {short_model_name(@model)}
     </span>

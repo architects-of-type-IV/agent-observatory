@@ -10,7 +10,6 @@ defmodule Observatory.Gateway.AgentRegistry do
 
   @table :gateway_agent_registry
   @tmux_poll_interval 5_000
-  @capture_poll_interval 1_500
   @ended_ttl_seconds 1_800
   @stale_ttl_seconds 3_600
 
@@ -121,15 +120,6 @@ defmodule Observatory.Gateway.AgentRegistry do
     ArgumentError -> :ok
   end
 
-  @doc "Start watching an agent for terminal output (capture-pane polling)."
-  def watch(session_id) do
-    GenServer.cast(__MODULE__, {:watch, session_id})
-  end
-
-  @doc "Stop watching an agent for terminal output."
-  def unwatch(session_id) do
-    GenServer.cast(__MODULE__, {:unwatch, session_id})
-  end
 
   # ── Tree API ──────────────────────────────────────────────────────────
 
@@ -282,7 +272,7 @@ defmodule Observatory.Gateway.AgentRegistry do
     Process.send_after(self(), :ensure_operator_process, 1_000)
 
     schedule_tmux_poll()
-    {:ok, %{watched: MapSet.new(), last_capture: %{}}}
+    {:ok, %{}}
   end
 
   @impl true
@@ -402,28 +392,13 @@ defmodule Observatory.Gateway.AgentRegistry do
     {:noreply, state}
   end
 
-  def handle_cast({:watch, session_id}, state) do
-    new_watched = MapSet.put(state.watched, session_id)
-
-    if MapSet.size(state.watched) == 0 do
-      schedule_capture_poll()
-    end
-
-    {:noreply, %{state | watched: new_watched}}
-  end
-
-  def handle_cast({:unwatch, session_id}, state) do
-    {:noreply, %{state | watched: MapSet.delete(state.watched, session_id)}}
-  end
-
   @impl true
   def handle_call(:purge_stale, _from, state) do
     before = :ets.info(@table, :size)
     sweep_ended_agents()
-    new_capture = sweep_stale_captures(state.watched, state.last_capture)
     after_count = :ets.info(@table, :size)
     broadcast_registry_update()
-    {:reply, {:ok, before - after_count}, %{state | last_capture: new_capture}}
+    {:reply, {:ok, before - after_count}, state}
   end
 
   @impl true
@@ -436,16 +411,6 @@ defmodule Observatory.Gateway.AgentRegistry do
     poll_tmux_sessions()
     schedule_tmux_poll()
     {:noreply, state}
-  end
-
-  def handle_info(:poll_capture, state) do
-    new_last = capture_watched_agents(state.watched, state.last_capture)
-
-    if MapSet.size(state.watched) > 0 do
-      schedule_capture_poll()
-    end
-
-    {:noreply, %{state | last_capture: new_last}}
   end
 
   def handle_info(:ensure_operator_process, state) do
@@ -718,42 +683,6 @@ defmodule Observatory.Gateway.AgentRegistry do
     Process.send_after(self(), :poll_tmux, @tmux_poll_interval)
   end
 
-  defp schedule_capture_poll do
-    Process.send_after(self(), :poll_capture, @capture_poll_interval)
-  end
-
-  defp capture_watched_agents(watched, last_capture) do
-    Enum.reduce(watched, last_capture, fn session_id, acc ->
-      agent = get(session_id)
-      tmux_target = agent && agent.channels.tmux
-
-      if tmux_target do
-        case Observatory.Gateway.Channels.Tmux.capture_pane(tmux_target) do
-          {:ok, output} ->
-            prev = Map.get(acc, session_id, "")
-
-            if output != prev do
-              # Broadcast the new terminal output
-              Phoenix.PubSub.broadcast(
-                Observatory.PubSub,
-                "agent:#{session_id}:activity",
-                {:terminal_output, session_id, output}
-              )
-
-              Map.put(acc, session_id, output)
-            else
-              acc
-            end
-
-          {:error, _} ->
-            acc
-        end
-      else
-        acc
-      end
-    end)
-  end
-
   defp parse_channel("agent:" <> name), do: {:agent, name}
   defp parse_channel("session:" <> sid), do: {:session, sid}
   defp parse_channel("team:" <> name), do: {:team, name}
@@ -851,9 +780,6 @@ defmodule Observatory.Gateway.AgentRegistry do
     ArgumentError -> :ok
   end
 
-  defp sweep_stale_captures(watched, last_capture) do
-    Map.filter(last_capture, fn {sid, _} -> MapSet.member?(watched, sid) end)
-  end
 
   # ── BEAM Process Bridge ─────────────────────────────────────────────
 
