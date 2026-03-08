@@ -109,6 +109,13 @@
 - **Feed wiring**: FeedComponents.feed_view/1 rendered via Comms/Feed tab toggle in command_view center column. `activity_tab` assign (:comms | :feed) controls which view shows.
 - **Mount consolidation**: `DashboardState.default_assigns/1` returns all initial assigns as a map
 
+## Tmux Multi-Panel (2026-03-08)
+- **Multi-session**: `tmux_panels` (list), `tmux_outputs` (map of session->output), `tmux_layout` (:tabs/:tiled)
+- `connect_tmux` adds to panels list (or switches if already open), `disconnect_tmux` closes active tab
+- `refresh_tmux_panels/1` refreshes ALL open sessions on heartbeat (not just active)
+- Tiled layout: 2-column grid, all panes visible, click to focus. Active gets amber ring.
+- `active_tmux_session` still tracks which tab has keyboard focus for send_keys
+
 ## Observatory tmux socket
 - Path: `~/.observatory/tmux/obs.sock`
 - Auto-started in Application.start via `ensure_tmux_server/0`

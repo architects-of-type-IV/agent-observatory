@@ -257,57 +257,103 @@
         />
       </div>
 
-      <%!-- ═══ Tmux Terminal Modal ═══ --%>
+      <%!-- ═══ Tmux Multi-Panel ═══ --%>
       <div
-        :if={@active_tmux_session}
+        :if={@tmux_panels != []}
         class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
-        phx-click="disconnect_tmux"
+        phx-click="close_all_tmux"
       >
         <div
-          class="w-[90vw] max-w-5xl h-[80vh] bg-zinc-900 border border-zinc-700 rounded-xl shadow-2xl flex flex-col overflow-hidden"
-          phx-click-away="disconnect_tmux"
+          class="w-[92vw] max-w-6xl h-[85vh] bg-zinc-900 border border-zinc-700 rounded-xl shadow-2xl flex flex-col overflow-hidden"
           onclick="event.stopPropagation()"
         >
-          <%!-- Header --%>
-          <div class="flex items-center justify-between px-4 py-2.5 border-b border-zinc-800 bg-zinc-900/95 shrink-0">
-            <div class="flex items-center gap-3">
-              <span class="text-xs font-semibold text-amber-500 uppercase tracking-wider">tmux</span>
-              <span class="text-sm text-zinc-200 font-mono">{@active_tmux_session}</span>
-              <span class="relative flex h-2 w-2">
-                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-              </span>
+          <%!-- Header: tabs + controls --%>
+          <div class="flex items-center justify-between px-3 py-1.5 border-b border-zinc-800 bg-zinc-900/95 shrink-0">
+            <div class="flex items-center gap-1 overflow-x-auto">
+              <span class="text-[10px] font-semibold text-amber-500 uppercase tracking-wider mr-2 shrink-0">tmux</span>
+              <%= for session <- @tmux_panels do %>
+                <% is_active = session == @active_tmux_session %>
+                <button
+                  phx-click="switch_tmux_tab"
+                  phx-value-session={session}
+                  class={"flex items-center gap-1.5 px-2.5 py-1 rounded text-[11px] font-mono transition shrink-0 cursor-pointer #{if is_active, do: "bg-amber-500/15 text-amber-300 border border-amber-500/30", else: "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800"}"}
+                >
+                  <span class={"w-1.5 h-1.5 rounded-full #{if is_active, do: "bg-emerald-400", else: "bg-zinc-600"}"}></span>
+                  {session}
+                </button>
+              <% end %>
             </div>
-            <div class="flex items-center gap-2">
+            <div class="flex items-center gap-1.5 shrink-0">
+              <span class="text-[9px] text-zinc-600 font-mono">{length(@tmux_panels)} open</span>
               <button
+                phx-click="toggle_tmux_layout"
+                class={"obs-btn obs-btn-muted text-[10px] #{if @tmux_layout == :tiled, do: "!bg-amber-500/15 !text-amber-400", else: ""}"}
+                title={if @tmux_layout == :tabs, do: "Switch to tiled", else: "Switch to tabs"}
+              >
+                {if @tmux_layout == :tabs, do: "Tile", else: "Tabs"}
+              </button>
+              <button
+                :if={@active_tmux_session}
                 phx-click="kill_tmux_session"
-                class="obs-btn obs-btn-danger text-xs"
+                class="obs-btn obs-btn-danger text-[10px]"
                 data-confirm={"Kill session #{@active_tmux_session}?"}
               >
                 Kill
               </button>
-              <button phx-click="disconnect_tmux" class="obs-btn obs-btn-muted text-xs">
-                Close
+              <button phx-click="disconnect_tmux" class="obs-btn obs-btn-muted text-[10px]" title="Close active tab">
+                Close Tab
+              </button>
+              <button phx-click="close_all_tmux" class="obs-btn obs-btn-muted text-[10px]" title="Close all">
+                x
               </button>
             </div>
           </div>
-          <%!-- Terminal Output --%>
-          <div class="flex-1 overflow-y-auto p-4 bg-zinc-950">
-            <pre class="text-[12px] font-mono text-zinc-300 leading-relaxed whitespace-pre-wrap">{@tmux_output}</pre>
-          </div>
-          <%!-- Input --%>
-          <div class="px-4 py-2.5 border-t border-zinc-800 bg-zinc-900/95 shrink-0">
-            <div id="tmux-input-stable" phx-update="ignore">
-              <form phx-submit="send_tmux_keys" class="flex gap-2">
-                <input
-                  type="text"
-                  name="keys"
-                  placeholder="Send keys to tmux..."
-                  autocomplete="off"
-                  class="flex-1 obs-input"
-                />
-                <button type="submit" class="obs-btn obs-btn-primary">Send</button>
-              </form>
+
+          <%!-- Terminal content --%>
+          <%= if @tmux_layout == :tabs do %>
+            <%!-- Tabbed: single active pane --%>
+            <div class="flex-1 overflow-y-auto p-4 bg-zinc-950">
+              <pre class="text-[12px] font-mono text-zinc-300 leading-relaxed whitespace-pre-wrap">{@tmux_output}</pre>
+            </div>
+          <% else %>
+            <%!-- Tiled: grid of all open panes --%>
+            <% cols = if length(@tmux_panels) <= 2, do: "grid-cols-1 md:grid-cols-2", else: "grid-cols-2" %>
+            <div class={"flex-1 grid #{cols} gap-px bg-zinc-800 overflow-hidden"}>
+              <%= for session <- @tmux_panels do %>
+                <% is_active = session == @active_tmux_session %>
+                <div
+                  class={"flex flex-col overflow-hidden #{if is_active, do: "ring-1 ring-amber-500/40", else: ""}"}
+                  phx-click="switch_tmux_tab"
+                  phx-value-session={session}
+                >
+                  <div class={"flex items-center justify-between px-2 py-1 shrink-0 #{if is_active, do: "bg-amber-500/10", else: "bg-zinc-900/80"}"}>
+                    <span class="text-[10px] font-mono text-zinc-400">{session}</span>
+                    <span class={"w-1.5 h-1.5 rounded-full #{if is_active, do: "bg-emerald-400", else: "bg-zinc-600"}"}></span>
+                  </div>
+                  <div class="flex-1 overflow-y-auto p-2 bg-zinc-950">
+                    <pre class="text-[10px] font-mono text-zinc-400 leading-relaxed whitespace-pre-wrap">{Map.get(@tmux_outputs, session, "")}</pre>
+                  </div>
+                </div>
+              <% end %>
+            </div>
+          <% end %>
+
+          <%!-- Input (always targets active session) --%>
+          <div :if={@active_tmux_session} class="px-4 py-2 border-t border-zinc-800 bg-zinc-900/95 shrink-0">
+            <div class="flex items-center gap-2">
+              <span class="text-[10px] text-amber-500 font-mono shrink-0">{@active_tmux_session} ></span>
+              <div id="tmux-input-stable" phx-update="ignore" class="flex-1">
+                <form phx-submit="send_tmux_keys" class="flex gap-2">
+                  <input
+                    type="text"
+                    name="keys"
+                    placeholder="Send keys..."
+                    autocomplete="off"
+                    class="flex-1 obs-input"
+                  />
+                  <button type="submit" class="obs-btn obs-btn-primary">Send</button>
+                </form>
+              </div>
             </div>
           </div>
         </div>

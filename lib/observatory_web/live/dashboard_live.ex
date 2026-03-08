@@ -74,13 +74,10 @@ defmodule ObservatoryWeb.DashboardLive do
 
   def handle_info({:heartbeat, _count}, socket) do
     socket =
-      case socket.assigns[:active_tmux_session] do
-        nil -> socket
-        session ->
-          case Observatory.Gateway.Channels.Tmux.capture_pane(session, lines: 80) do
-            {:ok, output} -> assign(socket, :tmux_output, output)
-            {:error, _} -> assign(socket, active_tmux_session: nil, tmux_output: "Session ended.")
-          end
+      if socket.assigns.tmux_panels != [] do
+        refresh_tmux_panels(socket)
+      else
+        socket
       end
 
     {:noreply, socket}
@@ -375,6 +372,9 @@ defmodule ObservatoryWeb.DashboardLive do
 
   def handle_event("connect_tmux", p, s), do: {:noreply, handle_connect_tmux(p, s)}
   def handle_event("disconnect_tmux", p, s), do: {:noreply, handle_disconnect_tmux(p, s)}
+  def handle_event("close_all_tmux", p, s), do: {:noreply, handle_close_all_tmux(p, s)}
+  def handle_event("switch_tmux_tab", p, s), do: {:noreply, handle_switch_tmux_tab(p, s)}
+  def handle_event("toggle_tmux_layout", p, s), do: {:noreply, handle_toggle_tmux_layout(p, s)}
   def handle_event("send_tmux_keys", p, s), do: {:noreply, handle_send_tmux_keys(p, s)}
   def handle_event("kill_tmux_session", p, s), do: {:noreply, handle_kill_tmux_session(p, s)}
   def handle_event("launch_session", p, s), do: {:noreply, handle_launch_session(p, s)}

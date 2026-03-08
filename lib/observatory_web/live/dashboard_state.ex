@@ -68,6 +68,9 @@ defmodule ObservatoryWeb.DashboardState do
       active_tmux_session: nil,
       tmux_output: "",
       tmux_sessions: [],
+      tmux_panels: [],
+      tmux_outputs: %{},
+      tmux_layout: :tabs,
       # Phase 5 - Fleet Command
       throughput_rate: nil,
       cost_heatmap: [],
