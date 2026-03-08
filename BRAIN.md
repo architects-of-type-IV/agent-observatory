@@ -17,6 +17,12 @@
 - **Activity.EventAnalysis**: tool_analytics, timeline, pair_tool_events (shared Pre/Post pairing)
 - **Template assigns**: paused_sessions + mailbox_messages populated in recompute, not in heex
 
+## Event Pipeline (After Phase 6 Extraction)
+- **EventController**: thin HTTP adapter (~66 lines). extract_envelope -> attrs -> EventBuffer.ingest -> Costs -> PubSub -> Router.ingest
+- **EventBuffer**: owns payload sanitization (strip tool_response, truncate tool_input >500 chars) + tool duration tracking (ETS @tool_start_table, Pre/Post matching)
+- **Costs.CostAggregator.record_usage/2**: async token usage recording with per-model cost estimation
+- **Gateway.Router.ingest/1**: registry update + channel side effects (SessionStart -> create channel, PreToolUse -> TeamCreate/Delete/SendMessage intercepts)
+
 ## Workshop Domain (Ash + SQLite)
 - **Domain**: `Observatory.Workshop` with 4 resources
 - **TeamBlueprint**: parent resource, `manage_relationship(:direct_control)` on create/update for nested CRUD

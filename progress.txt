@@ -3,15 +3,18 @@ ICHOR IV Progress (formerly Observatory)
 
 ## Current: Ash-Disciplined Refactor (2026-03-08)
 
-### This Session: Ash-Disciplined Refactor (Phases 1-5, 7)
+### This Session: Ash-Disciplined Refactor (Phases 1-7)
 - [x] Phase 1: Dead code deletion (-197 lines from 3 helper modules)
 - [x] Phase 2: Canonicalize role classification (AgentRegistry.derive_role as source of truth)
 - [x] Phase 3: Unify agent index (Fleet.Agent attrs + LoadAgents merge + thin lookup)
 - [x] Phase 4: Extract sessions/inspector/topology to Fleet.Queries module
 - [x] Phase 5: Extract tool_analytics/timeline to Activity.EventAnalysis module
 - [x] Phase 7: Fix template layer violations (paused_sessions + mailbox as assigns)
+- [x] Phase 6: EventController extraction (277->66 lines, -211 lines)
+  - sanitize_payload + tool duration -> EventBuffer
+  - token usage recording -> Costs.CostAggregator.record_usage/2
+  - channel side effects -> Gateway.Router.ingest/1
 - [x] Clean compile: mix compile --warnings-as-errors
-- [ ] REMAINING: Phase 6 (EventController extraction) -- higher risk
 - [ ] REMAINING: Phase 8 (ICHOR IV rename) -- separate commits per plan
 
 ### Prior Session: Workshop Ash Persistence (2026-03-08)

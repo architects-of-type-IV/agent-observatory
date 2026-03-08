@@ -1,63 +1,30 @@
 defmodule ObservatoryWeb.EventController do
+  @moduledoc """
+  Thin HTTP adapter for hook events.
+  All domain logic lives in EventBuffer, Costs, and Gateway.Router.
+  """
   use ObservatoryWeb, :controller
-  require Logger
-
-  # ETS table for tracking PreToolUse timestamps by tool_use_id
-  @tool_start_table :observatory_tool_starts
-
-  def init_tool_tracking do
-    try do
-      :ets.new(@tool_start_table, [:named_table, :public, :set])
-    rescue
-      ArgumentError -> :ok
-    end
-  end
 
   def create(conn, params) do
-    init_tool_tracking()
-
-    # Support both new format (raw: full stdin JSON) and legacy (payload: extracted)
     {raw, hook_type, source_app, tmux_session} = extract_envelope(params)
-
-    # Extract fields from the raw hook stdin JSON
-    tool_name = raw["tool_name"]
-    tool_use_id = raw["tool_use_id"]
-    cwd = raw["cwd"]
-    permission_mode = raw["permission_mode"]
-    session_id = raw["session_id"] || params["session_id"] || "unknown"
-    model_name = raw["model"] || raw["model_name"] || params["model_name"]
-    summary = raw["summary"] || params["summary"]
-
-    # Compute tool duration for PostToolUse events
-    duration_ms = compute_duration(hook_type, tool_use_id)
-
-    # Track PreToolUse start times
-    if hook_type == "PreToolUse" && tool_use_id do
-      :ets.insert(@tool_start_table, {tool_use_id, System.monotonic_time(:millisecond)})
-    end
 
     event_attrs = %{
       source_app: source_app,
-      session_id: session_id,
+      session_id: raw["session_id"] || params["session_id"] || "unknown",
       hook_event_type: hook_type,
-      payload: sanitize_payload(raw),
-      summary: summary,
-      model_name: model_name,
-      tool_name: tool_name,
-      tool_use_id: tool_use_id,
-      cwd: cwd,
-      permission_mode: permission_mode,
-      duration_ms: duration_ms,
+      payload: raw,
+      summary: raw["summary"] || params["summary"],
+      model_name: raw["model"] || raw["model_name"] || params["model_name"],
+      tool_name: raw["tool_name"],
+      tool_use_id: raw["tool_use_id"],
+      cwd: raw["cwd"],
+      permission_mode: raw["permission_mode"],
       tmux_session: tmux_session
     }
 
-    # Non-blocking: buffer for async DB write, broadcast immediately
     {:ok, event} = Observatory.EventBuffer.ingest(event_attrs)
 
-    # Record token usage for cost tracking (from Stop events with token data)
-    maybe_record_token_usage(event, raw)
-
-    handle_channel_events(event)
+    Observatory.Costs.CostAggregator.record_usage(event, raw)
 
     Phoenix.PubSub.broadcast(
       Observatory.PubSub,
@@ -65,7 +32,6 @@ defmodule ObservatoryWeb.EventController do
       {:new_event, event}
     )
 
-    # Feed event into the unified Gateway pipeline
     Observatory.Gateway.Router.ingest(event)
 
     conn
@@ -73,137 +39,8 @@ defmodule ObservatoryWeb.EventController do
     |> json(%{ok: true, id: event.id})
   end
 
-  # Strip large fields (tool_response, tool_input file contents) to avoid DB bloat
-  defp sanitize_payload(payload) when is_map(payload) do
-    payload
-    |> Map.delete("tool_response")
-    |> truncate_tool_input()
-  end
+  # ── Envelope Extraction ──────────────────────────────────────────
 
-  defp sanitize_payload(payload), do: payload
-
-  defp truncate_tool_input(%{"tool_input" => input} = payload) when is_map(input) do
-    truncated =
-      Map.new(input, fn
-        {k, v} when is_binary(v) and byte_size(v) > 500 ->
-          {k, String.slice(v, 0, 500) <> "...[truncated]"}
-
-        pair ->
-          pair
-      end)
-
-    Map.put(payload, "tool_input", truncated)
-  end
-
-  defp truncate_tool_input(payload), do: payload
-
-  defp compute_duration(hook_type, tool_use_id)
-       when hook_type in ["PostToolUse", "PostToolUseFailure"] and is_binary(tool_use_id) do
-    case :ets.lookup(@tool_start_table, tool_use_id) do
-      [{^tool_use_id, start_time}] ->
-        :ets.delete(@tool_start_table, tool_use_id)
-        System.monotonic_time(:millisecond) - start_time
-
-      _ ->
-        nil
-    end
-  end
-
-  defp compute_duration(_, _), do: nil
-
-  defp maybe_record_token_usage(event, raw) when is_map(raw) do
-    # Claude hooks embed token usage in Stop/StopAssistantTurn events
-    input_tokens = raw["input_tokens"] || get_in(raw, ["usage", "input_tokens"]) || 0
-    output_tokens = raw["output_tokens"] || get_in(raw, ["usage", "output_tokens"]) || 0
-
-    if input_tokens > 0 or output_tokens > 0 do
-      cache_read = raw["cache_read_input_tokens"] ||
-        get_in(raw, ["usage", "cache_read_input_tokens"]) || 0
-      cache_write = raw["cache_creation_input_tokens"] ||
-        get_in(raw, ["usage", "cache_creation_input_tokens"]) || 0
-
-      # Estimate cost in cents (rough API pricing)
-      cost_cents = estimate_cost_cents(event.model_name, input_tokens, output_tokens, cache_read)
-
-      attrs = %{
-        session_id: event.session_id,
-        source_app: event.source_app,
-        model_name: event.model_name || "unknown",
-        input_tokens: input_tokens,
-        output_tokens: output_tokens,
-        cache_read_tokens: cache_read,
-        cache_write_tokens: cache_write,
-        estimated_cost_cents: cost_cents,
-        tool_name: event.tool_name
-      }
-
-      # Async to avoid blocking the event pipeline
-      Task.start(fn ->
-        try do
-          Observatory.Costs.TokenUsage
-          |> Ash.Changeset.for_create(:create, attrs)
-          |> Ash.create()
-        rescue
-          e -> Logger.warning("TokenUsage record failed: #{inspect(e)}")
-        end
-      end)
-    end
-  end
-
-  defp maybe_record_token_usage(_, _), do: :ok
-
-  # Rough cost estimation per 1M tokens (in cents)
-  # These are approximate and should be updated as pricing changes
-  defp estimate_cost_cents(model, input, output, cache_read) do
-    {in_rate, out_rate, cache_rate} =
-      cond do
-        model && String.contains?(model, "opus") -> {1500, 7500, 150}
-        model && String.contains?(model, "sonnet") -> {300, 1500, 30}
-        model && String.contains?(model, "haiku") -> {80, 400, 8}
-        true -> {300, 1500, 30}
-      end
-
-    trunc((input * in_rate + output * out_rate + cache_read * cache_rate) / 1_000_000)
-  end
-
-  defp handle_channel_events(event) do
-    case event.hook_event_type do
-      :SessionStart ->
-        Observatory.Channels.create_agent_channel(event.session_id)
-
-      :PreToolUse ->
-        handle_pre_tool_use(event)
-
-      _ ->
-        :ok
-    end
-  end
-
-  defp handle_pre_tool_use(event) do
-    input = (event.payload || %{})["tool_input"] || %{}
-
-    case event.tool_name do
-      "TeamCreate" ->
-        if team_name = input["team_name"] do
-          Observatory.Channels.create_team_channel(team_name, [])
-          ensure_team_supervisor(team_name)
-        end
-
-      "TeamDelete" ->
-        if team_name = input["team_name"] do
-          Observatory.Fleet.FleetSupervisor.disband_team(team_name)
-        end
-
-      "SendMessage" ->
-        handle_send_message(event, input)
-
-      _ ->
-        :ok
-    end
-  end
-
-  # New format: {hook_event_type, tmux_session, source_app, raw: {...}}
-  # Legacy format: {hook_event_type, session_id, source_app, payload: {...}}
   defp extract_envelope(%{"raw" => raw} = params) do
     {
       raw,
@@ -226,52 +63,4 @@ defmodule ObservatoryWeb.EventController do
 
   defp nullify_empty(""), do: nil
   defp nullify_empty(v), do: v
-
-  @spec ensure_team_supervisor(String.t()) :: :ok
-  defp ensure_team_supervisor(team_name) do
-    unless Observatory.Fleet.TeamSupervisor.exists?(team_name) do
-      case Observatory.Fleet.FleetSupervisor.create_team(name: team_name) do
-        {:ok, _pid} -> :ok
-        {:error, :already_exists} -> :ok
-        {:error, reason} ->
-          Logger.debug("[EventController] Could not create TeamSupervisor for #{team_name}: #{inspect(reason)}")
-          :ok
-      end
-    end
-  rescue
-    _ -> :ok
-  end
-
-  defp handle_send_message(event, input) do
-    type = input["type"] || "message"
-    recipient = input["recipient"]
-    content = input["content"] || input["summary"] || ""
-
-    payload = %{
-      content: content,
-      from: event.session_id,
-      type: :text,
-      metadata: %{
-        source_app: event.source_app,
-        summary: input["summary"],
-        via: :hook_intercept
-      }
-    }
-
-    case type do
-      "message" when is_binary(recipient) ->
-        Observatory.Gateway.Router.broadcast("agent:#{recipient}", payload)
-
-      "broadcast" ->
-        if team_name = input["team_name"] do
-          Observatory.Gateway.Router.broadcast("team:#{team_name}", payload)
-        end
-
-      "shutdown_request" when is_binary(recipient) ->
-        Observatory.Gateway.Router.broadcast("agent:#{recipient}", payload)
-
-      _ ->
-        :ok
-    end
-  end
 end

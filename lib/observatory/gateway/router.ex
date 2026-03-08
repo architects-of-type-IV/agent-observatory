@@ -61,18 +61,17 @@ defmodule Observatory.Gateway.Router do
 
   @doc """
   Ingest an inbound hook event into the gateway pipeline.
-  Updates the AgentRegistry and broadcasts to the activity stream.
+  Updates the AgentRegistry, handles channel side effects, and broadcasts.
   """
   def ingest(event) do
-    # Update the unified agent registry
     AgentRegistry.register_from_event(event)
 
-    # Mark ended sessions
     if event.hook_event_type in [:SessionEnd, "SessionEnd"] do
       AgentRegistry.mark_ended(event.session_id)
     end
 
-    # Broadcast to the per-agent activity stream
+    handle_channel_events(event)
+
     agent = AgentRegistry.get(event.session_id)
     agent_name = if agent, do: agent.id, else: event.session_id
 
@@ -83,6 +82,90 @@ defmodule Observatory.Gateway.Router do
     )
 
     :ok
+  end
+
+  # ── Channel Side Effects ──────────────────────────────────────────
+
+  defp handle_channel_events(%{hook_event_type: :SessionStart} = event) do
+    Observatory.Channels.create_agent_channel(event.session_id)
+  end
+
+  defp handle_channel_events(%{hook_event_type: :PreToolUse} = event) do
+    handle_pre_tool_use(event)
+  end
+
+  defp handle_channel_events(_event), do: :ok
+
+  defp handle_pre_tool_use(event) do
+    input = (event.payload || %{})["tool_input"] || %{}
+
+    case event.tool_name do
+      "TeamCreate" -> handle_team_create(input)
+      "TeamDelete" -> handle_team_delete(input)
+      "SendMessage" -> handle_send_message(event, input)
+      _ -> :ok
+    end
+  end
+
+  defp handle_team_create(input) do
+    if team_name = input["team_name"] do
+      Observatory.Channels.create_team_channel(team_name, [])
+      ensure_team_supervisor(team_name)
+    end
+  end
+
+  defp handle_team_delete(input) do
+    if team_name = input["team_name"] do
+      Observatory.Fleet.FleetSupervisor.disband_team(team_name)
+    end
+  end
+
+  defp handle_send_message(event, input) do
+    type = input["type"] || "message"
+    recipient = input["recipient"]
+    content = input["content"] || input["summary"] || ""
+
+    payload = %{
+      content: content,
+      from: event.session_id,
+      type: :text,
+      metadata: %{
+        source_app: event.source_app,
+        summary: input["summary"],
+        via: :hook_intercept
+      }
+    }
+
+    case type do
+      "message" when is_binary(recipient) ->
+        broadcast("agent:#{recipient}", payload)
+
+      "broadcast" ->
+        if team_name = input["team_name"] do
+          broadcast("team:#{team_name}", payload)
+        end
+
+      "shutdown_request" when is_binary(recipient) ->
+        broadcast("agent:#{recipient}", payload)
+
+      _ ->
+        :ok
+    end
+  end
+
+  @spec ensure_team_supervisor(String.t()) :: :ok
+  defp ensure_team_supervisor(team_name) do
+    unless Observatory.Fleet.TeamSupervisor.exists?(team_name) do
+      case Observatory.Fleet.FleetSupervisor.create_team(name: team_name) do
+        {:ok, _pid} -> :ok
+        {:error, :already_exists} -> :ok
+        {:error, reason} ->
+          Logger.debug("[Router] Could not create TeamSupervisor for #{team_name}: #{inspect(reason)}")
+          :ok
+      end
+    end
+  rescue
+    _ -> :ok
   end
 
   # ── Pipeline Stages ──────────────────────────────────────────────────

@@ -6,7 +6,57 @@ defmodule Observatory.Costs.CostAggregator do
   Called from DashboardState.recompute/1.
   """
 
+  require Logger
+
   alias Observatory.Repo
+
+  @doc """
+  Record token usage from a hook event's raw payload.
+  Runs async to avoid blocking the event pipeline.
+  """
+  @spec record_usage(map(), map()) :: :ok
+  def record_usage(event, raw) when is_map(raw) do
+    input_tokens = raw["input_tokens"] || get_in(raw, ["usage", "input_tokens"]) || 0
+    output_tokens = raw["output_tokens"] || get_in(raw, ["usage", "output_tokens"]) || 0
+
+    if input_tokens > 0 or output_tokens > 0 do
+      cache_read =
+        raw["cache_read_input_tokens"] ||
+          get_in(raw, ["usage", "cache_read_input_tokens"]) || 0
+
+      cache_write =
+        raw["cache_creation_input_tokens"] ||
+          get_in(raw, ["usage", "cache_creation_input_tokens"]) || 0
+
+      cost_cents = estimate_cost_cents(event.model_name, input_tokens, output_tokens, cache_read)
+
+      attrs = %{
+        session_id: event.session_id,
+        source_app: event.source_app,
+        model_name: event.model_name || "unknown",
+        input_tokens: input_tokens,
+        output_tokens: output_tokens,
+        cache_read_tokens: cache_read,
+        cache_write_tokens: cache_write,
+        estimated_cost_cents: cost_cents,
+        tool_name: event.tool_name
+      }
+
+      Task.start(fn ->
+        try do
+          Observatory.Costs.TokenUsage
+          |> Ash.Changeset.for_create(:create, attrs)
+          |> Ash.create()
+        rescue
+          e -> Logger.warning("TokenUsage record failed: #{inspect(e)}")
+        end
+      end)
+    end
+
+    :ok
+  end
+
+  def record_usage(_, _), do: :ok
 
   @doc "Load aggregated cost data for the dashboard."
   @spec load_cost_data() :: map()
@@ -114,5 +164,19 @@ defmodule Observatory.Costs.CostAggregator do
       _ ->
         %{input_tokens: 0, output_tokens: 0, cache_read: 0, cost_cents: 0}
     end
+  end
+
+  # Rough cost estimation per 1M tokens (in cents)
+  @spec estimate_cost_cents(String.t() | nil, integer(), integer(), integer()) :: integer()
+  defp estimate_cost_cents(model, input, output, cache_read) do
+    {in_rate, out_rate, cache_rate} =
+      cond do
+        model && String.contains?(model, "opus") -> {1500, 7500, 150}
+        model && String.contains?(model, "sonnet") -> {300, 1500, 30}
+        model && String.contains?(model, "haiku") -> {80, 400, 8}
+        true -> {300, 1500, 30}
+      end
+
+    trunc((input * in_rate + output * out_rate + cache_read * cache_rate) / 1_000_000)
   end
 end

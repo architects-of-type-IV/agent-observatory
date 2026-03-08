@@ -2,10 +2,13 @@ defmodule Observatory.EventBuffer do
   @moduledoc """
   In-memory event buffer. Accepts events via `ingest/1` and returns
   immediately. No SQLite -- everything is ETS + PubSub.
+
+  Also owns payload sanitization and tool duration tracking.
   """
   use GenServer
 
   @events_table :event_buffer_events
+  @tool_start_table :observatory_tool_starts
   @max_events 5_000
 
   # ── Public API ──────────────────────────────────────────────────
@@ -15,11 +18,18 @@ defmodule Observatory.EventBuffer do
   end
 
   @doc """
-  Ingest a hook event. Builds an event map and stores in ETS.
+  Ingest a hook event. Sanitizes payload, computes tool duration,
+  builds an event map, and stores in ETS.
   Returns {:ok, event} immediately.
   """
   def ingest(event_attrs) when is_map(event_attrs) do
-    event = build_event(event_attrs)
+    attrs =
+      event_attrs
+      |> Map.update(:payload, %{}, &sanitize_payload/1)
+      |> put_duration()
+      |> track_tool_start()
+
+    event = build_event(attrs)
     ensure_table()
     :ets.insert(@events_table, {event.id, event})
     maybe_evict()
@@ -51,14 +61,9 @@ defmodule Observatory.EventBuffer do
 
   @impl true
   def init(_opts) do
-    init_table()
-    {:ok, %{}}
-  end
-
-  # ── Private ─────────────────────────────────────────────────────
-
-  defp init_table do
     ensure_table()
+    ensure_tool_table()
+    {:ok, %{}}
   end
 
   defp ensure_table do
@@ -88,6 +93,82 @@ defmodule Observatory.EventBuffer do
       |> Enum.each(fn {id, _} -> :ets.delete(@events_table, id) end)
     end
   end
+
+  # ── Payload Sanitization ────────────────────────────────────────
+
+  defp sanitize_payload(payload) when is_map(payload) do
+    payload
+    |> Map.delete("tool_response")
+    |> truncate_tool_input()
+  end
+
+  defp sanitize_payload(payload), do: payload
+
+  defp truncate_tool_input(%{"tool_input" => input} = payload) when is_map(input) do
+    truncated =
+      Map.new(input, fn
+        {k, v} when is_binary(v) and byte_size(v) > 500 ->
+          {k, String.slice(v, 0, 500) <> "...[truncated]"}
+
+        pair ->
+          pair
+      end)
+
+    Map.put(payload, "tool_input", truncated)
+  end
+
+  defp truncate_tool_input(payload), do: payload
+
+  # ── Tool Duration Tracking ────────────────────────────────────
+
+  defp ensure_tool_table do
+    case :ets.whereis(@tool_start_table) do
+      :undefined ->
+        try do
+          :ets.new(@tool_start_table, [:named_table, :public, :set])
+        rescue
+          ArgumentError -> :ok
+        end
+
+      _ ->
+        :ok
+    end
+  end
+
+  defp put_duration(attrs) do
+    hook_type = attrs[:hook_event_type]
+    tool_use_id = attrs[:tool_use_id]
+
+    duration = compute_duration(hook_type, tool_use_id)
+    Map.put(attrs, :duration_ms, duration || attrs[:duration_ms])
+  end
+
+  defp compute_duration(hook_type, tool_use_id)
+       when hook_type in ["PostToolUse", "PostToolUseFailure"] and is_binary(tool_use_id) do
+    ensure_tool_table()
+
+    case :ets.lookup(@tool_start_table, tool_use_id) do
+      [{^tool_use_id, start_time}] ->
+        :ets.delete(@tool_start_table, tool_use_id)
+        System.monotonic_time(:millisecond) - start_time
+
+      _ ->
+        nil
+    end
+  end
+
+  defp compute_duration(_, _), do: nil
+
+  defp track_tool_start(attrs) do
+    if attrs[:hook_event_type] == "PreToolUse" && attrs[:tool_use_id] do
+      ensure_tool_table()
+      :ets.insert(@tool_start_table, {attrs[:tool_use_id], System.monotonic_time(:millisecond)})
+    end
+
+    attrs
+  end
+
+  # ── Event Construction ─────────────────────────────────────────
 
   defp build_event(attrs) do
     now = DateTime.utc_now()
