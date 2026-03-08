@@ -39,7 +39,13 @@ defmodule Observatory.Workshop.SpawnLink do
     defaults [:read, :destroy]
 
     create :create do
+      primary? true
       accept [:from_slot, :to_slot, :team_blueprint_id]
+    end
+
+    update :update do
+      primary? true
+      accept [:from_slot, :to_slot]
     end
   end
 

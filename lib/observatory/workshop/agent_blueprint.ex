@@ -85,6 +85,7 @@ defmodule Observatory.Workshop.AgentBlueprint do
     defaults [:read, :destroy]
 
     create :create do
+      primary? true
       accept [
         :slot, :name, :capability, :model, :permission,
         :persona, :file_scope, :quality_gates,
@@ -93,6 +94,7 @@ defmodule Observatory.Workshop.AgentBlueprint do
     end
 
     update :update do
+      primary? true
       accept [
         :name, :capability, :model, :permission,
         :persona, :file_scope, :quality_gates,
