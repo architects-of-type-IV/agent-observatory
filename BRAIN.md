@@ -89,7 +89,9 @@
 - Large components split: `.ex` (logic) + `.heex` (templates via `embed_templates`)
 - Module size limit: 200-300 lines max
 - Handler modules: imported via `import`, NOT called with full module names or `apply/3`
-- **DashboardAgentHealthHelpers layering inversion**: web helper imported by LoadTeams (domain)
+- **Layering fix**: `Fleet.AgentHealth` (domain) owns compute_agent_health/2. Web helper delegates.
+- **Feed wiring**: FeedComponents.feed_view/1 rendered via Comms/Feed tab toggle in command_view center column. `activity_tab` assign (:comms | :feed) controls which view shows.
+- **Mount consolidation**: `DashboardState.default_assigns/1` returns all initial assigns as a map
 
 ## Observatory tmux socket
 - Path: `~/.observatory/tmux/obs.sock`

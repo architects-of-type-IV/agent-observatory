@@ -7,6 +7,7 @@ defmodule ObservatoryWeb.Components.CommandComponents do
   use Phoenix.Component
   import ObservatoryWeb.DashboardFormatHelpers
   import ObservatoryWeb.ObservatoryComponents
+  import ObservatoryWeb.Components.FeedComponents, only: [feed_view: 1]
   alias ObservatoryWeb.Components.FleetHelpers, as: FH
   import Phoenix.HTML, only: [raw: 1]
 

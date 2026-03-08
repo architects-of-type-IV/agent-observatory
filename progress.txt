@@ -1,51 +1,43 @@
 Observatory Progress
 ====================
 
-## Current: Code Quality Hardening via /simplify (2026-03-08)
+## Current: Dashboard Extraction + Feed Wiring (2026-03-08)
 
-### /simplify Review (this session)
+### This Session
+- [x] Fixed DashboardAgentHealthHelpers layering inversion -> Fleet.AgentHealth domain module
+- [x] Extracted DashboardPhase5Handlers (104 lines out of dashboard_live.ex)
+- [x] Extracted DashboardSlideoutHandlers (125 lines out of dashboard_live.ex)
+- [x] Consolidated mount assigns into DashboardState.default_assigns/1
+- [x] dashboard_live.ex: 887 -> 458 lines
+- [x] Wired FeedComponents.feed_view into command_view via Comms/Feed tab toggle
+
+### Prior: Code Quality Hardening via /simplify (2026-03-08)
 - [x] Replaced is_uuid?/parse_uuid with Ecto.UUID.cast
 - [x] Hoisted correlate_by_cwd: pre-built cwd index (O(M*N) -> O(N))
 - [x] maybe_absorb_team_entry uses ets.match_object (was tab2list on every hook event)
-- [x] poll_tmux_sessions reuses all_entries (eliminated redundant scan)
-- [x] Named tmux buffers + send-keys error propagation in deliver/2
+- [x] Named tmux buffers + Tmux.run_command/1 public API + server_arg_sets cache
 - [x] broadcast_registry_update sends :registry_changed signal (not full table)
-- [x] server_arg_sets cached with 5s TTL
-- [x] Tmux.run_command/1 public API; all callers use multi-server fallback
-- [x] Removed unused @observatory_socket from DashboardTmuxHandlers
 
-### Prior (same day)
+### Prior: Identity Merge + Gateway Trace (2026-03-08)
 - [x] Identity merge in AgentRegistry (CWD correlation, canonical UUID keys)
 - [x] Ash domain refactor steps 7-9 (imported handlers, extracted DashboardTmuxHandlers)
 - [x] Tmux deliver fix (set-buffer+paste-buffer, no temp files)
-- [x] Heartbeat tmux filter (skip :heartbeat/:system types from tmux delivery)
+- [x] Heartbeat tmux filter, debug endpoints, Gateway unification
 - [x] dashboard_live.ex: 982 -> 887 lines
 
-### Earlier (Gateway Trace + Fix)
-- [x] Spawned 4-agent team to test comms pipeline (170+ rounds)
-- [x] Created 6 debug endpoints (/api/debug/{registry,health,traces,mailboxes,tmux,purge})
-- [x] Unified EventController send_message through Gateway.Router.broadcast
-- [x] Added tmux pane-level discovery (Tmux.list_panes) and delivery
-- [x] Qualified agent naming ("name@team" IDs with short_name fallback)
-- [x] 3-tier stale agent sweep (dead teams, ended 30min, stale standalone 1h)
-- [x] Heartbeat-driven maintenance (purge every 60 beats / 5min)
-- [x] Updated agent blocks with Gateway architecture knowledge
-
-### Prior Session (Heartbeat + Stability, 2026-03-08)
+### Prior: Heartbeat + Stability (2026-03-08)
 - [x] Wrapped select dropdowns in phx-update="ignore"
 - [x] Added Operator.send fallback
 - [x] Fixed ProtocolTracker timeout
-- [x] Created Heartbeat GenServer
-- [x] Removed all polling + longpoll transport
+- [x] Created Heartbeat GenServer + removed all polling
 
 ### Previous Session (2026-03-07)
-- [x] Created FleetHelpers module
-- [x] Rewrote command_view.html.heex: 3-column layout
+- [x] Created FleetHelpers module + 3-column layout
 - [x] Diagnosed messaging root cause + created messaging-architecture.md
 - [x] Removed AccessStruct macro, converted bracket access
 
 ### Ash Domain Modeling Refactor (COMPLETE)
-- [x] Steps 1-9: Fleet/Activity domains, resources, preparations, DashboardState, handler extraction
+- [x] Steps 1-9: Fleet/Activity domains, resources, preparations, DashboardState
 
 ## Previous milestones preserved below...
 

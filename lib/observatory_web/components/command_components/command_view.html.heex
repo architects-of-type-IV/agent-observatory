@@ -159,10 +159,24 @@
       </div>
     </div>
 
-    <%!-- Filter pills --%>
+    <%!-- Tab bar: Comms / Feed --%>
+    <% active_tab = assigns[:activity_tab] || :comms %>
     <div class="px-3 py-1 border-b border-zinc-800 flex items-center justify-between shrink-0">
-      <h3 class="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Comms</h3>
-      <div class="flex gap-1">
+      <div class="flex gap-2">
+        <span
+          phx-click="set_sub_tab"
+          phx-value-screen="activity"
+          phx-value-tab="comms"
+          class={"text-[10px] font-semibold uppercase tracking-wider cursor-pointer transition #{if active_tab in [:comms, :feed] && active_tab == :comms, do: "text-indigo-400", else: "text-zinc-600 hover:text-zinc-400"}"}
+        >Comms</span>
+        <span
+          phx-click="set_sub_tab"
+          phx-value-screen="activity"
+          phx-value-tab="feed"
+          class={"text-[10px] font-semibold uppercase tracking-wider cursor-pointer transition #{if active_tab == :feed, do: "text-indigo-400", else: "text-zinc-600 hover:text-zinc-400"}"}
+        >Feed</span>
+      </div>
+      <div :if={active_tab != :feed} class="flex gap-1">
         <span
           phx-click="set_comms_filter"
           phx-value-team=""
@@ -177,20 +191,25 @@
         <% end %>
         <span class="text-[9px] text-zinc-600 ml-1">{length(filtered_messages)} msgs</span>
       </div>
+      <div :if={active_tab == :feed} class="flex gap-1">
+        <button phx-click="expand_all" class="text-[9px] px-1.5 py-0.5 rounded text-zinc-500 hover:text-zinc-300 cursor-pointer transition">Expand</button>
+        <button phx-click="collapse_all" class="text-[9px] px-1.5 py-0.5 rounded text-zinc-500 hover:text-zinc-300 cursor-pointer transition">Collapse</button>
+        <span class="text-[9px] text-zinc-600 ml-1">{length(@feed_groups)} sessions</span>
+      </div>
     </div>
 
-    <%!-- Message timeline --%>
-    <%= if filtered_messages == [] do %>
-      <div class="flex-1 flex items-center justify-center p-6">
-        <div class="text-center max-w-xs">
-          <p class="text-[11px] text-zinc-500 mb-2">No messages yet</p>
-          <p class="text-[10px] text-zinc-600 leading-relaxed">
-            Send a message from the command bar above, or use the MCP API.
-          </p>
+    <%!-- Comms: Message timeline --%>
+    <div :if={active_tab != :feed} class="flex-1 overflow-y-auto">
+      <%= if filtered_messages == [] do %>
+        <div class="flex-1 flex items-center justify-center p-6">
+          <div class="text-center max-w-xs">
+            <p class="text-[11px] text-zinc-500 mb-2">No messages yet</p>
+            <p class="text-[10px] text-zinc-600 leading-relaxed">
+              Send a message from the command bar above, or use the MCP API.
+            </p>
+          </div>
         </div>
-      </div>
-    <% else %>
-      <div class="flex-1 overflow-y-auto">
+      <% else %>
         <div class="divide-y divide-zinc-800/30">
           <%= for msg <- filtered_messages do %>
             <% from_label = FH.resolve_label(msg.from, names) %>
@@ -218,8 +237,20 @@
             </div>
           <% end %>
         </div>
-      </div>
-    <% end %>
+      <% end %>
+    </div>
+
+    <%!-- Feed: Turn-based live activity --%>
+    <div :if={active_tab == :feed} class="flex-1 overflow-y-auto p-2">
+      <.feed_view
+        feed_groups={@feed_groups}
+        visible_events={@visible_events}
+        selected_event={@selected_event}
+        event_notes={@event_notes}
+        expanded_sessions={@expanded_sessions}
+        now={@now}
+      />
+    </div>
   </div>
 
   <%!-- Right: Detail Panel (400px, conditional) --%>
