@@ -3,13 +3,15 @@
 ## Current Status: Dashboard Extraction + Feed Wiring (2026-03-08)
 
 ### Just Completed
-- **Layering inversion fix** -- Created `Observatory.Fleet.AgentHealth` (79 lines) in domain layer. `LoadTeams` now imports from domain, not web layer. `DashboardAgentHealthHelpers` delegates to domain module + keeps presentation helpers only.
-- **Dashboard extraction (887 -> 458 lines)** -- Extracted `DashboardPhase5Handlers` (104 lines), `DashboardSlideoutHandlers` (125 lines). Consolidated mount into `DashboardState.default_assigns/1`. Gateway PubSub handlers use tuple matching guard.
-- **Feed view wiring** -- `FeedComponents.feed_view/1` was fully implemented but never rendered. Added Comms/Feed tab toggle in command_view center column. `activity_tab` assign controls which view shows (:comms or :feed).
+- **Heartbeat Gateway removal** -- Removed `Gateway.Router.broadcast("fleet:heartbeat", ...)` from Heartbeat GenServer. Heartbeat was flooding comms timeline (every 5s to all mailboxes), evicting real protocol traces (200-cap filled in 16min), and broadcasting audit to no subscribers. PubSub direct path retained for ProtocolTracker + LiveView.
+- **Ghost agent cleanup** -- `poll_tmux_sessions` now filters Observatory infrastructure sessions (`obs*`, numeric indices) via `observatory_session?/1`. `register_from_event` rejects non-UUID session IDs. Sweep removes non-UUID standalones. Purged `obs`, `0`, `obs-1772933455`, `test-123`.
+- **Layering inversion fix** -- Created `Observatory.Fleet.AgentHealth` (79 lines) in domain layer.
+- **Dashboard extraction (887 -> 458 lines)** -- Extracted Phase5, Slideout handlers. Consolidated mount.
+- **Feed view wiring** -- Comms/Feed tab toggle in command_view center column.
 
 ### Prior Work (same day)
 - ETS scan optimization, named tmux buffers, Tmux.run_command/1, server_arg_sets cache
-- Identity merge in AgentRegistry, Ash domain refactor, heartbeat system
+- Identity merge in AgentRegistry, Ash domain refactor
 - Gateway trace + debug endpoints, messaging unification
 
 ### Open Issues
@@ -22,7 +24,7 @@
 - Phoenix LiveView on port 4005
 - Event-driven: hooks -> POST /api/events -> EventBuffer ETS + PubSub -> LiveView
 - 3 message paths (all through Gateway): Dashboard, Hook intercept, MCP
-- AgentRegistry: ETS-backed, identity merge via CWD correlation, qualified IDs
+- AgentRegistry: ETS-backed, identity merge via CWD, UUID-only registration, ghost filtering
 - Tmux: `Tmux.run_command/1`, named buffers, cached server_arg_sets
 - Ash domains: Fleet (Team, Agent), Activity (Message, Task, Error) -- `Ash.DataLayer.Simple`
 - **Domain layering**: Fleet.AgentHealth for health computation, web layer delegates

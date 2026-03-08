@@ -25,10 +25,17 @@
 
 ## Heartbeat System (2026-03-08)
 - `Observatory.Heartbeat` GenServer in MonitorSupervisor, 5s interval
-- Publishes to PubSub "heartbeat" AND Gateway "fleet:heartbeat"
+- **PubSub only** -- publishes `{:heartbeat, count}` on `"heartbeat"` topic. No Gateway routing.
 - Subscribers: ProtocolTracker (stats broadcast), LiveView (tmux refresh when overlay open)
 - **Maintenance**: every 60 beats (5min), spawns `AgentRegistry.purge_stale()`
 - Single timer for the system -- no individual GenServer timers
+- **Design lesson**: internal ticks must NOT flow through the messaging pipeline (Gateway). Causes mailbox flooding, trace eviction, wasted audit broadcasts. PubSub direct is correct for system signals.
+
+## AgentRegistry Ghost Prevention (2026-03-08)
+- `register_from_event` rejects non-UUID session IDs (blocks curl test probes)
+- `poll_tmux_sessions` filters via `observatory_session?/1`: `"obs"`, `"obs-*"`, numeric names
+- `sweep_ended_agents` removes non-UUID standalones and observatory sessions
+- Three-layer defense: registration gate, poll filter, sweep cleanup
 
 ## Gateway Pipeline (3 message paths, all unified through Router)
 1. **Dashboard -> Agent**: Operator.send -> Gateway.Router.broadcast -> MailboxAdapter + Tmux + Webhook

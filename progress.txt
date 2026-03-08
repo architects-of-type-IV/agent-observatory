@@ -4,6 +4,8 @@ Observatory Progress
 ## Current: Dashboard Extraction + Feed Wiring (2026-03-08)
 
 ### This Session
+- [x] Removed heartbeat Gateway broadcast (was flooding comms, evicting traces)
+- [x] Ghost agent cleanup: observatory_session? filter, UUID-only registration, sweep rule
 - [x] Fixed DashboardAgentHealthHelpers layering inversion -> Fleet.AgentHealth domain module
 - [x] Extracted DashboardPhase5Handlers (104 lines out of dashboard_live.ex)
 - [x] Extracted DashboardSlideoutHandlers (125 lines out of dashboard_live.ex)

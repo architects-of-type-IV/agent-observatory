@@ -1,14 +1,10 @@
 defmodule Observatory.Heartbeat do
   @moduledoc """
-  Publishes a periodic heartbeat through the Gateway. Subscribers react to
-  the beat to perform periodic work (tmux refresh, stats recompute, registry
-  sync, etc.) without each owning their own timer.
+  Publishes a periodic heartbeat via PubSub. Subscribers react to the beat
+  to perform periodic work (tmux refresh, stats recompute, registry sync,
+  etc.) without each owning their own timer.
 
-  The heartbeat broadcasts to "fleet:heartbeat" via the Gateway pipeline,
-  which means it flows through validation, routing, and audit like any
-  other message.
-
-  Subscribe to "heartbeat" PubSub topic for the local notification.
+  Subscribe to the "heartbeat" PubSub topic to receive `{:heartbeat, count}`.
   """
   use GenServer
 
@@ -29,16 +25,8 @@ defmodule Observatory.Heartbeat do
   def handle_info(:beat, %{count: count} = state) do
     next = count + 1
 
-    # Broadcast through PubSub for local subscribers (LiveView, monitors)
+    # Broadcast through PubSub for local subscribers (LiveView, ProtocolTracker)
     Phoenix.PubSub.broadcast(Observatory.PubSub, @topic, {:heartbeat, next})
-
-    # Route through Gateway for protocol-level visibility (audit, tracing)
-    Observatory.Gateway.Router.broadcast("fleet:heartbeat", %{
-      content: "heartbeat",
-      from: "system",
-      type: :heartbeat,
-      count: next
-    })
 
     # Maintenance jobs on heartbeat intervals
     run_maintenance(next)

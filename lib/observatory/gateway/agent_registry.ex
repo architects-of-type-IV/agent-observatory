@@ -120,21 +120,24 @@ defmodule Observatory.Gateway.AgentRegistry do
   end
 
   @impl true
-  def handle_cast({:register_event, event}, state) do
-    session_id = event.session_id
-    existing = get(session_id) || default_agent(session_id)
+  def handle_cast({:register_event, %{session_id: session_id} = event}, state) do
+    # Only register events from real Claude Code sessions (UUID session IDs)
+    if is_uuid?(session_id) do
+      existing = get(session_id) || default_agent(session_id)
 
-    updated =
-      existing
-      |> maybe_update_from_event(event)
-      |> Map.put(:last_event_at, DateTime.utc_now())
-      |> Map.put(:status, derive_status(event, existing))
+      updated =
+        existing
+        |> maybe_update_from_event(event)
+        |> Map.put(:last_event_at, DateTime.utc_now())
+        |> Map.put(:status, derive_status(event, existing))
 
-    # Identity merge: absorb team metadata from orphaned team-registered entries
-    updated = maybe_absorb_team_entry(session_id, updated)
+      # Identity merge: absorb team metadata from orphaned team-registered entries
+      updated = maybe_absorb_team_entry(session_id, updated)
 
-    :ets.insert(@table, {session_id, updated})
-    broadcast_registry_update()
+      :ets.insert(@table, {session_id, updated})
+      broadcast_registry_update()
+    end
+
     {:noreply, state}
   end
 
@@ -356,8 +359,9 @@ defmodule Observatory.Gateway.AgentRegistry do
       |> MapSet.new()
 
     # Auto-register tmux sessions not yet in the registry
-    # Skip sessions that are already wired as tmux targets on existing agents
+    # Skip: Observatory infrastructure sessions, already-known IDs, already-wired targets
     for session_name <- tmux_sessions,
+        not observatory_session?(session_name),
         not MapSet.member?(known_ids, session_name),
         not MapSet.member?(known_tmux_targets, session_name),
         is_nil(get(session_name)) do
@@ -411,6 +415,11 @@ defmodule Observatory.Gateway.AgentRegistry do
   defp tmux_target_alive?(target, sessions, panes) do
     target in sessions or Enum.any?(panes, &(&1.pane_id == target))
   end
+
+  # Skip Observatory infrastructure tmux sessions (the dev server, launched sessions, numeric indices)
+  defp observatory_session?("obs"), do: true
+  defp observatory_session?("obs-" <> _), do: true
+  defp observatory_session?(name), do: match?({_, ""}, Integer.parse(name))
 
   # Prefer tmux_pane_id from team config, fall back to existing channel value
   defp resolve_tmux_target(nil, existing), do: existing
@@ -619,6 +628,13 @@ defmodule Observatory.Gateway.AgentRegistry do
         # Sweep ended agents after 30min
         agent.status == :ended &&
             DateTime.compare(agent.last_event_at, ended_cutoff) == :lt ->
+          :ets.delete(@table, session_id)
+
+        # Sweep Observatory infrastructure sessions and non-UUID standalones (test probes)
+        observatory_session?(session_id) ->
+          :ets.delete(@table, session_id)
+
+        agent.role == :standalone && is_nil(agent.team) && not is_uuid?(session_id) ->
           :ets.delete(@table, session_id)
 
         # Sweep standalone agents with no events in 1h (test probes, old sessions)
