@@ -21,35 +21,12 @@ defmodule ObservatoryWeb.DashboardSessionControlHandlers do
   def dispatch("push_instructions_cancel", p, s), do: handle_push_instructions_cancel(p, s)
 
   def handle_pause_agent(%{"session_id" => session_id}, socket) do
-    # Pause via HITLRelay for message buffering
     HITLRelay.pause(session_id, session_id, "operator", "Operator paused from dashboard")
-
-    # Subscribe to HITL events for this session
     Phoenix.PubSub.subscribe(Observatory.PubSub, "session:hitl:#{session_id}")
-
-    # Also send pause command to agent via CommandQueue + Mailbox
-    command = %{
-      "type" => "session_control",
-      "action" => "pause",
-      "from" => "operator",
-      "timestamp" => DateTime.utc_now() |> DateTime.to_iso8601()
-    }
-
-    Observatory.CommandQueue.write_command(session_id, command)
-
-    Observatory.Mailbox.send_message(
-      session_id,
-      "operator",
-      "Pause requested by dashboard",
-      type: :session_control,
-      metadata: %{action: "pause"}
-    )
+    Observatory.Operator.send(session_id, "Pause requested by dashboard", type: :session_control, metadata: %{action: "pause"})
 
     socket
-    |> Phoenix.LiveView.put_flash(
-      :info,
-      "Agent paused -- messages will be buffered"
-    )
+    |> Phoenix.LiveView.put_flash(:info, "Agent paused -- messages will be buffered")
   end
 
   @doc """
@@ -57,31 +34,11 @@ defmodule ObservatoryWeb.DashboardSessionControlHandlers do
   Unpauses via HITLRelay (flushes buffered messages) AND sends resume command.
   """
   def handle_resume_agent(%{"session_id" => session_id}, socket) do
-    # Unpause via HITLRelay -- flushes buffered messages
     HITLRelay.unpause(session_id, session_id, "operator")
-
-    command = %{
-      "type" => "session_control",
-      "action" => "resume",
-      "from" => "operator",
-      "timestamp" => DateTime.utc_now() |> DateTime.to_iso8601()
-    }
-
-    Observatory.CommandQueue.write_command(session_id, command)
-
-    Observatory.Mailbox.send_message(
-      session_id,
-      "operator",
-      "Resume requested by dashboard",
-      type: :session_control,
-      metadata: %{action: "resume"}
-    )
+    Observatory.Operator.send(session_id, "Resume requested by dashboard", type: :session_control, metadata: %{action: "resume"})
 
     socket
-    |> Phoenix.LiveView.put_flash(
-      :info,
-      "Agent resumed -- buffered messages flushed"
-    )
+    |> Phoenix.LiveView.put_flash(:info, "Agent resumed -- buffered messages flushed")
   end
 
   @doc """
@@ -112,28 +69,10 @@ defmodule ObservatoryWeb.DashboardSessionControlHandlers do
   Writes shutdown command to CommandQueue and sends via Mailbox.
   """
   def handle_shutdown_agent(%{"session_id" => session_id}, socket) do
-    command = %{
-      "type" => "session_control",
-      "action" => "shutdown",
-      "from" => "operator",
-      "timestamp" => DateTime.utc_now() |> DateTime.to_iso8601()
-    }
-
-    Observatory.CommandQueue.write_command(session_id, command)
-
-    Observatory.Mailbox.send_message(
-      session_id,
-      "operator",
-      "Shutdown requested by dashboard",
-      type: :session_control,
-      metadata: %{action: "shutdown"}
-    )
+    Observatory.Operator.send(session_id, "Shutdown requested by dashboard", type: :session_control, metadata: %{action: "shutdown"})
 
     socket
-    |> Phoenix.LiveView.put_flash(
-      :warning,
-      "Shutdown command sent to agent #{String.slice(session_id, 0..7)}"
-    )
+    |> Phoenix.LiveView.put_flash(:warning, "Shutdown command sent to agent #{String.slice(session_id, 0..7)}")
   end
 
   # Phase 5: Kill-switch state machine

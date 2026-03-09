@@ -23,7 +23,7 @@ defmodule Observatory.Application do
       {Registry, keys: :unique, name: Observatory.Fleet.TeamRegistry},
 
       # :pg scope for cluster-wide process discovery
-      {:pg, :observatory_agents},
+      %{id: :pg_observatory_agents, start: {:pg, :start_link, [:observatory_agents]}},
 
       # Fleet host registry (tracks BEAM nodes in the cluster)
       Observatory.Fleet.HostRegistry,

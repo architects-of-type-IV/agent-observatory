@@ -82,16 +82,10 @@ defmodule ObservatoryWeb.DashboardMessagingHandlers do
   end
 
   def refresh_mailbox_assigns(socket) do
-    sessions = socket.assigns[:sessions] || []
-
-    mailbox_counts =
-      sessions
-      |> Enum.map(fn s ->
-        {s.session_id, Observatory.Mailbox.unread_count(s.session_id)}
-      end)
-      |> Map.new()
-
-    Phoenix.Component.assign(socket, :mailbox_counts, mailbox_counts)
+    # Unread counts will be driven by PubSub message events in Phase 2.
+    # AgentProcess.get_unread is destructive (clears on read), so we don't
+    # poll it from the dashboard. The comms timeline shows messages in real-time.
+    socket
   end
 
   def subscribe_to_mailboxes(sessions) do

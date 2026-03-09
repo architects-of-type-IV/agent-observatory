@@ -4,21 +4,23 @@ defmodule Observatory.Archon.Tools.System do
   """
   use Ash.Resource, domain: Observatory.Archon.Tools
 
-  alias Observatory.Gateway.AgentRegistry
+  alias Observatory.Fleet.Agent, as: FleetAgent
+  alias Observatory.Fleet.Team, as: FleetTeam
   alias Observatory.Gateway.Channels.Tmux
-  alias Observatory.{TeamWatcher, EventBuffer, Heartbeat, ProtocolTracker}
+  alias Observatory.{EventBuffer, Heartbeat, ProtocolTracker}
 
   actions do
     action :system_health, :map do
       description "Check Observatory system health: agents, teams, core processes."
 
       run fn _input, _context ->
-        agents = AgentRegistry.list_all()
+        agents = FleetAgent.all!()
+        teams = FleetTeam.alive!()
 
         {:ok, %{
           "agents" => length(agents),
           "active_agents" => Enum.count(agents, fn a -> a.status == :active end),
-          "teams" => map_size(TeamWatcher.get_state()),
+          "teams" => length(teams),
           "event_buffer" => alive?(EventBuffer),
           "heartbeat" => alive?(Heartbeat),
           "protocol_tracker" => alive?(ProtocolTracker)
@@ -33,9 +35,9 @@ defmodule Observatory.Archon.Tools.System do
         sessions = Tmux.list_sessions()
 
         agents_by_tmux =
-          AgentRegistry.list_all()
-          |> Enum.filter(fn a -> a.channels.tmux != nil end)
-          |> Enum.group_by(fn a -> a.channels.tmux end)
+          FleetAgent.all!()
+          |> Enum.filter(fn a -> a.channels[:tmux] != nil end)
+          |> Enum.group_by(fn a -> a.channels[:tmux] end)
 
         result =
           Enum.map(sessions, fn s ->
@@ -44,7 +46,7 @@ defmodule Observatory.Archon.Tools.System do
             %{
               "session" => s,
               "agents" => Enum.map(agents, fn a ->
-                %{"id" => a.id, "name" => a[:short_name] || a.id, "team" => a.team}
+                %{"id" => a.agent_id, "name" => a.short_name || a.name || a.agent_id, "team" => a.team_name}
               end)
             }
           end)

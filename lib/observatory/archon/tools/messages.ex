@@ -1,14 +1,15 @@
 defmodule Observatory.Archon.Tools.Messages do
   @moduledoc """
-  Messaging tools for Archon. Send and read messages.
+  Messaging tools for Archon. Reads from Activity.Message, sends via Operator.
   """
   use Ash.Resource, domain: Observatory.Archon.Tools
 
-  alias Observatory.{Mailbox, Operator}
+  alias Observatory.Activity.Message, as: ActivityMessage
+  alias Observatory.Operator
 
   actions do
     action :recent_messages, {:array, :map} do
-      description "Get recent messages from the mailbox system across all agents."
+      description "Get recent messages across all agents."
 
       argument :limit, :integer do
         allow_nil? true
@@ -19,15 +20,15 @@ defmodule Observatory.Archon.Tools.Messages do
         limit = input.arguments[:limit] || 20
 
         messages =
-          Mailbox.all_messages(limit)
+          ActivityMessage.recent!()
+          |> Enum.take(limit)
           |> Enum.map(fn m ->
             %{
               "id" => m.id,
-              "from" => m.from,
-              "to" => m.to,
+              "from" => m.sender_session,
+              "to" => m.recipient,
               "content" => String.slice(m.content || "", 0, 500),
-              "type" => to_string(m.type),
-              "read" => m.read,
+              "type" => m.type,
               "timestamp" => m.timestamp
             }
           end)

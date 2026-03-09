@@ -50,9 +50,9 @@ defmodule ObservatoryWeb.DebugController do
   end
 
   defp check_team_watcher do
-    teams = Observatory.TeamWatcher.get_state()
-    team_names = Map.keys(teams)
-    member_count = teams |> Map.values() |> Enum.map(&length(&1.members)) |> Enum.sum()
+    teams = Observatory.Fleet.Team.alive!()
+    team_names = Enum.map(teams, & &1.name)
+    member_count = Enum.reduce(teams, 0, fn t, acc -> acc + t.member_count end)
     %{ok: true, teams: team_names, member_count: member_count}
   rescue
     e -> %{ok: false, error: Exception.message(e)}
@@ -64,20 +64,10 @@ defmodule ObservatoryWeb.DebugController do
   end
 
   defp check_mailbox do
-    inbox_dir = Path.join(System.user_home!(), ".claude/inbox")
-    exists = File.dir?(inbox_dir)
-
-    sessions =
-      if exists do
-        case File.ls(inbox_dir) do
-          {:ok, entries} -> length(entries)
-          _ -> 0
-        end
-      else
-        0
-      end
-
-    %{ok: exists, inbox_dir: inbox_dir, session_dirs: sessions}
+    process_agents = Observatory.Fleet.AgentProcess.list_all()
+    %{ok: true, agent_processes: length(process_agents)}
+  rescue
+    e -> %{ok: false, error: Exception.message(e)}
   end
 
   defp check_event_buffer do
@@ -120,28 +110,21 @@ defmodule ObservatoryWeb.DebugController do
   end
 
   def mailboxes(conn, _params) do
-    stats = Observatory.Mailbox.get_stats()
-
-    mailboxes =
-      Enum.map(stats, fn s ->
-        messages = Observatory.Mailbox.get_messages(s.agent_id)
-        recent = messages |> Enum.take(5) |> Enum.map(fn m ->
-          %{
-            id: m.id,
-            from: m.from,
-            to: m.to,
-            content: String.slice(m.content || "", 0, 200),
-            type: m.type,
-            read: m.read,
-            timestamp: m.timestamp,
-            via_gateway: get_in(m, [Access.key(:metadata, %{}), :via_gateway]) || false
-          }
-        end)
-
-        Map.put(s, :recent_messages, recent)
+    messages =
+      Observatory.Activity.Message.recent!()
+      |> Enum.take(50)
+      |> Enum.map(fn m ->
+        %{
+          id: m.id,
+          from: m.sender_session,
+          to: m.recipient,
+          content: String.slice(m.content || "", 0, 200),
+          type: m.type,
+          timestamp: m.timestamp
+        }
       end)
 
-    json(conn, %{count: length(mailboxes), mailboxes: mailboxes})
+    json(conn, %{count: length(messages), messages: messages})
   end
 
   def purge(conn, _params) do

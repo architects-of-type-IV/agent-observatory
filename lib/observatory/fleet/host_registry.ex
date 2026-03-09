@@ -13,6 +13,7 @@ defmodule Observatory.Fleet.HostRegistry do
   use GenServer
   require Logger
 
+  @pg_scope :observatory_agents
   @pg_group :observatory_hosts
 
   # ── Public API ──────────────────────────────────────────────────────
@@ -70,7 +71,7 @@ defmodule Observatory.Fleet.HostRegistry do
   @impl true
   def init(_opts) do
     # Join the :pg group so other nodes can discover us
-    :pg.join(@pg_group, self())
+    :pg.join(@pg_scope, @pg_group, self())
 
     # Monitor node connections/disconnections
     :net_kernel.monitor_nodes(true, node_type: :visible)

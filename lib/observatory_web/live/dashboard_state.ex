@@ -204,7 +204,7 @@ defmodule ObservatoryWeb.DashboardState do
 
     # Template-layer data (moved out of heex preprocessing)
     paused_sessions = safe_paused_sessions()
-    mailbox_messages = Observatory.Mailbox.all_messages(50)
+    mailbox_messages = load_messages(50)
 
     socket
     |> assign(:agent_index, agent_index)
@@ -256,6 +256,23 @@ defmodule ObservatoryWeb.DashboardState do
       |> Enum.map(&{&1, agent_map})
     end)
     |> Observatory.Gateway.AgentRegistry.dedup_by_status()
+  end
+
+  # Load messages via Activity.Message, mapped to legacy mailbox format for templates
+  defp load_messages(limit) do
+    Observatory.Activity.Message.recent!()
+    |> Enum.take(limit)
+    |> Enum.map(fn m ->
+      %{
+        id: m.id,
+        from: m.sender_session,
+        to: m.recipient,
+        content: m.content,
+        type: m.type,
+        read: false,
+        timestamp: m.timestamp
+      }
+    end)
   end
 
   defp tmux_feed_entry(s, now) do

@@ -192,6 +192,45 @@ defmodule Observatory.Fleet.Agent do
       end
     end
 
+    action :get_unread, {:array, :map} do
+      description "Get unread messages for an agent."
+      argument :agent_id, :string, allow_nil?: false, description: "Agent session ID"
+
+      run fn input, _context ->
+        agent_id = input.arguments.agent_id
+
+        messages =
+          if Observatory.Fleet.AgentProcess.alive?(agent_id) do
+            Observatory.Fleet.AgentProcess.get_unread(agent_id)
+            |> Enum.map(fn msg ->
+              %{
+                "id" => msg[:id] || Ecto.UUID.generate(),
+                "from" => msg[:from] || "system",
+                "content" => msg[:content] || inspect(msg),
+                "type" => to_string(msg[:type] || :message),
+                "timestamp" => DateTime.to_iso8601(msg[:timestamp] || DateTime.utc_now())
+              }
+            end)
+          else
+            []
+          end
+
+        {:ok, messages}
+      end
+    end
+
+    action :mark_read, :map do
+      description "Mark a message as read for an agent."
+      argument :agent_id, :string, allow_nil?: false
+      argument :message_id, :string, allow_nil?: false
+
+      run fn input, _context ->
+        # Legacy Mailbox mark_read -- will be removed in Phase 2
+        Observatory.Mailbox.mark_read(input.arguments.agent_id, input.arguments.message_id)
+        {:ok, %{status: "acknowledged", message_id: input.arguments.message_id}}
+      end
+    end
+
     action :update_instructions, :map do
       description "Update an agent's instruction overlay."
 
@@ -218,6 +257,8 @@ defmodule Observatory.Fleet.Agent do
     define :resume_agent, args: [:agent_id]
     define :terminate_agent, args: [:agent_id]
     # Messaging
+    define :get_unread, args: [:agent_id]
+    define :mark_read, args: [:agent_id, :message_id]
     define :send_message, args: [:agent_id, :content]
     define :update_instructions, args: [:agent_id, :instructions]
   end

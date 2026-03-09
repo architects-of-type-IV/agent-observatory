@@ -1,11 +1,11 @@
 defmodule Observatory.AgentTools.Inbox do
   @moduledoc """
   Message exchange tools for agents. Check, acknowledge, and send messages.
+  Routes through Fleet code interfaces for consistency.
   """
   use Ash.Resource, domain: Observatory.AgentTools
 
-  alias Observatory.Fleet.AgentProcess
-  alias Observatory.Mailbox
+  alias Observatory.Fleet.Agent, as: FleetAgent
 
   actions do
     action :check_inbox, {:array, :map} do
@@ -19,36 +19,10 @@ defmodule Observatory.AgentTools.Inbox do
       run fn input, _context ->
         session_id = input.arguments.session_id
 
-        process_messages =
-          if AgentProcess.alive?(session_id) do
-            AgentProcess.get_unread(session_id)
-            |> Enum.map(fn msg ->
-              %{
-                "id" => msg[:id] || Ecto.UUID.generate(),
-                "from" => msg[:from] || "system",
-                "content" => msg[:content] || inspect(msg),
-                "type" => to_string(msg[:type] || :message),
-                "timestamp" => DateTime.to_iso8601(msg[:timestamp] || DateTime.utc_now())
-              }
-            end)
-          else
-            []
-          end
-
-        mailbox_messages =
-          Mailbox.get_messages(session_id)
-          |> Enum.filter(fn msg -> !msg.read end)
-          |> Enum.map(fn msg ->
-            %{
-              "id" => msg.id,
-              "from" => msg.from,
-              "content" => msg.content,
-              "type" => to_string(msg.type),
-              "timestamp" => DateTime.to_iso8601(msg.timestamp)
-            }
-          end)
-
-        {:ok, process_messages ++ mailbox_messages}
+        case FleetAgent.get_unread(session_id) do
+          {:ok, messages} -> {:ok, messages}
+          {:error, _} -> {:ok, []}
+        end
       end
     end
 
@@ -66,11 +40,7 @@ defmodule Observatory.AgentTools.Inbox do
       end
 
       run fn input, _context ->
-        session_id = input.arguments.session_id
-        message_id = input.arguments.message_id
-        Mailbox.mark_read(session_id, message_id)
-        cleanup_command_queue(session_id, message_id)
-        {:ok, %{"status" => "acknowledged", "message_id" => message_id}}
+        FleetAgent.mark_read(input.arguments.session_id, input.arguments.message_id)
       end
     end
 
@@ -97,7 +67,7 @@ defmodule Observatory.AgentTools.Inbox do
         to = input.arguments.to_session_id
         content = input.arguments.content
 
-        case Observatory.Fleet.Agent.send_message(to, content, %{from: from}) do
+        case FleetAgent.send_message(to, content, %{from: from}) do
           {:ok, _result} ->
             {:ok, %{"status" => "sent", "to" => to, "delivered" => 1, "via" => "fleet"}}
 
@@ -114,26 +84,6 @@ defmodule Observatory.AgentTools.Inbox do
                 {:error, "Failed to send message: #{inspect(reason)}"}
             end
         end
-      end
-    end
-  end
-
-  defp cleanup_command_queue(session_id, message_id) do
-    inbox_dir = Path.expand("~/.claude/inbox/#{session_id}")
-
-    if File.dir?(inbox_dir) do
-      case File.ls(inbox_dir) do
-        {:ok, files} ->
-          Enum.each(files, fn file ->
-            file_path = Path.join(inbox_dir, file)
-
-            with {:ok, content} <- File.read(file_path),
-                 {:ok, %{"id" => ^message_id}} <- Jason.decode(content) do
-              File.rm(file_path)
-            end
-          end)
-
-        _ -> :ok
       end
     end
   end

@@ -16,7 +16,9 @@ config :observatory,
     Observatory.Costs,
     Observatory.Fleet,
     Observatory.Activity,
-    Observatory.Workshop
+    Observatory.Workshop,
+    Observatory.Archon,
+    Observatory.Archon.Tools
   ]
 
 # Configure the endpoint

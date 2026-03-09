@@ -5,15 +5,23 @@ defmodule Observatory.Archon.Chat do
   Runs a single conversation turn: takes user input + history,
   calls Claude with AshAi tools, returns the response + updated history.
   Stateless -- conversation state lives in the caller (LiveView assigns).
+
+  Slash commands are handled directly without LLM roundtrip.
   """
 
   alias LangChain.ChatModels.ChatAnthropic
   alias LangChain.Chains.LLMChain
   alias LangChain.Message
 
+  alias Observatory.Archon.Tools.Agents
+  alias Observatory.Archon.Tools.Memory
+  alias Observatory.Archon.Tools.Messages
+  alias Observatory.Archon.Tools.Teams
+  alias Observatory.Archon.Tools.System, as: SystemTools
+
   require Logger
 
-  @default_model "claude-sonnet-4-20250514"
+  @default_model "claude-haiku-4-5-20251001"
 
   @system_prompt """
   You are Archon, the sovereign AI agent for ICHOR IV -- a control plane that manages autonomous coding agents.
@@ -33,17 +41,98 @@ defmodule Observatory.Archon.Chat do
   @doc """
   Run a single conversation turn.
 
-  Takes a user message string and a list of prior LangChain messages.
+  Slash commands (e.g. /agents, /teams) are handled directly.
+  Free-text messages go through the LLM with tool access.
+
   Returns `{:ok, response_text, updated_messages}` or `{:error, reason}`.
   """
   @spec chat(String.t(), list()) :: {:ok, String.t(), list()} | {:error, term()}
-  def chat(user_input, messages \\ []) do
+  def chat("/" <> _ = input, messages) do
+    case run_shortcode(input) do
+      {:ok, response} -> {:ok, response, messages}
+      {:error, reason} -> {:ok, "Error: #{inspect(reason)}", messages}
+    end
+  end
+
+  def chat(user_input, messages) do
     with {:ok, chain} <- build_chain(),
          {:ok, chain} <- add_history(chain, messages),
          {:ok, chain} <- add_user_message(chain, user_input) do
       run_turn(chain)
     end
   end
+
+  # ── Shortcode dispatch ──────────────────────────────────────────────
+
+  defp run_shortcode(input) do
+    input
+    |> String.trim()
+    |> String.split(" ", parts: 2)
+    |> dispatch_shortcode()
+  end
+
+  defp dispatch_shortcode(["/agents"]), do: format_result(Agents, :list_agents, %{})
+  defp dispatch_shortcode(["/teams"]), do: format_result(Teams, :list_teams, %{})
+  defp dispatch_shortcode(["/inbox"]), do: format_result(Messages, :recent_messages, %{})
+  defp dispatch_shortcode(["/health"]), do: format_result(SystemTools, :system_health, %{})
+  defp dispatch_shortcode(["/sessions"]), do: format_result(SystemTools, :tmux_sessions, %{})
+
+  defp dispatch_shortcode(["/status", agent_id]) do
+    format_result(Agents, :agent_status, %{agent_id: String.trim(agent_id)})
+  end
+
+  defp dispatch_shortcode(["/msg", rest]) do
+    case String.split(rest, " ", parts: 2) do
+      [to, content] ->
+        format_result(Messages, :send_message, %{to: to, content: content})
+
+      [_to_only] ->
+        {:ok, "Usage: /msg <target> <message>"}
+    end
+  end
+
+  defp dispatch_shortcode(["/remember", content]) do
+    format_result(Memory, :remember, %{content: String.trim(content)})
+  end
+
+  defp dispatch_shortcode(["/recall", query]) do
+    format_result(Memory, :search_memory, %{query: String.trim(query)})
+  end
+
+  defp dispatch_shortcode(["/query", question]) do
+    format_result(Memory, :query_memory, %{query: String.trim(question)})
+  end
+
+  defp dispatch_shortcode([cmd | _]) do
+    {:ok, "Unknown command: #{cmd}\nAvailable: /agents /teams /status /msg /inbox /health /sessions /remember /recall /query"}
+  end
+
+  defp format_result(resource, action, params) do
+    case Ash.ActionInput.for_action(resource, action, params) |> Ash.run_action() do
+      {:ok, result} -> {:ok, format_output(result)}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  defp format_output(data) when is_list(data) do
+    if data == [] do
+      "No results."
+    else
+      data
+      |> Enum.map_join("\n\n", &format_map/1)
+    end
+  end
+
+  defp format_output(data) when is_map(data), do: format_map(data)
+  defp format_output(data), do: inspect(data, pretty: true)
+
+  defp format_map(map) when is_map(map) do
+    map
+    |> Enum.reject(fn {_k, v} -> is_nil(v) end)
+    |> Enum.map_join("\n", fn {k, v} -> "  #{k}: #{inspect(v)}" end)
+  end
+
+  # ── LLM chain ──────────────────────────────────────────────────────
 
   defp build_chain do
     case ChatAnthropic.new(%{
@@ -59,11 +148,11 @@ defmodule Observatory.Archon.Chat do
           |> AshAi.setup_ash_ai(
             otp_app: :observatory,
             actions: [
-              {Observatory.Archon.Tools.Agents, :*},
-              {Observatory.Archon.Tools.Teams, :*},
-              {Observatory.Archon.Tools.Messages, :*},
-              {Observatory.Archon.Tools.System, :*},
-              {Observatory.Archon.Tools.Memory, :*}
+              {Agents, :*},
+              {Teams, :*},
+              {Messages, :*},
+              {SystemTools, :*},
+              {Memory, :*}
             ]
           )
 

@@ -1,44 +1,27 @@
 ICHOR IV Progress (formerly Observatory)
 ========================================
 
-## Current: Archon Memories + Space Concept (2026-03-09)
+## Current: Fleet Consistency Rewire (2026-03-09)
 
 ### This Session
+- [x] Fixed 3 startup crashes: :pg child spec, HostRegistry scope, Ash domain config
+- [x] Phase 1 complete (task 42, subtasks 42.1-42.5): All external callers rewired to Fleet code interfaces
+  - Archon.Tools (Agents, Teams, System, Messages) -> Fleet.Agent/Team + Activity.Message
+  - AgentTools.Inbox -> Fleet.Agent.get_unread/mark_read/send_message
+  - DashboardSessionControlHandlers -> Operator.send
+  - DashboardState/MessagingHandlers -> Activity.Message.recent!
+  - DashboardLive mount -> empty map (no TeamWatcher)
+  - DebugController -> Fleet.Team/AgentProcess/Activity.Message
+- [x] Added Fleet.Agent get_unread + mark_read actions and code interfaces
+
+### Prior Session: Archon + Memories (2026-03-09)
 - [x] DashboardLive refactor: 594 -> 164 lines (dispatch/3 pattern)
-  - 5 new handler modules: Info, Selection, Spawn, Feed, FleetTree
-  - dispatch/3 added to 10 existing handler modules
-  - 130+ handle_event clauses -> 20 grouped dispatches
-  - ModalComponents: extracted inline modals to reusable components
-- [x] Fixed Memories reranker, SearchVector, entity/fact embeddings, result hydration
-- [x] Created MemoriesClient + Archon.Tools.Memory (3 Ash tools, 10 total)
-- [x] Verified end-to-end search pipeline
-- [x] Added "space" attribute to Episode, Entity, Fact (hierarchical namespace)
-- [x] Space propagation: DigestEpisode -> PersistEntities/PersistFacts
-- [x] Space filter in VectorChord SQL, SearchVector, Client.Local, GraphController
-- [x] Episode type/source enum realignment (Zep-aligned: text/message/json + provenance)
-- [x] Data migration for existing records
-- [x] Observatory MemoriesClient + Tools.Memory updated for space + new enums
-- [x] Both projects compile clean
-- [x] Archon LLM wiring: Archon.Chat module (LangChain + ChatAnthropic + AshAi)
-- [x] Archon chat UI: overlay + FAB + keyboard shortcut (a)
-  - ArchonComponents: 8 modular sub-components
-  - archon-* CSS component classes for theme portability
-  - DashboardArchonHandlers: async chat dispatch via Task
-  - ScrollBottom JS hook, phx-update="ignore" on input
-  - .env added to .gitignore (API key protection)
+- [x] Archon LLM wiring + chat UI
+- [x] Memories integration + bugfixes + space concept
 
-### Prior Session: AgentRegistry Decomposition (2026-03-09)
-- [x] AgentRegistry decomposed: 669 -> 293 + 5 submodules
-- [x] AgentSpawner rewrite, ssh_tmux wiring, idiomatic Elixir cleanup
+### Prior: AgentRegistry Decomposition + Distribution (2026-03-09)
+- [x] AgentRegistry 894 -> 293 + 5 submodules
+- [x] Fleet.HostRegistry, :pg groups, remote spawning
 
-### Prior Session: Distribution Foundation (2026-03-09)
-- [x] Dead code removal: AgentRegistry 894 -> 669 lines
-- [x] Fleet.HostRegistry, :pg groups, spawn_agent_on/2
-- [x] OutputCapture + TmuxDiscovery extraction
-
-### Prior: Archon Domain + AgentTools Refactor (2026-03-08)
-- [x] Archon domain + Tools subdomain (7 tools)
-- [x] AgentTools refactor (726->498 lines)
-
-### Prior: Workshop Refactor + Phase 6 + Phases 1-5, 7
+### Prior: BEAM Foundation + Workshop + Phases 1-7
 - [x] All phases complete. Net -730 lines from web layer.

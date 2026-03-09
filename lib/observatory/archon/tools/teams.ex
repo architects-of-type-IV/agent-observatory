@@ -1,10 +1,10 @@
 defmodule Observatory.Archon.Tools.Teams do
   @moduledoc """
-  Team query tools for Archon.
+  Team query tools for Archon. Reads from Fleet.Team code interfaces.
   """
   use Ash.Resource, domain: Observatory.Archon.Tools
 
-  alias Observatory.TeamWatcher
+  alias Observatory.Fleet.Team, as: FleetTeam
 
   actions do
     action :list_teams, {:array, :map} do
@@ -12,15 +12,16 @@ defmodule Observatory.Archon.Tools.Teams do
 
       run fn _input, _context ->
         teams =
-          TeamWatcher.get_state()
-          |> Enum.map(fn {name, team} ->
+          FleetTeam.alive!()
+          |> Enum.map(fn team ->
             %{
-              "name" => name,
+              "name" => team.name,
               "members" => Enum.map(team.members, fn m ->
-                %{"session_id" => m.session_id, "role" => m[:role], "status" => m[:status]}
+                %{"session_id" => m[:agent_id] || m[:session_id], "role" => m[:role] || m[:name], "status" => m[:status]}
               end),
-              "member_count" => length(team.members),
-              "source" => team[:source]
+              "member_count" => team.member_count,
+              "health" => team.health,
+              "source" => team.source
             }
           end)
 

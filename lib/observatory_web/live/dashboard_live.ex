@@ -61,8 +61,7 @@ defmodule ObservatoryWeb.DashboardLive do
       subscribe_gateway_topics()
     end
 
-    disk_teams = Observatory.TeamWatcher.get_state()
-    socket = socket |> assign(default_assigns(disk_teams)) |> seed_gateway_assigns() |> recompute()
+    socket = socket |> assign(default_assigns(%{})) |> seed_gateway_assigns() |> recompute()
     if connected?(socket), do: subscribe_to_mailboxes(socket.assigns.sessions)
     {:ok, socket}
   end

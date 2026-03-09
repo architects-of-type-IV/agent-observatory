@@ -17,6 +17,12 @@
 - **Sweep**: GC with ended_ttl (30min) and stale_ttl (1h), infrastructure session cleanup
 - `derive_role/1` is a defdelegate to AgentEntry.role_from_string/1 (3 external callers)
 
+## DashboardLive Dispatch Pattern (2026-03-09)
+- Each handler module exposes `dispatch/3` that matches event name + params, returns socket
+- LiveView uses module attributes `@filter_events ~w(...)` + `when e in @events` guards
+- Groups: recompute (most events), no-recompute (tmux/feed/fleet), passthrough (messaging returns {:noreply, socket})
+- Template helpers still need explicit imports with `only:` lists in the LiveView
+
 ## Archon Architecture (2026-03-09)
 - **Observatory.Archon** -- parent Ash domain (empty, for future conversation state / memory resources)
 - **Observatory.Archon.Tools** -- AshAi subdomain with 10 tools across 5 resources
@@ -42,12 +48,23 @@
   - SQL filter in VectorChord WHERE clauses, wired through full search pipeline.
 - **Episode types (Zep-aligned)**: `type` = structural (`:text`, `:message`, `:json`), `source` = provenance (`:user`, `:agent`, `:system`, `:document`, `:api`)
 
+## Fleet Layering (2026-03-09, PHASE 1 COMPLETE)
+- **Canonical API**: Fleet.Agent and Fleet.Team code interfaces for ALL reads and lifecycle ops
+- **Fleet.Agent actions**: all, active, in_team, spawn, pause_agent, resume_agent, terminate_agent, launch, get_unread, mark_read, send_message, update_instructions
+- **Fleet.Team actions**: all, alive, create_team, disband, spawn_member
+- **Consistency rule**: all external callers (Archon.Tools, AgentTools, Dashboard, DebugController) route through Fleet code interfaces or Operator.send -- never directly to AgentRegistry, Mailbox, CommandQueue, or TeamWatcher
+- **Legacy modules** (Mailbox, CommandQueue, TeamWatcher) still exist but have NO external callers. Phase 2 (task 51) will eliminate them.
+- **MailboxAdapter** (Gateway channel) still delivers to Mailbox ETS -- Phase 2 rewires to AgentProcess
+- **Operator.send** fallback still uses Mailbox -- Phase 2 removes fallback
+
 ## AgentTools Domain (Refactored 2026-03-08)
 - 6 focused resources: Inbox, Tasks, Memory, Recall, Archival, Agents
 - MCP route only exposes 5 inbox tools
+- Inbox now routes through Fleet.Agent code interfaces (get_unread, mark_read, send_message)
 
 ## Distribution Architecture (FOUNDATION COMPLETE)
-- Fleet.HostRegistry: :pg groups, :net_kernel.monitor_nodes, cluster-wide discovery
+- Fleet.HostRegistry: :pg groups (:observatory_agents scope), :net_kernel.monitor_nodes
+- **:pg scope**: single scope `:observatory_agents` for all fleet groups. HostRegistry, AgentProcess, TeamSupervisor all use same scope. Child spec in application.ex must use explicit map (Erlang module).
 - AgentSpawner: pattern-matched routing (local vs remote), ssh_tmux channel wiring
 - AgentProcess: :pg join on init, lookup_cluster/1, list_cluster/0
 - Delivery: ssh_tmux address format support alongside session+host format

@@ -1,10 +1,10 @@
 defmodule Observatory.Archon.Tools.Agents do
   @moduledoc """
-  Agent query tools for Archon.
+  Agent query tools for Archon. Reads from Fleet.Agent code interfaces.
   """
   use Ash.Resource, domain: Observatory.Archon.Tools
 
-  alias Observatory.Gateway.AgentRegistry
+  alias Observatory.Fleet.Agent, as: FleetAgent
   alias Observatory.Gateway.Channels.Tmux
 
   actions do
@@ -13,8 +13,7 @@ defmodule Observatory.Archon.Tools.Agents do
 
       run fn _input, _context ->
         agents =
-          AgentRegistry.list_all()
-          |> Enum.reject(fn a -> a[:role] == :operator end)
+          FleetAgent.active!()
           |> Enum.map(&format_agent/1)
 
         {:ok, agents}
@@ -37,15 +36,17 @@ defmodule Observatory.Archon.Tools.Agents do
             {:ok, %{"found" => false, "query" => query}}
 
           agent ->
-            tmux_ok = case agent.channels.tmux do
-              nil -> false
-              target -> Tmux.available?(target)
-            end
+            tmux_target = agent.channels[:tmux] || agent.tmux_session
+
+            tmux_ok =
+              case tmux_target do
+                nil -> false
+                target -> Tmux.available?(target)
+              end
 
             {:ok, Map.merge(format_agent(agent), %{
               "found" => true,
-              "started_at" => agent.started_at,
-              "tmux" => agent.channels.tmux,
+              "tmux" => tmux_target,
               "tmux_available" => tmux_ok
             })}
         end
@@ -55,10 +56,10 @@ defmodule Observatory.Archon.Tools.Agents do
 
   defp format_agent(a) do
     %{
-      "id" => a.id,
-      "name" => a[:short_name] || a.id,
+      "id" => a.agent_id,
+      "name" => a.short_name || a.name || a.agent_id,
       "session_id" => a.session_id,
-      "team" => a.team,
+      "team" => a.team_name,
       "role" => a.role,
       "status" => a.status,
       "model" => a.model,
@@ -69,10 +70,10 @@ defmodule Observatory.Archon.Tools.Agents do
   end
 
   defp find_agent(query) do
-    AgentRegistry.list_all()
+    FleetAgent.all!()
     |> Enum.find(fn a ->
-      a.id == query || a.session_id == query ||
-        a[:short_name] == query || a[:name] == query
+      a.agent_id == query || a.session_id == query ||
+        a.short_name == query || a.name == query
     end)
   end
 end
