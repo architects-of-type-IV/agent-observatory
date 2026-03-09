@@ -1,0 +1,584 @@
+<div
+  class="h-screen bg-base text-high flex flex-col overflow-x-hidden"
+  id="dashboard-root"
+  phx-hook="KeyboardShortcuts"
+>
+  <%!-- Toast notifications --%>
+  <div
+    id="toast-container"
+    phx-hook="Toast"
+    class="fixed top-4 right-4 z-50 flex flex-col gap-2 pointer-events-none"
+  >
+  </div>
+  <%!-- Browser notifications --%>
+  <div id="browser-notifications" phx-hook="BrowserNotifications"></div>
+  <%!-- Header --%>
+  <header class="sticky top-0 z-50 bg-base/95 backdrop-blur border-b border-border">
+    <div class="px-2 py-1.5 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <h1 class="text-sm font-bold tracking-tight text-high">ICHOR IV</h1>
+        <div class="flex items-center gap-1.5">
+          <span class="relative flex h-1.5 w-1.5">
+            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-75"></span>
+            <span class="relative inline-flex rounded-full h-1.5 w-1.5 bg-success"></span>
+          </span>
+          <span class="text-muted text-[10px]">live</span>
+        </div>
+      </div>
+      <IchorWeb.Components.CommandComponents.fleet_status_bar
+        swarm_state={@swarm_state}
+        teams={@teams}
+        events={@events}
+        errors={@errors}
+        now={@now}
+        messages={@messages}
+        protocol_stats={@protocol_stats}
+        active_tasks={@active_tasks}
+        tmux_sessions={@tmux_sessions}
+        visible_events={@visible_events}
+        agent_index={@agent_index}
+      />
+    </div>
+
+    <%!-- Search + Filters --%>
+    <div class="px-2 pb-1.5 flex flex-col gap-1">
+      <div class="ichor-pill">
+        <form phx-change="search_feed" class="flex-1">
+          <input
+            type="text"
+            name="q"
+            value={@search_feed}
+            placeholder="Search events... (tool, command, file, message, team)"
+            autocomplete="off"
+            phx-debounce="150"
+            class="w-full bg-raised/80 px-2 py-1 text-[11px] text-high placeholder-muted focus:outline-none border-none"
+          />
+        </form>
+        <form phx-change="filter">
+          <.stable_select id="filter-source-app" name="source_app" class="bg-raised/80 border-l border-border-subtle/60 rounded-none px-1.5 py-1 text-[11px] text-high focus:outline-none">
+            <option value="">All Apps</option>
+            <option
+              :for={app <- unique_values(@events, :source_app)}
+              value={app}
+              selected={app == @filter_source_app}
+            >
+              {app}
+            </option>
+          </.stable_select>
+          <.stable_select id="filter-event-type" name="event_type" class="bg-raised/80 border-l border-border-subtle/60 rounded-none px-1.5 py-1 text-[11px] text-high focus:outline-none">
+            <option value="">All Events</option>
+            <option
+              :for={et <- unique_values(@events, :hook_event_type)}
+              value={et}
+              selected={to_string(et) == @filter_event_type}
+            >
+              {et}
+            </option>
+          </.stable_select>
+        </form>
+      </div>
+      <%!-- Presets + Actions --%>
+      <div class="flex items-center">
+        <div class="flex items-center rounded overflow-hidden border border-border-subtle/60">
+          <span class="text-[10px] text-muted px-1.5 py-1 bg-raised/80">Presets</span>
+          <button phx-click="apply_preset" phx-value-preset="failed_tools" class="text-[10px] px-2 py-1 bg-error/20 text-error hover:bg-error/30 transition">Failed</button>
+          <button phx-click="apply_preset" phx-value-preset="team_events" class="text-[10px] px-2 py-1 bg-cyan/15 text-cyan hover:bg-cyan/25 transition">Teams</button>
+          <button phx-click="apply_preset" phx-value-preset="slow" class="text-[10px] px-2 py-1 bg-brand/15 text-brand hover:bg-brand/25 transition">Slow</button>
+          <button phx-click="apply_preset" phx-value-preset="errors_only" class="text-[10px] px-2 py-1 bg-error/20 text-error hover:bg-error/30 transition">Errors</button>
+          <button
+            :if={
+              @filter_source_app || @filter_session_id || @filter_event_type || @search_feed != "" ||
+                @search_sessions != ""
+            }
+            phx-click="clear_filters"
+            onclick="document.querySelectorAll('#filter-selects-stable select').forEach(s => s.selectedIndex = 0)"
+            class="text-[10px] px-2 py-1 bg-interactive/20 text-interactive hover:bg-interactive/30 transition"
+          >
+            Reset
+          </button>
+        </div>
+        <span class="flex-1" />
+        <div class="ichor-pill">
+          <%!-- Export dropdown --%>
+          <div class="relative flex" id="export-dropdown" phx-hook="ExportDropdown">
+            <button id="export-button" class="ichor-tip ichor-tip-bottom text-[10px] px-2 py-1 bg-raised text-default hover:bg-highlight hover:text-high transition cursor-pointer" data-tip="Export events as JSON or CSV">Export</button>
+            <div
+              id="export-menu"
+              class="hidden absolute right-0 mt-1 w-32 bg-raised border border-border-subtle rounded-md shadow-lg z-10"
+            >
+              <a
+                href={build_export_url(@filter_session_id, @search_feed, @filter_event_type, "json")}
+                class="block px-3 py-1.5 text-[10px] text-high hover:bg-highlight transition"
+                download
+              >
+                JSON
+              </a>
+              <a
+                href={build_export_url(@filter_session_id, @search_feed, @filter_event_type, "csv")}
+                class="block px-3 py-1.5 text-[10px] text-high hover:bg-highlight transition"
+                download
+              >
+                CSV
+              </a>
+            </div>
+          </div>
+          <button phx-click="clear_events" class="ichor-tip ichor-tip-bottom text-[10px] px-2 py-1 bg-raised text-default hover:bg-highlight hover:text-high transition border-l border-border-subtle/60 cursor-pointer" data-tip="Clear all events">Clear</button>
+          <button phx-click="toggle_shortcuts_help" class="ichor-tip ichor-tip-bottom text-[10px] px-2 py-1 bg-raised text-default hover:bg-highlight hover:text-high transition border-l border-border-subtle/60 cursor-pointer" data-tip="Keyboard shortcuts">?</button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <div class="flex flex-1 overflow-hidden">
+    <%!-- ═══ Left Nav ═══ --%>
+    <nav class="w-10 bg-base/50 border-r border-border flex flex-col items-center py-2 gap-1 shrink-0">
+      <.link
+        patch="/"
+        class={"ichor-tip ichor-tip-right flex items-center justify-center w-7 h-7 rounded transition #{if @nav_view == :pipeline, do: "bg-interactive/20 text-interactive", else: "text-muted hover:text-default hover:bg-raised"}"}
+        data-tip="Pipeline"
+      >
+        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" /></svg>
+      </.link>
+      <.link
+        patch="/fleet"
+        class={"ichor-tip ichor-tip-right flex items-center justify-center w-7 h-7 rounded transition #{if @nav_view == :fleet, do: "bg-interactive/20 text-interactive", else: "text-muted hover:text-default hover:bg-raised"}"}
+        data-tip="Fleet Control"
+      >
+        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+      </.link>
+      <.link
+        patch="/workshop"
+        class={"ichor-tip ichor-tip-right flex items-center justify-center w-7 h-7 rounded transition #{if @nav_view == :workshop, do: "bg-interactive/20 text-interactive", else: "text-muted hover:text-default hover:bg-raised"}"}
+        data-tip="Workshop"
+      >
+        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M11.42 15.17L17.25 21A2.652 2.652 0 0021 17.25l-5.877-5.877M11.42 15.17l2.496-3.03c.317-.384.74-.626 1.208-.766M11.42 15.17l-4.655 5.653a2.548 2.548 0 11-3.586-3.586l6.837-5.63m5.108-.233c.55-.164 1.163-.188 1.743-.14a4.5 4.5 0 004.486-6.336l-3.276 3.277a3.004 3.004 0 01-2.25-2.25l3.276-3.276a4.5 4.5 0 00-6.336 4.486c.091 1.076-.071 2.264-.904 2.95l-.102.085" /></svg>
+      </.link>
+      <span class="flex-1" />
+      <a href="/dev/dashboard" target="_blank" class="ichor-tip ichor-tip-right flex items-center justify-center w-7 h-7 rounded text-muted hover:text-default hover:bg-raised transition" data-tip="LiveDashboard">
+        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
+      </a>
+      <a href="/dev/mailbox" target="_blank" class="ichor-tip ichor-tip-right flex items-center justify-center w-7 h-7 rounded text-muted hover:text-default hover:bg-raised transition" data-tip="Mailbox">
+        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+      </a>
+      <a href="/mcp" target="_blank" class="ichor-tip ichor-tip-right flex items-center justify-center w-7 h-7 rounded text-muted hover:text-default hover:bg-raised transition" data-tip="MCP API">
+        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" /></svg>
+      </a>
+    </nav>
+
+    <%!-- ═══ Main Content Area ═══ --%>
+    <main class="flex-1 flex flex-col overflow-hidden">
+      <%!-- Agent focus view (overlay, triggered from agent actions) --%>
+      <IchorWeb.Components.AgentActivityComponents.agent_focus_view
+        :if={@view_mode == :agent_focus && @selected_agent}
+        agent={@selected_agent}
+        events={agent_events(@events, @selected_agent[:agent_id])}
+        tasks={agent_tasks(@active_tasks, @selected_agent[:agent_id])}
+        expanded_events={@expanded_events}
+        now={@now}
+      />
+
+      <%!-- ═══ View Content ═══ --%>
+      <div :if={@view_mode != :agent_focus} class="flex-1 overflow-y-auto overflow-x-hidden p-2">
+        <%!-- Pipeline View --%>
+        <div :if={@nav_view == :pipeline} class="h-full -m-2 flex flex-col overflow-hidden">
+          <%!-- Pipeline header bar --%>
+          <div class="flex items-center justify-between px-3 py-1.5 border-b border-border shrink-0">
+            <h3 class="text-[10px] font-semibold text-low uppercase tracking-wider">Pipeline Board</h3>
+            <div :if={@swarm_state.pipeline.total > 0} class="flex items-center rounded overflow-hidden">
+              <span class="text-[9px] font-semibold px-1.5 py-0.5 bg-success/15 text-success">{@swarm_state.pipeline.completed} done</span>
+              <span class="text-[9px] font-semibold px-1.5 py-0.5 bg-info/15 text-info">{@swarm_state.pipeline.in_progress} running</span>
+              <span class="text-[9px] font-semibold px-1.5 py-0.5 bg-raised text-default">{@swarm_state.pipeline.pending} pending</span>
+              <span :if={@swarm_state.pipeline.blocked > 0} class="text-[9px] font-semibold px-1.5 py-0.5 bg-brand/15 text-brand">{@swarm_state.pipeline.blocked} blocked</span>
+              <span :if={@swarm_state.pipeline.failed > 0} class="text-[9px] font-semibold px-1.5 py-0.5 bg-error/15 text-error">{@swarm_state.pipeline.failed} failed</span>
+            </div>
+          </div>
+
+          <%!-- Topology node info bar --%>
+          <div :if={@selected_topology_node} class="px-3 py-1.5 bg-base/50 border-b border-border flex items-center gap-4 text-[10px] shrink-0">
+            <div class="flex items-center gap-2">
+              <span class={"w-2 h-2 rounded-full #{if @selected_topology_node.status == :active, do: "bg-success", else: if(@selected_topology_node.status == :idle, do: "bg-low", else: "bg-highlight")}"} />
+              <span class="font-mono text-high">{String.slice(@selected_topology_node.session_id, 0, 12)}</span>
+            </div>
+            <span :if={@selected_topology_node[:source_app]} class="text-default">{@selected_topology_node.source_app}</span>
+            <span :if={@selected_topology_node[:model]} class="text-interactive">{@selected_topology_node.model}</span>
+            <span :if={@selected_topology_node[:event_count]} class="text-low">{@selected_topology_node.event_count} events</span>
+            <span :if={@selected_topology_node[:tool_count]} class="text-low">{@selected_topology_node.tool_count} tools</span>
+            <span :if={@selected_topology_node[:duration]} class="text-low">{@selected_topology_node.duration}</span>
+            <span :if={@selected_topology_node[:cwd]} class="font-mono text-muted truncate max-w-[200px]">{@selected_topology_node.cwd}</span>
+            <span :if={@selected_topology_node[:last_tool]} class="text-cyan">{@selected_topology_node.last_tool}</span>
+            <button phx-click="clear_topology_selection" class="ml-auto text-muted hover:text-default">x</button>
+          </div>
+
+          <%!-- Pipeline content --%>
+          <div class="flex-1 overflow-hidden">
+            <IchorWeb.Components.PipelineComponents.pipeline_view
+              swarm_state={@swarm_state}
+              selected_dag_task={@selected_dag_task}
+              show_add_project={@show_add_project}
+              now={@now}
+            />
+          </div>
+        </div>
+
+        <%!-- Workshop View --%>
+        <div :if={@nav_view == :workshop} class="h-full">
+          <IchorWeb.Components.WorkshopComponents.workshop_view
+            ws_agents={@ws_agents}
+            ws_spawn_links={@ws_spawn_links}
+            ws_comm_rules={@ws_comm_rules}
+            ws_selected_agent={@ws_selected_agent}
+            ws_team_name={@ws_team_name}
+            ws_strategy={@ws_strategy}
+            ws_default_model={@ws_default_model}
+            ws_cwd={@ws_cwd}
+            ws_blueprints={@ws_blueprints}
+            ws_blueprint_id={@ws_blueprint_id}
+            ws_agent_types={@ws_agent_types}
+            ws_editing_type={@ws_editing_type}
+          />
+        </div>
+
+        <%!-- Fleet Control View --%>
+        <div :if={@nav_view == :fleet} class="h-full -m-2">
+          <IchorWeb.Components.CommandComponents.command_view
+            swarm_state={@swarm_state}
+            teams={@teams}
+            events={@events}
+            errors={@errors}
+            now={@now}
+            selected_command_agent={@selected_command_agent}
+            selected_command_task={@selected_command_task}
+            messages={@messages}
+            protocol_stats={@protocol_stats}
+            active_tasks={@active_tasks}
+            analytics={@analytics}
+            tmux_sessions={@tmux_sessions}
+            feed_groups={@feed_groups}
+            visible_events={@visible_events}
+            selected_event={@selected_event}
+            event_notes={@event_notes}
+            expanded_sessions={@expanded_sessions}
+            collapsed_fleet_teams={@collapsed_fleet_teams}
+            comms_team_filter={@comms_team_filter}
+            comms_agent_filter={@comms_agent_filter}
+            activity_tab={@activity_tab}
+            cost_data={@cost_data}
+            agent_index={@agent_index}
+            paused_sessions={@paused_sessions}
+            mailbox_messages={@mailbox_messages}
+          />
+        </div>
+
+      </div>
+
+      <%!-- ═══ Detail Panel (bottom drawer) ═══ --%>
+      <div
+        :if={@selected_event || @selected_task || @selected_agent}
+        class="bg-base/70 border-t border-border overflow-y-auto shrink-0 max-h-[40vh]"
+      >
+        <IchorWeb.Components.DetailPanelComponents.detail_panel
+          selected_event={@selected_event}
+          selected_task={@selected_task}
+          selected_agent={@selected_agent}
+          events={@events}
+          active_tasks={@active_tasks}
+          event_notes={@event_notes}
+          expanded_events={@expanded_events}
+          now={@now}
+        />
+      </div>
+
+      <%!-- ═══ Tmux Multi-Panel ═══ --%>
+      <div
+        :if={@tmux_panels != []}
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
+        phx-click="close_all_tmux"
+      >
+        <div
+          class="w-[92vw] max-w-6xl h-[85vh] bg-base border border-border-subtle rounded-xl shadow-2xl flex flex-col overflow-hidden"
+          onclick="event.stopPropagation()"
+        >
+          <%!-- Header: tabs + controls --%>
+          <div class="flex items-center justify-between px-3 py-1.5 border-b border-border bg-base/95 shrink-0">
+            <div class="flex items-center gap-1 overflow-x-auto">
+              <span class="text-[10px] font-semibold text-brand uppercase tracking-wider mr-2 shrink-0">tmux</span>
+              <%= for session <- @tmux_panels do %>
+                <% is_active = session == @active_tmux_session %>
+                <button
+                  phx-click="switch_tmux_tab"
+                  phx-value-session={session}
+                  class={"flex items-center gap-1.5 px-2.5 py-1 rounded text-[11px] font-mono transition shrink-0 cursor-pointer #{if is_active, do: "bg-brand/15 text-brand border border-brand/30", else: "text-low hover:text-high hover:bg-raised"}"}
+                >
+                  <span class={"w-1.5 h-1.5 rounded-full #{if is_active, do: "bg-success", else: "bg-highlight"}"}></span>
+                  {session}
+                </button>
+              <% end %>
+            </div>
+            <div class="flex items-center gap-1.5 shrink-0">
+              <span class="text-[9px] text-muted font-mono">{length(@tmux_panels)} open</span>
+              <button
+                phx-click="toggle_tmux_layout"
+                class={"ichor-btn ichor-btn-muted text-[10px] #{if @tmux_layout == :tiled, do: "!bg-brand/15 !text-brand", else: ""}"}
+                title={if @tmux_layout == :tabs, do: "Switch to tiled", else: "Switch to tabs"}
+              >
+                {if @tmux_layout == :tabs, do: "Tile", else: "Tabs"}
+              </button>
+              <button
+                :if={@active_tmux_session}
+                phx-click="kill_tmux_session"
+                class="ichor-btn ichor-btn-danger text-[10px]"
+                data-confirm={"Kill session #{@active_tmux_session}?"}
+              >
+                Kill
+              </button>
+              <button phx-click="disconnect_tmux" class="ichor-btn ichor-btn-muted text-[10px]" title="Close active tab">
+                Close Tab
+              </button>
+              <button phx-click="close_all_tmux" class="ichor-btn ichor-btn-muted text-[10px]" title="Close all">
+                x
+              </button>
+            </div>
+          </div>
+
+          <%!-- Terminal content --%>
+          <%= if @tmux_layout == :tabs do %>
+            <%!-- Tabbed: single active pane --%>
+            <div class="flex-1 overflow-y-auto p-4 bg-base">
+              <pre class="text-[12px] font-mono text-high leading-relaxed whitespace-pre-wrap">{@tmux_output}</pre>
+            </div>
+          <% else %>
+            <%!-- Tiled: grid of all open panes --%>
+            <% cols = if length(@tmux_panels) <= 2, do: "grid-cols-1 md:grid-cols-2", else: "grid-cols-2" %>
+            <div class={"flex-1 grid #{cols} gap-px bg-raised overflow-hidden"}>
+              <%= for session <- @tmux_panels do %>
+                <% is_active = session == @active_tmux_session %>
+                <div
+                  class={"flex flex-col overflow-hidden #{if is_active, do: "ring-1 ring-brand/40", else: ""}"}
+                  phx-click="switch_tmux_tab"
+                  phx-value-session={session}
+                >
+                  <div class={"flex items-center justify-between px-2 py-1 shrink-0 #{if is_active, do: "bg-brand/10", else: "bg-base/80"}"}>
+                    <span class="text-[10px] font-mono text-default">{session}</span>
+                    <span class={"w-1.5 h-1.5 rounded-full #{if is_active, do: "bg-success", else: "bg-highlight"}"}></span>
+                  </div>
+                  <div class="flex-1 overflow-y-auto p-2 bg-base">
+                    <pre class="text-[10px] font-mono text-default leading-relaxed whitespace-pre-wrap">{Map.get(@tmux_outputs, session, "")}</pre>
+                  </div>
+                </div>
+              <% end %>
+            </div>
+          <% end %>
+
+          <%!-- Input (always targets active session) --%>
+          <div :if={@active_tmux_session} class="px-4 py-2 border-t border-border bg-base/95 shrink-0">
+            <div class="flex items-center gap-2">
+              <span class="text-[10px] text-brand font-mono shrink-0">{@active_tmux_session} ></span>
+              <div id="tmux-input-stable" phx-update="ignore" class="flex-1">
+                <form phx-submit="send_tmux_keys" class="flex gap-2">
+                  <input
+                    type="text"
+                    name="keys"
+                    placeholder="Send keys..."
+                    autocomplete="off"
+                    class="flex-1 ichor-input"
+                  />
+                  <button type="submit" class="ichor-btn ichor-btn-primary">Send</button>
+                </form>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </main>
+
+    <%!-- ═══ Sidebar Toggle ═══ --%>
+    <button
+      phx-click="toggle_sidebar"
+      class="w-5 bg-base/30 border-l border-border/60 flex items-center justify-center hover:bg-raised/60 transition shrink-0 text-muted hover:text-default"
+      title={if @sidebar_collapsed, do: "Show sidebar", else: "Hide sidebar"}
+    >
+      <span class="text-[9px]">{if @sidebar_collapsed, do: "<", else: ">"}</span>
+    </button>
+
+    <%!-- ═══ Right Sidebar ═══ --%>
+    <aside class={["bg-[rgb(24,24,27)]/50 border-l border-border shrink-0 transition-all flex flex-col", if(@sidebar_collapsed, do: "w-0 overflow-hidden", else: "w-60")]}>
+      <div class="p-2 flex-1 overflow-y-auto">
+        <IchorWeb.Components.SidebarComponents.teams_section
+          teams={@teams}
+          selected_team={@selected_team}
+        />
+
+        <IchorWeb.Components.SidebarComponents.sessions_section
+          sessions={@sessions}
+          has_teams={@has_teams}
+          total_sessions={@total_sessions}
+          filter_session_id={@filter_session_id}
+          search_sessions={@search_sessions}
+          now={@now}
+        />
+
+        <IchorWeb.Components.SidebarComponents.tmux_section
+          tmux_sessions={@tmux_sessions}
+          sessions={@sessions}
+        />
+
+        <%!-- Message Composer (in sidebar, below sessions) --%>
+        <div :if={@teams != []} class="mt-3 pt-3 border-t border-border">
+          <h2 class="ichor-section-title px-1 mb-1.5">Message</h2>
+          <div phx-update="ignore" id="message-composer-stable" phx-hook="ClearFormOnSubmit">
+            <IchorWeb.Components.TeamMessageComponents.message_composer
+              teams={@teams}
+              selected_message_target={@selected_message_target}
+            />
+          </div>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <%!-- Inspector Drawer --%>
+  <IchorWeb.Components.TeamInspectorComponents.inspector_drawer
+    inspected_teams={@inspected_teams}
+    inspector_layout={@inspector_layout}
+    inspector_maximized={@inspector_maximized}
+    inspector_size={@inspector_size}
+    now={@now}
+  />
+
+  <%!-- Tmux Maximized View --%>
+  <IchorWeb.Components.TeamTmuxComponents.tmux_view
+    :if={@inspector_maximized && @inspected_teams != []}
+    inspected_teams={@inspected_teams}
+    output_mode={@output_mode}
+    agent_toggles={@agent_toggles}
+    live_events={@inspector_events}
+    now={@now}
+  />
+</div>
+
+<%!-- Agent Focus Slideout --%>
+<div
+  :if={@agent_slideout}
+  class="fixed inset-0 z-50 flex justify-end bg-black/50 backdrop-blur-sm"
+  phx-click="close_agent_slideout"
+>
+  <%
+    so = @agent_slideout
+    so_name = so[:short_name] || so[:id] || so[:session_id] && String.slice(to_string(so[:session_id]), 0, 8) || "Agent"
+    so_sid = to_string(so[:session_id] || "")
+  %>
+  <div
+    class="w-[480px] max-w-full h-full bg-base border-l border-border-subtle shadow-2xl flex flex-col overflow-hidden"
+    onclick="event.stopPropagation()"
+  >
+    <%!-- Header --%>
+    <div class="flex items-center justify-between px-4 py-2.5 border-b border-border shrink-0">
+      <div class="flex items-center gap-2 min-w-0">
+        <span class={"w-2 h-2 rounded-full shrink-0 #{if so[:status] == :active, do: "bg-success", else: "bg-highlight"}"}></span>
+        <span class="text-sm font-semibold text-high truncate">{so_name}</span>
+        <span class="text-[10px] text-muted font-mono shrink-0">{String.slice(so_sid, 0, 12)}</span>
+      </div>
+      <button phx-click="close_agent_slideout" class="text-muted hover:text-high text-sm cursor-pointer">x</button>
+    </div>
+
+    <%!-- Agent Info --%>
+    <div class="px-4 py-3 border-b border-border/50 shrink-0">
+      <dl class="grid grid-cols-2 gap-x-4 gap-y-1.5 text-[11px]">
+        <div :if={so[:status]} class="flex justify-between col-span-2">
+          <dt class="text-low">Status</dt>
+          <dd class={"font-medium #{if so[:status] == :active, do: "text-success", else: "text-default"}"}>{so[:status]}</dd>
+        </div>
+        <div :if={so[:role]} class="flex justify-between col-span-2">
+          <dt class="text-low">Role</dt>
+          <dd class="text-high">{so[:role]}</dd>
+        </div>
+        <div :if={so[:team]} class="flex justify-between col-span-2">
+          <dt class="text-low">Team</dt>
+          <dd class="text-high">{so[:team]}</dd>
+        </div>
+        <div :if={so[:cwd]} class="flex justify-between col-span-2">
+          <dt class="text-low">CWD</dt>
+          <dd class="text-high font-mono truncate max-w-[200px]" title={so[:cwd]}>{Path.basename(to_string(so[:cwd]))}</dd>
+        </div>
+        <div :if={so[:channels]} class="flex justify-between col-span-2">
+          <dt class="text-low">Channels</dt>
+          <dd class="text-default font-mono text-[10px]">
+            {so[:channels] |> Map.reject(fn {_k, v} -> is_nil(v) end) |> Map.keys() |> Enum.join(", ")}
+          </dd>
+        </div>
+      </dl>
+    </div>
+
+    <%!-- Terminal Output --%>
+    <div class="flex-1 flex flex-col overflow-hidden">
+      <div class="px-4 py-1.5 border-b border-border/50 shrink-0 flex items-center justify-between">
+        <h4 class="text-[10px] font-semibold text-low uppercase tracking-wider">Terminal</h4>
+        <span class="text-[9px] text-muted font-mono">{String.length(@slideout_terminal)} chars</span>
+      </div>
+      <div class="flex-1 overflow-y-auto p-3 bg-base/50 min-h-[120px] max-h-[40vh]">
+        <%= if @slideout_terminal != "" do %>
+          <pre class="text-[11px] font-mono text-default leading-relaxed whitespace-pre-wrap">{@slideout_terminal}</pre>
+        <% else %>
+          <p class="text-[10px] text-muted italic">No terminal output captured.</p>
+        <% end %>
+      </div>
+    </div>
+
+    <%!-- Activity Feed --%>
+    <div class="border-t border-border shrink-0 max-h-[30vh] flex flex-col">
+      <div class="px-4 py-1.5 border-b border-border/50 shrink-0 flex items-center justify-between">
+        <h4 class="text-[10px] font-semibold text-low uppercase tracking-wider">Activity</h4>
+        <span class="text-[9px] text-muted font-mono">{length(@slideout_activity)} items</span>
+      </div>
+      <div class="flex-1 overflow-y-auto">
+        <%= if @slideout_activity == [] do %>
+          <p class="text-[10px] text-muted italic p-3">No activity recorded.</p>
+        <% else %>
+          <div class="divide-y divide-border/30">
+            <%= for item <- Enum.take(@slideout_activity, 50) do %>
+              <div class="px-4 py-1.5 flex items-start gap-2 text-[10px]">
+                <span class={"shrink-0 mt-0.5 w-1.5 h-1.5 rounded-full #{if item.type == :event, do: "bg-cyan/60", else: "bg-violet/60"}"}></span>
+                <div class="min-w-0 flex-1">
+                  <p class="text-default truncate">{item.content}</p>
+                </div>
+                <span class="text-muted font-mono shrink-0">{Calendar.strftime(item.timestamp, "%H:%M:%S")}</span>
+              </div>
+            <% end %>
+          </div>
+        <% end %>
+      </div>
+    </div>
+
+    <%!-- Quick Actions --%>
+    <div class="px-4 py-2.5 border-t border-border shrink-0 flex gap-1.5">
+      <button :if={so[:channels][:tmux]} phx-click="connect_tmux" phx-value-session={so[:channels][:tmux]} class="ichor-btn bg-brand/15 text-brand hover:bg-brand/25 text-[10px]">Tmux</button>
+      <button phx-click="pause_agent" phx-value-session_id={so_sid} class="ichor-btn ichor-btn-muted text-[10px]">Pause</button>
+      <button phx-click="shutdown_agent" phx-value-session_id={so_sid} class="ichor-btn ichor-btn-muted text-error text-[10px]">Shutdown</button>
+      <div class="flex-1"></div>
+      <button phx-click="close_agent_slideout" class="ichor-btn ichor-btn-muted text-[10px]">Close</button>
+    </div>
+  </div>
+</div>
+
+<%!-- Modals --%>
+<IchorWeb.Components.ModalComponents.create_task_modal
+  show={@show_create_task_modal}
+  sel_team={@sel_team}
+  selected_team={@selected_team}
+/>
+<IchorWeb.Components.ModalComponents.shortcuts_modal show={@show_shortcuts_help} />
+
+<%!-- Archon FAB (bottom-right) --%>
+<IchorWeb.Components.ArchonComponents.archon_fab show_archon={@show_archon} />
+
+<%!-- Archon Overlay --%>
+<IchorWeb.Components.ArchonComponents.archon_overlay
+  :if={@show_archon}
+  messages={@archon_messages}
+  loading={@archon_loading}
+  tab={@archon_tab}
+/>
+
+<%!-- Toast notifications --%>
+<IchorWeb.Components.ArchonComponents.Toast.toast_stack toasts={@toasts} />

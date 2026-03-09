@@ -1,4 +1,4 @@
-defmodule Observatory.Repo.Migrations.CreateGatewayHeartbeats do
+defmodule Ichor.Repo.Migrations.CreateGatewayHeartbeats do
   use Ecto.Migration
 
   def change do

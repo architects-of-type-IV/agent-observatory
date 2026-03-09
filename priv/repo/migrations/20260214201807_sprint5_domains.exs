@@ -1,4 +1,4 @@
-defmodule Observatory.Repo.Migrations.Sprint5Domains do
+defmodule Ichor.Repo.Migrations.Sprint5Domains do
   @moduledoc """
   Updates resources based on their most recent snapshots.
 

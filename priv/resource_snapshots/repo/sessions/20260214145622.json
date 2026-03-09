@@ -103,7 +103,7 @@
   ],
   "table": "sessions",
   "hash": "9B50841CB6E58C34DD355C5036673DB2D29F1BE62F3EF1514040177E84FC3313",
-  "repo": "Elixir.Observatory.Repo",
+  "repo": "Elixir.Ichor.Repo",
   "strict?": false,
   "identities": [
     {

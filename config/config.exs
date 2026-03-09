@@ -7,29 +7,29 @@
 # General application configuration
 import Config
 
-config :observatory,
-  ecto_repos: [Observatory.Repo],
+config :ichor,
+  ecto_repos: [Ichor.Repo],
   generators: [timestamp_type: :utc_datetime],
   ash_domains: [
-    Observatory.Events,
-    Observatory.AgentTools,
-    Observatory.Costs,
-    Observatory.Fleet,
-    Observatory.Activity,
-    Observatory.Workshop,
-    Observatory.Archon,
-    Observatory.Archon.Tools
+    Ichor.Events,
+    Ichor.AgentTools,
+    Ichor.Costs,
+    Ichor.Fleet,
+    Ichor.Activity,
+    Ichor.Workshop,
+    Ichor.Archon,
+    Ichor.Archon.Tools
   ]
 
 # Configure the endpoint
-config :observatory, ObservatoryWeb.Endpoint,
+config :ichor, IchorWeb.Endpoint,
   url: [host: "localhost"],
   adapter: Bandit.PhoenixAdapter,
   render_errors: [
-    formats: [html: ObservatoryWeb.ErrorHTML, json: ObservatoryWeb.ErrorJSON],
+    formats: [html: IchorWeb.ErrorHTML, json: IchorWeb.ErrorJSON],
     layout: false
   ],
-  pubsub_server: Observatory.PubSub,
+  pubsub_server: Ichor.PubSub,
   live_view: [signing_salt: "Uss9/vBE"]
 
 # Configure the mailer
@@ -39,12 +39,12 @@ config :observatory, ObservatoryWeb.Endpoint,
 #
 # For production it's recommended to configure a different adapter
 # at the `config/runtime.exs`.
-config :observatory, Observatory.Mailer, adapter: Swoosh.Adapters.Local
+config :ichor, Ichor.Mailer, adapter: Swoosh.Adapters.Local
 
 # Configure esbuild (the version is required)
 config :esbuild,
   version: "0.25.4",
-  observatory: [
+  ichor: [
     args:
       ~w(js/app.js --bundle --target=es2022 --outdir=../priv/static/assets/js --external:/fonts/* --external:/images/* --alias:@=.),
     cd: Path.expand("../assets", __DIR__),
@@ -54,7 +54,7 @@ config :esbuild,
 # Configure tailwind (the version is required)
 config :tailwind,
   version: "4.1.12",
-  observatory: [
+  ichor: [
     args: ~w(
       --input=assets/css/app.css
       --output=priv/static/assets/css/app.css

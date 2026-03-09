@@ -1,4 +1,4 @@
-defmodule Observatory.Repo.Migrations.InitialSchema do
+defmodule Ichor.Repo.Migrations.InitialSchema do
   @moduledoc """
   Updates resources based on their most recent snapshots.
 

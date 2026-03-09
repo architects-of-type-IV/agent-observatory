@@ -93,7 +93,7 @@
   ],
   "table": "messages",
   "hash": "6FB6C37EE9B10C57255B1A1FB0A178D12EF0285DE595F7F4A771A92CEC1CFAF8",
-  "repo": "Elixir.Observatory.Repo",
+  "repo": "Elixir.Ichor.Repo",
   "strict?": false,
   "identities": [
     {

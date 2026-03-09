@@ -73,7 +73,7 @@
   ],
   "table": "workshop_team_blueprints",
   "hash": "04FBFBBC57AB85FE8ABD8D92B5193F37170AC032E8788EAEE664367F74C8D6E8",
-  "repo": "Elixir.Observatory.Repo",
+  "repo": "Elixir.Ichor.Repo",
   "strict?": false,
   "identities": [
     {

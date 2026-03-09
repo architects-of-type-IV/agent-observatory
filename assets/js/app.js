@@ -22,7 +22,7 @@ import "phoenix_html"
 // Establish Phoenix Socket and LiveView configuration.
 import {Socket} from "phoenix"
 import {LiveSocket} from "phoenix_live_view"
-import {hooks as colocatedHooks} from "phoenix-colocated/observatory"
+import {hooks as colocatedHooks} from "phoenix-colocated/ichor"
 import topbar from "../vendor/topbar"
 import TopologyMap from "./hooks/topology_map"
 import WorkshopCanvas from "./hooks/workshop_canvas"
@@ -34,14 +34,14 @@ let Hooks = {
     mounted() {
       // Restore state from localStorage on mount
       const savedState = {
-        view_mode: localStorage.getItem("observatory:view_mode"),
-        filter_source_app: localStorage.getItem("observatory:filter_source_app"),
-        filter_session_id: localStorage.getItem("observatory:filter_session_id"),
-        filter_event_type: localStorage.getItem("observatory:filter_event_type"),
-        search_feed: localStorage.getItem("observatory:search_feed"),
-        search_sessions: localStorage.getItem("observatory:search_sessions"),
-        selected_team: localStorage.getItem("observatory:selected_team"),
-        sidebar_collapsed: localStorage.getItem("observatory:sidebar_collapsed")
+        view_mode: localStorage.getItem("ichor:view_mode"),
+        filter_source_app: localStorage.getItem("ichor:filter_source_app"),
+        filter_session_id: localStorage.getItem("ichor:filter_session_id"),
+        filter_event_type: localStorage.getItem("ichor:filter_event_type"),
+        search_feed: localStorage.getItem("ichor:search_feed"),
+        search_sessions: localStorage.getItem("ichor:search_sessions"),
+        selected_team: localStorage.getItem("ichor:selected_team"),
+        sidebar_collapsed: localStorage.getItem("ichor:sidebar_collapsed")
       }
 
       // Push to LiveView to restore state
@@ -50,7 +50,7 @@ let Hooks = {
       // Save state on every view mode change
       this.handleEvent("view_mode_changed", ({ view_mode }) => {
         if (view_mode) {
-          localStorage.setItem("observatory:view_mode", view_mode)
+          localStorage.setItem("ichor:view_mode", view_mode)
         }
       })
 
@@ -58,9 +58,9 @@ let Hooks = {
       this.handleEvent("filters_changed", (data) => {
         Object.entries(data).forEach(([key, value]) => {
           if (value === null || value === undefined || value === "") {
-            localStorage.removeItem(`observatory:${key}`)
+            localStorage.removeItem(`ichor:${key}`)
           } else {
-            localStorage.setItem(`observatory:${key}`, value)
+            localStorage.setItem(`ichor:${key}`, value)
           }
         })
       })
@@ -344,7 +344,7 @@ let Hooks = {
   },
   ViewModePersistence: {
     mounted() {
-      const stored = localStorage.getItem("observatory:view_mode")
+      const stored = localStorage.getItem("ichor:view_mode")
       const valid = ["fleet_command", "session_cluster", "registry", "scheduler", "forensic", "god_mode"]
       if (stored && valid.includes(stored)) {
         this.pushEvent("restore_view_mode", { value: stored })

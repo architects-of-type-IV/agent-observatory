@@ -153,7 +153,7 @@
   ],
   "table": "events",
   "hash": "B8C5996C42EF8919668F681DAED42F1665E3A86A9AFD449E07C9EC3E01FDB6B1",
-  "repo": "Elixir.Observatory.Repo",
+  "repo": "Elixir.Ichor.Repo",
   "strict?": false,
   "identities": [
     {

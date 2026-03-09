@@ -98,7 +98,7 @@
   ],
   "table": "workshop_comm_rules",
   "hash": "D9F7CFBF6D4E549A3E2752C1E932EE71363992CD902E11469E49381FEE706102",
-  "repo": "Elixir.Observatory.Repo",
+  "repo": "Elixir.Ichor.Repo",
   "strict?": false,
   "identities": [],
   "base_filter": null,

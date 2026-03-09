@@ -1,9 +1,9 @@
-defmodule Observatory.MixProject do
+defmodule Ichor.MixProject do
   use Mix.Project
 
   def project do
     [
-      app: :observatory,
+      app: :ichor,
       version: "0.1.0",
       elixir: "~> 1.15",
       elixirc_paths: elixirc_paths(Mix.env()),
@@ -20,7 +20,7 @@ defmodule Observatory.MixProject do
   # Type `mix help compile.app` for more information.
   def application do
     [
-      mod: {Observatory.Application, []},
+      mod: {Ichor.Application, []},
       extra_applications: [:logger, :runtime_tools]
     ]
   end
@@ -89,10 +89,10 @@ defmodule Observatory.MixProject do
       "ecto.reset": ["ecto.drop", "ecto.setup"],
       test: ["ecto.create --quiet", "ecto.migrate --quiet", "test"],
       "assets.setup": ["tailwind.install --if-missing", "esbuild.install --if-missing"],
-      "assets.build": ["compile", "tailwind observatory", "esbuild observatory"],
+      "assets.build": ["compile", "tailwind ichor", "esbuild ichor"],
       "assets.deploy": [
-        "tailwind observatory --minify",
-        "esbuild observatory --minify",
+        "tailwind ichor --minify",
+        "esbuild ichor --minify",
         "phx.digest"
       ],
       precommit: ["compile --warnings-as-errors", "deps.unlock --unused", "format", "test"]

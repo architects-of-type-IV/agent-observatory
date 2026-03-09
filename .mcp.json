@@ -1,6 +1,6 @@
 {
   "mcpServers": {
-    "observatory": {
+    "ichor": {
       "type": "http",
       "url": "http://localhost:4005/mcp"
     }

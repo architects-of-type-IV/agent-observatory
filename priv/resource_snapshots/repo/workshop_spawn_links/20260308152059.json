@@ -78,7 +78,7 @@
   ],
   "table": "workshop_spawn_links",
   "hash": "020F4E0B4233D8EB5693150DB2CFE068DD3574536BCB550D9CA1E78ADF9536B2",
-  "repo": "Elixir.Observatory.Repo",
+  "repo": "Elixir.Ichor.Repo",
   "strict?": false,
   "identities": [],
   "base_filter": null,

@@ -1,4 +1,4 @@
-defmodule Observatory.Repo.Migrations.CreateWebhookDeliveries do
+defmodule Ichor.Repo.Migrations.CreateWebhookDeliveries do
   use Ecto.Migration
 
   def change do

@@ -123,7 +123,7 @@
   ],
   "table": "token_usages",
   "hash": "CF0012E78978870505007A471C1DC7764F5C646789D3F07044E0CEAA5DA50E09",
-  "repo": "Elixir.Observatory.Repo",
+  "repo": "Elixir.Ichor.Repo",
   "strict?": false,
   "identities": [
     {

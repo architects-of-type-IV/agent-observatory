@@ -123,7 +123,7 @@
   ],
   "table": "workshop_agent_types",
   "hash": "17BC2D746135276D2B6318AC1096330753786CE0510E401F0BF060AB741DFF99",
-  "repo": "Elixir.Observatory.Repo",
+  "repo": "Elixir.Ichor.Repo",
   "strict?": false,
   "identities": [
     {

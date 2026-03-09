@@ -1,4 +1,4 @@
-defmodule Observatory.Repo.Migrations.CreateCronJobs do
+defmodule Ichor.Repo.Migrations.CreateCronJobs do
   use Ecto.Migration
 
   def change do

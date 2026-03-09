@@ -34,8 +34,8 @@
 - Template helpers still need explicit imports with `only:` lists in the LiveView
 
 ## Archon Architecture (2026-03-09)
-- **Observatory.Archon** -- parent Ash domain (empty, for future conversation state / memory resources)
-- **Observatory.Archon.Tools** -- AshAi subdomain with 10 tools across 5 resources
+- **Ichor.Archon** -- parent Ash domain (empty, for future conversation state / memory resources)
+- **Ichor.Archon.Tools** -- AshAi subdomain with 10 tools across 5 resources
   - Tools.Agents, Tools.Teams, Tools.Messages, Tools.System, Tools.Memory
 - **Archon.Chat**: stateless LLM conversation engine (LangChain + ChatAnthropic + AshAi)
   - `chat/2` -> `{:ok, response, history}`, history in LiveView assigns
@@ -82,8 +82,8 @@
 - Inbox now routes through Fleet.Agent code interfaces (get_unread, mark_read, send_message)
 
 ## Distribution Architecture (FOUNDATION COMPLETE)
-- Fleet.HostRegistry: :pg groups (:observatory_agents scope), :net_kernel.monitor_nodes
-- **:pg scope**: single scope `:observatory_agents` for all fleet groups. HostRegistry, AgentProcess, TeamSupervisor all use same scope. Child spec in application.ex must use explicit map (Erlang module).
+- Fleet.HostRegistry: :pg groups (:ichor_agents scope), :net_kernel.monitor_nodes
+- **:pg scope**: single scope `:ichor_agents` for all fleet groups. HostRegistry, AgentProcess, TeamSupervisor all use same scope. Child spec in application.ex must use explicit map (Erlang module).
 - AgentSpawner: pattern-matched routing (local vs remote), ssh_tmux channel wiring
 - AgentProcess: :pg join on init, lookup_cluster/1, list_cluster/0
 - Delivery: ssh_tmux address format support alongside session+host format

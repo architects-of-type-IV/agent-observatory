@@ -158,7 +158,7 @@
   ],
   "table": "workshop_agent_blueprints",
   "hash": "975FD20F5DC60D12F12FAA90BA3BC2E904D25436EFCB6890610403E9528CFBF9",
-  "repo": "Elixir.Observatory.Repo",
+  "repo": "Elixir.Ichor.Repo",
   "strict?": false,
   "identities": [],
   "base_filter": null,

@@ -1,4 +1,4 @@
-defmodule Observatory.Repo.Migrations.AddWorkshopAgentTypes do
+defmodule Ichor.Repo.Migrations.AddWorkshopAgentTypes do
   @moduledoc """
   Updates resources based on their most recent snapshots.
 

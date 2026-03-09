@@ -1,4 +1,4 @@
-defmodule Observatory.Repo.Migrations.CreateHitlInterventionEvents do
+defmodule Ichor.Repo.Migrations.CreateHitlInterventionEvents do
   use Ecto.Migration
 
   def change do

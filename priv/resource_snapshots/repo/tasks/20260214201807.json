@@ -129,7 +129,7 @@
   ],
   "table": "tasks",
   "hash": "AA538199BB59B662D55D775465D12C5CE97871CE1F8555DE50C10586135CD553",
-  "repo": "Elixir.Observatory.Repo",
+  "repo": "Elixir.Ichor.Repo",
   "strict?": false,
   "identities": [
     {

@@ -53,7 +53,7 @@
   ],
   "table": "notes",
   "hash": "053AD7D9F107DEF086F0D7065474175ABB990B32AA1112471FEB7E06C04206C7",
-  "repo": "Elixir.Observatory.Repo",
+  "repo": "Elixir.Ichor.Repo",
   "strict?": false,
   "identities": [
     {

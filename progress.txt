@@ -1,9 +1,16 @@
 ICHOR IV Progress (formerly Observatory)
 ========================================
 
-## Current: Agent Lifecycle Management (2026-03-09)
+## Current: Codebase Rename (2026-03-09)
 
 ### This Session
+- [x] Full codebase rename: Observatory -> Ichor (211 modules, OTP :ichor)
+- [x] Dashboard title: "ICHOR IV" (header, tab, root layout)
+- [x] All paths, atoms, strings, configs, assets, snapshots updated
+- [x] DB files renamed: ichor_dev.db, ichor_test.db
+- [x] mix compile --warnings-as-errors -- CLEAN
+
+### Prior: Agent Lifecycle Management (2026-03-09)
 - [x] Fixed shutdown_agent: now kills tmux session + terminates BEAM process + cleans all registries
 - [x] Added EventBuffer.remove_session/1 to purge stale events
 - [x] Fixed shutdown button using short name instead of full session_id UUID

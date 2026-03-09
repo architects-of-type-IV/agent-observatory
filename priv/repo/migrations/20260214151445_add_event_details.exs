@@ -1,4 +1,4 @@
-defmodule Observatory.Repo.Migrations.AddEventDetails do
+defmodule Ichor.Repo.Migrations.AddEventDetails do
   @moduledoc """
   Updates resources based on their most recent snapshots.
 

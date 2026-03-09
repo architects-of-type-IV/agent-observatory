@@ -1,8 +1,8 @@
 import Config
 
 # Configure your database
-config :observatory, Observatory.Repo,
-  database: Path.expand("../observatory_dev.db", __DIR__),
+config :ichor, Ichor.Repo,
+  database: Path.expand("../ichor_dev.db", __DIR__),
   pool_size: 5,
   stacktrace: true,
   show_sensitive_data_on_connection_error: true,
@@ -14,7 +14,7 @@ config :observatory, Observatory.Repo,
 # The watchers configuration can be used to run external
 # watchers to your application. For example, we can use it
 # to bundle .js and .css sources.
-config :observatory, ObservatoryWeb.Endpoint,
+config :ichor, IchorWeb.Endpoint,
   # Binding to loopback ipv4 address prevents access from other machines.
   # Change to `ip: {0, 0, 0, 0}` to allow access from other machines.
   http: [ip: {127, 0, 0, 1}, port: 4005],
@@ -23,8 +23,8 @@ config :observatory, ObservatoryWeb.Endpoint,
   debug_errors: true,
   secret_key_base: "Nt8OEQ1h/TWpBMj2ZwOqUnVgIs5xwHdI3VWHY+2tYXXhGVFZ2fqgToXVUuv3LHP3",
   watchers: [
-    esbuild: {Esbuild, :install_and_run, [:observatory, ~w(--sourcemap=inline --watch)]},
-    tailwind: {Tailwind, :install_and_run, [:observatory, ~w(--watch)]}
+    esbuild: {Esbuild, :install_and_run, [:ichor, ~w(--sourcemap=inline --watch)]},
+    tailwind: {Tailwind, :install_and_run, [:ichor, ~w(--watch)]}
   ]
 
 # ## SSL Support
@@ -51,7 +51,7 @@ config :observatory, ObservatoryWeb.Endpoint,
 # different ports.
 
 # Reload browser tabs when matching files change.
-config :observatory, ObservatoryWeb.Endpoint,
+config :ichor, IchorWeb.Endpoint,
   live_reload: [
     web_console_logger: false,
     patterns: [
@@ -60,13 +60,13 @@ config :observatory, ObservatoryWeb.Endpoint,
       # Gettext translations
       ~r"priv/gettext/.*\.po$"E,
       # Router, Controllers, LiveViews and LiveComponents
-      ~r"lib/observatory_web/router\.ex$"E,
-      ~r"lib/observatory_web/(controllers|live|components)/.*\.(ex|heex)$"E
+      ~r"lib/ichor_web/router\.ex$"E,
+      ~r"lib/ichor_web/(controllers|live|components)/.*\.(ex|heex)$"E
     ]
   ]
 
 # Enable dev routes for dashboard and mailbox
-config :observatory, dev_routes: true
+config :ichor, dev_routes: true
 
 # Do not include metadata nor timestamps in development logs
 config :logger, :default_formatter, format: "[$level] $message\n"

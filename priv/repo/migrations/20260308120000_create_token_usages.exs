@@ -1,4 +1,4 @@
-defmodule Observatory.Repo.Migrations.CreateTokenUsages do
+defmodule Ichor.Repo.Migrations.CreateTokenUsages do
   use Ecto.Migration
 
   def change do

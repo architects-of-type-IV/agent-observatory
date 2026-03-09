@@ -1,4 +1,4 @@
-defmodule Observatory.Repo.Migrations.CreateWorkshopBlueprints do
+defmodule Ichor.Repo.Migrations.CreateWorkshopBlueprints do
   @moduledoc """
   Updates resources based on their most recent snapshots.
 

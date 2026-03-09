@@ -4,7 +4,7 @@
 @import "tailwindcss" source(none);
 @source "../css";
 @source "../js";
-@source "../../lib/observatory_web";
+@source "../../lib/ichor_web";
 
 /* A Tailwind plugin that makes "hero-#{ICON}" classes available.
    The heroicons installation itself is managed by your mix.exs */
@@ -264,7 +264,7 @@
   }
 }
 
-/* ═══ Observatory Design System ═══ */
+/* ═══ Ichor Design System ═══ */
 
 /* Scrollbar */
 ::-webkit-scrollbar { width: 6px; height: 6px; }

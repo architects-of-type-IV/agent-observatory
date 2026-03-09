@@ -1,0 +1,518 @@
+<%
+  # Use the unified agent_index built in DashboardState.recompute
+  # It maps ALL known identifiers (id, session_id, short_name) -> agent data
+  agent_index = assigns[:agent_index] || %{}
+
+  # Derive agent list from the index (deduplicated by session_id)
+  all_agents =
+    agent_index
+    |> Map.values()
+    |> Enum.uniq_by(fn a -> a[:session_id] || a[:agent_id] end)
+  total_agents = Enum.count(all_agents, fn a -> a[:agent_id] != "operator" end)
+
+  # HITL paused sessions (populated in DashboardState.recompute)
+  hitl_paused = assigns[:paused_sessions] || MapSet.new()
+
+  # Name map for comms display
+  names = FH.name_map(@teams, all_agents)
+
+  # Mailbox messages for comms timeline (populated in DashboardState.recompute)
+  mailbox_messages = assigns[:mailbox_messages] || []
+  comms_filter = assigns[:comms_team_filter]
+  agent_filter = assigns[:comms_agent_filter] || []
+  filtered_messages = mailbox_messages
+    |> FH.filter_by_team(comms_filter, @teams)
+    |> FH.filter_by_agents(agent_filter, names)
+
+  # Standalone agents (not in any team, excluding operator)
+  team_ids = @teams |> Enum.flat_map(& &1.members) |> Enum.map(& &1[:agent_id]) |> MapSet.new()
+  standalone =
+    all_agents
+    |> Enum.reject(fn a -> MapSet.member?(team_ids, a[:agent_id]) end)
+    |> Enum.reject(fn a -> a[:agent_id] == "operator" end)
+
+  # Ghost detection: agents with no hook events (beam-only processes, stale registry entries)
+  ghost_ids =
+    all_agents
+    |> Enum.reject(fn a -> a[:event_count] && a[:event_count] > 0 end)
+    |> Enum.reject(fn a -> a[:agent_id] == "operator" end)
+    |> Enum.map(fn a -> a[:agent_id] end)
+    |> MapSet.new()
+
+  # Group standalone agents by project
+  standalone_by_project =
+    standalone
+    |> Enum.group_by(fn a ->
+      case a[:cwd] || a[:project] do
+        nil -> "unknown"
+        cwd -> Path.basename(cwd)
+      end
+    end)
+    |> Enum.sort_by(fn {project, _} -> project end)
+
+  # Group teams by project using the unified index
+  project_groups = FH.group_teams_by_project(@teams, agent_index)
+
+  collapsed = assigns[:collapsed_fleet_teams] || MapSet.new()
+  selected = @selected_command_agent
+%>
+<div class="flex h-full">
+  <%!-- Left: Fleet Tree (280px) --%>
+  <div class="w-[280px] shrink-0 border-r border-border bg-base/30 flex flex-col overflow-hidden">
+    <div class="px-2.5 py-1.5 border-b border-border flex items-center justify-between shrink-0">
+      <h3 class="text-[10px] font-semibold text-low uppercase tracking-wider">Fleet</h3>
+      <span class="text-[9px] text-muted">{total_agents} agents</span>
+    </div>
+    <div class="flex-1 overflow-y-auto">
+      <%!-- Teams grouped by project --%>
+      <%= for {project, teams} <- project_groups do %>
+        <div class="border-b border-border/50">
+          <%!-- Project header --%>
+          <div class="px-2.5 pt-2 pb-0.5 flex items-center gap-1.5">
+            <span class="w-1.5 h-1.5 rounded-sm bg-interactive/40 shrink-0" />
+            <span class="text-[9px] font-semibold text-low uppercase tracking-wider">{project}</span>
+          </div>
+
+          <%!-- Teams under this project --%>
+          <%= for team <- teams do %>
+            <% is_collapsed = MapSet.member?(collapsed, team.name) %>
+            <div>
+              <div
+                class="flex items-center gap-2 pl-5 pr-2.5 py-1 cursor-pointer hover:bg-raised/30 transition"
+                phx-click="toggle_fleet_team"
+                phx-value-name={team.name}
+              >
+                <span class={"text-[9px] text-muted inline-block transition-transform #{if is_collapsed, do: "", else: "rotate-90"}"}>&#x25B8;</span>
+                <span class="text-[11px] font-semibold text-high">{team.name}</span>
+                <span class="text-[9px] text-muted font-mono">{length(team.members)}</span>
+                <span class="flex-1" />
+                <button
+                  phx-click="set_comms_filter"
+                  phx-value-team={team.name}
+                  class={"text-[9px] px-1.5 py-0.5 rounded cursor-pointer #{if comms_filter == team.name, do: "bg-interactive/15 text-interactive", else: "text-muted hover:text-default"}"}
+                >
+                  comms
+                </button>
+              </div>
+
+              <%= unless is_collapsed do %>
+                <div class="pb-1">
+                  <% sorted = FH.sort_members(team.members, agent_index) %>
+                  <% member_count = length(sorted) %>
+                  <%= for {{member, agent_data, d}, idx} <- Enum.with_index(sorted) do %>
+                    <% indent = 20 + d * 32 %>
+                    <% mid = member[:agent_id] %>
+                    <% is_last = idx == member_count - 1 %>
+                    <% is_selected = selected && (selected[:agent_id] == mid || selected[:name] == (member[:name] || member[:agent_type])) %>
+                    <% role = FH.classify_role(member[:name] || member[:agent_type]) %>
+                    <% connector = if is_last, do: "&#x2514;", else: "&#x251C;" %>
+                    <div
+                      class={"flex items-center gap-1.5 py-0.5 cursor-pointer transition border-l-2 #{if is_selected, do: "bg-interactive/10 border-interactive", else: "border-transparent hover:bg-raised/20"}"}
+                      style={"padding-left: #{indent}px; padding-right: 10px;"}
+                      phx-click="select_command_agent"
+                      phx-value-id={mid}
+                    >
+                      <span class="text-[9px] text-muted w-2.5 shrink-0 text-center"><%= raw(connector) %></span>
+                      <span class={"w-1.5 h-1.5 rounded-full shrink-0 #{status_dot_color(agent_data[:status] || member[:status] || :idle)}"} />
+                      <span class="text-[11px] text-high truncate flex-1">{member[:name] || member[:agent_type] || "?"}</span>
+                      <span :if={role != :member} class={"text-[8px] font-bold uppercase px-1 py-0.5 rounded border #{FH.badge_class(role)}"}>{FH.abbrev(role)}</span>
+                      <span :if={mid && MapSet.member?(hitl_paused, mid)} class="text-[8px] font-bold uppercase px-1 py-0.5 rounded bg-brand/20 text-brand border border-brand/30">PAUSED</span>
+                      <span class="text-[9px] text-interactive">{short_model(agent_data[:model] || member[:model])}</span>
+                    </div>
+                  <% end %>
+                </div>
+              <% end %>
+            </div>
+          <% end %>
+        </div>
+      <% end %>
+
+      <%!-- Standalone agents grouped by project --%>
+      <%= for {project, agents_in_project} <- standalone_by_project do %>
+        <div class="border-b border-border/50">
+          <div class="px-2.5 pt-2 pb-0.5 flex items-center gap-1.5">
+            <span class="w-1.5 h-1.5 rounded-sm bg-muted/40 shrink-0" />
+            <span class="text-[9px] font-semibold text-low uppercase tracking-wider">{project}</span>
+            <span class="text-[9px] text-muted font-mono">{length(agents_in_project)}</span>
+          </div>
+          <%= for agent <- agents_in_project do %>
+            <%
+              is_selected = selected && selected[:agent_id] == agent.agent_id
+              role = FH.classify_role(agent[:role] || agent.name)
+              is_ghost = MapSet.member?(ghost_ids, agent.agent_id)
+            %>
+            <div
+              class={"flex items-center gap-1.5 pl-5 pr-2.5 py-1 cursor-pointer transition border-l-2 #{if is_selected, do: "bg-interactive/10 border-interactive", else: "border-transparent hover:bg-raised/20"} #{if is_ghost, do: "opacity-50"}"}
+              phx-click="select_command_agent"
+              phx-value-id={agent.agent_id}
+            >
+              <span class={"w-1.5 h-1.5 rounded-full shrink-0 #{if is_ghost, do: "bg-error/60", else: status_dot_color(agent.status)}"} />
+              <span class={"text-[11px] truncate flex-1 #{if is_ghost, do: "text-muted line-through", else: "text-high"}"}>{agent.name}</span>
+              <span :if={is_ghost} class="text-[8px] font-bold uppercase px-1 py-0.5 rounded bg-error/15 text-error border border-error/30">ghost</span>
+              <span :if={role not in [:member, :standalone] && !is_ghost} class={"text-[8px] font-bold uppercase px-1 py-0.5 rounded border #{FH.badge_class(role)}"}>{FH.abbrev(role)}</span>
+              <span :if={MapSet.member?(hitl_paused, agent.agent_id)} class="text-[8px] font-bold uppercase px-1 py-0.5 rounded bg-brand/20 text-brand border border-brand/30">PAUSED</span>
+              <span :if={agent[:tmux_session] && !is_ghost} class="text-[9px] text-brand font-mono shrink-0">tmux</span>
+              <span :if={!is_ghost} class="text-[9px] text-interactive">{short_model(agent.model)}</span>
+            </div>
+          <% end %>
+        </div>
+      <% end %>
+
+      <div :if={@teams == [] && standalone_by_project == []} class="px-3 py-8 text-center">
+        <div class="text-[10px] text-muted uppercase tracking-wider mb-1">No agents detected</div>
+        <div class="text-[10px] text-muted">Start a Claude session to see it here.</div>
+      </div>
+    </div>
+  </div>
+
+  <%!-- Center: Comms Timeline --%>
+  <div class="flex-1 min-w-0 flex flex-col overflow-hidden">
+    <%!-- Command bar --%>
+    <div class="px-3 py-1.5 border-b border-border bg-base/30 shrink-0">
+      <div class="flex gap-1.5 flex-wrap">
+        <form phx-submit="send_targeted_message" id="command-msg-form" class="flex gap-1 flex-1 min-w-0">
+          <div id="target-select-stable" phx-update="ignore">
+            <select name="target" class="ichor-select shrink-0">
+              <option value="">Target...</option>
+              <optgroup label="Broadcast">
+                <option value="all">All Agents</option>
+                <%= for team <- @teams do %>
+                  <option value={"team:#{team.name}"}>Team: {team.name}</option>
+                <% end %>
+              </optgroup>
+              <optgroup label="Agents">
+                <%= for agent <- all_agents do %>
+                  <option value={agent.agent_id}>{agent.name}{if agent[:team_name], do: " (#{agent.team_name})", else: ""}</option>
+                <% end %>
+              </optgroup>
+            </select>
+          </div>
+          <div id="cmd-input-stable" phx-update="ignore" phx-hook="ClearFormOnSubmit" class="flex-1 min-w-0">
+            <input type="text" name="content" placeholder="Message..." class="w-full ichor-input" />
+          </div>
+          <button type="submit" class="ichor-btn ichor-btn-primary shrink-0">Send</button>
+        </form>
+        <form phx-submit="launch_session" class="flex gap-1 shrink-0">
+          <div id="project-select-stable" phx-update="ignore">
+            <select name="cwd" class="ichor-select">
+              <option value="">Project...</option>
+              <%= for {key, path} <- @swarm_state.watched_projects do %>
+                <option value={path}>{key}</option>
+              <% end %>
+            </select>
+          </div>
+          <button type="submit" class="ichor-btn ichor-btn-success shrink-0">Launch</button>
+        </form>
+      </div>
+    </div>
+
+    <%!-- Tab bar: Comms / Feed --%>
+    <% active_tab = assigns[:activity_tab] || :comms %>
+    <div class="px-3 py-1 border-b border-border flex items-center justify-between shrink-0">
+      <div class="flex gap-2">
+        <span
+          phx-click="set_sub_tab"
+          phx-value-screen="activity"
+          phx-value-tab="comms"
+          class={"text-[10px] font-semibold uppercase tracking-wider cursor-pointer transition #{if active_tab in [:comms, :feed] && active_tab == :comms, do: "text-interactive", else: "text-muted hover:text-default"}"}
+        >Comms</span>
+        <span
+          phx-click="set_sub_tab"
+          phx-value-screen="activity"
+          phx-value-tab="feed"
+          class={"text-[10px] font-semibold uppercase tracking-wider cursor-pointer transition #{if active_tab == :feed, do: "text-interactive", else: "text-muted hover:text-default"}"}
+        >Feed</span>
+        <span
+          phx-click="set_sub_tab"
+          phx-value-screen="activity"
+          phx-value-tab="costs"
+          class={"text-[10px] font-semibold uppercase tracking-wider cursor-pointer transition #{if active_tab == :costs, do: "text-success", else: "text-muted hover:text-default"}"}
+        >Costs</span>
+      </div>
+      <div :if={active_tab == :comms} class="flex gap-1">
+        <span
+          phx-click="set_comms_filter"
+          phx-value-team=""
+          class={"text-[9px] px-1.5 py-0.5 rounded cursor-pointer transition #{if !comms_filter, do: "bg-interactive/15 text-interactive", else: "text-low hover:text-high"}"}
+        >All</span>
+        <%= for team <- @teams do %>
+          <span
+            phx-click="set_comms_filter"
+            phx-value-team={team.name}
+            class={"text-[9px] px-1.5 py-0.5 rounded cursor-pointer transition #{if comms_filter == team.name, do: "bg-interactive/15 text-interactive", else: "text-low hover:text-high"}"}
+          >{team.name}</span>
+        <% end %>
+        <span class="text-[9px] text-muted ml-1">{length(filtered_messages)} msgs</span>
+        <%!-- Trace filter pills --%>
+        <%= if agent_filter != [] do %>
+          <span class="w-px h-3 bg-highlight mx-1" />
+          <span class="text-[9px] text-violet font-semibold">Trace:</span>
+          <%= for af <- agent_filter do %>
+            <span
+              phx-click="trace_agent"
+              phx-value-agent_id={af}
+              class="text-[9px] px-1.5 py-0.5 rounded bg-violet/15 text-violet cursor-pointer hover:bg-violet/25 transition"
+            >{FH.resolve_label(af, names)}</span>
+          <% end %>
+          <button phx-click="clear_trace" class="text-[9px] text-muted hover:text-default cursor-pointer ml-0.5">x</button>
+        <% end %>
+      </div>
+      <div :if={active_tab == :feed} class="flex gap-1">
+        <button phx-click="expand_all" class="text-[9px] px-1.5 py-0.5 rounded text-low hover:text-high cursor-pointer transition">Expand</button>
+        <button phx-click="collapse_all" class="text-[9px] px-1.5 py-0.5 rounded text-low hover:text-high cursor-pointer transition">Collapse</button>
+        <span class="text-[9px] text-muted ml-1">{length(@feed_groups)} sessions</span>
+      </div>
+    </div>
+
+    <%!-- Comms: Message timeline --%>
+    <div :if={active_tab == :comms} class="flex-1 overflow-y-auto">
+      <%= if filtered_messages == [] do %>
+        <div class="flex-1 flex items-center justify-center p-6">
+          <div class="text-center max-w-xs">
+            <p class="text-[11px] text-low mb-2">No messages yet</p>
+            <p class="text-[10px] text-muted leading-relaxed">
+              Send a message from the command bar above, or use the MCP API.
+            </p>
+          </div>
+        </div>
+      <% else %>
+        <div class="divide-y divide-border/30">
+          <%= for msg <- filtered_messages do %>
+            <% from_label = FH.resolve_label(msg.from, names) %>
+            <% to_label = FH.resolve_label(msg.to, names) %>
+            <% is_operator = msg.from == "operator" || msg.from == "dashboard" %>
+            <div class={"px-4 py-2.5 hover:bg-raised/20 transition #{if is_operator, do: "border-l-2 border-brand/30", else: ""}"}>
+              <div class="flex items-center gap-2 mb-1">
+                <span class={"text-[10px] font-semibold #{if is_operator, do: "text-brand", else: "text-high"}"}>{from_label}</span>
+                <svg class="w-3 h-3 text-muted shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                </svg>
+                <span class={"text-[10px] font-semibold #{if msg.to == "operator", do: "text-brand", else: "text-high"}"}>{to_label}</span>
+                <span class="flex-1" />
+                <span class={"text-[9px] px-1.5 py-0.5 rounded #{if msg.read, do: "text-success", else: "text-brand bg-brand/10"}"}>{if msg.read, do: "read", else: "unread"}</span>
+                <span class="text-[9px] text-muted font-mono tabular-nums">{FH.format_timestamp(msg.timestamp)}</span>
+              </div>
+              <p class="text-[11px] text-default leading-relaxed pl-0.5">{msg.content}</p>
+              <div class="flex items-center gap-3 mt-1 pl-0.5">
+                <span class="flex items-center gap-1">
+                  <span class="w-1 h-1 rounded-full bg-success" />
+                  <span class="text-[9px] text-muted">mailbox</span>
+                </span>
+                <span :if={msg.type && msg.type != :text} class="text-[9px] text-muted">{msg.type}</span>
+              </div>
+            </div>
+          <% end %>
+        </div>
+      <% end %>
+    </div>
+
+    <%!-- Feed: Turn-based live activity --%>
+    <div :if={active_tab == :feed} class="flex-1 overflow-y-auto p-2">
+      <.feed_view
+        feed_groups={@feed_groups}
+        visible_events={@visible_events}
+        selected_event={@selected_event}
+        event_notes={@event_notes}
+        expanded_sessions={@expanded_sessions}
+        now={@now}
+      />
+    </div>
+
+    <%!-- Costs: Token usage dashboard --%>
+    <div :if={active_tab == :costs} class="flex-1 overflow-hidden">
+      <IchorWeb.Components.CostComponents.cost_view cost_data={assigns[:cost_data] || %{by_model: [], by_session: [], totals: %{}}} />
+    </div>
+  </div>
+
+  <%!-- Right: Detail Panel (400px, conditional) --%>
+  <div :if={selected} class="w-[400px] shrink-0 border-l border-border bg-base/30 flex flex-col overflow-hidden">
+    <%
+      sel_id = selected[:agent_id] || selected[:name]
+      sel_agent = Map.get(agent_index, sel_id, selected)
+      sel_name = selected[:name] || sel_agent[:name] || sel_id
+      sel_team = Enum.find(@teams, fn t -> Enum.any?(t.members, fn m -> m[:agent_id] == sel_id end) end)
+      sel_member = if sel_team, do: Enum.find(sel_team.members, fn m -> m[:agent_id] == sel_id end)
+      sel_role = if sel_member, do: FH.classify_role(sel_member[:name] || sel_member[:agent_type])
+
+      # Chain of command
+      {reports_to, manages} = if sel_team do
+        sorted = FH.sort_members(sel_team.members, agent_index)
+        FH.chain_of_command(sel_member, sorted)
+      else
+        {nil, []}
+      end
+
+      # Tmux session for this agent (disk members use :tmux_pane_id, registry uses :tmux_session)
+      sel_tmux = sel_agent[:tmux_session] || (sel_member && (sel_member[:tmux_session] || sel_member[:tmux_pane_id]))
+
+      # Recent messages -- match by all known identifiers (qualified name, session_id, short_name)
+      sel_session_id = sel_agent[:session_id]
+      sel_short = sel_agent[:short_name]
+      sel_ids = [sel_id, sel_session_id, sel_short] |> Enum.reject(&is_nil/1) |> MapSet.new()
+      agent_msgs = Enum.filter(mailbox_messages, fn m -> MapSet.member?(sel_ids, m.from) || MapSet.member?(sel_ids, m.to) end) |> Enum.take(4)
+    %>
+    <div class="px-3 py-1.5 border-b border-border flex items-center justify-between shrink-0">
+      <h3 class="text-[11px] font-semibold text-high">{sel_name}</h3>
+      <button phx-click="clear_command_selection" class="text-[11px] text-muted hover:text-high cursor-pointer">x</button>
+    </div>
+    <div class="flex-1 overflow-y-auto">
+      <%!-- Info --%>
+      <div class="px-3 py-2.5 border-b border-border/50">
+        <h4 class="text-[10px] font-semibold text-low uppercase tracking-wider mb-2">Info</h4>
+        <dl class="space-y-1 text-[11px]">
+          <div class="flex justify-between">
+            <dt class="text-low">Status</dt>
+            <dd class={status_text_color(sel_agent[:status] || :unknown)}>
+              {sel_agent[:status] || :unknown}
+              <span :if={MapSet.member?(hitl_paused, sel_id)} class="text-brand ml-1">(HITL paused)</span>
+              <span :if={MapSet.member?(ghost_ids, sel_id)} class="text-error ml-1">(ghost)</span>
+            </dd>
+          </div>
+          <div :if={sel_agent[:model] || (sel_member && sel_member[:model])} class="flex justify-between">
+            <dt class="text-low">Model</dt>
+            <dd class="text-interactive">{sel_agent[:model] || sel_member[:model]}</dd>
+          </div>
+          <div :if={sel_role && sel_role != :member} class="flex justify-between">
+            <dt class="text-low">Role</dt>
+            <dd class="text-high">{sel_role}</dd>
+          </div>
+          <div :if={sel_team} class="flex justify-between">
+            <dt class="text-low">Team</dt>
+            <dd class="text-high">{sel_team.name}</dd>
+          </div>
+          <div class="flex justify-between">
+            <dt class="text-low">Events</dt>
+            <dd class="text-high">{sel_agent[:event_count] || 0}</dd>
+          </div>
+          <div :if={sel_agent[:current_tool]} class="flex justify-between">
+            <dt class="text-low">Current tool</dt>
+            <dd class="text-cyan">{sel_agent.current_tool.tool_name} ({sel_agent.current_tool.elapsed}s)</dd>
+          </div>
+          <div :if={sel_agent[:cwd]} class="flex justify-between">
+            <dt class="text-low">cwd</dt>
+            <dd class="text-high font-mono truncate max-w-[200px]" title={sel_agent[:cwd]}>{Path.basename(sel_agent[:cwd])}</dd>
+          </div>
+        </dl>
+      </div>
+
+      <%!-- Chain of Command --%>
+      <div :if={reports_to || manages != []} class="px-3 py-2.5 border-b border-border/50">
+        <h4 class="text-[10px] font-semibold text-low uppercase tracking-wider mb-2">Chain of Command</h4>
+        <div :if={reports_to} class="text-[10px] text-low mb-2">
+          Reports to:
+          <span
+            class="text-high cursor-pointer hover:text-interactive transition"
+            phx-click="select_command_agent"
+            phx-value-id={reports_to[:agent_id]}
+          >{reports_to[:name] || reports_to[:agent_type]}</span>
+        </div>
+        <div :if={manages != []} class="text-[10px] text-low mb-1">Manages:</div>
+        <div :for={sub <- manages} class="flex items-center gap-1.5 pl-2 mb-1">
+          <span class="text-[9px] text-muted">&#x251C;</span>
+          <span class={"w-1.5 h-1.5 rounded-full #{status_dot_color(Map.get(agent_index, sub[:agent_id], %{})[:status] || :idle)}"} />
+          <span
+            class="text-[10px] text-high cursor-pointer hover:text-interactive transition"
+            phx-click="select_command_agent"
+            phx-value-id={sub[:agent_id]}
+          >{sub[:name] || sub[:agent_type]}</span>
+        </div>
+      </div>
+
+      <%!-- Recent Messages --%>
+      <div :if={agent_msgs != []} class="px-3 py-2.5 border-b border-border/50">
+        <h4 class="text-[10px] font-semibold text-low uppercase tracking-wider mb-2">Recent Messages</h4>
+        <div :for={msg <- agent_msgs} class="mb-2.5">
+          <div class="flex items-center gap-1.5 mb-0.5">
+            <% is_sent = msg.from == sel_id %>
+            <span class={"text-[9px] #{if is_sent, do: "text-interactive", else: "text-success"}"}>{if is_sent, do: "sent", else: "recv"}</span>
+            <span class="text-[9px] text-low">{if is_sent, do: "to", else: "from"}</span>
+            <span class="text-[9px] text-high">{FH.resolve_label(if(is_sent, do: msg.to, else: msg.from), names)}</span>
+            <span class="flex-1" />
+            <span class="text-[9px] text-muted font-mono">{FH.format_timestamp(msg.timestamp)}</span>
+          </div>
+          <p class="text-[10px] text-default leading-relaxed pl-0.5 line-clamp-2">{msg.content}</p>
+        </div>
+      </div>
+
+      <%!-- Actions --%>
+      <%
+        is_hitl_paused = MapSet.member?(hitl_paused, sel_id)
+        hitl_buffer = if is_hitl_paused do
+          try do
+            Ichor.Gateway.HITLRelay.buffered_messages(sel_id)
+          rescue
+            _ -> []
+          end
+        else
+          []
+        end
+      %>
+      <div class="px-3 py-2.5 border-b border-border/50">
+        <h4 class="text-[10px] font-semibold text-low uppercase tracking-wider mb-2">Actions</h4>
+        <div class="flex flex-wrap gap-1.5">
+          <button :if={sel_tmux} phx-click="connect_tmux" phx-value-session={sel_tmux} class="ichor-btn bg-brand/15 text-brand hover:bg-brand/25">Tmux</button>
+          <button phx-click="open_agent_slideout" phx-value-session_id={sel_id} class="ichor-btn ichor-btn-primary">Focus</button>
+          <% is_traced = sel_id in agent_filter %>
+          <button phx-click="trace_agent" phx-value-agent_id={sel_id} class={"ichor-btn #{if is_traced, do: "bg-violet/15 text-violet", else: "ichor-btn-muted"}"}>
+            {if is_traced, do: "Tracing", else: "Trace"}
+          </button>
+          <button :if={!is_hitl_paused} phx-click="pause_agent" phx-value-session_id={sel_session_id || sel_id} class="ichor-btn ichor-btn-muted">Pause</button>
+          <button :if={is_hitl_paused} phx-click="resume_agent" phx-value-session_id={sel_session_id || sel_id} class="ichor-btn ichor-btn-muted">Resume</button>
+          <button phx-click="shutdown_agent" phx-value-session_id={sel_session_id || sel_id} class="ichor-btn ichor-btn-muted text-error">Shutdown</button>
+        </div>
+      </div>
+
+      <%!-- HITL Buffer (when paused) --%>
+      <div :if={is_hitl_paused} class="px-3 py-2.5 border-b border-border/50">
+        <div class="flex items-center justify-between mb-2">
+          <h4 class="text-[10px] font-semibold text-brand uppercase tracking-wider">HITL Gate Open</h4>
+          <span class="text-[9px] text-low font-mono">{length(hitl_buffer)} buffered</span>
+        </div>
+        <div class="bg-brand/5 border border-brand/20 rounded p-2 mb-2">
+          <p class="text-[10px] text-brand/80 mb-2">Messages to this agent are being buffered. Review and approve or reject.</p>
+          <%= if hitl_buffer == [] do %>
+            <p class="text-[10px] text-muted italic">No messages buffered yet.</p>
+          <% else %>
+            <div class="space-y-1.5 max-h-32 overflow-y-auto mb-2">
+              <%= for {msg, idx} <- Enum.with_index(hitl_buffer) do %>
+                <div class="flex items-start gap-1.5 text-[10px]">
+                  <span class="text-muted font-mono shrink-0">#{idx + 1}</span>
+                  <div class="min-w-0">
+                    <span :if={msg[:agent_id]} class="text-low">from: {msg.agent_id |> to_string() |> String.slice(0, 8)}</span>
+                    <p class="text-default truncate">{inspect(msg[:payload] || msg[:content] || msg, limit: 120)}</p>
+                  </div>
+                </div>
+              <% end %>
+            </div>
+          <% end %>
+          <div class="flex gap-1.5 mt-2">
+            <button
+              phx-click="hitl_approve"
+              phx-value-session_id={sel_id}
+              class="ichor-btn bg-success/15 text-success hover:bg-success/25 flex-1"
+            >Approve & Flush</button>
+            <button
+              phx-click="hitl_reject"
+              phx-value-session_id={sel_id}
+              class="ichor-btn bg-error/15 text-error hover:bg-error/25 flex-1"
+              data-confirm="Discard all buffered messages?"
+            >Reject</button>
+          </div>
+        </div>
+      </div>
+
+      <%!-- Direct Message --%>
+      <div class="px-3 py-2.5">
+        <h4 class="text-[10px] font-semibold text-low uppercase tracking-wider mb-2">Send Message</h4>
+        <div class="text-[10px] text-muted mb-1">To: <span class="text-default font-mono">{sel_name}</span></div>
+        <div phx-update="ignore" id={"fleet-msg-#{sel_id}"} phx-hook="ClearFormOnSubmit">
+          <form phx-submit="send_command_message" class="flex gap-1.5">
+            <input type="hidden" name="to" value={sel_id} />
+            <input type="text" name="content" placeholder={"Message #{sel_name}..."} class="flex-1 ichor-input" />
+            <button type="submit" class="ichor-btn ichor-btn-primary">Send</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
