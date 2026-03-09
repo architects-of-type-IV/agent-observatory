@@ -151,6 +151,7 @@ defmodule ObservatoryWeb.DashboardState do
       timeline: [],
       visible_events: [],
       event_notes: [],
+      feed_groups: [],
       sel_team: nil,
       nav_view: :pipeline
     }
