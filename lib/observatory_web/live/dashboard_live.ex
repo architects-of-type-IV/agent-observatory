@@ -1,10 +1,8 @@
 defmodule ObservatoryWeb.DashboardLive do
   use ObservatoryWeb, :live_view
 
-  import ObservatoryWeb.DashboardTeamHelpers, only: [member_status_color: 1]
   import ObservatoryWeb.DashboardDataHelpers, only: [unique_values: 2]
-  import ObservatoryWeb.DashboardFormatHelpers, only: [session_duration: 2, short_session: 1, session_color: 1, build_export_url: 4]
-  import ObservatoryWeb.DashboardSessionHelpers, only: [abbreviate_cwd: 1]
+  import ObservatoryWeb.DashboardFormatHelpers, only: [build_export_url: 4]
   import ObservatoryWeb.DashboardAgentHelpers, only: [agent_tasks: 2]
   import ObservatoryWeb.DashboardAgentActivityHelpers, only: [agent_events: 2]
   import ObservatoryWeb.DashboardState, only: [recompute: 1, recompute_view: 1, default_assigns: 1]
@@ -54,7 +52,7 @@ defmodule ObservatoryWeb.DashboardLive do
   @selection_recompute ~w(select_team)
 
   @session_control_events ~w(pause_agent resume_agent shutdown_agent hitl_approve hitl_reject kill_switch_click kill_switch_first_confirm kill_switch_second_confirm kill_switch_cancel push_instructions_intent push_instructions_confirm push_instructions_cancel)
-  @tmux_events ~w(connect_tmux disconnect_tmux close_all_tmux switch_tmux_tab toggle_tmux_layout send_tmux_keys kill_tmux_session launch_session)
+  @tmux_events ~w(connect_tmux disconnect_tmux close_all_tmux switch_tmux_tab toggle_tmux_layout send_tmux_keys kill_tmux_session kill_sidebar_tmux launch_session)
   @inspector_events ~w(inspect_team remove_from_inspector close_all_inspector toggle_inspector_layout toggle_maximize_inspector set_inspector_size set_output_mode toggle_agent_output set_message_target send_targeted_message)
   @swarm_events ~w(select_project heal_task reset_all_stale run_health_check reassign_swarm_task claim_swarm_task trigger_gc select_dag_node select_command_agent send_command_message clear_command_selection)
   @task_events ~w(create_task update_task_status reassign_task delete_task)
@@ -163,6 +161,7 @@ defmodule ObservatoryWeb.DashboardLive do
   def handle_event("archon_send", p, s), do: {:noreply, DashboardArchonHandlers.handle_archon_send(p, s)}
   def handle_event("archon_shortcode", p, s), do: {:noreply, DashboardArchonHandlers.handle_archon_shortcode(p, s)}
   def handle_event("archon_set_tab", %{"tab" => tab}, s), do: {:noreply, assign(s, :archon_tab, String.to_existing_atom(tab))}
+  def handle_event("dismiss_toast", %{"id" => id}, s), do: {:noreply, ObservatoryWeb.DashboardToast.dismiss_toast(s, id)}
 
   # ── Events: slideout ───────────────────────────────────────────────────
 

@@ -33,8 +33,9 @@ defmodule Observatory.Gateway.AgentRegistry do
   @doc "Mark an agent as ended."
   def mark_ended(session_id), do: GenServer.cast(__MODULE__, {:mark_ended, session_id})
 
-  @doc "Remove an agent from the registry entirely."
+  @doc "Remove an agent from the registry entirely. Blocks re-registration from hook events."
   def remove(session_id) do
+    GenServer.cast(__MODULE__, {:dismiss, session_id})
     :ets.delete(@table, session_id)
     broadcast_update()
     :ok
@@ -190,13 +191,20 @@ defmodule Observatory.Gateway.AgentRegistry do
     Phoenix.PubSub.subscribe(Observatory.PubSub, "teams:update")
     Process.send_after(self(), :ensure_operator_process, 1_000)
 
-    {:ok, %{}}
+    {:ok, %{dismissed: MapSet.new()}}
   end
 
   @impl true
   def handle_cast({:register_event, %{session_id: session_id} = event}, state) do
-    register_hook_event(AgentEntry.uuid?(session_id), session_id, event)
+    unless MapSet.member?(state.dismissed, session_id) do
+      register_hook_event(AgentEntry.uuid?(session_id), session_id, event)
+    end
+
     {:noreply, state}
+  end
+
+  def handle_cast({:dismiss, session_id}, state) do
+    {:noreply, %{state | dismissed: MapSet.put(state.dismissed, session_id)}}
   end
 
   def handle_cast({:sync_teams, teams}, state) do

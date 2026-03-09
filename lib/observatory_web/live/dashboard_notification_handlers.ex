@@ -1,7 +1,9 @@
 defmodule ObservatoryWeb.DashboardNotificationHandlers do
   @moduledoc """
-  Handlers for agent crash notifications, toasts, and browser notifications.
+  Handlers for agent crash notifications and alerts.
   """
+
+  import ObservatoryWeb.DashboardToast, only: [push_toast: 3]
 
   def handle_agent_crashed(session_id, team_name, reassigned_count, socket) do
     short_sid = String.slice(session_id, 0, 8)
@@ -13,6 +15,6 @@ defmodule ObservatoryWeb.DashboardNotificationHandlers do
         "Agent #{short_sid} crashed in team #{team_name}."
       end
 
-    socket |> Phoenix.LiveView.put_flash(:info, msg)
+    push_toast(socket, :error, msg)
   end
 end

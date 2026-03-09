@@ -7,6 +7,7 @@ defmodule ObservatoryWeb.DashboardTmuxHandlers do
 
   import Phoenix.Component, only: [assign: 2, assign: 3]
   import Phoenix.LiveView, only: [push_event: 3]
+  import ObservatoryWeb.DashboardToast, only: [push_toast: 3]
 
   alias Observatory.AgentSpawner
   alias Observatory.Gateway.Channels.Tmux
@@ -18,6 +19,7 @@ defmodule ObservatoryWeb.DashboardTmuxHandlers do
   def dispatch("toggle_tmux_layout", p, s), do: handle_toggle_tmux_layout(p, s)
   def dispatch("send_tmux_keys", p, s), do: handle_send_tmux_keys(p, s)
   def dispatch("kill_tmux_session", p, s), do: handle_kill_tmux_session(p, s)
+  def dispatch("kill_sidebar_tmux", p, s), do: handle_kill_sidebar_tmux(p, s)
   def dispatch("launch_session", p, s), do: handle_launch_session(p, s)
 
   def handle_connect_tmux(%{"session" => session_name}, socket) do
@@ -110,6 +112,38 @@ defmodule ObservatoryWeb.DashboardTmuxHandlers do
         |> assign(:active_tmux_session, next_active)
         |> assign(:tmux_output, Map.get(outputs, next_active, ""))
         |> push_event("toast", %{message: "Killed #{session}", type: "warning"})
+    end
+  end
+
+  def handle_kill_sidebar_tmux(%{"session" => session_name}, socket) do
+    case Tmux.run_command(["has-session", "-t", session_name]) do
+      {:ok, _} ->
+        Tmux.run_command(["kill-session", "-t", session_name])
+        Observatory.Gateway.AgentRegistry.remove(session_name)
+
+        # Also remove from open panels if connected
+        panels = List.delete(socket.assigns.tmux_panels, session_name)
+        outputs = Map.delete(socket.assigns.tmux_outputs, session_name)
+
+        active =
+          if socket.assigns.active_tmux_session == session_name,
+            do: List.first(panels),
+            else: socket.assigns.active_tmux_session
+
+        socket
+        |> assign(:tmux_panels, panels)
+        |> assign(:tmux_outputs, outputs)
+        |> assign(:active_tmux_session, active)
+        |> assign(:tmux_sessions, List.delete(socket.assigns.tmux_sessions, session_name))
+        |> push_toast(:warning, "Killed tmux: #{session_name}")
+
+      _ ->
+        # Session already gone -- just clean up registry
+        Observatory.Gateway.AgentRegistry.remove(session_name)
+
+        socket
+        |> assign(:tmux_sessions, List.delete(socket.assigns.tmux_sessions, session_name))
+        |> push_toast(:info, "#{session_name} already gone")
     end
   end
 

@@ -8,7 +8,7 @@
     agent_index
     |> Map.values()
     |> Enum.uniq_by(fn a -> a[:session_id] || a[:agent_id] end)
-  total_agents = length(all_agents)
+  total_agents = Enum.count(all_agents, fn a -> a[:agent_id] != "operator" end)
 
   # HITL paused sessions (populated in DashboardState.recompute)
   hitl_paused = assigns[:paused_sessions] || MapSet.new()
@@ -24,9 +24,31 @@
     |> FH.filter_by_team(comms_filter, @teams)
     |> FH.filter_by_agents(agent_filter, names)
 
-  # Standalone agents (not in any team)
+  # Standalone agents (not in any team, excluding operator)
   team_ids = @teams |> Enum.flat_map(& &1.members) |> Enum.map(& &1[:agent_id]) |> MapSet.new()
-  standalone = Enum.reject(all_agents, fn a -> MapSet.member?(team_ids, a[:agent_id]) end)
+  standalone =
+    all_agents
+    |> Enum.reject(fn a -> MapSet.member?(team_ids, a[:agent_id]) end)
+    |> Enum.reject(fn a -> a[:agent_id] == "operator" end)
+
+  # Ghost detection: agents with no hook events (beam-only processes, stale registry entries)
+  ghost_ids =
+    all_agents
+    |> Enum.reject(fn a -> a[:event_count] && a[:event_count] > 0 end)
+    |> Enum.reject(fn a -> a[:agent_id] == "operator" end)
+    |> Enum.map(fn a -> a[:agent_id] end)
+    |> MapSet.new()
+
+  # Group standalone agents by project
+  standalone_by_project =
+    standalone
+    |> Enum.group_by(fn a ->
+      case a[:cwd] || a[:project] do
+        nil -> "unknown"
+        cwd -> Path.basename(cwd)
+      end
+    end)
+    |> Enum.sort_by(fn {project, _} -> project end)
 
   # Group teams by project using the unified index
   project_groups = FH.group_teams_by_project(@teams, agent_index)
@@ -105,26 +127,38 @@
         </div>
       <% end %>
 
-      <%!-- Standalone agents --%>
-      <div :if={standalone != []} class="border-b border-border/50">
-        <div class="px-2.5 py-1.5 text-[10px] text-muted uppercase tracking-wider">Standalone</div>
-        <%= for agent <- standalone do %>
-          <% is_selected = selected && selected[:agent_id] == agent.agent_id %>
-          <div
-            class={"flex items-center gap-1.5 px-5 py-1 cursor-pointer transition border-l-2 #{if is_selected, do: "bg-interactive/10 border-interactive", else: "border-transparent hover:bg-raised/20"}"}
-            phx-click="select_command_agent"
-            phx-value-id={agent.agent_id}
-          >
-            <span class={"w-1.5 h-1.5 rounded-full shrink-0 #{status_dot_color(agent.status)}"} />
-            <span class="text-[11px] text-high truncate flex-1">{agent.name}</span>
-            <span :if={MapSet.member?(hitl_paused, agent.agent_id)} class="text-[8px] font-bold uppercase px-1 py-0.5 rounded bg-brand/20 text-brand border border-brand/30">PAUSED</span>
-            <span :if={agent[:tmux_session]} class="text-[9px] text-brand font-mono shrink-0">tmux</span>
-            <span class="text-[9px] text-interactive">{short_model(agent.model)}</span>
+      <%!-- Standalone agents grouped by project --%>
+      <%= for {project, agents_in_project} <- standalone_by_project do %>
+        <div class="border-b border-border/50">
+          <div class="px-2.5 pt-2 pb-0.5 flex items-center gap-1.5">
+            <span class="w-1.5 h-1.5 rounded-sm bg-muted/40 shrink-0" />
+            <span class="text-[9px] font-semibold text-low uppercase tracking-wider">{project}</span>
+            <span class="text-[9px] text-muted font-mono">{length(agents_in_project)}</span>
           </div>
-        <% end %>
-      </div>
+          <%= for agent <- agents_in_project do %>
+            <%
+              is_selected = selected && selected[:agent_id] == agent.agent_id
+              role = FH.classify_role(agent[:role] || agent.name)
+              is_ghost = MapSet.member?(ghost_ids, agent.agent_id)
+            %>
+            <div
+              class={"flex items-center gap-1.5 pl-5 pr-2.5 py-1 cursor-pointer transition border-l-2 #{if is_selected, do: "bg-interactive/10 border-interactive", else: "border-transparent hover:bg-raised/20"} #{if is_ghost, do: "opacity-50"}"}
+              phx-click="select_command_agent"
+              phx-value-id={agent.agent_id}
+            >
+              <span class={"w-1.5 h-1.5 rounded-full shrink-0 #{if is_ghost, do: "bg-error/60", else: status_dot_color(agent.status)}"} />
+              <span class={"text-[11px] truncate flex-1 #{if is_ghost, do: "text-muted line-through", else: "text-high"}"}>{agent.name}</span>
+              <span :if={is_ghost} class="text-[8px] font-bold uppercase px-1 py-0.5 rounded bg-error/15 text-error border border-error/30">ghost</span>
+              <span :if={role not in [:member, :standalone] && !is_ghost} class={"text-[8px] font-bold uppercase px-1 py-0.5 rounded border #{FH.badge_class(role)}"}>{FH.abbrev(role)}</span>
+              <span :if={MapSet.member?(hitl_paused, agent.agent_id)} class="text-[8px] font-bold uppercase px-1 py-0.5 rounded bg-brand/20 text-brand border border-brand/30">PAUSED</span>
+              <span :if={agent[:tmux_session] && !is_ghost} class="text-[9px] text-brand font-mono shrink-0">tmux</span>
+              <span :if={!is_ghost} class="text-[9px] text-interactive">{short_model(agent.model)}</span>
+            </div>
+          <% end %>
+        </div>
+      <% end %>
 
-      <div :if={@teams == [] && standalone == []} class="px-3 py-8 text-center">
+      <div :if={@teams == [] && standalone_by_project == []} class="px-3 py-8 text-center">
         <div class="text-[10px] text-muted uppercase tracking-wider mb-1">No agents detected</div>
         <div class="text-[10px] text-muted">Start a Claude session to see it here.</div>
       </div>
@@ -331,6 +365,7 @@
             <dd class={status_text_color(sel_agent[:status] || :unknown)}>
               {sel_agent[:status] || :unknown}
               <span :if={MapSet.member?(hitl_paused, sel_id)} class="text-brand ml-1">(HITL paused)</span>
+              <span :if={MapSet.member?(ghost_ids, sel_id)} class="text-error ml-1">(ghost)</span>
             </dd>
           </div>
           <div :if={sel_agent[:model] || (sel_member && sel_member[:model])} class="flex justify-between">
@@ -421,9 +456,9 @@
           <button phx-click="trace_agent" phx-value-agent_id={sel_id} class={"ichor-btn #{if is_traced, do: "bg-violet/15 text-violet", else: "ichor-btn-muted"}"}>
             {if is_traced, do: "Tracing", else: "Trace"}
           </button>
-          <button :if={!is_hitl_paused} phx-click="pause_agent" phx-value-session_id={sel_id} class="ichor-btn ichor-btn-muted">Pause</button>
-          <button :if={is_hitl_paused} phx-click="resume_agent" phx-value-session_id={sel_id} class="ichor-btn ichor-btn-muted">Resume</button>
-          <button phx-click="shutdown_agent" phx-value-session_id={sel_id} class="ichor-btn ichor-btn-muted text-error" data-confirm="Shut down this agent?">Shutdown</button>
+          <button :if={!is_hitl_paused} phx-click="pause_agent" phx-value-session_id={sel_session_id || sel_id} class="ichor-btn ichor-btn-muted">Pause</button>
+          <button :if={is_hitl_paused} phx-click="resume_agent" phx-value-session_id={sel_session_id || sel_id} class="ichor-btn ichor-btn-muted">Resume</button>
+          <button phx-click="shutdown_agent" phx-value-session_id={sel_session_id || sel_id} class="ichor-btn ichor-btn-muted text-error">Shutdown</button>
         </div>
       </div>
 

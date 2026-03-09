@@ -12,6 +12,7 @@ defmodule ObservatoryWeb.ObservatoryComponents do
   defdelegate health_warnings(assigns), to: ObservatoryWeb.Components.Observatory.HealthWarnings
   defdelegate model_badge(assigns), to: ObservatoryWeb.Components.Observatory.ModelBadge
   defdelegate message_thread(assigns), to: ObservatoryWeb.Components.Observatory.MessageThread
+  defdelegate session_identity(assigns), to: ObservatoryWeb.Components.Observatory.SessionIdentity
 
   attr :id, :string, required: true
   attr :name, :string, required: true

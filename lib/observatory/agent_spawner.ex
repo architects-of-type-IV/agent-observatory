@@ -71,6 +71,10 @@ defmodule Observatory.AgentSpawner do
   def stop_agent(session_name) do
     terminate_beam_process(session_name)
     send_tmux_exit(session_name)
+    # AgentProcess.terminate/2 handles registry cleanup when process stops,
+    # but clean up explicitly in case the process was already dead
+    Observatory.Gateway.AgentRegistry.remove(session_name)
+    Observatory.EventBuffer.remove_session(session_name)
   end
 
   # ── Private: Spawn Pipeline ────────────────────────────────────────

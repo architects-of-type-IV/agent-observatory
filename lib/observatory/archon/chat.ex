@@ -50,7 +50,7 @@ defmodule Observatory.Archon.Chat do
   def chat("/" <> _ = input, messages) do
     case run_shortcode(input) do
       {:ok, response} -> {:ok, response, messages}
-      {:error, reason} -> {:ok, "Error: #{inspect(reason)}", messages}
+      {:error, reason} -> {:ok, %{type: :error, data: inspect(reason)}, messages}
     end
   end
 
@@ -71,65 +71,47 @@ defmodule Observatory.Archon.Chat do
     |> dispatch_shortcode()
   end
 
-  defp dispatch_shortcode(["/agents"]), do: format_result(Agents, :list_agents, %{})
-  defp dispatch_shortcode(["/teams"]), do: format_result(Teams, :list_teams, %{})
-  defp dispatch_shortcode(["/inbox"]), do: format_result(Messages, :recent_messages, %{})
-  defp dispatch_shortcode(["/health"]), do: format_result(SystemTools, :system_health, %{})
-  defp dispatch_shortcode(["/sessions"]), do: format_result(SystemTools, :tmux_sessions, %{})
+  defp dispatch_shortcode(["/agents"]), do: run_typed(:agents, Agents, :list_agents, %{})
+  defp dispatch_shortcode(["/teams"]), do: run_typed(:teams, Teams, :list_teams, %{})
+  defp dispatch_shortcode(["/inbox"]), do: run_typed(:inbox, Messages, :recent_messages, %{})
+  defp dispatch_shortcode(["/health"]), do: run_typed(:health, SystemTools, :system_health, %{})
+  defp dispatch_shortcode(["/sessions"]), do: run_typed(:sessions, SystemTools, :tmux_sessions, %{})
 
   defp dispatch_shortcode(["/status", agent_id]) do
-    format_result(Agents, :agent_status, %{agent_id: String.trim(agent_id)})
+    run_typed(:agent_status, Agents, :agent_status, %{agent_id: String.trim(agent_id)})
   end
 
   defp dispatch_shortcode(["/msg", rest]) do
     case String.split(rest, " ", parts: 2) do
       [to, content] ->
-        format_result(Messages, :send_message, %{to: to, content: content})
+        run_typed(:msg_sent, Messages, :send_message, %{to: to, content: content})
 
       [_to_only] ->
-        {:ok, "Usage: /msg <target> <message>"}
+        {:ok, %{type: :error, data: "Usage: /msg <target> <message>"}}
     end
   end
 
   defp dispatch_shortcode(["/remember", content]) do
-    format_result(Memory, :remember, %{content: String.trim(content)})
+    run_typed(:remember, Memory, :remember, %{content: String.trim(content)})
   end
 
   defp dispatch_shortcode(["/recall", query]) do
-    format_result(Memory, :search_memory, %{query: String.trim(query)})
+    run_typed(:recall, Memory, :search_memory, %{query: String.trim(query)})
   end
 
   defp dispatch_shortcode(["/query", question]) do
-    format_result(Memory, :query_memory, %{query: String.trim(question)})
+    run_typed(:query, Memory, :query_memory, %{query: String.trim(question)})
   end
 
   defp dispatch_shortcode([cmd | _]) do
-    {:ok, "Unknown command: #{cmd}\nAvailable: /agents /teams /status /msg /inbox /health /sessions /remember /recall /query"}
+    {:ok, %{type: :error, data: "Unknown command: #{cmd}\nAvailable: /agents /teams /status /msg /inbox /health /sessions /remember /recall /query"}}
   end
 
-  defp format_result(resource, action, params) do
+  defp run_typed(type, resource, action, params) do
     case Ash.ActionInput.for_action(resource, action, params) |> Ash.run_action() do
-      {:ok, result} -> {:ok, format_output(result)}
+      {:ok, result} -> {:ok, %{type: type, data: result}}
       {:error, reason} -> {:error, reason}
     end
-  end
-
-  defp format_output(data) when is_list(data) do
-    if data == [] do
-      "No results."
-    else
-      data
-      |> Enum.map_join("\n\n", &format_map/1)
-    end
-  end
-
-  defp format_output(data) when is_map(data), do: format_map(data)
-  defp format_output(data), do: inspect(data, pretty: true)
-
-  defp format_map(map) when is_map(map) do
-    map
-    |> Enum.reject(fn {_k, v} -> is_nil(v) end)
-    |> Enum.map_join("\n", fn {k, v} -> "  #{k}: #{inspect(v)}" end)
   end
 
   # ── LLM chain ──────────────────────────────────────────────────────

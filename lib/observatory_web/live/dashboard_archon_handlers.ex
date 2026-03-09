@@ -18,10 +18,9 @@ defmodule ObservatoryWeb.DashboardArchonHandlers do
     assign(socket, :show_archon, false)
   end
 
-  @doc "Insert a shortcode command into the next send."
+  @doc "Execute a shortcode command, clearing previous output."
   def handle_archon_shortcode(%{"cmd" => cmd}, socket) do
-    # Shortcodes are sent as chat messages with / prefix
-    dispatch_message("/" <> cmd, socket)
+    dispatch_shortcode("/" <> cmd, socket)
   end
 
   @doc "Send a chat message to Archon."
@@ -33,7 +32,7 @@ defmodule ObservatoryWeb.DashboardArchonHandlers do
 
   @doc "Handle async chat response from Task."
   def handle_archon_response({:ok, response, history}, socket) do
-    msg = %{role: :assistant, content: response}
+    msg = build_response_msg(response)
 
     socket
     |> assign(:archon_messages, socket.assigns.archon_messages ++ [msg])
@@ -51,6 +50,24 @@ defmodule ObservatoryWeb.DashboardArchonHandlers do
   end
 
   # -- Private ----------------------------------------------------------------
+
+  defp build_response_msg(%{type: type, data: data}), do: %{role: :assistant, type: type, data: data, content: nil}
+  defp build_response_msg(text) when is_binary(text), do: %{role: :assistant, type: :text, data: nil, content: text}
+
+  defp dispatch_shortcode(content, socket) do
+    history = socket.assigns.archon_history
+    lv = self()
+
+    Task.start(fn ->
+      result = Observatory.Archon.Chat.chat(content, history)
+      send(lv, {:archon_response, result})
+    end)
+
+    socket
+    |> assign(:archon_messages, [])
+    |> assign(:archon_loading, true)
+    |> assign(:show_archon, true)
+  end
 
   defp dispatch_message(content, socket) do
     user_msg = %{role: :user, content: content}

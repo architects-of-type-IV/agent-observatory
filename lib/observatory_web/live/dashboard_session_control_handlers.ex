@@ -5,7 +5,10 @@ defmodule ObservatoryWeb.DashboardSessionControlHandlers do
   Pause/resume goes through HITLRelay for message buffering.
   """
 
+  alias Observatory.Gateway.Channels.Tmux
   alias Observatory.Gateway.HITLRelay
+
+  import ObservatoryWeb.DashboardToast, only: [push_toast: 3]
 
   def dispatch("pause_agent", p, s), do: handle_pause_agent(p, s)
   def dispatch("resume_agent", p, s), do: handle_resume_agent(p, s)
@@ -31,7 +34,7 @@ defmodule ObservatoryWeb.DashboardSessionControlHandlers do
     socket
     |> Phoenix.Component.assign(:paused_sessions, paused)
     |> notify_archon_hitl(:paused, short, session_id)
-    |> Phoenix.LiveView.put_flash(:info, "Agent paused -- messages will be buffered")
+    |> push_toast(:info, "Agent paused -- messages will be buffered")
   end
 
   @doc """
@@ -46,7 +49,7 @@ defmodule ObservatoryWeb.DashboardSessionControlHandlers do
 
     socket
     |> Phoenix.Component.assign(:paused_sessions, paused)
-    |> Phoenix.LiveView.put_flash(:info, "Agent resumed -- buffered messages flushed")
+    |> push_toast(:info, "Agent resumed -- buffered messages flushed")
   end
 
   @doc """
@@ -59,12 +62,12 @@ defmodule ObservatoryWeb.DashboardSessionControlHandlers do
       {:ok, :not_paused} ->
         socket
         |> Phoenix.Component.assign(:paused_sessions, paused)
-        |> Phoenix.LiveView.put_flash(:info, "Session was not paused")
+        |> push_toast(:info, "Session was not paused")
 
       {:ok, count} ->
         socket
         |> Phoenix.Component.assign(:paused_sessions, paused)
-        |> Phoenix.LiveView.put_flash(:info, "Approved: #{count} buffered messages flushed")
+        |> push_toast(:info, "Approved: #{count} buffered messages flushed")
     end
   end
 
@@ -77,7 +80,7 @@ defmodule ObservatoryWeb.DashboardSessionControlHandlers do
 
     socket
     |> Phoenix.Component.assign(:paused_sessions, paused)
-    |> Phoenix.LiveView.put_flash(:warning, "Rejected: buffered messages discarded")
+    |> push_toast(:warning, "Rejected: buffered messages discarded")
   end
 
   @doc """
@@ -88,22 +91,45 @@ defmodule ObservatoryWeb.DashboardSessionControlHandlers do
     Observatory.Operator.send(session_id, "Shutdown requested by dashboard",
       type: :session_control, metadata: %{action: "shutdown"})
 
-    Observatory.Gateway.AgentRegistry.mark_ended(session_id)
+    tmux_killed = kill_tmux_for_agent(session_id)
 
-    case Observatory.Fleet.AgentProcess.lookup(session_id) do
-      {pid, _meta} ->
-        try do
-          GenServer.stop(pid, :normal)
-        catch
-          :exit, _ -> :ok
-        end
+    beam_stopped =
+      case Observatory.Fleet.AgentProcess.lookup(session_id) do
+        {pid, meta} ->
+          result =
+            case meta[:team] do
+              nil -> Observatory.Fleet.FleetSupervisor.terminate_agent(session_id)
+              team -> Observatory.Fleet.TeamSupervisor.terminate_member(team, session_id)
+            end
 
-      nil ->
-        :ok
-    end
+          # Fallback: if not under a supervisor, stop directly
+          if result == {:error, :not_found} do
+            try do
+              GenServer.stop(pid, :normal)
+            catch
+              :exit, _ -> :ok
+            end
+          end
+
+          true
+
+        nil ->
+          false
+      end
+
+    Observatory.Gateway.AgentRegistry.remove(session_id)
+    Observatory.EventBuffer.remove_session(session_id)
+
+    short = String.slice(session_id, 0..7)
+    details = [
+      "registry removed",
+      if(tmux_killed, do: "tmux killed", else: "no tmux"),
+      if(beam_stopped, do: "process stopped", else: "no process")
+    ]
 
     socket
-    |> Phoenix.LiveView.put_flash(:warning, "Shutdown command sent to agent #{String.slice(session_id, 0..7)}")
+    |> Phoenix.Component.assign(:selected_command_agent, nil)
+    |> push_toast(:warning, "#{short} -- #{Enum.join(details, " / ")}")
   end
 
   # Phase 5: Kill-switch state machine
@@ -156,6 +182,23 @@ defmodule ObservatoryWeb.DashboardSessionControlHandlers do
       {:mesh_pause, %{initiated_by: "god_mode", timestamp: DateTime.utc_now()}}
     )
     socket
+  end
+
+  defp kill_tmux_for_agent(session_id) do
+    tmux_target =
+      case Observatory.Gateway.AgentRegistry.get(session_id) do
+        %{channels: %{tmux: name}} when is_binary(name) -> name
+        _ -> session_id
+      end
+
+    case Tmux.run_command(["has-session", "-t", tmux_target]) do
+      {:ok, _} ->
+        Tmux.run_command(["kill-session", "-t", tmux_target])
+        true
+
+      _ ->
+        false
+    end
   end
 
   defp notify_archon_hitl(socket, action, agent_short, session_id) do

@@ -1,73 +1,42 @@
 ICHOR IV Progress (formerly Observatory)
 ========================================
 
-## Current: Full Tokenization Complete (2026-03-09)
+## Current: Agent Lifecycle Management (2026-03-09)
 
 ### This Session
+- [x] Fixed shutdown_agent: now kills tmux session + terminates BEAM process + cleans all registries
+- [x] Added EventBuffer.remove_session/1 to purge stale events
+- [x] Fixed shutdown button using short name instead of full session_id UUID
+- [x] Standalone agents grouped by project (was flat "Standalone" list)
+- [x] Ghost detection: agents with event_count=0 get red GHOST badge, dimmed, strikethrough
+- [x] Operator agent hidden from fleet list
+- [x] Infrastructure tmux sessions (obs) filtered from agent list
+- [x] Shutdown clears selected_command_agent for instant UI update
+- [x] Role badges on standalone agent rows
+- [x] Audited all 6 lifecycle gaps, closed every loop:
+  - AgentProcess.terminate/2 = single cleanup point (tmux + registry + eventbuffer)
+  - SessionEnd hook now terminates BEAM process
+  - Sweep does full cleanup (was ETS-only)
+  - AgentSpawner.stop_agent cleans registry
+- [x] Rewrote Sweep module: idiomatic Elixir (pattern matching, no if/unless, DateTime.compare)
+- [x] Debug endpoint enhanced with source tracing (event_buffer + beam_processes + registry)
+
+### Prior: Full Tokenization Complete (2026-03-09)
 - [x] Created --ichor-* CSS custom property system (30+ tokens)
 - [x] Defined ICHOR IV theme (dark/amber) + Swiss theme (light/red/zero-radius)
 - [x] Migrated ~50 ichor-* design system classes from hardcoded to tokens
 - [x] Renamed obs-* -> ichor-* across CSS + 13 template files
-- [x] Added theme-aware body styles to root layout
-- [x] Added Tailwind v4 @theme block registering --ichor-* as Tailwind utilities
-- [x] Added --ichor-bg-highlight token for hover/active states (zinc-700 area)
-- [x] Bulk migrated 1,171 hardcoded color references to semantic tokens across all templates
+- [x] Bulk migrated 1,171 hardcoded color references to semantic tokens
 - [x] Tokenized Archon CSS: ~60 rgba() values -> hsl(var(--ichor-*) / opacity)
-- [x] Tokenized Workshop canvas: hex colors -> hsl(var(--ichor-role-*)), 6 role accent tokens
-- [x] Added violet + cyan tokens (83 references), team inspector bg-[#18181b] -> bg-base
-- [x] Zero remaining zinc/amber/emerald/red/blue/indigo/hex references in templates
+- [x] Tokenized Workshop canvas: hex colors -> hsl(var(--ichor-role-*))
+- [x] Added violet + cyan tokens (83 references)
 
 ### Prior: Archon HUD Redesign + Fleet Action Fixes (2026-03-09)
-- [x] Fixed fleet sidebar showing 0 agents (agent_index not passed as prop to command_view)
-- [x] Audited all fleet action buttons end-to-end (shutdown, kill, pause, resume, focus, trace, tmux)
-- [x] Fixed shutdown_agent: now marks ended in registry + stops AgentProcess
-- [x] Fixed kill_tmux_session: now removes agent from AgentRegistry after tmux kill
-- [x] Fixed pause/resume: immediately updates paused_sessions MapSet (was waiting for PubSub)
-- [x] Added Agent Focus slideout panel (right-edge slide-over with agent info + activity)
-- [x] Added HITL Gate Archon notification (system-role alert auto-opens overlay)
-- [x] Redesigned Archon HUD: full-screen opaque -> centered 16:9 translucent glass panel
-- [x] Three tabbed views: Command (Q), Chat (W), Reference (E) with keyboard switching
-- [x] Command tab: 7 quick action cards (keys 1-7) + mini activity feed
-- [x] Keyboard context: MutationObserver tracks archon state, routes keys accordingly
-- [x] Visual design: translucent glass, amber glow, gradient edge, pulsing sigil
+- [x] Fixed fleet sidebar, shutdown/kill, pause/resume, focus slideout, HITL notification
+- [x] Redesigned Archon HUD: centered 16:9 translucent glass panel, 3 tabs
 
-### Prior: LiveView Performance Optimization (2026-03-09)
-- [x] LiveView perf audit against 10 common anti-patterns
-- [x] Tiered recompute: full vs view-only vs no recompute
-- [x] Debounced recompute: 100ms coalesce window for PubSub events
-- [x] Eliminated double recompute from swarm_state re-broadcast
-- [x] Deferred mount: :load_data fires post-connect
-- [x] Conditional computation: analytics/timeline/feed/costs skip when inactive
-- [x] Fixed duplicate Message.recent!() call
-
-### Prior Session: Fleet Consistency Rewire (2026-03-09)
-- [x] Fixed 3 startup crashes: :pg child spec, HostRegistry scope, Ash domain config
-- [x] Phase 1 complete (task 42, subtasks 42.1-42.5): All external callers rewired to Fleet code interfaces
-  - Archon.Tools (Agents, Teams, System, Messages) -> Fleet.Agent/Team + Activity.Message
-  - AgentTools.Inbox -> Fleet.Agent.get_unread/mark_read/send_message
-  - DashboardSessionControlHandlers -> Operator.send
-  - DashboardState/MessagingHandlers -> Activity.Message.recent!
-  - DashboardLive mount -> empty map (no TeamWatcher)
-  - DebugController -> Fleet.Team/AgentProcess/Activity.Message
-- [x] Added Fleet.Agent get_unread + mark_read actions and code interfaces
-- [x] Phase 2 complete (task 51): Eliminated legacy modules
-  - Deleted: mailbox.ex, command_queue.ex, team_watcher.ex
-  - Removed from CoreSupervisor
-  - MailboxAdapter rewired to AgentProcess.send_message
-  - LoadMessages: hook events only (removed Mailbox merge)
-  - LoadTeams: events + BEAM only (removed TeamWatcher disk merge)
-  - Operator fallback: PubSub broadcast (removed Mailbox fallback)
-  - Fleet.Agent mark_read: no-op (destructive get_unread)
-  - Fleet.Team: removed :disk from source constraint
-
-### Prior Session: Archon + Memories (2026-03-09)
+### Prior: LiveView Performance + Fleet Consistency + Legacy Elimination
 - [x] DashboardLive refactor: 594 -> 164 lines (dispatch/3 pattern)
-- [x] Archon LLM wiring + chat UI
-- [x] Memories integration + bugfixes + space concept
-
-### Prior: AgentRegistry Decomposition + Distribution (2026-03-09)
-- [x] AgentRegistry 894 -> 293 + 5 submodules
-- [x] Fleet.HostRegistry, :pg groups, remote spawning
-
-### Prior: BEAM Foundation + Workshop + Phases 1-7
+- [x] Archon LLM wiring + chat UI + Memories integration
+- [x] AgentRegistry decomposition + Distribution foundation
 - [x] All phases complete. Net -730 lines from web layer.

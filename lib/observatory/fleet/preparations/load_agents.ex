@@ -137,6 +137,7 @@ defmodule Observatory.Fleet.Preparations.LoadAgents do
     tmux_agents =
       tmux_sessions
       |> Enum.reject(fn name -> MapSet.member?(known_tmux, name) end)
+      |> Enum.reject(&Observatory.Gateway.TmuxDiscovery.infrastructure_session?/1)
       |> Enum.map(fn name ->
         struct!(Observatory.Fleet.Agent, %{
           agent_id: "tmux:#{name}",

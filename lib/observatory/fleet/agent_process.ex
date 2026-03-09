@@ -216,12 +216,22 @@ defmodule Observatory.Fleet.AgentProcess do
 
   @impl true
   def terminate(reason, state) do
+    # Single cleanup point: reconcile all registries and kill tmux when any AgentProcess stops
+    kill_tmux_backend(state.backend)
+    Observatory.Gateway.AgentRegistry.remove(state.id)
+    Observatory.EventBuffer.remove_session(state.id)
     broadcast_lifecycle({:agent_stopped, state.id, reason})
     Logger.info("[AgentProcess] Stopped #{state.id} (reason=#{inspect(reason)})")
     :ok
   end
 
   # ── Internal ────────────────────────────────────────────────────────
+
+  defp kill_tmux_backend(%{type: :tmux, session: session}) when is_binary(session) do
+    Observatory.Gateway.Channels.Tmux.run_command(["kill-session", "-t", session])
+  end
+
+  defp kill_tmux_backend(_), do: :ok
 
   @spec via(String.t()) :: {:via, module(), tuple()}
   defp via(id), do: {:via, Registry, {@type_iv_registry, id, %{}}}

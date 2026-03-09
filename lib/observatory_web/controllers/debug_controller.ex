@@ -129,9 +129,26 @@ defmodule ObservatoryWeb.DebugController do
 
   def fleet_agents(conn, _params) do
     agents = Observatory.Fleet.Agent.all!()
-    json(conn, %{count: length(agents), agents: Enum.map(agents, fn a ->
-      %{agent_id: a.agent_id, name: a.name, status: a.status, team: a.team_name, session_id: a.session_id}
-    end)})
+
+    events = Observatory.EventBuffer.list_events()
+    event_sessions = events |> Enum.map(& &1.session_id) |> Enum.uniq()
+
+    beam_processes = Observatory.Fleet.AgentProcess.list_all() |> Enum.map(fn {id, _} -> id end)
+
+    registry = Observatory.Gateway.AgentRegistry.list_all() |> Enum.map(& &1.session_id)
+
+    json(conn, %{
+      count: length(agents),
+      agents: Enum.map(agents, fn a ->
+        %{agent_id: a.agent_id, name: a.name, status: a.status, team: a.team_name,
+          session_id: a.session_id, cwd: a.cwd, source_app: a.source_app}
+      end),
+      sources: %{
+        event_buffer_sessions: event_sessions,
+        beam_processes: beam_processes,
+        registry: registry
+      }
+    })
   rescue
     e -> json(conn, %{error: Exception.message(e)})
   end

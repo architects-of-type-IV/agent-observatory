@@ -148,4 +148,7 @@ defmodule ObservatoryWeb.DashboardInfoHandlers do
 
   def dispatch({:archon_response, result}, socket),
     do: {:noreply, DashboardArchonHandlers.handle_archon_response(result, socket)}
+
+  def dispatch({:dismiss_toast, id}, socket),
+    do: {:noreply, ObservatoryWeb.DashboardToast.dismiss_toast(socket, id)}
 end

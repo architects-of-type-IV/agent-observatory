@@ -46,6 +46,18 @@ defmodule Observatory.EventBuffer do
     |> Enum.sort_by(& &1.inserted_at, {:desc, DateTime})
   end
 
+  @doc "Remove all events for a session from the buffer."
+  def remove_session(session_id) do
+    ensure_table()
+
+    @events_table
+    |> :ets.tab2list()
+    |> Enum.filter(fn {_id, event} -> event.session_id == session_id end)
+    |> Enum.each(fn {id, _event} -> :ets.delete(@events_table, id) end)
+
+    :ok
+  end
+
   @doc "Get events for a specific session."
   def events_for_session(session_id) do
     ensure_table()

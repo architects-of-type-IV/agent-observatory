@@ -68,6 +68,7 @@ defmodule Observatory.Gateway.Router do
 
     if event.hook_event_type in [:SessionEnd, "SessionEnd"] do
       AgentRegistry.mark_ended(event.session_id)
+      terminate_agent_process(event.session_id)
     end
 
     handle_channel_events(event)
@@ -240,5 +241,26 @@ defmodule Observatory.Gateway.Router do
       "gateway:audit",
       {:gateway_audit, audit_entry}
     )
+  end
+
+  # Stop the BEAM AgentProcess when a session ends, closing the lifecycle loop.
+  # AgentProcess.terminate/2 handles cross-registry cleanup (AgentRegistry + EventBuffer).
+  defp terminate_agent_process(session_id) do
+    case Observatory.Fleet.AgentProcess.lookup(session_id) do
+      {pid, _meta} ->
+        Observatory.Fleet.FleetSupervisor.terminate_agent(session_id)
+        |> case do
+          :ok -> :ok
+          {:error, :not_found} ->
+            try do
+              GenServer.stop(pid, :normal)
+            catch
+              :exit, _ -> :ok
+            end
+        end
+
+      nil ->
+        :ok
+    end
   end
 end

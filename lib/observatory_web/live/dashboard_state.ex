@@ -132,6 +132,8 @@ defmodule ObservatoryWeb.DashboardState do
       ws_blueprints: [],
       ws_agent_types: [],
       ws_editing_type: nil,
+      # Toast notifications
+      toasts: [],
       # Archon overlay
       show_archon: false,
       archon_tab: :command,
@@ -174,7 +176,10 @@ defmodule ObservatoryWeb.DashboardState do
     all_sessions = FQ.active_sessions(assigns.events, tmux: assigns[:tmux_sessions] || [], now: assigns.now)
     tmux_only = FQ.active_sessions([], tmux: assigns[:tmux_sessions] || [], now: assigns.now)
     team_sids = all_team_sids(all_teams)
-    standalone = Enum.reject(all_sessions, fn s -> MapSet.member?(team_sids, s.session_id) end)
+    standalone =
+      all_sessions
+      |> Enum.reject(fn s -> MapSet.member?(team_sids, s.session_id) end)
+      |> Enum.reject(&infrastructure_entry?/1)
 
     # Messages (single query, reused for both assigns)
     filtered_messages = search_messages(messages, assigns.search_messages)
@@ -208,6 +213,9 @@ defmodule ObservatoryWeb.DashboardState do
     # Unified agent index from Fleet.Agent
     agent_index = build_agent_lookup(Observatory.Fleet.Agent.all!())
 
+    # Tmux session list (for sidebar)
+    tmux_session_names = safe_tmux_sessions()
+
     # Template-layer data
     paused_sessions = safe_paused_sessions()
     mailbox_messages = load_messages(messages, 50)
@@ -240,6 +248,7 @@ defmodule ObservatoryWeb.DashboardState do
     |> assign(:timeline, timeline)
     |> assign(:paused_sessions, paused_sessions)
     |> assign(:mailbox_messages, mailbox_messages)
+    |> assign(:tmux_sessions, tmux_session_names)
     |> push_event("fleet_topology_update", %{nodes: topo_nodes, edges: topo_edges})
   end
 
@@ -281,6 +290,12 @@ defmodule ObservatoryWeb.DashboardState do
     Observatory.Gateway.HITLRelay.paused_sessions() |> MapSet.new()
   rescue
     _ -> MapSet.new()
+  end
+
+  defp safe_tmux_sessions do
+    Observatory.Gateway.Channels.Tmux.list_sessions()
+  rescue
+    _ -> []
   end
 
   defp build_agent_lookup(agents) do
@@ -345,6 +360,10 @@ defmodule ObservatoryWeb.DashboardState do
     else
       assigns[:cost_data] || %{by_model: [], by_session: [], totals: %{}}
     end
+  end
+
+  defp infrastructure_entry?(%{session_id: sid}) do
+    sid == "operator" or Observatory.Gateway.TmuxDiscovery.infrastructure_session?(sid)
   end
 
   defp tmux_feed_entry(s, now) do

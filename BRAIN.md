@@ -8,13 +8,20 @@
 - ADR-001: vendor-agnostic fleet control, ADR-002: ICHOR IV identity
 - ADR-023/024/025: BEAM-native agent processes, team supervision, native messaging
 
+## Agent Lifecycle (2026-03-09, CLOSED-LOOP)
+- **Single cleanup point**: `AgentProcess.terminate/2` handles ALL cleanup (tmux kill, AgentRegistry remove, EventBuffer purge, PubSub broadcast)
+- **SessionEnd** hook terminates the BEAM process (which triggers terminate/2 cascade)
+- **Sweep** does full sweep: terminate process + kill tmux + clean eventbuffer + delete ETS. Also catches orphan BEAM processes.
+- **Ghost detection**: agents with `event_count == 0` in the fleet UI get a GHOST badge
+- **Infrastructure filter**: `TmuxDiscovery.infrastructure_session?/1` filters `obs`, `obs-*`, numeric-only sessions
+
 ## AgentRegistry Architecture (2026-03-09, DECOMPOSED)
 - **AgentRegistry** (293 lines): thin GenServer, ETS ownership, message routing, client API
 - **AgentEntry**: agent map constructor, shared utilities (uuid?, short_id, role_from_string)
 - **EventHandler**: pure hook event -> agent state transformation (apply_event/2)
 - **IdentityMerge**: CWD-based correlation of UUID-keyed (hook) and short-name-keyed (team) entries
 - **TeamSync**: TeamWatcher data merge, uses IdentityMerge for canonical entry resolution
-- **Sweep**: GC with ended_ttl (30min) and stale_ttl (1h), infrastructure session cleanup
+- **Sweep**: full GC -- terminates BEAM processes, kills tmux, purges events, deletes ETS entries
 - `derive_role/1` is a defdelegate to AgentEntry.role_from_string/1 (3 external callers)
 
 ## DashboardLive Dispatch Pattern (2026-03-09, OPTIMIZED)

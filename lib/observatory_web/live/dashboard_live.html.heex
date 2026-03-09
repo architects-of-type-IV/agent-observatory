@@ -404,118 +404,24 @@
     <%!-- ═══ Right Sidebar ═══ --%>
     <aside class={["bg-[rgb(24,24,27)]/50 border-l border-border shrink-0 transition-all flex flex-col", if(@sidebar_collapsed, do: "w-0 overflow-hidden", else: "w-60")]}>
       <div class="p-2 flex-1 overflow-y-auto">
-        <%!-- Teams Section --%>
-        <div :if={@has_teams} class="mb-3">
-          <h2 class="ichor-section-title px-1 mb-1.5">
-            Teams <span class="font-mono">({length(@teams)})</span>
-          </h2>
-          <div class="space-y-1">
-            <div
-              :for={team <- @teams}
-              class={"ichor-sidebar-item #{if @selected_team == team.name, do: "active", else: ""}"}
-              phx-click="select_team"
-              phx-value-name={team.name}
-            >
-              <div class="flex items-center justify-between mb-0.5">
-                <span class="si-title font-semibold text-high">{team.name}</span>
-                <span class="si-meta font-mono">{length(team.members)}</span>
-              </div>
+        <ObservatoryWeb.Components.SidebarComponents.teams_section
+          teams={@teams}
+          selected_team={@selected_team}
+        />
 
-              <%!-- Task progress bar --%>
-              <% task_total = length(team.tasks) %>
-              <% task_done = Enum.count(team.tasks, fn t -> t[:status] == "completed" end) %>
-              <div :if={task_total > 0} class="mb-1">
-                <div class="flex items-center justify-between si-meta font-mono mb-0.5">
-                  <span>tasks</span>
-                  <span>{task_done}/{task_total}</span>
-                </div>
-                <div class="h-1 bg-raised rounded-full overflow-hidden">
-                  <div
-                    class="h-full bg-success rounded-full transition-all"
-                    style={"width: #{if task_total > 0, do: round(task_done / task_total * 100), else: 0}%"}
-                  >
-                  </div>
-                </div>
-              </div>
+        <ObservatoryWeb.Components.SidebarComponents.sessions_section
+          sessions={@sessions}
+          has_teams={@has_teams}
+          total_sessions={@total_sessions}
+          filter_session_id={@filter_session_id}
+          search_sessions={@search_sessions}
+          now={@now}
+        />
 
-              <%!-- Members --%>
-              <div class="space-y-0.5">
-                <div :for={m <- team.members} class="flex items-center gap-1.5">
-                  <span class={"w-1.5 h-1.5 rounded-full shrink-0 #{member_status_color(m[:status])}"}>
-                  </span>
-                  <span class="si-title truncate">{m[:name] || "?"}</span>
-                  <span :if={m[:agent_type]} class="si-meta ml-auto">
-                    {m[:agent_type]}
-                  </span>
-                </div>
-              </div>
-
-              <%!-- Team Controls --%>
-              <div class="flex gap-1 mt-1">
-                <button
-                  phx-click="inspect_team"
-                  phx-value-team={team.name}
-                  class="flex-1 ichor-btn ichor-btn-muted !text-[9px] !py-0.5"
-                >
-                  Inspect
-                </button>
-                <button
-                  phx-click="send_team_broadcast"
-                  phx-value-team={team.name}
-                  phx-value-content="status"
-                  class="ichor-btn !text-[9px] !py-0.5 bg-cyan/15 text-cyan hover:bg-cyan/25"
-                  title={"Ping all agents in #{team.name}"}
-                >
-                  Ping
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <%!-- Sessions Section --%>
-        <div>
-          <div class="flex items-center justify-between mb-1.5 px-1">
-            <h2 class="ichor-section-title">
-              {if @has_teams, do: "Standalone", else: "Sessions"} <span class="font-mono">({length(@sessions)}<span :if={
-                length(@sessions) != @total_sessions
-              }>/{@total_sessions}</span>)</span>
-            </h2>
-          </div>
-          <form phx-change="search_sessions" class="mb-1.5 px-0.5">
-            <input
-              type="text"
-              name="q"
-              value={@search_sessions}
-              placeholder="Search sessions..."
-              autocomplete="off"
-              phx-debounce="150"
-              class="w-full ichor-input"
-            />
-          </form>
-          <div class="space-y-0.5">
-            <div
-              :for={s <- @sessions}
-              class={"ichor-sidebar-item #{if @filter_session_id == s.session_id, do: "active", else: ""}"}
-              phx-click="filter_session"
-              phx-value-sid={s.session_id}
-            >
-              <div class="flex items-center gap-1.5">
-                <% {bg, _border, _text} = session_color(s.session_id) %>
-                <span class={"w-1.5 h-1.5 rounded-full shrink-0 #{bg} #{if s.ended?, do: "opacity-30", else: ""}"}>
-                </span>
-                <span class="si-title truncate">{s.source_app}</span>
-                <span class="si-meta font-mono">{short_session(s.session_id)}</span>
-                <ObservatoryWeb.ObservatoryComponents.model_badge model={s.model} />
-              </div>
-              <div class="si-meta ml-3 flex items-center gap-1.5 font-mono">
-                <span>{s.event_count}ev</span>
-                <span>{session_duration(s.first_event, @now)}</span>
-                <span :if={s.cwd} class="truncate">{abbreviate_cwd(s.cwd)}</span>
-              </div>
-            </div>
-          </div>
-        </div>
+        <ObservatoryWeb.Components.SidebarComponents.tmux_section
+          tmux_sessions={@tmux_sessions}
+          sessions={@sessions}
+        />
 
         <%!-- Message Composer (in sidebar, below sessions) --%>
         <div :if={@teams != []} class="mt-3 pt-3 border-t border-border">
@@ -648,7 +554,7 @@
     <div class="px-4 py-2.5 border-t border-border shrink-0 flex gap-1.5">
       <button :if={so[:channels][:tmux]} phx-click="connect_tmux" phx-value-session={so[:channels][:tmux]} class="ichor-btn bg-brand/15 text-brand hover:bg-brand/25 text-[10px]">Tmux</button>
       <button phx-click="pause_agent" phx-value-session_id={so_sid} class="ichor-btn ichor-btn-muted text-[10px]">Pause</button>
-      <button phx-click="shutdown_agent" phx-value-session_id={so_sid} class="ichor-btn ichor-btn-muted text-error text-[10px]" data-confirm="Shut down this agent?">Shutdown</button>
+      <button phx-click="shutdown_agent" phx-value-session_id={so_sid} class="ichor-btn ichor-btn-muted text-error text-[10px]">Shutdown</button>
       <div class="flex-1"></div>
       <button phx-click="close_agent_slideout" class="ichor-btn ichor-btn-muted text-[10px]">Close</button>
     </div>
@@ -673,3 +579,6 @@
   loading={@archon_loading}
   tab={@archon_tab}
 />
+
+<%!-- Toast notifications --%>
+<ObservatoryWeb.Components.ArchonComponents.Toast.toast_stack toasts={@toasts} />

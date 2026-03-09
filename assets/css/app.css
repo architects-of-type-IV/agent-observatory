@@ -213,37 +213,37 @@
     --ichor-role-default: 240 4% 46%;     /* zinc-500 */
   }
 
-  /* ── Swiss International Style ── */
+  /* ── Swiss Noir (dark, zero-radius, red accent -- matches Genesis Noir) ── */
   [data-theme="swiss"] {
-    --ichor-text-high: 0 0% 0%;             /* pure black */
-    --ichor-text: 0 0% 0%;                  /* pure black */
-    --ichor-text-low: 0 0% 40%;             /* dark gray */
-    --ichor-text-muted: 0 0% 60%;           /* mid gray */
+    --ichor-text-high: 0 0% 100%;           /* pure white */
+    --ichor-text: 0 0% 85%;                 /* soft white */
+    --ichor-text-low: 0 0% 45%;             /* mid gray */
+    --ichor-text-muted: 0 0% 30%;           /* dark gray */
 
-    --ichor-bg: 0 0% 100%;                  /* pure white */
-    --ichor-bg-raised: 0 0% 95%;            /* #f2f2f2 */
-    --ichor-bg-surface: 0 0% 98%;           /* near white */
-    --ichor-bg-highlight: 0 0% 90%;         /* hover/active */
-    --ichor-bg-overlay: 0 0% 100%;          /* white */
+    --ichor-bg: 0 0% 4%;                    /* near-black #0a0a0a */
+    --ichor-bg-raised: 0 0% 10%;            /* dark surface #1a1a1a */
+    --ichor-bg-surface: 0 0% 8%;            /* #141414 */
+    --ichor-bg-highlight: 0 0% 15%;         /* hover/active */
+    --ichor-bg-overlay: 0 0% 0%;            /* pure black */
 
-    --ichor-border: 0 0% 0%;               /* black borders */
-    --ichor-border-subtle: 0 0% 80%;        /* light gray */
+    --ichor-border: 0 0% 18%;              /* subtle dark border */
+    --ichor-border-subtle: 0 0% 12%;        /* very subtle */
 
-    --ichor-brand: 11 100% 50%;             /* Swiss Red #FF3000 */
-    --ichor-brand-muted: 11 100% 40%;       /* darker red */
-    --ichor-brand-dim: 11 100% 30%;
-    --ichor-brand-bg: 11 100% 50%;
+    --ichor-brand: 355 84% 54%;             /* Noir Red #ef233c */
+    --ichor-brand-muted: 355 84% 44%;       /* darker red */
+    --ichor-brand-dim: 355 84% 30%;
+    --ichor-brand-bg: 355 84% 54%;
 
     --ichor-success: 142 76% 36%;
     --ichor-error: 0 84% 60%;
     --ichor-warning: 32 95% 44%;
     --ichor-info: 217 91% 60%;
 
-    --ichor-interactive: 0 0% 0%;           /* black for interactive */
-    --ichor-interactive-muted: 0 0% 20%;
+    --ichor-interactive: 0 0% 93%;          /* off-white */
+    --ichor-interactive-muted: 0 0% 60%;
 
-    --ichor-violet: 258 90% 45%;
-    --ichor-cyan: 192 91% 30%;
+    --ichor-violet: 258 90% 66%;
+    --ichor-cyan: 192 91% 50%;
 
     --ichor-radius-sm: 0;
     --ichor-radius: 0;
@@ -251,14 +251,14 @@
     --ichor-radius-xl: 0;
     --ichor-radius-full: 9999px;            /* keep for dots */
 
-    --ichor-scrollbar: 0 0% 80%;
-    --ichor-scrollbar-hover: 0 0% 60%;
+    --ichor-scrollbar: 0 0% 15%;
+    --ichor-scrollbar-hover: 0 0% 25%;
 
-    /* Role accents: higher contrast for light bg */
-    --ichor-role-builder: 187 100% 35%;
-    --ichor-role-scout: 160 84% 30%;
-    --ichor-role-reviewer: 32 95% 44%;
-    --ichor-role-lead: 263 70% 50%;
+    /* Role accents */
+    --ichor-role-builder: 187 86% 53%;
+    --ichor-role-scout: 160 64% 52%;
+    --ichor-role-reviewer: 43 96% 56%;
+    --ichor-role-lead: 263 70% 76%;
     --ichor-role-coordinator: 231 76% 50%;
     --ichor-role-default: 0 0% 40%;
   }
@@ -551,149 +551,217 @@
 .agent-node .port.comm-port { border-color: #22d3ee; }
 .agent-node .port.comm-port:hover { background: rgba(34,211,238,0.2); }
 
-/* ── Archon (Type IV Sovereign Agent HUD) ── */
+/* ── Archon (Genesis Noir scoped design system) ── */
+
+/* Noir design tokens scoped to Archon */
 .archon-overlay {
+  --noir-bg: 0 0% 4%;              /* #0a0a0a */
+  --noir-surface: 0 0% 8%;         /* #141414 */
+  --noir-raised: 0 0% 10%;         /* #1a1a1a */
+  --noir-highlight: 0 0% 15%;
+  --noir-border: 0 0% 18%;
+  --noir-border-subtle: 0 0% 12%;
+  --noir-text-high: 0 0% 93%;      /* #ededed */
+  --noir-text: 0 0% 85%;
+  --noir-text-low: 0 0% 45%;
+  --noir-text-muted: 0 0% 30%;
+  --noir-red: 355 84% 54%;         /* #ef233c */
+  --noir-red-dim: 355 84% 40%;
+  --noir-red-deep: 355 84% 25%;
+  --noir-success: 142 76% 36%;
+
   @apply fixed inset-0 z-[60] flex items-center justify-center;
+  font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
 }
 .archon-backdrop {
-  @apply absolute inset-0 bg-black/40 backdrop-blur-[2px];
+  @apply absolute inset-0;
+  background: hsl(0 0% 0% / 0.6);
+  backdrop-filter: blur(4px);
 }
 .archon-panel {
   @apply relative z-10 flex flex-col overflow-hidden;
   width: min(960px, 90vw);
   aspect-ratio: 16 / 9;
   max-height: 85vh;
-  background: hsl(var(--ichor-bg) / 0.95);
-  border: 1px solid hsl(var(--ichor-brand) / 0.25);
-  border-radius: var(--ichor-radius-xl);
-  box-shadow:
-    0 0 60px hsl(var(--ichor-brand) / 0.1),
-    0 0 120px hsl(var(--ichor-brand) / 0.05),
-    0 25px 50px hsl(var(--ichor-bg-overlay) / 0.4);
+  background: hsl(var(--noir-bg));
+  border: 1px solid hsl(var(--noir-border));
+  border-radius: 0;
+  box-shadow: 0 25px 80px hsl(0 0% 0% / 0.6);
 }
 .archon-panel::before {
   content: '';
   position: absolute;
   top: 0; left: 0; right: 0;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, hsl(var(--ichor-brand) / 0.5), transparent);
+  height: 2px;
+  background: hsl(var(--noir-red));
 }
 
 /* Top bar */
 .archon-topbar {
-  @apply px-4 py-2.5 flex items-center justify-between shrink-0;
-  border-bottom: 1px solid hsl(var(--ichor-border-subtle) / 0.4);
+  @apply px-5 py-3 flex items-center justify-between shrink-0;
+  border-bottom: 1px solid hsl(var(--noir-border));
 }
 .archon-sigil {
-  @apply w-8 h-8 rounded-lg flex items-center justify-center shrink-0;
-  background: linear-gradient(135deg, hsl(var(--ichor-brand) / 0.25), hsl(var(--ichor-brand) / 0.1));
-  border: 1px solid hsl(var(--ichor-brand) / 0.2);
-  box-shadow: 0 0 20px hsl(var(--ichor-brand) / 0.08);
+  @apply w-8 h-8 flex items-center justify-center shrink-0;
+  border-radius: 0;
+  background: hsl(var(--noir-red-deep));
+  border: 1px solid hsl(var(--noir-red) / 0.4);
 }
 .archon-sigil::after {
   content: '';
-  width: 12px; height: 12px;
-  background: radial-gradient(circle, hsl(var(--ichor-brand) / 0.6), hsl(var(--ichor-brand) / 0.1));
-  border-radius: 2px;
+  width: 10px; height: 10px;
+  background: hsl(var(--noir-red));
+  border-radius: 0;
   transform: rotate(45deg);
 }
 .archon-title {
-  @apply text-sm font-bold tracking-[0.2em] text-high;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  color: hsl(var(--noir-text-high));
 }
 .archon-subtitle {
-  @apply text-[9px] text-brand-muted/70 font-mono uppercase tracking-[0.15em];
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.5625rem;
+  color: hsl(var(--noir-text-low));
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
 }
 .archon-status-row {
-  @apply flex items-center gap-1.5 px-2 py-1 rounded;
-  background: hsl(var(--ichor-success) / 0.06);
-  border: 1px solid hsl(var(--ichor-success) / 0.12);
+  @apply flex items-center gap-1.5 px-2 py-1;
+  border-radius: 0;
+  background: hsl(var(--noir-success) / 0.06);
+  border: 1px solid hsl(var(--noir-success) / 0.15);
 }
 .archon-status-dot {
-  @apply w-1.5 h-1.5 rounded-full bg-success;
-  box-shadow: 0 0 6px hsl(var(--ichor-success) / 0.5);
+  @apply w-1.5 h-1.5;
+  border-radius: 0;
+  background: hsl(var(--noir-success));
   animation: archon-pulse 2s ease-in-out infinite;
 }
 @keyframes archon-pulse {
   0%, 100% { opacity: 1; }
-  50% { opacity: 0.4; }
+  50% { opacity: 0.3; }
 }
 .archon-status-text {
-  @apply text-[9px] text-success/80 font-mono uppercase tracking-wider font-semibold;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.5625rem;
+  color: hsl(var(--noir-success) / 0.8);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
 }
 
 /* Tab bar */
 .archon-tab-bar {
-  @apply flex items-center gap-0.5 p-0.5 rounded-lg;
-  background: hsl(var(--ichor-bg-raised) / 0.6);
-  border: 1px solid hsl(var(--ichor-border-subtle) / 0.4);
+  @apply flex items-center gap-0;
+  background: hsl(var(--noir-surface));
+  border: 1px solid hsl(var(--noir-border));
+  border-radius: 0;
 }
 .archon-tab {
-  @apply px-2.5 py-1 rounded text-[10px] font-mono uppercase tracking-wider cursor-pointer transition-all;
-  @apply text-muted hover:text-default;
+  @apply px-3 py-1.5 cursor-pointer transition-all;
+  border-radius: 0;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.625rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: hsl(var(--noir-text-muted));
+  border-right: 1px solid hsl(var(--noir-border));
 }
+.archon-tab:last-child { border-right: none; }
+.archon-tab:hover { color: hsl(var(--noir-text)); }
 .archon-tab-active {
-  @apply text-brand;
-  background: hsl(var(--ichor-brand) / 0.1);
-  box-shadow: 0 0 10px hsl(var(--ichor-brand) / 0.05);
+  color: hsl(var(--noir-red));
+  background: hsl(var(--noir-red) / 0.06);
 }
 .archon-tab-key {
-  @apply inline-block w-4 text-center text-[9px] rounded mr-0.5;
-  @apply bg-raised/80 text-low leading-relaxed;
+  @apply inline-block w-4 text-center mr-1;
+  font-size: 0.5625rem;
+  border-radius: 0;
+  background: hsl(var(--noir-bg));
+  color: hsl(var(--noir-text-low));
+  border: 1px solid hsl(var(--noir-border));
+  line-height: 1.4;
 }
 .archon-tab-active .archon-tab-key {
-  @apply bg-brand-dim/30 text-brand/80;
+  background: hsl(var(--noir-red) / 0.1);
+  color: hsl(var(--noir-red));
+  border-color: hsl(var(--noir-red) / 0.3);
 }
 .archon-close-btn {
-  @apply text-muted hover:text-high transition cursor-pointer;
+  @apply transition cursor-pointer;
+  color: hsl(var(--noir-text-muted));
 }
+.archon-close-btn:hover { color: hsl(var(--noir-text-high)); }
 .archon-kbd {
-  @apply px-1.5 py-0.5 rounded text-[9px] font-mono;
-  @apply bg-raised/80 border border-border-subtle/50 text-low;
+  @apply px-1.5 py-0.5;
+  border-radius: 0;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.5625rem;
+  background: hsl(var(--noir-surface));
+  border: 1px solid hsl(var(--noir-border));
+  color: hsl(var(--noir-text-low));
 }
 
 /* Content */
 .archon-content {
   @apply flex-1 overflow-hidden;
+  background: hsl(var(--noir-bg));
 }
 
 /* Section title */
 .archon-section-title {
-  @apply text-[10px] font-mono uppercase tracking-[0.15em] text-brand-muted/60 font-semibold;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.625rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: hsl(var(--noir-text-low));
+  font-weight: 500;
 }
 
 /* Action cards */
 .archon-action-card {
-  @apply rounded-lg p-3 cursor-pointer transition-all;
-  background: hsl(var(--ichor-bg-raised) / 0.35);
-  border: 1px solid hsl(var(--ichor-border-subtle) / 0.35);
+  @apply p-3 cursor-pointer transition-all;
+  border-radius: 0;
+  background: hsl(var(--noir-surface));
+  border: 1px solid hsl(var(--noir-border));
 }
 .archon-action-card:hover {
-  background: hsl(var(--ichor-brand) / 0.08);
-  border-color: hsl(var(--ichor-brand) / 0.2);
-  box-shadow: 0 0 20px hsl(var(--ichor-brand) / 0.04);
+  background: hsl(var(--noir-raised));
+  border-color: hsl(var(--noir-red) / 0.3);
 }
 .archon-action-icon {
-  @apply text-brand/60;
+  color: hsl(var(--noir-text-low));
 }
 .archon-action-card:hover .archon-action-icon {
-  @apply text-brand/90;
+  color: hsl(var(--noir-red));
 }
 .archon-action-key {
-  @apply w-5 h-5 rounded flex items-center justify-center text-[10px] font-mono font-bold;
-  background: hsl(var(--ichor-bg-raised) / 0.6);
-  border: 1px solid hsl(var(--ichor-border-subtle) / 0.4);
-  @apply text-low;
+  @apply w-5 h-5 flex items-center justify-center;
+  border-radius: 0;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.625rem;
+  font-weight: 700;
+  background: hsl(var(--noir-bg));
+  border: 1px solid hsl(var(--noir-border));
+  color: hsl(var(--noir-text-low));
 }
 .archon-action-card:hover .archon-action-key {
-  @apply text-brand;
-  background: hsl(var(--ichor-brand) / 0.1);
-  border-color: hsl(var(--ichor-brand) / 0.25);
+  color: hsl(var(--noir-red));
+  background: hsl(var(--noir-red) / 0.08);
+  border-color: hsl(var(--noir-red) / 0.3);
 }
 .archon-action-label {
-  @apply text-xs font-medium text-high;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: hsl(var(--noir-text-high));
 }
 .archon-action-desc {
-  @apply text-[10px] text-low mt-0.5;
+  font-size: 0.625rem;
+  color: hsl(var(--noir-text-low));
+  margin-top: 0.125rem;
 }
 
 /* Chat */
@@ -701,7 +769,9 @@
   @apply flex-1 overflow-y-auto px-5 py-4 space-y-3;
 }
 .archon-msg {
-  @apply max-w-[80%] text-xs leading-relaxed;
+  @apply max-w-[80%];
+  font-size: 0.8125rem;
+  line-height: 1.5;
 }
 .archon-msg-user {
   @apply ml-auto;
@@ -710,107 +780,433 @@
   @apply w-full max-w-full;
 }
 .archon-bubble {
-  @apply rounded-lg px-3 py-2;
+  @apply px-3 py-2;
+  border-radius: 0;
 }
 .archon-bubble-user {
-  background: hsl(var(--ichor-brand) / 0.08);
-  border: 1px solid hsl(var(--ichor-brand) / 0.15);
-  @apply text-high;
+  background: hsl(var(--noir-red) / 0.06);
+  border: 1px solid hsl(var(--noir-red) / 0.15);
+  color: hsl(var(--noir-text-high));
 }
 .archon-bubble-assistant {
-  background: hsl(var(--ichor-bg-raised) / 0.5);
-  border: 1px solid hsl(var(--ichor-border-subtle) / 0.4);
-  @apply text-high;
+  background: hsl(var(--noir-surface));
+  border: 1px solid hsl(var(--noir-border));
+  color: hsl(var(--noir-text));
 }
 .archon-bubble-system {
-  background: hsl(var(--ichor-brand) / 0.06);
-  border: 1px solid hsl(var(--ichor-brand) / 0.2);
-  @apply text-brand/90;
+  background: hsl(var(--noir-red) / 0.04);
+  border: 1px solid hsl(var(--noir-red) / 0.2);
+  color: hsl(var(--noir-red) / 0.9);
 }
 .archon-meta {
-  @apply text-[9px] mt-0.5 px-1 font-mono uppercase tracking-wider;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.5625rem;
+  margin-top: 0.25rem;
+  padding: 0 0.25rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 .archon-meta-user {
-  @apply text-right text-brand-dim/40;
+  text-align: right;
+  color: hsl(var(--noir-red-dim) / 0.4);
 }
 .archon-meta-assistant {
-  @apply text-muted/60;
+  color: hsl(var(--noir-text-muted) / 0.6);
 }
 .archon-meta-system {
-  @apply text-brand-dim/50 font-semibold;
+  color: hsl(var(--noir-red-dim) / 0.5);
+  font-weight: 600;
 }
 .archon-typing-dot {
-  @apply w-1.5 h-1.5 rounded-full bg-brand/50 animate-bounce;
+  @apply w-1.5 h-1.5 animate-bounce;
+  border-radius: 0;
+  background: hsl(var(--noir-red) / 0.5);
 }
 .archon-input-area {
-  @apply p-3 shrink-0;
-  border-top: 1px solid hsl(var(--ichor-border-subtle) / 0.3);
+  @apply p-4 shrink-0;
+  border-top: 1px solid hsl(var(--noir-border));
 }
 .archon-input {
-  @apply flex-1 rounded-lg px-3 py-2;
-  @apply text-xs text-high placeholder-muted;
-  @apply focus:outline-none focus:ring-0;
-  background: hsl(var(--ichor-bg) / 0.8);
-  border: 1px solid hsl(var(--ichor-border-subtle) / 0.3);
+  @apply flex-1 px-3 py-2.5;
+  border-radius: 0;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.8125rem;
+  color: hsl(var(--noir-text-high));
+  background: hsl(var(--noir-surface));
+  border: 1px solid hsl(var(--noir-border));
+  outline: none;
+}
+.archon-input::placeholder {
+  color: hsl(var(--noir-text-muted));
 }
 .archon-input:focus {
-  border-color: hsl(var(--ichor-brand) / 0.3);
-  box-shadow: 0 0 12px hsl(var(--ichor-brand) / 0.05);
+  border-color: hsl(var(--noir-red) / 0.4);
 }
 .archon-send-btn {
-  @apply px-4 py-2 rounded-lg text-[11px] font-mono uppercase tracking-wider transition-all cursor-pointer;
-  background: hsl(var(--ichor-brand) / 0.1);
-  border: 1px solid hsl(var(--ichor-brand) / 0.2);
-  @apply text-brand/80;
+  @apply px-5 py-2.5 cursor-pointer transition-all;
+  border-radius: 0;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background: hsl(var(--noir-red) / 0.08);
+  border: 1px solid hsl(var(--noir-red) / 0.25);
+  color: hsl(var(--noir-red));
 }
 .archon-send-btn:hover {
-  background: hsl(var(--ichor-brand) / 0.18);
-  border-color: hsl(var(--ichor-brand) / 0.35);
-  @apply text-brand;
-  box-shadow: 0 0 15px hsl(var(--ichor-brand) / 0.08);
+  background: hsl(var(--noir-red));
+  border-color: hsl(var(--noir-red));
+  color: hsl(0 0% 100%);
 }
 
 /* Reference items */
 .archon-ref-item {
-  @apply rounded-lg px-3 py-2.5 cursor-pointer transition-all;
-  background: hsl(var(--ichor-bg-raised) / 0.3);
-  border: 1px solid hsl(var(--ichor-border-subtle) / 0.3);
+  @apply px-3 py-2.5 cursor-pointer transition-all;
+  border-radius: 0;
+  background: hsl(var(--noir-surface));
+  border: 1px solid hsl(var(--noir-border));
 }
 .archon-ref-item:hover {
-  background: hsl(var(--ichor-brand) / 0.04);
-  border-color: hsl(var(--ichor-brand) / 0.15);
+  border-color: hsl(var(--noir-red) / 0.3);
+  background: hsl(var(--noir-raised));
 }
 .archon-ref-cmd {
-  @apply text-[11px] text-brand/80 font-mono;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.6875rem;
+  color: hsl(var(--noir-red) / 0.8);
 }
 .archon-ref-desc {
-  @apply text-[10px] text-low mt-0.5 leading-tight;
+  font-size: 0.625rem;
+  color: hsl(var(--noir-text-low));
+  margin-top: 0.25rem;
+  line-height: 1.3;
+}
+
+/* Output pane (command results display) */
+.archon-output-pane {
+  @apply flex flex-col;
+  width: 420px;
+  border-left: 2px solid hsl(var(--noir-border));
+  background: hsl(var(--noir-bg));
+}
+.archon-output-header {
+  @apply flex items-center px-4 shrink-0;
+  height: 2.5rem;
+  border-bottom: 1px solid hsl(var(--noir-border));
+}
+.archon-output-status-icon {
+  @apply flex items-center justify-center;
+  color: hsl(var(--noir-text-muted));
+}
+.archon-output-status-idle {
+  color: hsl(var(--noir-text-muted) / 0.4);
+}
+.archon-output-status-active {
+  color: hsl(var(--noir-red));
+  animation: archon-pulse 1.2s ease-in-out infinite;
+}
+@keyframes archon-pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 1; }
+}
+.archon-output-body {
+  @apply flex-1 overflow-y-auto px-4 py-3;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.75rem;
+  line-height: 1.6;
+  color: hsl(var(--noir-text));
+}
+.archon-output-empty {
+  @apply flex items-center gap-2 h-full justify-center;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.75rem;
+  color: hsl(var(--noir-text-muted));
+}
+.archon-output-prompt {
+  color: hsl(var(--noir-red) / 0.5);
+}
+.archon-output-entry {
+  @apply py-2;
+  border-bottom: 1px solid hsl(var(--noir-border-subtle));
+  color: hsl(var(--noir-text));
+}
+.archon-output-entry:last-child {
+  border-bottom: none;
+}
+
+/* Structured output components */
+.archon-output-section {
+  @apply py-3;
+}
+.archon-output-section + .archon-output-section {
+  border-top: 1px solid hsl(var(--noir-border-subtle));
+}
+.archon-output-label {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.5625rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: hsl(var(--noir-text-muted));
+  margin-bottom: 0.625rem;
+  font-weight: 600;
+}
+.archon-output-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+.archon-output-card {
+  @apply px-3 py-2;
+  background: hsl(var(--noir-surface));
+  border: 1px solid hsl(var(--noir-border));
+}
+.archon-output-card-success {
+  border-left: 2px solid hsl(var(--noir-success));
+}
+.archon-output-card-error {
+  border-left: 2px solid hsl(var(--noir-red));
+}
+.archon-output-card-name {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: hsl(var(--noir-text-high));
+}
+.archon-output-card-meta {
+  @apply flex items-center gap-2 mt-1;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.625rem;
+  color: hsl(var(--noir-text-low));
+}
+.archon-output-card-tool {
+  color: hsl(var(--noir-red) / 0.8);
+}
+.archon-output-card-detail {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.625rem;
+  color: hsl(var(--noir-text-low));
+  margin-top: 0.25rem;
+}
+.archon-output-badge {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.5625rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.125rem 0.375rem;
+  border: 1px solid;
+}
+.archon-badge-ok {
+  color: hsl(var(--noir-success));
+  border-color: hsl(var(--noir-success) / 0.3);
+  background: hsl(var(--noir-success) / 0.06);
+}
+.archon-badge-warn {
+  color: hsl(45 90% 55%);
+  border-color: hsl(45 90% 55% / 0.3);
+  background: hsl(45 90% 55% / 0.06);
+}
+.archon-badge-fail {
+  color: hsl(var(--noir-red));
+  border-color: hsl(var(--noir-red) / 0.3);
+  background: hsl(var(--noir-red) / 0.06);
+}
+.archon-badge-dim {
+  color: hsl(var(--noir-text-muted));
+  border-color: hsl(var(--noir-border));
+  background: transparent;
+}
+.archon-output-empty-result {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.6875rem;
+  color: hsl(var(--noir-text-muted));
+  padding: 0.75rem 0;
+}
+
+/* Health rows */
+.archon-output-health-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+.archon-output-health-row {
+  @apply flex items-center justify-between px-3 py-1.5;
+  background: hsl(var(--noir-surface));
+  border: 1px solid hsl(var(--noir-border));
+}
+.archon-output-health-label {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.6875rem;
+  color: hsl(var(--noir-text));
+}
+.archon-output-health-value {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.625rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.archon-health-ok {
+  color: hsl(var(--noir-success));
+}
+.archon-health-fail {
+  color: hsl(var(--noir-red));
+}
+
+/* Detail rows (agent status) */
+.archon-output-detail-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+.archon-output-detail-row {
+  @apply flex items-center justify-between;
+  padding: 0.125rem 0;
+}
+.archon-output-detail-label {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.5625rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: hsl(var(--noir-text-muted));
+}
+.archon-output-detail-value {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.6875rem;
+  color: hsl(var(--noir-text));
+}
+
+/* Member lists */
+.archon-output-member-list {
+  @apply flex flex-col gap-0.5 mt-1.5;
+  padding-top: 0.375rem;
+  border-top: 1px solid hsl(var(--noir-border-subtle));
+}
+.archon-output-member {
+  @apply flex items-center justify-between;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.625rem;
+}
+.archon-output-member-role {
+  color: hsl(var(--noir-text));
+}
+.archon-output-member-status {
+  color: hsl(var(--noir-text-low));
+}
+
+/* Message list */
+.archon-output-message-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+.archon-output-message {
+  @apply px-3 py-2;
+  background: hsl(var(--noir-surface));
+  border: 1px solid hsl(var(--noir-border));
+}
+.archon-output-message-content {
+  @apply mt-1;
+  font-size: 0.75rem;
+  line-height: 1.5;
+  color: hsl(var(--noir-text));
+  white-space: pre-wrap;
+  max-height: 4.5rem;
+  overflow: hidden;
+}
+
+/* ── ICHOR Toast ────────────────────────────────────────────────────── */
+.ichor-toast-stack {
+  @apply fixed top-4 right-4 z-[200] flex flex-col gap-2;
+  pointer-events: none;
+}
+.ichor-toast {
+  @apply flex items-stretch cursor-pointer;
+  pointer-events: auto;
+  min-width: 280px;
+  max-width: 400px;
+  background: hsl(var(--ichor-bg-raised));
+  border: 1px solid hsl(var(--ichor-border));
+  box-shadow: 0 4px 16px hsl(0 0% 0% / 0.4);
+  animation: ichor-toast-in 0.2s ease-out;
+}
+@keyframes ichor-toast-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.ichor-toast-accent {
+  width: 3px;
+  flex-shrink: 0;
+}
+.ichor-toast-info .ichor-toast-accent {
+  background: hsl(var(--ichor-info));
+}
+.ichor-toast-warning .ichor-toast-accent {
+  background: hsl(var(--ichor-brand));
+}
+.ichor-toast-error .ichor-toast-accent {
+  background: hsl(var(--ichor-error));
+}
+.ichor-toast-body {
+  @apply flex-1 flex items-center gap-3 px-3 py-2.5;
+}
+.ichor-toast-label {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.5625rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: hsl(var(--ichor-text-muted));
+  flex-shrink: 0;
+}
+.ichor-toast-msg {
+  font-size: 0.8125rem;
+  color: hsl(var(--ichor-text));
+  line-height: 1.4;
+}
+.ichor-toast-dismiss {
+  @apply px-3 flex items-center cursor-pointer;
+  font-size: 1rem;
+  color: hsl(var(--ichor-text-muted));
+  border-left: 1px solid hsl(var(--ichor-border));
+  background: transparent;
+}
+.ichor-toast-dismiss:hover {
+  color: hsl(var(--ichor-text-high));
+  background: hsl(var(--ichor-bg-highlight));
 }
 
 /* FAB */
 .archon-fab {
   @apply fixed bottom-6 right-6 z-50;
-  @apply w-12 h-12 rounded-full flex items-center justify-center;
+  @apply w-12 h-12 flex items-center justify-center;
   @apply border transition-all duration-300;
   @apply shadow-lg hover:shadow-xl cursor-pointer;
+  border-radius: 0;
+  font-family: 'Inter', sans-serif;
 }
 .archon-fab-active {
-  background: hsl(var(--ichor-brand) / 0.2);
-  border-color: hsl(var(--ichor-brand) / 0.4);
-  box-shadow: 0 0 30px hsl(var(--ichor-brand) / 0.15);
+  background: hsl(var(--noir-red) / 0.15);
+  border-color: hsl(var(--noir-red) / 0.4);
+  box-shadow: 0 0 20px hsl(var(--noir-red) / 0.1);
 }
 .archon-fab-idle {
-  @apply bg-base border-border-subtle hover:border-brand/50 hover:bg-raised;
-  box-shadow: 0 4px 20px hsl(var(--ichor-bg-overlay) / 0.3);
+  background: hsl(0 0% 4%);
+  border-color: hsl(0 0% 18%);
+}
+.archon-fab-idle:hover {
+  border-color: hsl(var(--noir-red) / 0.3);
+  background: hsl(0 0% 8%);
 }
 .archon-fab-icon {
   @apply w-6 h-6 transition-colors duration-300;
 }
 .archon-fab-icon-active {
-  @apply text-brand;
+  color: hsl(var(--noir-red));
 }
 .archon-fab-icon-idle {
-  @apply text-default group-hover:text-brand/70;
+  color: hsl(0 0% 45%);
+}
+.archon-fab-idle:hover .archon-fab-icon-idle {
+  color: hsl(var(--noir-red) / 0.7);
 }
 
 /* God Mode danger zone */

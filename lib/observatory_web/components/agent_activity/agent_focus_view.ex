@@ -5,6 +5,7 @@ defmodule ObservatoryWeb.Components.AgentActivity.AgentFocusView do
 
   use Phoenix.Component
   import ObservatoryWeb.Components.AgentActivity.ActivityStream
+  import ObservatoryWeb.DashboardTeamHelpers, only: [member_status_color: 1]
 
   attr :agent, :map, required: true
   attr :events, :list, required: true
@@ -116,13 +117,4 @@ defmodule ObservatoryWeb.Components.AgentActivity.AgentFocusView do
   defp format_status(:stopped), do: "Stopped"
   defp format_status(_), do: "Unknown"
 
-  # Import member_status_color from format helpers
-  defp member_status_color(member) do
-    case member[:status] do
-      :active -> "bg-success"
-      :idle -> "bg-brand"
-      :stopped -> "bg-highlight"
-      _ -> "bg-highlight"
-    end
-  end
 end
