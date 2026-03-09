@@ -7,6 +7,8 @@ defmodule Observatory.Gateway.AgentRegistry.IdentityMerge do
   these into a single canonical entry by CWD correlation.
   """
 
+  alias Observatory.Gateway.AgentRegistry.AgentEntry
+
   @table :gateway_agent_registry
 
   # ── Qualified ID ───────────────────────────────────────────────────
@@ -29,7 +31,6 @@ defmodule Observatory.Gateway.AgentRegistry.IdentityMerge do
   @doc """
   Find the canonical ETS entry for a team member. Prefers UUID-keyed entries
   (from hook events) over short-name-keyed entries (from TeamWatcher config).
-  Correlation: match by cwd among unaffiliated (team-less) active agents.
   """
   @spec find_canonical_entry(String.t(), map(), String.t(), map()) :: {String.t(), map()}
   def find_canonical_entry(member_key, member, team_name, unaffiliated_by_cwd) do
@@ -39,12 +40,8 @@ defmodule Observatory.Gateway.AgentRegistry.IdentityMerge do
 
       _ ->
         case correlate_by_cwd(member[:cwd], unaffiliated_by_cwd) do
-          {uuid_key, uuid_agent} ->
-            {uuid_key, uuid_agent}
-
-          nil ->
-            existing = lookup(member_key) || default_agent(member_key)
-            {member_key, existing}
+          {uuid_key, uuid_agent} -> {uuid_key, uuid_agent}
+          nil -> {member_key, lookup(member_key) || AgentEntry.new(member_key)}
         end
     end
   end
@@ -52,13 +49,12 @@ defmodule Observatory.Gateway.AgentRegistry.IdentityMerge do
   # ── Team Entry Absorption ──────────────────────────────────────────
 
   @doc """
-  When a hook event registers a UUID-keyed agent, check if there's an orphaned
-  team-registered entry (short-name key) with matching cwd. If so, absorb its
-  team metadata and delete the orphan.
+  When a hook event registers a UUID-keyed agent, absorb any orphaned
+  team-registered entry with matching cwd.
   """
   @spec maybe_absorb_team_entry(String.t(), map()) :: map()
   def maybe_absorb_team_entry(uuid_key, agent) do
-    case absorbable?(uuid_key, agent) do
+    case AgentEntry.uuid?(uuid_key) && is_nil(agent.team) && agent.cwd != nil do
       false ->
         agent
 
@@ -78,7 +74,7 @@ defmodule Observatory.Gateway.AgentRegistry.IdentityMerge do
 
   # ── Channel Merge ──────────────────────────────────────────────────
 
-  @doc "Merge channels from hook and team entries, preferring team tmux and hook mailbox."
+  @doc "Merge channels preferring team tmux and hook mailbox."
   @spec merge_channels(map(), map()) :: map()
   def merge_channels(hook_channels, team_channels) do
     %{
@@ -87,13 +83,6 @@ defmodule Observatory.Gateway.AgentRegistry.IdentityMerge do
       webhook: hook_channels.webhook || team_channels.webhook
     }
   end
-
-  # ── Utilities ──────────────────────────────────────────────────────
-
-  @doc "Check if a string is a valid UUID."
-  @spec uuid?(String.t()) :: boolean()
-  def uuid?(str) when is_binary(str), do: match?({:ok, _}, Ecto.UUID.cast(str))
-  def uuid?(_), do: false
 
   # ── Private ────────────────────────────────────────────────────────
 
@@ -113,24 +102,21 @@ defmodule Observatory.Gateway.AgentRegistry.IdentityMerge do
     end
   end
 
-  defp absorbable?(uuid_key, agent) do
-    uuid?(uuid_key) && is_nil(agent.team) && agent.cwd != nil
-  end
-
   defp find_orphan(cwd) do
     :ets.match_object(@table, {:_, %{cwd: cwd}})
     |> Enum.find(fn {key, a} ->
-      not uuid?(key) && a.team != nil && key != "operator"
+      not AgentEntry.uuid?(key) && a.team != nil && key != "operator"
     end)
   end
 
   defp absorb(agent, orphan) do
-    agent
-    |> Map.put(:id, orphan.id)
-    |> Map.put(:short_name, orphan.short_name)
-    |> Map.put(:team, orphan.team)
-    |> Map.put(:role, orphan.role)
-    |> Map.merge(%{channels: merge_channels(agent.channels, orphan.channels)})
+    Map.merge(agent, %{
+      id: orphan.id,
+      short_name: orphan.short_name,
+      team: orphan.team,
+      role: orphan.role,
+      channels: merge_channels(agent.channels, orphan.channels)
+    })
   end
 
   defp lookup(session_id) do
@@ -140,26 +126,5 @@ defmodule Observatory.Gateway.AgentRegistry.IdentityMerge do
     end
   rescue
     ArgumentError -> nil
-  end
-
-  defp default_agent(session_id) do
-    short = String.slice(session_id, 0, 8)
-
-    %{
-      id: short,
-      short_name: short,
-      session_id: session_id,
-      host: "local",
-      parent_id: nil,
-      team: nil,
-      role: :standalone,
-      status: :active,
-      model: nil,
-      cwd: nil,
-      current_tool: nil,
-      started_at: DateTime.utc_now(),
-      last_event_at: DateTime.utc_now(),
-      channels: %{tmux: nil, ssh_tmux: nil, mailbox: session_id, webhook: nil}
-    }
   end
 end

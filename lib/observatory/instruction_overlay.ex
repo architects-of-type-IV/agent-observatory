@@ -28,21 +28,17 @@ defmodule Observatory.InstructionOverlay do
   def generate(opts) do
     name = opts[:name] || "agent"
     capability = opts[:capability] || "builder"
-    task = opts[:task]
-    file_scope = opts[:file_scope] || []
-    quality_gates = opts[:quality_gates] || default_gates()
-    team_name = opts[:team_name]
-    extra = opts[:extra_instructions]
+    gates = opts[:quality_gates] || default_gates()
 
     [
       header(name, capability),
       role_section(capability),
-      maybe_task_section(task),
-      maybe_file_scope_section(file_scope),
-      quality_gates_section(quality_gates),
-      communication_section(name, team_name),
-      completion_section(capability, quality_gates),
-      maybe_extra_section(extra)
+      task_section(opts[:task]),
+      file_scope_section(opts[:file_scope] || []),
+      quality_gates_section(gates),
+      communication_section(name, opts[:team_name]),
+      completion_section(capability, gates),
+      extra_section(opts[:extra_instructions])
     ]
     |> Enum.reject(&is_nil/1)
     |> Enum.join("\n")
@@ -113,10 +109,9 @@ defmodule Observatory.InstructionOverlay do
     """
   end
 
-  defp maybe_task_section(nil), do: nil
-  defp maybe_task_section(task) when is_map(task), do: task_section(task)
+  defp task_section(nil), do: nil
 
-  defp task_section(task) do
+  defp task_section(task) when is_map(task) do
     subject = task["subject"] || task[:subject] || "Untitled"
     description = task["description"] || task[:description] || ""
     criteria = task["acceptance_criteria"] || task[:acceptance_criteria] || []
@@ -145,11 +140,10 @@ defmodule Observatory.InstructionOverlay do
   defp format_done_when(nil), do: ""
   defp format_done_when(cmd), do: "\n**Verification command:** `#{cmd}`\n"
 
-  defp maybe_file_scope_section([]), do: nil
-  defp maybe_file_scope_section(files), do: file_scope_section(files)
+  defp extra_section(nil), do: nil
+  defp extra_section(text), do: "\n## Additional Instructions\n\n#{text}\n"
 
-  defp maybe_extra_section(nil), do: nil
-  defp maybe_extra_section(text), do: "\n## Additional Instructions\n\n#{text}\n"
+  defp file_scope_section([]), do: nil
 
   defp file_scope_section(files) do
     file_list = files |> Enum.map(&"- `#{&1}`") |> Enum.join("\n")
@@ -182,10 +176,6 @@ defmodule Observatory.InstructionOverlay do
   end
 
   defp communication_section(name, team_name) do
-    port =
-      Application.get_env(:observatory, ObservatoryWeb.Endpoint, [])
-      |> get_in([:http, :port]) || 4005
-
     """
     ## Communication Protocol
     #{team_text(team_name)}
@@ -195,7 +185,7 @@ defmodule Observatory.InstructionOverlay do
     - `send_message` -- Report progress, ask questions, or signal completion
     - `acknowledge_message` -- Mark messages as read after processing
 
-    Observatory is running at `http://localhost:#{port}`.
+    Observatory is running at `http://localhost:#{observatory_port()}`.
     """
   end
 
@@ -261,11 +251,7 @@ defmodule Observatory.InstructionOverlay do
 
   defp write_hooks(cwd, opts) do
     settings_path = Path.join(cwd, ".claude/settings.local.json")
-
-    port =
-      Application.get_env(:observatory, ObservatoryWeb.Endpoint, [])
-      |> get_in([:http, :port]) || 4005
-
+    port = observatory_port()
     agent_name = opts[:name] || "agent"
 
     hooks = %{
@@ -288,23 +274,26 @@ defmodule Observatory.InstructionOverlay do
       }
     }
 
-    existing =
-      case File.read(settings_path) do
-        {:ok, content} ->
-          case Jason.decode(content) do
-            {:ok, map} -> map
-            _ -> %{}
-          end
-
-        _ ->
-          %{}
-      end
-
+    existing = read_existing_settings(settings_path)
     merged = Map.merge(existing, hooks)
 
     case Jason.encode(merged, pretty: true) do
       {:ok, json} -> File.write!(settings_path, json)
       _ -> :ok
     end
+  end
+
+  defp read_existing_settings(path) do
+    with {:ok, content} <- File.read(path),
+         {:ok, map} <- Jason.decode(content) do
+      map
+    else
+      _ -> %{}
+    end
+  end
+
+  defp observatory_port do
+    Application.get_env(:observatory, ObservatoryWeb.Endpoint, [])
+    |> get_in([:http, :port]) || 4005
   end
 end
