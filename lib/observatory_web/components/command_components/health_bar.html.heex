@@ -24,7 +24,7 @@
       <div :if={map_size(@projects) > 0} class="flex items-center gap-2">
         <span class="text-xs text-zinc-500">Pipeline:</span>
         <form phx-change="select_project" class="inline">
-          <.stable_select id="select-project" name="project" class="obs-select text-xs py-1">
+          <.stable_select id="select-project" name="project" class="ichor-select text-xs py-1">
             <option :for={{key, _path} <- @projects} value={key} selected={key == @active_project}>
               {key}
             </option>

@@ -138,7 +138,7 @@
       <div class="flex gap-1.5 flex-wrap">
         <form phx-submit="send_targeted_message" id="command-msg-form" class="flex gap-1 flex-1 min-w-0">
           <div id="target-select-stable" phx-update="ignore">
-            <select name="target" class="obs-select shrink-0">
+            <select name="target" class="ichor-select shrink-0">
               <option value="">Target...</option>
               <optgroup label="Broadcast">
                 <option value="all">All Agents</option>
@@ -154,20 +154,20 @@
             </select>
           </div>
           <div id="cmd-input-stable" phx-update="ignore" phx-hook="ClearFormOnSubmit" class="flex-1 min-w-0">
-            <input type="text" name="content" placeholder="Message..." class="w-full obs-input" />
+            <input type="text" name="content" placeholder="Message..." class="w-full ichor-input" />
           </div>
-          <button type="submit" class="obs-btn obs-btn-primary shrink-0">Send</button>
+          <button type="submit" class="ichor-btn ichor-btn-primary shrink-0">Send</button>
         </form>
         <form phx-submit="launch_session" class="flex gap-1 shrink-0">
           <div id="project-select-stable" phx-update="ignore">
-            <select name="cwd" class="obs-select">
+            <select name="cwd" class="ichor-select">
               <option value="">Project...</option>
               <%= for {key, path} <- @swarm_state.watched_projects do %>
                 <option value={path}>{key}</option>
               <% end %>
             </select>
           </div>
-          <button type="submit" class="obs-btn obs-btn-success shrink-0">Launch</button>
+          <button type="submit" class="ichor-btn ichor-btn-success shrink-0">Launch</button>
         </form>
       </div>
     </div>
@@ -415,15 +415,15 @@
       <div class="px-3 py-2.5 border-b border-zinc-800/50">
         <h4 class="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider mb-2">Actions</h4>
         <div class="flex flex-wrap gap-1.5">
-          <button :if={sel_tmux} phx-click="connect_tmux" phx-value-session={sel_tmux} class="obs-btn bg-amber-600/15 text-amber-400 hover:bg-amber-600/25">Tmux</button>
-          <button phx-click="open_agent_slideout" phx-value-session_id={sel_id} class="obs-btn obs-btn-primary">Focus</button>
+          <button :if={sel_tmux} phx-click="connect_tmux" phx-value-session={sel_tmux} class="ichor-btn bg-amber-600/15 text-amber-400 hover:bg-amber-600/25">Tmux</button>
+          <button phx-click="open_agent_slideout" phx-value-session_id={sel_id} class="ichor-btn ichor-btn-primary">Focus</button>
           <% is_traced = sel_id in agent_filter %>
-          <button phx-click="trace_agent" phx-value-agent_id={sel_id} class={"obs-btn #{if is_traced, do: "bg-violet-500/15 text-violet-400", else: "obs-btn-muted"}"}>
+          <button phx-click="trace_agent" phx-value-agent_id={sel_id} class={"ichor-btn #{if is_traced, do: "bg-violet-500/15 text-violet-400", else: "ichor-btn-muted"}"}>
             {if is_traced, do: "Tracing", else: "Trace"}
           </button>
-          <button :if={!is_hitl_paused} phx-click="pause_agent" phx-value-session_id={sel_id} class="obs-btn obs-btn-muted">Pause</button>
-          <button :if={is_hitl_paused} phx-click="resume_agent" phx-value-session_id={sel_id} class="obs-btn obs-btn-muted">Resume</button>
-          <button phx-click="shutdown_agent" phx-value-session_id={sel_id} class="obs-btn obs-btn-muted text-red-400" data-confirm="Shut down this agent?">Shutdown</button>
+          <button :if={!is_hitl_paused} phx-click="pause_agent" phx-value-session_id={sel_id} class="ichor-btn ichor-btn-muted">Pause</button>
+          <button :if={is_hitl_paused} phx-click="resume_agent" phx-value-session_id={sel_id} class="ichor-btn ichor-btn-muted">Resume</button>
+          <button phx-click="shutdown_agent" phx-value-session_id={sel_id} class="ichor-btn ichor-btn-muted text-red-400" data-confirm="Shut down this agent?">Shutdown</button>
         </div>
       </div>
 
@@ -454,12 +454,12 @@
             <button
               phx-click="hitl_approve"
               phx-value-session_id={sel_id}
-              class="obs-btn bg-emerald-600/15 text-emerald-400 hover:bg-emerald-600/25 flex-1"
+              class="ichor-btn bg-emerald-600/15 text-emerald-400 hover:bg-emerald-600/25 flex-1"
             >Approve & Flush</button>
             <button
               phx-click="hitl_reject"
               phx-value-session_id={sel_id}
-              class="obs-btn bg-red-600/15 text-red-400 hover:bg-red-600/25 flex-1"
+              class="ichor-btn bg-red-600/15 text-red-400 hover:bg-red-600/25 flex-1"
               data-confirm="Discard all buffered messages?"
             >Reject</button>
           </div>
@@ -473,8 +473,8 @@
         <div phx-update="ignore" id={"fleet-msg-#{sel_id}"} phx-hook="ClearFormOnSubmit">
           <form phx-submit="send_command_message" class="flex gap-1.5">
             <input type="hidden" name="to" value={sel_id} />
-            <input type="text" name="content" placeholder={"Message #{sel_name}..."} class="flex-1 obs-input" />
-            <button type="submit" class="obs-btn obs-btn-primary">Send</button>
+            <input type="text" name="content" placeholder={"Message #{sel_name}..."} class="flex-1 ichor-input" />
+            <button type="submit" class="ichor-btn ichor-btn-primary">Send</button>
           </form>
         </div>
       </div>

@@ -33,7 +33,7 @@
       <div class="flex flex-col gap-2">
         <span class="text-[10px] text-zinc-600 uppercase tracking-wider">Projects</span>
         <div class="flex flex-wrap gap-1">
-          <span :for={{key, _path} <- projects} class="obs-badge obs-badge-zinc font-mono">
+          <span :for={{key, _path} <- projects} class="ichor-badge ichor-badge-zinc font-mono">
             {key}
           </span>
           <span :if={map_size(projects) == 0} class="text-[10px] text-zinc-600">Auto-detecting...</span>
@@ -43,15 +43,15 @@
             :if={active_project && active_project != ""}
             phx-click="trigger_gc"
             phx-value-team={active_project}
-            class="obs-btn obs-btn-danger"
+            class="ichor-btn ichor-btn-danger"
             data-confirm="Run garbage collection on this project?"
           >
             GC
           </button>
-          <button phx-click="run_health_check" class="obs-btn obs-btn-muted">Health</button>
+          <button phx-click="run_health_check" class="ichor-btn ichor-btn-muted">Health</button>
           <button
             phx-click="reset_all_stale"
-            class="obs-btn bg-amber-600/15 text-amber-400 hover:bg-amber-600/25"
+            class="ichor-btn bg-amber-600/15 text-amber-400 hover:bg-amber-600/25"
             data-confirm="Reset all stale tasks to pending?"
           >
             Reset Stale
@@ -61,7 +61,7 @@
     </div>
 
     <%!-- Task Detail (selected) --%>
-    <div :if={@selected_dag_task} class="obs-card p-3 min-w-0 overflow-hidden">
+    <div :if={@selected_dag_task} class="ichor-card p-3 min-w-0 overflow-hidden">
       <span class="text-[10px] text-zinc-600 uppercase tracking-wider">Task Detail</span>
       <div class="flex items-center gap-2 flex-wrap mt-2 mb-2">
         <span :if={@selected_dag_task[:project]} class="text-[10px] font-mono text-violet-400 truncate">{@selected_dag_task.project}</span>
@@ -81,14 +81,14 @@
           phx-click="reassign_swarm_task"
           phx-value-id={@selected_dag_task.id}
           phx-value-owner=""
-          class="obs-btn obs-btn-muted"
+          class="ichor-btn ichor-btn-muted"
         >
           Unassign
         </button>
         <button
           phx-click="reset_swarm_task"
           phx-value-id={@selected_dag_task.id}
-          class="obs-btn bg-amber-600/15 text-amber-400 hover:bg-amber-600/25"
+          class="ichor-btn bg-amber-600/15 text-amber-400 hover:bg-amber-600/25"
         >
           Reset
         </button>
@@ -109,7 +109,7 @@
         <div
           :for={{status, label, border_color, text_color} <- columns}
           :if={kanban[status] != []}
-          class="flex flex-col obs-kanban-col"
+          class="flex flex-col ichor-kanban-col"
         >
           <div class="flex items-center gap-2 mb-1.5 px-0.5">
             <h6 class={text_color}>{label}</h6>
@@ -122,7 +122,7 @@
               phx-click="select_dag_node"
               phx-value-id={task.id}
               class={[
-                "obs-card-compact cursor-pointer",
+                "ichor-card-compact cursor-pointer",
                 border_color,
                 @selected_dag_task && @selected_dag_task.id == task.id && "!ring-1 !ring-indigo-500/50 !bg-zinc-800/60"
               ]}

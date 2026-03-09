@@ -101,7 +101,7 @@ defmodule ObservatoryWeb.Components.TeamInspectorComponents do
         <div class="grid grid-cols-2 gap-1.5">
           <div
             :for={member <- @team.members}
-            class="obs-inspector-panel"
+            class="ichor-inspector-panel"
           >
             <div class="flex items-center gap-1.5 ip-name">
               <div class={"w-1.5 h-1.5 rounded-full shrink-0 #{member_status_color(member)}"} />

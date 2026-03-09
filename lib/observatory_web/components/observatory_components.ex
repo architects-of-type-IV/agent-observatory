@@ -15,7 +15,7 @@ defmodule ObservatoryWeb.ObservatoryComponents do
 
   attr :id, :string, required: true
   attr :name, :string, required: true
-  attr :class, :string, default: "obs-select"
+  attr :class, :string, default: "ichor-select"
   attr :rest, :global
   slot :inner_block, required: true
 

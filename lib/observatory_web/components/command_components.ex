@@ -56,7 +56,7 @@ defmodule ObservatoryWeb.Components.CommandComponents do
 
     ~H"""
     <div class="flex items-center gap-2 text-[10px]">
-      <div class="obs-tip obs-tip-bottom flex items-center gap-1" data-tip={"#{@stats.total} agents: #{@stats.active} active, #{@stats.idle} idle, #{@stats.ended} ended"}>
+      <div class="ichor-tip ichor-tip-bottom flex items-center gap-1" data-tip={"#{@stats.total} agents: #{@stats.active} active, #{@stats.idle} idle, #{@stats.ended} ended"}>
         <span class="font-bold text-zinc-200">{@stats.total}</span>
         <div class="flex items-center gap-1 font-mono">
           <span :if={@stats.active > 0} class="text-emerald-400">{@stats.active}a</span>
@@ -65,28 +65,28 @@ defmodule ObservatoryWeb.Components.CommandComponents do
         </div>
       </div>
       <span class="w-px h-3 bg-zinc-800" />
-      <div class={["obs-tip obs-tip-bottom flex items-center gap-1", if(@error_count > 0, do: "text-red-400", else: "text-zinc-600")]} data-tip={"#{@error_count} tool errors"}>
+      <div class={["ichor-tip ichor-tip-bottom flex items-center gap-1", if(@error_count > 0, do: "text-red-400", else: "text-zinc-600")]} data-tip={"#{@error_count} tool errors"}>
         <span class={["w-1.5 h-1.5 rounded-full", if(@error_count > 0, do: "bg-red-400", else: "bg-zinc-700")]} />
         <span class="font-mono">{@error_count}</span><span>err</span>
       </div>
-      <div class="obs-tip obs-tip-bottom flex items-center gap-1 text-zinc-500" data-tip={"#{@msg_count} messages in mailbox"}>
+      <div class="ichor-tip ichor-tip-bottom flex items-center gap-1 text-zinc-500" data-tip={"#{@msg_count} messages in mailbox"}>
         <span class="font-mono">{@msg_count}</span><span>msg</span>
       </div>
-      <div class="obs-tip obs-tip-bottom flex items-center gap-1 text-zinc-500" data-tip={"#{@tool_count} total tool calls"}>
+      <div class="ichor-tip ichor-tip-bottom flex items-center gap-1 text-zinc-500" data-tip={"#{@tool_count} total tool calls"}>
         <span class="font-mono">{@tool_count}</span><span>tools</span>
       </div>
-      <div class="obs-tip obs-tip-bottom flex items-center gap-1 text-zinc-500" data-tip={"#{@visible_count} visible / #{@event_count} total events"}>
+      <div class="ichor-tip ichor-tip-bottom flex items-center gap-1 text-zinc-500" data-tip={"#{@visible_count} visible / #{@event_count} total events"}>
         <span class="font-mono">{@visible_count}/{@event_count}</span><span>events</span>
       </div>
       <span class="w-px h-3 bg-zinc-800" />
-      <div :if={@task_count > 0} class="obs-tip obs-tip-bottom flex items-center gap-1" data-tip={"Tasks: #{@task_done} completed / #{@task_count} total (#{if @task_count > 0, do: round(@task_done / @task_count * 100), else: 0}%)"}>
+      <div :if={@task_count > 0} class="ichor-tip ichor-tip-bottom flex items-center gap-1" data-tip={"Tasks: #{@task_done} completed / #{@task_count} total (#{if @task_count > 0, do: round(@task_done / @task_count * 100), else: 0}%)"}>
         <% pct = if @task_count > 0, do: round(@task_done / @task_count * 100), else: 0 %>
         <div class="w-12 h-1 bg-zinc-800 rounded-full overflow-hidden">
           <div class="h-full bg-emerald-500 rounded-full" style={"width: #{pct}%"} />
         </div>
         <span class="font-mono text-zinc-500">{@task_done}/{@task_count}</span>
       </div>
-      <div :if={@pipeline.total > 0 && @pipeline.total != @task_count} class="obs-tip obs-tip-bottom flex items-center gap-1" data-tip={"Pipeline: #{@pipeline.completed} completed / #{@pipeline.total} total"}>
+      <div :if={@pipeline.total > 0 && @pipeline.total != @task_count} class="ichor-tip ichor-tip-bottom flex items-center gap-1" data-tip={"Pipeline: #{@pipeline.completed} completed / #{@pipeline.total} total"}>
         <% ppct = progress_pct(@pipeline) %>
         <div class="w-10 h-1 bg-zinc-800 rounded-full overflow-hidden">
           <div class="h-full bg-cyan-500 rounded-full" style={"width: #{ppct}%"} />
@@ -95,10 +95,10 @@ defmodule ObservatoryWeb.Components.CommandComponents do
       </div>
       <div
         class={[
-          "obs-tip obs-tip-bottom flex items-center gap-1 obs-badge",
+          "ichor-tip ichor-tip-bottom flex items-center gap-1 ichor-badge",
           if(@health.healthy && @error_count == 0,
-            do: "obs-badge-green",
-            else: "obs-badge-red"
+            do: "ichor-badge-green",
+            else: "ichor-badge-red"
           )
         ]}
         data-tip={if(@health.healthy && @error_count == 0, do: "Fleet healthy", else: "#{@error_count} errors, #{length(@health.issues)} health issues")}
@@ -114,7 +114,7 @@ defmodule ObservatoryWeb.Components.CommandComponents do
           true -> "OK"
         end}
       </div>
-      <div :if={@proto_traces + @proto_mailbox + @proto_cmdq > 0} class="obs-tip obs-tip-bottom flex items-center gap-1 font-mono text-zinc-600" data-tip={"Protocol: #{@proto_traces} traces, #{@proto_mailbox} mailbox pending, #{@proto_cmdq} command queue pending"}>
+      <div :if={@proto_traces + @proto_mailbox + @proto_cmdq > 0} class="ichor-tip ichor-tip-bottom flex items-center gap-1 font-mono text-zinc-600" data-tip={"Protocol: #{@proto_traces} traces, #{@proto_mailbox} mailbox pending, #{@proto_cmdq} command queue pending"}>
         <span :if={@proto_traces > 0}>T:{@proto_traces}</span>
         <span :if={@proto_mailbox > 0}>M:{@proto_mailbox}</span>
         <span :if={@proto_cmdq > 0}>Q:{@proto_cmdq}</span>

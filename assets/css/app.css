@@ -104,190 +104,335 @@
 
 /* This file is for your main application CSS */
 
+/* ═══════════════════════════════════════════════════════════════════════
+   DESIGN TOKENS
+   CSS custom properties for theme-swappable design.
+   Default: ICHOR IV (dark, amber accent).
+   Override with [data-theme="swiss"] for Swiss International Style.
+   ═══════════════════════════════════════════════════════════════════════ */
+@layer base {
+  :root {
+    /* ── Text hierarchy ── */
+    --ichor-text-high: 240 5% 84%;           /* zinc-300 #d4d4d8 */
+    --ichor-text: 240 4% 65%;                /* zinc-400 #a1a1aa */
+    --ichor-text-low: 240 4% 46%;            /* zinc-500 #71717a */
+    --ichor-text-muted: 240 5% 34%;          /* zinc-600 #52525b */
+
+    /* ── Backgrounds ── */
+    --ichor-bg: 240 6% 10%;                  /* zinc-900 #18181b */
+    --ichor-bg-raised: 240 4% 16%;           /* zinc-800 #27272a */
+    --ichor-bg-surface: 240 5% 12%;          /* between 800/900 */
+    --ichor-bg-overlay: 0 0% 0%;             /* black for backdrops */
+
+    /* ── Borders ── */
+    --ichor-border: 240 4% 16%;              /* zinc-800 */
+    --ichor-border-subtle: 240 4% 22%;       /* zinc-700 */
+
+    /* ── Brand accent (amber) ── */
+    --ichor-brand: 38 92% 50%;               /* amber-500 #f59e0b */
+    --ichor-brand-muted: 32 95% 44%;         /* amber-600 */
+    --ichor-brand-dim: 26 90% 37%;           /* amber-700 */
+    --ichor-brand-bg: 38 92% 50%;            /* amber for bg tints */
+
+    /* ── Semantic status ── */
+    --ichor-success: 160 84% 39%;            /* emerald-500 */
+    --ichor-error: 0 84% 60%;               /* red-500 */
+    --ichor-warning: 38 92% 50%;            /* amber-500 */
+    --ichor-info: 217 91% 60%;              /* blue-500 */
+
+    /* ── Interactive (buttons, focus, selection) ── */
+    --ichor-interactive: 239 84% 67%;        /* indigo-500 */
+    --ichor-interactive-muted: 239 84% 50%;  /* indigo-600 */
+
+    /* ── Geometry ── */
+    --ichor-radius-sm: 0.25rem;
+    --ichor-radius: 0.375rem;
+    --ichor-radius-lg: 0.5rem;
+    --ichor-radius-xl: 0.75rem;
+    --ichor-radius-full: 9999px;
+
+    /* ── Scrollbar ── */
+    --ichor-scrollbar: 240 4% 16%;
+    --ichor-scrollbar-hover: 240 4% 22%;
+  }
+
+  /* ── Swiss International Style ── */
+  [data-theme="swiss"] {
+    --ichor-text-high: 0 0% 0%;             /* pure black */
+    --ichor-text: 0 0% 0%;                  /* pure black */
+    --ichor-text-low: 0 0% 40%;             /* dark gray */
+    --ichor-text-muted: 0 0% 60%;           /* mid gray */
+
+    --ichor-bg: 0 0% 100%;                  /* pure white */
+    --ichor-bg-raised: 0 0% 95%;            /* #f2f2f2 */
+    --ichor-bg-surface: 0 0% 98%;           /* near white */
+    --ichor-bg-overlay: 0 0% 100%;          /* white */
+
+    --ichor-border: 0 0% 0%;               /* black borders */
+    --ichor-border-subtle: 0 0% 80%;        /* light gray */
+
+    --ichor-brand: 11 100% 50%;             /* Swiss Red #FF3000 */
+    --ichor-brand-muted: 11 100% 40%;       /* darker red */
+    --ichor-brand-dim: 11 100% 30%;
+    --ichor-brand-bg: 11 100% 50%;
+
+    --ichor-success: 142 76% 36%;
+    --ichor-error: 0 84% 60%;
+    --ichor-warning: 32 95% 44%;
+    --ichor-info: 217 91% 60%;
+
+    --ichor-interactive: 0 0% 0%;           /* black for interactive */
+    --ichor-interactive-muted: 0 0% 20%;
+
+    --ichor-radius-sm: 0;
+    --ichor-radius: 0;
+    --ichor-radius-lg: 0;
+    --ichor-radius-xl: 0;
+    --ichor-radius-full: 9999px;            /* keep for dots */
+
+    --ichor-scrollbar: 0 0% 80%;
+    --ichor-scrollbar-hover: 0 0% 60%;
+  }
+}
+
 /* ═══ Observatory Design System ═══ */
 
 /* Scrollbar */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #27272a; border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: #3f3f46; }
+::-webkit-scrollbar-thumb { background: hsl(var(--ichor-scrollbar)); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: hsl(var(--ichor-scrollbar-hover)); }
 
 /* Section blocks -- the rounded containers for each column */
-.obs-section {
-  @apply border border-zinc-800 rounded-lg bg-zinc-900/30 overflow-hidden flex flex-col min-h-0;
+.ichor-section {
+  border: 1px solid hsl(var(--ichor-border));
+  border-radius: var(--ichor-radius-lg);
+  background: hsl(var(--ichor-bg) / 0.3);
+  @apply overflow-hidden flex flex-col min-h-0;
 }
-.obs-section-header {
-  @apply px-2 py-1.5 border-b border-zinc-800 bg-zinc-900/50 flex items-center justify-between shrink-0;
+.ichor-section-header {
+  border-bottom: 1px solid hsl(var(--ichor-border));
+  background: hsl(var(--ichor-bg) / 0.5);
+  @apply px-2 py-1.5 flex items-center justify-between shrink-0;
 }
-.obs-section-header h5,
-.obs-section-header .obs-section-title {
-  @apply text-[10px] font-semibold uppercase tracking-wider text-zinc-500;
+.ichor-section-header h5,
+.ichor-section-header .ichor-section-title {
+  color: hsl(var(--ichor-text-low));
+  @apply text-[10px] font-semibold uppercase tracking-wider;
 }
-.obs-section-body {
+.ichor-section-body {
   @apply p-2 flex-1 overflow-y-auto;
 }
 
 /* Section title used in sidebar, detail panel, inspector */
-.obs-section-title {
-  @apply text-[9px] font-semibold uppercase tracking-wider text-zinc-500;
+.ichor-section-title {
+  color: hsl(var(--ichor-text-low));
+  @apply text-[9px] font-semibold uppercase tracking-wider;
 }
 
 /* Sidebar items -- team/session rows */
-.obs-sidebar-item {
-  @apply px-1.5 py-1 rounded border border-transparent bg-zinc-800/50 cursor-pointer transition-all;
+.ichor-sidebar-item {
+  background: hsl(var(--ichor-bg-raised) / 0.5);
+  border: 1px solid transparent;
+  border-radius: var(--ichor-radius);
+  @apply px-1.5 py-1 cursor-pointer transition-all;
 }
-.obs-sidebar-item:hover {
-  @apply border-zinc-700;
+.ichor-sidebar-item:hover {
+  border-color: hsl(var(--ichor-border-subtle));
 }
-.obs-sidebar-item.active {
-  @apply border-indigo-500/40 bg-zinc-800/60;
+.ichor-sidebar-item.active {
+  border-color: hsl(var(--ichor-interactive) / 0.4);
+  background: hsl(var(--ichor-bg-raised) / 0.6);
 }
-.obs-sidebar-item .si-title {
-  @apply text-[10px] font-mono text-zinc-400;
+.ichor-sidebar-item .si-title {
+  color: hsl(var(--ichor-text));
+  @apply text-[10px] font-mono;
 }
-.obs-sidebar-item .si-meta {
-  @apply text-[9px] text-zinc-600;
+.ichor-sidebar-item .si-meta {
+  color: hsl(var(--ichor-text-muted));
+  @apply text-[9px];
 }
 
 /* Detail panel field rows */
-.obs-detail-field {
+.ichor-detail-field {
   @apply flex items-baseline gap-2;
 }
-.obs-detail-field .df-label {
-  @apply text-[9px] text-zinc-600 shrink-0;
+.ichor-detail-field .df-label {
+  color: hsl(var(--ichor-text-muted));
+  @apply text-[9px] shrink-0;
 }
-.obs-detail-field .df-value {
-  @apply text-[10px] font-mono text-zinc-400;
+.ichor-detail-field .df-value {
+  color: hsl(var(--ichor-text));
+  @apply text-[10px] font-mono;
 }
 
 /* Inspector agent panels */
-.obs-inspector-panel {
-  @apply border border-zinc-800 rounded bg-zinc-900/50 p-1.5;
+.ichor-inspector-panel {
+  border: 1px solid hsl(var(--ichor-border));
+  border-radius: var(--ichor-radius);
+  background: hsl(var(--ichor-bg) / 0.5);
+  @apply p-1.5;
 }
-.obs-inspector-panel .ip-name {
-  @apply text-[10px] font-mono text-zinc-300 mb-0.5;
+.ichor-inspector-panel .ip-name {
+  color: hsl(var(--ichor-text-high));
+  @apply text-[10px] font-mono mb-0.5;
 }
-.obs-inspector-panel .ip-output {
-  @apply text-[9px] font-mono text-zinc-600;
+.ichor-inspector-panel .ip-output {
+  color: hsl(var(--ichor-text-muted));
+  @apply text-[9px] font-mono;
 }
 
 /* Cards -- agent cards, kanban cards, sidebar items */
-.obs-card {
-  @apply p-2 rounded-md border border-zinc-800 bg-zinc-900/50 transition-all;
+.ichor-card {
+  border: 1px solid hsl(var(--ichor-border));
+  border-radius: var(--ichor-radius-lg);
+  background: hsl(var(--ichor-bg) / 0.5);
+  @apply p-2 transition-all;
 }
-.obs-card:hover {
-  @apply border-zinc-700 bg-zinc-800/60;
+.ichor-card:hover {
+  border-color: hsl(var(--ichor-border-subtle));
+  background: hsl(var(--ichor-bg-raised) / 0.6);
 }
-.obs-card-compact {
-  @apply px-2 py-1.5 rounded border border-zinc-800 bg-zinc-900/50 transition-all;
+.ichor-card-compact {
+  border: 1px solid hsl(var(--ichor-border));
+  border-radius: var(--ichor-radius);
+  background: hsl(var(--ichor-bg) / 0.5);
+  @apply px-2 py-1.5 transition-all;
 }
-.obs-card-compact:hover {
-  @apply border-zinc-700;
+.ichor-card-compact:hover {
+  border-color: hsl(var(--ichor-border-subtle));
 }
 
 /* Tooltip popover -- CSS-only, reusable */
-.obs-tip {
+.ichor-tip {
   @apply relative;
 }
-.obs-tip::after {
+.ichor-tip::after {
   content: attr(data-tip);
+  background: hsl(var(--ichor-bg-raised));
+  color: hsl(var(--ichor-text-high));
+  border: 1px solid hsl(var(--ichor-border-subtle));
+  border-radius: var(--ichor-radius);
   @apply absolute z-50 invisible opacity-0 transition-all duration-150
     bottom-full left-1/2 -translate-x-1/2 mb-1.5
-    px-2 py-1 rounded text-[10px] leading-tight
-    bg-zinc-800 text-zinc-300 border border-zinc-700
+    px-2 py-1 text-[10px] leading-tight
     whitespace-nowrap pointer-events-none shadow-lg;
 }
-.obs-tip:hover::after {
+.ichor-tip:hover::after {
   @apply visible opacity-100;
 }
 /* Wide variant for longer text */
-.obs-tip-wide::after {
+.ichor-tip-wide::after {
   @apply whitespace-normal w-48 text-center;
 }
 /* Position variants */
-.obs-tip-right::after {
+.ichor-tip-right::after {
   @apply left-full top-1/2 -translate-y-1/2 translate-x-0 bottom-auto ml-1.5;
 }
-.obs-tip-left::after {
+.ichor-tip-left::after {
   @apply right-full left-auto top-1/2 -translate-y-1/2 translate-x-0 bottom-auto mr-1.5;
 }
-.obs-tip-bottom::after {
+.ichor-tip-bottom::after {
   @apply top-full bottom-auto mt-1.5 mb-0;
 }
 
 /* Badges -- status, priority, role */
-.obs-badge {
-  @apply text-[9px] font-semibold px-1.5 py-0.5 rounded;
+.ichor-badge {
+  border-radius: var(--ichor-radius);
+  @apply text-[9px] font-semibold px-1.5 py-0.5;
 }
-.obs-badge-green { @apply bg-emerald-500/15 text-emerald-400; }
-.obs-badge-blue { @apply bg-blue-500/15 text-blue-400; }
-.obs-badge-amber { @apply bg-amber-500/15 text-amber-400; }
-.obs-badge-red { @apply bg-red-500/15 text-red-400; }
-.obs-badge-zinc { @apply bg-zinc-800 text-zinc-400; }
-.obs-badge-cyan { @apply bg-cyan-500/15 text-cyan-400; }
-.obs-badge-indigo { @apply bg-indigo-500/15 text-indigo-400; }
+.ichor-badge-green { background: hsl(var(--ichor-success) / 0.15); color: hsl(var(--ichor-success)); }
+.ichor-badge-blue { background: hsl(var(--ichor-info) / 0.15); color: hsl(var(--ichor-info)); }
+.ichor-badge-amber { background: hsl(var(--ichor-brand) / 0.15); color: hsl(var(--ichor-brand)); }
+.ichor-badge-red { background: hsl(var(--ichor-error) / 0.15); color: hsl(var(--ichor-error)); }
+.ichor-badge-zinc { background: hsl(var(--ichor-bg-raised)); color: hsl(var(--ichor-text)); }
+.ichor-badge-cyan { background: hsl(var(--ichor-info) / 0.15); color: hsl(var(--ichor-info)); }
+.ichor-badge-indigo { background: hsl(var(--ichor-interactive) / 0.15); color: hsl(var(--ichor-interactive)); }
 
 /* Status dots */
-.obs-dot { @apply w-[5px] h-[5px] rounded-full shrink-0 inline-block; }
-.obs-dot-green { @apply bg-emerald-400; }
-.obs-dot-blue { @apply bg-blue-400; }
-.obs-dot-amber { @apply bg-amber-400; }
-.obs-dot-red { @apply bg-red-400; }
-.obs-dot-gray { @apply bg-zinc-600; }
+.ichor-dot { @apply w-[5px] h-[5px] rounded-full shrink-0 inline-block; }
+.ichor-dot-green { background: hsl(var(--ichor-success)); }
+.ichor-dot-blue { background: hsl(var(--ichor-info)); }
+.ichor-dot-amber { background: hsl(var(--ichor-brand)); }
+.ichor-dot-red { background: hsl(var(--ichor-error)); }
+.ichor-dot-gray { background: hsl(var(--ichor-text-muted)); }
 
 /* Feed items */
-.obs-feed-item {
-  @apply py-1 px-2 border-l-2 border-zinc-800;
+.ichor-feed-item {
+  border-left: 2px solid hsl(var(--ichor-border));
+  @apply py-1 px-2;
 }
-.obs-feed-item-tool { @apply border-l-indigo-500/60; }
-.obs-feed-item-msg { @apply border-l-cyan-500/60; }
-.obs-feed-item-err { @apply border-l-red-500/60; }
+.ichor-feed-item-tool { border-left-color: hsl(var(--ichor-interactive) / 0.6); }
+.ichor-feed-item-msg { border-left-color: hsl(var(--ichor-info) / 0.6); }
+.ichor-feed-item-err { border-left-color: hsl(var(--ichor-error) / 0.6); }
 
 /* Kanban columns */
-.obs-kanban-col h6 {
-  @apply text-[9px] font-semibold uppercase tracking-wider text-zinc-500 mb-1.5;
+.ichor-kanban-col h6 {
+  color: hsl(var(--ichor-text-low));
+  @apply text-[9px] font-semibold uppercase tracking-wider mb-1.5;
 }
 
 /* Joined pill -- makes inner wrappers (form, phx-update divs) layout-transparent */
-.obs-pill {
-  @apply flex items-stretch rounded overflow-hidden border border-zinc-700/60;
+.ichor-pill {
+  border: 1px solid hsl(var(--ichor-border-subtle) / 0.6);
+  border-radius: var(--ichor-radius);
+  @apply flex items-stretch overflow-hidden;
 }
-.obs-pill > form,
-.obs-pill > form > div[phx-update] {
+.ichor-pill > form,
+.ichor-pill > form > div[phx-update] {
   display: contents;
 }
 
 /* Inputs and forms */
-.obs-input {
-  @apply bg-zinc-800/80 border border-zinc-700/60 rounded px-2 py-1 text-[11px] text-zinc-300 placeholder-zinc-600 focus:border-indigo-500/50 focus:ring-0 focus:outline-none transition;
+.ichor-input {
+  background: hsl(var(--ichor-bg-raised) / 0.8);
+  border: 1px solid hsl(var(--ichor-border-subtle) / 0.6);
+  border-radius: var(--ichor-radius);
+  color: hsl(var(--ichor-text-high));
+  @apply px-2 py-1 text-[11px] placeholder-zinc-600 focus:ring-0 focus:outline-none transition;
 }
-.obs-select {
-  @apply bg-zinc-800/80 border border-zinc-700/60 rounded px-1.5 py-1 text-[11px] text-zinc-300 focus:border-indigo-500/50 focus:ring-0 focus:outline-none transition;
+.ichor-input:focus {
+  border-color: hsl(var(--ichor-interactive) / 0.5);
 }
-.obs-btn {
-  @apply px-2 py-1 rounded text-[10px] transition font-medium;
+.ichor-select {
+  background: hsl(var(--ichor-bg-raised) / 0.8);
+  border: 1px solid hsl(var(--ichor-border-subtle) / 0.6);
+  border-radius: var(--ichor-radius);
+  color: hsl(var(--ichor-text-high));
+  @apply px-1.5 py-1 text-[11px] focus:ring-0 focus:outline-none transition;
 }
-.obs-btn-primary { @apply bg-indigo-600/20 text-indigo-400 hover:bg-indigo-600/30; }
-.obs-btn-success { @apply bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600/30; }
-.obs-btn-danger { @apply bg-red-600/20 text-red-400 hover:bg-red-600/30; }
-.obs-btn-muted { @apply bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-zinc-300; }
+.ichor-select:focus {
+  border-color: hsl(var(--ichor-interactive) / 0.5);
+}
+.ichor-btn {
+  border-radius: var(--ichor-radius);
+  @apply px-2 py-1 text-[10px] transition font-medium;
+}
+.ichor-btn-primary { background: hsl(var(--ichor-interactive) / 0.2); color: hsl(var(--ichor-interactive)); }
+.ichor-btn-primary:hover { background: hsl(var(--ichor-interactive) / 0.3); }
+.ichor-btn-success { background: hsl(var(--ichor-success) / 0.2); color: hsl(var(--ichor-success)); }
+.ichor-btn-success:hover { background: hsl(var(--ichor-success) / 0.3); }
+.ichor-btn-danger { background: hsl(var(--ichor-error) / 0.2); color: hsl(var(--ichor-error)); }
+.ichor-btn-danger:hover { background: hsl(var(--ichor-error) / 0.3); }
+.ichor-btn-muted { background: hsl(var(--ichor-bg-raised)); color: hsl(var(--ichor-text)); }
+.ichor-btn-muted:hover { background: hsl(var(--ichor-border-subtle)); color: hsl(var(--ichor-text-high)); }
 
 /* Empty state */
-.obs-empty {
+.ichor-empty {
   @apply flex flex-col items-center justify-center py-8 text-center;
 }
-.obs-empty-title { @apply text-xs font-medium text-zinc-500 mb-1; }
-.obs-empty-desc { @apply text-[10px] text-zinc-600; }
+.ichor-empty-title { color: hsl(var(--ichor-text-low)); @apply text-xs font-medium mb-1; }
+.ichor-empty-desc { color: hsl(var(--ichor-text-muted)); @apply text-[10px]; }
 
 /* Dividers */
-.obs-divider { @apply w-px h-4 bg-zinc-800; }
+.ichor-divider { background: hsl(var(--ichor-border)); @apply w-px h-4; }
 
 /* Pulse animation for live indicators */
-@keyframes obs-pulse {
+@keyframes ichor-pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.4; }
 }
-.obs-pulse { animation: obs-pulse 2s ease-in-out infinite; }
+.ichor-pulse { animation: ichor-pulse 2s ease-in-out infinite; }
 
 /* Inspector drawer */
 .inspector-drawer {
@@ -349,30 +494,30 @@
   width: min(960px, 90vw);
   aspect-ratio: 16 / 9;
   max-height: 85vh;
-  background: rgba(9, 9, 11, 0.92);
-  border: 1px solid rgba(217, 119, 6, 0.15);
+  background: rgba(24, 24, 27, 0.95);
+  border: 1px solid rgba(217, 119, 6, 0.25);
   border-radius: 12px;
   box-shadow:
-    0 0 60px rgba(217, 119, 6, 0.06),
-    0 0 120px rgba(217, 119, 6, 0.03),
-    0 25px 50px rgba(0, 0, 0, 0.5);
+    0 0 60px rgba(217, 119, 6, 0.1),
+    0 0 120px rgba(217, 119, 6, 0.05),
+    0 25px 50px rgba(0, 0, 0, 0.4);
 }
 .archon-panel::before {
   content: '';
   position: absolute;
   top: 0; left: 0; right: 0;
   height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(245, 158, 11, 0.3), transparent);
+  background: linear-gradient(90deg, transparent, rgba(245, 158, 11, 0.5), transparent);
 }
 
 /* Top bar */
 .archon-topbar {
   @apply px-4 py-2.5 flex items-center justify-between shrink-0;
-  border-bottom: 1px solid rgba(63, 63, 70, 0.3);
+  border-bottom: 1px solid rgba(63, 63, 70, 0.4);
 }
 .archon-sigil {
   @apply w-8 h-8 rounded-lg flex items-center justify-center shrink-0;
-  background: linear-gradient(135deg, rgba(217, 119, 6, 0.15), rgba(217, 119, 6, 0.05));
+  background: linear-gradient(135deg, rgba(217, 119, 6, 0.25), rgba(217, 119, 6, 0.1));
   border: 1px solid rgba(217, 119, 6, 0.2);
   box-shadow: 0 0 20px rgba(217, 119, 6, 0.08);
 }
@@ -387,7 +532,7 @@
   @apply text-sm font-bold tracking-[0.2em] text-zinc-100;
 }
 .archon-subtitle {
-  @apply text-[9px] text-amber-700/60 font-mono uppercase tracking-[0.15em];
+  @apply text-[9px] text-amber-600/70 font-mono uppercase tracking-[0.15em];
 }
 .archon-status-row {
   @apply flex items-center gap-1.5 px-2 py-1 rounded;
@@ -410,8 +555,8 @@
 /* Tab bar */
 .archon-tab-bar {
   @apply flex items-center gap-0.5 p-0.5 rounded-lg;
-  background: rgba(39, 39, 42, 0.5);
-  border: 1px solid rgba(63, 63, 70, 0.3);
+  background: rgba(39, 39, 42, 0.6);
+  border: 1px solid rgba(63, 63, 70, 0.4);
 }
 .archon-tab {
   @apply px-2.5 py-1 rounded text-[10px] font-mono uppercase tracking-wider cursor-pointer transition-all;
@@ -444,25 +589,25 @@
 
 /* Section title */
 .archon-section-title {
-  @apply text-[10px] font-mono uppercase tracking-[0.15em] text-amber-700/50 font-semibold;
+  @apply text-[10px] font-mono uppercase tracking-[0.15em] text-amber-600/60 font-semibold;
 }
 
 /* Action cards */
 .archon-action-card {
   @apply rounded-lg p-3 cursor-pointer transition-all;
-  background: rgba(39, 39, 42, 0.2);
-  border: 1px solid rgba(63, 63, 70, 0.25);
+  background: rgba(39, 39, 42, 0.35);
+  border: 1px solid rgba(63, 63, 70, 0.35);
 }
 .archon-action-card:hover {
-  background: rgba(217, 119, 6, 0.04);
+  background: rgba(217, 119, 6, 0.08);
   border-color: rgba(217, 119, 6, 0.2);
   box-shadow: 0 0 20px rgba(217, 119, 6, 0.04);
 }
 .archon-action-icon {
-  @apply text-amber-600/50;
+  @apply text-amber-500/60;
 }
 .archon-action-card:hover .archon-action-icon {
-  @apply text-amber-500/80;
+  @apply text-amber-400/90;
 }
 .archon-action-key {
   @apply w-5 h-5 rounded flex items-center justify-center text-[10px] font-mono font-bold;
@@ -479,7 +624,7 @@
   @apply text-xs font-medium text-zinc-300;
 }
 .archon-action-desc {
-  @apply text-[10px] text-zinc-600 mt-0.5;
+  @apply text-[10px] text-zinc-500 mt-0.5;
 }
 
 /* Chat */
@@ -504,9 +649,9 @@
   @apply text-zinc-200;
 }
 .archon-bubble-assistant {
-  background: rgba(39, 39, 42, 0.4);
-  border: 1px solid rgba(63, 63, 70, 0.3);
-  @apply text-zinc-300;
+  background: rgba(39, 39, 42, 0.5);
+  border: 1px solid rgba(63, 63, 70, 0.4);
+  @apply text-zinc-200;
 }
 .archon-bubble-system {
   background: rgba(217, 119, 6, 0.06);
@@ -559,8 +704,8 @@
 /* Reference items */
 .archon-ref-item {
   @apply rounded-lg px-3 py-2.5 cursor-pointer transition-all;
-  background: rgba(39, 39, 42, 0.15);
-  border: 1px solid rgba(63, 63, 70, 0.2);
+  background: rgba(39, 39, 42, 0.3);
+  border: 1px solid rgba(63, 63, 70, 0.3);
 }
 .archon-ref-item:hover {
   background: rgba(217, 119, 6, 0.04);
@@ -570,7 +715,7 @@
   @apply text-[11px] text-amber-500/80 font-mono;
 }
 .archon-ref-desc {
-  @apply text-[10px] text-zinc-600 mt-0.5 leading-tight;
+  @apply text-[10px] text-zinc-500 mt-0.5 leading-tight;
 }
 
 /* FAB */

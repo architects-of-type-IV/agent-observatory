@@ -13,7 +13,7 @@ defmodule ObservatoryWeb.Components.TeamMessageComponents do
   def message_composer(assigns) do
     ~H"""
     <form phx-submit="send_targeted_message" class="flex flex-col gap-2">
-      <.stable_select id="select-message-target" name="target" phx-change="set_message_target" class="obs-select text-xs py-1.5">
+      <.stable_select id="select-message-target" name="target" phx-change="set_message_target" class="ichor-select text-xs py-1.5">
         <option value="">Select target...</option>
         <option value="all_teams">All teams ({length(@teams)} teams)</option>
         <%= for team <- @teams do %>
@@ -34,12 +34,12 @@ defmodule ObservatoryWeb.Components.TeamMessageComponents do
           type="text"
           name="content"
           placeholder="Type a message..."
-          class="flex-1 obs-input text-xs py-1.5"
+          class="flex-1 ichor-input text-xs py-1.5"
           required
         />
         <button
           type="submit"
-          class="obs-btn obs-btn-primary shrink-0"
+          class="ichor-btn ichor-btn-primary shrink-0"
         >
           Send
         </button>

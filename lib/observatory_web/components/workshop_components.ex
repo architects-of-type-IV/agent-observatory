@@ -28,16 +28,16 @@ defmodule ObservatoryWeb.Components.WorkshopComponents do
   # ── Helpers ────────────────────────────────────────────────
 
   @cap_colors %{
-    "builder" => {"#22d3ee", "obs-badge-cyan", "BLD"},
-    "scout" => {"#34d399", "obs-badge-green", "SCT"},
-    "reviewer" => {"#fbbf24", "obs-badge-amber", "REV"},
-    "lead" => {"#a78bfa", "obs-badge-violet", "LEAD"},
-    "coordinator" => {"#818cf8", "obs-badge-indigo", "COORD"}
+    "builder" => {"#22d3ee", "ichor-badge-cyan", "BLD"},
+    "scout" => {"#34d399", "ichor-badge-green", "SCT"},
+    "reviewer" => {"#fbbf24", "ichor-badge-amber", "REV"},
+    "lead" => {"#a78bfa", "ichor-badge-violet", "LEAD"},
+    "coordinator" => {"#818cf8", "ichor-badge-indigo", "COORD"}
   }
 
-  def cap_dot(cap), do: elem(Map.get(@cap_colors, cap, {"#71717a", "obs-badge-zinc", "?"}), 0)
-  def cap_badge(cap), do: elem(Map.get(@cap_colors, cap, {"#71717a", "obs-badge-zinc", "?"}), 1)
-  def cap_abbr(cap), do: elem(Map.get(@cap_colors, cap, {"#71717a", "obs-badge-zinc", "?"}), 2)
+  def cap_dot(cap), do: elem(Map.get(@cap_colors, cap, {"#71717a", "ichor-badge-zinc", "?"}), 0)
+  def cap_badge(cap), do: elem(Map.get(@cap_colors, cap, {"#71717a", "ichor-badge-zinc", "?"}), 1)
+  def cap_abbr(cap), do: elem(Map.get(@cap_colors, cap, {"#71717a", "ichor-badge-zinc", "?"}), 2)
 
   def comm_tag_class("allow"), do: "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
   def comm_tag_class("deny"), do: "bg-red-500/10 text-red-400 border border-red-500/20"

@@ -1,41 +1,45 @@
 # ICHOR IV (formerly Observatory) - Handoff
 
-## Current Status: Archon HUD Redesign + Fleet Action Fixes (2026-03-09)
+## Current Status: Design Token System + Theme Foundation (2026-03-09)
 
 ### Just Completed
 
-**Archon Type IV Sovereign HUD Redesign**
-- Redesigned from full-screen opaque modal to centered 16:9 translucent glass panel
-- Three tabbed views: Command (Q), Chat (W), Reference (E) -- keyboard-switchable
-- Command tab: 7 quick action cards bound to keys 1-7 (agents, teams, inbox, health, sessions, recall, query) + mini activity feed
-- Chat tab: full conversation view with Archon
-- Reference tab: all 10 shortcodes in clickable grid
-- Keyboard context: when Archon open, number keys fire shortcodes; Q/W/E switch tabs; esc/a closes
-- DOM MutationObserver tracks archon open state for keyboard routing
-- Visual: translucent glass (bg-black/40), amber glow, gradient edge, pulsing sigil, ONLINE status
+**Design Token System (CSS Custom Properties)**
+- Added `--ichor-*` CSS custom property system to `assets/css/app.css`
+- 25 design tokens covering: text hierarchy (4), backgrounds (4), borders (2), brand accent (4), semantic status (4), interactive (2), geometry/radius (5)
+- Two theme definitions: ICHOR IV (dark/amber, default `:root`) and Swiss International Style (`[data-theme="swiss"]`)
+- Swiss theme: pure white bg, black borders, zero border radius, Swiss Red accent -- matches Genesis project
+- Theme switching via `data-theme` attribute on `<html>` (already wired in root layout)
+- Body element uses `hsl(var(--ichor-bg))` and `hsl(var(--ichor-text-high))` for base colors
 
-**Fleet Control Fixes (5 issues)**
-1. `agent_index` not passed to `command_view` component -- fleet sidebar always showed 0 agents
-2. `shutdown_agent` only sent a message, didn't mark ended or stop AgentProcess
-3. `kill_tmux_session` killed tmux but didn't remove from AgentRegistry
-4. Pause/Resume didn't update `paused_sessions` MapSet immediately (waited for PubSub)
-5. Focus button was dead -- `agent_slideout` assign set but no template rendered it
+**Design System Rename: obs-* -> ichor-***
+- All `.obs-*` CSS classes renamed to `.ichor-*` across CSS + 13 template/component files
+- All `--obs-*` CSS variables renamed to `--ichor-*`
+- Keyframe animation `obs-pulse` renamed to `ichor-pulse`
+- tmux session prefix `obs-` intentionally NOT renamed (infrastructure, not UI)
 
-**New Features**
-- `AgentRegistry.remove/1` -- delete agent from ETS + broadcast registry change
-- Agent Focus slideout panel -- right-edge slide-over showing agent info, terminal, activity
-- HITL gate Archon notification -- system-role alert auto-opens Archon when agent is paused
-- System message styling in Archon chat (amber alert bubble, "alert" meta label)
+**obs-* Design System Migrated to Tokens**
+- ~50 component classes (section, card, badge, dot, button, input, etc.) now use `hsl(var(--ichor-*))` instead of hardcoded zinc/amber/emerald
+- Border radius uses `var(--ichor-radius-*)` -- resolves to rounded in ICHOR IV, zero in Swiss
+- All status colors (success, error, info, brand) use semantic tokens
+
+### In Progress
+
+**Template Migration (64 files, ~1,172 hardcoded color references)**
+- The `ichor-*` design system classes are token-based, but inline Tailwind classes in templates still use hardcoded `zinc-800`, `amber-500`, etc.
+- These need systematic replacement: `zinc-800` -> token, `zinc-500` -> token, `amber-*` -> brand token
+- Can be done incrementally per component group
 
 ### Previously Completed
 
+**Archon Type IV Sovereign HUD Redesign**
+- Centered 16:9 translucent glass panel, 3 tabs (Command/Chat/Reference), keyboard-driven
+
+**Fleet Control Fixes (5 issues)**
+- agent_index prop, shutdown/kill cleanup, pause/resume immediate update, focus slideout, HITL notification
+
 **LiveView Performance Optimization (6 fixes)**
-- Tiered recompute, debounced recompute, deferred mount, conditional computation
-
 **Fleet Consistency Rewire + Legacy Elimination (tasks 42, 51)**
-- All external callers rewired to Fleet code interfaces
-- Mailbox, CommandQueue, TeamWatcher deleted
-
 **DashboardLive refactor: 594 -> 164 lines (dispatch/3 pattern)**
 
 ### .env Setup
@@ -46,10 +50,12 @@
 `mix compile --warnings-as-errors` -- CLEAN
 
 ### Next Steps
-1. **Streams** (deferred): Convert events list to LiveView streams for render perf
-2. **LiveComponents** (deferred): Isolate fleet tree, feed, inspector as stateful components
-3. **Task 8** (pending, low priority): Non-blocking event pipeline validation
-4. **Task 31** (pending, low priority): Rename codebase to ICHOR IV
+1. **Template color migration**: Replace ~1,172 hardcoded Tailwind color classes with semantic tokens across 64 files
+2. **Archon CSS tokenization**: Convert archon-* classes from hardcoded rgba() to `hsl(var(--ichor-*))`
+3. **Workshop canvas tokenization**: Convert agent-node hardcoded hex colors to tokens
+4. **Theme switcher UI**: Add toggle button in dashboard header
+5. **Streams** (deferred): Convert events list to LiveView streams for render perf
+6. **LiveComponents** (deferred): Isolate fleet tree, feed, inspector as stateful components
 
 ### Memories Server
 - Running on port 4000 (must be running for Archon memory tools)

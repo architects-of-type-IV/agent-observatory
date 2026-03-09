@@ -80,13 +80,13 @@ defmodule ObservatoryWeb.Components.ModalComponents do
       <:header>Create New Task</:header>
       <form phx-submit="create_task" class="px-4 py-3 space-y-3">
         <.form_field label="Subject">
-          <input type="text" name="subject" required class="w-full obs-input text-xs py-1.5" placeholder="Add new feature..." />
+          <input type="text" name="subject" required class="w-full ichor-input text-xs py-1.5" placeholder="Add new feature..." />
         </.form_field>
         <.form_field label="Description">
-          <textarea name="description" required rows="3" class="w-full obs-input text-xs py-1.5" placeholder="Detailed description of the task..."></textarea>
+          <textarea name="description" required rows="3" class="w-full ichor-input text-xs py-1.5" placeholder="Detailed description of the task..."></textarea>
         </.form_field>
         <.form_field label="Assign To">
-          <.stable_select id="select-task-owner" name="owner" class="w-full obs-select text-xs py-1.5">
+          <.stable_select id="select-task-owner" name="owner" class="w-full ichor-select text-xs py-1.5">
             <option value="">Unassigned</option>
             <option
               :for={member <- if @sel_team, do: @sel_team.members, else: []}
@@ -98,8 +98,8 @@ defmodule ObservatoryWeb.Components.ModalComponents do
         </.form_field>
         <input type="hidden" name="team" value={@selected_team} />
         <div class="flex justify-end gap-2 pt-2">
-          <button type="button" phx-click="toggle_create_task_modal" class="obs-btn obs-btn-muted">Cancel</button>
-          <button type="submit" class="obs-btn obs-btn-primary">Create Task</button>
+          <button type="button" phx-click="toggle_create_task_modal" class="ichor-btn ichor-btn-muted">Cancel</button>
+          <button type="submit" class="ichor-btn ichor-btn-primary">Create Task</button>
         </div>
       </form>
     </.modal>

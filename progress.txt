@@ -1,9 +1,16 @@
 ICHOR IV Progress (formerly Observatory)
 ========================================
 
-## Current: Archon HUD Redesign + Fleet Action Fixes (2026-03-09)
+## Current: Design Token System + Theme Foundation (2026-03-09)
 
 ### This Session
+- [x] Created --ichor-* CSS custom property system (25 tokens)
+- [x] Defined ICHOR IV theme (dark/amber) + Swiss theme (light/red/zero-radius)
+- [x] Migrated ~50 ichor-* design system classes from hardcoded to tokens
+- [x] Renamed obs-* -> ichor-* across CSS + 13 template files
+- [x] Added theme-aware body styles to root layout
+
+### Prior: Archon HUD Redesign + Fleet Action Fixes (2026-03-09)
 - [x] Fixed fleet sidebar showing 0 agents (agent_index not passed as prop to command_view)
 - [x] Audited all fleet action buttons end-to-end (shutdown, kill, pause, resume, focus, trace, tmux)
 - [x] Fixed shutdown_agent: now marks ended in registry + stops AgentProcess
