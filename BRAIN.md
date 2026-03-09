@@ -28,6 +28,11 @@
 - **MemoriesClient**: HTTP client using Req (search, ingest, query_memory)
 - **Archon namespace**: group_id `0f8eae17-...`, user_id `8fe50fd6-...`
 - Memories server must be running on port 4000
+- **Space attribute**: hierarchical namespace string on all 3 resources (Episode, Entity, Fact)
+  - Format: lowercase, colon-separated (`general`, `project:ichor`, `project:ichor:archon`)
+  - Default: `"general"`. Propagated from episode through DigestEpisode to entities/facts.
+  - SQL filter in VectorChord WHERE clauses, wired through full search pipeline.
+- **Episode types (Zep-aligned)**: `type` = structural (`:text`, `:message`, `:json`), `source` = provenance (`:user`, `:agent`, `:system`, `:document`, `:api`)
 
 ## AgentTools Domain (Refactored 2026-03-08)
 - 6 focused resources: Inbox, Tasks, Memory, Recall, Archival, Agents

@@ -17,30 +17,36 @@ defmodule Observatory.Archon.MemoriesClient do
   def search(query, opts \\ []) do
     scope = Keyword.get(opts, :scope, "edges")
     limit = Keyword.get(opts, :limit, 10)
+    space = Keyword.get(opts, :space)
 
-    body = %{
-      query: query,
-      group_id: @archon_group_id,
-      user_id: @archon_user_id,
-      scope: to_string(scope),
-      limit: limit
-    }
+    body =
+      %{
+        query: query,
+        group_id: @archon_group_id,
+        user_id: @archon_user_id,
+        scope: to_string(scope),
+        limit: limit
+      }
+      |> maybe_put("space", space)
 
     post("/api/graph/search", body)
   end
 
   @spec ingest(String.t(), keyword()) :: {:ok, map()} | {:error, term()}
   def ingest(content, opts \\ []) do
-    type = Keyword.get(opts, :type, "observation")
-    source = Keyword.get(opts, :source, "text")
+    type = Keyword.get(opts, :type, "text")
+    source = Keyword.get(opts, :source, "agent")
+    space = Keyword.get(opts, :space)
 
-    body = %{
-      content: content,
-      group_id: @archon_group_id,
-      user_id: @archon_user_id,
-      type: type,
-      source: source
-    }
+    body =
+      %{
+        content: content,
+        group_id: @archon_group_id,
+        user_id: @archon_user_id,
+        type: type,
+        source: source
+      }
+      |> maybe_put("space", space)
 
     post("/api/episodes/ingest", body)
   end
@@ -63,6 +69,9 @@ defmodule Observatory.Archon.MemoriesClient do
 
   @spec user_id() :: String.t()
   def user_id, do: @archon_user_id
+
+  defp maybe_put(map, _key, nil), do: map
+  defp maybe_put(map, key, value), do: Map.put(map, key, value)
 
   defp post(path, body) do
     url = @memories_url <> path

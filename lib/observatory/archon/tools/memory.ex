@@ -16,13 +16,13 @@ defmodule Observatory.Archon.Tools.Memory do
       argument :query, :string, allow_nil?: false, description: "Natural language search query"
       argument :scope, :string, default: "edges", description: "Search scope: edges (facts), nodes (entities), or episodes"
       argument :limit, :integer, default: 5, description: "Maximum results to return"
+      argument :space, :string, description: "Space namespace filter (e.g. project:ichor)"
 
       run fn input, _context ->
-        MemoriesClient.search(
-          input.arguments.query,
-          scope: input.arguments.scope,
-          limit: input.arguments.limit
-        )
+        args = input.arguments
+        opts = [scope: args.scope, limit: args.limit]
+        opts = if Map.get(args, :space), do: Keyword.put(opts, :space, args.space), else: opts
+        MemoriesClient.search(args.query, opts)
       end
     end
 
@@ -30,13 +30,14 @@ defmodule Observatory.Archon.Tools.Memory do
       description "Store an observation in Archon's knowledge graph. The system will automatically extract entities and facts from the content. Use this to remember important information about agents, projects, decisions, or events."
 
       argument :content, :string, allow_nil?: false, description: "The observation to remember"
-      argument :type, :string, default: "observation", description: "Type: observation, message, event"
+      argument :type, :string, default: "text", description: "Structural type: text (narrative), message (conversation), json (structured)"
+      argument :space, :string, description: "Space namespace (e.g. project:ichor:archon)"
 
       run fn input, _context ->
-        MemoriesClient.ingest(
-          input.arguments.content,
-          type: input.arguments.type
-        )
+        args = input.arguments
+        opts = [type: args.type]
+        opts = if Map.get(args, :space), do: Keyword.put(opts, :space, args.space), else: opts
+        MemoriesClient.ingest(args.content, opts)
       end
     end
 

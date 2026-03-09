@@ -1,49 +1,41 @@
 # ICHOR IV (formerly Observatory) - Handoff
 
-## Current Status: AgentRegistry Decomposition + Idiomatic Elixir (2026-03-09)
+## Current Status: Archon Memories Integration + Space Concept (2026-03-09)
 
 ### Just Completed
 
-**AgentRegistry decomposition into focused submodules:**
+1. **Space attribute** (in `/Users/xander/code/www/memories`):
+   - Added `space` string attribute to Episode, Entity, Fact resources
+   - Format: lowercase, colon-separated (e.g. `general`, `project:ichor`, `project:ichor:archon`)
+   - Default: `"general"`, validated with regex
+   - Propagated through DigestEpisode pipeline (LoadContext -> PersistEntities/PersistFacts)
+   - Added space filter to VectorChord SQL WHERE clauses (all 3 search modes)
+   - Wired through SearchVector, Client.Local, GraphController, Episode :search action
+   - DB indexes on `[:group_id, :space]` for all 3 tables
+   - Episode identity updated to `[:group_id, :user_id, :space, :content_hash]`
 
-AgentRegistry was 669 lines doing 5 things. Now decomposed into:
-- **AgentRegistry** (293 lines) -- thin GenServer: ETS ownership, message routing, client API
-- **AgentEntry** (53) -- agent map constructor, `uuid?`, `short_id`, `role_from_string`
-- **EventHandler** (54) -- pure `apply_event/2`: hook event -> agent state
-- **IdentityMerge** (130) -- CWD-based identity correlation across naming schemes
-- **TeamSync** (105) -- TeamWatcher data merge into ETS
-- **Sweep** (72) -- stale entry GC with TTL policies
+2. **Episode type/source enum realignment** (Zep-aligned):
+   - `type` = structural: `:text` (narrative), `:message` (conversation), `:json` (structured)
+   - `source` = provenance: `:user`, `:agent`, `:system`, `:document`, `:api`
+   - Data migration converted existing records (observation->text, event->json, etc.)
+   - Defaults: type `text`, source `api` (HTTP ingest), Archon uses source `agent`
 
-All at `lib/observatory/gateway/agent_registry/`.
+3. **Observatory Archon wiring updated**:
+   - MemoriesClient: passes `space` on search/ingest, uses new type/source values
+   - Tools.Memory: all 3 tools accept optional `space` argument
 
-**Prior this session -- distribution wiring:**
-- AgentSpawner rewrite: pattern matching, remote spawn via HostRegistry, overlay delegation
-- ssh_tmux channels wired through Delivery, PaneMonitor, AgentRegistry
-- if/cond/unless eliminated across 6 modules
+### Prior: Memories Integration (earlier this session)
+- MemoriesClient HTTP client, 3 Memory Ash tools, 10 tools total in Archon.Tools
+- 5 bugs fixed in Memories search pipeline (reranker, SearchVector, embeddings, hydration, group_id)
 
-**InstructionOverlay cleanup (310 -> 299):**
-- De-duplicated port lookup, flattened indirection, extracted `read_existing_settings`
-
-### Build Status
-`mix compile --warnings-as-errors` clean. Zero warnings.
-
-### Commits This Session
-1. `7ee9288` refactor(fleet): pattern-match style + remote spawn wiring
-2. `a174d70` refactor(registry): extract IdentityMerge + eliminate if/cond/unless
-3. `d7c70a3` refactor(registry): decompose AgentRegistry into focused submodules
-
-### Module Sizes After Refactor
-- AgentRegistry: 293, AgentEntry: 53, EventHandler: 54, IdentityMerge: 130, Sweep: 72, TeamSync: 105
-- AgentSpawner: 266 (focused, single purpose -- spawn pipeline)
-- InstructionOverlay: 299 (cohesive -- generate all session files)
+### Prior: AgentRegistry Decomposition
+- AgentRegistry 669 -> 293 lines + 5 submodules (AgentEntry, EventHandler, IdentityMerge, TeamSync, Sweep)
 
 ### Next Steps (ordered)
-1. **"Space" concept** -- extra namespacing on top of group_id (discussed but not implemented)
-2. **Archon LLM wiring** -- connect Archon to Claude API with AshAi tools
-3. **Archon chat UI** -- dashboard drawer/panel for conversing with Archon
-4. Legacy ETS elimination tasks (38-40 in tasks.jsonl): CommandQueue, TeamWatcher, Mailbox
-5. Ash Fleet domain generic actions + code interfaces (task 42)
-6. ICHOR IV rename (task 31, deferred)
+
+1. **Archon LLM wiring** -- connect Archon to Claude API with AshAi tools
+2. **Archon chat UI** -- dashboard drawer/panel for conversing with Archon
+3. **AgentSpawner refactor** -- 318 lines, over 200-line limit
 
 ### Memories Server
 - Running on port 4000 (must be running for Archon memory tools)
@@ -51,7 +43,5 @@ All at `lib/observatory/gateway/agent_registry/`.
 - ONNX models on external drive: `/Volumes/T5/models/ONNX`
 - After code changes, server must be restarted (Reactor steps don't auto-reload)
 
-### Key Decisions
-- AgentSpawner's `capability_to_role` kept separate from `AgentEntry.role_from_string` -- different input domains (spawn capabilities vs TeamWatcher agent_types)
-- InstructionOverlay NOT split -- its two sub-concerns (template generation + file writing) are cohesive: "prepare all files an agent session needs"
-- `derive_role/1` preserved as `defdelegate` on AgentRegistry for backward compatibility with 3 external callers
+### Build Status
+Both projects: `mix compile --warnings-as-errors` clean.

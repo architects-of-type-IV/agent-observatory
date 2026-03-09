@@ -1,27 +1,25 @@
 ICHOR IV Progress (formerly Observatory)
 ========================================
 
-## Current: AgentRegistry Decomposition + Idiomatic Elixir (2026-03-09)
+## Current: Archon Memories + Space Concept (2026-03-09)
 
 ### This Session
-- [x] AgentSpawner rewrite: pattern matching, remote spawn, overlay delegation (318->266 lines)
-- [x] ssh_tmux channels wired through Delivery, PaneMonitor, AgentRegistry
-- [x] if/cond/unless eliminated across 6 modules (HostRegistry, PaneMonitor, InstructionOverlay, etc.)
-- [x] IdentityMerge extracted from AgentRegistry (identity correlation logic)
-- [x] AgentRegistry decomposed into 5 focused submodules:
-      - AgentEntry (53): agent map + utilities
-      - EventHandler (54): hook event processing
-      - IdentityMerge (130): CWD-based identity correlation
-      - TeamSync (105): TeamWatcher data merge
-      - Sweep (72): stale entry GC
-- [x] AgentRegistry: 669 -> 293 lines (thin GenServer)
-- [x] InstructionOverlay cleanup: de-dup port lookup, flatten indirection (310->299)
-- [x] All builds clean: mix compile --warnings-as-errors
-
-### Prior Session: Archon Memories Integration (2026-03-09)
 - [x] Fixed Memories reranker, SearchVector, entity/fact embeddings, result hydration
-- [x] Created MemoriesClient + Archon.Tools.Memory (3 Ash tools)
+- [x] Created MemoriesClient + Archon.Tools.Memory (3 Ash tools, 10 total)
 - [x] Verified end-to-end search pipeline
+- [x] Added "space" attribute to Episode, Entity, Fact (hierarchical namespace)
+- [x] Space propagation: DigestEpisode -> PersistEntities/PersistFacts
+- [x] Space filter in VectorChord SQL, SearchVector, Client.Local, GraphController
+- [x] Episode type/source enum realignment (Zep-aligned: text/message/json + provenance)
+- [x] Data migration for existing records
+- [x] Observatory MemoriesClient + Tools.Memory updated for space + new enums
+- [x] Both projects compile clean
+- [ ] Archon LLM wiring (Claude API + AshAi tools)
+- [ ] Archon chat UI (dashboard drawer/panel)
+
+### Prior Session: AgentRegistry Decomposition (2026-03-09)
+- [x] AgentRegistry decomposed: 669 -> 293 + 5 submodules
+- [x] AgentSpawner rewrite, ssh_tmux wiring, idiomatic Elixir cleanup
 
 ### Prior Session: Distribution Foundation (2026-03-09)
 - [x] Dead code removal: AgentRegistry 894 -> 669 lines
