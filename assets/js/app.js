@@ -173,11 +173,48 @@ let Hooks = {
   },
   KeyboardShortcuts: {
     mounted() {
+      this.archonOpen = false
+
       this.handleKeydown = (e) => {
         // Ignore if user is typing in an input
         if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") {
           return
         }
+
+        // ── Archon sub-keys (when overlay is open) ──
+        if (this.archonOpen && !e.metaKey && !e.ctrlKey) {
+          // Q/W/E - switch archon tabs
+          if (e.key === "q") { e.preventDefault(); this.pushEvent("archon_set_tab", { tab: "command" }); return }
+          if (e.key === "w") { e.preventDefault(); this.pushEvent("archon_set_tab", { tab: "chat" }); return }
+          if (e.key === "e") { e.preventDefault(); this.pushEvent("archon_set_tab", { tab: "ref" }); return }
+
+          // 1-7 - quick action shortcodes
+          const quickCmds = ["agents", "teams", "inbox", "health", "sessions", "recall", "query"]
+          const numKey = parseInt(e.key)
+          if (numKey >= 1 && numKey <= 7) {
+            e.preventDefault()
+            this.pushEvent("archon_shortcode", { cmd: quickCmds[numKey - 1] })
+            return
+          }
+
+          // Escape - close archon
+          if (e.key === "Escape") {
+            e.preventDefault()
+            this.pushEvent("archon_close", {})
+            return
+          }
+
+          // a - close archon (toggle)
+          if (e.key === "a") {
+            e.preventDefault()
+            this.pushEvent("archon_toggle", {})
+            return
+          }
+
+          return
+        }
+
+        // ── Normal mode keys ──
 
         // ? - show shortcuts help
         if (e.key === "?" && !e.metaKey && !e.ctrlKey) {
@@ -228,10 +265,17 @@ let Hooks = {
         }
       }
 
+      // Track archon state by watching the DOM
+      this.archonObserver = new MutationObserver(() => {
+        this.archonOpen = !!document.querySelector('.archon-overlay')
+      })
+      this.archonObserver.observe(document.body, { childList: true, subtree: true })
+
       window.addEventListener("keydown", this.handleKeydown)
     },
     destroyed() {
       window.removeEventListener("keydown", this.handleKeydown)
+      if (this.archonObserver) this.archonObserver.disconnect()
     }
   },
   ScrollBottom: {
@@ -341,6 +385,7 @@ const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute
 const liveSocket = new LiveSocket("/live", Socket, {
   params: {_csrf_token: csrfToken},
   hooks: {...colocatedHooks, ...Hooks},
+  logger: () => {},
 })
 
 // Show progress bar on live navigation and form submits
@@ -367,7 +412,7 @@ if (process.env.NODE_ENV === "development") {
   window.addEventListener("phx:live_reload:attached", ({detail: reloader}) => {
     // Enable server log streaming to client.
     // Disable with reloader.disableServerLogs()
-    reloader.enableServerLogs()
+    reloader.disableServerLogs()
 
     // Open configured PLUG_EDITOR at file:line of the clicked element's HEEx component
     //

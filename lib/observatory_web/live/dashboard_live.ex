@@ -162,6 +162,7 @@ defmodule ObservatoryWeb.DashboardLive do
   def handle_event("archon_close", _p, s), do: {:noreply, DashboardArchonHandlers.handle_archon_close(s)}
   def handle_event("archon_send", p, s), do: {:noreply, DashboardArchonHandlers.handle_archon_send(p, s)}
   def handle_event("archon_shortcode", p, s), do: {:noreply, DashboardArchonHandlers.handle_archon_shortcode(p, s)}
+  def handle_event("archon_set_tab", %{"tab" => tab}, s), do: {:noreply, assign(s, :archon_tab, String.to_existing_atom(tab))}
 
   # ── Events: slideout ───────────────────────────────────────────────────
 

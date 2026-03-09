@@ -33,6 +33,15 @@ defmodule Observatory.Gateway.AgentRegistry do
   @doc "Mark an agent as ended."
   def mark_ended(session_id), do: GenServer.cast(__MODULE__, {:mark_ended, session_id})
 
+  @doc "Remove an agent from the registry entirely."
+  def remove(session_id) do
+    :ets.delete(@table, session_id)
+    broadcast_update()
+    :ok
+  rescue
+    ArgumentError -> :ok
+  end
+
   @doc "Purge all stale/ended agents immediately. Returns count of purged entries."
   def purge_stale, do: GenServer.call(__MODULE__, :purge_stale)
 

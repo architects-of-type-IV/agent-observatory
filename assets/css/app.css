@@ -337,98 +337,257 @@
 .agent-node .port.comm-port { border-color: #22d3ee; }
 .agent-node .port.comm-port:hover { background: rgba(34,211,238,0.2); }
 
-/* ── Archon (sovereign agent overlay) ── */
+/* ── Archon (Type IV Sovereign Agent HUD) ── */
 .archon-overlay {
   @apply fixed inset-0 z-[60] flex items-center justify-center;
 }
 .archon-backdrop {
-  @apply absolute inset-0 bg-black/80 backdrop-blur-sm;
+  @apply absolute inset-0 bg-black/40 backdrop-blur-[2px];
 }
 .archon-panel {
-  @apply relative z-10 w-full max-w-4xl h-[80vh] mx-4 flex overflow-hidden;
-  @apply rounded-lg border border-amber-900/40 bg-zinc-950;
-  @apply shadow-2xl shadow-amber-900/10;
+  @apply relative z-10 flex flex-col overflow-hidden;
+  width: min(960px, 90vw);
+  aspect-ratio: 16 / 9;
+  max-height: 85vh;
+  background: rgba(9, 9, 11, 0.92);
+  border: 1px solid rgba(217, 119, 6, 0.15);
+  border-radius: 12px;
+  box-shadow:
+    0 0 60px rgba(217, 119, 6, 0.06),
+    0 0 120px rgba(217, 119, 6, 0.03),
+    0 25px 50px rgba(0, 0, 0, 0.5);
 }
-.archon-sidebar {
-  @apply w-64 border-r border-zinc-800 flex flex-col;
+.archon-panel::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(245, 158, 11, 0.3), transparent);
 }
-.archon-chat {
-  @apply flex-1 flex flex-col;
+
+/* Top bar */
+.archon-topbar {
+  @apply px-4 py-2.5 flex items-center justify-between shrink-0;
+  border-bottom: 1px solid rgba(63, 63, 70, 0.3);
 }
-.archon-header {
-  @apply px-4 py-3 border-b border-zinc-800 flex items-center justify-between;
+.archon-sigil {
+  @apply w-8 h-8 rounded-lg flex items-center justify-center shrink-0;
+  background: linear-gradient(135deg, rgba(217, 119, 6, 0.15), rgba(217, 119, 6, 0.05));
+  border: 1px solid rgba(217, 119, 6, 0.2);
+  box-shadow: 0 0 20px rgba(217, 119, 6, 0.08);
+}
+.archon-sigil::after {
+  content: '';
+  width: 12px; height: 12px;
+  background: radial-gradient(circle, rgba(245, 158, 11, 0.6), rgba(245, 158, 11, 0.1));
+  border-radius: 2px;
+  transform: rotate(45deg);
 }
 .archon-title {
-  @apply text-sm font-semibold text-zinc-200;
+  @apply text-sm font-bold tracking-[0.2em] text-zinc-100;
 }
 .archon-subtitle {
-  @apply text-[10px] text-zinc-600;
+  @apply text-[9px] text-amber-700/60 font-mono uppercase tracking-[0.15em];
 }
-.archon-dot {
-  @apply w-2 h-2 rounded-full bg-amber-500 animate-pulse;
+.archon-status-row {
+  @apply flex items-center gap-1.5 px-2 py-1 rounded;
+  background: rgba(16, 185, 129, 0.06);
+  border: 1px solid rgba(16, 185, 129, 0.12);
 }
+.archon-status-dot {
+  @apply w-1.5 h-1.5 rounded-full bg-emerald-400;
+  box-shadow: 0 0 6px rgba(16, 185, 129, 0.5);
+  animation: archon-pulse 2s ease-in-out infinite;
+}
+@keyframes archon-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+.archon-status-text {
+  @apply text-[9px] text-emerald-500/80 font-mono uppercase tracking-wider font-semibold;
+}
+
+/* Tab bar */
+.archon-tab-bar {
+  @apply flex items-center gap-0.5 p-0.5 rounded-lg;
+  background: rgba(39, 39, 42, 0.5);
+  border: 1px solid rgba(63, 63, 70, 0.3);
+}
+.archon-tab {
+  @apply px-2.5 py-1 rounded text-[10px] font-mono uppercase tracking-wider cursor-pointer transition-all;
+  @apply text-zinc-600 hover:text-zinc-400;
+}
+.archon-tab-active {
+  @apply text-amber-400;
+  background: rgba(217, 119, 6, 0.1);
+  box-shadow: 0 0 10px rgba(217, 119, 6, 0.05);
+}
+.archon-tab-key {
+  @apply inline-block w-4 text-center text-[9px] rounded mr-0.5;
+  @apply bg-zinc-800/80 text-zinc-500 leading-relaxed;
+}
+.archon-tab-active .archon-tab-key {
+  @apply bg-amber-900/30 text-amber-500/80;
+}
+.archon-close-btn {
+  @apply text-zinc-600 hover:text-zinc-300 transition cursor-pointer;
+}
+.archon-kbd {
+  @apply px-1.5 py-0.5 rounded text-[9px] font-mono;
+  @apply bg-zinc-800/80 border border-zinc-700/50 text-zinc-500;
+}
+
+/* Content */
+.archon-content {
+  @apply flex-1 overflow-hidden;
+}
+
+/* Section title */
+.archon-section-title {
+  @apply text-[10px] font-mono uppercase tracking-[0.15em] text-amber-700/50 font-semibold;
+}
+
+/* Action cards */
+.archon-action-card {
+  @apply rounded-lg p-3 cursor-pointer transition-all;
+  background: rgba(39, 39, 42, 0.2);
+  border: 1px solid rgba(63, 63, 70, 0.25);
+}
+.archon-action-card:hover {
+  background: rgba(217, 119, 6, 0.04);
+  border-color: rgba(217, 119, 6, 0.2);
+  box-shadow: 0 0 20px rgba(217, 119, 6, 0.04);
+}
+.archon-action-icon {
+  @apply text-amber-600/50;
+}
+.archon-action-card:hover .archon-action-icon {
+  @apply text-amber-500/80;
+}
+.archon-action-key {
+  @apply w-5 h-5 rounded flex items-center justify-center text-[10px] font-mono font-bold;
+  background: rgba(39, 39, 42, 0.6);
+  border: 1px solid rgba(63, 63, 70, 0.4);
+  @apply text-zinc-500;
+}
+.archon-action-card:hover .archon-action-key {
+  @apply text-amber-400;
+  background: rgba(217, 119, 6, 0.1);
+  border-color: rgba(217, 119, 6, 0.25);
+}
+.archon-action-label {
+  @apply text-xs font-medium text-zinc-300;
+}
+.archon-action-desc {
+  @apply text-[10px] text-zinc-600 mt-0.5;
+}
+
+/* Chat */
 .archon-messages {
-  @apply flex-1 overflow-y-auto px-4 py-3 space-y-3;
+  @apply flex-1 overflow-y-auto px-5 py-4 space-y-3;
 }
 .archon-msg {
-  @apply max-w-[85%] text-xs leading-relaxed;
+  @apply max-w-[80%] text-xs leading-relaxed;
 }
 .archon-msg-user {
   @apply ml-auto;
+}
+.archon-msg-system {
+  @apply w-full max-w-full;
 }
 .archon-bubble {
   @apply rounded-lg px-3 py-2;
 }
 .archon-bubble-user {
-  @apply bg-amber-900/20 border border-amber-800/30 text-zinc-200;
+  background: rgba(217, 119, 6, 0.08);
+  border: 1px solid rgba(217, 119, 6, 0.15);
+  @apply text-zinc-200;
 }
 .archon-bubble-assistant {
-  @apply bg-zinc-900 border border-zinc-800 text-zinc-300;
+  background: rgba(39, 39, 42, 0.4);
+  border: 1px solid rgba(63, 63, 70, 0.3);
+  @apply text-zinc-300;
+}
+.archon-bubble-system {
+  background: rgba(217, 119, 6, 0.06);
+  border: 1px solid rgba(217, 119, 6, 0.2);
+  @apply text-amber-200/90;
 }
 .archon-meta {
-  @apply text-[9px] mt-0.5 px-1;
+  @apply text-[9px] mt-0.5 px-1 font-mono uppercase tracking-wider;
 }
 .archon-meta-user {
-  @apply text-right text-amber-700/50;
+  @apply text-right text-amber-800/40;
 }
 .archon-meta-assistant {
-  @apply text-zinc-700;
+  @apply text-zinc-700/60;
+}
+.archon-meta-system {
+  @apply text-amber-700/50 font-semibold;
 }
 .archon-typing-dot {
-  @apply w-1.5 h-1.5 rounded-full bg-amber-500/60 animate-bounce;
+  @apply w-1.5 h-1.5 rounded-full bg-amber-500/50 animate-bounce;
 }
 .archon-input-area {
-  @apply border-t border-zinc-800 p-3;
+  @apply p-3 shrink-0;
+  border-top: 1px solid rgba(63, 63, 70, 0.3);
 }
 .archon-input {
-  @apply flex-1 bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2;
-  @apply text-xs text-zinc-200 placeholder-zinc-600;
-  @apply focus:outline-none focus:border-amber-700/50 focus:ring-1 focus:ring-amber-900/30;
+  @apply flex-1 rounded-lg px-3 py-2;
+  @apply text-xs text-zinc-200 placeholder-zinc-700;
+  @apply focus:outline-none focus:ring-0;
+  background: rgba(24, 24, 27, 0.8);
+  border: 1px solid rgba(63, 63, 70, 0.3);
+}
+.archon-input:focus {
+  border-color: rgba(217, 119, 6, 0.3);
+  box-shadow: 0 0 12px rgba(217, 119, 6, 0.05);
 }
 .archon-send-btn {
-  @apply px-3 py-2 rounded-lg text-xs transition;
-  @apply bg-amber-900/30 hover:bg-amber-900/50 border border-amber-800/40 text-amber-400;
+  @apply px-4 py-2 rounded-lg text-[11px] font-mono uppercase tracking-wider transition-all cursor-pointer;
+  background: rgba(217, 119, 6, 0.1);
+  border: 1px solid rgba(217, 119, 6, 0.2);
+  @apply text-amber-500/80;
 }
-.archon-shortcode {
-  @apply cursor-pointer rounded px-2 py-1.5 hover:bg-zinc-900 transition;
+.archon-send-btn:hover {
+  background: rgba(217, 119, 6, 0.18);
+  border-color: rgba(217, 119, 6, 0.35);
+  @apply text-amber-400;
+  box-shadow: 0 0 15px rgba(217, 119, 6, 0.08);
 }
-.archon-shortcode-cmd {
-  @apply text-xs text-amber-400 font-mono;
+
+/* Reference items */
+.archon-ref-item {
+  @apply rounded-lg px-3 py-2.5 cursor-pointer transition-all;
+  background: rgba(39, 39, 42, 0.15);
+  border: 1px solid rgba(63, 63, 70, 0.2);
 }
-.archon-shortcode-desc {
-  @apply text-[10px] text-zinc-500 mt-0.5 leading-tight;
+.archon-ref-item:hover {
+  background: rgba(217, 119, 6, 0.04);
+  border-color: rgba(217, 119, 6, 0.15);
 }
+.archon-ref-cmd {
+  @apply text-[11px] text-amber-500/80 font-mono;
+}
+.archon-ref-desc {
+  @apply text-[10px] text-zinc-600 mt-0.5 leading-tight;
+}
+
+/* FAB */
 .archon-fab {
   @apply fixed bottom-6 right-6 z-50;
   @apply w-12 h-12 rounded-full flex items-center justify-center;
   @apply border transition-all duration-300;
-  @apply shadow-lg hover:shadow-xl;
+  @apply shadow-lg hover:shadow-xl cursor-pointer;
 }
 .archon-fab-active {
-  @apply bg-amber-900/60 border-amber-600/60 shadow-amber-900/30 hover:shadow-amber-900/40;
+  background: rgba(217, 119, 6, 0.2);
+  border-color: rgba(217, 119, 6, 0.4);
+  box-shadow: 0 0 30px rgba(217, 119, 6, 0.15);
 }
 .archon-fab-idle {
-  @apply bg-zinc-900 border-zinc-700 hover:border-amber-800/50 hover:bg-zinc-800 shadow-black/30;
+  @apply bg-zinc-900 border-zinc-700 hover:border-amber-800/50 hover:bg-zinc-800;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
 }
 .archon-fab-icon {
   @apply w-6 h-6 transition-colors duration-300;
@@ -438,9 +597,6 @@
 }
 .archon-fab-icon-idle {
   @apply text-zinc-400 group-hover:text-amber-500/70;
-}
-.archon-empty-icon {
-  @apply text-amber-500/30 mb-3;
 }
 
 /* God Mode danger zone */

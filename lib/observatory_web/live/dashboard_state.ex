@@ -134,6 +134,7 @@ defmodule ObservatoryWeb.DashboardState do
       ws_editing_type: nil,
       # Archon overlay
       show_archon: false,
+      archon_tab: :command,
       archon_messages: [],
       archon_history: [],
       archon_loading: false,

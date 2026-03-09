@@ -97,6 +97,9 @@ defmodule ObservatoryWeb.DashboardTmuxHandlers do
       session ->
         Tmux.run_command(["kill-session", "-t", session])
 
+        Observatory.Gateway.AgentRegistry.remove(session)
+        Observatory.Gateway.AgentRegistry.remove("tmux:#{session}")
+
         panels = List.delete(socket.assigns.tmux_panels, session)
         outputs = Map.delete(socket.assigns.tmux_outputs, session)
         next_active = List.first(panels)

@@ -25,7 +25,12 @@ defmodule ObservatoryWeb.DashboardSessionControlHandlers do
     Phoenix.PubSub.subscribe(Observatory.PubSub, "session:hitl:#{session_id}")
     Observatory.Operator.send(session_id, "Pause requested by dashboard", type: :session_control, metadata: %{action: "pause"})
 
+    paused = MapSet.put(socket.assigns.paused_sessions, session_id)
+    short = String.slice(session_id, 0, 8)
+
     socket
+    |> Phoenix.Component.assign(:paused_sessions, paused)
+    |> notify_archon_hitl(:paused, short, session_id)
     |> Phoenix.LiveView.put_flash(:info, "Agent paused -- messages will be buffered")
   end
 
@@ -37,7 +42,10 @@ defmodule ObservatoryWeb.DashboardSessionControlHandlers do
     HITLRelay.unpause(session_id, session_id, "operator")
     Observatory.Operator.send(session_id, "Resume requested by dashboard", type: :session_control, metadata: %{action: "resume"})
 
+    paused = MapSet.delete(socket.assigns.paused_sessions, session_id)
+
     socket
+    |> Phoenix.Component.assign(:paused_sessions, paused)
     |> Phoenix.LiveView.put_flash(:info, "Agent resumed -- buffered messages flushed")
   end
 
@@ -45,12 +53,18 @@ defmodule ObservatoryWeb.DashboardSessionControlHandlers do
   Handle approving buffered messages (same as resume -- flush and unpause).
   """
   def handle_hitl_approve(%{"session_id" => session_id}, socket) do
+    paused = MapSet.delete(socket.assigns.paused_sessions, session_id)
+
     case HITLRelay.unpause(session_id, session_id, "operator") do
       {:ok, :not_paused} ->
-        Phoenix.LiveView.put_flash(socket, :info, "Session was not paused")
+        socket
+        |> Phoenix.Component.assign(:paused_sessions, paused)
+        |> Phoenix.LiveView.put_flash(:info, "Session was not paused")
 
       {:ok, count} ->
-        Phoenix.LiveView.put_flash(socket, :info, "Approved: #{count} buffered messages flushed")
+        socket
+        |> Phoenix.Component.assign(:paused_sessions, paused)
+        |> Phoenix.LiveView.put_flash(:info, "Approved: #{count} buffered messages flushed")
     end
   end
 
@@ -59,17 +73,34 @@ defmodule ObservatoryWeb.DashboardSessionControlHandlers do
   """
   def handle_hitl_reject(%{"session_id" => session_id}, socket) do
     HITLRelay.reject(session_id, session_id, "operator")
+    paused = MapSet.delete(socket.assigns.paused_sessions, session_id)
 
     socket
+    |> Phoenix.Component.assign(:paused_sessions, paused)
     |> Phoenix.LiveView.put_flash(:warning, "Rejected: buffered messages discarded")
   end
 
   @doc """
   Handle shutting down an agent session.
-  Writes shutdown command to CommandQueue and sends via Mailbox.
+  Sends shutdown command, marks ended in registry, and stops the AgentProcess.
   """
   def handle_shutdown_agent(%{"session_id" => session_id}, socket) do
-    Observatory.Operator.send(session_id, "Shutdown requested by dashboard", type: :session_control, metadata: %{action: "shutdown"})
+    Observatory.Operator.send(session_id, "Shutdown requested by dashboard",
+      type: :session_control, metadata: %{action: "shutdown"})
+
+    Observatory.Gateway.AgentRegistry.mark_ended(session_id)
+
+    case Observatory.Fleet.AgentProcess.lookup(session_id) do
+      {pid, _meta} ->
+        try do
+          GenServer.stop(pid, :normal)
+        catch
+          :exit, _ -> :ok
+        end
+
+      nil ->
+        :ok
+    end
 
     socket
     |> Phoenix.LiveView.put_flash(:warning, "Shutdown command sent to agent #{String.slice(session_id, 0..7)}")
@@ -125,5 +156,22 @@ defmodule ObservatoryWeb.DashboardSessionControlHandlers do
       {:mesh_pause, %{initiated_by: "god_mode", timestamp: DateTime.utc_now()}}
     )
     socket
+  end
+
+  defp notify_archon_hitl(socket, action, agent_short, session_id) do
+    content =
+      case action do
+        :paused ->
+          "[HITL] Agent #{agent_short} (#{session_id}) has been paused. " <>
+            "Messages to this agent are now being buffered. " <>
+            "Review the HITL Gate in the fleet detail panel to approve or reject."
+      end
+
+    msg = %{role: :system, content: content}
+    messages = (socket.assigns[:archon_messages] || []) ++ [msg]
+
+    socket
+    |> Phoenix.Component.assign(:archon_messages, messages)
+    |> Phoenix.Component.assign(:show_archon, true)
   end
 end

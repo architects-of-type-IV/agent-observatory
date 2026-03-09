@@ -263,6 +263,9 @@
             comms_agent_filter={@comms_agent_filter}
             activity_tab={@activity_tab}
             cost_data={@cost_data}
+            agent_index={@agent_index}
+            paused_sessions={@paused_sessions}
+            mailbox_messages={@mailbox_messages}
           />
         </div>
 
@@ -548,6 +551,110 @@
   />
 </div>
 
+<%!-- Agent Focus Slideout --%>
+<div
+  :if={@agent_slideout}
+  class="fixed inset-0 z-50 flex justify-end bg-black/50 backdrop-blur-sm"
+  phx-click="close_agent_slideout"
+>
+  <%
+    so = @agent_slideout
+    so_name = so[:short_name] || so[:id] || so[:session_id] && String.slice(to_string(so[:session_id]), 0, 8) || "Agent"
+    so_sid = to_string(so[:session_id] || "")
+  %>
+  <div
+    class="w-[480px] max-w-full h-full bg-zinc-900 border-l border-zinc-700 shadow-2xl flex flex-col overflow-hidden"
+    onclick="event.stopPropagation()"
+  >
+    <%!-- Header --%>
+    <div class="flex items-center justify-between px-4 py-2.5 border-b border-zinc-800 shrink-0">
+      <div class="flex items-center gap-2 min-w-0">
+        <span class={"w-2 h-2 rounded-full shrink-0 #{if so[:status] == :active, do: "bg-emerald-400", else: "bg-zinc-600"}"}></span>
+        <span class="text-sm font-semibold text-zinc-200 truncate">{so_name}</span>
+        <span class="text-[10px] text-zinc-600 font-mono shrink-0">{String.slice(so_sid, 0, 12)}</span>
+      </div>
+      <button phx-click="close_agent_slideout" class="text-zinc-600 hover:text-zinc-300 text-sm cursor-pointer">x</button>
+    </div>
+
+    <%!-- Agent Info --%>
+    <div class="px-4 py-3 border-b border-zinc-800/50 shrink-0">
+      <dl class="grid grid-cols-2 gap-x-4 gap-y-1.5 text-[11px]">
+        <div :if={so[:status]} class="flex justify-between col-span-2">
+          <dt class="text-zinc-500">Status</dt>
+          <dd class={"font-medium #{if so[:status] == :active, do: "text-emerald-400", else: "text-zinc-400"}"}>{so[:status]}</dd>
+        </div>
+        <div :if={so[:role]} class="flex justify-between col-span-2">
+          <dt class="text-zinc-500">Role</dt>
+          <dd class="text-zinc-300">{so[:role]}</dd>
+        </div>
+        <div :if={so[:team]} class="flex justify-between col-span-2">
+          <dt class="text-zinc-500">Team</dt>
+          <dd class="text-zinc-300">{so[:team]}</dd>
+        </div>
+        <div :if={so[:cwd]} class="flex justify-between col-span-2">
+          <dt class="text-zinc-500">CWD</dt>
+          <dd class="text-zinc-300 font-mono truncate max-w-[200px]" title={so[:cwd]}>{Path.basename(to_string(so[:cwd]))}</dd>
+        </div>
+        <div :if={so[:channels]} class="flex justify-between col-span-2">
+          <dt class="text-zinc-500">Channels</dt>
+          <dd class="text-zinc-400 font-mono text-[10px]">
+            {so[:channels] |> Map.reject(fn {_k, v} -> is_nil(v) end) |> Map.keys() |> Enum.join(", ")}
+          </dd>
+        </div>
+      </dl>
+    </div>
+
+    <%!-- Terminal Output --%>
+    <div class="flex-1 flex flex-col overflow-hidden">
+      <div class="px-4 py-1.5 border-b border-zinc-800/50 shrink-0 flex items-center justify-between">
+        <h4 class="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Terminal</h4>
+        <span class="text-[9px] text-zinc-600 font-mono">{String.length(@slideout_terminal)} chars</span>
+      </div>
+      <div class="flex-1 overflow-y-auto p-3 bg-zinc-950/50 min-h-[120px] max-h-[40vh]">
+        <%= if @slideout_terminal != "" do %>
+          <pre class="text-[11px] font-mono text-zinc-400 leading-relaxed whitespace-pre-wrap">{@slideout_terminal}</pre>
+        <% else %>
+          <p class="text-[10px] text-zinc-600 italic">No terminal output captured.</p>
+        <% end %>
+      </div>
+    </div>
+
+    <%!-- Activity Feed --%>
+    <div class="border-t border-zinc-800 shrink-0 max-h-[30vh] flex flex-col">
+      <div class="px-4 py-1.5 border-b border-zinc-800/50 shrink-0 flex items-center justify-between">
+        <h4 class="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Activity</h4>
+        <span class="text-[9px] text-zinc-600 font-mono">{length(@slideout_activity)} items</span>
+      </div>
+      <div class="flex-1 overflow-y-auto">
+        <%= if @slideout_activity == [] do %>
+          <p class="text-[10px] text-zinc-600 italic p-3">No activity recorded.</p>
+        <% else %>
+          <div class="divide-y divide-zinc-800/30">
+            <%= for item <- Enum.take(@slideout_activity, 50) do %>
+              <div class="px-4 py-1.5 flex items-start gap-2 text-[10px]">
+                <span class={"shrink-0 mt-0.5 w-1.5 h-1.5 rounded-full #{if item.type == :event, do: "bg-cyan-500/60", else: "bg-violet-500/60"}"}></span>
+                <div class="min-w-0 flex-1">
+                  <p class="text-zinc-400 truncate">{item.content}</p>
+                </div>
+                <span class="text-zinc-600 font-mono shrink-0">{Calendar.strftime(item.timestamp, "%H:%M:%S")}</span>
+              </div>
+            <% end %>
+          </div>
+        <% end %>
+      </div>
+    </div>
+
+    <%!-- Quick Actions --%>
+    <div class="px-4 py-2.5 border-t border-zinc-800 shrink-0 flex gap-1.5">
+      <button :if={so[:channels][:tmux]} phx-click="connect_tmux" phx-value-session={so[:channels][:tmux]} class="obs-btn bg-amber-600/15 text-amber-400 hover:bg-amber-600/25 text-[10px]">Tmux</button>
+      <button phx-click="pause_agent" phx-value-session_id={so_sid} class="obs-btn obs-btn-muted text-[10px]">Pause</button>
+      <button phx-click="shutdown_agent" phx-value-session_id={so_sid} class="obs-btn obs-btn-muted text-red-400 text-[10px]" data-confirm="Shut down this agent?">Shutdown</button>
+      <div class="flex-1"></div>
+      <button phx-click="close_agent_slideout" class="obs-btn obs-btn-muted text-[10px]">Close</button>
+    </div>
+  </div>
+</div>
+
 <%!-- Modals --%>
 <ObservatoryWeb.Components.ModalComponents.create_task_modal
   show={@show_create_task_modal}
@@ -564,4 +671,5 @@
   :if={@show_archon}
   messages={@archon_messages}
   loading={@archon_loading}
+  tab={@archon_tab}
 />
