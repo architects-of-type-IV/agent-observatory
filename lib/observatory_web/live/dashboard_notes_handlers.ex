@@ -3,6 +3,16 @@ defmodule ObservatoryWeb.DashboardNotesHandlers do
   Handles note-related events for the dashboard LiveView.
   """
 
+  def dispatch("add_note", p, s) do
+    {:noreply, socket} = handle_add_note(p, s)
+    socket
+  end
+
+  def dispatch("delete_note", p, s) do
+    {:noreply, socket} = handle_delete_note(p, s)
+    socket
+  end
+
   def handle_add_note(%{"event_id" => event_id, "text" => text}, socket) do
     case Observatory.Notes.add_note(event_id, text) do
       {:ok, _note} ->

@@ -4,6 +4,11 @@ ICHOR IV Progress (formerly Observatory)
 ## Current: Archon Memories + Space Concept (2026-03-09)
 
 ### This Session
+- [x] DashboardLive refactor: 594 -> 164 lines (dispatch/3 pattern)
+  - 5 new handler modules: Info, Selection, Spawn, Feed, FleetTree
+  - dispatch/3 added to 10 existing handler modules
+  - 130+ handle_event clauses -> 20 grouped dispatches
+  - ModalComponents: extracted inline modals to reusable components
 - [x] Fixed Memories reranker, SearchVector, entity/fact embeddings, result hydration
 - [x] Created MemoriesClient + Archon.Tools.Memory (3 Ash tools, 10 total)
 - [x] Verified end-to-end search pipeline

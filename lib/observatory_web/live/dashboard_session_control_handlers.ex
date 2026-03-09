@@ -7,10 +7,19 @@ defmodule ObservatoryWeb.DashboardSessionControlHandlers do
 
   alias Observatory.Gateway.HITLRelay
 
-  @doc """
-  Handle pausing an agent session.
-  Pauses via HITLRelay (buffers messages) AND sends pause command to agent.
-  """
+  def dispatch("pause_agent", p, s), do: handle_pause_agent(p, s)
+  def dispatch("resume_agent", p, s), do: handle_resume_agent(p, s)
+  def dispatch("shutdown_agent", p, s), do: handle_shutdown_agent(p, s)
+  def dispatch("hitl_approve", p, s), do: handle_hitl_approve(p, s)
+  def dispatch("hitl_reject", p, s), do: handle_hitl_reject(p, s)
+  def dispatch("kill_switch_click", p, s), do: handle_kill_switch_click(p, s)
+  def dispatch("kill_switch_first_confirm", p, s), do: handle_kill_switch_first_confirm(p, s)
+  def dispatch("kill_switch_second_confirm", p, s), do: handle_kill_switch_second_confirm(p, s)
+  def dispatch("kill_switch_cancel", p, s), do: handle_kill_switch_cancel(p, s)
+  def dispatch("push_instructions_intent", p, s), do: handle_push_instructions_intent(p, s)
+  def dispatch("push_instructions_confirm", p, s), do: handle_push_instructions_confirm(p, s)
+  def dispatch("push_instructions_cancel", p, s), do: handle_push_instructions_cancel(p, s)
+
   def handle_pause_agent(%{"session_id" => session_id}, socket) do
     # Pause via HITLRelay for message buffering
     HITLRelay.pause(session_id, session_id, "operator", "Operator paused from dashboard")

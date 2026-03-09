@@ -3,6 +3,44 @@ defmodule ObservatoryWeb.DashboardUIHandlers do
   UI interaction handlers for keyboard shortcuts, modal toggles, and detail panel management.
   """
 
+  def dispatch("toggle_shortcuts_help", p, s), do: handle_toggle_shortcuts_help(p, s)
+  def dispatch("toggle_create_task_modal", p, s), do: handle_toggle_create_task_modal(p, s)
+  def dispatch("toggle_event_detail", p, s), do: handle_toggle_event_detail(p, s)
+  def dispatch("focus_agent", p, s), do: handle_focus_agent(p, s)
+  def dispatch("close_agent_focus", p, s), do: handle_close_agent_focus(p, s)
+  def dispatch("keyboard_escape", p, s), do: handle_keyboard_escape(p, s)
+  def dispatch("keyboard_navigate", p, s), do: handle_keyboard_navigate(p, s)
+
+  def dispatch("toggle_add_project", _p, s) do
+    Phoenix.Component.assign(s, :show_add_project, !s.assigns.show_add_project)
+  end
+
+  def dispatch("add_project", p, s) do
+    ObservatoryWeb.DashboardSwarmHandlers.handle_add_project(p, s)
+    |> Phoenix.Component.assign(:show_add_project, false)
+  end
+
+  def dispatch("set_sub_tab", %{"screen" => screen, "tab" => tab}, s) do
+    key =
+      case screen do
+        "activity" -> :activity_tab
+        "pipeline" -> :pipeline_tab
+        "forensic" -> :forensic_tab
+        "control" -> :control_tab
+        _ -> nil
+      end
+
+    if key, do: Phoenix.Component.assign(s, key, String.to_existing_atom(tab)), else: s
+  end
+
+  def dispatch("toggle_sidebar", _p, s) do
+    new_val = !s.assigns.sidebar_collapsed
+
+    s
+    |> Phoenix.Component.assign(:sidebar_collapsed, new_val)
+    |> Phoenix.LiveView.push_event("filters_changed", %{sidebar_collapsed: to_string(new_val)})
+  end
+
   def handle_toggle_shortcuts_help(_params, socket) do
     socket |> Phoenix.Component.assign(:show_shortcuts_help, !socket.assigns.show_shortcuts_help)
   end

@@ -132,6 +132,19 @@ defmodule ObservatoryWeb.DashboardFilterHandlers do
     socket |> assign(:filter_session_id, sid) |> assign(:view_mode, :activity) |> assign(:activity_tab, :feed)
   end
 
+  def dispatch("filter", p, s), do: handle_filter(p, s)
+  def dispatch("clear_filters", _p, s), do: handle_clear_filters(s)
+  def dispatch("apply_preset", %{"preset" => p}, s), do: handle_apply_preset(p, s)
+  def dispatch("search_feed", %{"q" => q}, s), do: handle_search_feed(q, s)
+  def dispatch("search_sessions", %{"q" => q}, s), do: handle_search_sessions(q, s)
+  def dispatch("filter_tool", %{"tool" => t}, s), do: handle_filter_tool(t, s)
+  def dispatch("filter_tool_use_id", %{"tuid" => t}, s), do: handle_filter_tool_use_id(t, s)
+  def dispatch("clear_events", _p, s), do: Phoenix.Component.assign(s, :events, [])
+  def dispatch("filter_session", %{"sid" => sid}, s), do: handle_filter_session(sid, s)
+  def dispatch("filter_team", %{"name" => n}, s), do: handle_filter_team(n, s)
+  def dispatch("filter_agent", %{"session_id" => sid}, s), do: handle_filter_agent(sid, s)
+  def dispatch("set_view", %{"mode" => m}, s), do: handle_set_view(m, s)
+
   def handle_apply_preset(preset, socket) do
     case preset do
       "failed_tools" ->

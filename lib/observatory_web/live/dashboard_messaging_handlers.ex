@@ -4,6 +4,11 @@ defmodule ObservatoryWeb.DashboardMessagingHandlers do
   All outbound messages route through Observatory.Operator for unified delivery.
   """
 
+  def dispatch("search_messages", p, s), do: handle_search_messages(p, s)
+  def dispatch("toggle_thread", p, s), do: handle_toggle_thread(p, s)
+  def dispatch("expand_all_threads", _p, s), do: handle_expand_all_threads(s)
+  def dispatch("collapse_all_threads", _p, s), do: handle_collapse_all_threads(s)
+
   def handle_send_agent_message(%{"content" => ""}, socket), do: {:noreply, socket}
 
   def handle_send_agent_message(%{"session_id" => sid, "content" => content}, socket) do

@@ -4,9 +4,26 @@ defmodule ObservatoryWeb.DashboardTaskHandlers do
   Handles task creation, status updates, reassignment, and editing.
   """
 
-  @doc """
-  Handle creating a new task for a team.
-  """
+  def dispatch("create_task", p, s) do
+    {:noreply, socket} = handle_create_task(p, s)
+    Phoenix.Component.assign(socket, :show_create_task_modal, false)
+  end
+
+  def dispatch("update_task_status", p, s) do
+    {:noreply, socket} = handle_update_task_status(p, s)
+    socket
+  end
+
+  def dispatch("reassign_task", p, s) do
+    {:noreply, socket} = handle_reassign_task(p, s)
+    socket
+  end
+
+  def dispatch("delete_task", p, s) do
+    {:noreply, socket} = handle_delete_task(p, s)
+    socket
+  end
+
   def handle_create_task(params, socket) do
     %{
       "team" => team_name,

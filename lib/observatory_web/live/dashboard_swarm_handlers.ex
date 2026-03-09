@@ -5,6 +5,18 @@ defmodule ObservatoryWeb.DashboardSwarmHandlers do
   """
   import Phoenix.Component, only: [assign: 3]
 
+  def dispatch("select_project", p, s), do: handle_select_project(p, s)
+  def dispatch("heal_task", p, s), do: handle_heal_task(p, s)
+  def dispatch("reset_all_stale", p, s), do: handle_reset_all_stale(p, s)
+  def dispatch("run_health_check", p, s), do: handle_run_health_check(p, s)
+  def dispatch("reassign_swarm_task", p, s), do: handle_reassign_swarm_task(p, s)
+  def dispatch("claim_swarm_task", p, s), do: handle_claim_swarm_task(p, s)
+  def dispatch("trigger_gc", p, s), do: handle_trigger_gc(p, s)
+  def dispatch("select_dag_node", p, s), do: handle_select_dag_node(p, s)
+  def dispatch("select_command_agent", p, s), do: handle_select_command_agent(p, s)
+  def dispatch("send_command_message", p, s), do: handle_send_command_message(p, s)
+  def dispatch("clear_command_selection", p, s), do: handle_clear_command_selection(p, s)
+
   def handle_select_project(%{"project" => key}, socket) do
     Observatory.SwarmMonitor.set_active_project(key)
     socket

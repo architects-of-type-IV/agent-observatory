@@ -11,6 +11,15 @@ defmodule ObservatoryWeb.DashboardTmuxHandlers do
   alias Observatory.AgentSpawner
   alias Observatory.Gateway.Channels.Tmux
 
+  def dispatch("connect_tmux", p, s), do: handle_connect_tmux(p, s)
+  def dispatch("disconnect_tmux", p, s), do: handle_disconnect_tmux(p, s)
+  def dispatch("close_all_tmux", p, s), do: handle_close_all_tmux(p, s)
+  def dispatch("switch_tmux_tab", p, s), do: handle_switch_tmux_tab(p, s)
+  def dispatch("toggle_tmux_layout", p, s), do: handle_toggle_tmux_layout(p, s)
+  def dispatch("send_tmux_keys", p, s), do: handle_send_tmux_keys(p, s)
+  def dispatch("kill_tmux_session", p, s), do: handle_kill_tmux_session(p, s)
+  def dispatch("launch_session", p, s), do: handle_launch_session(p, s)
+
   def handle_connect_tmux(%{"session" => session_name}, socket) do
     panels = socket.assigns.tmux_panels
 

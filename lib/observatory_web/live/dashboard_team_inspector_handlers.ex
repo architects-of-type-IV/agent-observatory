@@ -6,6 +6,17 @@ defmodule ObservatoryWeb.DashboardTeamInspectorHandlers do
   import Phoenix.Component, only: [assign: 3]
   import Phoenix.LiveView, only: [push_event: 3]
 
+  def dispatch("inspect_team", p, s), do: handle_inspect_team(p, s)
+  def dispatch("remove_from_inspector", p, s), do: handle_remove_from_inspector(p, s)
+  def dispatch("close_all_inspector", _p, s), do: handle_close_all_inspector(s)
+  def dispatch("toggle_inspector_layout", _p, s), do: handle_toggle_inspector_layout(s)
+  def dispatch("toggle_maximize_inspector", _p, s), do: handle_toggle_maximize_inspector(s)
+  def dispatch("set_inspector_size", p, s), do: handle_set_inspector_size(p, s)
+  def dispatch("set_output_mode", p, s), do: handle_set_output_mode(p, s)
+  def dispatch("toggle_agent_output", p, s), do: handle_toggle_agent_output(p, s)
+  def dispatch("set_message_target", p, s), do: handle_set_message_target(p, s)
+  def dispatch("send_targeted_message", p, s), do: handle_send_targeted_message(p, s)
+
   def handle_inspect_team(%{"team" => team_name}, socket) do
     inspected = socket.assigns.inspected_teams
     teams = socket.assigns.teams

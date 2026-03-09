@@ -1,61 +1,69 @@
 defmodule ObservatoryWeb.DashboardLive do
   use ObservatoryWeb, :live_view
-  import ObservatoryWeb.DashboardTeamHelpers
-  import ObservatoryWeb.DashboardDataHelpers
-  import ObservatoryWeb.DashboardFormatHelpers
-  import ObservatoryWeb.DashboardMessagingHandlers
-  import ObservatoryWeb.DashboardTaskHandlers
-  import ObservatoryWeb.DashboardSessionHelpers
-  import ObservatoryWeb.DashboardUIHandlers
-  import ObservatoryWeb.DashboardNotificationHandlers
-  import ObservatoryWeb.DashboardFilterHandlers
-  import ObservatoryWeb.DashboardNotesHandlers
-  import ObservatoryWeb.DashboardAgentHelpers
-  import ObservatoryWeb.DashboardAgentActivityHelpers
-  import ObservatoryWeb.DashboardTeamInspectorHandlers
-  import ObservatoryWeb.DashboardSwarmHandlers
-  import ObservatoryWeb.DashboardGatewayHandlers
-  import ObservatoryWeb.DashboardSessionControlHandlers
-  import ObservatoryWeb.DashboardTmuxHandlers
-  import ObservatoryWeb.DashboardWorkshopHandlers
+
+  import ObservatoryWeb.DashboardTeamHelpers, only: [member_status_color: 1]
+  import ObservatoryWeb.DashboardDataHelpers, only: [unique_values: 2]
+  import ObservatoryWeb.DashboardFormatHelpers, only: [session_duration: 2, short_session: 1, session_color: 1, build_export_url: 4]
+  import ObservatoryWeb.DashboardSessionHelpers, only: [abbreviate_cwd: 1]
+  import ObservatoryWeb.DashboardAgentHelpers, only: [agent_tasks: 2]
+  import ObservatoryWeb.DashboardAgentActivityHelpers, only: [agent_events: 2]
   import ObservatoryWeb.DashboardState, only: [recompute: 1, default_assigns: 1]
+  import ObservatoryWeb.DashboardGatewayHandlers, only: [subscribe_gateway_topics: 0, seed_gateway_assigns: 1]
+  import ObservatoryWeb.DashboardWorkshopHandlers, only: [list_blueprints: 0, list_agent_types: 0, push_ws_state: 1]
+  import ObservatoryWeb.DashboardMessagingHandlers, only: [subscribe_to_mailboxes: 1]
 
-  alias ObservatoryWeb.DashboardArchonHandlers, as: Archon
+  alias ObservatoryWeb.{
+    DashboardArchonHandlers,
+    DashboardFeedHandlers,
+    DashboardFilterHandlers,
+    DashboardFleetTreeHandlers,
+    DashboardInfoHandlers,
+    DashboardMessagingHandlers,
+    DashboardNavigationHandlers,
+    DashboardNotesHandlers,
+    DashboardPhase5Handlers,
+    DashboardSelectionHandlers,
+    DashboardSessionControlHandlers,
+    DashboardSlideoutHandlers,
+    DashboardSpawnHandlers,
+    DashboardSwarmHandlers,
+    DashboardTaskHandlers,
+    DashboardTeamInspectorHandlers,
+    DashboardTmuxHandlers,
+    DashboardUIHandlers
+  }
 
-  alias ObservatoryWeb.DashboardPhase5Handlers, as: P5
-  alias ObservatoryWeb.DashboardSlideoutHandlers, as: Slideout
+  @pubsub_topics ~w(
+    events:stream teams:update agent:crashes agent:operator swarm:update
+    protocols:update heartbeat agent:nudge agent:spawned quality:gate gateway:registry
+  )
 
-  @max_events 500
+  @filter_events ~w(filter clear_filters apply_preset search_feed search_sessions filter_tool filter_tool_use_id clear_events filter_session filter_team filter_agent set_view)
+  @ui_events ~w(toggle_shortcuts_help toggle_create_task_modal toggle_event_detail focus_agent close_agent_focus keyboard_escape keyboard_navigate toggle_add_project add_project set_sub_tab)
+  @selection_events ~w(select_event select_task select_agent select_team close_detail close_task_detail)
+  @session_control_events ~w(pause_agent resume_agent shutdown_agent hitl_approve hitl_reject kill_switch_click kill_switch_first_confirm kill_switch_second_confirm kill_switch_cancel push_instructions_intent push_instructions_confirm push_instructions_cancel)
+  @tmux_events ~w(connect_tmux disconnect_tmux close_all_tmux switch_tmux_tab toggle_tmux_layout send_tmux_keys kill_tmux_session launch_session)
+  @inspector_events ~w(inspect_team remove_from_inspector close_all_inspector toggle_inspector_layout toggle_maximize_inspector set_inspector_size set_output_mode toggle_agent_output set_message_target send_targeted_message)
+  @swarm_events ~w(select_project heal_task reset_all_stale run_health_check reassign_swarm_task claim_swarm_task trigger_gc select_dag_node select_command_agent send_command_message clear_command_selection)
+  @task_events ~w(create_task update_task_status reassign_task delete_task)
+  @note_events ~w(add_note delete_note)
+  @feed_events ~w(toggle_session_collapse expand_all collapse_all)
+  @fleet_events ~w(toggle_fleet_team set_comms_filter trace_agent clear_trace)
+  @p5_events ~w(toggle_agent_grid toggle_entropy_filter select_session toggle_subpanel sort_capability_directory update_route_weight retry_dlq_entry search_archive set_cost_group_by add_policy_rule toggle_forensic_panel toggle_protocol_item)
+  @spawn_events ~w(spawn_agent stop_spawned_agent)
+  @nav_events ~w(jump_to_timeline jump_to_feed jump_to_agents jump_to_tasks select_timeline_event filter_agent_tasks filter_analytics_tool restore_view_mode)
+  @messaging_recompute ~w(toggle_thread expand_all_threads collapse_all_threads search_messages)
 
   @impl true
   def mount(_params, _session, socket) do
     if connected?(socket) do
-      Phoenix.PubSub.subscribe(Observatory.PubSub, "events:stream")
-      Phoenix.PubSub.subscribe(Observatory.PubSub, "teams:update")
-      Phoenix.PubSub.subscribe(Observatory.PubSub, "agent:crashes")
-      Phoenix.PubSub.subscribe(Observatory.PubSub, "agent:operator")
-      Phoenix.PubSub.subscribe(Observatory.PubSub, "swarm:update")
-      Phoenix.PubSub.subscribe(Observatory.PubSub, "protocols:update")
-      Phoenix.PubSub.subscribe(Observatory.PubSub, "heartbeat")
-      Phoenix.PubSub.subscribe(Observatory.PubSub, "agent:nudge")
-      Phoenix.PubSub.subscribe(Observatory.PubSub, "agent:spawned")
-      Phoenix.PubSub.subscribe(Observatory.PubSub, "quality:gate")
-      Phoenix.PubSub.subscribe(Observatory.PubSub, "gateway:registry")
+      Enum.each(@pubsub_topics, &Phoenix.PubSub.subscribe(Observatory.PubSub, &1))
       subscribe_gateway_topics()
     end
 
     disk_teams = Observatory.TeamWatcher.get_state()
-
-    socket =
-      socket
-      |> assign(default_assigns(disk_teams))
-      |> seed_gateway_assigns()
-      |> recompute()
-
-    if connected?(socket) do
-      subscribe_to_mailboxes(socket.assigns.sessions)
-    end
-
+    socket = socket |> assign(default_assigns(disk_teams)) |> seed_gateway_assigns() |> recompute()
+    if connected?(socket), do: subscribe_to_mailboxes(socket.assigns.sessions)
     {:ok, socket}
   end
 
@@ -71,7 +79,6 @@ defmodule ObservatoryWeb.DashboardLive do
 
     socket = assign(socket, :nav_view, nav_view)
 
-    # Push initial canvas state when entering workshop
     socket =
       if nav_view == :workshop do
         socket
@@ -85,475 +92,62 @@ defmodule ObservatoryWeb.DashboardLive do
     {:noreply, socket}
   end
 
-  # ── handle_info ──────────────────────────────────────────────────────
+  @impl true
+  def handle_info(msg, socket), do: DashboardInfoHandlers.dispatch(msg, socket)
+
+  # ── Events: grouped dispatches (recompute) ─────────────────────────────
 
   @impl true
-  def handle_info({:new_event, event}, socket) do
-    events = [event | socket.assigns.events] |> Enum.take(@max_events)
-    {:noreply, socket |> assign(:events, events) |> assign(:now, DateTime.utc_now()) |> recompute()}
-  end
-
-  def handle_info({:heartbeat, _count}, socket) do
-    socket =
-      if socket.assigns.tmux_panels != [] do
-        refresh_tmux_panels(socket)
-      else
-        socket
-      end
-
-    {:noreply, socket}
-  end
-
-  def handle_info({:teams_updated, teams}, socket) do
-    disk_teams = if is_map(teams), do: teams, else: %{}
-
-    team_names =
-      disk_teams |> Map.values() |> Enum.map(fn t -> t[:name] || t["name"] end) |> MapSet.new()
-
-    pruned =
-      Enum.filter(socket.assigns.inspected_teams, fn t -> MapSet.member?(team_names, t.name) end)
-
-    {:noreply,
-     socket |> assign(:disk_teams, disk_teams) |> assign(:inspected_teams, pruned) |> recompute()}
-  end
-
-  def handle_info({:new_mailbox_message, message}, socket),
-    do: handle_new_mailbox_message(message, socket)
-
-  def handle_info({:swarm_state, state}, socket),
-    do: {:noreply, socket |> assign(:swarm_state, state) |> recompute()}
-
-  def handle_info({:protocol_update, stats}, socket),
-    do: {:noreply, socket |> assign(:protocol_stats, stats) |> assign(:dirty, true)}
-
-  def handle_info({:message_read, _}, socket),
-    do:
-      {:noreply,
-       socket
-       |> assign(:protocol_stats, Observatory.ProtocolTracker.get_stats())
-       |> assign(:dirty, true)}
-
-  def handle_info({:agent_crashed, sid, team, count}, socket),
-    do: {:noreply, handle_agent_crashed(sid, team, count, socket) |> recompute()}
-
-  def handle_info({:terminal_output, session_id, output}, socket) do
-    if socket.assigns.agent_slideout && socket.assigns.agent_slideout[:session_id] == session_id do
-      {:noreply, assign(socket, :slideout_terminal, output)}
-    else
-      {:noreply, socket}
-    end
-  end
-
-  # HITL gate events (pause/unpause)
-  def handle_info({:hitl, _event}, socket) do
-    {:noreply, recompute(socket)}
-  end
-
-  # Nudge escalation events
-  def handle_info({nudge_type, _sid, _name, _level}, socket)
-      when nudge_type in [:nudge_warning, :nudge_sent, :nudge_escalated, :nudge_zombie] do
-    {:noreply, recompute(socket)}
-  end
-
-  # Quality gate events
-  def handle_info({gate_type, _sid, _task_id, _cmd}, socket)
-      when gate_type in [:gate_passed] do
-    {:noreply, recompute(socket)}
-  end
-
-  def handle_info({:gate_failed, _sid, _task_id, _cmd, _output}, socket) do
-    {:noreply, recompute(socket)}
-  end
-
-  # Agent spawned
-  def handle_info({:agent_spawned, _id, _name, _cap}, socket) do
-    {:noreply, recompute(socket)}
-  end
-
-  # Agent registry changed (status, cwd, channels updated)
-  def handle_info(:registry_changed, socket) do
-    {:noreply, recompute(socket)}
-  end
-
-  # Gateway PubSub (topology, DAG deltas, decisions, violations, etc.)
-  def handle_info(msg, socket) when is_tuple(msg) and elem(msg, 0) in [
-    :decision_log, :schema_violation, :node_state_update, :dead_letter, :capability_update
-  ] do
-    {:noreply, handle_gateway_info(msg, socket) |> recompute()}
-  end
-
-  def handle_info(%{event_type: "entropy_alert"} = msg, socket),
-    do: {:noreply, handle_gateway_info(msg, socket) |> recompute()}
-
-  def handle_info(%{session_id: _sid, state: _state} = msg, socket)
-      when map_size(msg) == 2,
-      do: {:noreply, handle_gateway_info(msg, socket) |> recompute()}
-
-  def handle_info(%{nodes: _nodes, edges: _edges} = msg, socket),
-    do: {:noreply, handle_gateway_info(msg, socket)}
-
-  def handle_info(%{event: "dag_delta"} = msg, socket),
-    do: {:noreply, handle_gateway_info(msg, socket)}
-
-  def handle_info({:archon_response, result}, socket),
-    do: {:noreply, Archon.handle_archon_response(result, socket)}
-
-  # ── handle_event: filters & search ───────────────────────────────────
-
-  @impl true
-  def handle_event("filter", p, s), do: {:noreply, handle_filter(p, s) |> recompute()}
-  def handle_event("clear_filters", _p, s), do: {:noreply, handle_clear_filters(s) |> recompute()}
-  def handle_event("apply_preset", %{"preset" => p}, s), do: {:noreply, handle_apply_preset(p, s) |> recompute()}
-  def handle_event("search_feed", %{"q" => q}, s), do: {:noreply, handle_search_feed(q, s) |> recompute()}
-  def handle_event("search_sessions", %{"q" => q}, s), do: {:noreply, handle_search_sessions(q, s) |> recompute()}
-  def handle_event("filter_tool", %{"tool" => t}, s), do: {:noreply, handle_filter_tool(t, s) |> recompute()}
-  def handle_event("filter_tool_use_id", %{"tuid" => t}, s), do: {:noreply, handle_filter_tool_use_id(t, s) |> recompute()}
-  def handle_event("clear_events", _p, s), do: {:noreply, s |> assign(:events, []) |> recompute()}
-  def handle_event("filter_session", %{"sid" => sid}, s), do: {:noreply, handle_filter_session(sid, s) |> recompute()}
-  def handle_event("filter_team", %{"name" => n}, s), do: {:noreply, handle_filter_team(n, s) |> recompute()}
-  def handle_event("filter_agent", %{"session_id" => sid}, s), do: {:noreply, handle_filter_agent(sid, s) |> recompute()}
-  def handle_event("search_messages", p, s), do: {:noreply, handle_search_messages(p, s) |> recompute()}
-
-  # ── handle_event: selection ──────────────────────────────────────────
-
-  def handle_event("select_event", %{"id" => id}, socket) do
-    cur = socket.assigns.selected_event
-    sel = if cur && cur.id == id, do: nil, else: Enum.find(socket.assigns.events, &(&1.id == id))
-    {:noreply, socket |> clear_selections() |> assign(:selected_event, sel) |> recompute()}
-  end
-
-  def handle_event("select_task", %{"id" => id}, socket) do
-    cur = socket.assigns.selected_task
-    sel = if cur && cur[:id] == id, do: nil, else: Enum.find(socket.assigns.active_tasks, &(&1[:id] == id))
-    {:noreply, socket |> clear_selections() |> assign(:selected_task, sel) |> recompute()}
-  end
-
-  def handle_event("select_agent", %{"id" => id}, socket) do
-    cur = socket.assigns.selected_agent
-    sel = if cur && cur[:agent_id] == id, do: nil, else: find_agent_by_id(socket.assigns.teams, id)
-    {:noreply, socket |> clear_selections() |> assign(:selected_agent, sel) |> recompute()}
-  end
-
-  def handle_event("select_team", %{"name" => name}, s) do
-    sel = if s.assigns.selected_team == name, do: nil, else: name
-    {:noreply, s |> assign(:selected_team, sel) |> recompute()}
-  end
-
-  def handle_event(e, p, s) when e in ["close_detail", "close_task_detail"] do
-    h = if e == "close_detail", do: handle_close_detail(p, s), else: handle_close_task_detail(p, s)
-    {:noreply, h |> recompute()}
-  end
-
-  def handle_event("clear_topology_selection", _p, s),
-    do: {:noreply, assign(s, :selected_topology_node, nil)}
-
-  def handle_event("clear_command_selection", _p, s),
-    do: {:noreply, handle_clear_command_selection(%{}, s) |> recompute()}
-
-  # ── handle_event: view & navigation ──────────────────────────────────
-
-  def handle_event("set_view", %{"mode" => m}, s), do: {:noreply, handle_set_view(m, s) |> recompute()}
-
-  def handle_event("restore_view_mode", p, s) do
-    socket = ObservatoryWeb.DashboardNavigationHandlers.handle_event("restore_view_mode", p, s)
-    {:noreply, recompute(socket)}
-  end
-
-  def handle_event("restore_state", p, s), do: {:noreply, handle_restore_state(p, s) |> recompute()}
-
-  def handle_event("set_sub_tab", %{"screen" => screen, "tab" => tab}, s) do
-    key =
-      case screen do
-        "activity" -> :activity_tab
-        "pipeline" -> :pipeline_tab
-        "forensic" -> :forensic_tab
-        "control" -> :control_tab
-        _ -> nil
-      end
-
-    if key, do: {:noreply, s |> assign(key, String.to_existing_atom(tab)) |> recompute()}, else: {:noreply, s}
-  end
-
-  def handle_event("toggle_sidebar", _p, s) do
-    new_val = !s.assigns.sidebar_collapsed
-    {:noreply, s |> assign(:sidebar_collapsed, new_val) |> push_event("filters_changed", %{sidebar_collapsed: to_string(new_val)})}
-  end
-
-  # ── handle_event: messaging ─────────────────────────────────────────
-
-  def handle_event("send_agent_message", p, s), do: handle_send_agent_message(p, s)
-  def handle_event("send_team_broadcast", p, s), do: handle_send_team_broadcast(p, s)
-  def handle_event("push_context", p, s), do: handle_push_context(p, s)
-
-  def handle_event("send_command_message", p, s) do
-    {:noreply, handle_send_command_message(p, s) |> recompute()}
-  end
-
-  def handle_event("toggle_thread", p, s), do: {:noreply, handle_toggle_thread(p, s) |> recompute()}
-  def handle_event("expand_all_threads", _p, s), do: {:noreply, handle_expand_all_threads(s) |> recompute()}
-  def handle_event("collapse_all_threads", _p, s), do: {:noreply, handle_collapse_all_threads(s) |> recompute()}
-
-  # ── handle_event: UI toggles ────────────────────────────────────────
-
-  def handle_event("toggle_shortcuts_help", p, s), do: {:noreply, handle_toggle_shortcuts_help(p, s) |> recompute()}
-  def handle_event("toggle_create_task_modal", p, s), do: {:noreply, handle_toggle_create_task_modal(p, s) |> recompute()}
-  def handle_event("toggle_event_detail", p, s), do: {:noreply, handle_toggle_event_detail(p, s) |> recompute()}
-  def handle_event("focus_agent", p, s), do: {:noreply, handle_focus_agent(p, s) |> recompute()}
-  def handle_event("close_agent_focus", p, s), do: {:noreply, handle_close_agent_focus(p, s) |> recompute()}
-  def handle_event("keyboard_escape", p, s), do: {:noreply, handle_keyboard_escape(p, s) |> recompute()}
-  def handle_event("keyboard_navigate", p, s), do: {:noreply, handle_keyboard_navigate(p, s) |> recompute()}
-  def handle_event("toggle_add_project", _p, s), do: {:noreply, s |> assign(:show_add_project, !s.assigns.show_add_project) |> recompute()}
-  def handle_event("add_project", p, s), do: {:noreply, handle_add_project(p, s) |> assign(:show_add_project, false) |> recompute()}
-
-  # ── handle_event: Archon ──────────────────────────────────────────────
-
-  def handle_event("archon_toggle", _p, s), do: {:noreply, Archon.handle_archon_toggle(s)}
-  def handle_event("archon_close", _p, s), do: {:noreply, Archon.handle_archon_close(s)}
-  def handle_event("archon_send", p, s), do: {:noreply, Archon.handle_archon_send(p, s)}
-  def handle_event("archon_shortcode", p, s), do: {:noreply, Archon.handle_archon_shortcode(p, s)}
-
-  # ── handle_event: feed collapse ─────────────────────────────────────
-
-  def handle_event("toggle_session_collapse", %{"session_id" => sid}, s) do
-    expanded = s.assigns.expanded_sessions
-    expanded = if MapSet.member?(expanded, sid), do: MapSet.delete(expanded, sid), else: MapSet.put(expanded, sid)
-    {:noreply, assign(s, :expanded_sessions, expanded)}
-  end
-
-  def handle_event("expand_all", _p, s) do
-    all_keys =
-      s.assigns.feed_groups
-      |> Enum.flat_map(fn g ->
-        item_keys =
-          g.turns
-          |> Enum.flat_map(fn
-            %{type: :turn} = turn ->
-              turn_key = "turn:#{turn.first_event_id}"
-              phase_keys = Enum.map(turn.phases, fn p -> "phase:#{turn.first_event_id}:#{p.index}" end)
-              [turn_key | phase_keys]
-
-            %{type: :preamble} = preamble ->
-              first = List.first(preamble.events)
-              preamble_key = "preamble:#{first.id}"
-              phase_keys = Enum.map(preamble.phases, fn p -> "phase:preamble:#{p.index}" end)
-              [preamble_key | phase_keys]
-
-            _ -> []
-          end)
-
-        [g.session_id | item_keys]
-      end)
-      |> MapSet.new()
-
-    {:noreply, assign(s, :expanded_sessions, all_keys)}
-  end
-
-  def handle_event("collapse_all", _p, s), do: {:noreply, assign(s, :expanded_sessions, MapSet.new())}
-
-  # ── handle_event: fleet tree ─────────────────────────────────────────
-
-  def handle_event("toggle_fleet_team", %{"name" => name}, s) do
-    collapsed = s.assigns.collapsed_fleet_teams
-    collapsed = if MapSet.member?(collapsed, name), do: MapSet.delete(collapsed, name), else: MapSet.put(collapsed, name)
-    {:noreply, assign(s, :collapsed_fleet_teams, collapsed)}
-  end
-
-  def handle_event("set_comms_filter", %{"team" => ""}, s), do: {:noreply, assign(s, :comms_team_filter, nil)}
-
-  def handle_event("set_comms_filter", %{"team" => team_name}, s) do
-    new_filter = if s.assigns.comms_team_filter == team_name, do: nil, else: team_name
-    {:noreply, assign(s, :comms_team_filter, new_filter)}
-  end
-
-  def handle_event("trace_agent", %{"agent_id" => agent_id}, s) do
-    current = s.assigns.comms_agent_filter
-
-    new_filter =
-      cond do
-        agent_id in current -> List.delete(current, agent_id)
-        length(current) >= 2 -> [agent_id]
-        true -> current ++ [agent_id]
-      end
-
-    {:noreply, s |> assign(:comms_agent_filter, new_filter) |> assign(:activity_tab, :comms)}
-  end
-
-  def handle_event("clear_trace", _p, s), do: {:noreply, assign(s, :comms_agent_filter, [])}
-
-  # ── handle_event: tasks ──────────────────────────────────────────────
-
-  def handle_event("create_task", p, s) do
-    case handle_create_task(p, s) do
-      {:noreply, upd} -> {:noreply, upd |> assign(:show_create_task_modal, false) |> recompute()}
-      other -> other
-    end
-  end
-
-  def handle_event("update_task_status", p, s) do
-    case handle_update_task_status(p, s) do
-      {:noreply, upd} -> {:noreply, upd |> recompute()}
-      other -> other
-    end
-  end
-
-  def handle_event("reassign_task", p, s) do
-    case handle_reassign_task(p, s) do
-      {:noreply, upd} -> {:noreply, upd |> recompute()}
-      other -> other
-    end
-  end
-
-  def handle_event("delete_task", p, s) do
-    case handle_delete_task(p, s) do
-      {:noreply, upd} -> {:noreply, upd |> recompute()}
-      other -> other
-    end
-  end
-
-  # ── handle_event: notes ─────────────────────────────────────────────
-
-  def handle_event("add_note", p, s) do
-    {:noreply, res} = handle_add_note(p, s)
-    {:noreply, res |> recompute()}
-  end
-
-  def handle_event("delete_note", p, s) do
-    {:noreply, res} = handle_delete_note(p, s)
-    {:noreply, res |> recompute()}
-  end
-
-  # ── handle_event: session controls ───────────────────────────────────
-
-  def handle_event("pause_agent", p, s), do: {:noreply, handle_pause_agent(p, s) |> recompute()}
-  def handle_event("resume_agent", p, s), do: {:noreply, handle_resume_agent(p, s) |> recompute()}
-  def handle_event("shutdown_agent", p, s), do: {:noreply, handle_shutdown_agent(p, s) |> recompute()}
-  def handle_event("hitl_approve", p, s), do: {:noreply, handle_hitl_approve(p, s) |> recompute()}
-  def handle_event("hitl_reject", p, s), do: {:noreply, handle_hitl_reject(p, s) |> recompute()}
-
-  def handle_event("kill_switch_click", p, s), do: {:noreply, handle_kill_switch_click(p, s) |> recompute()}
-  def handle_event("kill_switch_first_confirm", p, s), do: {:noreply, handle_kill_switch_first_confirm(p, s) |> recompute()}
-  def handle_event("kill_switch_second_confirm", p, s), do: {:noreply, handle_kill_switch_second_confirm(p, s) |> recompute()}
-  def handle_event("kill_switch_cancel", p, s), do: {:noreply, handle_kill_switch_cancel(p, s) |> recompute()}
-  def handle_event("push_instructions_intent", p, s), do: {:noreply, handle_push_instructions_intent(p, s) |> recompute()}
-  def handle_event("push_instructions_confirm", p, s), do: {:noreply, handle_push_instructions_confirm(p, s) |> recompute()}
-  def handle_event("push_instructions_cancel", p, s), do: {:noreply, handle_push_instructions_cancel(p, s) |> recompute()}
-
-  # ── handle_event: tmux ──────────────────────────────────────────────
-
-  def handle_event("connect_tmux", p, s), do: {:noreply, handle_connect_tmux(p, s)}
-  def handle_event("disconnect_tmux", p, s), do: {:noreply, handle_disconnect_tmux(p, s)}
-  def handle_event("close_all_tmux", p, s), do: {:noreply, handle_close_all_tmux(p, s)}
-  def handle_event("switch_tmux_tab", p, s), do: {:noreply, handle_switch_tmux_tab(p, s)}
-  def handle_event("toggle_tmux_layout", p, s), do: {:noreply, handle_toggle_tmux_layout(p, s)}
-  def handle_event("send_tmux_keys", p, s), do: {:noreply, handle_send_tmux_keys(p, s)}
-  def handle_event("kill_tmux_session", p, s), do: {:noreply, handle_kill_tmux_session(p, s)}
-  def handle_event("launch_session", p, s), do: {:noreply, handle_launch_session(p, s)}
-
-  # ── handle_event: inspector ─────────────────────────────────────────
-
-  def handle_event("inspect_team", p, s), do: {:noreply, handle_inspect_team(p, s) |> recompute()}
-  def handle_event("remove_from_inspector", p, s), do: {:noreply, handle_remove_from_inspector(p, s) |> recompute()}
-  def handle_event("close_all_inspector", _p, s), do: {:noreply, handle_close_all_inspector(s) |> recompute()}
-  def handle_event("toggle_inspector_layout", _p, s), do: {:noreply, handle_toggle_inspector_layout(s) |> recompute()}
-  def handle_event("toggle_maximize_inspector", _p, s), do: {:noreply, handle_toggle_maximize_inspector(s) |> recompute()}
-  def handle_event("set_inspector_size", p, s), do: {:noreply, handle_set_inspector_size(p, s) |> recompute()}
-  def handle_event("set_output_mode", p, s), do: {:noreply, handle_set_output_mode(p, s) |> recompute()}
-  def handle_event("toggle_agent_output", p, s), do: {:noreply, handle_toggle_agent_output(p, s) |> recompute()}
-  def handle_event("set_message_target", p, s), do: {:noreply, handle_set_message_target(p, s) |> recompute()}
-  def handle_event("send_targeted_message", p, s), do: {:noreply, handle_send_targeted_message(p, s) |> recompute()}
-
-  # ── handle_event: swarm ─────────────────────────────────────────────
-
-  def handle_event("select_project", p, s), do: {:noreply, handle_select_project(p, s) |> recompute()}
-  def handle_event("heal_task", p, s), do: {:noreply, handle_heal_task(p, s) |> recompute()}
-  def handle_event("reset_all_stale", _p, s), do: {:noreply, handle_reset_all_stale(%{}, s) |> recompute()}
-  def handle_event("run_health_check", _p, s), do: {:noreply, handle_run_health_check(%{}, s) |> recompute()}
-  def handle_event("reassign_swarm_task", p, s), do: {:noreply, handle_reassign_swarm_task(p, s) |> recompute()}
-  def handle_event("claim_swarm_task", p, s), do: {:noreply, handle_claim_swarm_task(p, s) |> recompute()}
-  def handle_event("trigger_gc", p, s), do: {:noreply, handle_trigger_gc(p, s) |> recompute()}
-  def handle_event("select_dag_node", p, s), do: {:noreply, handle_select_dag_node(p, s) |> recompute()}
-  def handle_event("select_command_agent", p, s), do: {:noreply, handle_select_command_agent(p, s) |> recompute()}
-
-  # ── handle_event: agent spawning ────────────────────────────────────
-
-  def handle_event("spawn_agent", params, s) do
-    opts = %{
-      name: params["name"],
-      capability: params["capability"] || "builder",
-      model: params["model"] || "sonnet",
-      cwd: params["cwd"],
-      team_name: params["team_name"]
-    }
-    |> Enum.reject(fn {_k, v} -> is_nil(v) || v == "" end)
-    |> Map.new()
-
-    case Observatory.Operator.spawn_agent(opts) do
-      {:ok, info} ->
-        {:noreply,
-         s
-         |> push_event("toast", %{message: "Spawned #{info.name}", type: "success"})
-         |> recompute()}
-
-      {:error, reason} ->
-        {:noreply,
-         s
-         |> push_event("toast", %{message: "Spawn failed: #{inspect(reason)}", type: "error"})
-         |> recompute()}
-    end
-  end
-
-  def handle_event("stop_spawned_agent", %{"session" => session_name}, s) do
-    case Observatory.Operator.stop_agent(session_name) do
-      :ok ->
-        {:noreply,
-         s
-         |> push_event("toast", %{message: "Stopping #{session_name}", type: "success"})
-         |> recompute()}
-
-      {:error, reason} ->
-        {:noreply,
-         s
-         |> push_event("toast", %{message: "Stop failed: #{inspect(reason)}", type: "error"})
-         |> recompute()}
-    end
-  end
-
-  # ── handle_event: slideout + topology node ──────────────────────────
+  def handle_event(e, p, s) when e in @filter_events, do: {:noreply, DashboardFilterHandlers.dispatch(e, p, s) |> recompute()}
+  def handle_event(e, p, s) when e in @ui_events, do: {:noreply, DashboardUIHandlers.dispatch(e, p, s) |> recompute()}
+  def handle_event(e, p, s) when e in @selection_events, do: {:noreply, DashboardSelectionHandlers.dispatch(e, p, s) |> recompute()}
+  def handle_event(e, p, s) when e in @session_control_events, do: {:noreply, DashboardSessionControlHandlers.dispatch(e, p, s) |> recompute()}
+  def handle_event(e, p, s) when e in @inspector_events, do: {:noreply, DashboardTeamInspectorHandlers.dispatch(e, p, s) |> recompute()}
+  def handle_event(e, p, s) when e in @swarm_events, do: {:noreply, DashboardSwarmHandlers.dispatch(e, p, s) |> recompute()}
+  def handle_event(e, p, s) when e in @task_events, do: {:noreply, DashboardTaskHandlers.dispatch(e, p, s) |> recompute()}
+  def handle_event(e, p, s) when e in @note_events, do: {:noreply, DashboardNotesHandlers.dispatch(e, p, s) |> recompute()}
+  def handle_event(e, p, s) when e in @p5_events, do: {:noreply, DashboardPhase5Handlers.dispatch(e, p, s) |> recompute()}
+  def handle_event(e, p, s) when e in @spawn_events, do: {:noreply, DashboardSpawnHandlers.dispatch(e, p, s) |> recompute()}
+  def handle_event(e, p, s) when e in @nav_events, do: {:noreply, DashboardNavigationHandlers.handle_event(e, p, s) |> recompute()}
+  def handle_event(e, p, s) when e in @messaging_recompute, do: {:noreply, DashboardMessagingHandlers.dispatch(e, p, s) |> recompute()}
+
+  # ── Events: grouped dispatches (no recompute) ──────────────────────────
+
+  def handle_event(e, p, s) when e in @tmux_events, do: {:noreply, DashboardTmuxHandlers.dispatch(e, p, s)}
+  def handle_event(e, p, s) when e in @feed_events, do: {:noreply, DashboardFeedHandlers.dispatch(e, p, s)}
+  def handle_event(e, p, s) when e in @fleet_events, do: {:noreply, DashboardFleetTreeHandlers.dispatch(e, p, s)}
+
+  # ── Events: messaging (passthrough -- handlers return {:noreply, socket}) ──
+
+  def handle_event("send_agent_message", p, s), do: DashboardMessagingHandlers.handle_send_agent_message(p, s)
+  def handle_event("send_team_broadcast", p, s), do: DashboardMessagingHandlers.handle_send_team_broadcast(p, s)
+  def handle_event("push_context", p, s), do: DashboardMessagingHandlers.handle_push_context(p, s)
+
+  # ── Events: standalone ─────────────────────────────────────────────────
+
+  def handle_event("toggle_sidebar", _p, s), do: {:noreply, DashboardUIHandlers.dispatch("toggle_sidebar", %{}, s)}
+  def handle_event("clear_topology_selection", _p, s), do: {:noreply, assign(s, :selected_topology_node, nil)}
+  def handle_event("restore_state", p, s), do: {:noreply, DashboardUIHandlers.handle_restore_state(p, s) |> recompute()}
+
+  # ── Events: archon ─────────────────────────────────────────────────────
+
+  def handle_event("archon_toggle", _p, s), do: {:noreply, DashboardArchonHandlers.handle_archon_toggle(s)}
+  def handle_event("archon_close", _p, s), do: {:noreply, DashboardArchonHandlers.handle_archon_close(s)}
+  def handle_event("archon_send", p, s), do: {:noreply, DashboardArchonHandlers.handle_archon_send(p, s)}
+  def handle_event("archon_shortcode", p, s), do: {:noreply, DashboardArchonHandlers.handle_archon_shortcode(p, s)}
+
+  # ── Events: slideout ───────────────────────────────────────────────────
 
   def handle_event("open_agent_slideout", %{"session_id" => sid}, s),
-    do: {:noreply, Slideout.handle_open_agent_slideout(sid, s) |> recompute()}
+    do: {:noreply, DashboardSlideoutHandlers.handle_open_agent_slideout(sid, s) |> recompute()}
 
   def handle_event("close_agent_slideout", _p, s),
-    do: {:noreply, Slideout.handle_close_agent_slideout(s)}
+    do: {:noreply, DashboardSlideoutHandlers.handle_close_agent_slideout(s)}
 
-  def handle_event("node_selected", %{"trace_id" => trace_id}, s),
-    do: {:noreply, Slideout.handle_node_selected(trace_id, s)}
+  def handle_event("node_selected", %{"trace_id" => tid}, s),
+    do: {:noreply, DashboardSlideoutHandlers.handle_node_selected(tid, s)}
 
-  # ── handle_event: Phase 5 ──────────────────────────────────────────
-
-  def handle_event("toggle_agent_grid", _p, s), do: {:noreply, P5.handle_toggle_agent_grid(s) |> recompute()}
-  def handle_event("toggle_entropy_filter", _p, s), do: {:noreply, P5.handle_toggle_entropy_filter(s) |> recompute()}
-  def handle_event("select_session", %{"session_id" => sid}, s), do: {:noreply, P5.handle_select_session(sid, s) |> recompute()}
-  def handle_event("toggle_subpanel", %{"panel" => panel}, s), do: {:noreply, P5.handle_toggle_subpanel(panel, s) |> recompute()}
-  def handle_event("sort_capability_directory", %{"field" => f}, s), do: {:noreply, P5.handle_sort_capability_directory(f, s) |> recompute()}
-  def handle_event("update_route_weight", %{"agent_type" => at, "weight" => w}, s), do: {:noreply, P5.handle_update_route_weight(at, w, s) |> recompute()}
-  def handle_event("retry_dlq_entry", %{"entry_id" => eid}, s), do: {:noreply, P5.handle_retry_dlq_entry(eid, s) |> recompute()}
-  def handle_event("search_archive", %{"q" => q}, s), do: {:noreply, P5.handle_search_archive(q, s) |> recompute()}
-  def handle_event("set_cost_group_by", %{"field" => f}, s), do: {:noreply, P5.handle_set_cost_group_by(f, s) |> recompute()}
-
-  def handle_event("add_policy_rule", %{"name" => n, "condition" => c, "action" => a}, s),
-    do: {:noreply, P5.handle_add_policy_rule(n, c, a, s) |> recompute()}
-
-  def handle_event("toggle_forensic_panel", %{"panel" => p}, s),
-    do: {:noreply, P5.handle_toggle_forensic_panel(p, s) |> recompute()}
-
-  def handle_event("toggle_protocol_item", %{"id" => id}, s) do
-    expanded = s.assigns.expanded_protocol_items
-    expanded = if MapSet.member?(expanded, id), do: MapSet.delete(expanded, id), else: MapSet.put(expanded, id)
-    {:noreply, assign(s, :expanded_protocol_items, expanded)}
-  end
-
-  # ── handle_event: workshop (delegated by prefix) ─────────────────────
+  # ── Events: workshop (prefix-match delegation) ─────────────────────────
 
   def handle_event("ws_edit_type" <> _ = e, p, s), do: ObservatoryWeb.WorkshopTypes.handle_event(e, p, s)
   def handle_event("ws_cancel_edit_type" = e, p, s), do: ObservatoryWeb.WorkshopTypes.handle_event(e, p, s)
@@ -566,27 +160,5 @@ defmodule ObservatoryWeb.DashboardLive do
   def handle_event("ws_list_blueprints" = e, p, s), do: ObservatoryWeb.WorkshopPersistence.handle_event(e, p, s)
   def handle_event("ws_" <> _ = e, p, s), do: ObservatoryWeb.DashboardWorkshopHandlers.handle_event(e, p, s)
 
-  # ── handle_event: navigation (full-module, cannot import) ───────────
-
-  def handle_event(e, p, s)
-      when e in [
-             "jump_to_timeline", "jump_to_feed", "jump_to_agents", "jump_to_tasks",
-             "select_timeline_event", "filter_agent_tasks", "filter_analytics_tool"
-           ] do
-    ObservatoryWeb.DashboardNavigationHandlers.handle_event(e, p, s)
-    |> then(&{:noreply, recompute(&1)})
-  end
-
-  # ── Private helpers ─────────────────────────────────────────────────
-
-  defp find_agent_by_id(teams, agent_id) do
-    teams |> Enum.flat_map(& &1.members) |> Enum.find(&(&1[:agent_id] == agent_id))
-  end
-
-  defp clear_selections(socket) do
-    socket
-    |> assign(:selected_event, nil)
-    |> assign(:selected_task, nil)
-    |> assign(:selected_agent, nil)
-  end
+  def handle_event("stop", _p, s), do: {:noreply, s}
 end
