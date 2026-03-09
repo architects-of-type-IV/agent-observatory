@@ -1,42 +1,36 @@
 ICHOR IV Progress (formerly Observatory)
 ========================================
 
-## Current: Archon Memories Integration (2026-03-09)
+## Current: AgentRegistry Decomposition + Idiomatic Elixir (2026-03-09)
 
 ### This Session
-- [x] Fixed Memories reranker dispatch bug (:rrf atom -> API.Reranker.RRF module)
-- [x] Fixed SearchVector to query all 3 tables (episodes, graph_nodes, graph_edges)
-- [x] Added EmbedEntities step (Step 4.5) to DigestEpisode pipeline
-- [x] Added EmbedFacts step (Step 5.7) to DigestEpisode pipeline
-- [x] Added :set_embedding update actions to Entity and Fact resources
-- [x] Added result hydration in Client.Local (full records, not just IDs)
-- [x] Fixed resolve_group_id to prefer explicit group_id
-- [x] Created Observatory.Archon.MemoriesClient (HTTP client)
-- [x] Created Observatory.Archon.Tools.Memory (3 Ash tools: search, remember, query)
-- [x] Wired Memory into Archon.Tools domain (now 10 tools)
-- [x] Ingested 3 test episodes, verified entity/fact extraction + embedding
-- [x] Verified end-to-end search: query -> vector+BM25+graph -> RRF -> hydrate
-- [x] Both projects compile clean: mix compile --warnings-as-errors
-- [ ] "Space" concept: extra namespacing on top of group_id
-- [ ] Archon LLM wiring (Claude API + AshAi tools)
-- [ ] Archon chat UI (dashboard drawer/panel)
+- [x] AgentSpawner rewrite: pattern matching, remote spawn, overlay delegation (318->266 lines)
+- [x] ssh_tmux channels wired through Delivery, PaneMonitor, AgentRegistry
+- [x] if/cond/unless eliminated across 6 modules (HostRegistry, PaneMonitor, InstructionOverlay, etc.)
+- [x] IdentityMerge extracted from AgentRegistry (identity correlation logic)
+- [x] AgentRegistry decomposed into 5 focused submodules:
+      - AgentEntry (53): agent map + utilities
+      - EventHandler (54): hook event processing
+      - IdentityMerge (130): CWD-based identity correlation
+      - TeamSync (105): TeamWatcher data merge
+      - Sweep (72): stale entry GC
+- [x] AgentRegistry: 669 -> 293 lines (thin GenServer)
+- [x] InstructionOverlay cleanup: de-dup port lookup, flatten indirection (310->299)
+- [x] All builds clean: mix compile --warnings-as-errors
+
+### Prior Session: Archon Memories Integration (2026-03-09)
+- [x] Fixed Memories reranker, SearchVector, entity/fact embeddings, result hydration
+- [x] Created MemoriesClient + Archon.Tools.Memory (3 Ash tools)
+- [x] Verified end-to-end search pipeline
 
 ### Prior Session: Distribution Foundation (2026-03-09)
 - [x] Dead code removal: AgentRegistry 894 -> 669 lines
 - [x] Fleet.HostRegistry, :pg groups, spawn_agent_on/2
 - [x] OutputCapture + TmuxDiscovery extraction
 
-### Prior Session: Archon Domain + AgentTools Refactor (2026-03-08)
+### Prior: Archon Domain + AgentTools Refactor (2026-03-08)
 - [x] Archon domain + Tools subdomain (7 tools)
 - [x] AgentTools refactor (726->498 lines)
-- [x] NudgeEscalator fix, rogue task killed, SQL debug disabled
 
-### Prior Session: Workshop Refactor + Phase 6
-- [x] Phase 6: EventController extraction (277->66 lines)
-- [x] Workshop module split (637->198 lines + 3 new modules)
-
-### Prior: Ash-Disciplined Refactor (Phases 1-5, 7)
-- [x] Phases 1-7 complete. Net -730 lines from web layer.
-
-### Prior: Workshop Ash Persistence + BEAM-Native Fleet
-- [x] Workshop Ash domain, BEAM-native fleet foundation, ADRs 023-025
+### Prior: Workshop Refactor + Phase 6 + Phases 1-5, 7
+- [x] All phases complete. Net -730 lines from web layer.
