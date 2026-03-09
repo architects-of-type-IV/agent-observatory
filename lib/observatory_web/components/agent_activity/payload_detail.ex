@@ -12,10 +12,10 @@ defmodule ObservatoryWeb.Components.AgentActivity.PayloadDetail do
     assigns = assign(assigns, :details, format_payload_detail(assigns.event))
 
     ~H"""
-    <div class="bg-zinc-900/80 rounded border border-zinc-700 p-2 space-y-1 max-h-96 overflow-y-auto">
+    <div class="bg-base/80 rounded border border-border-subtle p-2 space-y-1 max-h-96 overflow-y-auto">
       <div :for={{key, value} <- @details} class="grid grid-cols-[auto_1fr] gap-2 text-xs">
-        <span class="text-zinc-500 font-semibold">{key}:</span>
-        <pre class="text-zinc-300 overflow-x-auto whitespace-pre-wrap break-words"><%= value %></pre>
+        <span class="text-low font-semibold">{key}:</span>
+        <pre class="text-high overflow-x-auto whitespace-pre-wrap break-words"><%= value %></pre>
       </div>
     </div>
     """

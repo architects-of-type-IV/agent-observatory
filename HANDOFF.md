@@ -1,34 +1,21 @@
 # ICHOR IV (formerly Observatory) - Handoff
 
-## Current Status: Design Token System + Theme Foundation (2026-03-09)
+## Current Status: Template Color Migration Complete (2026-03-09)
 
 ### Just Completed
 
-**Design Token System (CSS Custom Properties)**
-- Added `--ichor-*` CSS custom property system to `assets/css/app.css`
-- 25 design tokens covering: text hierarchy (4), backgrounds (4), borders (2), brand accent (4), semantic status (4), interactive (2), geometry/radius (5)
-- Two theme definitions: ICHOR IV (dark/amber, default `:root`) and Swiss International Style (`[data-theme="swiss"]`)
-- Swiss theme: pure white bg, black borders, zero border radius, Swiss Red accent -- matches Genesis project
-- Theme switching via `data-theme` attribute on `<html>` (already wired in root layout)
-- Body element uses `hsl(var(--ichor-bg))` and `hsl(var(--ichor-text-high))` for base colors
+**Template Color Migration (1,171 references -> semantic tokens)**
+- Added Tailwind v4 `@theme` block to `assets/css/app.css` registering `--ichor-*` tokens as Tailwind utilities
+- 26 semantic color utilities: `text-high`, `text-default`, `text-low`, `text-muted`, `bg-base`, `bg-raised`, `bg-highlight`, `bg-surface`, `bg-overlay`, `border-border`, `border-border-subtle`, `text-brand`, `bg-brand`, `text-success`, `bg-success`, `text-error`, `bg-error`, `text-info`, `bg-info`, `text-interactive`, `bg-interactive`, plus muted/dim variants
+- Added `--ichor-bg-highlight` token (zinc-700 area) for hover/active states
+- Bulk perl replacement across all `.heex` + `.ex` files under `lib/observatory_web/`
+- Color mapping: zinc-300/200/100 -> high, zinc-400 -> default, zinc-500 -> low, zinc-600/700 -> muted, zinc-900/950 -> base, zinc-800 -> raised, zinc-700 -> highlight, amber -> brand, emerald -> success, red -> error, blue -> info, indigo -> interactive
+- 1 remaining: `bg-amber-950` in Archon system message (deferred to Archon CSS tokenization)
 
-**Design System Rename: obs-* -> ichor-***
-- All `.obs-*` CSS classes renamed to `.ichor-*` across CSS + 13 template/component files
-- All `--obs-*` CSS variables renamed to `--ichor-*`
-- Keyframe animation `obs-pulse` renamed to `ichor-pulse`
-- tmux session prefix `obs-` intentionally NOT renamed (infrastructure, not UI)
-
-**obs-* Design System Migrated to Tokens**
-- ~50 component classes (section, card, badge, dot, button, input, etc.) now use `hsl(var(--ichor-*))` instead of hardcoded zinc/amber/emerald
-- Border radius uses `var(--ichor-radius-*)` -- resolves to rounded in ICHOR IV, zero in Swiss
-- All status colors (success, error, info, brand) use semantic tokens
-
-### In Progress
-
-**Template Migration (64 files, ~1,172 hardcoded color references)**
-- The `ichor-*` design system classes are token-based, but inline Tailwind classes in templates still use hardcoded `zinc-800`, `amber-500`, etc.
-- These need systematic replacement: `zinc-800` -> token, `zinc-500` -> token, `amber-*` -> brand token
-- Can be done incrementally per component group
+**Prior: Design Token System + Theme Foundation**
+- 26 `--ichor-*` CSS custom properties, two themes (ICHOR IV dark + Swiss light)
+- ~50 `ichor-*` component classes migrated to tokens
+- `obs-*` -> `ichor-*` rename across CSS + 13 templates
 
 ### Previously Completed
 
@@ -50,12 +37,11 @@
 `mix compile --warnings-as-errors` -- CLEAN
 
 ### Next Steps
-1. **Template color migration**: Replace ~1,172 hardcoded Tailwind color classes with semantic tokens across 64 files
-2. **Archon CSS tokenization**: Convert archon-* classes from hardcoded rgba() to `hsl(var(--ichor-*))`
-3. **Workshop canvas tokenization**: Convert agent-node hardcoded hex colors to tokens
-4. **Theme switcher UI**: Add toggle button in dashboard header
-5. **Streams** (deferred): Convert events list to LiveView streams for render perf
-6. **LiveComponents** (deferred): Isolate fleet tree, feed, inspector as stateful components
+1. **Archon CSS tokenization**: Convert archon-* classes from hardcoded rgba() to `hsl(var(--ichor-*))`
+2. **Workshop canvas tokenization**: Convert agent-node hardcoded hex colors to tokens
+3. **Theme switcher UI**: Add toggle button in dashboard header
+4. **Streams** (deferred): Convert events list to LiveView streams for render perf
+5. **LiveComponents** (deferred): Isolate fleet tree, feed, inspector as stateful components
 
 ### Memories Server
 - Running on port 4000 (must be running for Archon memory tools)

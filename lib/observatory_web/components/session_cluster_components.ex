@@ -18,10 +18,10 @@ defmodule ObservatoryWeb.Components.SessionClusterComponents do
     ~H"""
     <div id="session-cluster-view" class="p-6 space-y-6">
       <div class="flex items-center justify-between">
-        <h2 class="text-lg font-semibold text-zinc-300">Session Cluster</h2>
+        <h2 class="text-lg font-semibold text-high">Session Cluster</h2>
         <button
           phx-click="toggle_entropy_filter"
-          class={"px-3 py-1 text-xs rounded-md transition #{if @entropy_filter_active, do: "bg-amber-500/20 text-amber-400 border border-amber-500/30", else: "bg-zinc-800 text-zinc-500 hover:text-zinc-300"}"}
+          class={"px-3 py-1 text-xs rounded-md transition #{if @entropy_filter_active, do: "bg-brand/20 text-brand border border-brand/30", else: "bg-raised text-low hover:text-high"}"}
         >
           {if @entropy_filter_active, do: "Entropy Filter: ON", else: "Entropy Filter: OFF"}
         </button>
@@ -30,17 +30,17 @@ defmodule ObservatoryWeb.Components.SessionClusterComponents do
       <%!-- Session List --%>
       <div class="space-y-2">
         <%= if @filtered_sessions == [] do %>
-          <p class="empty-state text-sm text-zinc-500 italic">No high-entropy sessions.</p>
+          <p class="empty-state text-sm text-low italic">No high-entropy sessions.</p>
         <% else %>
           <div
             :for={session <- @filtered_sessions}
             phx-click="select_session"
             phx-value-session_id={session_id(session)}
-            class={"p-3 rounded-lg border cursor-pointer transition #{if @selected_session_id == session_id(session), do: "bg-zinc-800 border-indigo-500/50", else: "bg-zinc-900/50 border-zinc-800 hover:border-zinc-700"}"}
+            class={"p-3 rounded-lg border cursor-pointer transition #{if @selected_session_id == session_id(session), do: "bg-raised border-interactive/50", else: "bg-base/50 border-border hover:border-border-subtle"}"}
           >
             <div class="flex items-center justify-between">
-              <span class="text-sm font-mono text-zinc-300">{session_id(session) |> String.slice(0..11)}</span>
-              <span class="text-xs text-zinc-500">{Map.get(session, :source_app, "unknown")}</span>
+              <span class="text-sm font-mono text-high">{session_id(session) |> String.slice(0..11)}</span>
+              <span class="text-xs text-low">{Map.get(session, :source_app, "unknown")}</span>
             </div>
           </div>
         <% end %>
@@ -48,28 +48,28 @@ defmodule ObservatoryWeb.Components.SessionClusterComponents do
 
       <%!-- Drill-Down Panel (visible when session selected) --%>
       <div :if={@selected_session_id} class="space-y-4">
-        <div id="session-dag-hook" phx-hook="TopologyMap" phx-update="ignore" data-event="session_dag_update" class="bg-zinc-900/30 border border-zinc-800 rounded-lg p-4 min-h-[120px] relative">
-          <h3 class="topo-title text-[10px] font-semibold text-zinc-600 uppercase tracking-wider mb-2">Causal DAG: {@selected_session_id |> String.slice(0..11)}</h3>
+        <div id="session-dag-hook" phx-hook="TopologyMap" phx-update="ignore" data-event="session_dag_update" class="bg-base/30 border border-border rounded-lg p-4 min-h-[120px] relative">
+          <h3 class="topo-title text-[10px] font-semibold text-muted uppercase tracking-wider mb-2">Causal DAG: {@selected_session_id |> String.slice(0..11)}</h3>
         </div>
 
-        <div id="live-scratchpad-panel" class="bg-zinc-900/50 border border-zinc-800 rounded-lg p-4">
-          <h3 class="text-sm font-semibold text-zinc-400 uppercase tracking-wider mb-2">Live Scratchpad</h3>
+        <div id="live-scratchpad-panel" class="bg-base/50 border border-border rounded-lg p-4">
+          <h3 class="text-sm font-semibold text-default uppercase tracking-wider mb-2">Live Scratchpad</h3>
           <%= if @scratchpad_intents == [] do %>
-            <p class="text-xs text-zinc-500">No intents captured yet</p>
+            <p class="text-xs text-low">No intents captured yet</p>
           <% else %>
             <div class="space-y-1.5 max-h-64 overflow-y-auto">
               <div :for={intent <- Enum.take(@scratchpad_intents, 50)} class="flex items-center gap-2 text-xs">
-                <span class="font-mono text-indigo-400">{format_intent(intent)}</span>
-                <span :if={format_confidence(intent)} class="text-zinc-600">{format_confidence(intent)}</span>
-                <span :if={format_strategy(intent)} class="text-zinc-700 italic">{format_strategy(intent)}</span>
+                <span class="font-mono text-interactive">{format_intent(intent)}</span>
+                <span :if={format_confidence(intent)} class="text-muted">{format_confidence(intent)}</span>
+                <span :if={format_strategy(intent)} class="text-muted italic">{format_strategy(intent)}</span>
               </div>
             </div>
           <% end %>
         </div>
 
-        <div id="hitl-console-panel" class="bg-zinc-900/50 border border-zinc-800 rounded-lg p-4">
-          <h3 class="text-sm font-semibold text-zinc-400 uppercase tracking-wider mb-2">HITL Console</h3>
-          <p class="text-xs text-zinc-500">Human-in-the-loop console placeholder</p>
+        <div id="hitl-console-panel" class="bg-base/50 border border-border rounded-lg p-4">
+          <h3 class="text-sm font-semibold text-default uppercase tracking-wider mb-2">HITL Console</h3>
+          <p class="text-xs text-low">Human-in-the-loop console placeholder</p>
         </div>
 
         <%!-- Collapsible Sub-Panels --%>
@@ -84,17 +84,17 @@ defmodule ObservatoryWeb.Components.SessionClusterComponents do
 
   defp collapsible_panel(assigns) do
     ~H"""
-    <div class="bg-zinc-900/50 border border-zinc-800 rounded-lg">
+    <div class="bg-base/50 border border-border rounded-lg">
       <button
         phx-click="toggle_subpanel"
         phx-value-panel={@id}
-        class="w-full px-4 py-3 flex items-center justify-between text-sm font-semibold text-zinc-400 hover:text-zinc-300 transition"
+        class="w-full px-4 py-3 flex items-center justify-between text-sm font-semibold text-default hover:text-high transition"
       >
         <span>{@label}</span>
         <span class="text-xs">{if @open, do: "▼", else: "▶"}</span>
       </button>
       <div :if={@open} class="px-4 pb-4">
-        <p class="text-xs text-zinc-500">{@label} sub-panel content placeholder</p>
+        <p class="text-xs text-low">{@label} sub-panel content placeholder</p>
       </div>
     </div>
     """

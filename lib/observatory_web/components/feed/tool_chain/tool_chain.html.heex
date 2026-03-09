@@ -8,19 +8,19 @@
   <% pair = List.first(@pairs) %>
   <% tool_key = "tool:#{pair.tool_use_id}" %>
   <% tool_collapsed = MapSet.member?(@collapsed_sessions, tool_key) %>
-  <div class="ml-4 border-l-2 border-zinc-700 pl-3 py-0.5">
+  <div class="ml-4 border-l-2 border-border-subtle pl-3 py-0.5">
     <div
-      class="flex items-center gap-2 cursor-pointer select-none hover:bg-zinc-800/30 rounded px-1 -mx-1 py-0.5"
+      class="flex items-center gap-2 cursor-pointer select-none hover:bg-raised/30 rounded px-1 -mx-1 py-0.5"
       phx-click="toggle_session_collapse"
       phx-value-session_id={tool_key}
     >
-      <span class="text-zinc-600 text-[10px] font-mono w-2 shrink-0">
+      <span class="text-muted text-[10px] font-mono w-2 shrink-0">
         {if tool_collapsed, do: "+", else: "-"}
       </span>
-      <span class="text-xs font-mono text-indigo-400 shrink-0">{pair.tool_name}</span>
+      <span class="text-xs font-mono text-interactive shrink-0">{pair.tool_name}</span>
       <%= cond do %>
         <% pair.status == :in_progress -> %>
-          <span class="text-xs font-mono text-amber-400 shrink-0">
+          <span class="text-xs font-mono text-brand shrink-0">
             {format_duration(DashboardFeedHelpers.elapsed_time_ms(pair.pre, @now))}...
           </span>
         <% pair.status == :success -> %>
@@ -28,32 +28,32 @@
             {format_duration(pair.duration_ms)}
           </span>
         <% pair.status == :failure -> %>
-          <span class="text-xs font-mono text-red-400 shrink-0">FAIL</span>
+          <span class="text-xs font-mono text-error shrink-0">FAIL</span>
         <% true -> %>
       <% end %>
-      <span class="text-xs text-zinc-500 truncate flex-1 min-w-0">{event_summary(pair.pre)}</span>
-      <span class="text-xs font-mono text-zinc-600 shrink-0">{relative_time(pair.pre.inserted_at, @now)}</span>
+      <span class="text-xs text-low truncate flex-1 min-w-0">{event_summary(pair.pre)}</span>
+      <span class="text-xs font-mono text-muted shrink-0">{relative_time(pair.pre.inserted_at, @now)}</span>
     </div>
 
     <div :if={!tool_collapsed} class="mt-0.5 space-y-0.5 ml-4">
       <div
-        class={"flex items-center gap-2 px-2 py-0.5 rounded cursor-pointer hover:bg-zinc-800/50 text-xs #{if @selected_event && @selected_event.id == pair.pre.id, do: "bg-zinc-800/80 ring-1 ring-indigo-500/40", else: ""}"}
+        class={"flex items-center gap-2 px-2 py-0.5 rounded cursor-pointer hover:bg-raised/50 text-xs #{if @selected_event && @selected_event.id == pair.pre.id, do: "bg-raised/80 ring-1 ring-interactive/40", else: ""}"}
         phx-click="select_event"
         phx-value-id={pair.pre.id}
       >
-        <span class="text-amber-400 font-mono shrink-0">START</span>
-        <span class="text-zinc-400 truncate flex-1">{event_summary(pair.pre)}</span>
+        <span class="text-brand font-mono shrink-0">START</span>
+        <span class="text-default truncate flex-1">{event_summary(pair.pre)}</span>
       </div>
       <div
         :if={pair.post}
-        class={"flex items-center gap-2 px-2 py-0.5 rounded cursor-pointer hover:bg-zinc-800/50 text-xs #{if @selected_event && @selected_event.id == pair.post.id, do: "bg-zinc-800/80 ring-1 ring-indigo-500/40", else: ""}"}
+        class={"flex items-center gap-2 px-2 py-0.5 rounded cursor-pointer hover:bg-raised/50 text-xs #{if @selected_event && @selected_event.id == pair.post.id, do: "bg-raised/80 ring-1 ring-interactive/40", else: ""}"}
         phx-click="select_event"
         phx-value-id={pair.post.id}
       >
-        <span class={"font-mono shrink-0 #{if pair.status == :failure, do: "text-red-400", else: "text-emerald-400"}"}>
+        <span class={"font-mono shrink-0 #{if pair.status == :failure, do: "text-error", else: "text-success"}"}>
           {if pair.status == :failure, do: "FAIL", else: "DONE"}
         </span>
-        <span class="text-zinc-400 truncate flex-1">{event_summary(pair.post)}</span>
+        <span class="text-default truncate flex-1">{event_summary(pair.post)}</span>
       </div>
     </div>
   </div>
@@ -64,23 +64,23 @@
     total_dur = DashboardFeedHelpers.chain_total_duration(@pairs)
     status = DashboardFeedHelpers.chain_status(@pairs)
     status_color = case status do
-      :success -> "text-emerald-500"
-      :in_progress -> "text-amber-400"
-      :has_failures -> "text-red-400"
-      _ -> "text-zinc-500"
+      :success -> "text-success"
+      :in_progress -> "text-brand"
+      :has_failures -> "text-error"
+      _ -> "text-low"
     end
   %>
-  <div class="ml-4 border-l-2 border-indigo-500/20 pl-3 py-0.5">
+  <div class="ml-4 border-l-2 border-interactive/20 pl-3 py-0.5">
     <div
-      class="flex items-center gap-2 cursor-pointer select-none hover:bg-zinc-800/30 rounded px-1 -mx-1 py-0.5"
+      class="flex items-center gap-2 cursor-pointer select-none hover:bg-raised/30 rounded px-1 -mx-1 py-0.5"
       phx-click="toggle_session_collapse"
       phx-value-session_id={chain_key}
     >
-      <span class="text-zinc-600 text-[10px] font-mono w-2 shrink-0">
+      <span class="text-muted text-[10px] font-mono w-2 shrink-0">
         {if collapsed, do: "+", else: "-"}
       </span>
       <span class={"text-xs font-mono shrink-0 #{status_color}"}>{count} tools</span>
-      <span class="text-[10px] font-mono text-zinc-500 truncate flex-1 min-w-0">{summary}</span>
+      <span class="text-[10px] font-mono text-low truncate flex-1 min-w-0">{summary}</span>
       <span :if={total_dur} class={"text-xs font-mono shrink-0 #{duration_color(total_dur)}"}>{format_duration(total_dur)}</span>
     </div>
 

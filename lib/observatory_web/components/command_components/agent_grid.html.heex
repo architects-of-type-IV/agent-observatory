@@ -1,9 +1,9 @@
 <%!-- Kept for backwards compat -- command_view now uses agent_row directly --%>
 <div :if={@agents != []} class="flex-1 min-h-0 overflow-y-auto">
-  <div class="divide-y divide-zinc-800/30">
+  <div class="divide-y divide-border/30">
     <.agent_row :for={agent <- Enum.take(@agents, 100)} agent={agent} selected={@selected} />
     <% overflow = length(@agents) - min(length(@agents), 100) %>
-    <div :if={overflow > 0} class="px-3 py-1 text-[10px] text-zinc-600 text-center">
+    <div :if={overflow > 0} class="px-3 py-1 text-[10px] text-muted text-center">
       +{overflow} more
     </div>
   </div>

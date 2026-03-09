@@ -20,24 +20,24 @@ defmodule ObservatoryWeb.Components.Observatory.MessageThread do
 
   def message_thread(assigns) do
     ~H"""
-    <div class="border border-zinc-800 rounded-lg bg-zinc-900/50 overflow-hidden">
+    <div class="border border-border rounded-lg bg-base/50 overflow-hidden">
       <%!-- Thread header --%>
       <div
-        class="px-3 py-2 bg-zinc-800/50 border-b border-zinc-800 flex items-center justify-between cursor-pointer hover:bg-zinc-800/70 transition"
+        class="px-3 py-2 bg-raised/50 border-b border-border flex items-center justify-between cursor-pointer hover:bg-raised/70 transition"
         phx-click="toggle_thread"
         phx-value-key={participant_key(@thread.participants)}
       >
         <div class="flex items-center gap-2 flex-1">
-          <span :if={@thread.has_urgent} class="text-red-400 animate-pulse" title="Urgent message">
+          <span :if={@thread.has_urgent} class="text-error animate-pulse" title="Urgent message">
             ⚠️
           </span>
-          <span class="text-xs font-semibold text-zinc-400">
+          <span class="text-xs font-semibold text-default">
             {format_participants(@thread.participants)}
           </span>
-          <span class="text-xs text-zinc-600">{length(@thread.messages)} messages</span>
+          <span class="text-xs text-muted">{length(@thread.messages)} messages</span>
           <span
             :if={@thread.unread_count > 0}
-            class="inline-flex items-center justify-center px-1.5 min-w-[1.25rem] h-4 text-xs font-semibold text-white bg-indigo-500 rounded-full"
+            class="inline-flex items-center justify-center px-1.5 min-w-[1.25rem] h-4 text-xs font-semibold text-white bg-interactive rounded-full"
           >
             {@thread.unread_count}
           </span>
@@ -50,8 +50,8 @@ defmodule ObservatoryWeb.Components.Observatory.MessageThread do
           </div>
         </div>
         <div class="flex items-center gap-2">
-          <span class="text-xs text-zinc-600">{relative_time(@thread.last_message_at, @now)}</span>
-          <span class="text-zinc-600 text-xs">{if @collapsed, do: "▶", else: "▼"}</span>
+          <span class="text-xs text-muted">{relative_time(@thread.last_message_at, @now)}</span>
+          <span class="text-muted text-xs">{if @collapsed, do: "▶", else: "▼"}</span>
         </div>
       </div>
 
@@ -66,8 +66,8 @@ defmodule ObservatoryWeb.Components.Observatory.MessageThread do
             <span class={color}>{icon}</span>
             <% {bg, _b, _t} = session_color(msg.sender_session) %>
             <span class={"w-1.5 h-1.5 rounded-full #{bg}"}></span>
-            <span class="text-xs font-mono text-zinc-400">{short_session(msg.sender_session)}</span>
-            <span class="text-xs text-zinc-700">→</span>
+            <span class="text-xs font-mono text-default">{short_session(msg.sender_session)}</span>
+            <span class="text-xs text-muted">→</span>
             <span class="text-xs font-mono text-cyan-500">{msg.recipient || "all"}</span>
             <span
               :if={msg.type != "message"}
@@ -75,11 +75,11 @@ defmodule ObservatoryWeb.Components.Observatory.MessageThread do
             >
               {msg.type}
             </span>
-            <span class="text-xs text-zinc-600 ml-auto" title={format_time(msg.timestamp)}>
+            <span class="text-xs text-muted ml-auto" title={format_time(msg.timestamp)}>
               {relative_time(msg.timestamp, @now)}
             </span>
           </div>
-          <p class="text-xs text-zinc-300 whitespace-pre-wrap break-words ml-3">{msg.content}</p>
+          <p class="text-xs text-high whitespace-pre-wrap break-words ml-3">{msg.content}</p>
         </div>
       </div>
     </div>

@@ -4,23 +4,23 @@
   <% {_bg, _border, text_color} = session_color(ev.session_id) %>
   <% {type_label, type_class} = event_type_label(ev.hook_event_type) %>
 
-  <div class="sticky top-0 bg-zinc-900/95 backdrop-blur border-b border-zinc-800 px-3 py-2 flex items-center justify-between">
+  <div class="sticky top-0 bg-base/95 backdrop-blur border-b border-border px-3 py-2 flex items-center justify-between">
     <div class="flex items-center gap-2">
       <span class={"text-[10px] font-mono px-1.5 py-0.5 rounded #{type_class}"}>{type_label}</span>
-      <span :if={ev.tool_name} class={"text-xs font-mono #{if is_team_tool?(ev.tool_name), do: "text-cyan-400", else: "text-indigo-400"}"}>{ev.tool_name}</span>
+      <span :if={ev.tool_name} class={"text-xs font-mono #{if is_team_tool?(ev.tool_name), do: "text-cyan-400", else: "text-interactive"}"}>{ev.tool_name}</span>
     </div>
-    <button phx-click="close_detail" class="text-zinc-600 hover:text-zinc-400 transition p-0.5"><.close_icon /></button>
+    <button phx-click="close_detail" class="text-muted hover:text-default transition p-0.5"><.close_icon /></button>
   </div>
 
-  <div class="px-3 py-2 border-b border-zinc-800/50">
-    <p class="text-[11px] text-zinc-300">{ev.summary || event_summary(ev)}</p>
+  <div class="px-3 py-2 border-b border-border/50">
+    <p class="text-[11px] text-high">{ev.summary || event_summary(ev)}</p>
   </div>
 
-  <div :if={is_team_tool?(ev.tool_name)} class="px-3 py-1.5 border-b border-zinc-800/50 bg-cyan-500/5">
+  <div :if={is_team_tool?(ev.tool_name)} class="px-3 py-1.5 border-b border-border/50 bg-cyan-500/5">
     <span class="text-[10px] text-cyan-400 font-mono">Team coordination event</span>
   </div>
 
-  <div class="px-3 py-2 border-b border-zinc-800/50">
+  <div class="px-3 py-2 border-b border-border/50">
     <h3 class="ichor-section-title mb-1.5">Details</h3>
     <div class="space-y-1">
       <div class="ichor-detail-field">
@@ -41,7 +41,7 @@
       </div>
       <div :if={ev.tool_name} class="ichor-detail-field">
         <span class="df-label w-16">Tool</span>
-        <span class={"df-value #{if is_team_tool?(ev.tool_name), do: "!text-cyan-400", else: "!text-indigo-400"}"}>{ev.tool_name}</span>
+        <span class={"df-value #{if is_team_tool?(ev.tool_name), do: "!text-cyan-400", else: "!text-interactive"}"}>{ev.tool_name}</span>
       </div>
       <div :if={ev.tool_use_id} class="ichor-detail-field">
         <span class="df-label w-16">Tool Use ID</span>
@@ -61,12 +61,12 @@
       </div>
       <div :if={ev.duration_ms} class="ichor-detail-field">
         <span class="df-label w-16">Duration</span>
-        <span class={"df-value #{if ev.duration_ms > 5000, do: "!text-amber-400", else: ""}"}>{format_duration(ev.duration_ms)}</span>
+        <span class={"df-value #{if ev.duration_ms > 5000, do: "!text-brand", else: ""}"}>{format_duration(ev.duration_ms)}</span>
       </div>
     </div>
   </div>
 
-  <div class="px-3 py-2 border-b border-zinc-800/50">
+  <div class="px-3 py-2 border-b border-border/50">
     <h3 class="ichor-section-title mb-1.5">Actions</h3>
     <div class="flex flex-wrap gap-1">
       <button phx-click="filter_session" phx-value-sid={ev.session_id} class="ichor-btn ichor-btn-muted">Filter session</button>
@@ -77,47 +77,47 @@
   </div>
 
   <%!-- Notes --%>
-  <div class="px-3 py-2 border-b border-zinc-800/50">
+  <div class="px-3 py-2 border-b border-border/50">
     <h3 class="ichor-section-title mb-1.5">Notes</h3>
     <% existing_note = Map.get(@event_notes, ev.id) %>
-    <div :if={existing_note} class="mb-2 p-1.5 bg-amber-500/5 border border-amber-500/20 rounded text-[10px]">
+    <div :if={existing_note} class="mb-2 p-1.5 bg-brand/5 border border-brand/20 rounded text-[10px]">
       <div class="flex items-center justify-between mb-0.5">
-        <span class="text-amber-400 font-semibold text-[9px]">Annotated</span>
-        <button phx-click="delete_note" phx-value-event_id={ev.id} class="text-[9px] text-zinc-600 hover:text-red-400 transition">Delete</button>
+        <span class="text-brand font-semibold text-[9px]">Annotated</span>
+        <button phx-click="delete_note" phx-value-event_id={ev.id} class="text-[9px] text-muted hover:text-error transition">Delete</button>
       </div>
-      <p class="text-zinc-300 whitespace-pre-wrap">{existing_note.text}</p>
-      <span class="text-zinc-600 text-[9px] mt-0.5 block">{relative_time(existing_note.timestamp, @now)}</span>
+      <p class="text-high whitespace-pre-wrap">{existing_note.text}</p>
+      <span class="text-muted text-[9px] mt-0.5 block">{relative_time(existing_note.timestamp, @now)}</span>
     </div>
     <form :if={!existing_note} phx-submit="add_note" class="flex gap-1">
       <input type="hidden" name="event_id" value={ev.id} />
       <input type="text" name="text" placeholder="Add a note..." class="flex-1 ichor-input" />
-      <button type="submit" class="ichor-btn bg-amber-600/15 text-amber-400 hover:bg-amber-600/25">Add</button>
+      <button type="submit" class="ichor-btn bg-brand/15 text-brand hover:bg-brand/25">Add</button>
     </form>
   </div>
 
   <div class="px-3 py-2 flex-1">
     <h3 class="ichor-section-title mb-1.5">Payload</h3>
-    <pre class="text-[10px] font-mono text-zinc-400 whitespace-pre-wrap break-all overflow-x-auto bg-zinc-950/50 p-2 rounded border border-zinc-800/50">{format_payload(ev.payload)}</pre>
+    <pre class="text-[10px] font-mono text-default whitespace-pre-wrap break-all overflow-x-auto bg-base/50 p-2 rounded border border-border/50">{format_payload(ev.payload)}</pre>
   </div>
 </div>
 
 <%!-- Task Detail --%>
 <div :if={@selected_task}>
   <% task = @selected_task %>
-  <div class="sticky top-0 bg-zinc-900/95 backdrop-blur border-b border-zinc-800 px-3 py-2 flex items-center justify-between">
+  <div class="sticky top-0 bg-base/95 backdrop-blur border-b border-border px-3 py-2 flex items-center justify-between">
     <div class="flex items-center gap-2">
-      <span class="text-[10px] font-mono text-zinc-500">Task #{task[:id]}</span>
+      <span class="text-[10px] font-mono text-low">Task #{task[:id]}</span>
       <span class={"text-[10px] px-1.5 py-0.5 rounded #{task_status_badge(task[:status])}"}>{task[:status]}</span>
     </div>
-    <button phx-click="close_task_detail" class="text-zinc-600 hover:text-zinc-400 transition p-0.5"><.close_icon /></button>
+    <button phx-click="close_task_detail" class="text-muted hover:text-default transition p-0.5"><.close_icon /></button>
   </div>
 
-  <div class="px-3 py-2 border-b border-zinc-800/50">
-    <h3 class="text-xs font-semibold text-zinc-200 mb-1">{task[:subject]}</h3>
-    <p :if={task[:description]} class="text-[10px] text-zinc-500 whitespace-pre-wrap">{task[:description]}</p>
+  <div class="px-3 py-2 border-b border-border/50">
+    <h3 class="text-xs font-semibold text-high mb-1">{task[:subject]}</h3>
+    <p :if={task[:description]} class="text-[10px] text-low whitespace-pre-wrap">{task[:description]}</p>
   </div>
 
-  <div class="px-3 py-2 border-b border-zinc-800/50">
+  <div class="px-3 py-2 border-b border-border/50">
     <h3 class="ichor-section-title mb-1.5">Details</h3>
     <div class="space-y-1">
       <div class="ichor-detail-field">
@@ -143,17 +143,17 @@
     </div>
   </div>
 
-  <div :if={task[:blocked_by] && task[:blocked_by] != []} class="px-3 py-2 border-b border-zinc-800/50">
+  <div :if={task[:blocked_by] && task[:blocked_by] != []} class="px-3 py-2 border-b border-border/50">
     <h3 class="ichor-section-title mb-1.5">Blocked By</h3>
     <div class="space-y-0.5">
-      <div :for={bid <- task[:blocked_by]} class="text-[10px] font-mono text-amber-400">Task #{bid}</div>
+      <div :for={bid <- task[:blocked_by]} class="text-[10px] font-mono text-brand">Task #{bid}</div>
     </div>
   </div>
 
-  <div :if={task[:blocks] && task[:blocks] != []} class="px-3 py-2 border-b border-zinc-800/50">
+  <div :if={task[:blocks] && task[:blocks] != []} class="px-3 py-2 border-b border-border/50">
     <h3 class="ichor-section-title mb-1.5">Blocks</h3>
     <div class="space-y-0.5">
-      <div :for={bid <- task[:blocks]} class="text-[10px] font-mono text-zinc-400">Task #{bid}</div>
+      <div :for={bid <- task[:blocks]} class="text-[10px] font-mono text-default">Task #{bid}</div>
     </div>
   </div>
 
@@ -172,16 +172,16 @@
   <% recent_events = agent_recent_events(@events, agent[:agent_id], 15) %>
   <% agent_task_list = agent_tasks(@active_tasks, agent[:agent_id]) %>
 
-  <div class="sticky top-0 bg-zinc-900/95 backdrop-blur border-b border-zinc-800 px-3 py-2 flex items-center justify-between">
+  <div class="sticky top-0 bg-base/95 backdrop-blur border-b border-border px-3 py-2 flex items-center justify-between">
     <div class="flex items-center gap-2">
       <span class={"w-1.5 h-1.5 rounded-full shrink-0 #{member_status_color(agent)}"}></span>
-      <span class="text-xs font-semibold text-zinc-200">{agent[:name] || "Agent"}</span>
+      <span class="text-xs font-semibold text-high">{agent[:name] || "Agent"}</span>
       <ObservatoryWeb.ObservatoryComponents.model_badge model={agent[:model]} />
     </div>
-    <button phx-click="select_agent" phx-value-id={agent[:agent_id]} class="text-zinc-600 hover:text-zinc-400 transition p-0.5"><.close_icon /></button>
+    <button phx-click="select_agent" phx-value-id={agent[:agent_id]} class="text-muted hover:text-default transition p-0.5"><.close_icon /></button>
   </div>
 
-  <div class="px-3 py-2 border-b border-zinc-800/50">
+  <div class="px-3 py-2 border-b border-border/50">
     <h3 class="ichor-section-title mb-1.5">Details</h3>
     <div class="space-y-1">
       <div class="ichor-detail-field">
@@ -211,7 +211,7 @@
     </div>
   </div>
 
-  <div :if={agent[:failure_rate] || agent[:health_issues] != []} class="px-3 py-2 border-b border-zinc-800/50">
+  <div :if={agent[:failure_rate] || agent[:health_issues] != []} class="px-3 py-2 border-b border-border/50">
     <h3 class="ichor-section-title mb-1.5">Health Metrics</h3>
     <div class="space-y-1.5">
       <div :if={agent[:failure_rate] && agent[:failure_rate] > 0}>
@@ -222,25 +222,25 @@
     </div>
   </div>
 
-  <div class="px-3 py-2 border-b border-zinc-800/50">
+  <div class="px-3 py-2 border-b border-border/50">
     <h3 class="ichor-section-title mb-1.5">Activity Stream</h3>
     <ObservatoryWeb.Components.AgentActivityComponents.activity_stream events={recent_events} expanded_events={@expanded_events || []} limit={25} now={@now} />
   </div>
 
-  <div :if={agent_task_list != []} class="px-3 py-2 border-b border-zinc-800/50">
+  <div :if={agent_task_list != []} class="px-3 py-2 border-b border-border/50">
     <h3 class="ichor-section-title mb-1.5">Assigned Tasks ({length(agent_task_list)})</h3>
     <div class="space-y-1">
       <div :for={task <- agent_task_list} class="ichor-card-compact">
         <div class="flex items-center gap-2 mb-0.5">
-          <span class="text-[9px] font-mono text-zinc-600">#{task[:id]}</span>
+          <span class="text-[9px] font-mono text-muted">#{task[:id]}</span>
           <span class={"ichor-badge #{task_status_badge(task[:status])}"}>{task[:status]}</span>
         </div>
-        <p class="text-[10px] text-zinc-300">{task[:subject]}</p>
+        <p class="text-[10px] text-high">{task[:subject]}</p>
       </div>
     </div>
   </div>
 
-  <div :if={agent[:agent_id]} class="px-3 py-2 border-b border-zinc-800/50">
+  <div :if={agent[:agent_id]} class="px-3 py-2 border-b border-border/50">
     <h3 class="ichor-section-title mb-1.5">Send Message</h3>
     <div phx-update="ignore" id={"agent-msg-form-#{agent[:agent_id]}"} phx-hook="ClearFormOnSubmit">
       <form phx-submit="send_agent_message" class="flex gap-1">

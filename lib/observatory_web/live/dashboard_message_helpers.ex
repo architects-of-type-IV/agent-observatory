@@ -69,25 +69,25 @@ defmodule ObservatoryWeb.DashboardMessageHelpers do
   def message_type_icon(type) do
     case type do
       "message" ->
-        {"💬", "text-zinc-400"}
+        {"💬", "text-default"}
 
       "broadcast" ->
-        {"📢", "text-amber-400"}
+        {"📢", "text-brand"}
 
       "shutdown_request" ->
-        {"⚠️", "text-red-400"}
+        {"⚠️", "text-error"}
 
       "shutdown_response" ->
-        {"✓", "text-emerald-400"}
+        {"✓", "text-success"}
 
       "plan_approval_request" ->
-        {"📋", "text-blue-400"}
+        {"📋", "text-info"}
 
       "plan_approval_response" ->
-        {"✓", "text-emerald-400"}
+        {"✓", "text-success"}
 
       _ ->
-        {"•", "text-zinc-600"}
+        {"•", "text-muted"}
     end
   end
 
@@ -117,12 +117,12 @@ defmodule ObservatoryWeb.DashboardMessageHelpers do
   """
   def message_border_class(type) do
     case type do
-      "broadcast" -> "border-amber-500/20 bg-amber-500/5"
-      "shutdown_request" -> "border-red-500/20 bg-red-500/5"
-      "shutdown_response" -> "border-emerald-500/20 bg-emerald-500/5"
-      "plan_approval_request" -> "border-blue-500/20 bg-blue-500/5"
-      "plan_approval_response" -> "border-emerald-500/20 bg-emerald-500/5"
-      _ -> "border-zinc-700/50 bg-zinc-800/30"
+      "broadcast" -> "border-brand/20 bg-brand/5"
+      "shutdown_request" -> "border-error/20 bg-error/5"
+      "shutdown_response" -> "border-success/20 bg-success/5"
+      "plan_approval_request" -> "border-info/20 bg-info/5"
+      "plan_approval_response" -> "border-success/20 bg-success/5"
+      _ -> "border-border-subtle/50 bg-raised/30"
     end
   end
 
@@ -131,12 +131,12 @@ defmodule ObservatoryWeb.DashboardMessageHelpers do
   """
   def message_type_badge_class(type) do
     case type do
-      "broadcast" -> "bg-amber-500/15 text-amber-400"
-      "shutdown_request" -> "bg-red-500/15 text-red-400"
-      "shutdown_response" -> "bg-emerald-500/15 text-emerald-400"
-      "plan_approval_request" -> "bg-blue-500/15 text-blue-400"
-      "plan_approval_response" -> "bg-emerald-500/15 text-emerald-400"
-      _ -> "bg-zinc-700 text-zinc-500"
+      "broadcast" -> "bg-brand/15 text-brand"
+      "shutdown_request" -> "bg-error/15 text-error"
+      "shutdown_response" -> "bg-success/15 text-success"
+      "plan_approval_request" -> "bg-info/15 text-info"
+      "plan_approval_response" -> "bg-success/15 text-success"
+      _ -> "bg-highlight text-low"
     end
   end
 

@@ -24,7 +24,7 @@ defmodule ObservatoryWeb.Components.MessagesComponents do
 
       <div :if={@messages != []} class="space-y-4">
         <%!-- Search and Filter Controls --%>
-        <div class="flex items-center gap-2 pb-3 border-b border-zinc-800">
+        <div class="flex items-center gap-2 pb-3 border-b border-border">
           <form phx-change="search_messages" class="flex-1">
             <input
               type="text"
@@ -33,19 +33,19 @@ defmodule ObservatoryWeb.Components.MessagesComponents do
               placeholder="Search messages by content or participant..."
               autocomplete="off"
               phx-debounce="150"
-              class="w-full bg-zinc-800 border border-zinc-700 rounded px-2.5 py-1 text-xs text-zinc-300 placeholder-zinc-600 focus:border-indigo-500 focus:ring-0 focus:outline-none"
+              class="w-full bg-raised border border-border-subtle rounded px-2.5 py-1 text-xs text-high placeholder-muted focus:border-interactive focus:ring-0 focus:outline-none"
             />
           </form>
           <button
             phx-click="expand_all_threads"
-            class="text-xs px-2 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-zinc-200 transition whitespace-nowrap"
+            class="text-xs px-2 py-1 rounded bg-raised hover:bg-highlight text-default hover:text-high transition whitespace-nowrap"
             title="Expand all threads"
           >
             Expand All
           </button>
           <button
             phx-click="collapse_all_threads"
-            class="text-xs px-2 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-zinc-200 transition whitespace-nowrap"
+            class="text-xs px-2 py-1 rounded bg-raised hover:bg-highlight text-default hover:text-high transition whitespace-nowrap"
             title="Collapse all threads"
           >
             Collapse All

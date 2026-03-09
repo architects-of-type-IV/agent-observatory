@@ -57,41 +57,41 @@ defmodule ObservatoryWeb.Components.CommandComponents do
     ~H"""
     <div class="flex items-center gap-2 text-[10px]">
       <div class="ichor-tip ichor-tip-bottom flex items-center gap-1" data-tip={"#{@stats.total} agents: #{@stats.active} active, #{@stats.idle} idle, #{@stats.ended} ended"}>
-        <span class="font-bold text-zinc-200">{@stats.total}</span>
+        <span class="font-bold text-high">{@stats.total}</span>
         <div class="flex items-center gap-1 font-mono">
-          <span :if={@stats.active > 0} class="text-emerald-400">{@stats.active}a</span>
-          <span :if={@stats.idle > 0} class="text-zinc-400">{@stats.idle}i</span>
-          <span :if={@stats.ended > 0} class="text-zinc-600">{@stats.ended}e</span>
+          <span :if={@stats.active > 0} class="text-success">{@stats.active}a</span>
+          <span :if={@stats.idle > 0} class="text-default">{@stats.idle}i</span>
+          <span :if={@stats.ended > 0} class="text-muted">{@stats.ended}e</span>
         </div>
       </div>
-      <span class="w-px h-3 bg-zinc-800" />
-      <div class={["ichor-tip ichor-tip-bottom flex items-center gap-1", if(@error_count > 0, do: "text-red-400", else: "text-zinc-600")]} data-tip={"#{@error_count} tool errors"}>
-        <span class={["w-1.5 h-1.5 rounded-full", if(@error_count > 0, do: "bg-red-400", else: "bg-zinc-700")]} />
+      <span class="w-px h-3 bg-raised" />
+      <div class={["ichor-tip ichor-tip-bottom flex items-center gap-1", if(@error_count > 0, do: "text-error", else: "text-muted")]} data-tip={"#{@error_count} tool errors"}>
+        <span class={["w-1.5 h-1.5 rounded-full", if(@error_count > 0, do: "bg-error", else: "bg-highlight")]} />
         <span class="font-mono">{@error_count}</span><span>err</span>
       </div>
-      <div class="ichor-tip ichor-tip-bottom flex items-center gap-1 text-zinc-500" data-tip={"#{@msg_count} messages in mailbox"}>
+      <div class="ichor-tip ichor-tip-bottom flex items-center gap-1 text-low" data-tip={"#{@msg_count} messages in mailbox"}>
         <span class="font-mono">{@msg_count}</span><span>msg</span>
       </div>
-      <div class="ichor-tip ichor-tip-bottom flex items-center gap-1 text-zinc-500" data-tip={"#{@tool_count} total tool calls"}>
+      <div class="ichor-tip ichor-tip-bottom flex items-center gap-1 text-low" data-tip={"#{@tool_count} total tool calls"}>
         <span class="font-mono">{@tool_count}</span><span>tools</span>
       </div>
-      <div class="ichor-tip ichor-tip-bottom flex items-center gap-1 text-zinc-500" data-tip={"#{@visible_count} visible / #{@event_count} total events"}>
+      <div class="ichor-tip ichor-tip-bottom flex items-center gap-1 text-low" data-tip={"#{@visible_count} visible / #{@event_count} total events"}>
         <span class="font-mono">{@visible_count}/{@event_count}</span><span>events</span>
       </div>
-      <span class="w-px h-3 bg-zinc-800" />
+      <span class="w-px h-3 bg-raised" />
       <div :if={@task_count > 0} class="ichor-tip ichor-tip-bottom flex items-center gap-1" data-tip={"Tasks: #{@task_done} completed / #{@task_count} total (#{if @task_count > 0, do: round(@task_done / @task_count * 100), else: 0}%)"}>
         <% pct = if @task_count > 0, do: round(@task_done / @task_count * 100), else: 0 %>
-        <div class="w-12 h-1 bg-zinc-800 rounded-full overflow-hidden">
-          <div class="h-full bg-emerald-500 rounded-full" style={"width: #{pct}%"} />
+        <div class="w-12 h-1 bg-raised rounded-full overflow-hidden">
+          <div class="h-full bg-success rounded-full" style={"width: #{pct}%"} />
         </div>
-        <span class="font-mono text-zinc-500">{@task_done}/{@task_count}</span>
+        <span class="font-mono text-low">{@task_done}/{@task_count}</span>
       </div>
       <div :if={@pipeline.total > 0 && @pipeline.total != @task_count} class="ichor-tip ichor-tip-bottom flex items-center gap-1" data-tip={"Pipeline: #{@pipeline.completed} completed / #{@pipeline.total} total"}>
         <% ppct = progress_pct(@pipeline) %>
-        <div class="w-10 h-1 bg-zinc-800 rounded-full overflow-hidden">
+        <div class="w-10 h-1 bg-raised rounded-full overflow-hidden">
           <div class="h-full bg-cyan-500 rounded-full" style={"width: #{ppct}%"} />
         </div>
-        <span class="font-mono text-zinc-500">{@pipeline.completed}/{@pipeline.total}</span>
+        <span class="font-mono text-low">{@pipeline.completed}/{@pipeline.total}</span>
       </div>
       <div
         class={[
@@ -105,7 +105,7 @@ defmodule ObservatoryWeb.Components.CommandComponents do
       >
         <span class={[
           "w-1.5 h-1.5 rounded-full",
-          if(@health.healthy && @error_count == 0, do: "bg-emerald-400", else: "bg-red-400 animate-pulse")
+          if(@health.healthy && @error_count == 0, do: "bg-success", else: "bg-error animate-pulse")
         ]} />
         {cond do
           @error_count > 0 && !@health.healthy -> "#{@error_count + length(@health.issues)}!"
@@ -114,7 +114,7 @@ defmodule ObservatoryWeb.Components.CommandComponents do
           true -> "OK"
         end}
       </div>
-      <div :if={@proto_traces + @proto_mailbox + @proto_cmdq > 0} class="ichor-tip ichor-tip-bottom flex items-center gap-1 font-mono text-zinc-600" data-tip={"Protocol: #{@proto_traces} traces, #{@proto_mailbox} mailbox pending, #{@proto_cmdq} command queue pending"}>
+      <div :if={@proto_traces + @proto_mailbox + @proto_cmdq > 0} class="ichor-tip ichor-tip-bottom flex items-center gap-1 font-mono text-muted" data-tip={"Protocol: #{@proto_traces} traces, #{@proto_mailbox} mailbox pending, #{@proto_cmdq} command queue pending"}>
         <span :if={@proto_traces > 0}>T:{@proto_traces}</span>
         <span :if={@proto_mailbox > 0}>M:{@proto_mailbox}</span>
         <span :if={@proto_cmdq > 0}>Q:{@proto_cmdq}</span>
@@ -174,40 +174,40 @@ defmodule ObservatoryWeb.Components.CommandComponents do
   defp role_badge_class(role) when is_binary(role) do
     cond do
       String.contains?(role, "lead") -> "bg-violet-500/20 text-violet-400"
-      String.contains?(role, "coordinator") -> "bg-amber-500/20 text-amber-400"
+      String.contains?(role, "coordinator") -> "bg-brand/20 text-brand"
       String.contains?(role, "worker") -> "bg-cyan-500/20 text-cyan-400"
-      true -> "bg-zinc-700 text-zinc-400"
+      true -> "bg-highlight text-default"
     end
   end
 
-  defp role_badge_class(_), do: "bg-zinc-700 text-zinc-400"
+  defp role_badge_class(_), do: "bg-highlight text-default"
 
-  defp status_dot_color(:active), do: "bg-emerald-400"
-  defp status_dot_color(:idle), do: "bg-zinc-500"
-  defp status_dot_color(:ended), do: "bg-zinc-700"
-  defp status_dot_color(_), do: "bg-zinc-600"
+  defp status_dot_color(:active), do: "bg-success"
+  defp status_dot_color(:idle), do: "bg-low"
+  defp status_dot_color(:ended), do: "bg-highlight"
+  defp status_dot_color(_), do: "bg-highlight"
 
-  defp status_text_color(:active), do: "text-emerald-400"
-  defp status_text_color(:idle), do: "text-zinc-400"
-  defp status_text_color(:ended), do: "text-zinc-600"
-  defp status_text_color(_), do: "text-zinc-500"
+  defp status_text_color(:active), do: "text-success"
+  defp status_text_color(:idle), do: "text-default"
+  defp status_text_color(:ended), do: "text-muted"
+  defp status_text_color(_), do: "text-low"
 
-  defp severity_color("high"), do: "bg-red-400"
-  defp severity_color("medium"), do: "bg-amber-400"
-  defp severity_color("low"), do: "bg-blue-400"
-  defp severity_color(_), do: "bg-zinc-500"
+  defp severity_color("high"), do: "bg-error"
+  defp severity_color("medium"), do: "bg-brand-muted"
+  defp severity_color("low"), do: "bg-info"
+  defp severity_color(_), do: "bg-low"
 
-  defp severity_text_color("high"), do: "text-red-400"
-  defp severity_text_color("medium"), do: "text-amber-400"
-  defp severity_text_color("low"), do: "text-blue-400"
-  defp severity_text_color(_), do: "text-zinc-400"
+  defp severity_text_color("high"), do: "text-error"
+  defp severity_text_color("medium"), do: "text-brand"
+  defp severity_text_color("low"), do: "text-info"
+  defp severity_text_color(_), do: "text-default"
 
-  defp task_status_color("completed"), do: "text-emerald-400"
-  defp task_status_color("in_progress"), do: "text-blue-400"
-  defp task_status_color("failed"), do: "text-red-400"
-  defp task_status_color("pending"), do: "text-zinc-400"
-  defp task_status_color("blocked"), do: "text-amber-400"
-  defp task_status_color(_), do: "text-zinc-500"
+  defp task_status_color("completed"), do: "text-success"
+  defp task_status_color("in_progress"), do: "text-info"
+  defp task_status_color("failed"), do: "text-error"
+  defp task_status_color("pending"), do: "text-default"
+  defp task_status_color("blocked"), do: "text-brand"
+  defp task_status_color(_), do: "text-low"
 
   defp short_model(nil), do: ""
 
@@ -225,10 +225,10 @@ defmodule ObservatoryWeb.Components.CommandComponents do
   defp short_id(id), do: id
 
   defp activity_icon(:tool), do: "text-cyan-500"
-  defp activity_icon(:error), do: "text-red-400"
+  defp activity_icon(:error), do: "text-error"
   defp activity_icon(:notify), do: "text-violet-400"
-  defp activity_icon(:task_done), do: "text-emerald-400"
-  defp activity_icon(_), do: "text-zinc-500"
+  defp activity_icon(:task_done), do: "text-success"
+  defp activity_icon(_), do: "text-low"
 
   defp activity_label(:tool, act), do: act.tool
   defp activity_label(:error, act), do: "#{act.tool}!"

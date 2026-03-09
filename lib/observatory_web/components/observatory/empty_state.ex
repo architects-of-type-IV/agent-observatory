@@ -20,9 +20,9 @@ defmodule ObservatoryWeb.Components.Observatory.EmptyState do
 
   def empty_state(assigns) do
     ~H"""
-    <div class="flex flex-col items-center justify-center py-24 text-zinc-600">
+    <div class="flex flex-col items-center justify-center py-24 text-muted">
       <p class="text-lg">{@title}</p>
-      <p class="text-sm mt-1 text-zinc-700">{@description}</p>
+      <p class="text-sm mt-1 text-muted">{@description}</p>
     </div>
     """
   end

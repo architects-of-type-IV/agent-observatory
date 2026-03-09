@@ -19,10 +19,10 @@ defmodule ObservatoryWeb.Components.DetailPanelComponents do
     """
   end
 
-  defp task_status_badge("pending"), do: "bg-zinc-700 text-zinc-400"
-  defp task_status_badge("in_progress"), do: "bg-blue-500/20 text-blue-400"
-  defp task_status_badge("completed"), do: "bg-emerald-500/20 text-emerald-400"
-  defp task_status_badge("blocked"), do: "bg-amber-500/20 text-amber-400"
-  defp task_status_badge("failed"), do: "bg-red-500/20 text-red-400"
-  defp task_status_badge(_), do: "bg-zinc-800 text-zinc-500"
+  defp task_status_badge("pending"), do: "bg-highlight text-default"
+  defp task_status_badge("in_progress"), do: "bg-info/20 text-info"
+  defp task_status_badge("completed"), do: "bg-success/20 text-success"
+  defp task_status_badge("blocked"), do: "bg-brand/20 text-brand"
+  defp task_status_badge("failed"), do: "bg-error/20 text-error"
+  defp task_status_badge(_), do: "bg-raised text-low"
 end

@@ -21,18 +21,18 @@ defmodule ObservatoryWeb.Components.TimelineComponents do
 
       <div :if={@timeline != []} class="space-y-4">
         <%!-- Color legend --%>
-        <div class="flex items-center gap-3 text-xs text-zinc-500 pb-2 border-b border-zinc-800">
-          <span class="font-semibold text-zinc-400">Legend:</span>
+        <div class="flex items-center gap-3 text-xs text-low pb-2 border-b border-border">
+          <span class="font-semibold text-default">Legend:</span>
           <div class="flex items-center gap-1.5">
-            <span class="w-3 h-3 rounded bg-blue-500/60"></span>
+            <span class="w-3 h-3 rounded bg-info/60"></span>
             <span>Bash</span>
           </div>
           <div class="flex items-center gap-1.5">
-            <span class="w-3 h-3 rounded bg-emerald-500/60"></span>
+            <span class="w-3 h-3 rounded bg-success/60"></span>
             <span>Read/Write/Edit</span>
           </div>
           <div class="flex items-center gap-1.5">
-            <span class="w-3 h-3 rounded bg-amber-500/60"></span>
+            <span class="w-3 h-3 rounded bg-brand/60"></span>
             <span>Search</span>
           </div>
           <div class="flex items-center gap-1.5">
@@ -40,7 +40,7 @@ defmodule ObservatoryWeb.Components.TimelineComponents do
             <span>Task/Team</span>
           </div>
           <div class="flex items-center gap-1.5">
-            <span class="w-3 h-3 rounded bg-zinc-800"></span>
+            <span class="w-3 h-3 rounded bg-raised"></span>
             <span>Idle</span>
           </div>
         </div>
@@ -53,13 +53,13 @@ defmodule ObservatoryWeb.Components.TimelineComponents do
           <div class="flex items-center gap-2">
             <% {bg, _b, _t} = session_color(session.session_id) %>
             <span class={"w-2 h-2 rounded-full #{bg}"}></span>
-            <span class="text-xs font-mono text-zinc-400">
+            <span class="text-xs font-mono text-default">
               {session.source_app}:{short_session(session.session_id)}
             </span>
-            <span class="text-xs text-zinc-600">{session_duration_sec(session.duration_sec)}</span>
+            <span class="text-xs text-muted">{session_duration_sec(session.duration_sec)}</span>
           </div>
 
-          <div class={"relative h-8 rounded border border-zinc-800 overflow-hidden #{if rem(idx, 2) == 0, do: "bg-zinc-900", else: "bg-zinc-900/50"}"}>
+          <div class={"relative h-8 rounded border border-border overflow-hidden #{if rem(idx, 2) == 0, do: "bg-base", else: "bg-base/50"}"}>
             <% positioned_blocks = calculate_block_positions(session, global_start, global_end) %>
             <div
               :for={block <- positioned_blocks}
@@ -68,7 +68,7 @@ defmodule ObservatoryWeb.Components.TimelineComponents do
             >
               <% block_class =
                 if block[:type] == :idle,
-                  do: "h-full w-full rounded bg-zinc-800",
+                  do: "h-full w-full rounded bg-raised",
                   else:
                     "h-full w-full rounded #{tool_color(block[:tool_name])} cursor-pointer hover:opacity-80 transition flex items-center justify-center" %>
               <% block_title =
@@ -99,7 +99,7 @@ defmodule ObservatoryWeb.Components.TimelineComponents do
         <div class="relative h-4 mt-2">
           <% labels = time_axis_labels(global_start, global_end, 10) %>
           <div :for={label <- labels} class="absolute" style={"left: #{label.position_pct}%"}>
-            <span class="text-xs text-zinc-600">{label.label}</span>
+            <span class="text-xs text-muted">{label.label}</span>
           </div>
         </div>
       </div>

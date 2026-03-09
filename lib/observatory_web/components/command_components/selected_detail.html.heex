@@ -1,11 +1,11 @@
-<div class="bg-zinc-900/50 border border-zinc-800 rounded-lg p-4 h-full overflow-y-auto">
+<div class="bg-base/50 border border-border rounded-lg p-4 h-full overflow-y-auto">
   <%!-- Agent Detail --%>
   <div :if={@agent}>
     <div class="flex items-center justify-between mb-3">
-      <h3 class="text-sm font-semibold text-zinc-300">{@agent[:name] || "Agent"}</h3>
+      <h3 class="text-sm font-semibold text-high">{@agent[:name] || "Agent"}</h3>
       <button
         phx-click="clear_command_selection"
-        class="text-xs text-zinc-600 hover:text-zinc-400"
+        class="text-xs text-muted hover:text-default"
       >
         x
       </button>
@@ -13,26 +13,26 @@
 
     <dl class="space-y-2 text-xs mb-4">
       <div :if={@agent[:model]} class="flex justify-between">
-        <dt class="text-zinc-500">Model</dt>
-        <dd class="text-zinc-300 font-mono">{@agent[:model]}</dd>
+        <dt class="text-low">Model</dt>
+        <dd class="text-high font-mono">{@agent[:model]}</dd>
       </div>
       <div class="flex justify-between">
-        <dt class="text-zinc-500">Status</dt>
+        <dt class="text-low">Status</dt>
         <dd class={"font-medium #{status_text_color(@agent[:status])}"}>
           {to_string(@agent[:status] || :unknown)}
         </dd>
       </div>
       <div :if={@agent[:uptime]} class="flex justify-between">
-        <dt class="text-zinc-500">Uptime</dt>
-        <dd class="text-zinc-300">{format_duration(@agent[:uptime])}</dd>
+        <dt class="text-low">Uptime</dt>
+        <dd class="text-high">{format_duration(@agent[:uptime])}</dd>
       </div>
       <div :if={@agent[:event_count]} class="flex justify-between">
-        <dt class="text-zinc-500">Events</dt>
-        <dd class="text-zinc-300">{@agent[:event_count]}</dd>
+        <dt class="text-low">Events</dt>
+        <dd class="text-high">{@agent[:event_count]}</dd>
       </div>
       <div :if={@agent[:cwd]} class="flex justify-between">
-        <dt class="text-zinc-500">cwd</dt>
-        <dd class="text-zinc-300 font-mono truncate max-w-40" title={@agent[:cwd]}>
+        <dt class="text-low">cwd</dt>
+        <dd class="text-high font-mono truncate max-w-40" title={@agent[:cwd]}>
           {Path.basename(@agent[:cwd])}
         </dd>
       </div>
@@ -43,21 +43,21 @@
       <button
         phx-click="pause_agent"
         phx-value-session_id={@agent[:agent_id]}
-        class="px-2 py-1 bg-zinc-700 text-zinc-300 rounded text-xs hover:bg-zinc-600 transition"
+        class="px-2 py-1 bg-highlight text-high rounded text-xs hover:bg-highlight transition"
       >
         Pause
       </button>
       <button
         phx-click="resume_agent"
         phx-value-session_id={@agent[:agent_id]}
-        class="px-2 py-1 bg-zinc-700 text-zinc-300 rounded text-xs hover:bg-zinc-600 transition"
+        class="px-2 py-1 bg-highlight text-high rounded text-xs hover:bg-highlight transition"
       >
         Resume
       </button>
       <button
         phx-click="shutdown_agent"
         phx-value-session_id={@agent[:agent_id]}
-        class="px-2 py-1 bg-red-600/20 text-red-400 rounded text-xs hover:bg-red-600/30 transition"
+        class="px-2 py-1 bg-error/20 text-error rounded text-xs hover:bg-error/30 transition"
         data-confirm="Shut down this agent?"
       >
         Shutdown
@@ -65,17 +65,17 @@
       <button
         phx-click="open_agent_slideout"
         phx-value-session_id={@agent[:agent_id]}
-        class="px-2 py-1 bg-indigo-600/20 text-indigo-400 rounded text-xs hover:bg-indigo-600/30 transition"
+        class="px-2 py-1 bg-interactive/20 text-interactive rounded text-xs hover:bg-interactive/30 transition"
       >
         Expand
       </button>
     </div>
 
     <%!-- Message form --%>
-    <div class="border-t border-zinc-800 pt-3">
-      <div class="text-[10px] text-zinc-600 mb-1">
-        To: <span class="text-zinc-400 font-mono">{@agent[:name] || @agent[:agent_id]}</span>
-        <span class="text-zinc-700 ml-1">({String.slice(to_string(@agent[:agent_id]), 0, 8)})</span>
+    <div class="border-t border-border pt-3">
+      <div class="text-[10px] text-muted mb-1">
+        To: <span class="text-default font-mono">{@agent[:name] || @agent[:agent_id]}</span>
+        <span class="text-muted ml-1">({String.slice(to_string(@agent[:agent_id]), 0, 8)})</span>
       </div>
       <form phx-submit="send_command_message" class="flex gap-2">
         <input type="hidden" name="to" value={@agent[:agent_id]} />
@@ -84,12 +84,12 @@
             type="text"
             name="content"
             placeholder={"Message #{@agent[:name] || "agent"}..."}
-            class="w-full bg-zinc-800 border border-zinc-700 rounded px-2 py-1 text-xs text-zinc-300 placeholder-zinc-600 focus:border-indigo-500 focus:ring-0 focus:outline-none"
+            class="w-full bg-raised border border-border-subtle rounded px-2 py-1 text-xs text-high placeholder-muted focus:border-interactive focus:ring-0 focus:outline-none"
           />
         </div>
         <button
           type="submit"
-          class="px-2 py-1 bg-indigo-600/20 text-indigo-400 rounded text-xs hover:bg-indigo-600/30 transition"
+          class="px-2 py-1 bg-interactive/20 text-interactive rounded text-xs hover:bg-interactive/30 transition"
         >
           Send
         </button>
@@ -100,33 +100,33 @@
   <%!-- Task Detail (when no agent selected but task is) --%>
   <div :if={!@agent && @task}>
     <div class="flex items-center justify-between mb-3">
-      <h3 class="text-sm font-semibold text-zinc-300">Task #{@task.id}</h3>
+      <h3 class="text-sm font-semibold text-high">Task #{@task.id}</h3>
       <button
         phx-click="clear_command_selection"
-        class="text-xs text-zinc-600 hover:text-zinc-400"
+        class="text-xs text-muted hover:text-default"
       >
         x
       </button>
     </div>
-    <p class="text-xs text-zinc-300 mb-3">{@task.subject}</p>
+    <p class="text-xs text-high mb-3">{@task.subject}</p>
     <dl class="space-y-2 text-xs">
       <div class="flex justify-between">
-        <dt class="text-zinc-500">Status</dt>
+        <dt class="text-low">Status</dt>
         <dd class={"font-medium #{task_status_color(@task.status)}"}>{@task.status}</dd>
       </div>
       <div :if={@task.owner != ""} class="flex justify-between">
-        <dt class="text-zinc-500">Owner</dt>
-        <dd class="text-zinc-300">{@task.owner}</dd>
+        <dt class="text-low">Owner</dt>
+        <dd class="text-high">{@task.owner}</dd>
       </div>
       <div :if={@task.priority} class="flex justify-between">
-        <dt class="text-zinc-500">Priority</dt>
-        <dd class="text-zinc-300">{@task.priority}</dd>
+        <dt class="text-low">Priority</dt>
+        <dd class="text-high">{@task.priority}</dd>
       </div>
     </dl>
     <div :if={@task.files != []} class="mt-3">
-      <span class="text-xs text-zinc-500">Files:</span>
+      <span class="text-xs text-low">Files:</span>
       <div class="mt-1 space-y-0.5">
-        <div :for={f <- @task.files} class="text-[10px] font-mono text-zinc-400 truncate">
+        <div :for={f <- @task.files} class="text-[10px] font-mono text-default truncate">
           {f}
         </div>
       </div>
@@ -135,7 +135,7 @@
       <button
         phx-click="heal_task"
         phx-value-id={@task.id}
-        class="px-2 py-1 bg-amber-600/20 text-amber-400 rounded text-xs hover:bg-amber-600/30 transition"
+        class="px-2 py-1 bg-brand/20 text-brand rounded text-xs hover:bg-brand/30 transition"
       >
         Reset to Pending
       </button>
@@ -143,7 +143,7 @@
         phx-click="reassign_swarm_task"
         phx-value-id={@task.id}
         phx-value-owner=""
-        class="px-2 py-1 bg-zinc-700 text-zinc-300 rounded text-xs hover:bg-zinc-600 transition"
+        class="px-2 py-1 bg-highlight text-high rounded text-xs hover:bg-highlight transition"
       >
         Unassign
       </button>
@@ -151,7 +151,7 @@
         phx-click="claim_swarm_task"
         phx-value-id={@task.id}
         phx-value-agent="dashboard"
-        class="px-2 py-1 bg-zinc-700 text-zinc-300 rounded text-xs hover:bg-zinc-600 transition"
+        class="px-2 py-1 bg-highlight text-high rounded text-xs hover:bg-highlight transition"
       >
         Claim
       </button>

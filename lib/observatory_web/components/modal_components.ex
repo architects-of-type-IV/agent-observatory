@@ -39,9 +39,9 @@ defmodule ObservatoryWeb.Components.ModalComponents do
       class="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
       phx-click={@on_close}
     >
-      <div class={["bg-zinc-900 border border-zinc-700 rounded-lg shadow-xl w-full mx-4", @max_width]} phx-click="stop">
-        <div class="px-4 py-3 border-b border-zinc-800 flex items-center justify-between">
-          <h2 class="text-sm font-semibold text-zinc-200">{render_slot(@header)}</h2>
+      <div class={["bg-base border border-border-subtle rounded-lg shadow-xl w-full mx-4", @max_width]} phx-click="stop">
+        <div class="px-4 py-3 border-b border-border flex items-center justify-between">
+          <h2 class="text-sm font-semibold text-high">{render_slot(@header)}</h2>
           <.close_button on_close={@on_close} />
         </div>
         {render_slot(@inner_block)}
@@ -56,7 +56,7 @@ defmodule ObservatoryWeb.Components.ModalComponents do
 
   defp close_button(assigns) do
     ~H"""
-    <button phx-click={@on_close} class="text-zinc-500 hover:text-zinc-300 transition">
+    <button phx-click={@on_close} class="text-low hover:text-high transition">
       <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
         <path
           fill-rule="evenodd"
@@ -131,7 +131,7 @@ defmodule ObservatoryWeb.Components.ModalComponents do
   defp form_field(assigns) do
     ~H"""
     <div>
-      <label class="block text-[10px] font-semibold text-zinc-500 uppercase tracking-wider mb-1">{@label}</label>
+      <label class="block text-[10px] font-semibold text-low uppercase tracking-wider mb-1">{@label}</label>
       {render_slot(@inner_block)}
     </div>
     """
@@ -143,7 +143,7 @@ defmodule ObservatoryWeb.Components.ModalComponents do
   defp shortcut_group(assigns) do
     ~H"""
     <div>
-      <h3 class="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">{@title}</h3>
+      <h3 class="text-xs font-semibold text-low uppercase tracking-wider mb-2">{@title}</h3>
       <div class="space-y-1 text-xs">
         <.shortcut_row :for={{label, key} <- @keys} label={label} key={key} />
       </div>
@@ -157,8 +157,8 @@ defmodule ObservatoryWeb.Components.ModalComponents do
   defp shortcut_row(assigns) do
     ~H"""
     <div class="flex items-center justify-between">
-      <span class="text-zinc-400">{@label}</span>
-      <kbd class="px-2 py-0.5 bg-zinc-800 border border-zinc-700 rounded text-zinc-300 font-mono">{@key}</kbd>
+      <span class="text-default">{@label}</span>
+      <kbd class="px-2 py-0.5 bg-raised border border-border-subtle rounded text-high font-mono">{@key}</kbd>
     </div>
     """
   end

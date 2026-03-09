@@ -5,12 +5,12 @@
 %>
 <.feed_nest>
   <.feed_row collapse_key={turn_key} expanded_sessions={@expanded_sessions}>
-    <span class={label_class("text-zinc-400")}>Prompt</span>
-    <span class={summary_class("text-zinc-300")} title={@item.prompt}>
+    <span class={label_class("text-default")}>Prompt</span>
+    <span class={summary_class("text-high")} title={@item.prompt}>
       {prompt_display}{if String.length(@item.prompt || "") > 80, do: "...", else: ""}
     </span>
-    <span :if={@item.tool_count > 0} class={stat_class("text-zinc-500")}>{@item.tool_count} tools</span>
-    <span :if={@item.permission_count > 0} class={stat_class("text-amber-500/70")}>{@item.permission_count} perms</span>
+    <span :if={@item.tool_count > 0} class={stat_class("text-low")}>{@item.tool_count} tools</span>
+    <span :if={@item.permission_count > 0} class={stat_class("text-brand/70")}>{@item.permission_count} perms</span>
     <span :if={@item.total_duration_ms} class={stat_class(duration_color(@item.total_duration_ms))}>
       {format_duration(@item.total_duration_ms)}
     </span>
@@ -21,7 +21,7 @@
   <div :if={expanded} class="space-y-0">
     <%!-- Response text (markdown rendered) --%>
     <div :if={@item.response} class="ml-4 pl-3 py-1.5">
-      <div class="prose prose-xs prose-invert prose-zinc max-w-none max-h-48 overflow-y-auto text-xs text-zinc-300 [&_p]:my-1 [&_ul]:my-1 [&_ol]:my-1 [&_li]:my-0.5 [&_code]:text-indigo-400 [&_code]:bg-zinc-800 [&_code]:px-1 [&_code]:rounded [&_code]:text-[11px] [&_strong]:text-zinc-200 [&_h1]:text-sm [&_h2]:text-xs [&_h3]:text-xs [&_pre]:bg-zinc-800/80 [&_pre]:rounded [&_pre]:p-2 [&_pre]:my-1.5 [&_pre]:text-[11px] [&_a]:text-indigo-400 [&_blockquote]:border-zinc-700 [&_blockquote]:text-zinc-400">
+      <div class="prose prose-xs prose-invert prose-zinc max-w-none max-h-48 overflow-y-auto text-xs text-high [&_p]:my-1 [&_ul]:my-1 [&_ol]:my-1 [&_li]:my-0.5 [&_code]:text-interactive [&_code]:bg-raised [&_code]:px-1 [&_code]:rounded [&_code]:text-[11px] [&_strong]:text-high [&_h1]:text-sm [&_h2]:text-xs [&_h3]:text-xs [&_pre]:bg-raised/80 [&_pre]:rounded [&_pre]:p-2 [&_pre]:my-1.5 [&_pre]:text-[11px] [&_a]:text-interactive [&_blockquote]:border-border-subtle [&_blockquote]:text-default">
         {render_markdown(@item.response)}
       </div>
     </div>

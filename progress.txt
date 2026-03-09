@@ -1,14 +1,18 @@
 ICHOR IV Progress (formerly Observatory)
 ========================================
 
-## Current: Design Token System + Theme Foundation (2026-03-09)
+## Current: Template Color Migration Complete (2026-03-09)
 
 ### This Session
-- [x] Created --ichor-* CSS custom property system (25 tokens)
+- [x] Created --ichor-* CSS custom property system (26 tokens)
 - [x] Defined ICHOR IV theme (dark/amber) + Swiss theme (light/red/zero-radius)
 - [x] Migrated ~50 ichor-* design system classes from hardcoded to tokens
 - [x] Renamed obs-* -> ichor-* across CSS + 13 template files
 - [x] Added theme-aware body styles to root layout
+- [x] Added Tailwind v4 @theme block registering --ichor-* as Tailwind utilities
+- [x] Added --ichor-bg-highlight token for hover/active states (zinc-700 area)
+- [x] Bulk migrated 1,171 hardcoded color references to semantic tokens across all templates
+- [x] Color mapping: zinc->text hierarchy, amber->brand, emerald->success, red->error, blue->info, indigo->interactive
 
 ### Prior: Archon HUD Redesign + Fleet Action Fixes (2026-03-09)
 - [x] Fixed fleet sidebar showing 0 agents (agent_index not passed as prop to command_view)

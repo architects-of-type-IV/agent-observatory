@@ -7,15 +7,15 @@ defmodule ObservatoryWeb.DashboardAgentHealthHelpers do
   defdelegate compute_agent_health(member_events, now), to: Observatory.Fleet.AgentHealth
   defdelegate calculate_failure_rate(events), to: Observatory.Fleet.AgentHealth
 
-  def health_color(:healthy), do: "bg-emerald-500"
-  def health_color(:warning), do: "bg-amber-500"
-  def health_color(:critical), do: "bg-red-500"
-  def health_color(_), do: "bg-zinc-600"
+  def health_color(:healthy), do: "bg-success"
+  def health_color(:warning), do: "bg-brand"
+  def health_color(:critical), do: "bg-error"
+  def health_color(_), do: "bg-highlight"
 
-  def health_text_color(:healthy), do: "text-emerald-400"
-  def health_text_color(:warning), do: "text-amber-400"
-  def health_text_color(:critical), do: "text-red-400"
-  def health_text_color(_), do: "text-zinc-500"
+  def health_text_color(:healthy), do: "text-success"
+  def health_text_color(:warning), do: "text-brand"
+  def health_text_color(:critical), do: "text-error"
+  def health_text_color(_), do: "text-low"
 
   def format_issue({:stuck, latest_event}) do
     "Agent stuck - no activity for >60s (last event: #{relative_time_simple(latest_event.inserted_at)})"

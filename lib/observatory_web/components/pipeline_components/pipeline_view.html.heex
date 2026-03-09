@@ -14,11 +14,11 @@
   }
 
   columns = [
-    {"blocked", "Blocked", "border-amber-500/30", "text-amber-400"},
-    {"pending", "Pending", "border-zinc-700", "text-zinc-400"},
-    {"in_progress", "In Progress", "border-blue-500/30", "text-blue-400"},
-    {"completed", "Done", "border-emerald-500/30", "text-emerald-400"},
-    {"failed", "Failed", "border-red-500/30", "text-red-400"}
+    {"blocked", "Blocked", "border-brand/30", "text-brand"},
+    {"pending", "Pending", "border-border-subtle", "text-default"},
+    {"in_progress", "In Progress", "border-info/30", "text-info"},
+    {"completed", "Done", "border-success/30", "text-success"},
+    {"failed", "Failed", "border-error/30", "text-error"}
   ]
 
   task_map = Map.new(tasks, &{&1.id, &1})
@@ -27,16 +27,16 @@
 %>
 <div class="flex gap-0 h-full">
   <%!-- Left Sidebar: Projects + Stats + Task Detail --%>
-  <div class="w-[240px] shrink-0 flex flex-col gap-3 bg-zinc-900/30 border-r border-zinc-800 p-3 overflow-x-hidden overflow-y-auto">
+  <div class="w-[240px] shrink-0 flex flex-col gap-3 bg-base/30 border-r border-border p-3 overflow-x-hidden overflow-y-auto">
     <%!-- Projects --%>
     <div>
       <div class="flex flex-col gap-2">
-        <span class="text-[10px] text-zinc-600 uppercase tracking-wider">Projects</span>
+        <span class="text-[10px] text-muted uppercase tracking-wider">Projects</span>
         <div class="flex flex-wrap gap-1">
           <span :for={{key, _path} <- projects} class="ichor-badge ichor-badge-zinc font-mono">
             {key}
           </span>
-          <span :if={map_size(projects) == 0} class="text-[10px] text-zinc-600">Auto-detecting...</span>
+          <span :if={map_size(projects) == 0} class="text-[10px] text-muted">Auto-detecting...</span>
         </div>
         <div class="flex flex-wrap gap-1">
           <button
@@ -51,7 +51,7 @@
           <button phx-click="run_health_check" class="ichor-btn ichor-btn-muted">Health</button>
           <button
             phx-click="reset_all_stale"
-            class="ichor-btn bg-amber-600/15 text-amber-400 hover:bg-amber-600/25"
+            class="ichor-btn bg-brand/15 text-brand hover:bg-brand/25"
             data-confirm="Reset all stale tasks to pending?"
           >
             Reset Stale
@@ -62,16 +62,16 @@
 
     <%!-- Task Detail (selected) --%>
     <div :if={@selected_dag_task} class="ichor-card p-3 min-w-0 overflow-hidden">
-      <span class="text-[10px] text-zinc-600 uppercase tracking-wider">Task Detail</span>
+      <span class="text-[10px] text-muted uppercase tracking-wider">Task Detail</span>
       <div class="flex items-center gap-2 flex-wrap mt-2 mb-2">
         <span :if={@selected_dag_task[:project]} class="text-[10px] font-mono text-violet-400 truncate">{@selected_dag_task.project}</span>
-        <span class="text-xs font-mono text-zinc-400">#{@selected_dag_task.id}</span>
+        <span class="text-xs font-mono text-default">#{@selected_dag_task.id}</span>
         <span class={task_badge_class(@selected_dag_task.status)}>{@selected_dag_task.status}</span>
-        <span :if={@selected_dag_task.priority} class="text-[10px] text-zinc-500">{@selected_dag_task.priority}</span>
+        <span :if={@selected_dag_task.priority} class="text-[10px] text-low">{@selected_dag_task.priority}</span>
       </div>
-      <div class="text-xs text-zinc-200 mb-1 break-words">{@selected_dag_task.subject}</div>
-      <div :if={@selected_dag_task[:description]} class="text-xs text-zinc-500 mb-2 break-words">{@selected_dag_task.description}</div>
-      <div class="flex flex-col gap-1 text-[10px] text-zinc-600 mb-2 break-all">
+      <div class="text-xs text-high mb-1 break-words">{@selected_dag_task.subject}</div>
+      <div :if={@selected_dag_task[:description]} class="text-xs text-low mb-2 break-words">{@selected_dag_task.description}</div>
+      <div class="flex flex-col gap-1 text-[10px] text-muted mb-2 break-all">
         <span :if={@selected_dag_task.owner && @selected_dag_task.owner != ""} class="truncate">owner: {@selected_dag_task.owner}</span>
         <span :if={@selected_dag_task.blocked_by != []} class="truncate">blocked by: {Enum.join(@selected_dag_task.blocked_by, ", ")}</span>
         <span :if={@selected_dag_task[:updated]}>updated: {short_timestamp(@selected_dag_task.updated)}</span>
@@ -88,7 +88,7 @@
         <button
           phx-click="reset_swarm_task"
           phx-value-id={@selected_dag_task.id}
-          class="ichor-btn bg-amber-600/15 text-amber-400 hover:bg-amber-600/25"
+          class="ichor-btn bg-brand/15 text-brand hover:bg-brand/25"
         >
           Reset
         </button>
@@ -113,7 +113,7 @@
         >
           <div class="flex items-center gap-2 mb-1.5 px-0.5">
             <h6 class={text_color}>{label}</h6>
-            <span class="text-[9px] font-mono text-zinc-700">{length(kanban[status])}</span>
+            <span class="text-[9px] font-mono text-muted">{length(kanban[status])}</span>
           </div>
 
           <div class="space-y-1 max-h-[280px] overflow-y-auto pr-0.5">
@@ -124,21 +124,21 @@
               class={[
                 "ichor-card-compact cursor-pointer",
                 border_color,
-                @selected_dag_task && @selected_dag_task.id == task.id && "!ring-1 !ring-indigo-500/50 !bg-zinc-800/60"
+                @selected_dag_task && @selected_dag_task.id == task.id && "!ring-1 !ring-interactive/50 !bg-raised/60"
               ]}
             >
               <div class="flex items-center gap-1 mb-0.5">
                 <span :if={task[:project] && task.project != ""} class="text-[9px] font-mono text-violet-400/60">{task.project}</span>
-                <span class="text-[9px] font-mono text-zinc-600">{task.id}</span>
+                <span class="text-[9px] font-mono text-muted">{task.id}</span>
                 <span :if={task.priority} class={"text-[9px] #{priority_color(task.priority)}"}>{task.priority}</span>
               </div>
-              <div class="text-[10px] text-zinc-300 leading-tight line-clamp-2">{task.subject}</div>
-              <div :if={task.owner && task.owner != ""} class="mt-0.5 text-[9px] font-mono text-zinc-500">
+              <div class="text-[10px] text-high leading-tight line-clamp-2">{task.subject}</div>
+              <div :if={task.owner && task.owner != ""} class="mt-0.5 text-[9px] font-mono text-low">
                 {task.owner}
               </div>
               <div :if={task.blocked_by != []} class="mt-0.5 flex items-center gap-1">
-                <span class="text-[9px] text-amber-500">blocks:</span>
-                <span class="text-[9px] font-mono text-zinc-600">{Enum.join(task.blocked_by, ", ")}</span>
+                <span class="text-[9px] text-brand">blocks:</span>
+                <span class="text-[9px] font-mono text-muted">{Enum.join(task.blocked_by, ", ")}</span>
               </div>
             </div>
           </div>
@@ -146,10 +146,10 @@
       </div>
 
       <%!-- DAG Dependency Graph --%>
-      <div :if={waves != []} class="border border-zinc-800/60 rounded-md p-3 overflow-x-auto bg-zinc-900/20">
-        <h3 class="text-[10px] font-semibold text-zinc-600 uppercase tracking-wider mb-2">
+      <div :if={waves != []} class="border border-border/60 rounded-md p-3 overflow-x-auto bg-base/20">
+        <h3 class="text-[10px] font-semibold text-muted uppercase tracking-wider mb-2">
           Dependency Graph
-          <span :if={dag.critical_path != []} class="text-zinc-600 normal-case font-normal ml-2">
+          <span :if={dag.critical_path != []} class="text-muted normal-case font-normal ml-2">
             Critical path: {length(dag.critical_path)} tasks
           </span>
         </h3>
@@ -158,7 +158,7 @@
             :for={{wave, wave_idx} <- Enum.with_index(waves)}
             class="flex flex-col gap-2 min-w-[140px]"
           >
-            <div class="text-[10px] text-zinc-600 uppercase tracking-wider mb-1 text-center">
+            <div class="text-[10px] text-muted uppercase tracking-wider mb-1 text-center">
               Wave {wave_idx}
             </div>
             <.dag_node

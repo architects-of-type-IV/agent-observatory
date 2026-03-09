@@ -14,11 +14,11 @@ defmodule ObservatoryWeb.Components.Feed.StandaloneEvent do
   def standalone_event(assigns) do
     ~H"""
     <div
-      class={"flex items-center gap-2 px-2 py-1 rounded cursor-pointer transition-all hover:bg-zinc-900/80 group text-xs #{if @selected_event && @selected_event.id == @event.id, do: "bg-zinc-800/80 ring-1 ring-indigo-500/40", else: ""}"}
+      class={"flex items-center gap-2 px-2 py-1 rounded cursor-pointer transition-all hover:bg-base/80 group text-xs #{if @selected_event && @selected_event.id == @event.id, do: "bg-raised/80 ring-1 ring-interactive/40", else: ""}"}
       phx-click="select_event"
       phx-value-id={@event.id}
     >
-      <span class="text-xs font-mono text-zinc-600 shrink-0 w-12 text-right">
+      <span class="text-xs font-mono text-muted shrink-0 w-12 text-right">
         {relative_time(@event.inserted_at, @now)}
       </span>
 
@@ -27,13 +27,13 @@ defmodule ObservatoryWeb.Components.Feed.StandaloneEvent do
         {label}
       </span>
 
-      <span class="text-zinc-400 truncate flex-1 min-w-0 group-hover:text-zinc-300">
+      <span class="text-default truncate flex-1 min-w-0 group-hover:text-high">
         {@event.summary || event_summary(@event)}
       </span>
 
       <span
         :if={Map.has_key?(@event_notes, @event.id)}
-        class="text-amber-400 shrink-0"
+        class="text-brand shrink-0"
         title="Has note"
       >
         <svg

@@ -21,22 +21,22 @@ defmodule ObservatoryWeb.Components.AnalyticsComponents do
       <div :if={@analytics != []} class="space-y-3">
         <div class="overflow-x-auto">
           <table class="w-full text-sm">
-            <thead class="border-b border-zinc-800">
+            <thead class="border-b border-border">
               <tr class="text-left">
-                <th class="pb-2 pr-4 text-xs font-semibold text-zinc-500 uppercase">Tool</th>
-                <th class="pb-2 pr-4 text-xs font-semibold text-zinc-500 uppercase text-right">
+                <th class="pb-2 pr-4 text-xs font-semibold text-low uppercase">Tool</th>
+                <th class="pb-2 pr-4 text-xs font-semibold text-low uppercase text-right">
                   Uses
                 </th>
-                <th class="pb-2 pr-4 text-xs font-semibold text-zinc-500 uppercase text-right">
+                <th class="pb-2 pr-4 text-xs font-semibold text-low uppercase text-right">
                   Success
                 </th>
-                <th class="pb-2 pr-4 text-xs font-semibold text-zinc-500 uppercase text-right">
+                <th class="pb-2 pr-4 text-xs font-semibold text-low uppercase text-right">
                   Failures
                 </th>
-                <th class="pb-2 pr-4 text-xs font-semibold text-zinc-500 uppercase text-right">
+                <th class="pb-2 pr-4 text-xs font-semibold text-low uppercase text-right">
                   Fail %
                 </th>
-                <th class="pb-2 text-xs font-semibold text-zinc-500 uppercase text-right">
+                <th class="pb-2 text-xs font-semibold text-low uppercase text-right">
                   Avg Duration
                 </th>
               </tr>
@@ -46,20 +46,20 @@ defmodule ObservatoryWeb.Components.AnalyticsComponents do
                 :for={stat <- @analytics}
                 phx-click="filter_analytics_tool"
                 phx-value-tool={stat.tool}
-                class="border-b border-zinc-800/50 hover:bg-zinc-900/50 cursor-pointer transition"
+                class="border-b border-border/50 hover:bg-base/50 cursor-pointer transition"
               >
-                <td class="py-2 pr-4 font-mono text-zinc-300">{stat.tool}</td>
-                <td class="py-2 pr-4 text-right text-zinc-400">{stat.total_uses}</td>
-                <td class="py-2 pr-4 text-right text-emerald-400">{stat.successes}</td>
-                <td class="py-2 pr-4 text-right text-red-400">{stat.failures}</td>
+                <td class="py-2 pr-4 font-mono text-high">{stat.tool}</td>
+                <td class="py-2 pr-4 text-right text-default">{stat.total_uses}</td>
+                <td class="py-2 pr-4 text-right text-success">{stat.successes}</td>
+                <td class="py-2 pr-4 text-right text-error">{stat.failures}</td>
                 <% fail_class =
                   if stat.failure_rate > 0.3,
-                    do: "py-2 pr-4 text-right text-red-400",
-                    else: "py-2 pr-4 text-right text-zinc-500" %>
+                    do: "py-2 pr-4 text-right text-error",
+                    else: "py-2 pr-4 text-right text-low" %>
                 <td class={fail_class}>
                   {Float.round(stat.failure_rate * 100, 0)}%
                 </td>
-                <td class="py-2 text-right text-zinc-400">
+                <td class="py-2 text-right text-default">
                   {if stat.avg_duration_ms, do: format_duration(stat.avg_duration_ms), else: "-"}
                 </td>
               </tr>

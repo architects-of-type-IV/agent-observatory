@@ -17,13 +17,13 @@ defmodule ObservatoryWeb.Components.AgentActivity.AgentFocusView do
     <div class="flex h-full gap-4">
       <%!-- Left: Activity stream (scrollable) --%>
       <div class="flex-1 flex flex-col min-w-0">
-        <div class="sticky top-0 bg-zinc-950 border-b border-zinc-800 p-3 flex items-center justify-between">
-          <h2 class="text-lg font-bold text-zinc-200">
+        <div class="sticky top-0 bg-base border-b border-border p-3 flex items-center justify-between">
+          <h2 class="text-lg font-bold text-high">
             Activity: {@agent[:name] || "Agent"}
           </h2>
           <button
             phx-click="close_agent_focus"
-            class="px-3 py-1 bg-zinc-800 text-zinc-400 rounded text-sm hover:bg-zinc-700 transition"
+            class="px-3 py-1 bg-raised text-default rounded text-sm hover:bg-highlight transition"
           >
             Back
           </button>
@@ -40,65 +40,65 @@ defmodule ObservatoryWeb.Components.AgentActivity.AgentFocusView do
       </div>
 
       <%!-- Right: Agent metadata sidebar --%>
-      <div class="w-80 bg-zinc-900/50 border-l border-zinc-800 overflow-y-auto shrink-0">
+      <div class="w-80 bg-base/50 border-l border-border overflow-y-auto shrink-0">
         <div class="p-4 space-y-4">
           <div>
-            <h3 class="text-xs font-semibold text-zinc-500 uppercase mb-2">Agent Info</h3>
+            <h3 class="text-xs font-semibold text-low uppercase mb-2">Agent Info</h3>
             <div class="space-y-1 text-xs">
               <div class="flex justify-between">
-                <span class="text-zinc-500">Name:</span>
-                <span class="text-zinc-300">{@agent[:name] || "?"}</span>
+                <span class="text-low">Name:</span>
+                <span class="text-high">{@agent[:name] || "?"}</span>
               </div>
               <div class="flex justify-between">
-                <span class="text-zinc-500">Type:</span>
-                <span class="text-zinc-300">{@agent[:agent_type] || "?"}</span>
+                <span class="text-low">Type:</span>
+                <span class="text-high">{@agent[:agent_type] || "?"}</span>
               </div>
               <div class="flex justify-between">
-                <span class="text-zinc-500">Model:</span>
-                <span class="text-zinc-300">{@agent[:model] || "?"}</span>
+                <span class="text-low">Model:</span>
+                <span class="text-high">{@agent[:model] || "?"}</span>
               </div>
               <div class="flex justify-between">
-                <span class="text-zinc-500">Status:</span>
+                <span class="text-low">Status:</span>
                 <span class={"#{member_status_color(@agent)}"}>
                   {format_status(@agent[:status])}
                 </span>
               </div>
               <div :if={@agent[:cwd]} class="flex justify-between">
-                <span class="text-zinc-500">CWD:</span>
-                <span class="text-zinc-400 font-mono text-[10px] truncate">
+                <span class="text-low">CWD:</span>
+                <span class="text-default font-mono text-[10px] truncate">
                   {@agent[:cwd]}
                 </span>
               </div>
               <div :if={@agent[:uptime]} class="flex justify-between">
-                <span class="text-zinc-500">Uptime:</span>
-                <span class="text-zinc-300">{@agent[:uptime]}</span>
+                <span class="text-low">Uptime:</span>
+                <span class="text-high">{@agent[:uptime]}</span>
               </div>
               <div :if={@agent[:event_count]} class="flex justify-between">
-                <span class="text-zinc-500">Events:</span>
-                <span class="text-zinc-300">{@agent[:event_count]}</span>
+                <span class="text-low">Events:</span>
+                <span class="text-high">{@agent[:event_count]}</span>
               </div>
             </div>
           </div>
 
           <div :if={@tasks != []}>
-            <h3 class="text-xs font-semibold text-zinc-500 uppercase mb-2">Assigned Tasks</h3>
+            <h3 class="text-xs font-semibold text-low uppercase mb-2">Assigned Tasks</h3>
             <div class="space-y-1">
               <div
                 :for={task <- @tasks}
-                class="p-2 bg-zinc-800/50 rounded border border-zinc-800 text-xs"
+                class="p-2 bg-raised/50 rounded border border-border text-xs"
               >
-                <div class="font-semibold text-zinc-300">#{task[:id]}: {task[:subject]}</div>
-                <div class="text-zinc-500 mt-1">{task[:status]}</div>
+                <div class="font-semibold text-high">#{task[:id]}: {task[:subject]}</div>
+                <div class="text-low mt-1">{task[:status]}</div>
               </div>
             </div>
           </div>
 
           <div :if={@agent[:health_issues] && @agent[:health_issues] != []}>
-            <h3 class="text-xs font-semibold text-zinc-500 uppercase mb-2">Health</h3>
+            <h3 class="text-xs font-semibold text-low uppercase mb-2">Health</h3>
             <div class="space-y-1">
               <div
                 :for={issue <- @agent[:health_issues]}
-                class="p-2 bg-red-500/10 border border-red-500/30 rounded text-xs text-red-400"
+                class="p-2 bg-error/10 border border-error/30 rounded text-xs text-error"
               >
                 {issue}
               </div>
@@ -119,10 +119,10 @@ defmodule ObservatoryWeb.Components.AgentActivity.AgentFocusView do
   # Import member_status_color from format helpers
   defp member_status_color(member) do
     case member[:status] do
-      :active -> "bg-emerald-500"
-      :idle -> "bg-amber-500"
-      :stopped -> "bg-zinc-600"
-      _ -> "bg-zinc-600"
+      :active -> "bg-success"
+      :idle -> "bg-brand"
+      :stopped -> "bg-highlight"
+      _ -> "bg-highlight"
     end
   end
 end

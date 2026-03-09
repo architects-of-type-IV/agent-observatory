@@ -168,8 +168,8 @@ defmodule ObservatoryWeb.DashboardTeamHelpers do
     health_color(member[:health] || :unknown)
   end
 
-  def member_status_color(:active), do: "bg-emerald-500"
-  def member_status_color(:idle), do: "bg-amber-500"
-  def member_status_color(:ended), do: "bg-zinc-600"
-  def member_status_color(_), do: "bg-zinc-700"
+  def member_status_color(:active), do: "bg-success"
+  def member_status_color(:idle), do: "bg-brand"
+  def member_status_color(:ended), do: "bg-highlight"
+  def member_status_color(_), do: "bg-highlight"
 end

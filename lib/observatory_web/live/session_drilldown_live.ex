@@ -86,7 +86,7 @@ defmodule ObservatoryWeb.SessionDrilldownLive do
       </div>
 
       <%= if @flash_msg do %>
-        <div class="mb-4 p-2 bg-blue-100 text-blue-800 rounded">{@flash_msg}</div>
+        <div class="mb-4 p-2 bg-info text-info rounded">{@flash_msg}</div>
       <% end %>
 
       <%= if @hitl_status == :paused do %>
@@ -97,7 +97,7 @@ defmodule ObservatoryWeb.SessionDrilldownLive do
 
           <form phx-submit="reject" class="inline">
             <input type="text" name="reason" placeholder="Rejection reason" class="border rounded px-2 py-1" />
-            <button type="submit" class="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700">
+            <button type="submit" class="px-4 py-2 bg-error text-white rounded hover:bg-error">
               Reject
             </button>
           </form>
@@ -105,7 +105,7 @@ defmodule ObservatoryWeb.SessionDrilldownLive do
           <form phx-submit="rewrite" class="mt-2">
             <input type="text" name="trace_id" placeholder="Trace ID" class="border rounded px-2 py-1" />
             <textarea name="new_payload" placeholder='{"key": "value"}' class="border rounded px-2 py-1 w-full mt-1"></textarea>
-            <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 mt-1">
+            <button type="submit" class="px-4 py-2 bg-info text-white rounded hover:bg-info mt-1">
               Rewrite Message
             </button>
           </form>

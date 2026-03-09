@@ -39,10 +39,10 @@ defmodule ObservatoryWeb.Components.WorkshopComponents do
   def cap_badge(cap), do: elem(Map.get(@cap_colors, cap, {"#71717a", "ichor-badge-zinc", "?"}), 1)
   def cap_abbr(cap), do: elem(Map.get(@cap_colors, cap, {"#71717a", "ichor-badge-zinc", "?"}), 2)
 
-  def comm_tag_class("allow"), do: "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
-  def comm_tag_class("deny"), do: "bg-red-500/10 text-red-400 border border-red-500/20"
+  def comm_tag_class("allow"), do: "bg-success/10 text-success border border-success/20"
+  def comm_tag_class("deny"), do: "bg-error/10 text-error border border-error/20"
   def comm_tag_class("route"), do: "bg-violet-500/10 text-violet-400 border border-violet-500/20"
-  def comm_tag_class(_), do: "bg-zinc-800 text-zinc-400"
+  def comm_tag_class(_), do: "bg-raised text-default"
 
   def find_agent(agents, id) do
     Enum.find(agents, fn a -> a.id == id end)

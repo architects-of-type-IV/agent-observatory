@@ -33,10 +33,10 @@ defmodule ObservatoryWeb.Components.FleetHelpers do
   def depth(:worker), do: 2
   def depth(_), do: 2
 
-  def badge_class(:coordinator), do: "bg-amber-900/50 text-amber-400 border-amber-700/50"
-  def badge_class(:lead), do: "bg-indigo-900/50 text-indigo-400 border-indigo-700/50"
-  def badge_class(:worker), do: "bg-zinc-800 text-zinc-400 border-zinc-700/50"
-  def badge_class(_), do: "bg-zinc-800 text-zinc-500 border-zinc-700/50"
+  def badge_class(:coordinator), do: "bg-brand-dim/50 text-brand border-brand/50"
+  def badge_class(:lead), do: "bg-interactive/50 text-interactive border-interactive/50"
+  def badge_class(:worker), do: "bg-raised text-default border-border-subtle/50"
+  def badge_class(_), do: "bg-raised text-low border-border-subtle/50"
 
   def abbrev(:coordinator), do: "coord"
   def abbrev(:lead), do: "lead"

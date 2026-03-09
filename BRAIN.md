@@ -98,6 +98,16 @@
 - **EventBuffer**: payload sanitization + tool duration tracking
 - **Gateway.Router.ingest/1**: registry update + channel side effects
 
+## Design Token System (2026-03-09, COMPLETE)
+- **CSS custom properties**: 26 `--ichor-*` tokens in `assets/css/app.css` (`:root` + `[data-theme="swiss"]`)
+- **Tailwind v4 @theme block**: registers tokens as Tailwind utilities (`text-high`, `bg-raised`, `border-border`, `text-brand`, etc.)
+- **Two themes**: ICHOR IV (dark/amber, `:root` default) and Swiss International Style (`data-theme="swiss"`)
+- **Token categories**: text (high/default/low/muted), bg (base/raised/highlight/surface/overlay), border (border/border-subtle), brand (brand/muted/dim), status (success/error/warning/info), interactive (interactive/interactive-muted), radius (sm/md/lg/xl/full), scrollbar
+- **Template migration COMPLETE**: 1,171 hardcoded zinc/amber/emerald/red/blue/indigo references replaced with semantic tokens
+- **1 remaining**: `bg-amber-950` in Archon system message (deferred to Archon CSS tokenization)
+- **ichor-* component classes**: ~50 classes (section, card, badge, dot, button, input) use `hsl(var(--ichor-*))` + `var(--ichor-radius-*)`
+- **obs-* -> ichor-* rename**: all CSS classes + 13 templates. tmux prefix `obs-` intentionally kept.
+
 ## Elixir Code Guide (enforced)
 - Pattern matching over if/else/cond/unless -- multi-head functions
 - Aliases at top of module

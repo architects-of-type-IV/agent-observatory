@@ -127,19 +127,19 @@ defmodule ObservatoryWeb.Components.ArchonComponents do
       <div class="flex-1 p-5 flex flex-col">
         <div class="flex items-center justify-between mb-4">
           <h3 class="archon-section-title">Quick Actions</h3>
-          <span class="text-[9px] text-amber-800/60 font-mono uppercase tracking-widest">Press key to execute</span>
+          <span class="text-[9px] text-brand/60 font-mono uppercase tracking-widest">Press key to execute</span>
         </div>
         <div class="grid grid-cols-4 gap-2.5 flex-1 content-start">
           <.action_card :for={action <- @actions} action={action} />
           <%!-- Free-form command slot --%>
-          <div class="archon-action-card col-span-1 !border-dashed !border-zinc-800">
+          <div class="archon-action-card col-span-1 !border-dashed !border-border">
             <div class="flex items-center justify-between mb-1">
-              <span class="archon-action-icon text-zinc-600"><.hud_icon name="command" /></span>
+              <span class="archon-action-icon text-muted"><.hud_icon name="command" /></span>
             </div>
             <div id="archon-quick-input" phx-update="ignore">
               <form phx-submit="archon_send" class="flex flex-col gap-1">
                 <input type="text" name="content" autocomplete="off" placeholder="Free command..."
-                  class="w-full bg-transparent border-0 border-b border-zinc-800 text-[11px] text-zinc-300 placeholder-zinc-700 p-0 pb-1 focus:outline-none focus:border-amber-800/50 focus:ring-0" />
+                  class="w-full bg-transparent border-0 border-b border-border text-[11px] text-high placeholder-muted p-0 pb-1 focus:outline-none focus:border-brand/50 focus:ring-0" />
               </form>
             </div>
           </div>
@@ -147,21 +147,21 @@ defmodule ObservatoryWeb.Components.ArchonComponents do
       </div>
 
       <%!-- Activity feed (right strip) --%>
-      <div class="w-56 border-l border-zinc-800/50 flex flex-col">
-        <div class="px-3 py-3 border-b border-zinc-800/50">
+      <div class="w-56 border-l border-border/50 flex flex-col">
+        <div class="px-3 py-3 border-b border-border/50">
           <h3 class="archon-section-title">Activity</h3>
         </div>
         <div class="flex-1 overflow-y-auto px-3 py-2 space-y-2">
           <%= if @recent == [] do %>
-            <p class="text-[10px] text-zinc-700 italic mt-4 text-center">No activity yet.</p>
+            <p class="text-[10px] text-muted italic mt-4 text-center">No activity yet.</p>
           <% else %>
             <.mini_bubble :for={msg <- @recent} role={msg.role} content={msg.content} />
           <% end %>
           <.typing_indicator :if={@loading} />
         </div>
-        <div class="px-3 py-2 border-t border-zinc-800/50">
+        <div class="px-3 py-2 border-t border-border/50">
           <button phx-click="archon_set_tab" phx-value-tab="chat"
-            class="w-full text-[10px] text-amber-600/70 hover:text-amber-500 font-mono uppercase tracking-wider text-center cursor-pointer transition">
+            class="w-full text-[10px] text-brand/70 hover:text-brand font-mono uppercase tracking-wider text-center cursor-pointer transition">
             Open full chat ->
           </button>
         </div>
@@ -217,9 +217,9 @@ defmodule ObservatoryWeb.Components.ArchonComponents do
   defp reference_panel(assigns) do
     ~H"""
     <div class="flex flex-col h-full">
-      <div class="px-5 py-3 border-b border-zinc-800/50">
+      <div class="px-5 py-3 border-b border-border/50">
         <h3 class="archon-section-title">Command Reference</h3>
-        <p class="text-[10px] text-zinc-600 mt-1">Click any command to execute immediately.</p>
+        <p class="text-[10px] text-muted mt-1">Click any command to execute immediately.</p>
       </div>
       <div class="flex-1 overflow-y-auto p-5">
         <div class="grid grid-cols-2 gap-2">
@@ -239,13 +239,13 @@ defmodule ObservatoryWeb.Components.ArchonComponents do
   defp empty_state(assigns) do
     ~H"""
     <div class="flex flex-col items-center justify-center h-full opacity-40">
-      <svg class="w-16 h-16 text-amber-600/30 mb-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="0.5">
+      <svg class="w-16 h-16 text-brand/30 mb-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="0.5">
         <circle cx="12" cy="12" r="10" />
         <path d="M12 2L2 7l10 5 10-5-10-5z" />
         <path d="M2 17l10 5 10-5" />
         <path d="M2 12l10 5 10-5" />
       </svg>
-      <p class="text-xs text-zinc-600 font-mono uppercase tracking-widest">Awaiting command</p>
+      <p class="text-xs text-muted font-mono uppercase tracking-widest">Awaiting command</p>
     </div>
     """
   end
@@ -270,9 +270,9 @@ defmodule ObservatoryWeb.Components.ArchonComponents do
       <div class={[
         "inline-block rounded px-2 py-1 max-w-full",
         case @role do
-          :user -> "bg-amber-900/15 border border-amber-900/20 text-zinc-300"
-          :system -> "bg-amber-950/30 border border-amber-700/20 text-amber-300/80"
-          _ -> "bg-zinc-900/80 border border-zinc-800 text-zinc-400"
+          :user -> "bg-brand-dim/15 border border-brand/20 text-high"
+          :system -> "bg-amber-950/30 border border-brand/20 text-brand/80"
+          _ -> "bg-base/80 border border-border text-default"
         end
       ]}>
         <div class="whitespace-pre-wrap line-clamp-3">{@content}</div>
@@ -285,7 +285,7 @@ defmodule ObservatoryWeb.Components.ArchonComponents do
     ~H"""
     <div class="archon-msg">
       <div class="archon-bubble archon-bubble-assistant">
-        <div class="flex items-center gap-2 text-xs text-zinc-600">
+        <div class="flex items-center gap-2 text-xs text-muted">
           <div class="flex gap-1">
             <div class="archon-typing-dot" style="animation-delay: 0ms" />
             <div class="archon-typing-dot" style="animation-delay: 150ms" />

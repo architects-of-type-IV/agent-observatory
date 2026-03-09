@@ -18,7 +18,7 @@ defmodule ObservatoryWeb.Components.Observatory.HealthWarnings do
   def health_warnings(assigns) do
     ~H"""
     <div :if={@issues != []} class="mt-2 ml-4 space-y-0.5">
-      <div :for={issue <- @issues} class="text-xs text-red-400/80">
+      <div :for={issue <- @issues} class="text-xs text-error/80">
         {format_issue(issue)}
       </div>
     </div>

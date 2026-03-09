@@ -41,20 +41,20 @@ defmodule ObservatoryWeb.DashboardTimelineHelpers do
   """
   def tool_color(tool_name) do
     case tool_name do
-      "Bash" -> "bg-amber-500"
-      "Read" -> "bg-blue-500"
-      "Write" -> "bg-emerald-500"
+      "Bash" -> "bg-brand"
+      "Read" -> "bg-info"
+      "Write" -> "bg-success"
       "Edit" -> "bg-violet-500"
       "Grep" -> "bg-cyan-500"
       "Glob" -> "bg-teal-500"
-      "Task" -> "bg-indigo-500"
+      "Task" -> "bg-interactive"
       "WebSearch" -> "bg-orange-500"
       "WebFetch" -> "bg-orange-400"
       "SendMessage" -> "bg-fuchsia-500"
       "TaskCreate" -> "bg-pink-500"
       "TaskUpdate" -> "bg-pink-400"
       "TeamCreate" -> "bg-cyan-600"
-      _ -> "bg-zinc-500"
+      _ -> "bg-low"
     end
   end
 

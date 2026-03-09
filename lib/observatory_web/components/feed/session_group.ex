@@ -44,7 +44,7 @@ defmodule ObservatoryWeb.Components.Feed.SessionGroup do
 
   def feed_nest(assigns) do
     ~H"""
-    <div class={["ml-4 border-l-2 border-zinc-800 pl-3 py-0.5", @class]}>
+    <div class={["ml-4 border-l-2 border-border pl-3 py-0.5", @class]}>
       {render_slot(@inner_block)}
     </div>
     """
@@ -89,8 +89,8 @@ defmodule ObservatoryWeb.Components.Feed.SessionGroup do
     <div
       class={[
         "flex items-center gap-2 rounded px-1 -mx-1 py-0.5",
-        if(@clickable, do: "cursor-pointer select-none hover:bg-zinc-800/30", else: ""),
-        if(@selected, do: "bg-zinc-800/80 ring-1 ring-indigo-500/40", else: "")
+        if(@clickable, do: "cursor-pointer select-none hover:bg-raised/30", else: ""),
+        if(@selected, do: "bg-raised/80 ring-1 ring-interactive/40", else: "")
       ]}
       phx-click={
         cond do
@@ -102,7 +102,7 @@ defmodule ObservatoryWeb.Components.Feed.SessionGroup do
       phx-value-session_id={@collapse_key}
       phx-value-id={if(@event_id && !@collapse_key, do: @event_id)}
     >
-      <span class="text-zinc-600 text-[10px] font-mono w-3 shrink-0">
+      <span class="text-muted text-[10px] font-mono w-3 shrink-0">
         <%= cond do %>
           <% @collapse_key && @expanded -> %>-
           <% @collapse_key -> %>+
@@ -122,10 +122,10 @@ defmodule ObservatoryWeb.Components.Feed.SessionGroup do
   def label_class(color), do: "text-xs font-mono font-bold uppercase tracking-wider #{color} shrink-0"
 
   @doc "CSS class for the main summary text (truncated, fills remaining space)"
-  def summary_class(color \\ "text-zinc-500"), do: "text-xs #{color} truncate flex-1 min-w-0"
+  def summary_class(color \\ "text-low"), do: "text-xs #{color} truncate flex-1 min-w-0"
 
   @doc "CSS class for metadata stats (tool count, duration, time, etc.)"
-  def stat_class(color \\ "text-zinc-600"), do: "text-xs font-mono #{color} shrink-0"
+  def stat_class(color \\ "text-muted"), do: "text-xs font-mono #{color} shrink-0"
 
   # ═══════════════════════════════════════════════════════
   # Turn dispatch -- routes to embedded templates
@@ -150,10 +150,10 @@ defmodule ObservatoryWeb.Components.Feed.SessionGroup do
     <.feed_nest class="space-y-0">
       <%!-- START --%>
       <.feed_row event_id={@pair.pre.id} selected_event={@selected_event}>
-        <span class={label_class("text-amber-400")}>Start</span>
-        <span class={label_class("text-indigo-400")}>{@pair.tool_name}</span>
+        <span class={label_class("text-brand")}>Start</span>
+        <span class={label_class("text-interactive")}>{@pair.tool_name}</span>
         <span class={summary_class()}>{event_summary(@pair.pre)}</span>
-        <span :if={(@pair[:permission_events] || []) != []} class={stat_class("text-amber-500/70")}>
+        <span :if={(@pair[:permission_events] || []) != []} class={stat_class("text-brand/70")}>
           {length(@pair[:permission_events] || [])} perm
         </span>
         <span class={stat_class()}>{format_time(@pair.pre.inserted_at)}</span>
@@ -161,10 +161,10 @@ defmodule ObservatoryWeb.Components.Feed.SessionGroup do
 
       <%!-- DONE / FAIL --%>
       <.feed_row :if={@pair.post} event_id={@pair.post.id} selected_event={@selected_event}>
-        <span class={label_class(if @pair.status == :failure, do: "text-red-400", else: "text-emerald-400")}>
+        <span class={label_class(if @pair.status == :failure, do: "text-error", else: "text-success")}>
           {if @pair.status == :failure, do: "Fail", else: "Done"}
         </span>
-        <span class={label_class("text-indigo-400")}>{@pair.tool_name}</span>
+        <span class={label_class("text-interactive")}>{@pair.tool_name}</span>
         <span class={summary_class()}>{event_summary(@pair.post)}</span>
         <span :if={@pair.status == :success} class={stat_class(duration_color(@pair.duration_ms))}>
           {format_duration(@pair.duration_ms)}
@@ -174,9 +174,9 @@ defmodule ObservatoryWeb.Components.Feed.SessionGroup do
 
       <%!-- RUNNING (no post yet) --%>
       <.feed_row :if={!@pair.post}>
-        <span class={label_class("text-amber-400") <> " animate-pulse"}>Running</span>
-        <span class={label_class("text-indigo-400")}>{@pair.tool_name}</span>
-        <span class={stat_class("text-amber-400")}>
+        <span class={label_class("text-brand") <> " animate-pulse"}>Running</span>
+        <span class={label_class("text-interactive")}>{@pair.tool_name}</span>
+        <span class={stat_class("text-brand")}>
           {format_duration(DashboardFeedHelpers.elapsed_time_ms(@pair.pre, @now))}...
         </span>
       </.feed_row>
@@ -213,7 +213,7 @@ defmodule ObservatoryWeb.Components.Feed.SessionGroup do
     <% expanded = MapSet.member?(@expanded_sessions, @preamble_key) %>
     <.feed_nest>
       <.feed_row collapse_key={@preamble_key} expanded_sessions={@expanded_sessions}>
-        <span class={label_class("text-zinc-500")}>Preamble</span>
+        <span class={label_class("text-low")}>Preamble</span>
         <span :if={@item.tool_count > 0} class={stat_class()}>{@item.tool_count} tools</span>
         <span :if={@item.total_duration_ms} class={stat_class(duration_color(@item.total_duration_ms))}>
           {format_duration(@item.total_duration_ms)}
@@ -248,13 +248,13 @@ defmodule ObservatoryWeb.Components.Feed.SessionGroup do
   def phase_label(:think), do: "Think"
   def phase_label(:other), do: "Other"
 
-  def phase_color(:research), do: "text-blue-400"
-  def phase_color(:build), do: "text-emerald-400"
-  def phase_color(:verify), do: "text-amber-400"
-  def phase_color(:delegate), do: "text-indigo-400"
+  def phase_color(:research), do: "text-info"
+  def phase_color(:build), do: "text-success"
+  def phase_color(:verify), do: "text-brand"
+  def phase_color(:delegate), do: "text-interactive"
   def phase_color(:communicate), do: "text-fuchsia-400"
   def phase_color(:think), do: "text-violet-400"
-  def phase_color(:other), do: "text-zinc-400"
+  def phase_color(:other), do: "text-default"
 
   # ═══════════════════════════════════════════════════════
   # Role badge
@@ -262,7 +262,7 @@ defmodule ObservatoryWeb.Components.Feed.SessionGroup do
 
   defp role_badge(%{role: :lead} = assigns) do
     ~H"""
-    <span class="text-[10px] font-mono text-amber-500">lead</span>
+    <span class="text-[10px] font-mono text-brand">lead</span>
     """
   end
 
@@ -312,7 +312,7 @@ defmodule ObservatoryWeb.Components.Feed.SessionGroup do
     end
   end
 
-  defp depth_style(0), do: "border border-zinc-800 bg-zinc-900/40"
-  defp depth_style(1), do: "border border-cyan-500/20 bg-zinc-900/30 ml-4"
-  defp depth_style(_), do: "border border-violet-500/15 bg-zinc-900/20 ml-8"
+  defp depth_style(0), do: "border border-border bg-base/40"
+  defp depth_style(1), do: "border border-cyan-500/20 bg-base/30 ml-4"
+  defp depth_style(_), do: "border border-violet-500/15 bg-base/20 ml-8"
 end

@@ -11,16 +11,16 @@ defmodule ObservatoryWeb.Components.TeamTmuxComponents do
 
   def tmux_view(assigns) do
     ~H"""
-    <div class="fixed inset-0 z-50 bg-zinc-950 flex flex-col">
-      <div class="flex items-center justify-between px-4 py-2 border-b border-zinc-800 bg-zinc-900 shrink-0">
+    <div class="fixed inset-0 z-50 bg-base flex flex-col">
+      <div class="flex items-center justify-between px-4 py-2 border-b border-border bg-base shrink-0">
         <div class="flex items-center gap-2">
-          <span class="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Tmux View</span>
+          <span class="text-xs font-semibold text-default uppercase tracking-wider">Tmux View</span>
           <div class="flex items-center gap-1 ml-4">
             <button
               :for={mode <- [:all_live, :leads_only, :all_agents]}
               phx-click="set_output_mode"
               phx-value-mode={mode}
-              class={"text-xs px-2 py-0.5 rounded transition #{if @output_mode == mode, do: "bg-cyan-600/30 text-cyan-300 ring-1 ring-cyan-500/50", else: "bg-zinc-800 text-zinc-500 hover:text-zinc-300"}"}
+              class={"text-xs px-2 py-0.5 rounded transition #{if @output_mode == mode, do: "bg-cyan-600/30 text-cyan-300 ring-1 ring-cyan-500/50", else: "bg-raised text-low hover:text-high"}"}
             >
               {mode_label(mode)}
             </button>
@@ -28,12 +28,12 @@ defmodule ObservatoryWeb.Components.TeamTmuxComponents do
         </div>
         <button
           phx-click="toggle_maximize_inspector"
-          class="text-xs text-zinc-500 hover:text-zinc-300 transition px-2 py-1"
+          class="text-xs text-low hover:text-high transition px-2 py-1"
         >
           Exit
         </button>
       </div>
-      <div class={"flex-1 overflow-hidden grid gap-px bg-zinc-800 #{grid_class(length(@inspected_teams))}"}>
+      <div class={"flex-1 overflow-hidden grid gap-px bg-raised #{grid_class(length(@inspected_teams))}"}>
         <.tmux_pane
           :for={team <- @inspected_teams}
           team={team}
@@ -51,20 +51,20 @@ defmodule ObservatoryWeb.Components.TeamTmuxComponents do
 
   defp tmux_pane(assigns) do
     ~H"""
-    <div class="bg-zinc-950 flex flex-col overflow-hidden">
-      <div class="flex items-center justify-between px-3 py-1.5 bg-zinc-900 border-b border-zinc-800 shrink-0">
-        <span class="text-xs font-medium text-zinc-300">{@team.name}</span>
+    <div class="bg-base flex flex-col overflow-hidden">
+      <div class="flex items-center justify-between px-3 py-1.5 bg-base border-b border-border shrink-0">
+        <span class="text-xs font-medium text-high">{@team.name}</span>
         <div class="flex items-center gap-2">
           <label
             :for={member <- @team.members}
-            class="flex items-center gap-1 text-xs text-zinc-500 cursor-pointer"
+            class="flex items-center gap-1 text-xs text-low cursor-pointer"
           >
             <input
               type="checkbox"
               phx-click="toggle_agent_output"
               phx-value-agent_id={member[:agent_id]}
               checked={Map.get(@agent_toggles, member[:agent_id], true)}
-              class="w-3 h-3 rounded bg-zinc-800 border-zinc-600 text-indigo-500 focus:ring-0"
+              class="w-3 h-3 rounded bg-raised border-border-subtle text-interactive focus:ring-0"
             />
             <span>{member[:name]}</span>
           </label>
@@ -77,7 +77,7 @@ defmodule ObservatoryWeb.Components.TeamTmuxComponents do
       >
         <.event_line :for={event <- @events} event={event} />
         <div :if={@events == []} class="flex items-center justify-center h-full">
-          <span class="text-xs text-zinc-700">No events</span>
+          <span class="text-xs text-muted">No events</span>
         </div>
       </div>
     </div>
@@ -88,10 +88,10 @@ defmodule ObservatoryWeb.Components.TeamTmuxComponents do
 
   defp event_line(assigns) do
     ~H"""
-    <div class={"flex items-center gap-2 px-2 py-0.5 text-xs hover:bg-zinc-900/50 #{tool_line_color(@event)}"}>
-      <span class="text-zinc-600 w-16 shrink-0 font-mono">{compact_time(@event.inserted_at)}</span>
+    <div class={"flex items-center gap-2 px-2 py-0.5 text-xs hover:bg-base/50 #{tool_line_color(@event)}"}>
+      <span class="text-muted w-16 shrink-0 font-mono">{compact_time(@event.inserted_at)}</span>
       <span class={"shrink-0 w-14 truncate #{tool_name_color(@event)}"}>{display_tool(@event)}</span>
-      <span class="text-zinc-400 truncate">{event_summary(@event)}</span>
+      <span class="text-default truncate">{event_summary(@event)}</span>
     </div>
     """
   end
@@ -135,14 +135,14 @@ defmodule ObservatoryWeb.Components.TeamTmuxComponents do
   end
 
   defp tool_name_color(%{hook_event_type: t}) when t in [:PreToolUse, :PostToolUse],
-    do: "text-amber-400"
+    do: "text-brand"
 
-  defp tool_name_color(%{hook_event_type: :PostToolUseFailure}), do: "text-red-400"
-  defp tool_name_color(%{hook_event_type: :SessionStart}), do: "text-emerald-400"
-  defp tool_name_color(%{hook_event_type: :SessionEnd}), do: "text-zinc-500"
-  defp tool_name_color(_), do: "text-zinc-500"
+  defp tool_name_color(%{hook_event_type: :PostToolUseFailure}), do: "text-error"
+  defp tool_name_color(%{hook_event_type: :SessionStart}), do: "text-success"
+  defp tool_name_color(%{hook_event_type: :SessionEnd}), do: "text-low"
+  defp tool_name_color(_), do: "text-low"
 
-  defp tool_line_color(%{hook_event_type: :PostToolUseFailure}), do: "bg-red-950/20"
+  defp tool_line_color(%{hook_event_type: :PostToolUseFailure}), do: "bg-error/20"
   defp tool_line_color(_), do: ""
 
   defp display_tool(%{tool_name: name}) when is_binary(name), do: name

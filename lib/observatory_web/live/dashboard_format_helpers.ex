@@ -5,32 +5,32 @@ defmodule ObservatoryWeb.DashboardFormatHelpers do
   """
 
   @session_palette [
-    {"bg-blue-500", "border-blue-500", "text-blue-400"},
-    {"bg-emerald-500", "border-emerald-500", "text-emerald-400"},
+    {"bg-info", "border-info", "text-info"},
+    {"bg-success", "border-success", "text-success"},
     {"bg-violet-500", "border-violet-500", "text-violet-400"},
-    {"bg-amber-500", "border-amber-500", "text-amber-400"},
+    {"bg-brand", "border-brand", "text-brand"},
     {"bg-rose-500", "border-rose-500", "text-rose-400"},
     {"bg-cyan-500", "border-cyan-500", "text-cyan-400"},
     {"bg-fuchsia-500", "border-fuchsia-500", "text-fuchsia-400"},
     {"bg-lime-500", "border-lime-500", "text-lime-400"},
     {"bg-orange-500", "border-orange-500", "text-orange-400"},
     {"bg-teal-500", "border-teal-500", "text-teal-400"},
-    {"bg-indigo-500", "border-indigo-500", "text-indigo-400"},
+    {"bg-interactive", "border-interactive", "text-interactive"},
     {"bg-pink-500", "border-pink-500", "text-pink-400"}
   ]
 
   @event_type_labels %{
     SessionStart: {"SESSION", "text-green-400 bg-green-500/15 border border-green-500/30"},
-    SessionEnd: {"END", "text-red-400 bg-red-500/15 border border-red-500/30"},
-    UserPromptSubmit: {"PROMPT", "text-blue-400 bg-blue-500/15 border border-blue-500/30"},
-    PreToolUse: {"TOOL", "text-amber-400 bg-amber-500/15 border border-amber-500/30"},
-    PostToolUse: {"DONE", "text-emerald-400 bg-emerald-500/15 border border-emerald-500/30"},
-    PostToolUseFailure: {"FAIL", "text-red-400 bg-red-500/15 border border-red-500/30"},
+    SessionEnd: {"END", "text-error bg-error/15 border border-error/30"},
+    UserPromptSubmit: {"PROMPT", "text-info bg-info/15 border border-info/30"},
+    PreToolUse: {"TOOL", "text-brand bg-brand/15 border border-brand/30"},
+    PostToolUse: {"DONE", "text-success bg-success/15 border border-success/30"},
+    PostToolUseFailure: {"FAIL", "text-error bg-error/15 border border-error/30"},
     PermissionRequest: {"PERM", "text-yellow-400 bg-yellow-500/15 border border-yellow-500/30"},
     Notification: {"NOTIF", "text-purple-400 bg-purple-500/15 border border-purple-500/30"},
     SubagentStart: {"SPAWN", "text-cyan-400 bg-cyan-500/15 border border-cyan-500/30"},
     SubagentStop: {"REAP", "text-cyan-600 bg-cyan-600/15 border border-cyan-600/30"},
-    Stop: {"STOP", "text-zinc-400 bg-zinc-500/15 border border-zinc-500/30"},
+    Stop: {"STOP", "text-default bg-low/15 border border-low/30"},
     PreCompact: {"COMPACT", "text-orange-400 bg-orange-500/15 border border-orange-500/30"}
   }
 
@@ -78,7 +78,7 @@ defmodule ObservatoryWeb.DashboardFormatHelpers do
   Get label and badge class for event type.
   """
   def event_type_label(type) do
-    Map.get(@event_type_labels, type, {"?", "text-zinc-400 bg-zinc-500/15"})
+    Map.get(@event_type_labels, type, {"?", "text-default bg-low/15"})
   end
 
   @doc """
@@ -229,10 +229,10 @@ defmodule ObservatoryWeb.DashboardFormatHelpers do
   Get color class for duration based on threshold.
   Gray <1s, amber 1-5s, red >5s.
   """
-  def duration_color(nil), do: "text-zinc-600"
-  def duration_color(ms) when ms < 1000, do: "text-zinc-600"
-  def duration_color(ms) when ms < 5000, do: "text-amber-400"
-  def duration_color(_ms), do: "text-red-400"
+  def duration_color(nil), do: "text-muted"
+  def duration_color(ms) when ms < 1000, do: "text-muted"
+  def duration_color(ms) when ms < 5000, do: "text-brand"
+  def duration_color(_ms), do: "text-error"
 
   @doc """
   Build export URL with current filter parameters.

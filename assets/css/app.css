@@ -105,6 +105,46 @@
 /* This file is for your main application CSS */
 
 /* ═══════════════════════════════════════════════════════════════════════
+   TAILWIND v4 THEME EXTENSIONS
+   Register --ichor-* tokens as Tailwind utilities so templates can use
+   semantic classes like text-high, bg-raised, border-base, text-brand.
+   ═══════════════════════════════════════════════════════════════════════ */
+@theme {
+  /* Text colors: text-high, text-default, text-low, text-muted */
+  --color-high: hsl(var(--ichor-text-high));
+  --color-default: hsl(var(--ichor-text));
+  --color-low: hsl(var(--ichor-text-low));
+  --color-muted: hsl(var(--ichor-text-muted));
+
+  /* Background colors: bg-base, bg-raised, bg-highlight, bg-surface, bg-overlay */
+  --color-base: hsl(var(--ichor-bg));
+  --color-raised: hsl(var(--ichor-bg-raised));
+  --color-highlight: hsl(var(--ichor-bg-highlight));
+  --color-surface: hsl(var(--ichor-bg-surface));
+  --color-overlay: hsl(var(--ichor-bg-overlay));
+
+  /* Border colors: border-base, border-subtle */
+  --color-border: hsl(var(--ichor-border));
+  --color-border-subtle: hsl(var(--ichor-border-subtle));
+
+  /* Brand: text-brand, bg-brand, border-brand */
+  --color-brand: hsl(var(--ichor-brand));
+  --color-brand-muted: hsl(var(--ichor-brand-muted));
+  --color-brand-dim: hsl(var(--ichor-brand-dim));
+  --color-brand-bg: hsl(var(--ichor-brand-bg));
+
+  /* Semantic status: text-success, text-error, text-warning, text-info */
+  --color-success: hsl(var(--ichor-success));
+  --color-error: hsl(var(--ichor-error));
+  --color-warning: hsl(var(--ichor-warning));
+  --color-info: hsl(var(--ichor-info));
+
+  /* Interactive: text-interactive, bg-interactive */
+  --color-interactive: hsl(var(--ichor-interactive));
+  --color-interactive-muted: hsl(var(--ichor-interactive-muted));
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
    DESIGN TOKENS
    CSS custom properties for theme-swappable design.
    Default: ICHOR IV (dark, amber accent).
@@ -122,6 +162,7 @@
     --ichor-bg: 240 6% 10%;                  /* zinc-900 #18181b */
     --ichor-bg-raised: 240 4% 16%;           /* zinc-800 #27272a */
     --ichor-bg-surface: 240 5% 12%;          /* between 800/900 */
+    --ichor-bg-highlight: 240 4% 27%;        /* zinc-700 -- hover/active */
     --ichor-bg-overlay: 0 0% 0%;             /* black for backdrops */
 
     /* ── Borders ── */
@@ -166,6 +207,7 @@
     --ichor-bg: 0 0% 100%;                  /* pure white */
     --ichor-bg-raised: 0 0% 95%;            /* #f2f2f2 */
     --ichor-bg-surface: 0 0% 98%;           /* near white */
+    --ichor-bg-highlight: 0 0% 90%;         /* hover/active */
     --ichor-bg-overlay: 0 0% 100%;          /* white */
 
     --ichor-border: 0 0% 0%;               /* black borders */

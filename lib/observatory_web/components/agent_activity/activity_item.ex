@@ -14,17 +14,17 @@ defmodule ObservatoryWeb.Components.AgentActivity.ActivityItem do
 
   def activity_item(assigns) do
     ~H"""
-    <div class="hover:bg-zinc-800/30 transition">
+    <div class="hover:bg-raised/30 transition">
       <%!-- Summary row (always visible) --%>
       <div
         phx-click="toggle_event_detail"
         phx-value-id={@event.id}
         class="p-2 cursor-pointer flex items-start gap-2"
       >
-        <span class="text-zinc-600 font-mono shrink-0">{format_time(@event.inserted_at)}</span>
-        <span class="flex-1 text-zinc-300">{summarize_event(@event)}</span>
-        <span class="text-zinc-600 shrink-0">{relative_time(@event.inserted_at, @now)}</span>
-        <span class="text-zinc-600 shrink-0">{if @expanded, do: "▼", else: "▶"}</span>
+        <span class="text-muted font-mono shrink-0">{format_time(@event.inserted_at)}</span>
+        <span class="flex-1 text-high">{summarize_event(@event)}</span>
+        <span class="text-muted shrink-0">{relative_time(@event.inserted_at, @now)}</span>
+        <span class="text-muted shrink-0">{if @expanded, do: "▼", else: "▶"}</span>
       </div>
 
       <%!-- Expandable payload detail --%>

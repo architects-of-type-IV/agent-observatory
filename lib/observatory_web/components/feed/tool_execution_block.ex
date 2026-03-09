@@ -14,15 +14,15 @@ defmodule ObservatoryWeb.Components.Feed.ToolExecutionBlock do
 
   def tool_execution_block(assigns) do
     ~H"""
-    <div class="ml-4 border-l-2 border-zinc-700 pl-3 py-1 space-y-1">
+    <div class="ml-4 border-l-2 border-border-subtle pl-3 py-1 space-y-1">
       <!-- Tool name and status header -->
       <div class="flex items-center gap-2">
-        <span class="text-xs font-mono text-indigo-400 shrink-0">
+        <span class="text-xs font-mono text-interactive shrink-0">
           {@pair.tool_name}
         </span>
         
     <!-- Status indicator -->
-        <span :if={@pair.status == :in_progress} class="text-xs font-mono text-amber-400 shrink-0">
+        <span :if={@pair.status == :in_progress} class="text-xs font-mono text-brand shrink-0">
           Running... ({format_duration(DashboardFeedHelpers.elapsed_time_ms(@pair.pre, @now))})
         </span>
 
@@ -33,30 +33,30 @@ defmodule ObservatoryWeb.Components.Feed.ToolExecutionBlock do
           {format_duration(@pair.duration_ms)}
         </span>
 
-        <span :if={@pair.status == :failure} class="text-xs font-mono text-red-400 shrink-0">
+        <span :if={@pair.status == :failure} class="text-xs font-mono text-error shrink-0">
           Failed
         </span>
 
         <span class="flex-1"></span>
 
-        <span class="text-xs font-mono text-zinc-600 shrink-0">
+        <span class="text-xs font-mono text-muted shrink-0">
           {relative_time(@pair.pre.inserted_at, @now)}
         </span>
       </div>
       
     <!-- Pre event (clickable) -->
       <div
-        class={"flex items-center gap-2 px-2 py-1 rounded cursor-pointer transition-all hover:bg-zinc-800/50 text-xs #{if @selected_event && @selected_event.id == @pair.pre.id, do: "bg-zinc-800/80 ring-1 ring-indigo-500/40", else: ""}"}
+        class={"flex items-center gap-2 px-2 py-1 rounded cursor-pointer transition-all hover:bg-raised/50 text-xs #{if @selected_event && @selected_event.id == @pair.pre.id, do: "bg-raised/80 ring-1 ring-interactive/40", else: ""}"}
         phx-click="select_event"
         phx-value-id={@pair.pre.id}
       >
-        <span class="text-amber-400 font-mono shrink-0">START</span>
-        <span class="text-zinc-400 truncate flex-1">
+        <span class="text-brand font-mono shrink-0">START</span>
+        <span class="text-default truncate flex-1">
           {event_summary(@pair.pre)}
         </span>
         <span
           :if={Map.has_key?(@event_notes, @pair.pre.id)}
-          class="text-amber-400 shrink-0"
+          class="text-brand shrink-0"
           title="Has note"
         >
           <svg
@@ -73,19 +73,19 @@ defmodule ObservatoryWeb.Components.Feed.ToolExecutionBlock do
     <!-- Post event (clickable) - if exists -->
       <div
         :if={@pair.post}
-        class={"flex items-center gap-2 px-2 py-1 rounded cursor-pointer transition-all hover:bg-zinc-800/50 text-xs #{if @selected_event && @selected_event.id == @pair.post.id, do: "bg-zinc-800/80 ring-1 ring-indigo-500/40", else: ""}"}
+        class={"flex items-center gap-2 px-2 py-1 rounded cursor-pointer transition-all hover:bg-raised/50 text-xs #{if @selected_event && @selected_event.id == @pair.post.id, do: "bg-raised/80 ring-1 ring-interactive/40", else: ""}"}
         phx-click="select_event"
         phx-value-id={@pair.post.id}
       >
-        <span class={"font-mono shrink-0 #{if @pair.status == :failure, do: "text-red-400", else: "text-emerald-400"}"}>
+        <span class={"font-mono shrink-0 #{if @pair.status == :failure, do: "text-error", else: "text-success"}"}>
           {if @pair.status == :failure, do: "FAIL", else: "DONE"}
         </span>
-        <span class="text-zinc-400 truncate flex-1">
+        <span class="text-default truncate flex-1">
           {event_summary(@pair.post)}
         </span>
         <span
           :if={Map.has_key?(@event_notes, @pair.post.id)}
-          class="text-amber-400 shrink-0"
+          class="text-brand shrink-0"
           title="Has note"
         >
           <svg

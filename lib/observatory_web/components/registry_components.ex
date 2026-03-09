@@ -13,32 +13,32 @@ defmodule ObservatoryWeb.Components.RegistryComponents do
 
     ~H"""
     <div id="registry-view" class="p-6 space-y-6">
-      <h2 class="text-lg font-semibold text-zinc-300">Registry</h2>
+      <h2 class="text-lg font-semibold text-high">Registry</h2>
 
       <%!-- Capability Directory --%>
-      <div class="bg-zinc-900/50 border border-zinc-800 rounded-lg">
-        <div class="px-4 py-3 border-b border-zinc-800">
-          <h3 class="text-sm font-semibold text-zinc-400 uppercase tracking-wider">Capability Directory</h3>
+      <div class="bg-base/50 border border-border rounded-lg">
+        <div class="px-4 py-3 border-b border-border">
+          <h3 class="text-sm font-semibold text-default uppercase tracking-wider">Capability Directory</h3>
         </div>
         <table class="w-full">
           <thead>
-            <tr class="text-xs text-zinc-500 uppercase">
+            <tr class="text-xs text-low uppercase">
               <th
-                class="px-4 py-2 text-left cursor-pointer hover:text-zinc-300"
+                class="px-4 py-2 text-left cursor-pointer hover:text-high"
                 phx-click="sort_capability_directory"
                 phx-value-field="agent_type"
               >
                 Agent Type {sort_indicator(@capability_sort_field, :agent_type, @capability_sort_dir)}
               </th>
               <th
-                class="px-4 py-2 text-left cursor-pointer hover:text-zinc-300"
+                class="px-4 py-2 text-left cursor-pointer hover:text-high"
                 phx-click="sort_capability_directory"
                 phx-value-field="instance_count"
               >
                 Instances {sort_indicator(@capability_sort_field, :instance_count, @capability_sort_dir)}
               </th>
               <th
-                class="px-4 py-2 text-left cursor-pointer hover:text-zinc-300"
+                class="px-4 py-2 text-left cursor-pointer hover:text-high"
                 phx-click="sort_capability_directory"
                 phx-value-field="capability_version"
               >
@@ -49,13 +49,13 @@ defmodule ObservatoryWeb.Components.RegistryComponents do
           <tbody>
             <%= if @sorted_types == [] do %>
               <tr>
-                <td colspan="3" class="px-4 py-4 text-sm text-zinc-500 text-center">No agent types registered</td>
+                <td colspan="3" class="px-4 py-4 text-sm text-low text-center">No agent types registered</td>
               </tr>
             <% else %>
-              <tr :for={at <- @sorted_types} class="border-t border-zinc-800/50 hover:bg-zinc-800/30">
-                <td class="px-4 py-2 text-sm text-zinc-300">{Map.get(at, :agent_type, "unknown")}</td>
-                <td class="px-4 py-2 text-sm text-zinc-400">{Map.get(at, :instance_count, 0)}</td>
-                <td class="px-4 py-2 text-sm font-mono text-zinc-500">{Map.get(at, :capability_version, "-")}</td>
+              <tr :for={at <- @sorted_types} class="border-t border-border/50 hover:bg-raised/30">
+                <td class="px-4 py-2 text-sm text-high">{Map.get(at, :agent_type, "unknown")}</td>
+                <td class="px-4 py-2 text-sm text-default">{Map.get(at, :instance_count, 0)}</td>
+                <td class="px-4 py-2 text-sm font-mono text-low">{Map.get(at, :capability_version, "-")}</td>
               </tr>
             <% end %>
           </tbody>
@@ -63,14 +63,14 @@ defmodule ObservatoryWeb.Components.RegistryComponents do
       </div>
 
       <%!-- Routing Logic Manager --%>
-      <div class="bg-zinc-900/50 border border-zinc-800 rounded-lg p-4">
-        <h3 class="text-sm font-semibold text-zinc-400 uppercase tracking-wider mb-4">Routing Logic Manager</h3>
+      <div class="bg-base/50 border border-border rounded-lg p-4">
+        <h3 class="text-sm font-semibold text-default uppercase tracking-wider mb-4">Routing Logic Manager</h3>
         <%= if @sorted_types == [] do %>
-          <p class="text-sm text-zinc-500">No agent types to configure</p>
+          <p class="text-sm text-low">No agent types to configure</p>
         <% else %>
           <div class="space-y-3">
             <div :for={at <- @sorted_types} class="flex items-center gap-3">
-              <span class="text-sm text-zinc-300 w-32">{Map.get(at, :agent_type, "unknown")}</span>
+              <span class="text-sm text-high w-32">{Map.get(at, :agent_type, "unknown")}</span>
               <form phx-submit="update_route_weight" class="flex items-center gap-2">
                 <input type="hidden" name="agent_type" value={Map.get(at, :agent_type, "")} />
                 <input
@@ -80,15 +80,15 @@ defmodule ObservatoryWeb.Components.RegistryComponents do
                   placeholder="0-100"
                   min="0"
                   max="100"
-                  class="w-20 bg-zinc-800 border border-zinc-700 rounded px-2 py-1 text-xs text-zinc-300 focus:border-indigo-500 focus:ring-0"
+                  class="w-20 bg-raised border border-border-subtle rounded px-2 py-1 text-xs text-high focus:border-interactive focus:ring-0"
                 />
-                <button type="submit" class="px-2 py-1 text-xs bg-zinc-700 hover:bg-zinc-600 text-zinc-300 rounded transition">
+                <button type="submit" class="px-2 py-1 text-xs bg-highlight hover:bg-highlight text-high rounded transition">
                   Set
                 </button>
               </form>
               <span
                 :if={Map.get(@route_weight_errors, Map.get(at, :agent_type, ""))}
-                class="text-xs text-red-400"
+                class="text-xs text-error"
               >
                 {Map.get(@route_weight_errors, Map.get(at, :agent_type, ""))}
               </span>

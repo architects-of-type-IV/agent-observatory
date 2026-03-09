@@ -10,50 +10,50 @@ defmodule ObservatoryWeb.Components.PipelineComponents do
   embed_templates "pipeline_components/*"
 
   # DAG node styling helpers
-  defp dag_border("completed", true, _), do: "border-emerald-500/60 ring-1 ring-emerald-500/20"
-  defp dag_border("completed", _, true), do: "border-indigo-500/60"
-  defp dag_border("completed", _, _), do: "border-emerald-500/30"
-  defp dag_border("in_progress", true, _), do: "border-blue-500/60 ring-1 ring-blue-500/20"
-  defp dag_border("in_progress", _, true), do: "border-indigo-500/60"
-  defp dag_border("in_progress", _, _), do: "border-blue-500/40"
-  defp dag_border("failed", _, _), do: "border-red-500/40"
-  defp dag_border(_, _, true), do: "border-indigo-500/60"
-  defp dag_border(_, true, _), do: "border-zinc-600 ring-1 ring-zinc-500/20"
-  defp dag_border(_, _, _), do: "border-zinc-800"
+  defp dag_border("completed", true, _), do: "border-success/60 ring-1 ring-success/20"
+  defp dag_border("completed", _, true), do: "border-interactive/60"
+  defp dag_border("completed", _, _), do: "border-success/30"
+  defp dag_border("in_progress", true, _), do: "border-info/60 ring-1 ring-info/20"
+  defp dag_border("in_progress", _, true), do: "border-interactive/60"
+  defp dag_border("in_progress", _, _), do: "border-info/40"
+  defp dag_border("failed", _, _), do: "border-error/40"
+  defp dag_border(_, _, true), do: "border-interactive/60"
+  defp dag_border(_, true, _), do: "border-border-subtle ring-1 ring-low/20"
+  defp dag_border(_, _, _), do: "border-border"
 
-  defp dag_bg("completed"), do: "bg-emerald-500/5"
-  defp dag_bg("in_progress"), do: "bg-blue-500/5"
-  defp dag_bg("failed"), do: "bg-red-500/5"
-  defp dag_bg(_), do: "bg-zinc-900/50"
+  defp dag_bg("completed"), do: "bg-success/5"
+  defp dag_bg("in_progress"), do: "bg-info/5"
+  defp dag_bg("failed"), do: "bg-error/5"
+  defp dag_bg(_), do: "bg-base/50"
 
-  defp dag_dot("completed"), do: "bg-emerald-400"
-  defp dag_dot("in_progress"), do: "bg-blue-400 animate-pulse"
-  defp dag_dot("failed"), do: "bg-red-400"
-  defp dag_dot("pending"), do: "bg-zinc-500"
-  defp dag_dot(_), do: "bg-zinc-600"
+  defp dag_dot("completed"), do: "bg-success"
+  defp dag_dot("in_progress"), do: "bg-info animate-pulse"
+  defp dag_dot("failed"), do: "bg-error"
+  defp dag_dot("pending"), do: "bg-low"
+  defp dag_dot(_), do: "bg-highlight"
 
   defp task_badge_class("completed"),
-    do: "px-1.5 py-0.5 rounded text-[10px] bg-emerald-500/15 text-emerald-400"
+    do: "px-1.5 py-0.5 rounded text-[10px] bg-success/15 text-success"
 
   defp task_badge_class("in_progress"),
-    do: "px-1.5 py-0.5 rounded text-[10px] bg-blue-500/15 text-blue-400"
+    do: "px-1.5 py-0.5 rounded text-[10px] bg-info/15 text-info"
 
   defp task_badge_class("failed"),
-    do: "px-1.5 py-0.5 rounded text-[10px] bg-red-500/15 text-red-400"
+    do: "px-1.5 py-0.5 rounded text-[10px] bg-error/15 text-error"
 
   defp task_badge_class("pending"),
-    do: "px-1.5 py-0.5 rounded text-[10px] bg-zinc-700 text-zinc-400"
+    do: "px-1.5 py-0.5 rounded text-[10px] bg-highlight text-default"
 
   defp task_badge_class("blocked"),
-    do: "px-1.5 py-0.5 rounded text-[10px] bg-amber-500/15 text-amber-400"
+    do: "px-1.5 py-0.5 rounded text-[10px] bg-brand/15 text-brand"
 
-  defp task_badge_class(_), do: "px-1.5 py-0.5 rounded text-[10px] bg-zinc-800 text-zinc-500"
+  defp task_badge_class(_), do: "px-1.5 py-0.5 rounded text-[10px] bg-raised text-low"
 
-  defp priority_color("critical"), do: "text-red-400"
-  defp priority_color("high"), do: "text-amber-400"
-  defp priority_color("medium"), do: "text-zinc-400"
-  defp priority_color("low"), do: "text-zinc-600"
-  defp priority_color(_), do: "text-zinc-600"
+  defp priority_color("critical"), do: "text-error"
+  defp priority_color("high"), do: "text-brand"
+  defp priority_color("medium"), do: "text-default"
+  defp priority_color("low"), do: "text-muted"
+  defp priority_color(_), do: "text-muted"
 
   defp short_timestamp(""), do: ""
   defp short_timestamp(nil), do: ""
