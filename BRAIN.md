@@ -33,13 +33,20 @@
 - **Archon.Chat**: stateless LLM conversation engine (LangChain + ChatAnthropic + AshAi)
   - `chat/2` -> `{:ok, response, history}`, history in LiveView assigns
   - Model: claude-sonnet-4-20250514, API key from env or config
-- **Archon UI**: overlay triggered by `a` key or FAB button
-  - `ArchonComponents` with 8 sub-components (shortcodes_panel, chat_panel, chat_bubble, etc.)
-  - CSS design system: `archon-*` classes in `app.css` (theme-portable)
+- **Archon UI**: centered 16:9 translucent glass panel (key `a` or FAB)
+  - Three tabs: Command (Q), Chat (W), Reference (E) -- keyboard-switchable
+  - Command tab: 7 quick action cards (keys 1-7) + mini activity feed
+  - Chat tab: full conversation view with Archon
+  - Reference tab: all 10 shortcodes in clickable grid
+  - `ArchonComponents` with sub-components (command_hud, chat_panel, reference_panel, etc.)
+  - CSS: `archon-*` classes -- translucent glass (bg-black/40), amber glow, pulsing sigil
+  - MutationObserver tracks `.archon-overlay` for keyboard context routing
+  - System-role messages: amber alert bubble for HITL notifications
   - `DashboardArchonHandlers`: toggle, send, shortcode, async response handlers
   - Async dispatch via `Task.start` -> `handle_info({:archon_response, result})`
 - Fleet tools are in-process calls; Memory tools call Memories HTTP API at localhost:4000
 - Operator agent (role: :operator) excluded from NudgeEscalator stale detection
+- **HITL notification**: pause/resume/approve/reject update paused_sessions immediately + inject system message into archon_messages + auto-open overlay
 
 ## Archon Memories Integration (2026-03-09)
 - **MemoriesClient**: HTTP client using Req (search, ingest, query_memory)

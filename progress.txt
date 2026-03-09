@@ -1,9 +1,23 @@
 ICHOR IV Progress (formerly Observatory)
 ========================================
 
-## Current: LiveView Performance Optimization (2026-03-09)
+## Current: Archon HUD Redesign + Fleet Action Fixes (2026-03-09)
 
 ### This Session
+- [x] Fixed fleet sidebar showing 0 agents (agent_index not passed as prop to command_view)
+- [x] Audited all fleet action buttons end-to-end (shutdown, kill, pause, resume, focus, trace, tmux)
+- [x] Fixed shutdown_agent: now marks ended in registry + stops AgentProcess
+- [x] Fixed kill_tmux_session: now removes agent from AgentRegistry after tmux kill
+- [x] Fixed pause/resume: immediately updates paused_sessions MapSet (was waiting for PubSub)
+- [x] Added Agent Focus slideout panel (right-edge slide-over with agent info + activity)
+- [x] Added HITL Gate Archon notification (system-role alert auto-opens overlay)
+- [x] Redesigned Archon HUD: full-screen opaque -> centered 16:9 translucent glass panel
+- [x] Three tabbed views: Command (Q), Chat (W), Reference (E) with keyboard switching
+- [x] Command tab: 7 quick action cards (keys 1-7) + mini activity feed
+- [x] Keyboard context: MutationObserver tracks archon state, routes keys accordingly
+- [x] Visual design: translucent glass, amber glow, gradient edge, pulsing sigil
+
+### Prior: LiveView Performance Optimization (2026-03-09)
 - [x] LiveView perf audit against 10 common anti-patterns
 - [x] Tiered recompute: full vs view-only vs no recompute
 - [x] Debounced recompute: 100ms coalesce window for PubSub events

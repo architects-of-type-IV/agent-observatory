@@ -1,29 +1,36 @@
 # ICHOR IV (formerly Observatory) - Handoff
 
-## Current Status: LiveView Performance Optimization (2026-03-09)
+## Current Status: Archon HUD Redesign + Fleet Action Fixes (2026-03-09)
 
 ### Just Completed
 
-**LiveView Performance Optimization (6 fixes)**
+**Archon Type IV Sovereign HUD Redesign**
+- Redesigned from full-screen opaque modal to centered 16:9 translucent glass panel
+- Three tabbed views: Command (Q), Chat (W), Reference (E) -- keyboard-switchable
+- Command tab: 7 quick action cards bound to keys 1-7 (agents, teams, inbox, health, sessions, recall, query) + mini activity feed
+- Chat tab: full conversation view with Archon
+- Reference tab: all 10 shortcodes in clickable grid
+- Keyboard context: when Archon open, number keys fire shortcodes; Q/W/E switch tabs; esc/a closes
+- DOM MutationObserver tracks archon open state for keyboard routing
+- Visual: translucent glass (bg-black/40), amber glow, gradient edge, pulsing sigil, ONLINE status
 
-Audited dashboard LiveView against common Phoenix LiveView performance anti-patterns. Applied 6 optimizations:
+**Fleet Control Fixes (5 issues)**
+1. `agent_index` not passed to `command_view` component -- fleet sidebar always showed 0 agents
+2. `shutdown_agent` only sent a message, didn't mark ended or stop AgentProcess
+3. `kill_tmux_session` killed tmux but didn't remove from AgentRegistry
+4. Pause/Resume didn't update `paused_sessions` MapSet immediately (waited for PubSub)
+5. Focus button was dead -- `agent_slideout` assign set but no template rendered it
 
-1. **Tiered recompute** -- Split `recompute/1` into full (Ash+SQL queries) and `recompute_view/1` (display-only, no queries). UI toggles and selections skip all data queries.
-2. **Debounced recompute** -- PubSub events (new_event, registry_changed, etc.) schedule a single recompute after 100ms instead of firing immediately. Multiple events within the window coalesce.
-3. **Eliminated double recompute** -- `{:swarm_state}` was re-broadcasting events:stream, causing 2 full recomputes per hook event. Now assigns only, no recompute.
-4. **Deferred mount** -- Static render gets lightweight defaults. `send(self(), :load_data)` triggers full data load + `seed_gateway_assigns` only after WebSocket connects.
-5. **Conditional computation** -- analytics/timeline only computed when activity tab is active. Feed groups only on command/activity view. Cost data (3 SQL queries) only on forensic/control view.
-6. **Eliminated redundant queries** -- `load_messages/2` reuses the already-fetched `messages` list instead of calling `Activity.Message.recent!()` a second time.
-
-**Events removed from recompute entirely:**
-- `{:swarm_state}` -- assign only (was double-recomputing)
-- `{:hitl}` -- just refreshes paused_sessions assign
-- Nudge/gate events -- notifications only, no data changed
-- Gateway messages -- `handle_gateway_info` already updates its own assigns
-- UI toggles (toggle_shortcuts_help, toggle_create_task_modal, etc.)
-- Selection events (select_event, select_task, select_agent, close_detail)
+**New Features**
+- `AgentRegistry.remove/1` -- delete agent from ETS + broadcast registry change
+- Agent Focus slideout panel -- right-edge slide-over showing agent info, terminal, activity
+- HITL gate Archon notification -- system-role alert auto-opens Archon when agent is paused
+- System message styling in Archon chat (amber alert bubble, "alert" meta label)
 
 ### Previously Completed
+
+**LiveView Performance Optimization (6 fixes)**
+- Tiered recompute, debounced recompute, deferred mount, conditional computation
 
 **Fleet Consistency Rewire + Legacy Elimination (tasks 42, 51)**
 - All external callers rewired to Fleet code interfaces
