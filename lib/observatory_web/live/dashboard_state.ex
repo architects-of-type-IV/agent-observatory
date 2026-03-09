@@ -136,7 +136,23 @@ defmodule ObservatoryWeb.DashboardState do
       show_archon: false,
       archon_messages: [],
       archon_history: [],
-      archon_loading: false
+      archon_loading: false,
+      # Recompute-derived assigns (defaults for static render before :load_data)
+      teams: [],
+      has_teams: false,
+      sessions: [],
+      total_sessions: 0,
+      messages: [],
+      message_threads: [],
+      active_tasks: [],
+      errors: [],
+      error_groups: [],
+      analytics: %{},
+      timeline: [],
+      visible_events: [],
+      event_notes: [],
+      sel_team: nil,
+      nav_view: :pipeline
     }
   end
 
