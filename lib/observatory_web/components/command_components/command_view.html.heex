@@ -212,12 +212,12 @@
         <%!-- Trace filter pills --%>
         <%= if agent_filter != [] do %>
           <span class="w-px h-3 bg-highlight mx-1" />
-          <span class="text-[9px] text-violet-400 font-semibold">Trace:</span>
+          <span class="text-[9px] text-violet font-semibold">Trace:</span>
           <%= for af <- agent_filter do %>
             <span
               phx-click="trace_agent"
               phx-value-agent_id={af}
-              class="text-[9px] px-1.5 py-0.5 rounded bg-violet-500/15 text-violet-300 cursor-pointer hover:bg-violet-500/25 transition"
+              class="text-[9px] px-1.5 py-0.5 rounded bg-violet/15 text-violet cursor-pointer hover:bg-violet/25 transition"
             >{FH.resolve_label(af, names)}</span>
           <% end %>
           <button phx-click="clear_trace" class="text-[9px] text-muted hover:text-default cursor-pointer ml-0.5">x</button>
@@ -351,7 +351,7 @@
           </div>
           <div :if={sel_agent[:current_tool]} class="flex justify-between">
             <dt class="text-low">Current tool</dt>
-            <dd class="text-cyan-400">{sel_agent.current_tool.tool_name} ({sel_agent.current_tool.elapsed}s)</dd>
+            <dd class="text-cyan">{sel_agent.current_tool.tool_name} ({sel_agent.current_tool.elapsed}s)</dd>
           </div>
           <div :if={sel_agent[:cwd]} class="flex justify-between">
             <dt class="text-low">cwd</dt>
@@ -418,7 +418,7 @@
           <button :if={sel_tmux} phx-click="connect_tmux" phx-value-session={sel_tmux} class="ichor-btn bg-brand/15 text-brand hover:bg-brand/25">Tmux</button>
           <button phx-click="open_agent_slideout" phx-value-session_id={sel_id} class="ichor-btn ichor-btn-primary">Focus</button>
           <% is_traced = sel_id in agent_filter %>
-          <button phx-click="trace_agent" phx-value-agent_id={sel_id} class={"ichor-btn #{if is_traced, do: "bg-violet-500/15 text-violet-400", else: "ichor-btn-muted"}"}>
+          <button phx-click="trace_agent" phx-value-agent_id={sel_id} class={"ichor-btn #{if is_traced, do: "bg-violet/15 text-violet", else: "ichor-btn-muted"}"}>
             {if is_traced, do: "Tracing", else: "Trace"}
           </button>
           <button :if={!is_hitl_paused} phx-click="pause_agent" phx-value-session_id={sel_id} class="ichor-btn ichor-btn-muted">Pause</button>

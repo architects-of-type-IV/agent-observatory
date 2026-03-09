@@ -82,7 +82,7 @@
         <div class="flex items-center rounded overflow-hidden border border-border-subtle/60">
           <span class="text-[10px] text-muted px-1.5 py-1 bg-raised/80">Presets</span>
           <button phx-click="apply_preset" phx-value-preset="failed_tools" class="text-[10px] px-2 py-1 bg-error/20 text-error hover:bg-error/30 transition">Failed</button>
-          <button phx-click="apply_preset" phx-value-preset="team_events" class="text-[10px] px-2 py-1 bg-cyan-600/15 text-cyan-400 hover:bg-cyan-600/25 transition">Teams</button>
+          <button phx-click="apply_preset" phx-value-preset="team_events" class="text-[10px] px-2 py-1 bg-cyan/15 text-cyan hover:bg-cyan/25 transition">Teams</button>
           <button phx-click="apply_preset" phx-value-preset="slow" class="text-[10px] px-2 py-1 bg-brand/15 text-brand hover:bg-brand/25 transition">Slow</button>
           <button phx-click="apply_preset" phx-value-preset="errors_only" class="text-[10px] px-2 py-1 bg-error/20 text-error hover:bg-error/30 transition">Errors</button>
           <button
@@ -205,7 +205,7 @@
             <span :if={@selected_topology_node[:tool_count]} class="text-low">{@selected_topology_node.tool_count} tools</span>
             <span :if={@selected_topology_node[:duration]} class="text-low">{@selected_topology_node.duration}</span>
             <span :if={@selected_topology_node[:cwd]} class="font-mono text-muted truncate max-w-[200px]">{@selected_topology_node.cwd}</span>
-            <span :if={@selected_topology_node[:last_tool]} class="text-cyan-500">{@selected_topology_node.last_tool}</span>
+            <span :if={@selected_topology_node[:last_tool]} class="text-cyan">{@selected_topology_node.last_tool}</span>
             <button phx-click="clear_topology_selection" class="ml-auto text-muted hover:text-default">x</button>
           </div>
 
@@ -463,7 +463,7 @@
                   phx-click="send_team_broadcast"
                   phx-value-team={team.name}
                   phx-value-content="status"
-                  class="ichor-btn !text-[9px] !py-0.5 bg-cyan-600/15 text-cyan-400 hover:bg-cyan-600/25"
+                  class="ichor-btn !text-[9px] !py-0.5 bg-cyan/15 text-cyan hover:bg-cyan/25"
                   title={"Ping all agents in #{team.name}"}
                 >
                   Ping
@@ -632,7 +632,7 @@
           <div class="divide-y divide-border/30">
             <%= for item <- Enum.take(@slideout_activity, 50) do %>
               <div class="px-4 py-1.5 flex items-start gap-2 text-[10px]">
-                <span class={"shrink-0 mt-0.5 w-1.5 h-1.5 rounded-full #{if item.type == :event, do: "bg-cyan-500/60", else: "bg-violet-500/60"}"}></span>
+                <span class={"shrink-0 mt-0.5 w-1.5 h-1.5 rounded-full #{if item.type == :event, do: "bg-cyan/60", else: "bg-violet/60"}"}></span>
                 <div class="min-w-0 flex-1">
                   <p class="text-default truncate">{item.content}</p>
                 </div>

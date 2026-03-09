@@ -64,7 +64,7 @@
     <div :if={@selected_dag_task} class="ichor-card p-3 min-w-0 overflow-hidden">
       <span class="text-[10px] text-muted uppercase tracking-wider">Task Detail</span>
       <div class="flex items-center gap-2 flex-wrap mt-2 mb-2">
-        <span :if={@selected_dag_task[:project]} class="text-[10px] font-mono text-violet-400 truncate">{@selected_dag_task.project}</span>
+        <span :if={@selected_dag_task[:project]} class="text-[10px] font-mono text-violet truncate">{@selected_dag_task.project}</span>
         <span class="text-xs font-mono text-default">#{@selected_dag_task.id}</span>
         <span class={task_badge_class(@selected_dag_task.status)}>{@selected_dag_task.status}</span>
         <span :if={@selected_dag_task.priority} class="text-[10px] text-low">{@selected_dag_task.priority}</span>
@@ -128,7 +128,7 @@
               ]}
             >
               <div class="flex items-center gap-1 mb-0.5">
-                <span :if={task[:project] && task.project != ""} class="text-[9px] font-mono text-violet-400/60">{task.project}</span>
+                <span :if={task[:project] && task.project != ""} class="text-[9px] font-mono text-violet/60">{task.project}</span>
                 <span class="text-[9px] font-mono text-muted">{task.id}</span>
                 <span :if={task.priority} class={"text-[9px] #{priority_color(task.priority)}"}>{task.priority}</span>
               </div>

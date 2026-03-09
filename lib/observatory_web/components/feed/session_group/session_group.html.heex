@@ -57,7 +57,7 @@
     <span class="text-[10px] font-mono text-muted flex items-center gap-1.5">
       <span :if={@group.turn_count > 0}>{@group.turn_count}t</span>
       <span :if={@group.tool_count > 0}>{@group.tool_count}x</span>
-      <span :if={@group.subagent_count > 0} class="text-cyan-600">{@group.subagent_count}s</span>
+      <span :if={@group.subagent_count > 0} class="text-cyan">{@group.subagent_count}s</span>
     </span>
 
     <%!-- Time range --%>

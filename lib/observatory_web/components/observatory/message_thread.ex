@@ -68,7 +68,7 @@ defmodule ObservatoryWeb.Components.Observatory.MessageThread do
             <span class={"w-1.5 h-1.5 rounded-full #{bg}"}></span>
             <span class="text-xs font-mono text-default">{short_session(msg.sender_session)}</span>
             <span class="text-xs text-muted">→</span>
-            <span class="text-xs font-mono text-cyan-500">{msg.recipient || "all"}</span>
+            <span class="text-xs font-mono text-cyan">{msg.recipient || "all"}</span>
             <span
               :if={msg.type != "message"}
               class={"text-xs px-1 rounded #{message_type_badge_class(msg.type)}"}

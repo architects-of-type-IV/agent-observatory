@@ -26,20 +26,20 @@ defmodule ObservatoryWeb.Components.ProtocolComponents do
   defp trace_type_label(other), do: to_string(other)
 
   defp trace_type_color(:send_message), do: "bg-interactive/15 text-interactive"
-  defp trace_type_color(:team_create), do: "bg-cyan-500/15 text-cyan-400"
+  defp trace_type_color(:team_create), do: "bg-cyan/15 text-cyan"
   defp trace_type_color(:agent_spawn), do: "bg-brand/15 text-brand"
   defp trace_type_color(_), do: "bg-highlight text-default"
 
   defp hop_status_color(:received), do: "bg-success"
   defp hop_status_color(:delivered), do: "bg-success"
-  defp hop_status_color(:broadcast), do: "bg-cyan-400"
+  defp hop_status_color(:broadcast), do: "bg-cyan"
   defp hop_status_color(:pending), do: "bg-brand-muted"
   defp hop_status_color(:read), do: "bg-success"
   defp hop_status_color(_), do: "bg-low"
 
   defp hop_status_text(:received), do: "text-success"
   defp hop_status_text(:delivered), do: "text-success"
-  defp hop_status_text(:broadcast), do: "text-cyan-500"
+  defp hop_status_text(:broadcast), do: "text-cyan"
   defp hop_status_text(:pending), do: "text-brand"
   defp hop_status_text(:read), do: "text-success"
   defp hop_status_text(_), do: "text-muted"

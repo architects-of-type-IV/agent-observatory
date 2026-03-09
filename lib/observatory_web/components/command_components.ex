@@ -89,7 +89,7 @@ defmodule ObservatoryWeb.Components.CommandComponents do
       <div :if={@pipeline.total > 0 && @pipeline.total != @task_count} class="ichor-tip ichor-tip-bottom flex items-center gap-1" data-tip={"Pipeline: #{@pipeline.completed} completed / #{@pipeline.total} total"}>
         <% ppct = progress_pct(@pipeline) %>
         <div class="w-10 h-1 bg-raised rounded-full overflow-hidden">
-          <div class="h-full bg-cyan-500 rounded-full" style={"width: #{ppct}%"} />
+          <div class="h-full bg-cyan rounded-full" style={"width: #{ppct}%"} />
         </div>
         <span class="font-mono text-low">{@pipeline.completed}/{@pipeline.total}</span>
       </div>
@@ -173,9 +173,9 @@ defmodule ObservatoryWeb.Components.CommandComponents do
 
   defp role_badge_class(role) when is_binary(role) do
     cond do
-      String.contains?(role, "lead") -> "bg-violet-500/20 text-violet-400"
+      String.contains?(role, "lead") -> "bg-violet/20 text-violet"
       String.contains?(role, "coordinator") -> "bg-brand/20 text-brand"
-      String.contains?(role, "worker") -> "bg-cyan-500/20 text-cyan-400"
+      String.contains?(role, "worker") -> "bg-cyan/20 text-cyan"
       true -> "bg-highlight text-default"
     end
   end
@@ -224,9 +224,9 @@ defmodule ObservatoryWeb.Components.CommandComponents do
   defp short_id(id) when byte_size(id) > 8, do: String.slice(id, 0, 8) <> "..."
   defp short_id(id), do: id
 
-  defp activity_icon(:tool), do: "text-cyan-500"
+  defp activity_icon(:tool), do: "text-cyan"
   defp activity_icon(:error), do: "text-error"
-  defp activity_icon(:notify), do: "text-violet-400"
+  defp activity_icon(:notify), do: "text-violet"
   defp activity_icon(:task_done), do: "text-success"
   defp activity_icon(_), do: "text-low"
 

@@ -12,7 +12,7 @@
 
   <%!-- Row 2: Current tool + cwd --%>
   <div :if={@agent[:current_tool] || @agent.cwd} class="flex items-center gap-2 mb-1">
-    <span :if={@agent[:current_tool]} class="text-[10px] font-mono text-cyan-400 truncate">
+    <span :if={@agent[:current_tool]} class="text-[10px] font-mono text-cyan truncate">
       {@agent.current_tool.tool_name} ({@agent.current_tool.elapsed}s)
     </span>
     <span :if={@agent.cwd} class="text-[10px] font-mono text-muted truncate">{Path.basename(@agent.cwd)}</span>

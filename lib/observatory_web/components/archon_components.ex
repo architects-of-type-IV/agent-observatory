@@ -271,7 +271,7 @@ defmodule ObservatoryWeb.Components.ArchonComponents do
         "inline-block rounded px-2 py-1 max-w-full",
         case @role do
           :user -> "bg-brand-dim/15 border border-brand/20 text-high"
-          :system -> "bg-amber-950/30 border border-brand/20 text-brand/80"
+          :system -> "bg-brand-dim/30 border border-brand/20 text-brand/80"
           _ -> "bg-base/80 border border-border text-default"
         end
       ]}>

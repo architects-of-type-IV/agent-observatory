@@ -17,7 +17,7 @@ defmodule ObservatoryWeb.Components.TeamInspectorComponents do
     <%!-- Empty collapsed bar --%>
     <div
       :if={@inspected_teams == []}
-      class="inspector-drawer bg-[#18181b] border-t border-border h-8 flex items-center justify-center"
+      class="inspector-drawer bg-base border-t border-border h-8 flex items-center justify-center"
     >
       <span class="text-[10px] text-muted">Select a team to inspect</span>
     </div>
@@ -27,7 +27,7 @@ defmodule ObservatoryWeb.Components.TeamInspectorComponents do
       :if={@inspected_teams != []}
       id="inspector-drawer"
       phx-hook="InspectorDrawer"
-      class={"inspector-drawer bg-[#18181b] border-t border-border flex flex-col #{size_class(@inspector_size)} #{if @inspector_maximized, do: "inspector-maximized"}"}
+      class={"inspector-drawer bg-base border-t border-border flex flex-col #{size_class(@inspector_size)} #{if @inspector_maximized, do: "inspector-maximized"}"}
     >
       <div class="flex items-center justify-between px-3 py-1.5 border-b border-border shrink-0">
         <div class="flex items-center gap-2">
@@ -79,7 +79,7 @@ defmodule ObservatoryWeb.Components.TeamInspectorComponents do
 
   defp inspector_panel(assigns) do
     ~H"""
-    <div class="flex-1 min-w-0 min-h-0 bg-[#18181b] flex flex-col overflow-hidden">
+    <div class="flex-1 min-w-0 min-h-0 bg-base flex flex-col overflow-hidden">
       <div class="flex items-center justify-between px-2 py-1 border-b border-border/50 shrink-0">
         <div class="flex items-center gap-2">
           <span class="text-[10px] font-semibold text-high font-mono truncate">{@team.name}</span>

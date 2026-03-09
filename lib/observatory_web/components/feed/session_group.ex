@@ -192,7 +192,7 @@ defmodule ObservatoryWeb.Components.Feed.SessionGroup do
     ~H"""
     <.feed_nest>
       <.feed_row event_id={@item.event.id} selected_event={@selected_event}>
-        <span class={label_class("text-cyan-400")}>Subagent</span>
+        <span class={label_class("text-cyan")}>Subagent</span>
         <span class={summary_class()}>
           completed{if @item[:agent_id], do: " (#{short_session(@item[:agent_id])})", else: ""}
         </span>
@@ -253,7 +253,7 @@ defmodule ObservatoryWeb.Components.Feed.SessionGroup do
   def phase_color(:verify), do: "text-brand"
   def phase_color(:delegate), do: "text-interactive"
   def phase_color(:communicate), do: "text-fuchsia-400"
-  def phase_color(:think), do: "text-violet-400"
+  def phase_color(:think), do: "text-violet"
   def phase_color(:other), do: "text-default"
 
   # ═══════════════════════════════════════════════════════
@@ -268,13 +268,13 @@ defmodule ObservatoryWeb.Components.Feed.SessionGroup do
 
   defp role_badge(%{role: :worker} = assigns) do
     ~H"""
-    <span class="text-[10px] font-mono text-cyan-500">worker</span>
+    <span class="text-[10px] font-mono text-cyan">worker</span>
     """
   end
 
   defp role_badge(%{role: :relay} = assigns) do
     ~H"""
-    <span class="text-[10px] font-mono text-violet-500">relay</span>
+    <span class="text-[10px] font-mono text-violet">relay</span>
     """
   end
 
@@ -313,6 +313,6 @@ defmodule ObservatoryWeb.Components.Feed.SessionGroup do
   end
 
   defp depth_style(0), do: "border border-border bg-base/40"
-  defp depth_style(1), do: "border border-cyan-500/20 bg-base/30 ml-4"
-  defp depth_style(_), do: "border border-violet-500/15 bg-base/20 ml-8"
+  defp depth_style(1), do: "border border-cyan/20 bg-base/30 ml-4"
+  defp depth_style(_), do: "border border-violet/15 bg-base/20 ml-8"
 end

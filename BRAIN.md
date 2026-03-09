@@ -99,14 +99,13 @@
 - **Gateway.Router.ingest/1**: registry update + channel side effects
 
 ## Design Token System (2026-03-09, COMPLETE)
-- **CSS custom properties**: 26 `--ichor-*` tokens in `assets/css/app.css` (`:root` + `[data-theme="swiss"]`)
-- **Tailwind v4 @theme block**: registers tokens as Tailwind utilities (`text-high`, `bg-raised`, `border-border`, `text-brand`, etc.)
-- **Two themes**: ICHOR IV (dark/amber, `:root` default) and Swiss International Style (`data-theme="swiss"`)
-- **Token categories**: text (high/default/low/muted), bg (base/raised/highlight/surface/overlay), border (border/border-subtle), brand (brand/muted/dim), status (success/error/warning/info), interactive (interactive/interactive-muted), radius (sm/md/lg/xl/full), scrollbar
-- **Template migration COMPLETE**: 1,171 hardcoded zinc/amber/emerald/red/blue/indigo references replaced with semantic tokens
-- **1 remaining**: `bg-amber-950` in Archon system message (deferred to Archon CSS tokenization)
-- **ichor-* component classes**: ~50 classes (section, card, badge, dot, button, input) use `hsl(var(--ichor-*))` + `var(--ichor-radius-*)`
-- **obs-* -> ichor-* rename**: all CSS classes + 13 templates. tmux prefix `obs-` intentionally kept.
+- **30+ `--ichor-*` tokens** in `assets/css/app.css`, two themes (ICHOR IV `:root` + Swiss `[data-theme="swiss"]`)
+- **Tailwind v4 @theme**: `text-high/default/low/muted`, `bg-base/raised/highlight/surface/overlay`, `border-border/border-subtle`, `text-brand/success/error/info/interactive/violet/cyan` + bg/border variants
+- **Archon CSS**: all `rgba()` -> `hsl(var(--ichor-*) / opacity)`. Panel radius uses `var(--ichor-radius-xl)`.
+- **Workshop canvas**: 6 `--ichor-role-*` tokens (builder/scout/reviewer/lead/coordinator/default) with Swiss overrides
+- **Zero hardcoded** zinc/amber/emerald/red/blue/indigo/hex across templates + CSS
+- **~35 categorical colors** remain (yellow/orange/pink/rose/teal/lime/fuchsia/purple) for event-type visual identity
+- **ichor-* component classes** (~50): `hsl(var(--ichor-*))` + `var(--ichor-radius-*)`. obs->ichor rename done.
 
 ## Elixir Code Guide (enforced)
 - Pattern matching over if/else/cond/unless -- multi-head functions

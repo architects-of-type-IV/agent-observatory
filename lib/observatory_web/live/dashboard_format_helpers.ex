@@ -7,10 +7,10 @@ defmodule ObservatoryWeb.DashboardFormatHelpers do
   @session_palette [
     {"bg-info", "border-info", "text-info"},
     {"bg-success", "border-success", "text-success"},
-    {"bg-violet-500", "border-violet-500", "text-violet-400"},
+    {"bg-violet", "border-violet", "text-violet"},
     {"bg-brand", "border-brand", "text-brand"},
     {"bg-rose-500", "border-rose-500", "text-rose-400"},
-    {"bg-cyan-500", "border-cyan-500", "text-cyan-400"},
+    {"bg-cyan", "border-cyan", "text-cyan"},
     {"bg-fuchsia-500", "border-fuchsia-500", "text-fuchsia-400"},
     {"bg-lime-500", "border-lime-500", "text-lime-400"},
     {"bg-orange-500", "border-orange-500", "text-orange-400"},
@@ -28,8 +28,8 @@ defmodule ObservatoryWeb.DashboardFormatHelpers do
     PostToolUseFailure: {"FAIL", "text-error bg-error/15 border border-error/30"},
     PermissionRequest: {"PERM", "text-yellow-400 bg-yellow-500/15 border border-yellow-500/30"},
     Notification: {"NOTIF", "text-purple-400 bg-purple-500/15 border border-purple-500/30"},
-    SubagentStart: {"SPAWN", "text-cyan-400 bg-cyan-500/15 border border-cyan-500/30"},
-    SubagentStop: {"REAP", "text-cyan-600 bg-cyan-600/15 border border-cyan-600/30"},
+    SubagentStart: {"SPAWN", "text-cyan bg-cyan/15 border border-cyan/30"},
+    SubagentStop: {"REAP", "text-cyan bg-cyan/15 border border-cyan/30"},
     Stop: {"STOP", "text-default bg-low/15 border border-low/30"},
     PreCompact: {"COMPACT", "text-orange-400 bg-orange-500/15 border border-orange-500/30"}
   }

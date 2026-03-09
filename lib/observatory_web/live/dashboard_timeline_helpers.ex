@@ -44,8 +44,8 @@ defmodule ObservatoryWeb.DashboardTimelineHelpers do
       "Bash" -> "bg-brand"
       "Read" -> "bg-info"
       "Write" -> "bg-success"
-      "Edit" -> "bg-violet-500"
-      "Grep" -> "bg-cyan-500"
+      "Edit" -> "bg-violet"
+      "Grep" -> "bg-cyan"
       "Glob" -> "bg-teal-500"
       "Task" -> "bg-interactive"
       "WebSearch" -> "bg-orange-500"
@@ -53,7 +53,7 @@ defmodule ObservatoryWeb.DashboardTimelineHelpers do
       "SendMessage" -> "bg-fuchsia-500"
       "TaskCreate" -> "bg-pink-500"
       "TaskUpdate" -> "bg-pink-400"
-      "TeamCreate" -> "bg-cyan-600"
+      "TeamCreate" -> "bg-cyan"
       _ -> "bg-low"
     end
   end

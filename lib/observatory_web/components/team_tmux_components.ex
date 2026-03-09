@@ -20,7 +20,7 @@ defmodule ObservatoryWeb.Components.TeamTmuxComponents do
               :for={mode <- [:all_live, :leads_only, :all_agents]}
               phx-click="set_output_mode"
               phx-value-mode={mode}
-              class={"text-xs px-2 py-0.5 rounded transition #{if @output_mode == mode, do: "bg-cyan-600/30 text-cyan-300 ring-1 ring-cyan-500/50", else: "bg-raised text-low hover:text-high"}"}
+              class={"text-xs px-2 py-0.5 rounded transition #{if @output_mode == mode, do: "bg-cyan/30 text-cyan ring-1 ring-cyan-500/50", else: "bg-raised text-low hover:text-high"}"}
             >
               {mode_label(mode)}
             </button>

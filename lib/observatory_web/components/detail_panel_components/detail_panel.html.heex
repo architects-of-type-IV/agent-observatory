@@ -7,7 +7,7 @@
   <div class="sticky top-0 bg-base/95 backdrop-blur border-b border-border px-3 py-2 flex items-center justify-between">
     <div class="flex items-center gap-2">
       <span class={"text-[10px] font-mono px-1.5 py-0.5 rounded #{type_class}"}>{type_label}</span>
-      <span :if={ev.tool_name} class={"text-xs font-mono #{if is_team_tool?(ev.tool_name), do: "text-cyan-400", else: "text-interactive"}"}>{ev.tool_name}</span>
+      <span :if={ev.tool_name} class={"text-xs font-mono #{if is_team_tool?(ev.tool_name), do: "text-cyan", else: "text-interactive"}"}>{ev.tool_name}</span>
     </div>
     <button phx-click="close_detail" class="text-muted hover:text-default transition p-0.5"><.close_icon /></button>
   </div>
@@ -16,8 +16,8 @@
     <p class="text-[11px] text-high">{ev.summary || event_summary(ev)}</p>
   </div>
 
-  <div :if={is_team_tool?(ev.tool_name)} class="px-3 py-1.5 border-b border-border/50 bg-cyan-500/5">
-    <span class="text-[10px] text-cyan-400 font-mono">Team coordination event</span>
+  <div :if={is_team_tool?(ev.tool_name)} class="px-3 py-1.5 border-b border-border/50 bg-cyan/5">
+    <span class="text-[10px] text-cyan font-mono">Team coordination event</span>
   </div>
 
   <div class="px-3 py-2 border-b border-border/50">
@@ -41,7 +41,7 @@
       </div>
       <div :if={ev.tool_name} class="ichor-detail-field">
         <span class="df-label w-16">Tool</span>
-        <span class={"df-value #{if is_team_tool?(ev.tool_name), do: "!text-cyan-400", else: "!text-interactive"}"}>{ev.tool_name}</span>
+        <span class={"df-value #{if is_team_tool?(ev.tool_name), do: "!text-cyan", else: "!text-interactive"}"}>{ev.tool_name}</span>
       </div>
       <div :if={ev.tool_use_id} class="ichor-detail-field">
         <span class="df-label w-16">Tool Use ID</span>

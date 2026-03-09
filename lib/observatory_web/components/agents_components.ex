@@ -43,11 +43,11 @@ defmodule ObservatoryWeb.Components.AgentsComponents do
                   type="text"
                   name="content"
                   placeholder="Broadcast to team..."
-                  class="flex-1 bg-raised border border-border-subtle rounded px-2 py-1 text-xs text-high placeholder-muted focus:border-cyan-500 focus:ring-0 focus:outline-none"
+                  class="flex-1 bg-raised border border-border-subtle rounded px-2 py-1 text-xs text-high placeholder-muted focus:border-cyan focus:ring-0 focus:outline-none"
                 />
                 <button
                   type="submit"
-                  class="px-2 py-1 bg-cyan-600/20 text-cyan-400 rounded text-xs hover:bg-cyan-600/30 transition"
+                  class="px-2 py-1 bg-cyan/20 text-cyan rounded text-xs hover:bg-cyan/30 transition"
                 >
                   Send
                 </button>

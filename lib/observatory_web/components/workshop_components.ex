@@ -28,20 +28,22 @@ defmodule ObservatoryWeb.Components.WorkshopComponents do
   # ── Helpers ────────────────────────────────────────────────
 
   @cap_colors %{
-    "builder" => {"#22d3ee", "ichor-badge-cyan", "BLD"},
-    "scout" => {"#34d399", "ichor-badge-green", "SCT"},
-    "reviewer" => {"#fbbf24", "ichor-badge-amber", "REV"},
-    "lead" => {"#a78bfa", "ichor-badge-violet", "LEAD"},
-    "coordinator" => {"#818cf8", "ichor-badge-indigo", "COORD"}
+    "builder" => {"hsl(var(--ichor-role-builder))", "ichor-badge-cyan", "BLD"},
+    "scout" => {"hsl(var(--ichor-role-scout))", "ichor-badge-green", "SCT"},
+    "reviewer" => {"hsl(var(--ichor-role-reviewer))", "ichor-badge-amber", "REV"},
+    "lead" => {"hsl(var(--ichor-role-lead))", "ichor-badge-violet", "LEAD"},
+    "coordinator" => {"hsl(var(--ichor-role-coordinator))", "ichor-badge-indigo", "COORD"}
   }
 
-  def cap_dot(cap), do: elem(Map.get(@cap_colors, cap, {"#71717a", "ichor-badge-zinc", "?"}), 0)
-  def cap_badge(cap), do: elem(Map.get(@cap_colors, cap, {"#71717a", "ichor-badge-zinc", "?"}), 1)
-  def cap_abbr(cap), do: elem(Map.get(@cap_colors, cap, {"#71717a", "ichor-badge-zinc", "?"}), 2)
+  @default_cap {"hsl(var(--ichor-role-default))", "ichor-badge-zinc", "?"}
+
+  def cap_dot(cap), do: elem(Map.get(@cap_colors, cap, @default_cap), 0)
+  def cap_badge(cap), do: elem(Map.get(@cap_colors, cap, @default_cap), 1)
+  def cap_abbr(cap), do: elem(Map.get(@cap_colors, cap, @default_cap), 2)
 
   def comm_tag_class("allow"), do: "bg-success/10 text-success border border-success/20"
   def comm_tag_class("deny"), do: "bg-error/10 text-error border border-error/20"
-  def comm_tag_class("route"), do: "bg-violet-500/10 text-violet-400 border border-violet-500/20"
+  def comm_tag_class("route"), do: "bg-violet/10 text-violet border border-violet/20"
   def comm_tag_class(_), do: "bg-raised text-default"
 
   def find_agent(agents, id) do

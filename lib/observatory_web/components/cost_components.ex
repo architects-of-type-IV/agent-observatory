@@ -37,7 +37,7 @@ defmodule ObservatoryWeb.Components.CostComponents do
         </div>
         <div class="bg-base/50 border border-border rounded px-3 py-2">
           <div class="text-[9px] text-low uppercase tracking-wider">Cache Reads</div>
-          <div class="text-lg font-bold text-violet-400">{format_tokens(total_cache_read)}</div>
+          <div class="text-lg font-bold text-violet">{format_tokens(total_cache_read)}</div>
         </div>
       </div>
 
@@ -123,7 +123,7 @@ defmodule ObservatoryWeb.Components.CostComponents do
 
   defp model_color(model) when is_binary(model) do
     cond do
-      String.contains?(model, "opus") -> "bg-violet-400"
+      String.contains?(model, "opus") -> "bg-violet"
       String.contains?(model, "sonnet") -> "bg-info"
       String.contains?(model, "haiku") -> "bg-success"
       true -> "bg-default"
