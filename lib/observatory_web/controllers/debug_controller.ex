@@ -127,6 +127,15 @@ defmodule ObservatoryWeb.DebugController do
     json(conn, %{count: length(messages), messages: messages})
   end
 
+  def fleet_agents(conn, _params) do
+    agents = Observatory.Fleet.Agent.all!()
+    json(conn, %{count: length(agents), agents: Enum.map(agents, fn a ->
+      %{agent_id: a.agent_id, name: a.name, status: a.status, team: a.team_name, session_id: a.session_id}
+    end)})
+  rescue
+    e -> json(conn, %{error: Exception.message(e)})
+  end
+
   def purge(conn, _params) do
     {:ok, purged} = AgentRegistry.purge_stale()
     remaining = length(AgentRegistry.list_all())

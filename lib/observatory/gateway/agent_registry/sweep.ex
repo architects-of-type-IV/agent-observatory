@@ -65,7 +65,9 @@ defmodule Observatory.Gateway.AgentRegistry.Sweep do
   end
 
   defp live_team_names do
-    Observatory.TeamWatcher.get_state() |> Map.keys() |> MapSet.new()
+    Observatory.Fleet.TeamSupervisor.list_all()
+    |> Enum.map(fn {name, _meta} -> name end)
+    |> MapSet.new()
   rescue
     _ -> nil
   end
