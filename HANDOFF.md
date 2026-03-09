@@ -38,10 +38,18 @@ All at `lib/observatory/gateway/agent_registry/`.
 - InstructionOverlay: 299 (cohesive -- generate all session files)
 
 ### Next Steps (ordered)
-1. Legacy ETS elimination tasks (38-40 in tasks.jsonl): CommandQueue, TeamWatcher, Mailbox
-2. Ash Fleet domain generic actions + code interfaces (task 42)
-3. Archon LLM wiring (Claude API + AshAi tools)
-4. ICHOR IV rename (task 31, deferred)
+1. **"Space" concept** -- extra namespacing on top of group_id (discussed but not implemented)
+2. **Archon LLM wiring** -- connect Archon to Claude API with AshAi tools
+3. **Archon chat UI** -- dashboard drawer/panel for conversing with Archon
+4. Legacy ETS elimination tasks (38-40 in tasks.jsonl): CommandQueue, TeamWatcher, Mailbox
+5. Ash Fleet domain generic actions + code interfaces (task 42)
+6. ICHOR IV rename (task 31, deferred)
+
+### Memories Server
+- Running on port 4000 (must be running for Archon memory tools)
+- Requires Docker: postgres (port 5434) + falkordb (port 6379)
+- ONNX models on external drive: `/Volumes/T5/models/ONNX`
+- After code changes, server must be restarted (Reactor steps don't auto-reload)
 
 ### Key Decisions
 - AgentSpawner's `capability_to_role` kept separate from `AgentEntry.role_from_string` -- different input domains (spawn capabilities vs TeamWatcher agent_types)
