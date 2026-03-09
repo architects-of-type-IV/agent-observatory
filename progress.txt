@@ -14,8 +14,13 @@ ICHOR IV Progress (formerly Observatory)
 - [x] Data migration for existing records
 - [x] Observatory MemoriesClient + Tools.Memory updated for space + new enums
 - [x] Both projects compile clean
-- [ ] Archon LLM wiring (Claude API + AshAi tools)
-- [ ] Archon chat UI (dashboard drawer/panel)
+- [x] Archon LLM wiring: Archon.Chat module (LangChain + ChatAnthropic + AshAi)
+- [x] Archon chat UI: overlay + FAB + keyboard shortcut (a)
+  - ArchonComponents: 8 modular sub-components
+  - archon-* CSS component classes for theme portability
+  - DashboardArchonHandlers: async chat dispatch via Task
+  - ScrollBottom JS hook, phx-update="ignore" on input
+  - .env added to .gitignore (API key protection)
 
 ### Prior Session: AgentRegistry Decomposition (2026-03-09)
 - [x] AgentRegistry decomposed: 669 -> 293 + 5 submodules

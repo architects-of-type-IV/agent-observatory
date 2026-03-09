@@ -43,6 +43,7 @@ defmodule ObservatoryWeb.DashboardUIHandlers do
     |> Phoenix.Component.assign(:selected_event, nil)
     |> Phoenix.Component.assign(:selected_task, nil)
     |> Phoenix.Component.assign(:search_feed, "")
+    |> Phoenix.Component.assign(:show_archon, false)
   end
 
   def handle_keyboard_navigate(%{"direction" => direction}, socket) do

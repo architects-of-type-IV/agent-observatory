@@ -20,6 +20,8 @@ defmodule ObservatoryWeb.DashboardLive do
   import ObservatoryWeb.DashboardWorkshopHandlers
   import ObservatoryWeb.DashboardState, only: [recompute: 1, default_assigns: 1]
 
+  alias ObservatoryWeb.DashboardArchonHandlers, as: Archon
+
   alias ObservatoryWeb.DashboardPhase5Handlers, as: P5
   alias ObservatoryWeb.DashboardSlideoutHandlers, as: Slideout
 
@@ -193,6 +195,9 @@ defmodule ObservatoryWeb.DashboardLive do
   def handle_info(%{event: "dag_delta"} = msg, socket),
     do: {:noreply, handle_gateway_info(msg, socket)}
 
+  def handle_info({:archon_response, result}, socket),
+    do: {:noreply, Archon.handle_archon_response(result, socket)}
+
   # ── handle_event: filters & search ───────────────────────────────────
 
   @impl true
@@ -299,6 +304,13 @@ defmodule ObservatoryWeb.DashboardLive do
   def handle_event("keyboard_navigate", p, s), do: {:noreply, handle_keyboard_navigate(p, s) |> recompute()}
   def handle_event("toggle_add_project", _p, s), do: {:noreply, s |> assign(:show_add_project, !s.assigns.show_add_project) |> recompute()}
   def handle_event("add_project", p, s), do: {:noreply, handle_add_project(p, s) |> assign(:show_add_project, false) |> recompute()}
+
+  # ── handle_event: Archon ──────────────────────────────────────────────
+
+  def handle_event("archon_toggle", _p, s), do: {:noreply, Archon.handle_archon_toggle(s)}
+  def handle_event("archon_close", _p, s), do: {:noreply, Archon.handle_archon_close(s)}
+  def handle_event("archon_send", p, s), do: {:noreply, Archon.handle_archon_send(p, s)}
+  def handle_event("archon_shortcode", p, s), do: {:noreply, Archon.handle_archon_shortcode(p, s)}
 
   # ── handle_event: feed collapse ─────────────────────────────────────
 

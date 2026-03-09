@@ -213,6 +213,13 @@ let Hooks = {
           return
         }
 
+        // a - toggle Archon overlay
+        if (e.key === "a" && !e.metaKey && !e.ctrlKey) {
+          e.preventDefault()
+          this.pushEvent("archon_toggle", {})
+          return
+        }
+
         // j/k - navigate events
         if ((e.key === "j" || e.key === "k") && !e.metaKey && !e.ctrlKey) {
           e.preventDefault()
@@ -225,6 +232,22 @@ let Hooks = {
     },
     destroyed() {
       window.removeEventListener("keydown", this.handleKeydown)
+    }
+  },
+  ScrollBottom: {
+    mounted() {
+      this.scrollToBottom()
+      this.observer = new MutationObserver(() => this.scrollToBottom())
+      this.observer.observe(this.el, { childList: true, subtree: true })
+    },
+    updated() {
+      this.scrollToBottom()
+    },
+    destroyed() {
+      if (this.observer) this.observer.disconnect()
+    },
+    scrollToBottom() {
+      this.el.scrollTop = this.el.scrollHeight
     }
   },
   ExportDropdown: {

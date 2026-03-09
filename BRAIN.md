@@ -21,6 +21,14 @@
 - **Observatory.Archon** -- parent Ash domain (empty, for future conversation state / memory resources)
 - **Observatory.Archon.Tools** -- AshAi subdomain with 10 tools across 5 resources
   - Tools.Agents, Tools.Teams, Tools.Messages, Tools.System, Tools.Memory
+- **Archon.Chat**: stateless LLM conversation engine (LangChain + ChatAnthropic + AshAi)
+  - `chat/2` -> `{:ok, response, history}`, history in LiveView assigns
+  - Model: claude-sonnet-4-20250514, API key from env or config
+- **Archon UI**: overlay triggered by `a` key or FAB button
+  - `ArchonComponents` with 8 sub-components (shortcodes_panel, chat_panel, chat_bubble, etc.)
+  - CSS design system: `archon-*` classes in `app.css` (theme-portable)
+  - `DashboardArchonHandlers`: toggle, send, shortcode, async response handlers
+  - Async dispatch via `Task.start` -> `handle_info({:archon_response, result})`
 - Fleet tools are in-process calls; Memory tools call Memories HTTP API at localhost:4000
 - Operator agent (role: :operator) excluded from NudgeEscalator stale detection
 
@@ -72,3 +80,7 @@
 - Minimal JavaScript -- "LiveView was made to limit JS usage"
 - BEAM-native vision: supervisor, genserver, process with mailboxes
 - No emoji. Execute directly, don't plan unless genuinely ambiguous.
+- **Build modular**: components in components, small template files
+- **DRY CSS**: Tailwind component classes (`@apply`) for theme portability
+- **Ash-first**: use Ash Resources guide for handlers/actions/LiveViews
+- **`.env` for secrets**: not auto-loaded, `source .env` before server start

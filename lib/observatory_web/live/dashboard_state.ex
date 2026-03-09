@@ -131,7 +131,12 @@ defmodule ObservatoryWeb.DashboardState do
       ws_blueprint_id: nil,
       ws_blueprints: [],
       ws_agent_types: [],
-      ws_editing_type: nil
+      ws_editing_type: nil,
+      # Archon overlay
+      show_archon: false,
+      archon_messages: [],
+      archon_history: [],
+      archon_loading: false
     }
   end
 

@@ -680,6 +680,12 @@
             </kbd>
           </div>
           <div class="flex items-center justify-between">
+            <span class="text-zinc-400">Archon</span>
+            <kbd class="px-2 py-0.5 bg-zinc-800 border border-zinc-700 rounded text-zinc-300 font-mono">
+              a
+            </kbd>
+          </div>
+          <div class="flex items-center justify-between">
             <span class="text-zinc-400">Clear selection</span>
             <kbd class="px-2 py-0.5 bg-zinc-800 border border-zinc-700 rounded text-zinc-300 font-mono">
               Esc
@@ -718,3 +724,13 @@
     </div>
   </div>
 </div>
+
+<%!-- Archon FAB (bottom-right) --%>
+<ObservatoryWeb.Components.ArchonComponents.archon_fab show_archon={@show_archon} />
+
+<%!-- Archon Overlay --%>
+<ObservatoryWeb.Components.ArchonComponents.archon_overlay
+  :if={@show_archon}
+  messages={@archon_messages}
+  loading={@archon_loading}
+/>
