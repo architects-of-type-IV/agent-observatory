@@ -13,6 +13,15 @@ ICHOR IV Progress (formerly Observatory)
   - DashboardLive mount -> empty map (no TeamWatcher)
   - DebugController -> Fleet.Team/AgentProcess/Activity.Message
 - [x] Added Fleet.Agent get_unread + mark_read actions and code interfaces
+- [x] Phase 2 complete (task 51): Eliminated legacy modules
+  - Deleted: mailbox.ex, command_queue.ex, team_watcher.ex
+  - Removed from CoreSupervisor
+  - MailboxAdapter rewired to AgentProcess.send_message
+  - LoadMessages: hook events only (removed Mailbox merge)
+  - LoadTeams: events + BEAM only (removed TeamWatcher disk merge)
+  - Operator fallback: PubSub broadcast (removed Mailbox fallback)
+  - Fleet.Agent mark_read: no-op (destructive get_unread)
+  - Fleet.Team: removed :disk from source constraint
 
 ### Prior Session: Archon + Memories (2026-03-09)
 - [x] DashboardLive refactor: 594 -> 164 lines (dispatch/3 pattern)

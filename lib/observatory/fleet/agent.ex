@@ -225,8 +225,8 @@ defmodule Observatory.Fleet.Agent do
       argument :message_id, :string, allow_nil?: false
 
       run fn input, _context ->
-        # Legacy Mailbox mark_read -- will be removed in Phase 2
-        Observatory.Mailbox.mark_read(input.arguments.agent_id, input.arguments.message_id)
+        # AgentProcess.get_unread is a destructive read (clears on read).
+        # mark_read is a no-op -- messages are consumed when read.
         {:ok, %{status: "acknowledged", message_id: input.arguments.message_id}}
       end
     end

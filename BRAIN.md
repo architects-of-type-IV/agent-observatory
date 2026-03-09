@@ -48,14 +48,16 @@
   - SQL filter in VectorChord WHERE clauses, wired through full search pipeline.
 - **Episode types (Zep-aligned)**: `type` = structural (`:text`, `:message`, `:json`), `source` = provenance (`:user`, `:agent`, `:system`, `:document`, `:api`)
 
-## Fleet Layering (2026-03-09, PHASE 1 COMPLETE)
+## Fleet Layering (2026-03-09, COMPLETE)
 - **Canonical API**: Fleet.Agent and Fleet.Team code interfaces for ALL reads and lifecycle ops
 - **Fleet.Agent actions**: all, active, in_team, spawn, pause_agent, resume_agent, terminate_agent, launch, get_unread, mark_read, send_message, update_instructions
 - **Fleet.Team actions**: all, alive, create_team, disband, spawn_member
-- **Consistency rule**: all external callers (Archon.Tools, AgentTools, Dashboard, DebugController) route through Fleet code interfaces or Operator.send -- never directly to AgentRegistry, Mailbox, CommandQueue, or TeamWatcher
-- **Legacy modules** (Mailbox, CommandQueue, TeamWatcher) still exist but have NO external callers. Phase 2 (task 51) will eliminate them.
-- **MailboxAdapter** (Gateway channel) still delivers to Mailbox ETS -- Phase 2 rewires to AgentProcess
-- **Operator.send** fallback still uses Mailbox -- Phase 2 removes fallback
+- **Consistency rule**: all external callers route through Fleet code interfaces or Operator.send
+- **Legacy modules ELIMINATED**: Mailbox, CommandQueue, TeamWatcher deleted. Zero references.
+- **MailboxAdapter**: rewired to AgentProcess.send_message (was Mailbox ETS)
+- **Operator.send fallback**: PubSub broadcast for dashboard visibility (was Mailbox)
+- **LoadMessages**: hook events only (no Mailbox merge)
+- **LoadTeams**: events + BEAM teams only (no TeamWatcher disk merge). Claude ~/.claude/teams/ deferred.
 
 ## AgentTools Domain (Refactored 2026-03-08)
 - 6 focused resources: Inbox, Tasks, Memory, Recall, Archival, Agents

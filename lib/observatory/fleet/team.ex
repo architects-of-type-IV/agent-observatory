@@ -15,7 +15,7 @@ defmodule Observatory.Fleet.Team do
     attribute :description, :string, public?: true
     attribute :members, {:array, :map}, default: [], public?: true
     attribute :tasks, {:array, :map}, default: [], public?: true
-    attribute :source, :atom, constraints: [one_of: [:events, :disk, :beam]], public?: true
+    attribute :source, :atom, constraints: [one_of: [:events, :beam]], public?: true
     attribute :created_at, :utc_datetime_usec, public?: true
     attribute :dead?, :boolean, default: false, public?: true
     attribute :member_count, :integer, default: 0, public?: true

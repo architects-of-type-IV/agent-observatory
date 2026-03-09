@@ -126,13 +126,24 @@ defmodule Observatory.Operator do
         raw -> raw
       end
 
-    case Observatory.Mailbox.send_message(session_id, @from, content,
-           type: msg_type,
-           metadata: Map.put(metadata, :via_fallback, true)
-         ) do
-      {:ok, _msg} -> {:ok, 1}
-      {:error, reason} -> {:error, reason}
-    end
+    # Deliver via PubSub for dashboard visibility even without a BEAM process
+    message = %{
+      id: :crypto.strong_rand_bytes(8) |> Base.encode16(case: :lower),
+      from: @from,
+      to: session_id,
+      content: content,
+      type: msg_type,
+      timestamp: DateTime.utc_now(),
+      metadata: Map.put(metadata, :via_fallback, true)
+    }
+
+    Phoenix.PubSub.broadcast(
+      Observatory.PubSub,
+      "agent:#{session_id}",
+      {:new_mailbox_message, message}
+    )
+
+    {:ok, 1}
   end
 
   defp normalize_target("agent:" <> _ = channel), do: channel

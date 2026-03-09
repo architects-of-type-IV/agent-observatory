@@ -13,7 +13,6 @@ defmodule Observatory.Fleet.Preparations.LoadTeams do
   @impl true
   def prepare(query, _opts, _context) do
     events = Observatory.EventBuffer.list_events()
-    disk_teams = Observatory.TeamWatcher.get_state()
     now = DateTime.utc_now()
 
     registry_by_id =
@@ -25,7 +24,6 @@ defmodule Observatory.Fleet.Preparations.LoadTeams do
     teams =
       events
       |> derive_from_events()
-      |> merge_with_disk(disk_teams)
       |> merge_with_beam_teams()
       |> Enum.map(&enrich_members(&1, events_by_session, now, registry_by_id))
       |> mark_dead(now)
@@ -75,27 +73,6 @@ defmodule Observatory.Fleet.Preparations.LoadTeams do
         created_at: tc.created_at
       }
     end)
-  end
-
-  defp merge_with_disk(event_teams, disk_teams) do
-    disk_list =
-      disk_teams
-      |> Map.values()
-      |> Enum.map(fn dt ->
-        %{
-          name: dt.name,
-          lead_session: nil,
-          description: dt.description,
-          members: dt.members,
-          tasks: dt.tasks,
-          source: :disk,
-          created_at: nil
-        }
-      end)
-
-    disk_names = MapSet.new(disk_list, & &1.name)
-    event_only = Enum.reject(event_teams, fn t -> MapSet.member?(disk_names, t.name) end)
-    disk_list ++ event_only
   end
 
   # Merge BEAM-native teams (from TeamSupervisor/FleetSupervisor) with legacy sources
@@ -189,8 +166,8 @@ defmodule Observatory.Fleet.Preparations.LoadTeams do
 
   defp mark_dead(teams, now) do
     Enum.map(teams, fn team ->
-      if team.source in [:disk, :beam] do
-        # Disk teams and BEAM-supervised teams are never marked dead by staleness
+      if team.source == :beam do
+        # BEAM-supervised teams are never marked dead by staleness
         Map.put(team, :dead?, false)
       else
         latest_member_event =

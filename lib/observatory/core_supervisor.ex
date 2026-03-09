@@ -1,8 +1,8 @@
 defmodule Observatory.CoreSupervisor do
   @moduledoc """
-  Supervises core infrastructure services: mailbox, command queue, team watcher,
-  notes, event janitor, and memory store. These are independent services that
-  don't depend on each other, so one_for_one is appropriate.
+  Supervises core infrastructure services: notes, event janitor, memory store,
+  and event buffer. These are independent services that don't depend on each
+  other, so one_for_one is appropriate.
   """
   use Supervisor
 
@@ -13,9 +13,6 @@ defmodule Observatory.CoreSupervisor do
   @impl true
   def init(_opts) do
     children = [
-      {Observatory.Mailbox, []},
-      {Observatory.CommandQueue, []},
-      {Observatory.TeamWatcher, []},
       {Observatory.Notes, []},
       {Observatory.EventJanitor, []},
       {Observatory.MemoryStore, []},
