@@ -1,28 +1,35 @@
 # ICHOR IV (formerly Observatory) - Handoff
 
-## Current Status: Legacy Elimination Complete (2026-03-09)
+## Current Status: LiveView Performance Optimization (2026-03-09)
 
 ### Just Completed
 
-**Phase 2: Eliminate legacy modules (task 51)**
+**LiveView Performance Optimization (6 fixes)**
 
-Removed Mailbox, CommandQueue, and TeamWatcher GenServers entirely. Zero references remain.
+Audited dashboard LiveView against common Phoenix LiveView performance anti-patterns. Applied 6 optimizations:
 
-Changes made:
-- **CoreSupervisor**: removed 3 children (Mailbox, CommandQueue, TeamWatcher)
-- **MailboxAdapter**: rewired from Mailbox.send_message to AgentProcess.send_message
-- **LoadMessages**: removed Mailbox.all_messages merge, now hook events only
-- **LoadTeams**: removed TeamWatcher.get_state disk merge, now events + BEAM teams only
-- **Fleet.Agent mark_read**: converted to no-op (get_unread is destructive read)
-- **Operator.fallback_deliver**: replaced Mailbox.send_message with PubSub broadcast
-- **Fleet.Team source constraint**: removed :disk from allowed values
-- **Deleted modules**: mailbox.ex, command_queue.ex, team_watcher.ex (moved to tmp/trash/)
+1. **Tiered recompute** -- Split `recompute/1` into full (Ash+SQL queries) and `recompute_view/1` (display-only, no queries). UI toggles and selections skip all data queries.
+2. **Debounced recompute** -- PubSub events (new_event, registry_changed, etc.) schedule a single recompute after 100ms instead of firing immediately. Multiple events within the window coalesce.
+3. **Eliminated double recompute** -- `{:swarm_state}` was re-broadcasting events:stream, causing 2 full recomputes per hook event. Now assigns only, no recompute.
+4. **Deferred mount** -- Static render gets lightweight defaults. `send(self(), :load_data)` triggers full data load + `seed_gateway_assigns` only after WebSocket connects.
+5. **Conditional computation** -- analytics/timeline only computed when activity tab is active. Feed groups only on command/activity view. Cost data (3 SQL queries) only on forensic/control view.
+6. **Eliminated redundant queries** -- `load_messages/2` reuses the already-fetched `messages` list instead of calling `Activity.Message.recent!()` a second time.
 
-### Previously Completed (same session)
+**Events removed from recompute entirely:**
+- `{:swarm_state}` -- assign only (was double-recomputing)
+- `{:hitl}` -- just refreshes paused_sessions assign
+- Nudge/gate events -- notifications only, no data changed
+- Gateway messages -- `handle_gateway_info` already updates its own assigns
+- UI toggles (toggle_shortcuts_help, toggle_create_task_modal, etc.)
+- Selection events (select_event, select_task, select_agent, close_detail)
 
-**Phase 1: Rewire all callers to Fleet code interfaces (task 42)**
-- All external callers rewired to Fleet.Agent/Fleet.Team/Activity.Message code interfaces
-- Fixed :pg child spec, HostRegistry scope, Ash domain config
+### Previously Completed
+
+**Fleet Consistency Rewire + Legacy Elimination (tasks 42, 51)**
+- All external callers rewired to Fleet code interfaces
+- Mailbox, CommandQueue, TeamWatcher deleted
+
+**DashboardLive refactor: 594 -> 164 lines (dispatch/3 pattern)**
 
 ### .env Setup
 - `ANTHROPIC_API_KEY` in `.env` at project root
@@ -32,10 +39,10 @@ Changes made:
 `mix compile --warnings-as-errors` -- CLEAN
 
 ### Next Steps
-1. **Task 8** (pending, low priority): Non-blocking event pipeline validation
-2. **Task 31** (pending, low priority): Rename codebase to ICHOR IV
-3. **Tasks 38-40**: Now redundant (legacy modules already eliminated by task 51)
-4. Claude-specific disk scanning (~/.claude/teams/) deferred per user directive
+1. **Streams** (deferred): Convert events list to LiveView streams for render perf
+2. **LiveComponents** (deferred): Isolate fleet tree, feed, inspector as stateful components
+3. **Task 8** (pending, low priority): Non-blocking event pipeline validation
+4. **Task 31** (pending, low priority): Rename codebase to ICHOR IV
 
 ### Memories Server
 - Running on port 4000 (must be running for Archon memory tools)

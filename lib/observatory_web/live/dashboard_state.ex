@@ -1,7 +1,7 @@
 defmodule ObservatoryWeb.DashboardState do
   @moduledoc """
   Recomputes derived dashboard assigns using Ash domain resources.
-  Replaces the monolithic `prepare_assigns/1` with Ash-backed data queries.
+  Two tiers: `recompute/1` (full data + view) and `recompute_view/1` (display-only, no queries).
   """
 
   import Phoenix.Component, only: [assign: 3]
@@ -140,10 +140,11 @@ defmodule ObservatoryWeb.DashboardState do
     }
   end
 
+  @doc "Full recompute: queries all Ash domains + derives view assigns."
   def recompute(socket) do
     assigns = socket.assigns
 
-    # Ash domain queries replace scattered helper calls
+    # Ash domain queries
     teams = Observatory.Fleet.Team.alive!()
     all_teams = Observatory.Fleet.Team.all!()
     messages = Observatory.Activity.Message.recent!()
@@ -157,20 +158,14 @@ defmodule ObservatoryWeb.DashboardState do
     team_sids = all_team_sids(all_teams)
     standalone = Enum.reject(all_sessions, fn s -> MapSet.member?(team_sids, s.session_id) end)
 
-    # Messages
+    # Messages (single query, reused for both assigns)
     filtered_messages = search_messages(messages, assigns.search_messages)
     message_threads = group_messages_by_thread(filtered_messages)
 
     event_notes = Observatory.Notes.list_notes()
 
     # Auto-select team when only 1 exists
-    selected_team =
-      cond do
-        assigns.selected_team -> assigns.selected_team
-        length(teams) == 1 -> hd(teams).name
-        true -> nil
-      end
-
+    selected_team = resolve_selected_team(assigns.selected_team, teams)
     sel_team = Enum.find(teams, fn t -> t.name == selected_team end)
 
     active_tasks =
@@ -180,31 +175,29 @@ defmodule ObservatoryWeb.DashboardState do
         true -> []
       end
 
-    # Analytics (Activity.EventAnalysis)
-    analytics = EventAnalysis.tool_analytics(assigns.events)
-    timeline = EventAnalysis.timeline(assigns.events)
-
-    # Feed
-    feed_groups = build_feed_groups(assigns.events, teams)
-    feed_groups = feed_groups ++ Enum.map(tmux_only, &tmux_feed_entry(&1, assigns.now))
-
-    # Inspector (Fleet.Queries)
+    # Inspector (Fleet.Queries) -- skip if no teams inspected
     inspected_names = Enum.map(assigns.inspected_teams, & &1.name)
     refreshed_inspected = Enum.filter(teams, fn t -> t.name in inspected_names end)
-    inspector_events = FQ.inspector_events(refreshed_inspected, assigns.events)
+
+    inspector_events =
+      if refreshed_inspected != [],
+        do: FQ.inspector_events(refreshed_inspected, assigns.events),
+        else: []
 
     # Topology (Fleet.Queries)
     {topo_nodes, topo_edges} = FQ.topology(all_sessions, teams, assigns.now)
 
-    # Costs (load from SQLite, lightweight aggregation)
-    cost_data = Observatory.Costs.CostAggregator.load_cost_data()
-
-    # Unified agent index from Fleet.Agent (LoadAgents merges events + registry + BEAM)
+    # Unified agent index from Fleet.Agent
     agent_index = build_agent_lookup(Observatory.Fleet.Agent.all!())
 
-    # Template-layer data (moved out of heex preprocessing)
+    # Template-layer data
     paused_sessions = safe_paused_sessions()
-    mailbox_messages = load_messages(50)
+    mailbox_messages = load_messages(messages, 50)
+
+    # Conditional: only compute expensive derivations for active view
+    {analytics, timeline} = maybe_analytics(assigns)
+    feed_groups = maybe_feed(assigns, teams, tmux_only)
+    cost_data = maybe_costs(assigns)
 
     socket
     |> assign(:agent_index, agent_index)
@@ -232,18 +225,51 @@ defmodule ObservatoryWeb.DashboardState do
     |> push_event("fleet_topology_update", %{nodes: topo_nodes, edges: topo_edges})
   end
 
+  @doc "View-only recompute: re-derives display assigns from existing data. No Ash/SQL queries."
+  def recompute_view(socket) do
+    assigns = socket.assigns
+    teams = assigns[:teams] || []
+
+    selected_team = resolve_selected_team(assigns.selected_team, teams)
+    sel_team = Enum.find(teams, fn t -> t.name == selected_team end)
+
+    active_tasks =
+      cond do
+        sel_team && sel_team.tasks != [] -> sel_team.tasks
+        (assigns[:active_tasks] || []) != [] -> assigns.active_tasks
+        true -> []
+      end
+
+    filtered_messages = search_messages(assigns[:messages] || [], assigns.search_messages)
+    message_threads = group_messages_by_thread(filtered_messages)
+
+    socket
+    |> assign(:visible_events, filtered_events(assigns))
+    |> assign(:message_threads, message_threads)
+    |> assign(:selected_team, selected_team)
+    |> assign(:sel_team, sel_team)
+    |> assign(:active_tasks, active_tasks)
+  end
+
+  defp resolve_selected_team(current, teams) do
+    cond do
+      current -> current
+      length(teams) == 1 -> hd(teams).name
+      true -> nil
+    end
+  end
+
   defp safe_paused_sessions do
     Observatory.Gateway.HITLRelay.paused_sessions() |> MapSet.new()
   rescue
     _ -> MapSet.new()
   end
 
-  # Build multi-key lookup from Fleet.Agent structs (agent_id, session_id, short_name -> map)
   defp build_agent_lookup(agents) do
     agents
     |> Enum.flat_map(fn a ->
       agent_map = Map.from_struct(a)
-      # Add computed fields expected by templates
+
       agent_map = Map.merge(agent_map, %{
         team: a.team_name,
         project: if(a.cwd, do: Path.basename(a.cwd), else: nil),
@@ -258,9 +284,9 @@ defmodule ObservatoryWeb.DashboardState do
     |> Observatory.Gateway.AgentRegistry.dedup_by_status()
   end
 
-  # Load messages via Activity.Message, mapped to legacy mailbox format for templates
-  defp load_messages(limit) do
-    Observatory.Activity.Message.recent!()
+  # Reuse already-fetched messages instead of querying Activity.Message.recent!() again
+  defp load_messages(messages, limit) do
+    messages
     |> Enum.take(limit)
     |> Enum.map(fn m ->
       %{
@@ -273,6 +299,34 @@ defmodule ObservatoryWeb.DashboardState do
         timestamp: m.timestamp
       }
     end)
+  end
+
+  # Analytics + timeline only needed when activity analytics/timeline tab is active
+  defp maybe_analytics(assigns) do
+    if assigns.view_mode == :activity and assigns.activity_tab in [:analytics, :timeline] do
+      {EventAnalysis.tool_analytics(assigns.events), EventAnalysis.timeline(assigns.events)}
+    else
+      {assigns[:analytics] || %{}, assigns[:timeline] || []}
+    end
+  end
+
+  # Feed groups needed on command/activity views with feed/comms tab
+  defp maybe_feed(assigns, teams, tmux_only) do
+    if assigns.view_mode in [:command, :activity] and assigns.activity_tab in [:feed, :comms] do
+      groups = build_feed_groups(assigns.events, teams)
+      groups ++ Enum.map(tmux_only, &tmux_feed_entry(&1, assigns.now))
+    else
+      assigns[:feed_groups] || []
+    end
+  end
+
+  # Cost data only needed on forensic/control views (3 SQL queries)
+  defp maybe_costs(assigns) do
+    if assigns.view_mode in [:forensic, :control] do
+      Observatory.Costs.CostAggregator.load_cost_data()
+    else
+      assigns[:cost_data] || %{by_model: [], by_session: [], totals: %{}}
+    end
   end
 
   defp tmux_feed_entry(s, now) do

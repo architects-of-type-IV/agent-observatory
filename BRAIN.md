@@ -17,10 +17,13 @@
 - **Sweep**: GC with ended_ttl (30min) and stale_ttl (1h), infrastructure session cleanup
 - `derive_role/1` is a defdelegate to AgentEntry.role_from_string/1 (3 external callers)
 
-## DashboardLive Dispatch Pattern (2026-03-09)
+## DashboardLive Dispatch Pattern (2026-03-09, OPTIMIZED)
 - Each handler module exposes `dispatch/3` that matches event name + params, returns socket
 - LiveView uses module attributes `@filter_events ~w(...)` + `when e in @events` guards
-- Groups: recompute (most events), no-recompute (tmux/feed/fleet), passthrough (messaging returns {:noreply, socket})
+- **Three recompute tiers**: full recompute (data events), view-only recompute (display state), no recompute (pure UI toggles)
+- **Debounced recompute**: PubSub events schedule recompute via Process.send_after (100ms coalesce window)
+- **Deferred mount**: static render gets defaults, :load_data fires after WebSocket connects
+- **Conditional computation**: analytics/timeline/feed/costs only computed when their view is active
 - Template helpers still need explicit imports with `only:` lists in the LiveView
 
 ## Archon Architecture (2026-03-09)

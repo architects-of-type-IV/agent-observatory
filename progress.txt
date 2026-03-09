@@ -1,9 +1,18 @@
 ICHOR IV Progress (formerly Observatory)
 ========================================
 
-## Current: Fleet Consistency Rewire (2026-03-09)
+## Current: LiveView Performance Optimization (2026-03-09)
 
 ### This Session
+- [x] LiveView perf audit against 10 common anti-patterns
+- [x] Tiered recompute: full vs view-only vs no recompute
+- [x] Debounced recompute: 100ms coalesce window for PubSub events
+- [x] Eliminated double recompute from swarm_state re-broadcast
+- [x] Deferred mount: :load_data fires post-connect
+- [x] Conditional computation: analytics/timeline/feed/costs skip when inactive
+- [x] Fixed duplicate Message.recent!() call
+
+### Prior Session: Fleet Consistency Rewire (2026-03-09)
 - [x] Fixed 3 startup crashes: :pg child spec, HostRegistry scope, Ash domain config
 - [x] Phase 1 complete (task 42, subtasks 42.1-42.5): All external callers rewired to Fleet code interfaces
   - Archon.Tools (Agents, Teams, System, Messages) -> Fleet.Agent/Team + Activity.Message
