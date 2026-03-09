@@ -230,14 +230,14 @@ defmodule Observatory.ProtocolTracker do
 
   defp compute_stats do
     traces = :ets.tab2list(@table_name) |> Enum.map(&elem(&1, 1))
-    mailbox_stats = Observatory.Mailbox.get_stats()
+    agent_processes = Observatory.Fleet.AgentProcess.list_all()
 
     %{
       traces: length(traces),
       by_type: Enum.frequencies_by(traces, & &1.type),
       mailbox: %{
-        agents: length(mailbox_stats),
-        total_unread: Enum.reduce(mailbox_stats, 0, fn s, acc -> acc + s.unread end)
+        agents: length(agent_processes),
+        total_unread: 0
       },
       command_queue: %{
         sessions: 0,
