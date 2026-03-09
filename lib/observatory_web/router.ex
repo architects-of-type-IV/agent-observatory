@@ -27,6 +27,7 @@ defmodule ObservatoryWeb.Router do
     get "/debug/traces", DebugController, :traces
     get "/debug/mailboxes", DebugController, :mailboxes
     get "/debug/tmux", DebugController, :tmux
+    get "/debug/fleet-agents", DebugController, :fleet_agents
     post "/debug/purge", DebugController, :purge
   end
 
@@ -50,6 +51,9 @@ defmodule ObservatoryWeb.Router do
   forward "/mcp", AshAi.Mcp.Router,
     tools: [:check_inbox, :acknowledge_message, :send_message, :get_tasks, :update_task_status],
     otp_app: :observatory
+
+  # Silence Chrome DevTools probe
+  get "/.well-known/*path", ObservatoryWeb.NoopController, :noop
 
   scope "/", ObservatoryWeb do
     pipe_through :browser
