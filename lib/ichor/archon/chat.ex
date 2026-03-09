@@ -9,7 +9,7 @@ defmodule Ichor.Archon.Chat do
   Slash commands are handled directly without LLM roundtrip.
   """
 
-  alias LangChain.ChatModels.ChatAnthropic
+  alias LangChain.ChatModels.ChatOpenAI
   alias LangChain.Chains.LLMChain
   alias LangChain.Message
 
@@ -21,21 +21,21 @@ defmodule Ichor.Archon.Chat do
 
   require Logger
 
-  @default_model "claude-haiku-4-5-20251001"
+  @default_model "gpt-4o-mini"
 
   @system_prompt """
   You are Archon, the sovereign AI agent for ICHOR IV -- a control plane that manages autonomous coding agents.
 
   Your capabilities:
   - **Fleet awareness**: list agents, check agent status, list teams
-  - **Messaging**: read recent messages, send messages to agents
+  - **Messaging**: send messages to agents (use send_message tool)
   - **System health**: check process liveness, view tmux sessions
-  - **Knowledge graph**: search memory, remember observations, query memory with provenance
 
   You serve the Architect (the user). Be direct, concise, and precise.
   When asked about agents or the system, use your tools to get real-time data.
-  When you learn something important, use the remember tool to persist it.
   Do not use emoji. Do not be verbose.
+
+  MEMORY: Your knowledge graph is automatically searched each turn. Relevant facts and past conversations are injected as a system message before your response. Use that context directly -- do not call search_memory or query_memory unless the Architect explicitly asks for a deeper search. When the Architect asks what you discussed or know, answer from the injected memory context.
   """
 
   @doc """
@@ -57,6 +57,7 @@ defmodule Ichor.Archon.Chat do
   def chat(user_input, messages) do
     with {:ok, chain} <- build_chain(),
          {:ok, chain} <- add_history(chain, messages),
+         {:ok, chain} <- inject_memory_context(chain, user_input),
          {:ok, chain} <- add_user_message(chain, user_input) do
       run_turn(chain)
     end
@@ -117,9 +118,8 @@ defmodule Ichor.Archon.Chat do
   # ── LLM chain ──────────────────────────────────────────────────────
 
   defp build_chain do
-    case ChatAnthropic.new(%{
+    case ChatOpenAI.new(%{
            model: model(),
-           max_tokens: 4096,
            api_key: api_key()
          }) do
       {:ok, llm} ->
@@ -134,7 +134,7 @@ defmodule Ichor.Archon.Chat do
               {Teams, :*},
               {Messages, :*},
               {SystemTools, :*},
-              {Memory, :*}
+              {Memory, [:remember]}
             ]
           )
 
@@ -144,6 +144,68 @@ defmodule Ichor.Archon.Chat do
         {:error, {:llm_init_failed, changeset}}
     end
   end
+
+  # ── Automatic memory retrieval (Zep-style) ────────────────────────
+
+  defp inject_memory_context(chain, user_input) do
+    client = Ichor.Archon.MemoriesClient
+
+    {facts, episodes} =
+      [
+        Task.async(fn -> client.search(user_input, scope: "edges", limit: 5) end),
+        Task.async(fn -> client.search(user_input, scope: "episodes", limit: 3) end)
+      ]
+      |> Task.await_many(5_000)
+      |> then(fn [edges_result, episodes_result] ->
+        {format_edges(edges_result), format_episodes(episodes_result)}
+      end)
+
+    context = String.trim("#{facts}\n#{episodes}")
+
+    if context == "" do
+      {:ok, chain}
+    else
+      memory_msg = Message.new_system!("""
+      [MEMORY CONTEXT - auto-retrieved from your knowledge graph]
+      This is your conversation history with the Architect and accumulated knowledge. Use it to answer questions about what you discussed, what you know, and what happened previously. Do NOT call recent_messages for this -- that tool is only for inter-agent pipeline messages.
+      #{context}\
+      """)
+
+      {:ok, LLMChain.add_messages(chain, [memory_msg])}
+    end
+  rescue
+    _ -> {:ok, chain}
+  end
+
+  defp format_edges({:ok, %{"results" => %{"edges" => edges}}}) when is_list(edges) and edges != [] do
+    header = "Facts:"
+
+    items =
+      edges
+      |> Enum.take(10)
+      |> Enum.map_join("\n", fn edge ->
+        "- #{edge["fact"] || edge["name"] || inspect(edge)}"
+      end)
+
+    "#{header}\n#{items}"
+  end
+
+  defp format_edges(_), do: ""
+
+  defp format_episodes({:ok, %{"results" => %{"episodes" => eps}}}) when is_list(eps) and eps != [] do
+    header = "Recent conversations:"
+
+    items =
+      eps
+      |> Enum.take(5)
+      |> Enum.map_join("\n", fn ep ->
+        "- #{String.slice(ep["content"] || "", 0, 200)}"
+      end)
+
+    "#{header}\n#{items}"
+  end
+
+  defp format_episodes(_), do: ""
 
   defp add_history(chain, []), do: {:ok, chain}
 
@@ -171,10 +233,14 @@ defmodule Ichor.Archon.Chat do
   defp extract_response(chain) do
     case chain.last_message do
       %{content: content} when is_binary(content) -> content
-      %{content: parts} when is_list(parts) -> Enum.map_join(parts, "\n", &to_string/1)
+      %{content: parts} when is_list(parts) -> Enum.map_join(parts, "\n", &content_part_text/1)
       _ -> "No response."
     end
   end
+
+  defp content_part_text(%{content: text}) when is_binary(text), do: text
+  defp content_part_text(text) when is_binary(text), do: text
+  defp content_part_text(other), do: inspect(other)
 
   defp model do
     Application.get_env(:ichor, __MODULE__, [])
@@ -185,7 +251,7 @@ defmodule Ichor.Archon.Chat do
     Application.get_env(:ichor, __MODULE__, [])
     |> Keyword.get(:api_key)
     |> case do
-      nil -> System.get_env("ANTHROPIC_API_KEY")
+      nil -> System.get_env("OPENAI_API_KEY")
       key -> key
     end
   end

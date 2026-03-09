@@ -9,10 +9,11 @@ defmodule Ichor.Archon.Tools.Messages do
 
   actions do
     action :recent_messages, {:array, :map} do
-      description "Get recent messages across all agents."
+      description "Get recent inter-agent messages (operator/agent communications). NOT for conversation history -- your memory context has that."
 
       argument :limit, :integer do
-        allow_nil? true
+        allow_nil? false
+        default 20
         description "Max messages to return (default 20)"
       end
 

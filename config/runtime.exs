@@ -1,5 +1,28 @@
 import Config
 
+# Load .env file if present (dev/test convenience -- not used in prod releases)
+if config_env() in [:dev, :test] do
+  env_file = Path.expand("../.env", __DIR__)
+
+  if File.exists?(env_file) do
+    env_file
+    |> File.read!()
+    |> String.split("\n", trim: true)
+    |> Enum.each(fn line ->
+      case String.split(line, "=", parts: 2) do
+        [key, value] ->
+          key = String.trim(key)
+          unless key == "" or String.starts_with?(key, "#") do
+            System.put_env(key, String.trim(value))
+          end
+
+        _ ->
+          :ok
+      end
+    end)
+  end
+end
+
 # config/runtime.exs is executed for all environments, including
 # during releases. It is executed after compilation and before the
 # system starts, so it is typically used to load production configuration

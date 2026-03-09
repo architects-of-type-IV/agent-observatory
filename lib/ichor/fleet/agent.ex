@@ -31,6 +31,7 @@ defmodule Ichor.Fleet.Agent do
     attribute :host, :string, default: "local", public?: true
     attribute :channels, :map, default: %{}, public?: true
     attribute :last_event_at, :utc_datetime_usec, public?: true
+    attribute :subagents, {:array, :map}, default: [], public?: true
   end
 
   actions do

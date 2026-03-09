@@ -15,6 +15,7 @@ defmodule IchorWeb.DashboardSwarmHandlers do
   def dispatch("select_dag_node", p, s), do: handle_select_dag_node(p, s)
   def dispatch("select_command_agent", p, s), do: handle_select_command_agent(p, s)
   def dispatch("send_command_message", p, s), do: handle_send_command_message(p, s)
+  def dispatch("select_subagent", p, s), do: handle_select_subagent(p, s)
   def dispatch("clear_command_selection", p, s), do: handle_clear_command_selection(p, s)
 
   def handle_select_project(%{"project" => key}, socket) do
@@ -113,6 +114,29 @@ defmodule IchorWeb.DashboardSwarmHandlers do
     |> case do
       nil -> String.slice(session_id, 0, 8)
       event -> if event.cwd, do: Path.basename(event.cwd), else: String.slice(session_id, 0, 8)
+    end
+  end
+
+  def handle_select_subagent(%{"parent_id" => parent_id, "tool_use_id" => tool_use_id}, socket) do
+    agent_index = socket.assigns[:agent_index] || %{}
+    parent = Map.get(agent_index, parent_id, %{})
+    subs = parent[:subagents] || []
+
+    case Enum.find(subs, &(&1[:tool_use_id] == tool_use_id)) do
+      nil ->
+        socket
+
+      sub ->
+        selected = %{
+          agent_id: "sub:#{tool_use_id}",
+          name: sub[:description] || sub[:type] || "subagent",
+          session_id: parent_id,
+          subagent: sub
+        }
+
+        socket
+        |> assign(:selected_command_agent, selected)
+        |> assign(:selected_command_task, nil)
     end
   end
 

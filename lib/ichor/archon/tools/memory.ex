@@ -14,15 +14,13 @@ defmodule Ichor.Archon.Tools.Memory do
       description "Search Archon's knowledge graph for facts, entities, or episodes matching a query. Use this to recall information from past observations and conversations."
 
       argument :query, :string, allow_nil?: false, description: "Natural language search query"
-      argument :scope, :string, default: "edges", description: "Search scope: edges (facts), nodes (entities), or episodes"
-      argument :limit, :integer, default: 5, description: "Maximum results to return"
-      argument :space, :string, description: "Space namespace filter (e.g. project:ichor)"
+      argument :scope, :string, allow_nil?: false, default: "edges", description: "Search scope: edges (facts), nodes (entities), or episodes"
+      argument :limit, :integer, allow_nil?: false, default: 5, description: "Maximum results to return"
+      argument :space, :string, allow_nil?: false, default: "general", description: "Space namespace filter (e.g. general, project:ichor)"
 
       run fn input, _context ->
         args = input.arguments
-        opts = [scope: args.scope, limit: args.limit]
-        opts = if Map.get(args, :space), do: Keyword.put(opts, :space, args.space), else: opts
-        MemoriesClient.search(args.query, opts)
+        MemoriesClient.search(args.query, scope: args.scope, limit: args.limit, space: args.space)
       end
     end
 
@@ -30,14 +28,12 @@ defmodule Ichor.Archon.Tools.Memory do
       description "Store an observation in Archon's knowledge graph. The system will automatically extract entities and facts from the content. Use this to remember important information about agents, projects, decisions, or events."
 
       argument :content, :string, allow_nil?: false, description: "The observation to remember"
-      argument :type, :string, default: "text", description: "Structural type: text (narrative), message (conversation), json (structured)"
-      argument :space, :string, description: "Space namespace (e.g. project:ichor:archon)"
+      argument :type, :string, allow_nil?: false, default: "text", description: "Structural type: text (narrative), message (conversation), json (structured)"
+      argument :space, :string, allow_nil?: false, default: "general", description: "Space namespace (e.g. general, project:ichor:archon)"
 
       run fn input, _context ->
         args = input.arguments
-        opts = [type: args.type]
-        opts = if Map.get(args, :space), do: Keyword.put(opts, :space, args.space), else: opts
-        MemoriesClient.ingest(args.content, opts)
+        MemoriesClient.ingest(args.content, type: args.type, space: args.space)
       end
     end
 

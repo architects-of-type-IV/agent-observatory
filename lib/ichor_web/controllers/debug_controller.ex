@@ -141,7 +141,11 @@ defmodule IchorWeb.DebugController do
       count: length(agents),
       agents: Enum.map(agents, fn a ->
         %{agent_id: a.agent_id, name: a.name, status: a.status, team: a.team_name,
-          session_id: a.session_id, cwd: a.cwd, source_app: a.source_app}
+          session_id: a.session_id, cwd: a.cwd, source_app: a.source_app,
+          subagent_count: length(a.subagents),
+          subagents: Enum.map(a.subagents, fn s ->
+            %{description: s[:description], type: s[:type], status: s[:status]}
+          end)}
       end),
       sources: %{
         event_buffer_sessions: event_sessions,
@@ -151,6 +155,12 @@ defmodule IchorWeb.DebugController do
     })
   rescue
     e -> json(conn, %{error: Exception.message(e)})
+  end
+
+  def hitl_clear(conn, _params) do
+    paused = Ichor.Gateway.HITLRelay.paused_sessions()
+    Enum.each(paused, &Ichor.Gateway.HITLRelay.unpause(&1, "system", "debug-clear"))
+    json(conn, %{cleared: length(paused), sessions: paused})
   end
 
   def purge(conn, _params) do

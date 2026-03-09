@@ -934,6 +934,74 @@
   border-bottom: none;
 }
 
+/* Markdown prose within Archon panels */
+.archon-prose {
+  font-size: 0.75rem;
+  line-height: 1.6;
+}
+.archon-prose p { margin: 0.35em 0; }
+.archon-prose p:first-child { margin-top: 0; }
+.archon-prose p:last-child { margin-bottom: 0; }
+.archon-prose strong { color: hsl(var(--ichor-text-high)); font-weight: 600; }
+.archon-prose em { font-style: italic; }
+.archon-prose code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.6875rem;
+  padding: 0.1em 0.35em;
+  border-radius: var(--ichor-radius-sm);
+  background: hsl(var(--ichor-bg-raised));
+  border: 1px solid hsl(var(--ichor-border) / 0.3);
+}
+.archon-prose pre {
+  margin: 0.5em 0;
+  padding: 0.6em 0.8em;
+  border-radius: var(--ichor-radius-sm);
+  background: hsl(var(--ichor-bg));
+  border: 1px solid hsl(var(--ichor-border) / 0.3);
+  overflow-x: auto;
+  font-size: 0.6875rem;
+  line-height: 1.5;
+}
+.archon-prose pre code {
+  padding: 0;
+  background: transparent;
+  border: none;
+  font-size: inherit;
+}
+.archon-prose ul, .archon-prose ol {
+  margin: 0.35em 0;
+  padding-left: 1.4em;
+}
+.archon-prose li { margin: 0.15em 0; }
+.archon-prose ul { list-style-type: disc; }
+.archon-prose ol { list-style-type: decimal; }
+.archon-prose h1, .archon-prose h2, .archon-prose h3,
+.archon-prose h4, .archon-prose h5, .archon-prose h6 {
+  color: hsl(var(--ichor-text-high));
+  font-weight: 600;
+  margin: 0.6em 0 0.3em;
+  line-height: 1.3;
+}
+.archon-prose h1 { font-size: 1em; }
+.archon-prose h2 { font-size: 0.9375em; }
+.archon-prose h3 { font-size: 0.875em; }
+.archon-prose blockquote {
+  margin: 0.35em 0;
+  padding: 0.25em 0.75em;
+  border-left: 2px solid hsl(var(--ichor-brand) / 0.4);
+  color: hsl(var(--ichor-text-low));
+}
+.archon-prose a {
+  color: hsl(var(--ichor-interactive));
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.archon-prose hr {
+  border: none;
+  border-top: 1px solid hsl(var(--ichor-border) / 0.3);
+  margin: 0.5em 0;
+}
+
 /* Structured output components */
 .archon-output-section {
   @apply py-3;

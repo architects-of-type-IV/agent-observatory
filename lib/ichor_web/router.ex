@@ -28,6 +28,7 @@ defmodule IchorWeb.Router do
     get "/debug/mailboxes", DebugController, :mailboxes
     get "/debug/tmux", DebugController, :tmux
     get "/debug/fleet-agents", DebugController, :fleet_agents
+    post "/debug/hitl-clear", DebugController, :hitl_clear
     post "/debug/purge", DebugController, :purge
   end
 
@@ -49,7 +50,7 @@ defmodule IchorWeb.Router do
   end
 
   forward "/mcp", AshAi.Mcp.Router,
-    tools: [:check_inbox, :acknowledge_message, :send_message, :get_tasks, :update_task_status],
+    tools: [:check_inbox, :acknowledge_message, :send_message, :get_tasks, :update_task_status, :spawn_agent, :stop_agent],
     otp_app: :ichor
 
   # Silence Chrome DevTools probe

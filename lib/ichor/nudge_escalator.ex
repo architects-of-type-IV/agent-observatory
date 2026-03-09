@@ -21,8 +21,8 @@ defmodule Ichor.NudgeEscalator do
   alias Ichor.Gateway.Channels.Tmux
   alias Ichor.Gateway.HITLRelay
 
-  @default_stale_threshold 120
-  @default_nudge_interval 60
+  @default_stale_threshold 600
+  @default_nudge_interval 300
   @default_max_level 3
 
   defstruct escalations: %{}
@@ -50,11 +50,17 @@ defmodule Ichor.NudgeEscalator do
     {:noreply, state}
   end
 
-  # Activity on a session resets its escalation
+  # Activity on a session resets its escalation and unpauses if HITL-paused
   def handle_info({:new_event, event}, state) do
     session_id = event.session_id
 
     if Map.has_key?(state.escalations, session_id) do
+      entry = Map.get(state.escalations, session_id)
+
+      if entry.level >= 2 do
+        HITLRelay.unpause(session_id, session_id, "ichor-auto")
+      end
+
       {:noreply, %{state | escalations: Map.delete(state.escalations, session_id)}}
     else
       {:noreply, state}
@@ -103,7 +109,11 @@ defmodule Ichor.NudgeEscalator do
 
         since_last = DateTime.diff(now, entry.last_nudge_at, :second)
 
-        if since_last >= nudge_interval && entry.level < max_level do
+        # Non-tmux agents (e.g., direct Claude Code sessions) cap at level 0 (warn only).
+        # Tmux nudges and HITL pauses are meaningless without a tmux session.
+        effective_max = if agent[:channels] && agent.channels[:tmux], do: max_level, else: 0
+
+        if since_last >= nudge_interval && entry.level < effective_max do
           new_level = entry.level + 1
           execute_escalation(session_id, agent, new_level)
 

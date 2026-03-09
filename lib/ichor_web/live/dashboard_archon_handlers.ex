@@ -33,6 +33,8 @@ defmodule IchorWeb.DashboardArchonHandlers do
   @doc "Handle async chat response from Task."
   def handle_archon_response({:ok, response, history}, socket) do
     msg = build_response_msg(response)
+    user_input = last_user_input(socket.assigns.archon_messages)
+    persist_turn(user_input, response)
 
     socket
     |> assign(:archon_messages, socket.assigns.archon_messages ++ [msg])
@@ -51,8 +53,40 @@ defmodule IchorWeb.DashboardArchonHandlers do
 
   # -- Private ----------------------------------------------------------------
 
+  alias Ichor.Archon.MemoriesClient
+
   defp build_response_msg(%{type: type, data: data}), do: %{role: :assistant, type: type, data: data, content: nil}
   defp build_response_msg(text) when is_binary(text), do: %{role: :assistant, type: :text, data: nil, content: text}
+
+  defp last_user_input(messages) do
+    messages
+    |> Enum.reverse()
+    |> Enum.find_value(fn
+      %{role: :user, content: c} when is_binary(c) -> c
+      _ -> nil
+    end)
+  end
+
+  defp persist_turn(nil, _response), do: :ok
+
+  defp persist_turn(user_input, response) do
+    content = format_episode(user_input, response)
+
+    Task.start(fn ->
+      case MemoriesClient.ingest(content, type: "message") do
+        {:ok, _} -> :ok
+        {:error, reason} -> Logger.debug("[Archon] Memory ingest failed: #{inspect(reason)}")
+      end
+    end)
+  end
+
+  defp format_episode(user_input, %{type: type, data: data}) do
+    "Architect: #{user_input}\nArchon: [#{type}] #{inspect(data, limit: 20, pretty: false)}"
+  end
+
+  defp format_episode(user_input, text) when is_binary(text) do
+    "Architect: #{user_input}\nArchon: #{text}"
+  end
 
   defp dispatch_shortcode(content, socket) do
     history = socket.assigns.archon_history

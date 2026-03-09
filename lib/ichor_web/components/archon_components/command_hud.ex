@@ -289,14 +289,15 @@ defmodule IchorWeb.Components.ArchonComponents.CommandHud do
     """
   end
 
-  # Fallback: plain text (LLM responses, remember/recall/query results)
+  # Fallback: markdown (LLM responses, remember/recall/query results)
   defp output_entry(%{msg: msg} = assigns) do
     content = msg[:content] || inspect(msg[:data], pretty: true)
-    assigns = assign(assigns, :content, content)
+    rendered = render_markdown(content)
+    assigns = assign(assigns, :rendered, rendered)
 
     ~H"""
     <div class="archon-output-entry">
-      <div class="whitespace-pre-wrap">{@content}</div>
+      <div class="archon-prose">{@rendered}</div>
     </div>
     """
   end
@@ -369,4 +370,12 @@ defmodule IchorWeb.Components.ArchonComponents.CommandHud do
   defp safe_str(val) when is_binary(val), do: val
   defp safe_str(val) when is_atom(val), do: to_string(val)
   defp safe_str(val), do: inspect(val)
+
+  defp render_markdown(text) when is_binary(text) do
+    text
+    |> Earmark.as_html!(compact_output: true, smartypants: false)
+    |> Phoenix.HTML.raw()
+  end
+
+  defp render_markdown(other), do: Phoenix.HTML.raw(to_string(other))
 end

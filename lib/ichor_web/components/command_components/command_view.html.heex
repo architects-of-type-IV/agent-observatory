@@ -26,6 +26,7 @@
 
   # Standalone agents (not in any team, excluding operator)
   team_ids = @teams |> Enum.flat_map(& &1.members) |> Enum.map(& &1[:agent_id]) |> MapSet.new()
+
   standalone =
     all_agents
     |> Enum.reject(fn a -> MapSet.member?(team_ids, a[:agent_id]) end)
@@ -140,20 +141,50 @@
               is_selected = selected && selected[:agent_id] == agent.agent_id
               role = FH.classify_role(agent[:role] || agent.name)
               is_ghost = MapSet.member?(ghost_ids, agent.agent_id)
+              subs = agent[:subagents] || []
+              has_subs = subs != []
             %>
             <div
               class={"flex items-center gap-1.5 pl-5 pr-2.5 py-1 cursor-pointer transition border-l-2 #{if is_selected, do: "bg-interactive/10 border-interactive", else: "border-transparent hover:bg-raised/20"} #{if is_ghost, do: "opacity-50"}"}
               phx-click="select_command_agent"
               phx-value-id={agent.agent_id}
             >
+              <span :if={has_subs} class="text-[9px] text-muted inline-block rotate-90">&#x25B8;</span>
               <span class={"w-1.5 h-1.5 rounded-full shrink-0 #{if is_ghost, do: "bg-error/60", else: status_dot_color(agent.status)}"} />
               <span class={"text-[11px] truncate flex-1 #{if is_ghost, do: "text-muted line-through", else: "text-high"}"}>{agent.name}</span>
               <span :if={is_ghost} class="text-[8px] font-bold uppercase px-1 py-0.5 rounded bg-error/15 text-error border border-error/30">ghost</span>
               <span :if={role not in [:member, :standalone] && !is_ghost} class={"text-[8px] font-bold uppercase px-1 py-0.5 rounded border #{FH.badge_class(role)}"}>{FH.abbrev(role)}</span>
+              <span :if={has_subs && !is_ghost} class="text-[9px] text-muted font-mono">{length(subs)}</span>
               <span :if={MapSet.member?(hitl_paused, agent.agent_id)} class="text-[8px] font-bold uppercase px-1 py-0.5 rounded bg-brand/20 text-brand border border-brand/30">PAUSED</span>
               <span :if={agent[:tmux_session] && !is_ghost} class="text-[9px] text-brand font-mono shrink-0">tmux</span>
               <span :if={!is_ghost} class="text-[9px] text-interactive">{short_model(agent.model)}</span>
             </div>
+            <%!-- Subagent children --%>
+            <%= if has_subs do %>
+              <div class="pb-0.5">
+                <%= for {sub, idx} <- Enum.with_index(subs) do %>
+                  <%
+                    is_last = idx == length(subs) - 1
+                    connector = if is_last, do: "&#x2514;", else: "&#x251C;"
+                    sub_status = sub[:status] || :active
+                    sub_name = sub[:description] || sub[:name] || sub[:type] || "subagent"
+                    sub_type = sub[:type] || "general"
+                  %>
+                  <div
+                    class="flex items-center gap-1.5 py-0.5 cursor-pointer transition border-l-2 border-transparent hover:bg-raised/20"
+                    style="padding-left: 52px; padding-right: 10px;"
+                    phx-click="select_subagent"
+                    phx-value-parent_id={agent.agent_id}
+                    phx-value-tool_use_id={sub[:tool_use_id]}
+                  >
+                    <span class="text-[9px] text-muted w-2.5 shrink-0 text-center"><%= raw(connector) %></span>
+                    <span class={"w-1.5 h-1.5 rounded-full shrink-0 #{status_dot_color(sub_status)}"} />
+                    <span class="text-[11px] text-high truncate flex-1">{sub_name}</span>
+                    <span class="text-[8px] font-medium text-muted uppercase">{sub_type}</span>
+                  </div>
+                <% end %>
+              </div>
+            <% end %>
           <% end %>
         </div>
       <% end %>
@@ -326,6 +357,48 @@
 
   <%!-- Right: Detail Panel (400px, conditional) --%>
   <div :if={selected} class="w-[400px] shrink-0 border-l border-border bg-base/30 flex flex-col overflow-hidden">
+    <%= if selected[:subagent] do %>
+      <%
+        sub = selected[:subagent]
+        parent_agent = Map.get(agent_index, selected[:session_id], %{})
+        parent_name = parent_agent[:name] || String.slice(selected[:session_id] || "", 0, 8)
+      %>
+      <div class="px-3 py-1.5 border-b border-border flex items-center justify-between shrink-0">
+        <h3 class="text-[11px] font-semibold text-high truncate">{sub[:description] || sub[:type] || "Subagent"}</h3>
+        <button phx-click="clear_command_selection" class="text-[11px] text-muted hover:text-high cursor-pointer">x</button>
+      </div>
+      <div class="flex-1 overflow-y-auto">
+        <div class="px-3 py-2.5 border-b border-border/50">
+          <h4 class="text-[10px] font-semibold text-low uppercase tracking-wider mb-2">Subagent</h4>
+          <dl class="space-y-1 text-[11px]">
+            <div class="flex justify-between">
+              <dt class="text-low">Status</dt>
+              <dd class={status_text_color(sub[:status] || :active)}>{sub[:status] || :active}</dd>
+            </div>
+            <div class="flex justify-between">
+              <dt class="text-low">Type</dt>
+              <dd class="text-interactive">{sub[:type] || "general"}</dd>
+            </div>
+            <div class="flex justify-between">
+              <dt class="text-low">Parent</dt>
+              <dd class="text-high cursor-pointer hover:text-interactive transition" phx-click="select_command_agent" phx-value-id={selected[:session_id]}>{parent_name}</dd>
+            </div>
+            <div :if={sub[:description]} class="flex justify-between">
+              <dt class="text-low">Description</dt>
+              <dd class="text-high max-w-[250px] text-right">{sub[:description]}</dd>
+            </div>
+            <div :if={sub[:tool_use_id]} class="flex justify-between">
+              <dt class="text-low">Tool Use ID</dt>
+              <dd class="text-muted font-mono">{String.slice(sub[:tool_use_id], 0, 16)}</dd>
+            </div>
+            <div :if={sub[:started_at]} class="flex justify-between">
+              <dt class="text-low">Started</dt>
+              <dd class="text-muted font-mono">{FH.format_timestamp(sub[:started_at])}</dd>
+            </div>
+          </dl>
+        </div>
+      </div>
+    <% else %>
     <%
       sel_id = selected[:agent_id] || selected[:name]
       sel_agent = Map.get(agent_index, sel_id, selected)
@@ -514,5 +587,6 @@
         </div>
       </div>
     </div>
+    <% end %>
   </div>
 </div>

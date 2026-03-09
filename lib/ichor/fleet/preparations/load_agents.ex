@@ -17,6 +17,8 @@ defmodule Ichor.Fleet.Preparations.LoadAgents do
 
     registry_agents = Ichor.Gateway.AgentRegistry.list_all()
 
+    subagent_map = build_subagent_map(events)
+
     agents =
       events
       |> build_from_events(now)
@@ -25,6 +27,7 @@ defmodule Ichor.Fleet.Preparations.LoadAgents do
       |> append_tmux_only(tmux_sessions)
       |> merge_beam_processes(now)
       |> merge_with_registry(registry_agents)
+      |> attach_subagents(subagent_map)
       |> sort_agents()
 
     Ash.DataLayer.Simple.set_data(query, agents)
@@ -228,6 +231,41 @@ defmodule Ichor.Fleet.Preparations.LoadAgents do
             model: reg.model || agent.model
           }
       end
+    end)
+  end
+
+  # Build a map of session_id -> [%{tool_use_id, type, description, status}]
+  # Uses PreToolUse "Agent"/"Task" events (rich metadata) paired with PostToolUse for completion.
+  defp build_subagent_map(events) do
+    completed_ids =
+      events
+      |> Enum.filter(&(&1.hook_event_type in [:PostToolUse, :PostToolUseFailure] and &1.tool_name in ["Agent", "Task"]))
+      |> MapSet.new(& &1.tool_use_id)
+
+    events
+    |> Enum.filter(&(&1.hook_event_type == :PreToolUse and &1.tool_name in ["Agent", "Task"]))
+    |> Enum.map(fn e ->
+      input = (e.payload || %{})["tool_input"] || %{}
+      status = if MapSet.member?(completed_ids, e.tool_use_id), do: :ended, else: :active
+
+      {e.session_id, %{
+        tool_use_id: e.tool_use_id,
+        type: input["subagent_type"] || "general",
+        description: input["description"] || "",
+        name: input["name"],
+        status: status,
+        started_at: e.inserted_at
+      }}
+    end)
+    |> Enum.group_by(&elem(&1, 0), &elem(&1, 1))
+  end
+
+  # Attach subagent metadata to parent agents. Subagents are decorative data on
+  # the parent -- they never filter or reparent other Fleet.Agent entries.
+  defp attach_subagents(agents, subagent_map) do
+    Enum.map(agents, fn agent ->
+      subs = Map.get(subagent_map, agent.agent_id, [])
+      %{agent | subagents: subs}
     end)
   end
 

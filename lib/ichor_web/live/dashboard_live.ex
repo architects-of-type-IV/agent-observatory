@@ -54,7 +54,7 @@ defmodule IchorWeb.DashboardLive do
   @session_control_events ~w(pause_agent resume_agent shutdown_agent hitl_approve hitl_reject kill_switch_click kill_switch_first_confirm kill_switch_second_confirm kill_switch_cancel push_instructions_intent push_instructions_confirm push_instructions_cancel)
   @tmux_events ~w(connect_tmux disconnect_tmux close_all_tmux switch_tmux_tab toggle_tmux_layout send_tmux_keys kill_tmux_session kill_sidebar_tmux launch_session)
   @inspector_events ~w(inspect_team remove_from_inspector close_all_inspector toggle_inspector_layout toggle_maximize_inspector set_inspector_size set_output_mode toggle_agent_output set_message_target send_targeted_message)
-  @swarm_events ~w(select_project heal_task reset_all_stale run_health_check reassign_swarm_task claim_swarm_task trigger_gc select_dag_node select_command_agent send_command_message clear_command_selection)
+  @swarm_events ~w(select_project heal_task reset_all_stale run_health_check reassign_swarm_task claim_swarm_task trigger_gc select_dag_node select_command_agent select_subagent send_command_message clear_command_selection)
   @task_events ~w(create_task update_task_status reassign_task delete_task)
   @note_events ~w(add_note delete_note)
   @feed_events ~w(toggle_session_collapse expand_all collapse_all)

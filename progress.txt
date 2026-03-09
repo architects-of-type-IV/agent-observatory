@@ -1,49 +1,39 @@
 ICHOR IV Progress (formerly Observatory)
 ========================================
 
-## Current: Codebase Rename (2026-03-09)
+## Current: Fleet Observability + MCP Spawn Tool (2026-03-09)
 
 ### This Session
+- [x] Rewrote subagent hierarchy: PreToolUse/PostToolUse events (rich metadata) instead of SubagentStart (nil)
+- [x] Made subagents clickable in fleet tree with detail panel (type, parent, description, tool_use_id)
+- [x] Added Fleet.Agent :subagents attribute ({:array, :map})
+- [x] Fixed NudgeEscalator: increased thresholds (600s/300s), auto-unpause on activity, non-tmux cap at level 0
+- [x] Added /api/debug/hitl-clear endpoint for bulk unpause
+- [x] Built spawn_agent/stop_agent MCP tools (Ichor.AgentTools.Spawn)
+- [x] Registered spawn tools in AgentTools domain + MCP router
+- [x] Added select_subagent event handler in DashboardSwarmHandlers
+
+### Prior: Codebase Rename (2026-03-09)
 - [x] Full codebase rename: Observatory -> Ichor (211 modules, OTP :ichor)
 - [x] Dashboard title: "ICHOR IV" (header, tab, root layout)
 - [x] All paths, atoms, strings, configs, assets, snapshots updated
-- [x] DB files renamed: ichor_dev.db, ichor_test.db
 - [x] mix compile --warnings-as-errors -- CLEAN
 
 ### Prior: Agent Lifecycle Management (2026-03-09)
-- [x] Fixed shutdown_agent: now kills tmux session + terminates BEAM process + cleans all registries
-- [x] Added EventBuffer.remove_session/1 to purge stale events
-- [x] Fixed shutdown button using short name instead of full session_id UUID
-- [x] Standalone agents grouped by project (was flat "Standalone" list)
-- [x] Ghost detection: agents with event_count=0 get red GHOST badge, dimmed, strikethrough
-- [x] Operator agent hidden from fleet list
-- [x] Infrastructure tmux sessions (obs) filtered from agent list
-- [x] Shutdown clears selected_command_agent for instant UI update
-- [x] Role badges on standalone agent rows
-- [x] Audited all 6 lifecycle gaps, closed every loop:
-  - AgentProcess.terminate/2 = single cleanup point (tmux + registry + eventbuffer)
-  - SessionEnd hook now terminates BEAM process
-  - Sweep does full cleanup (was ETS-only)
-  - AgentSpawner.stop_agent cleans registry
-- [x] Rewrote Sweep module: idiomatic Elixir (pattern matching, no if/unless, DateTime.compare)
-- [x] Debug endpoint enhanced with source tracing (event_buffer + beam_processes + registry)
+- [x] Fixed shutdown_agent: tmux + BEAM + registries cleanup
+- [x] Ghost detection: GHOST badge for event_count=0
+- [x] Standalone agents grouped by project
+- [x] AgentProcess.terminate/2 = single cleanup point
+- [x] Sweep rewritten in idiomatic Elixir
 
 ### Prior: Full Tokenization Complete (2026-03-09)
-- [x] Created --ichor-* CSS custom property system (30+ tokens)
-- [x] Defined ICHOR IV theme (dark/amber) + Swiss theme (light/red/zero-radius)
-- [x] Migrated ~50 ichor-* design system classes from hardcoded to tokens
-- [x] Renamed obs-* -> ichor-* across CSS + 13 template files
-- [x] Bulk migrated 1,171 hardcoded color references to semantic tokens
-- [x] Tokenized Archon CSS: ~60 rgba() values -> hsl(var(--ichor-*) / opacity)
-- [x] Tokenized Workshop canvas: hex colors -> hsl(var(--ichor-role-*))
-- [x] Added violet + cyan tokens (83 references)
+- [x] 30+ --ichor-* CSS tokens, two themes (ICHOR IV + Swiss)
+- [x] 1,171 hardcoded color references migrated to semantic tokens
+- [x] obs-* -> ichor-* rename across CSS + 13 templates
 
-### Prior: Archon HUD Redesign + Fleet Action Fixes (2026-03-09)
-- [x] Fixed fleet sidebar, shutdown/kill, pause/resume, focus slideout, HITL notification
-- [x] Redesigned Archon HUD: centered 16:9 translucent glass panel, 3 tabs
-
-### Prior: LiveView Performance + Fleet Consistency + Legacy Elimination
+### Prior: Archon + Fleet + Legacy Elimination
+- [x] Archon HUD + Chat + Memories integration
 - [x] DashboardLive refactor: 594 -> 164 lines (dispatch/3 pattern)
-- [x] Archon LLM wiring + chat UI + Memories integration
 - [x] AgentRegistry decomposition + Distribution foundation
-- [x] All phases complete. Net -730 lines from web layer.
+- [x] Legacy modules eliminated (Mailbox, CommandQueue, TeamWatcher)
+- [x] Net -730 lines from web layer

@@ -6,7 +6,7 @@ defmodule Ichor.AgentTools do
   """
   use Ash.Domain, extensions: [AshAi]
 
-  alias Ichor.AgentTools.{Inbox, Tasks, Memory, Recall, Archival, Agents}
+  alias Ichor.AgentTools.{Inbox, Tasks, Memory, Recall, Archival, Agents, Spawn}
 
   resources do
     resource(Inbox)
@@ -15,6 +15,7 @@ defmodule Ichor.AgentTools do
     resource(Recall)
     resource(Archival)
     resource(Agents)
+    resource(Spawn)
   end
 
   tools do
@@ -39,5 +40,8 @@ defmodule Ichor.AgentTools do
     # Agent management
     tool(:create_agent, Agents, :create_agent)
     tool(:list_agents, Agents, :list_agents)
+    # Fleet spawning
+    tool(:spawn_agent, Spawn, :spawn_agent)
+    tool(:stop_agent, Spawn, :stop_agent)
   end
 end
