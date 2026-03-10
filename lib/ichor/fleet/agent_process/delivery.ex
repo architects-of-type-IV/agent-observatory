@@ -71,10 +71,6 @@ defmodule Ichor.Fleet.AgentProcess.Delivery do
   @doc "Broadcast a message delivery event to the messages stream."
   @spec broadcast(String.t(), map()) :: :ok
   def broadcast(agent_id, msg) do
-    Phoenix.PubSub.broadcast(
-      Ichor.PubSub,
-      "messages:stream",
-      {:message_delivered, agent_id, msg}
-    )
+    Ichor.Signal.emit(:message_delivered, %{agent_id: agent_id, msg_map: msg})
   end
 end

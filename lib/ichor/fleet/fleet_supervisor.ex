@@ -49,12 +49,7 @@ defmodule Ichor.Fleet.FleetSupervisor do
   def disband_team(team_name) do
     case Registry.lookup(Ichor.Fleet.TeamRegistry, team_name) do
       [{pid, _}] ->
-        Phoenix.PubSub.broadcast(
-          Ichor.PubSub,
-          "fleet:lifecycle",
-          {:team_disbanded, team_name}
-        )
-
+        Ichor.Signal.emit(:team_disbanded, %{team_name: team_name})
         DynamicSupervisor.terminate_child(__MODULE__, pid)
 
       [] ->

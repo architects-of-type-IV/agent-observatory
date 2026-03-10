@@ -168,11 +168,21 @@ defmodule Ichor.Fleet.AgentProcess do
     }
 
     meta = Keyword.get(opts, :metadata, %{})
-    tmux_session = case state.backend do
-      %{type: :tmux, session: s} -> s
-      _ -> nil
-    end
-    update_registry(id, %{role: role, team: team, status: :active, backend_type: backend_type(state.backend), cwd: meta[:cwd], tmux_session: tmux_session})
+
+    tmux_session =
+      case state.backend do
+        %{type: :tmux, session: s} -> s
+        _ -> nil
+      end
+
+    update_registry(id, %{
+      role: role,
+      team: team,
+      status: :active,
+      backend_type: backend_type(state.backend),
+      cwd: meta[:cwd],
+      tmux_session: tmux_session
+    })
 
     # Join :pg group for cluster-wide discovery
     :pg.join(@pg_scope, {:agent, id}, self())
@@ -269,8 +279,20 @@ defmodule Ichor.Fleet.AgentProcess do
   end
 
   @spec broadcast_lifecycle(tuple()) :: :ok
-  defp broadcast_lifecycle(event) do
-    Phoenix.PubSub.broadcast(Ichor.PubSub, "fleet:lifecycle", event)
+  defp broadcast_lifecycle({:agent_started, id, %{role: role, team: team}}) do
+    Ichor.Signal.emit(:agent_started, %{session_id: id, role: role, team: team})
+  end
+
+  defp broadcast_lifecycle({:agent_paused, id}) do
+    Ichor.Signal.emit(:agent_paused, %{session_id: id})
+  end
+
+  defp broadcast_lifecycle({:agent_resumed, id}) do
+    Ichor.Signal.emit(:agent_resumed, %{session_id: id})
+  end
+
+  defp broadcast_lifecycle({:agent_stopped, id, reason}) do
+    Ichor.Signal.emit(:agent_stopped, %{session_id: id, reason: reason})
   end
 
   @spec backend_type(map() | nil) :: atom() | nil

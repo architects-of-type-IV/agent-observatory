@@ -171,10 +171,6 @@ defmodule Ichor.Fleet.HostRegistry do
   end
 
   defp broadcast_hosts_changed do
-    Phoenix.PubSub.broadcast(
-      Ichor.PubSub,
-      "fleet:lifecycle",
-      :hosts_changed
-    )
+    Ichor.Signal.emit(:hosts_changed, %{})
   end
 end
