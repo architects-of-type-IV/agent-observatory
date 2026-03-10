@@ -28,7 +28,8 @@ defmodule Ichor.Repo.Migrations.CreateWorkshopBlueprints do
             column: :id,
             name: "workshop_spawn_links_team_blueprint_id_fkey",
             type: :uuid
-          ), null: false
+          ),
+          null: false
 
       add :updated_at, :utc_datetime_usec, null: false
       add :inserted_at, :utc_datetime_usec, null: false
@@ -43,7 +44,8 @@ defmodule Ichor.Repo.Migrations.CreateWorkshopBlueprints do
             column: :id,
             name: "workshop_comm_rules_team_blueprint_id_fkey",
             type: :uuid
-          ), null: false
+          ),
+          null: false
 
       add :updated_at, :utc_datetime_usec, null: false
       add :inserted_at, :utc_datetime_usec, null: false
@@ -60,7 +62,8 @@ defmodule Ichor.Repo.Migrations.CreateWorkshopBlueprints do
             column: :id,
             name: "workshop_agent_blueprints_team_blueprint_id_fkey",
             type: :uuid
-          ), null: false
+          ),
+          null: false
 
       add :updated_at, :utc_datetime_usec, null: false
       add :inserted_at, :utc_datetime_usec, null: false
