@@ -32,12 +32,8 @@ defmodule Ichor.Gateway.Channels.MailboxAdapter do
       Ichor.ProtocolTracker.track_mailbox_delivery(message.id, session_id, from)
       :ok
     else
-      # PubSub broadcast for dashboard visibility even without a process
-      Phoenix.PubSub.broadcast(
-        Ichor.PubSub,
-        "agent:#{session_id}",
-        {:new_mailbox_message, message}
-      )
+      # Signal for dashboard visibility even without a process
+      Ichor.Signal.emit(:mailbox_message, session_id, %{message: message})
 
       Ichor.ProtocolTracker.track_mailbox_delivery(message.id, session_id, from)
       :ok

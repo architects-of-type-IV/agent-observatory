@@ -137,11 +137,7 @@ defmodule Ichor.Gateway.WebhookRouter do
       |> WebhookDelivery.changeset(%{status: "dead", attempt_count: new_attempt_count})
       |> Repo.update()
 
-      Phoenix.PubSub.broadcast(
-        Ichor.PubSub,
-        "gateway:dlq",
-        {:dead_letter, delivery}
-      )
+      Ichor.Signal.emit(:dead_letter, %{delivery: delivery})
     else
       delay_seconds = Enum.at(@retry_schedule_seconds, new_attempt_count - 1, 21_600)
       next_retry = DateTime.utc_now() |> DateTime.add(delay_seconds) |> DateTime.truncate(:second)

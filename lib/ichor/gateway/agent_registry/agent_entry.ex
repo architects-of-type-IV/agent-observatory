@@ -34,13 +34,18 @@ defmodule Ichor.Gateway.AgentRegistry.AgentEntry do
   @doc "Abbreviate a session ID for display. UUIDs get truncated to 8 chars; human-readable names pass through."
   @spec short_id(String.t() | nil) :: String.t()
   def short_id(nil), do: "?"
+
   def short_id(id) when is_binary(id) do
     if uuid?(id), do: String.slice(id, 0, 8), else: id
   end
 
   @doc "Check if a string looks like a UUID (36 chars with dash at position 8). Cheap guard, no parsing."
   @spec uuid?(String.t()) :: boolean()
-  def uuid?(<<_::binary-size(8), ?-, _::binary-size(4), ?-, _::binary-size(4), ?-, _::binary-size(4), ?-, _::binary-size(12)>>), do: true
+  def uuid?(
+        <<_::binary-size(8), ?-, _::binary-size(4), ?-, _::binary-size(4), ?-, _::binary-size(4),
+          ?-, _::binary-size(12)>>
+      ), do: true
+
   def uuid?(_), do: false
 
   @doc """

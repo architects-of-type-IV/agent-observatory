@@ -78,11 +78,10 @@ defmodule Ichor.Gateway.OutputCapture do
             prev = Map.get(acc, session_id, "")
 
             if output != prev do
-              Phoenix.PubSub.broadcast(
-                Ichor.PubSub,
-                "agent:#{session_id}:activity",
-                {:terminal_output, session_id, output}
-              )
+              Ichor.Signal.emit(:terminal_output, session_id, %{
+                session_id: session_id,
+                output: output
+              })
 
               Map.put(acc, session_id, output)
             else

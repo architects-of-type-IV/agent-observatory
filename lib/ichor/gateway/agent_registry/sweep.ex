@@ -12,8 +12,8 @@ defmodule Ichor.Gateway.AgentRegistry.Sweep do
 
   require Logger
 
-  alias Ichor.Gateway.AgentRegistry.AgentEntry
   alias Ichor.Fleet.{AgentProcess, FleetSupervisor}
+  alias Ichor.Gateway.AgentRegistry.AgentEntry
 
   @table :gateway_agent_registry
 
@@ -97,9 +97,11 @@ defmodule Ichor.Gateway.AgentRegistry.Sweep do
       {true, _} ->
         Logger.info("[Sweep] #{sid} removed: infrastructure session")
         full_sweep(sid)
+
       {_, false} ->
         Logger.info("[Sweep] #{sid} removed: standalone non-UUID with no team")
         full_sweep(sid)
+
       {_, true} ->
         sweep_stale_uuid(sid, stale_cutoff)
     end
@@ -107,8 +109,11 @@ defmodule Ichor.Gateway.AgentRegistry.Sweep do
 
   defp sweep_stale_uuid(sid, stale_cutoff) do
     case :ets.lookup(@table, sid) do
-      [{_, %{last_event_at: ts}}] -> sweep_if_before(sid, ts, stale_cutoff, "stale idle TTL elapsed")
-      _ -> :ok
+      [{_, %{last_event_at: ts}}] ->
+        sweep_if_before(sid, ts, stale_cutoff, "stale idle TTL elapsed")
+
+      _ ->
+        :ok
     end
   end
 
@@ -121,6 +126,7 @@ defmodule Ichor.Gateway.AgentRegistry.Sweep do
       :lt ->
         Logger.info("[Sweep] #{sid} removed: #{reason} (last_event_at=#{ts})")
         full_sweep(sid)
+
       _ ->
         :ok
     end
@@ -128,7 +134,9 @@ defmodule Ichor.Gateway.AgentRegistry.Sweep do
 
   defp sweep_unless_member(sid, team, live) do
     case MapSet.member?(live, team) do
-      true -> :ok
+      true ->
+        :ok
+
       false ->
         Logger.info("[Sweep] #{sid} removed: team #{team} is no longer alive")
         full_sweep(sid)

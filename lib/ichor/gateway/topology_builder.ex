@@ -79,11 +79,7 @@ defmodule Ichor.Gateway.TopologyBuilder do
           end)
 
         # Broadcast to gateway:topology
-        Phoenix.PubSub.broadcast(
-          Ichor.PubSub,
-          "gateway:topology",
-          %{nodes: nodes, edges: edges}
-        )
+        Ichor.Signal.emit(:topology_snapshot, %{nodes: nodes, edges: edges})
 
         {:noreply, state}
 

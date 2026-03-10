@@ -106,11 +106,10 @@ defmodule Ichor.Gateway.EntropyTracker do
               {:loop, err}
 
             :ok ->
-              Phoenix.PubSub.broadcast(
-                Ichor.PubSub,
-                "gateway:topology",
-                %{session_id: session_id, state: "alert_entropy"}
-              )
+              Ichor.Signal.emit(:node_state_update, %{
+                agent_id: session_id,
+                state: "alert_entropy"
+              })
 
               :ets.insert(table, {session_id, {updated_window, :loop, agent_id}})
               {:loop, {:ok, score, :loop}}
@@ -118,11 +117,10 @@ defmodule Ichor.Gateway.EntropyTracker do
 
         score < warning_threshold ->
           # WARNING: topology only, no alert
-          Phoenix.PubSub.broadcast(
-            Ichor.PubSub,
-            "gateway:topology",
-            %{session_id: session_id, state: "blocked"}
-          )
+          Ichor.Signal.emit(:node_state_update, %{
+            agent_id: session_id,
+            state: "blocked"
+          })
 
           :ets.insert(table, {session_id, {updated_window, :warning, agent_id}})
           {:warning, {:ok, score, :warning}}
@@ -130,11 +128,10 @@ defmodule Ichor.Gateway.EntropyTracker do
         true ->
           # NORMAL: reset topology if recovering
           if prior_severity in [:warning, :loop] do
-            Phoenix.PubSub.broadcast(
-              Ichor.PubSub,
-              "gateway:topology",
-              %{session_id: session_id, state: "active"}
-            )
+            Ichor.Signal.emit(:node_state_update, %{
+              agent_id: session_id,
+              state: "active"
+            })
           end
 
           :ets.insert(table, {session_id, {updated_window, :normal, agent_id}})
@@ -190,29 +187,11 @@ defmodule Ichor.Gateway.EntropyTracker do
     build_alert_event(session_id, session_id, score, window)
   end
 
-  defp build_alert_event(session_id, agent_id, score, window) do
-    frequencies = Enum.frequencies(window)
-    {pattern, count} = Enum.max_by(frequencies, fn {_k, v} -> v end)
-
-    event = %{
-      event_type: "entropy_alert",
+  defp build_alert_event(session_id, _agent_id, score, _window) do
+    Ichor.Signal.emit(:entropy_alert, %{
       session_id: session_id,
-      agent_id: agent_id,
-      entropy_score: score,
-      window_size: length(window),
-      repeated_pattern: %{
-        intent: to_string(elem(pattern, 0)),
-        tool_call: to_string(elem(pattern, 1)),
-        action_status: to_string(elem(pattern, 2))
-      },
-      occurrence_count: count
-    }
-
-    Phoenix.PubSub.broadcast(
-      Ichor.PubSub,
-      "gateway:entropy_alerts",
-      event
-    )
+      entropy_score: score
+    })
 
     :ok
   end

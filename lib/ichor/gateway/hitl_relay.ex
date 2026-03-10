@@ -8,8 +8,6 @@ defmodule Ichor.Gateway.HITLRelay do
 
   use GenServer
 
-  alias Ichor.Gateway.HITLEvents.{GateOpenEvent, GateCloseEvent}
-
   @ets_table :hitl_buffer
   @sweep_interval :timer.minutes(30)
   @abandoned_ttl_seconds 1_800
@@ -27,7 +25,8 @@ defmodule Ichor.Gateway.HITLRelay do
   end
 
   @doc "Unpause a session. Flushes buffered messages in order."
-  @spec unpause(String.t(), String.t(), String.t()) :: {:ok, non_neg_integer()} | {:ok, :not_paused}
+  @spec unpause(String.t(), String.t(), String.t()) ::
+          {:ok, non_neg_integer()} | {:ok, :not_paused}
   def unpause(session_id, agent_id, operator_id) do
     GenServer.call(__MODULE__, {:unpause, session_id, agent_id, operator_id})
   end
@@ -86,21 +85,13 @@ defmodule Ichor.Gateway.HITLRelay do
   end
 
   @impl true
-  def handle_call({:pause, session_id, agent_id, operator_id, reason}, _from, state) do
+  def handle_call({:pause, session_id, _agent_id, _operator_id, _reason}, _from, state) do
     case Map.get(state.sessions, session_id) do
       :paused ->
         {:reply, {:ok, :already_paused}, state}
 
       _ ->
-        event = %GateOpenEvent{
-          session_id: session_id,
-          agent_id: agent_id,
-          operator_id: operator_id,
-          reason: reason,
-          timestamp: DateTime.utc_now()
-        }
-
-        Phoenix.PubSub.broadcast(Ichor.PubSub, "session:hitl:#{session_id}", {:hitl, event})
+        Ichor.Signal.emit(:gate_open, session_id, %{session_id: session_id})
 
         new_sessions = Map.put(state.sessions, session_id, :paused)
         new_paused_at = Map.put(state.paused_at, session_id, DateTime.utc_now())
@@ -108,24 +99,18 @@ defmodule Ichor.Gateway.HITLRelay do
     end
   end
 
-  def handle_call({:unpause, session_id, agent_id, operator_id}, _from, state) do
+  def handle_call({:unpause, session_id, _agent_id, _operator_id}, _from, state) do
     case Map.get(state.sessions, session_id) do
       :paused ->
         flushed_count = flush_buffer(session_id)
 
-        event = %GateCloseEvent{
-          session_id: session_id,
-          agent_id: agent_id,
-          operator_id: operator_id,
-          timestamp: DateTime.utc_now(),
-          flushed_count: flushed_count
-        }
-
-        Phoenix.PubSub.broadcast(Ichor.PubSub, "session:hitl:#{session_id}", {:hitl, event})
+        Ichor.Signal.emit(:gate_close, session_id, %{session_id: session_id})
 
         new_sessions = Map.put(state.sessions, session_id, :normal)
         new_paused_at = Map.delete(state.paused_at, session_id)
-        {:reply, {:ok, flushed_count}, %{state | sessions: new_sessions, paused_at: new_paused_at}}
+
+        {:reply, {:ok, flushed_count},
+         %{state | sessions: new_sessions, paused_at: new_paused_at}}
 
       _ ->
         {:reply, {:ok, :not_paused}, state}
@@ -172,23 +157,17 @@ defmodule Ichor.Gateway.HITLRelay do
   end
 
   def handle_call(:paused_sessions, _from, state) do
-    paused = state.sessions |> Enum.filter(fn {_k, v} -> v == :paused end) |> Enum.map(&elem(&1, 0))
+    paused =
+      state.sessions |> Enum.filter(fn {_k, v} -> v == :paused end) |> Enum.map(&elem(&1, 0))
+
     {:reply, paused, state}
   end
 
-  def handle_call({:reject, session_id, agent_id, operator_id}, _from, state) do
+  def handle_call({:reject, session_id, _agent_id, _operator_id}, _from, state) do
     # Delete buffered messages without flushing
     :ets.match_delete(@ets_table, {{session_id, :_}, :_})
 
-    event = %GateCloseEvent{
-      session_id: session_id,
-      agent_id: agent_id,
-      operator_id: operator_id,
-      timestamp: DateTime.utc_now(),
-      flushed_count: 0
-    }
-
-    Phoenix.PubSub.broadcast(Ichor.PubSub, "session:hitl:#{session_id}", {:hitl, event})
+    Ichor.Signal.emit(:gate_close, session_id, %{session_id: session_id})
 
     new_sessions = Map.put(state.sessions, session_id, :normal)
     new_paused_at = Map.delete(state.paused_at, session_id)
@@ -231,7 +210,7 @@ defmodule Ichor.Gateway.HITLRelay do
       |> Enum.sort_by(fn {{_sid, ts}, _msg} -> ts end)
 
     Enum.each(messages, fn {{_sid, _ts} = key, msg} ->
-      Phoenix.PubSub.broadcast(Ichor.PubSub, "gateway:messages", {:decision_log, msg})
+      Ichor.Signal.emit(:decision_log, %{log: msg})
       :ets.delete(@ets_table, key)
     end)
 

@@ -88,10 +88,13 @@ defmodule Ichor.Gateway.Channels.SshTmux do
     socket_path = Keyword.get(config, :socket_path, "/tmp/obs.sock")
     extra_ssh_opts = Keyword.get(config, :ssh_opts, [])
 
-    ssh_opts = [
-      "-o", "ConnectTimeout=#{timeout}",
-      "-o", "BatchMode=yes"
-    ] ++ extra_ssh_opts
+    ssh_opts =
+      [
+        "-o",
+        "ConnectTimeout=#{timeout}",
+        "-o",
+        "BatchMode=yes"
+      ] ++ extra_ssh_opts
 
     # Build remote tmux command with socket
     tmux_cmd = build_tmux_command(socket_path, tmux_args)

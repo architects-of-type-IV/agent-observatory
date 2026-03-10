@@ -86,7 +86,10 @@ defmodule Ichor.Gateway.AgentRegistry do
   def update_tmux_channel(session_id, tmux_target) do
     case :ets.lookup(@table, session_id) do
       [{^session_id, agent}] ->
-        :ets.insert(@table, {session_id, %{agent | channels: Map.put(agent.channels, :tmux, tmux_target)}})
+        :ets.insert(
+          @table,
+          {session_id, %{agent | channels: Map.put(agent.channels, :tmux, tmux_target)}}
+        )
 
       [] ->
         :ok
@@ -132,7 +135,7 @@ defmodule Ichor.Gateway.AgentRegistry do
 
   @doc "Broadcast a registry change notification."
   def broadcast_update do
-    Phoenix.PubSub.broadcast(Ichor.PubSub, "gateway:registry", :registry_changed)
+    Ichor.Signal.emit(:registry_changed, %{})
   end
 
   # ── Query Helpers (pure, no ETS) ─────────────────────────────────
@@ -276,12 +279,22 @@ defmodule Ichor.Gateway.AgentRegistry do
         :ok
 
       false ->
-        process_opts = [id: id, role: opts[:role] || :worker, team: opts[:team], backend: opts[:backend]]
+        process_opts = [
+          id: id,
+          role: opts[:role] || :worker,
+          team: opts[:team],
+          backend: opts[:backend]
+        ]
 
         case Ichor.Fleet.FleetSupervisor.spawn_agent(process_opts) do
-          {:ok, _pid} -> :ok
-          {:error, {:already_started, _pid}} -> :ok
-          {:error, reason} -> Logger.debug("[AgentRegistry] AgentProcess failed for #{id}: #{inspect(reason)}")
+          {:ok, _pid} ->
+            :ok
+
+          {:error, {:already_started, _pid}} ->
+            :ok
+
+          {:error, reason} ->
+            Logger.debug("[AgentRegistry] AgentProcess failed for #{id}: #{inspect(reason)}")
         end
     end
   rescue
@@ -307,8 +320,12 @@ defmodule Ichor.Gateway.AgentRegistry do
     end
   end
 
-  defp backend_from_channels(%{tmux: session}) when is_binary(session), do: %{type: :tmux, session: session}
-  defp backend_from_channels(%{ssh_tmux: address}) when is_binary(address), do: %{type: :ssh_tmux, address: address}
+  defp backend_from_channels(%{tmux: session}) when is_binary(session),
+    do: %{type: :tmux, session: session}
+
+  defp backend_from_channels(%{ssh_tmux: address}) when is_binary(address),
+    do: %{type: :ssh_tmux, address: address}
+
   defp backend_from_channels(%{webhook: url}) when is_binary(url), do: %{type: :webhook, url: url}
   defp backend_from_channels(_), do: nil
 end

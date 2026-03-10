@@ -77,7 +77,8 @@ defmodule Ichor.Gateway.SchemaInterceptor do
   end
 
   @doc "Auto-pauses the session if the DecisionLog has control.hitl_required == true."
-  @spec maybe_auto_pause(DecisionLog.t()) :: {:paused, DecisionLog.t()} | {:normal, DecisionLog.t()}
+  @spec maybe_auto_pause(DecisionLog.t()) ::
+          {:paused, DecisionLog.t()} | {:normal, DecisionLog.t()}
   def maybe_auto_pause(%DecisionLog{control: %{hitl_required: true}} = log) do
     session_id = if log.meta, do: log.meta.trace_id, else: nil
     agent_id = if log.identity, do: log.identity.agent_id, else: "unknown"

@@ -68,10 +68,6 @@ defmodule Ichor.Gateway.CapabilityMap do
   end
 
   defp broadcast_capability_update(state) do
-    Phoenix.PubSub.broadcast(
-      Ichor.PubSub,
-      "gateway:capabilities",
-      {:capability_update, state}
-    )
+    Ichor.Signal.emit(:capability_update, %{state_map: state})
   end
 end

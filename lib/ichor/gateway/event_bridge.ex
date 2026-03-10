@@ -34,11 +34,7 @@ defmodule Ichor.Gateway.EventBridge do
     log = event_to_decision_log(event)
     log = maybe_enrich_entropy(log)
 
-    Phoenix.PubSub.broadcast(
-      Ichor.PubSub,
-      "gateway:messages",
-      {:decision_log, log}
-    )
+    Ichor.Signal.emit(:decision_log, %{log: log})
 
     state = maybe_insert_dag_node(log, state)
 
@@ -182,16 +178,35 @@ defmodule Ichor.Gateway.EventBridge do
         "tool_failure:#{event.tool_name || "unknown"}"
 
       # Session lifecycle
-      {:UserPromptSubmit, _} -> "user_prompt"
-      {:SessionStart, _} -> "session_start"
-      {:SessionEnd, _} -> "session_end"
-      {:SubagentStart, _} -> "subagent_start"
-      {:SubagentStop, _} -> "subagent_stop"
-      {:PermissionRequest, _} -> "permission_request"
-      {:Notification, _} -> "notification"
-      {:Stop, _} -> "session_stop"
-      {:PreCompact, _} -> "pre_compact"
-      {other, _} -> to_string(other)
+      {:UserPromptSubmit, _} ->
+        "user_prompt"
+
+      {:SessionStart, _} ->
+        "session_start"
+
+      {:SessionEnd, _} ->
+        "session_end"
+
+      {:SubagentStart, _} ->
+        "subagent_start"
+
+      {:SubagentStop, _} ->
+        "subagent_stop"
+
+      {:PermissionRequest, _} ->
+        "permission_request"
+
+      {:Notification, _} ->
+        "notification"
+
+      {:Stop, _} ->
+        "session_stop"
+
+      {:PreCompact, _} ->
+        "pre_compact"
+
+      {other, _} ->
+        to_string(other)
     end
   end
 
@@ -270,7 +285,8 @@ defmodule Ichor.Gateway.EventBridge do
   defp maybe_enrich_entropy(log), do: log
 
   defp maybe_insert_dag_node(%DecisionLog{} = log, state) do
-    with %{event_id: event_id, trace_id: session_id} when is_binary(event_id) and is_binary(session_id) <- log.meta,
+    with %{event_id: event_id, trace_id: session_id}
+         when is_binary(event_id) and is_binary(session_id) <- log.meta,
          %{agent_id: agent_id} when is_binary(agent_id) <- log.identity,
          %{intent: intent} when is_binary(intent) <- log.cognition do
       parent_id = Map.get(state.last_event, session_id)

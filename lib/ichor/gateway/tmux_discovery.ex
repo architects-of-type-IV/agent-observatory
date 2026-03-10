@@ -10,10 +10,10 @@ defmodule Ichor.Gateway.TmuxDiscovery do
   use GenServer
   require Logger
 
-  alias Ichor.Gateway.AgentRegistry
-  alias Ichor.Gateway.Channels.Tmux
   alias Ichor.Fleet.AgentProcess
   alias Ichor.Fleet.FleetSupervisor
+  alias Ichor.Gateway.AgentRegistry
+  alias Ichor.Gateway.Channels.Tmux
 
   @poll_interval 5_000
 
@@ -80,7 +80,9 @@ defmodule Ichor.Gateway.TmuxDiscovery do
         :ok
 
       {:error, reason} ->
-        Logger.debug("[TmuxDiscovery] Failed to create process for #{session_name}: #{inspect(reason)}")
+        Logger.debug(
+          "[TmuxDiscovery] Failed to create process for #{session_name}: #{inspect(reason)}"
+        )
     end
   rescue
     _ -> :ok

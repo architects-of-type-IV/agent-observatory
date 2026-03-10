@@ -13,7 +13,9 @@ defmodule Ichor.Gateway.Channels.WebhookAdapter do
   def deliver(webhook_url, payload) when is_binary(webhook_url) do
     agent_id = payload[:agent_id] || payload["agent_id"] || "unknown"
     secret = payload[:webhook_secret] || payload["webhook_secret"] || default_secret()
-    body = Jason.encode!(Map.drop(payload, [:webhook_secret, "webhook_secret", :agent_id, "agent_id"]))
+
+    body =
+      Jason.encode!(Map.drop(payload, [:webhook_secret, "webhook_secret", :agent_id, "agent_id"]))
 
     case Ichor.Gateway.WebhookRouter.enqueue(agent_id, webhook_url, body, secret) do
       {:ok, _delivery_id} -> :ok

@@ -99,11 +99,7 @@ defmodule Ichor.Gateway.CronScheduler do
   def handle_info({:fire_job, job_id, agent_id, payload_json}, state) do
     payload = Jason.decode!(payload_json)
 
-    Phoenix.PubSub.broadcast(
-      Ichor.PubSub,
-      "agent:#{agent_id}:scheduled",
-      {:scheduled_job, agent_id, payload}
-    )
+    Ichor.Signal.emit(:scheduled_job, agent_id, %{agent_id: agent_id, payload: payload})
 
     try do
       case Repo.get(CronJob, job_id) do

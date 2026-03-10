@@ -49,5 +49,4 @@ defmodule Ichor.Gateway.AgentRegistry.EventHandler do
        do: :ended
 
   defp derive_status(_event, existing), do: existing.status
-
 end

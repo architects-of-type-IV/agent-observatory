@@ -76,11 +76,7 @@ defmodule Ichor.Gateway.Router do
     agent = AgentRegistry.get(event.session_id)
     agent_name = if agent, do: agent.id, else: event.session_id
 
-    Phoenix.PubSub.broadcast(
-      Ichor.PubSub,
-      "agent:#{agent_name}:activity",
-      {:agent_event, event}
-    )
+    Ichor.Signal.emit(:agent_event, agent_name, %{event: event})
 
     :ok
   end
@@ -158,10 +154,17 @@ defmodule Ichor.Gateway.Router do
   defp ensure_team_supervisor(team_name) do
     unless Ichor.Fleet.TeamSupervisor.exists?(team_name) do
       case Ichor.Fleet.FleetSupervisor.create_team(name: team_name) do
-        {:ok, _pid} -> :ok
-        {:error, :already_exists} -> :ok
+        {:ok, _pid} ->
+          :ok
+
+        {:error, :already_exists} ->
+          :ok
+
         {:error, reason} ->
-          Logger.debug("[Router] Could not create TeamSupervisor for #{team_name}: #{inspect(reason)}")
+          Logger.debug(
+            "[Router] Could not create TeamSupervisor for #{team_name}: #{inspect(reason)}"
+          )
+
           :ok
       end
     end
@@ -198,7 +201,8 @@ defmodule Ichor.Gateway.Router do
 
       if address && !skip? && mod.available?(address) do
         # Webhook gets agent_id injected for routing
-        deliver_payload = if key == :webhook, do: Map.put(payload, :agent_id, agent.session_id), else: payload
+        deliver_payload =
+          if key == :webhook, do: Map.put(payload, :agent_id, agent.session_id), else: payload
 
         case mod.deliver(address, deliver_payload) do
           :ok -> if Keyword.get(opts, :primary, false), do: count + 1, else: count
@@ -236,11 +240,10 @@ defmodule Ichor.Gateway.Router do
       trace_id: envelope.trace_id
     }
 
-    Phoenix.PubSub.broadcast(
-      Ichor.PubSub,
-      "gateway:audit",
-      {:gateway_audit, audit_entry}
-    )
+    Ichor.Signal.emit(:gateway_audit, %{
+      envelope_id: audit_entry[:envelope_id],
+      channel: audit_entry[:channel]
+    })
   end
 
   # Stop the BEAM AgentProcess when a session ends, closing the lifecycle loop.
@@ -250,7 +253,9 @@ defmodule Ichor.Gateway.Router do
       {pid, _meta} ->
         Ichor.Fleet.FleetSupervisor.terminate_agent(session_id)
         |> case do
-          :ok -> :ok
+          :ok ->
+            :ok
+
           {:error, :not_found} ->
             try do
               GenServer.stop(pid, :normal)
