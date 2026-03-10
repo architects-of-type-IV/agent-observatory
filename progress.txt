@@ -1,32 +1,33 @@
 ICHOR IV Progress (formerly Observatory)
 ========================================
 
-## Current: Fleet GC + Archon Control + /stream page (2026-03-10)
+## Current: Signal Nervous System Migration (2026-03-10)
 
 ### This Session
+- [x] Migrated ALL 52+ Phoenix.PubSub.broadcast calls to Ichor.Signal.emit (27+ files)
+- [x] Rewrote ALL subscribers from tuple matching to %Signal.Payload{} matching
+- [x] Signal.Catalog expanded to 45+ signals across 10 categories
+- [x] Signal.Buffer rewritten: Signal-only, subscribes to categories, ~80 lines (was ~205)
+- [x] DashboardInfoHandlers rewritten: all dispatch clauses match %Payload{}
+- [x] DashboardGatewayHandlers rewritten: handle_gateway_info matches %Payload{}
+- [x] Dashboard mount: single Enum.each(Catalog.categories(), &Signal.subscribe/1)
+- [x] Added debounced recompute (100ms coalesce) to DashboardInfoHandlers
+- [x] Added 4 new signals: nudge_sent, nudge_escalated, nudge_zombie, agent_spawned
+- [x] Verified: mix compile --warnings-as-errors --force -- CLEAN (223 files, 0 warnings)
+
+### Prior: Fleet GC + Archon Control + /stream page (2026-03-10)
 - [x] Rewrote AgentRegistry.Sweep: liveness-first using kill -0 (PID) + tmux session list
-- [x] Safe-by-default: live_tmux_sessions returns {:ok, MapSet} | :error (no false-sweep)
-- [x] Reduced ended TTL 1800->60s, stale TTL 3600->600s, sweep cadence 5min->1min
-- [x] Added LoadAgents.filter_stale/3: display-layer filter (ended/dead-PID/dead-tmux/idle>10m)
-- [x] Built Archon.Tools.Control: spawn/stop/pause/resume/sweep (5 actions)
-- [x] Built Archon.Tools.Events: agent_events/fleet_tasks (2 actions)
-- [x] Registered 7 new Archon tools, updated chat system prompt + slash commands
-- [x] Analyzed Archon Watchdog options: chose Option C (tiered rules + LLM escalation)
-- [x] Built TopicCatalog: 30 PubSub topics cataloged (static module attribute)
-- [x] Built StreamBuffer: GenServer, ETS ring buffer, subscribe-classify-rebroadcast
-- [x] Built StreamComponents: two-panel layout, filter/pause/clear, category colors
-- [x] Added /stream nav icon + route, StreamAutoScroll JS hook
-- [x] All compiles clean (mix compile --warnings-as-errors)
+- [x] Built Archon.Tools.Control + Events (7 new tools)
+- [x] Built TopicCatalog + StreamBuffer + StreamComponents for /stream page
+- [x] Renamed /stream to /signals
 
 ### Prior: os_pid tracking + dashboard mount fix (2026-03-10)
-- [x] Added os_pid field end-to-end: hook -> controller -> buffer -> registry -> LoadAgents -> Fleet.Agent
-- [x] Added EventBuffer.latest_per_session/0 -- single-pass :ets.foldl, 1 event per session
-- [x] Dashboard :load_data seeds assigns.events from latest_per_session on mount
+- [x] Added os_pid field end-to-end: hook -> controller -> buffer -> registry -> LoadAgents
+- [x] Added EventBuffer.latest_per_session/0 -- single-pass :ets.foldl
 
 ### Prior: Shutdown Ghost Fix + EventBuffer Rewrite (2026-03-10)
 - [x] Fixed all 20+ short_id sites to use UUID-aware AgentEntry.short_id/1
 - [x] Full EventBuffer rewrite: idiomatic Elixir, pattern-matched dispatch
-- [x] Shutdown preserves events (tombstone_session, not remove_session)
 
 ### Prior: Fleet Observability + MCP Spawn Tool (2026-03-09)
 - [x] Rewrote subagent hierarchy, NudgeEscalator fixes, spawn_agent MCP tool
