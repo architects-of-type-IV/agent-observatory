@@ -147,24 +147,7 @@ defmodule IchorWeb.DashboardFormatHelpers do
   def event_summary(%{hook_event_type: :PreToolUse} = event) do
     tool = event.tool_name || event.payload["tool_name"] || "?"
     input = (event.payload || %{})["tool_input"] || %{}
-
-    case tool do
-      "Bash" -> "$ #{truncate(input["command"] || "", 100)}"
-      "Read" -> truncate(input["file_path"] || "", 80)
-      "Write" -> truncate(input["file_path"] || "", 80)
-      "Edit" -> truncate(input["file_path"] || "", 80)
-      "Grep" -> "pattern: #{truncate(input["pattern"] || "", 50)}"
-      "Glob" -> "pattern: #{truncate(input["pattern"] || "", 50)}"
-      "Task" -> truncate(input["description"] || input["prompt"] || "", 80)
-      "WebSearch" -> truncate(input["query"] || "", 60)
-      "WebFetch" -> truncate(input["url"] || "", 60)
-      "SendMessage" -> "to #{input["recipient"] || "?"}: #{truncate(input["content"] || "", 50)}"
-      "TaskCreate" -> truncate(input["subject"] || "", 60)
-      "TaskUpdate" -> "task #{input["taskId"] || "?"} -> #{input["status"] || "?"}"
-      "TeamCreate" -> "team: #{input["team_name"] || "?"}"
-      "TeamDelete" -> "cleanup"
-      _ -> tool
-    end
+    pretool_summary(tool, input)
   end
 
   def event_summary(%{hook_event_type: :PostToolUse} = event) do
@@ -211,6 +194,31 @@ defmodule IchorWeb.DashboardFormatHelpers do
   def event_summary(%{hook_event_type: :PreCompact}), do: "context compaction"
   def event_summary(%{hook_event_type: :Stop}), do: "response complete"
   def event_summary(_event), do: ""
+
+  defp pretool_summary("Bash", input), do: "$ #{truncate(input["command"] || "", 100)}"
+  defp pretool_summary("Read", input), do: truncate(input["file_path"] || "", 80)
+  defp pretool_summary("Write", input), do: truncate(input["file_path"] || "", 80)
+  defp pretool_summary("Edit", input), do: truncate(input["file_path"] || "", 80)
+  defp pretool_summary("Grep", input), do: "pattern: #{truncate(input["pattern"] || "", 50)}"
+  defp pretool_summary("Glob", input), do: "pattern: #{truncate(input["pattern"] || "", 50)}"
+
+  defp pretool_summary("Task", input),
+    do: truncate(input["description"] || input["prompt"] || "", 80)
+
+  defp pretool_summary("WebSearch", input), do: truncate(input["query"] || "", 60)
+  defp pretool_summary("WebFetch", input), do: truncate(input["url"] || "", 60)
+
+  defp pretool_summary("SendMessage", input),
+    do: "to #{input["recipient"] || "?"}: #{truncate(input["content"] || "", 50)}"
+
+  defp pretool_summary("TaskCreate", input), do: truncate(input["subject"] || "", 60)
+
+  defp pretool_summary("TaskUpdate", input),
+    do: "task #{input["taskId"] || "?"} -> #{input["status"] || "?"}"
+
+  defp pretool_summary("TeamCreate", input), do: "team: #{input["team_name"] || "?"}"
+  defp pretool_summary("TeamDelete", _input), do: "cleanup"
+  defp pretool_summary(tool, _input), do: tool
 
   defp truncate(str, max) when is_binary(str) and byte_size(str) > max,
     do: String.slice(str, 0, max) <> "..."

@@ -41,7 +41,6 @@ defmodule IchorWeb.DashboardFilterHandlers do
   end
 
   def handle_filter_session(sid, socket) do
-    # Find this session's agent info from teams
     agent =
       socket.assigns.teams
       |> Enum.flat_map(& &1.members)
@@ -72,83 +71,42 @@ defmodule IchorWeb.DashboardFilterHandlers do
     |> Phoenix.LiveView.push_event("view_mode_changed", %{view_mode: Atom.to_string(view_mode)})
   end
 
-  # Map legacy view modes to new consolidated screens + sub-tabs
-  defp normalize_view_mode(mode) when is_binary(mode) do
-    case mode do
-      # Primary screens
-      "command" ->
-        {:command, []}
+  # Primary screens
+  defp normalize_view_mode("command"), do: {:command, []}
+  defp normalize_view_mode("activity"), do: {:activity, []}
+  defp normalize_view_mode("pipeline"), do: {:pipeline, []}
+  defp normalize_view_mode("forensic"), do: {:forensic, []}
+  defp normalize_view_mode("control"), do: {:control, []}
 
-      "activity" ->
-        {:activity, []}
+  # Legacy -> Command
+  defp normalize_view_mode("fleet_command"), do: {:command, []}
+  defp normalize_view_mode("overview"), do: {:command, []}
+  defp normalize_view_mode("agents"), do: {:command, []}
+  defp normalize_view_mode("teams"), do: {:command, []}
+  defp normalize_view_mode("protocols"), do: {:command, []}
 
-      "pipeline" ->
-        {:pipeline, []}
+  # Legacy -> Activity (with sub-tab)
+  defp normalize_view_mode("feed"), do: {:activity, [{:activity_tab, :feed}]}
+  defp normalize_view_mode("timeline"), do: {:activity, [{:activity_tab, :timeline}]}
+  defp normalize_view_mode("analytics"), do: {:activity, [{:activity_tab, :analytics}]}
+  defp normalize_view_mode("messages"), do: {:activity, [{:activity_tab, :messages}]}
+  defp normalize_view_mode("errors"), do: {:activity, [{:activity_tab, :errors}]}
 
-      "forensic" ->
-        {:forensic, []}
+  # Legacy -> Pipeline
+  defp normalize_view_mode("tasks"), do: {:pipeline, [{:pipeline_tab, :board}]}
+  defp normalize_view_mode("scheduler"), do: {:pipeline, [{:pipeline_tab, :scheduler}]}
 
-      "control" ->
-        {:control, []}
+  # Legacy -> Forensic
+  defp normalize_view_mode("registry"), do: {:forensic, [{:forensic_tab, :registry}]}
 
-      # Legacy -> Command
-      "fleet_command" ->
-        {:command, []}
+  # Legacy -> Control
+  defp normalize_view_mode("god_mode"), do: {:control, [{:control_tab, :emergency}]}
+  defp normalize_view_mode("session_cluster"), do: {:control, [{:control_tab, :sessions}]}
 
-      "overview" ->
-        {:command, []}
-
-      "agents" ->
-        {:command, []}
-
-      "teams" ->
-        {:command, []}
-
-      "protocols" ->
-        {:command, []}
-
-      # Legacy -> Activity (with sub-tab)
-      "feed" ->
-        {:activity, [{:activity_tab, :feed}]}
-
-      "timeline" ->
-        {:activity, [{:activity_tab, :timeline}]}
-
-      "analytics" ->
-        {:activity, [{:activity_tab, :analytics}]}
-
-      "messages" ->
-        {:activity, [{:activity_tab, :messages}]}
-
-      "errors" ->
-        {:activity, [{:activity_tab, :errors}]}
-
-      # Legacy -> Pipeline
-      "tasks" ->
-        {:pipeline, [{:pipeline_tab, :board}]}
-
-      "scheduler" ->
-        {:pipeline, [{:pipeline_tab, :scheduler}]}
-
-      # Legacy -> Forensic
-      "registry" ->
-        {:forensic, [{:forensic_tab, :registry}]}
-
-      # Legacy -> Control
-      "god_mode" ->
-        {:control, [{:control_tab, :emergency}]}
-
-      "session_cluster" ->
-        {:control, [{:control_tab, :sessions}]}
-
-      # Fallback
-      other ->
-        try do
-          {String.to_existing_atom(other), []}
-        rescue
-          ArgumentError -> {:command, []}
-        end
-    end
+  defp normalize_view_mode(other) when is_binary(other) do
+    {String.to_existing_atom(other), []}
+  rescue
+    ArgumentError -> {:command, []}
   end
 
   def handle_filter_team(name, socket) do

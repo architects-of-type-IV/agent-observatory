@@ -8,102 +8,93 @@ defmodule IchorWeb.DashboardAgentActivityHelpers do
   Summarize a tool event into a human-readable description.
   Extracts key information from the payload based on tool_name and hook_event_type.
   """
-  def summarize_event(event) do
-    case event.hook_event_type do
-      :SessionStart ->
-        model = extract_model(event)
-        "Session started (#{model})"
-
-      :SessionEnd ->
-        "Session ended"
-
-      :PreToolUse ->
-        summarize_tool_use(event)
-
-      :PostToolUse ->
-        summarize_tool_completion(event)
-
-      :PostToolUseFailure ->
-        summarize_tool_failure(event)
-
-      :UserPromptSubmit ->
-        "User prompt submitted"
-
-      :SubagentStart ->
-        "Subagent spawned"
-
-      :SubagentStop ->
-        "Subagent stopped"
-
-      _ ->
-        "#{event.hook_event_type}"
-    end
+  def summarize_event(%{hook_event_type: :SessionStart} = event) do
+    model = extract_model(event)
+    "Session started (#{model})"
   end
 
-  defp summarize_tool_use(event) do
-    tool_input = get_in(event.payload, ["tool_input"]) || %{}
+  def summarize_event(%{hook_event_type: :SessionEnd}), do: "Session ended"
+  def summarize_event(%{hook_event_type: :PreToolUse} = event), do: summarize_tool_use(event)
 
-    case event.tool_name do
-      "Read" ->
-        file_path = extract_file_path(tool_input)
-        "Reading #{file_path}"
+  def summarize_event(%{hook_event_type: :PostToolUse} = event),
+    do: summarize_tool_completion(event)
 
-      "Write" ->
-        file_path = extract_file_path(tool_input)
-        "Writing #{file_path}"
+  def summarize_event(%{hook_event_type: :PostToolUseFailure} = event),
+    do: summarize_tool_failure(event)
 
-      "Edit" ->
-        file_path = extract_file_path(tool_input)
-        "Editing #{file_path}"
+  def summarize_event(%{hook_event_type: :UserPromptSubmit}), do: "User prompt submitted"
+  def summarize_event(%{hook_event_type: :SubagentStart}), do: "Subagent spawned"
+  def summarize_event(%{hook_event_type: :SubagentStop}), do: "Subagent stopped"
+  def summarize_event(event), do: "#{event.hook_event_type}"
 
-      "Bash" ->
-        command = extract_command(tool_input)
-        "Running `#{command}`"
-
-      "Grep" ->
-        pattern = tool_input["pattern"] || "?"
-        "Searching for '#{pattern}'"
-
-      "Glob" ->
-        pattern = tool_input["pattern"] || "?"
-        "Finding files matching '#{pattern}'"
-
-      "Task" ->
-        agent_type = tool_input["subagent_type"] || tool_input["agent_type"] || "agent"
-        "Delegated to #{agent_type}"
-
-      "WebSearch" ->
-        query = tool_input["query"] || "?"
-        "Web search: #{query}"
-
-      "WebFetch" ->
-        url = tool_input["url"] || "?"
-        "Fetching #{url}"
-
-      "SendMessage" ->
-        recipient = tool_input["recipient"] || "team"
-        "Sending message to #{recipient}"
-
-      "TaskCreate" ->
-        subject = tool_input["subject"] || "task"
-        "Creating task: #{subject}"
-
-      "TaskUpdate" ->
-        task_id = tool_input["taskId"] || "?"
-        status = tool_input["status"]
-        if status, do: "Updating task ##{task_id} (#{status})", else: "Updating task ##{task_id}"
-
-      "NotebookEdit" ->
-        notebook_path = extract_notebook_path(tool_input)
-        "Editing notebook #{notebook_path}"
-
-      nil ->
-        "Tool use"
-
-      _ ->
-        "#{event.tool_name}"
-    end
+  defp summarize_tool_use(%{tool_name: "Read"} = event) do
+    "Reading #{extract_file_path(tool_input(event))}"
   end
+
+  defp summarize_tool_use(%{tool_name: "Write"} = event) do
+    "Writing #{extract_file_path(tool_input(event))}"
+  end
+
+  defp summarize_tool_use(%{tool_name: "Edit"} = event) do
+    "Editing #{extract_file_path(tool_input(event))}"
+  end
+
+  defp summarize_tool_use(%{tool_name: "Bash"} = event) do
+    "Running `#{extract_command(tool_input(event))}`"
+  end
+
+  defp summarize_tool_use(%{tool_name: "Grep"} = event) do
+    pattern = tool_input(event)["pattern"] || "?"
+    "Searching for '#{pattern}'"
+  end
+
+  defp summarize_tool_use(%{tool_name: "Glob"} = event) do
+    pattern = tool_input(event)["pattern"] || "?"
+    "Finding files matching '#{pattern}'"
+  end
+
+  defp summarize_tool_use(%{tool_name: "Task"} = event) do
+    input = tool_input(event)
+    agent_type = input["subagent_type"] || input["agent_type"] || "agent"
+    "Delegated to #{agent_type}"
+  end
+
+  defp summarize_tool_use(%{tool_name: "WebSearch"} = event) do
+    query = tool_input(event)["query"] || "?"
+    "Web search: #{query}"
+  end
+
+  defp summarize_tool_use(%{tool_name: "WebFetch"} = event) do
+    url = tool_input(event)["url"] || "?"
+    "Fetching #{url}"
+  end
+
+  defp summarize_tool_use(%{tool_name: "SendMessage"} = event) do
+    recipient = tool_input(event)["recipient"] || "team"
+    "Sending message to #{recipient}"
+  end
+
+  defp summarize_tool_use(%{tool_name: "TaskCreate"} = event) do
+    subject = tool_input(event)["subject"] || "task"
+    "Creating task: #{subject}"
+  end
+
+  defp summarize_tool_use(%{tool_name: "TaskUpdate"} = event) do
+    input = tool_input(event)
+    task_id = input["taskId"] || "?"
+    status = input["status"]
+    if status, do: "Updating task ##{task_id} (#{status})", else: "Updating task ##{task_id}"
+  end
+
+  defp summarize_tool_use(%{tool_name: "NotebookEdit"} = event) do
+    notebook_path = extract_notebook_path(tool_input(event))
+    "Editing notebook #{notebook_path}"
+  end
+
+  defp summarize_tool_use(%{tool_name: nil}), do: "Tool use"
+  defp summarize_tool_use(event), do: "#{event.tool_name}"
+
+  defp tool_input(event), do: get_in(event.payload, ["tool_input"]) || %{}
 
   defp summarize_tool_completion(event) do
     duration = format_duration(event.duration_ms)
@@ -130,18 +121,12 @@ defmodule IchorWeb.DashboardAgentActivityHelpers do
     end
   end
 
-  defp summarize_tool_failure(event) do
-    case event.tool_name do
-      "Bash" ->
-        "Failed: `#{extract_command_from_payload(event.payload)}`"
-
-      nil ->
-        "Tool failed"
-
-      _ ->
-        "#{event.tool_name} failed"
-    end
+  defp summarize_tool_failure(%{tool_name: "Bash"} = event) do
+    "Failed: `#{extract_command_from_payload(event.payload)}`"
   end
+
+  defp summarize_tool_failure(%{tool_name: nil}), do: "Tool failed"
+  defp summarize_tool_failure(event), do: "#{event.tool_name} failed"
 
   @doc """
   Format event payload as readable key-value pairs for inspection.

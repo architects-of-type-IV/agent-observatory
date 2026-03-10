@@ -1,34 +1,41 @@
 # ICHOR IV - Handoff
 
-## Current Status: Credo Strict Cleanup IN PROGRESS (2026-03-11)
+## Current Status: Credo COMPLETE (2026-03-11)
 
-### Task
-Fix ALL `mix credo --strict` issues. Started with ~200, now at 74 remaining.
+`mix credo --strict` -- 0 issues across 223 files
+`mix compile --warnings-as-errors` -- CLEAN
 
-### Completed
-- **ModuleDoc (14)** -- `@moduledoc false` to 14 modules
-- **Misc mechanical (13)** -- CondStatements, PreferImplicitTry, Apply, etc.
-- **AliasUsage (99->0)** -- all alias issues fixed across ~45 files
-- **AliasOrder (3->0)** -- alphabetized alias declarations
+### Next Task: Migrate Ichor.Signal -> Ichor.Signals per signals.md convention
 
-### Remaining (74 issues)
-- **Nesting: 40 issues** across 23 files -- extract inner logic into `defp` helpers (max depth 2)
-  - Biggest: swarm_monitor.ex (10), memory_store.ex (5), load_teams.ex (2), tmux_discovery.ex (2)
-- **CyclomaticComplexity: 34 issues** across ~25 files -- break complex functions
+The `signals.md` in project root defines the target architecture. Key changes:
 
-### Approach
-- **Direct manual fixes ONLY** -- no spawned workers
-- Nesting: extract inner logic into `defp` helpers INSIDE same module. Max depth 2.
-- CyclomaticComplexity: break complex functions into smaller `defp` functions.
-- After each batch: `mix compile --warnings-as-errors` to verify.
+1. **Namespace rename**: `Ichor.Signal` -> `Ichor.Signals` (all 45+ signal refs across ~30 files)
+2. **Richer envelope**: `Payload{name, category, data, ts, source}` -> `Message{kind, topic, domain, resource, action, data, tenant_id, actor_id, correlation_id, causation_id, timestamp, meta}`
+3. **Signal identity**: atom name (`emit(:agent_started, ...)`) -> tuple (`kind+domain+resource+action`)
+4. **New modules**:
+   - `Signals.Bus` -- sole PubSub interface (replaces direct Phoenix.PubSub in signal.ex)
+   - `Signals.Topics` -- centralized topic string builder
+   - `Signals.FromAsh` -- Ash notification -> Signals.Message adapter
+   - `Signals.Message` -- replaces Payload
+5. **API change**: `emit/2` -> `publish/1` with `new_message/7`
+6. **Domain helpers**: optional per-domain signal modules (e.g., `Ichor.Fleet.Signals`)
 
-### Key Lessons
-- `replace_all: true` corrupts alias declarations -- must manually fix `alias ShortName` back to `alias Full.Path.ShortName`
-- Sonnet workers cannot reliably refactor Elixir module dependency graphs
-- Multi-line `use Ash.Resource,` statements: `@moduledoc false` goes BEFORE the `use` line
+### Current files to migrate:
+- `lib/ichor/signal.ex` -> `lib/ichor/signals/signals.ex`
+- `lib/ichor/signal/catalog.ex` -> absorbed into domain+resource+action identity
+- `lib/ichor/signal/payload.ex` -> `lib/ichor/signals/message.ex`
+- `lib/ichor/signal/buffer.ex` -> `lib/ichor/signals/buffer.ex` (update imports)
+- `lib/ichor/signal/event.ex` -> `lib/ichor/signals/event.ex`
+- `lib/ichor/signal/ash_notifier.ex` -> `lib/ichor/signals/from_ash.ex`
+- NEW: `lib/ichor/signals/bus.ex`, `lib/ichor/signals/topics.ex`
 
-### After Credo
-- Migrate `Ichor.Signal` to `Ichor.Signals` convention per `signals.md`
+### Subscribers to update (~30 files):
+- All files that call `Ichor.Signal.emit/2` or `Ichor.Signal.emit/3`
+- All files that call `Ichor.Signal.subscribe/1` or `Ichor.Signal.subscribe/2`
+- All files that match `%Ichor.Signal.Payload{}`
+- DashboardInfoHandlers, DashboardGatewayHandlers, DashboardLive (mount)
 
-### Build Status
-`mix compile --warnings-as-errors` -- CLEAN (0 warnings)
+### Format-on-save Race Condition (IMPORTANT)
+When editing `.ex` files, the format-on-save hook races with the Edit tool and reverts changes.
+**Workaround**: use `cat > file << 'ELIXIR_EOF'` bash heredoc for full file writes.
+For targeted edits: use `perl -i -0pe` for multiline pattern replacement.

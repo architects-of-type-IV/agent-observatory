@@ -117,187 +117,13 @@ defmodule IchorWeb.DashboardFeedHelpers do
     pair_map = build_pair_lookup(tool_pairs)
 
     {items, current_turn} =
-      sorted_events
-      |> Enum.reduce({[], nil}, fn event, {items, current_turn} ->
-        case event.hook_event_type do
-          :UserPromptSubmit ->
-            # Flush any in-progress turn
-            items = flush_turn(items, current_turn)
-
-            prompt_text =
-              case event.payload do
-                %{"prompt" => p} when is_binary(p) -> p
-                _ -> ""
-              end
-
-            new_turn = %{
-              type: :turn,
-              prompt: prompt_text,
-              prompt_event: event,
-              response: nil,
-              stop_event: nil,
-              events: [event],
-              tool_pairs: [],
-              first_event_id: event.id
-            }
-
-            {items, new_turn}
-
-          :Stop ->
-            if current_turn do
-              # Check if this is a subagent stop (orphan) or the turn's stop
-              response_text =
-                case event.payload do
-                  %{"last_assistant_message" => msg} when is_binary(msg) -> msg
-                  _ -> nil
-                end
-
-              # If we already have a stop (subagent stop within turn), just accumulate
-              if current_turn.stop_event do
-                updated = %{current_turn | events: current_turn.events ++ [event]}
-                {items, updated}
-              else
-                updated = %{
-                  current_turn
-                  | response: response_text || current_turn.response,
-                    stop_event: event,
-                    events: current_turn.events ++ [event]
-                }
-
-                {items, updated}
-              end
-            else
-              # Orphan stop outside any turn
-              {items ++ [%{type: :subagent_stop, event: event}], nil}
-            end
-
-          :SubagentStop ->
-            if current_turn do
-              updated = %{current_turn | events: current_turn.events ++ [event]}
-              {items, updated}
-            else
-              agent_id = (event.payload || %{})["agent_id"]
-
-              {items ++
-                 [
-                   %{
-                     type: :subagent_stop,
-                     event: event,
-                     agent_id: agent_id
-                   }
-                 ], nil}
-            end
-
-          _ ->
-            if current_turn do
-              # Accumulate tool pairs for this turn
-              tool_pair =
-                if event.hook_event_type == :PreToolUse && event.tool_use_id do
-                  Map.get(pair_map, event.tool_use_id)
-                end
-
-              updated =
-                if tool_pair do
-                  %{
-                    current_turn
-                    | events: current_turn.events ++ [event],
-                      tool_pairs: current_turn.tool_pairs ++ [tool_pair]
-                  }
-                else
-                  %{current_turn | events: current_turn.events ++ [event]}
-                end
-
-              {items, updated}
-            else
-              # Pre-turn preamble event -- also accumulate tool pairs
-              tool_pair =
-                if event.hook_event_type == :PreToolUse && event.tool_use_id do
-                  Map.get(pair_map, event.tool_use_id)
-                end
-
-              case items do
-                [%{type: :preamble} = preamble | rest] ->
-                  updated = %{preamble | events: preamble.events ++ [event]}
-
-                  updated =
-                    if tool_pair,
-                      do: %{updated | tool_pairs: updated.tool_pairs ++ [tool_pair]},
-                      else: updated
-
-                  {[updated | rest], nil}
-
-                _ ->
-                  preamble = %{
-                    type: :preamble,
-                    events: [event],
-                    tool_pairs: if(tool_pair, do: [tool_pair], else: [])
-                  }
-
-                  {items ++ [preamble], nil}
-              end
-            end
-        end
+      Enum.reduce(sorted_events, {[], nil}, fn event, {items, current_turn} ->
+        reduce_event(event, items, current_turn, pair_map)
       end)
 
-    # Flush the last turn
-    items = flush_turn(items, current_turn)
-
-    # Enrich turns with phases
-    Enum.map(items, fn
-      %{type: :turn} = turn ->
-        phases = group_into_phases(turn.tool_pairs)
-
-        total_duration =
-          turn.tool_pairs
-          |> Enum.map(& &1.duration_ms)
-          |> Enum.reject(&is_nil/1)
-          |> case do
-            [] -> nil
-            durations -> Enum.sum(durations)
-          end
-
-        permission_count =
-          turn.tool_pairs
-          |> Enum.flat_map(fn p -> p[:permission_events] || [] end)
-          |> length()
-
-        Map.merge(turn, %{
-          phases: phases,
-          tool_count: length(turn.tool_pairs),
-          total_duration_ms: total_duration,
-          permission_count: permission_count,
-          start_time: turn.prompt_event.inserted_at,
-          end_time:
-            if(turn.stop_event,
-              do: turn.stop_event.inserted_at,
-              else: turn.prompt_event.inserted_at
-            )
-        })
-
-      %{type: :preamble} = preamble ->
-        phases = group_into_phases(preamble.tool_pairs)
-
-        total_duration =
-          preamble.tool_pairs
-          |> Enum.map(& &1.duration_ms)
-          |> Enum.reject(&is_nil/1)
-          |> case do
-            [] -> nil
-            durations -> Enum.sum(durations)
-          end
-
-        first_event = List.first(preamble.events)
-
-        Map.merge(preamble, %{
-          phases: phases,
-          tool_count: length(preamble.tool_pairs),
-          total_duration_ms: total_duration,
-          start_time: first_event && first_event.inserted_at
-        })
-
-      other ->
-        other
-    end)
+    items
+    |> flush_turn(current_turn)
+    |> Enum.map(&enrich_item/1)
   end
 
   @doc """
@@ -399,6 +225,170 @@ defmodule IchorWeb.DashboardFeedHelpers do
   end
 
   # ═══════════════════════════════════════════════════════
+  # Turn reducer -- one clause per hook_event_type
+  # ═══════════════════════════════════════════════════════
+
+  defp reduce_event(%{hook_event_type: :UserPromptSubmit} = event, items, current_turn, _pair_map) do
+    items = flush_turn(items, current_turn)
+
+    prompt_text =
+      case event.payload do
+        %{"prompt" => p} when is_binary(p) -> p
+        _ -> ""
+      end
+
+    new_turn = %{
+      type: :turn,
+      prompt: prompt_text,
+      prompt_event: event,
+      response: nil,
+      stop_event: nil,
+      events: [event],
+      tool_pairs: [],
+      first_event_id: event.id
+    }
+
+    {items, new_turn}
+  end
+
+  defp reduce_event(%{hook_event_type: :Stop} = event, items, nil, _pair_map) do
+    {items ++ [%{type: :subagent_stop, event: event}], nil}
+  end
+
+  defp reduce_event(%{hook_event_type: :Stop} = event, items, current_turn, _pair_map) do
+    if current_turn.stop_event do
+      updated = %{current_turn | events: current_turn.events ++ [event]}
+      {items, updated}
+    else
+      response_text =
+        case event.payload do
+          %{"last_assistant_message" => msg} when is_binary(msg) -> msg
+          _ -> nil
+        end
+
+      updated = %{
+        current_turn
+        | response: response_text || current_turn.response,
+          stop_event: event,
+          events: current_turn.events ++ [event]
+      }
+
+      {items, updated}
+    end
+  end
+
+  defp reduce_event(%{hook_event_type: :SubagentStop} = event, items, nil, _pair_map) do
+    agent_id = (event.payload || %{})["agent_id"]
+    {items ++ [%{type: :subagent_stop, event: event, agent_id: agent_id}], nil}
+  end
+
+  defp reduce_event(%{hook_event_type: :SubagentStop} = event, items, current_turn, _pair_map) do
+    updated = %{current_turn | events: current_turn.events ++ [event]}
+    {items, updated}
+  end
+
+  defp reduce_event(event, items, current_turn, pair_map) when not is_nil(current_turn) do
+    tool_pair = lookup_tool_pair(event, pair_map)
+
+    updated =
+      if tool_pair do
+        %{
+          current_turn
+          | events: current_turn.events ++ [event],
+            tool_pairs: current_turn.tool_pairs ++ [tool_pair]
+        }
+      else
+        %{current_turn | events: current_turn.events ++ [event]}
+      end
+
+    {items, updated}
+  end
+
+  defp reduce_event(event, items, nil, pair_map) do
+    tool_pair = lookup_tool_pair(event, pair_map)
+    add_preamble_event(items, event, tool_pair)
+  end
+
+  defp lookup_tool_pair(%{hook_event_type: :PreToolUse, tool_use_id: id}, pair_map)
+       when not is_nil(id),
+       do: Map.get(pair_map, id)
+
+  defp lookup_tool_pair(_event, _pair_map), do: nil
+
+  defp add_preamble_event([%{type: :preamble} = preamble | rest], event, tool_pair) do
+    updated = %{preamble | events: preamble.events ++ [event]}
+
+    updated =
+      if tool_pair,
+        do: %{updated | tool_pairs: updated.tool_pairs ++ [tool_pair]},
+        else: updated
+
+    {[updated | rest], nil}
+  end
+
+  defp add_preamble_event(items, event, tool_pair) do
+    preamble = %{
+      type: :preamble,
+      events: [event],
+      tool_pairs: if(tool_pair, do: [tool_pair], else: [])
+    }
+
+    {items ++ [preamble], nil}
+  end
+
+  # ═══════════════════════════════════════════════════════
+  # Turn enrichment
+  # ═══════════════════════════════════════════════════════
+
+  defp enrich_item(%{type: :turn} = turn) do
+    phases = group_into_phases(turn.tool_pairs)
+    total_duration = sum_durations(turn.tool_pairs)
+
+    permission_count =
+      turn.tool_pairs
+      |> Enum.flat_map(fn p -> p[:permission_events] || [] end)
+      |> length()
+
+    Map.merge(turn, %{
+      phases: phases,
+      tool_count: length(turn.tool_pairs),
+      total_duration_ms: total_duration,
+      permission_count: permission_count,
+      start_time: turn.prompt_event.inserted_at,
+      end_time:
+        if(turn.stop_event,
+          do: turn.stop_event.inserted_at,
+          else: turn.prompt_event.inserted_at
+        )
+    })
+  end
+
+  defp enrich_item(%{type: :preamble} = preamble) do
+    phases = group_into_phases(preamble.tool_pairs)
+    total_duration = sum_durations(preamble.tool_pairs)
+    first_event = List.first(preamble.events)
+
+    Map.merge(preamble, %{
+      phases: phases,
+      tool_count: length(preamble.tool_pairs),
+      total_duration_ms: total_duration,
+      start_time: first_event && first_event.inserted_at
+    })
+  end
+
+  defp enrich_item(other), do: other
+
+  defp sum_durations(tool_pairs) do
+    tool_pairs
+    |> Enum.map(& &1.duration_ms)
+    |> Enum.reject(&is_nil/1)
+    |> case do
+      [] -> nil
+      durations -> Enum.sum(durations)
+    end
+  end
+
+  # ═══════════════════════════════════════════════════════
   # Turn builder helpers
   # ═══════════════════════════════════════════════════════
 
@@ -436,35 +426,40 @@ defmodule IchorWeb.DashboardFeedHelpers do
   # ═══════════════════════════════════════════════════════
 
   defp build_agent_name_map(events, teams) do
-    team_names =
-      teams
-      |> Enum.flat_map(fn team ->
-        Map.get(team, :members, [])
-        |> Enum.flat_map(fn m ->
-          entries = []
-          entries = if m[:session_id], do: [{m[:session_id], m[:name]}] ++ entries, else: entries
-          entries = if m[:agent_id], do: [{m[:agent_id], m[:name]}] ++ entries, else: entries
-          entries
-        end)
-      end)
-      |> Map.new()
-
-    session_start_names =
-      events
-      |> Enum.filter(&(&1.hook_event_type == :SessionStart))
-      |> Enum.reduce(%{}, fn e, acc ->
-        # Prefer tmux session name over project directory. Project dir is NOT the agent name.
-        name =
-          if e.tmux_session && e.tmux_session != "",
-            do: e.tmux_session,
-            else: AgentEntry.short_id(e.session_id)
-
-        if Map.has_key?(acc, e.session_id),
-          do: acc,
-          else: Map.put(acc, e.session_id, name)
-      end)
-
+    team_names = extract_team_names(teams)
+    session_start_names = extract_session_start_names(events)
     Map.merge(session_start_names, team_names)
+  end
+
+  defp extract_team_names(teams) do
+    teams
+    |> Enum.flat_map(fn team -> Map.get(team, :members, []) end)
+    |> Enum.flat_map(&member_name_entries/1)
+    |> Map.new()
+  end
+
+  defp member_name_entries(m) do
+    []
+    |> maybe_entry(m[:session_id], m[:name])
+    |> maybe_entry(m[:agent_id], m[:name])
+  end
+
+  defp maybe_entry(entries, nil, _name), do: entries
+  defp maybe_entry(entries, id, name), do: [{id, name} | entries]
+
+  defp extract_session_start_names(events) do
+    events
+    |> Enum.filter(&(&1.hook_event_type == :SessionStart))
+    |> Enum.reduce(%{}, fn e, acc ->
+      name =
+        if e.tmux_session && e.tmux_session != "",
+          do: e.tmux_session,
+          else: AgentEntry.short_id(e.session_id)
+
+      if Map.has_key?(acc, e.session_id),
+        do: acc,
+        else: Map.put(acc, e.session_id, name)
+    end)
   end
 
   # ═══════════════════════════════════════════════════════
