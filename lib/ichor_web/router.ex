@@ -50,7 +50,15 @@ defmodule IchorWeb.Router do
   end
 
   forward "/mcp", AshAi.Mcp.Router,
-    tools: [:check_inbox, :acknowledge_message, :send_message, :get_tasks, :update_task_status, :spawn_agent, :stop_agent],
+    tools: [
+      :check_inbox,
+      :acknowledge_message,
+      :send_message,
+      :get_tasks,
+      :update_task_status,
+      :spawn_agent,
+      :stop_agent
+    ],
     otp_app: :ichor
 
   # Silence Chrome DevTools probe
