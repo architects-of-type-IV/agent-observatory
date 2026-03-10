@@ -91,7 +91,7 @@ defmodule Ichor.Gateway.HITLRelay do
         {:reply, {:ok, :already_paused}, state}
 
       _ ->
-        Ichor.Signal.emit(:gate_open, session_id, %{session_id: session_id})
+        Ichor.Signals.emit(:gate_open, session_id, %{session_id: session_id})
 
         new_sessions = Map.put(state.sessions, session_id, :paused)
         new_paused_at = Map.put(state.paused_at, session_id, DateTime.utc_now())
@@ -104,7 +104,7 @@ defmodule Ichor.Gateway.HITLRelay do
       :paused ->
         flushed_count = flush_buffer(session_id)
 
-        Ichor.Signal.emit(:gate_close, session_id, %{session_id: session_id})
+        Ichor.Signals.emit(:gate_close, session_id, %{session_id: session_id})
 
         new_sessions = Map.put(state.sessions, session_id, :normal)
         new_paused_at = Map.delete(state.paused_at, session_id)
@@ -167,7 +167,7 @@ defmodule Ichor.Gateway.HITLRelay do
     # Delete buffered messages without flushing
     :ets.match_delete(@ets_table, {{session_id, :_}, :_})
 
-    Ichor.Signal.emit(:gate_close, session_id, %{session_id: session_id})
+    Ichor.Signals.emit(:gate_close, session_id, %{session_id: session_id})
 
     new_sessions = Map.put(state.sessions, session_id, :normal)
     new_paused_at = Map.delete(state.paused_at, session_id)
@@ -210,7 +210,7 @@ defmodule Ichor.Gateway.HITLRelay do
       |> Enum.sort_by(fn {{_sid, ts}, _msg} -> ts end)
 
     Enum.each(messages, fn {{_sid, _ts} = key, msg} ->
-      Ichor.Signal.emit(:decision_log, %{log: msg})
+      Ichor.Signals.emit(:decision_log, %{log: msg})
       :ets.delete(@ets_table, key)
     end)
 

@@ -104,7 +104,7 @@ defmodule Ichor.Fleet.TeamSupervisor do
       %{project: project, strategy: strategy}
     end)
 
-    Ichor.Signal.emit(:team_created, %{name: name, project: project, strategy: strategy})
+    Ichor.Signals.emit(:team_created, %{name: name, project: project, strategy: strategy})
 
     # Join :pg group for cluster-wide team discovery
     :pg.join(@pg_scope, {:team, name}, self())

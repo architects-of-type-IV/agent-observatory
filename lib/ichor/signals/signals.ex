@@ -1,54 +1,52 @@
-defmodule Ichor.Signal do
+defmodule Ichor.Signals do
   @moduledoc """
   Ash Domain: the ICHOR nervous system.
 
-  Every signal flows through this domain. Provides a typed, validated API
-  over PubSub with telemetry tap on every emission.
+  Centralized signal protocol layer. Owns transport, envelope, topic naming,
+  and publish/subscribe API. Business domains own business meaning.
 
   ## Emit
 
-      Ichor.Signal.emit(:agent_started, %{session_id: sid, role: "worker"})
-      Ichor.Signal.emit(:agent_event, scope_id, %{event: event})
+      Ichor.Signals.emit(:agent_started, %{session_id: sid, role: "worker"})
+      Ichor.Signals.emit(:agent_event, scope_id, %{event: event})
 
   ## Subscribe
 
-      Ichor.Signal.subscribe(:fleet)
-      Ichor.Signal.subscribe(:agent_started)
-      Ichor.Signal.subscribe(:agent_event, session_id)
+      Ichor.Signals.subscribe(:fleet)
+      Ichor.Signals.subscribe(:agent_started)
+      Ichor.Signals.subscribe(:agent_event, session_id)
 
   ## Receive
 
-      def handle_info(%Ichor.Signal.Payload{name: :agent_started, data: data}, socket)
+      def handle_info(%Ichor.Signals.Message{name: :agent_started, data: data}, socket)
   """
 
   use Ash.Domain
 
-  alias Ichor.Signal.{Catalog, Payload}
+  alias Ichor.Signals.{Bus, Catalog, Message, Topics}
 
   resources do
-    resource(Ichor.Signal.Event)
+    resource(Ichor.Signals.Event)
   end
-
-  @pubsub Ichor.PubSub
 
   # ── Emit ──────────────────────────────────────────────────────────────
 
   @spec emit(atom(), map()) :: :ok
   def emit(name, data \\ %{}) when is_atom(name) do
     info = Catalog.lookup!(name)
-    signal = Payload.build(name, info.category, data)
-    broadcast_static(info, signal)
+    message = Message.build(name, info.category, data)
+    broadcast_static(info, message)
   end
 
   @spec emit(atom(), String.t(), map()) :: :ok
   def emit(name, scope_id, data) when is_atom(name) and is_binary(scope_id) do
     info = Catalog.lookup!(name)
     true = info.dynamic
-    signal = Payload.build(name, info.category, Map.put(data, :scope_id, scope_id))
+    message = Message.build(name, info.category, Map.put(data, :scope_id, scope_id))
 
-    Phoenix.PubSub.broadcast(@pubsub, category_topic(info.category), signal)
-    Phoenix.PubSub.broadcast(@pubsub, scoped_topic(info.category, name, scope_id), signal)
-    tap_telemetry(name, signal)
+    Bus.broadcast(Topics.category(info.category), message)
+    Bus.broadcast(Topics.scoped(info.category, name, scope_id), message)
+    tap_telemetry(name, message)
     :ok
   end
 
@@ -58,11 +56,11 @@ defmodule Ichor.Signal do
   def subscribe(name) when is_atom(name) do
     cond do
       Catalog.valid_category?(name) ->
-        Phoenix.PubSub.subscribe(@pubsub, category_topic(name))
+        Bus.subscribe(Topics.category(name))
 
       Catalog.lookup(name) ->
         info = Catalog.lookup!(name)
-        Phoenix.PubSub.subscribe(@pubsub, signal_topic(info.category, name))
+        Bus.subscribe(Topics.signal(info.category, name))
 
       true ->
         raise ArgumentError, "unknown signal or category: #{inspect(name)}"
@@ -73,7 +71,7 @@ defmodule Ichor.Signal do
   def subscribe(name, scope_id) when is_atom(name) and is_binary(scope_id) do
     info = Catalog.lookup!(name)
     true = info.dynamic
-    Phoenix.PubSub.subscribe(@pubsub, scoped_topic(info.category, name, scope_id))
+    Bus.subscribe(Topics.scoped(info.category, name, scope_id))
   end
 
   # ── Unsubscribe ───────────────────────────────────────────────────────
@@ -82,11 +80,11 @@ defmodule Ichor.Signal do
   def unsubscribe(name) when is_atom(name) do
     cond do
       Catalog.valid_category?(name) ->
-        Phoenix.PubSub.unsubscribe(@pubsub, category_topic(name))
+        Bus.unsubscribe(Topics.category(name))
 
       Catalog.lookup(name) ->
         info = Catalog.lookup!(name)
-        Phoenix.PubSub.unsubscribe(@pubsub, signal_topic(info.category, name))
+        Bus.unsubscribe(Topics.signal(info.category, name))
 
       true ->
         :ok
@@ -96,28 +94,28 @@ defmodule Ichor.Signal do
   def unsubscribe(name, scope_id) when is_atom(name) and is_binary(scope_id) do
     case Catalog.lookup(name) do
       %{dynamic: true} = info ->
-        Phoenix.PubSub.unsubscribe(@pubsub, scoped_topic(info.category, name, scope_id))
+        Bus.unsubscribe(Topics.scoped(info.category, name, scope_id))
 
       _ ->
         :ok
     end
   end
 
+  # ── Public helpers ────────────────────────────────────────────────────
+
+  @doc false
+  def category_topic(category), do: Topics.category(category)
+
   # ── Internal ──────────────────────────────────────────────────────────
 
-  defp broadcast_static(info, signal) do
-    Phoenix.PubSub.broadcast(@pubsub, category_topic(info.category), signal)
-    Phoenix.PubSub.broadcast(@pubsub, signal_topic(info.category, signal.name), signal)
-    tap_telemetry(signal.name, signal)
+  defp broadcast_static(info, message) do
+    Bus.broadcast(Topics.category(info.category), message)
+    Bus.broadcast(Topics.signal(info.category, message.name), message)
+    tap_telemetry(message.name, message)
     :ok
   end
 
-  defp tap_telemetry(name, signal) do
-    :telemetry.execute([:ichor, :signal, name], %{count: 1}, %{signal: signal})
+  defp tap_telemetry(name, message) do
+    :telemetry.execute([:ichor, :signal, name], %{count: 1}, %{signal: message})
   end
-
-  @doc false
-  def category_topic(category), do: "signal:#{category}"
-  defp signal_topic(category, name), do: "signal:#{category}:#{name}"
-  defp scoped_topic(category, name, scope_id), do: "signal:#{category}:#{name}:#{scope_id}"
 end

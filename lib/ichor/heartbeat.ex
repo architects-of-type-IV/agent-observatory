@@ -26,7 +26,7 @@ defmodule Ichor.Heartbeat do
   def handle_info(:beat, %{count: count} = state) do
     next = count + 1
 
-    Ichor.Signal.emit(:heartbeat, %{count: next})
+    Ichor.Signals.emit(:heartbeat, %{count: next})
 
     # Maintenance jobs on heartbeat intervals
     run_maintenance(next)

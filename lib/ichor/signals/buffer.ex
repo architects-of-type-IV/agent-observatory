@@ -1,12 +1,12 @@
-defmodule Ichor.Signal.Buffer do
+defmodule Ichor.Signals.Buffer do
   @moduledoc """
-  Ring buffer for the Signal nervous system.
-  Subscribes to all Signal categories via `Ichor.Signal.subscribe/1`.
+  Ring buffer for the Signals nervous system.
+  Subscribes to all signal categories via `Ichor.Signals.subscribe/1`.
   Re-broadcasts each entry on "stream:feed" for the /signals LiveView page.
   """
   use GenServer
 
-  alias Ichor.Signal.Catalog
+  alias Ichor.Signals.{Catalog, Message}
 
   @max_events 500
   @table :signal_buffer
@@ -30,12 +30,12 @@ defmodule Ichor.Signal.Buffer do
   @impl true
   def init(_opts) do
     :ets.new(@table, [:named_table, :public, :set])
-    Enum.each(Catalog.categories(), &Ichor.Signal.subscribe/1)
+    Enum.each(Catalog.categories(), &Ichor.Signals.subscribe/1)
     {:ok, %{seq: 0}}
   end
 
   @impl true
-  def handle_info(%Ichor.Signal.Payload{} = sig, %{seq: seq} = state) do
+  def handle_info(%Message{} = sig, %{seq: seq} = state) do
     next = seq + 1
 
     summary =
@@ -45,7 +45,7 @@ defmodule Ichor.Signal.Buffer do
 
     entry = %{
       seq: next,
-      topic: "#{sig.category}:#{sig.name}",
+      topic: "#{sig.domain}:#{sig.name}",
       shape: ":#{sig.name}",
       summary: summary,
       at: DateTime.utc_now(),

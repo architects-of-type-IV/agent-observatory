@@ -29,8 +29,8 @@ defmodule IchorWeb.DashboardSessionControlHandlers do
 
   def handle_pause_agent(%{"session_id" => session_id}, socket) do
     HITLRelay.pause(session_id, session_id, "operator", "Operator paused from dashboard")
-    Ichor.Signal.subscribe(:gate_open, session_id)
-    Ichor.Signal.subscribe(:gate_close, session_id)
+    Ichor.Signals.subscribe(:gate_open, session_id)
+    Ichor.Signals.subscribe(:gate_close, session_id)
 
     Ichor.Operator.send(session_id, "Pause requested by dashboard",
       type: :session_control,
@@ -182,7 +182,7 @@ defmodule IchorWeb.DashboardSessionControlHandlers do
         %{"agent_class" => agent_class, "instructions" => instructions},
         socket
       ) do
-    Ichor.Signal.emit(:agent_instructions, agent_class, %{
+    Ichor.Signals.emit(:agent_instructions, agent_class, %{
       agent_class: agent_class,
       instructions: instructions
     })
@@ -200,7 +200,7 @@ defmodule IchorWeb.DashboardSessionControlHandlers do
   end
 
   defp dispatch_mesh_pause(socket) do
-    Ichor.Signal.emit(:mesh_pause, %{initiated_by: "god_mode"})
+    Ichor.Signals.emit(:mesh_pause, %{initiated_by: "god_mode"})
 
     socket
   end

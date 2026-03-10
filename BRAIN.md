@@ -17,12 +17,16 @@
 - **Clause grouping**: when agents add `defp` helpers between `def` clauses of the same function, Elixir warns. Must group all clauses of the same function together.
 - **Sonnet agents for credo**: unreliable for complex refactoring (failed 3x in prior session), but worked well for mechanical fixes when given precise file scopes and clear instructions in this session.
 
-## Signal Nervous System (CRITICAL)
-- **Ichor.Signal** Ash Domain + API. `emit/2` (static), `emit/3` (dynamic/scoped)
-- **Signal.Catalog**: compile-time, 45+ signals, 10 categories. `lookup!/1` raises on unknown.
-- **Category-based routing**: PubSub `signal:{category}` + `signal:{category}:{name}`
-- **Buffer**: subscribes to all categories, handles only `%Payload{}`
-- **Dashboard**: single `Enum.each(Catalog.categories(), &Signal.subscribe/1)` covers all
+## Signals Convention (2026-03-11, COMPLETE)
+- **Ichor.Signals** Ash Domain + API. `emit/2` (static), `emit/3` (dynamic/scoped)
+- **Signals.Message**: envelope struct with kind, domain, name, data, timestamp, source, correlation_id, causation_id, meta
+- **Signals.Bus**: sole PubSub transport interface. Only module that calls Phoenix.PubSub.
+- **Signals.Topics**: centralized topic builder. `category/1`, `signal/2`, `scoped/3`.
+- **Signals.Catalog**: compile-time, 45+ signals, 10 categories. `lookup!/1` raises on unknown.
+- **Signals.FromAsh**: Ash notifier adapter (translates notifications -> Message envelope)
+- **Signals.Buffer**: subscribes to all categories, handles only `%Message{}`
+- **Dashboard**: single `Enum.each(Catalog.categories(), &Signals.subscribe/1)` covers all
+- **Mass rename**: `find + perl -i -pe` for 42-file rename. Order: most-specific first (AshNotifier, Payload, Catalog, Buffer, Event), then catch-all Signal -> Signals.
 
 ## Agent Identity (CRITICAL)
 - tmux session name IS canonical session_id

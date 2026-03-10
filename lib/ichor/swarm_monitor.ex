@@ -789,6 +789,6 @@ defmodule Ichor.SwarmMonitor do
   defp empty_dag, do: %{waves: [], edges: [], critical_path: []}
 
   defp broadcast(state) do
-    Ichor.Signal.emit(:swarm_state, %{state_map: state})
+    Ichor.Signals.emit(:swarm_state, %{state_map: state})
   end
 end

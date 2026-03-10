@@ -33,7 +33,7 @@ defmodule Ichor.Gateway.Channels.MailboxAdapter do
       :ok
     else
       # Signal for dashboard visibility even without a process
-      Ichor.Signal.emit(:mailbox_message, session_id, %{message: message})
+      Ichor.Signals.emit(:mailbox_message, session_id, %{message: message})
 
       Ichor.ProtocolTracker.track_mailbox_delivery(message.id, session_id, from)
       :ok

@@ -31,7 +31,7 @@ defmodule IchorWeb.EventController do
 
     CostAggregator.record_usage(event, raw)
 
-    Ichor.Signal.emit(:new_event, %{event: event})
+    Ichor.Signals.emit(:new_event, %{event: event})
 
     Router.ingest(event)
 

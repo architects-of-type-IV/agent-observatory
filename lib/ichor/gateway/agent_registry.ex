@@ -136,7 +136,7 @@ defmodule Ichor.Gateway.AgentRegistry do
 
   @doc "Broadcast a registry change notification."
   def broadcast_update do
-    Ichor.Signal.emit(:registry_changed, %{})
+    Ichor.Signals.emit(:registry_changed, %{})
   end
 
   # ── Query Helpers (pure, no ETS) ─────────────────────────────────

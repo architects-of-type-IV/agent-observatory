@@ -1,9 +1,9 @@
-defmodule Ichor.Signal.Catalog do
+defmodule Ichor.Signals.Catalog do
   @moduledoc """
   Declarative catalog of every signal in the ICHOR nervous system.
   Source of truth for signal validation, the /signals page, and Archon Watchdog.
 
-  Add new signals here. If it's not in the catalog, `Signal.emit/2` raises.
+  Add new signals here. If it's not in the catalog, `Signals.emit/2` raises.
   """
 
   @type signal_def :: %{
@@ -220,7 +220,7 @@ defmodule Ichor.Signal.Catalog do
   @spec lookup!(atom()) :: signal_def()
   def lookup!(name) do
     Map.get(@catalog, name) ||
-      raise ArgumentError, "unknown signal: #{inspect(name)}. Add it to Signal.Catalog."
+      raise ArgumentError, "unknown signal: #{inspect(name)}. Add it to Signals.Catalog."
   end
 
   @spec valid_category?(atom()) :: boolean()

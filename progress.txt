@@ -1,31 +1,15 @@
-# Credo Strict Cleanup Progress (2026-03-11)
+# ICHOR IV Progress (2026-03-11)
 
-## Status: COMPLETE AND COMMITTED -- 0/200 issues remaining (200/200 fixed)
+## Signals Convention Migration -- COMPLETE
+- [x] Migrated Ichor.Signal -> Ichor.Signals namespace across 42 files
+- [x] Signal.Payload -> Signals.Message (richer envelope: kind, domain, correlation_id, causation_id, meta)
+- [x] Created Signals.Bus (sole PubSub transport), Signals.Topics (centralized topic builder)
+- [x] Signal.AshNotifier -> Signals.FromAsh, old files to tmp/trash/
+- [x] mix compile --warnings-as-errors CLEAN, mix credo --strict 0 issues
 
-### Commit: bbbfad2 -- fix(credo): resolve all 200 strict issues for zero-issue codebase
-- 39 files changed, 1420 insertions, 1524 deletions
+## Credo Strict Cleanup -- COMPLETE (commit bbbfad2)
+- 200/200 issues fixed across 39 files
+- Patterns: multi-head defp, field/3 helper, with chains, clause grouping
 
-### Session 3 (final): Nesting + CyclomaticComplexity (74 issues)
-- swarm_monitor.ex: 10 issues (direct, extracted 12+ helpers, field/3 pattern)
-- memory_store.ex: 8 issues (direct, split flush_dirty, load_from_disk, build_block)
-- 55 issues across 30+ files (6 parallel agents)
-- Final 2 issues: PreferImplicitTry + CC in assign_fleet_stats (direct)
-
-### Session 2: AliasUsage + AliasOrder + Mechanical (126 issues)
-- AliasUsage: 99 across ~45 files
-- ModuleDoc: 14 files
-- Misc mechanical: 13 (CondStatements, Apply, etc.)
-- AliasOrder: 3
-
-### Patterns Used
-- CC > 9: multi-head defp, field/3 helper (map[key] || default)
-- Nesting > 2: extract defp helpers, with chains
-- Clause grouping: keep same-name function clauses together
-
-### Verification
-- mix compile --warnings-as-errors -- CLEAN
-- mix credo --strict -- 0 issues (223 files)
-- mix format --check-formatted -- CLEAN
-
-## Next: Migrate Ichor.Signal -> Ichor.Signals (per signals.md)
-See HANDOFF.md for full migration spec.
+## Signal Nervous System -- COMPLETE (commit 74f9e86)
+- 52+ PubSub.broadcast calls migrated to Signal.emit across 27+ files

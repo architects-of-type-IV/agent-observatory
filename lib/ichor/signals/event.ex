@@ -1,11 +1,11 @@
-defmodule Ichor.Signal.Event do
+defmodule Ichor.Signals.Event do
   @moduledoc """
   Ash Resource exposing signal operations as actions.
   Queryable by Archon and MCP tools.
   """
-  use Ash.Resource, domain: Ichor.Signal
+  use Ash.Resource, domain: Ichor.Signals
 
-  alias Ichor.Signal.{Buffer, Catalog}
+  alias Ichor.Signals.{Buffer, Catalog}
 
   actions do
     action :emit, :map do
@@ -22,7 +22,7 @@ defmodule Ichor.Signal.Event do
       end
 
       run(fn input, _context ->
-        Ichor.Signal.emit(input.arguments.name, input.arguments.data)
+        Ichor.Signals.emit(input.arguments.name, input.arguments.data)
         {:ok, %{status: "emitted", name: input.arguments.name}}
       end)
     end
@@ -47,7 +47,7 @@ defmodule Ichor.Signal.Event do
 
       run(fn input, _context ->
         args = input.arguments
-        Ichor.Signal.emit(args.name, args.scope_id, args.data)
+        Ichor.Signals.emit(args.name, args.scope_id, args.data)
         {:ok, %{status: "emitted", name: args.name, scope_id: args.scope_id}}
       end)
     end

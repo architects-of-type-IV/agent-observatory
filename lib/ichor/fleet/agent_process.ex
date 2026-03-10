@@ -282,19 +282,19 @@ defmodule Ichor.Fleet.AgentProcess do
 
   @spec broadcast_lifecycle(tuple()) :: :ok
   defp broadcast_lifecycle({:agent_started, id, %{role: role, team: team}}) do
-    Ichor.Signal.emit(:agent_started, %{session_id: id, role: role, team: team})
+    Ichor.Signals.emit(:agent_started, %{session_id: id, role: role, team: team})
   end
 
   defp broadcast_lifecycle({:agent_paused, id}) do
-    Ichor.Signal.emit(:agent_paused, %{session_id: id})
+    Ichor.Signals.emit(:agent_paused, %{session_id: id})
   end
 
   defp broadcast_lifecycle({:agent_resumed, id}) do
-    Ichor.Signal.emit(:agent_resumed, %{session_id: id})
+    Ichor.Signals.emit(:agent_resumed, %{session_id: id})
   end
 
   defp broadcast_lifecycle({:agent_stopped, id, reason}) do
-    Ichor.Signal.emit(:agent_stopped, %{session_id: id, reason: reason})
+    Ichor.Signals.emit(:agent_stopped, %{session_id: id, reason: reason})
   end
 
   @spec backend_type(map() | nil) :: atom() | nil

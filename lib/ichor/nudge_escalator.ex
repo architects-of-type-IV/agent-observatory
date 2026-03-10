@@ -40,13 +40,13 @@ defmodule Ichor.NudgeEscalator do
 
   @impl true
   def init(_opts) do
-    Ichor.Signal.subscribe(:heartbeat)
+    Ichor.Signals.subscribe(:heartbeat)
     Phoenix.PubSub.subscribe(Ichor.PubSub, "events:stream")
     {:ok, %__MODULE__{}}
   end
 
   @impl true
-  def handle_info(%Ichor.Signal.Payload{name: :heartbeat}, state) do
+  def handle_info(%Ichor.Signals.Message{name: :heartbeat}, state) do
     state = check_and_escalate(state)
     {:noreply, state}
   end
@@ -154,7 +154,7 @@ defmodule Ichor.NudgeEscalator do
   defp do_escalate(session_id, _agent, agent_name, 0) do
     Logger.warning("NudgeEscalator: Agent #{agent_name} (#{session_id}) is stale (level 0: warn)")
 
-    Ichor.Signal.emit(:nudge_warning, %{session_id: session_id, agent_name: agent_name, level: 0})
+    Ichor.Signals.emit(:nudge_warning, %{session_id: session_id, agent_name: agent_name, level: 0})
   end
 
   defp do_escalate(session_id, agent, agent_name, 1) do
@@ -175,14 +175,14 @@ defmodule Ichor.NudgeEscalator do
         Logger.warning("NudgeEscalator: Tmux nudge failed for #{agent_name}: #{inspect(reason)}")
     end
 
-    Ichor.Signal.emit(:nudge_sent, %{session_id: session_id, agent_name: agent_name, level: 1})
+    Ichor.Signals.emit(:nudge_sent, %{session_id: session_id, agent_name: agent_name, level: 1})
   end
 
   defp do_escalate(session_id, _agent, agent_name, 2) do
     Logger.warning("NudgeEscalator: Escalating agent #{agent_name} to HITL pause (level 2)")
     HITLRelay.pause(session_id, session_id, "ichor", "Auto-paused: no activity detected")
 
-    Ichor.Signal.emit(:nudge_escalated, %{
+    Ichor.Signals.emit(:nudge_escalated, %{
       session_id: session_id,
       agent_name: agent_name,
       level: 2
@@ -192,7 +192,7 @@ defmodule Ichor.NudgeEscalator do
   defp do_escalate(session_id, _agent, agent_name, 3) do
     Logger.warning("NudgeEscalator: Agent #{agent_name} marked as zombie (level 3: terminate)")
 
-    Ichor.Signal.emit(:nudge_zombie, %{session_id: session_id, agent_name: agent_name, level: 3})
+    Ichor.Signals.emit(:nudge_zombie, %{session_id: session_id, agent_name: agent_name, level: 3})
   end
 
   defp do_escalate(_session_id, _agent, _agent_name, _level), do: :ok

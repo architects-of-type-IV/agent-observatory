@@ -48,7 +48,7 @@ defmodule Ichor.Gateway.TopologyBuilder do
 
     case CausalDAG.get_session_dag(session_id) do
       {:ok, node_map} ->
-        Ichor.Signal.emit(:topology_snapshot, build_topology(node_map))
+        Ichor.Signals.emit(:topology_snapshot, build_topology(node_map))
         {:noreply, state}
 
       {:error, :session_not_found} ->

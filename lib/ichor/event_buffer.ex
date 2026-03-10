@@ -165,7 +165,7 @@ defmodule Ichor.EventBuffer do
     tmux_session
   end
 
-  # ── Payload Sanitization ──────────────────────────────────────
+  # ── Message Sanitization ──────────────────────────────────────
 
   defp sanitize_payload(payload) when is_map(payload) do
     payload

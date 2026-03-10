@@ -124,7 +124,7 @@ defmodule Ichor.AgentMonitor do
       end
 
     # Broadcast crash event
-    Ichor.Signal.emit(:agent_crashed, %{
+    Ichor.Signals.emit(:agent_crashed, %{
       session_id: session_id,
       team_name: team_name
     })

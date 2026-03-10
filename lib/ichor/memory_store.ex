@@ -978,10 +978,10 @@ defmodule Ichor.MemoryStore do
   end
 
   defp broadcast_block_change(block_id, label) do
-    Ichor.Signal.emit(:block_changed, %{block_id: block_id, label: label})
+    Ichor.Signals.emit(:block_changed, %{block_id: block_id, label: label})
   end
 
   defp broadcast_agent_change(agent_name, event) do
-    Ichor.Signal.emit(:memory_changed, agent_name, %{agent_name: agent_name, event: event})
+    Ichor.Signals.emit(:memory_changed, agent_name, %{agent_name: agent_name, event: event})
   end
 end

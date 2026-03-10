@@ -78,7 +78,7 @@ defmodule Ichor.Gateway.Router do
     agent = AgentRegistry.get(event.session_id)
     agent_name = if agent, do: agent.id, else: event.session_id
 
-    Ichor.Signal.emit(:agent_event, agent_name, %{event: event})
+    Ichor.Signals.emit(:agent_event, agent_name, %{event: event})
 
     :ok
   end
@@ -250,7 +250,7 @@ defmodule Ichor.Gateway.Router do
       trace_id: envelope.trace_id
     }
 
-    Ichor.Signal.emit(:gateway_audit, %{
+    Ichor.Signals.emit(:gateway_audit, %{
       envelope_id: audit_entry[:envelope_id],
       channel: audit_entry[:channel]
     })

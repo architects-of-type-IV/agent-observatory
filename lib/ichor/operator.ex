@@ -137,7 +137,7 @@ defmodule Ichor.Operator do
       metadata: Map.put(metadata, :via_fallback, true)
     }
 
-    Ichor.Signal.emit(:mailbox_message, session_id, %{message: message})
+    Ichor.Signals.emit(:mailbox_message, session_id, %{message: message})
 
     {:ok, 1}
   end

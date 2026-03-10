@@ -19,7 +19,7 @@ config :ichor,
     Ichor.Workshop,
     Ichor.Archon,
     Ichor.Archon.Tools,
-    Ichor.Signal
+    Ichor.Signals
   ]
 
 # Configure the endpoint

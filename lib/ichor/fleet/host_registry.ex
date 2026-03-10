@@ -171,6 +171,6 @@ defmodule Ichor.Fleet.HostRegistry do
   end
 
   defp broadcast_hosts_changed do
-    Ichor.Signal.emit(:hosts_changed, %{})
+    Ichor.Signals.emit(:hosts_changed, %{})
   end
 end

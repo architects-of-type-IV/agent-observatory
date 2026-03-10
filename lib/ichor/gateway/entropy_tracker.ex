@@ -152,7 +152,7 @@ defmodule Ichor.Gateway.EntropyTracker do
         err
 
       :ok ->
-        Ichor.Signal.emit(:node_state_update, %{agent_id: session_id, state: "alert_entropy"})
+        Ichor.Signals.emit(:node_state_update, %{agent_id: session_id, state: "alert_entropy"})
         :ets.insert(table, {session_id, {window, :loop, agent_id}})
         {:ok, score, :loop}
     end
@@ -169,7 +169,7 @@ defmodule Ichor.Gateway.EntropyTracker do
          warning_threshold
        )
        when score < warning_threshold do
-    Ichor.Signal.emit(:node_state_update, %{agent_id: session_id, state: "blocked"})
+    Ichor.Signals.emit(:node_state_update, %{agent_id: session_id, state: "blocked"})
     :ets.insert(table, {session_id, {window, :warning, agent_id}})
     {:ok, score, :warning}
   end
@@ -185,7 +185,7 @@ defmodule Ichor.Gateway.EntropyTracker do
          _warning_threshold
        ) do
     if prior_severity in [:warning, :loop] do
-      Ichor.Signal.emit(:node_state_update, %{agent_id: session_id, state: "active"})
+      Ichor.Signals.emit(:node_state_update, %{agent_id: session_id, state: "active"})
     end
 
     :ets.insert(table, {session_id, {window, :normal, agent_id}})
@@ -206,7 +206,7 @@ defmodule Ichor.Gateway.EntropyTracker do
   end
 
   defp build_alert_event(session_id, _agent_id, score, _window) do
-    Ichor.Signal.emit(:entropy_alert, %{
+    Ichor.Signals.emit(:entropy_alert, %{
       session_id: session_id,
       entropy_score: score
     })

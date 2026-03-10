@@ -49,7 +49,7 @@ defmodule Ichor.ProtocolTracker do
   def init(_opts) do
     :ets.new(@table_name, [:named_table, :public, :set])
     Phoenix.PubSub.subscribe(Ichor.PubSub, "events:stream")
-    Ichor.Signal.subscribe(:heartbeat)
+    Ichor.Signals.subscribe(:heartbeat)
 
     {:ok, %{trace_count: 0}}
   end
@@ -60,10 +60,10 @@ defmodule Ichor.ProtocolTracker do
     {:noreply, state}
   end
 
-  def handle_info(%Ichor.Signal.Payload{name: :heartbeat}, state) do
+  def handle_info(%Ichor.Signals.Message{name: :heartbeat}, state) do
     stats = compute_stats()
 
-    Ichor.Signal.emit(:protocol_update, %{stats_map: stats})
+    Ichor.Signals.emit(:protocol_update, %{stats_map: stats})
 
     {:noreply, state}
   end

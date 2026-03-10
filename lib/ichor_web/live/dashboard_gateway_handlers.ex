@@ -57,7 +57,7 @@ defmodule IchorWeb.DashboardGatewayHandlers do
   def handle_gateway_info(msg, socket)
 
   # DecisionLog -> throughput, cost, scratchpad, latency
-  def handle_gateway_info(%Ichor.Signal.Payload{name: :decision_log, data: %{log: log}}, socket) do
+  def handle_gateway_info(%Ichor.Signals.Message{name: :decision_log, data: %{log: log}}, socket) do
     now = System.monotonic_time(:second)
 
     events = [{now, log} | socket.assigns[:throughput_events] || []]
@@ -87,9 +87,9 @@ defmodule IchorWeb.DashboardGatewayHandlers do
   end
 
   # Schema violations are already captured via :new_event
-  def handle_gateway_info(%Ichor.Signal.Payload{name: :schema_violation}, socket), do: socket
+  def handle_gateway_info(%Ichor.Signals.Message{name: :schema_violation}, socket), do: socket
 
-  def handle_gateway_info(%Ichor.Signal.Payload{name: :node_state_update, data: data}, socket) do
+  def handle_gateway_info(%Ichor.Signals.Message{name: :node_state_update, data: data}, socket) do
     node_status =
       Map.merge(socket.assigns[:node_status] || %{}, %{
         agent_id: data[:agent_id],
@@ -100,7 +100,7 @@ defmodule IchorWeb.DashboardGatewayHandlers do
   end
 
   def handle_gateway_info(
-        %Ichor.Signal.Payload{name: :dead_letter, data: %{delivery: delivery}},
+        %Ichor.Signals.Message{name: :dead_letter, data: %{delivery: delivery}},
         socket
       ) do
     entries = [delivery | socket.assigns.dlq_entries] |> Enum.take(@max_dlq_entries)
@@ -108,7 +108,7 @@ defmodule IchorWeb.DashboardGatewayHandlers do
   end
 
   def handle_gateway_info(
-        %Ichor.Signal.Payload{name: :capability_update, data: %{state_map: agents}},
+        %Ichor.Signals.Message{name: :capability_update, data: %{state_map: agents}},
         socket
       ) do
     socket
@@ -117,11 +117,11 @@ defmodule IchorWeb.DashboardGatewayHandlers do
     |> assign(:agent_classes, derive_agent_classes(agents))
   end
 
-  def handle_gateway_info(%Ichor.Signal.Payload{name: :topology_snapshot, data: data}, socket) do
+  def handle_gateway_info(%Ichor.Signals.Message{name: :topology_snapshot, data: data}, socket) do
     push_event(socket, "fleet_topology_update", %{nodes: data.nodes, edges: data.edges})
   end
 
-  def handle_gateway_info(%Ichor.Signal.Payload{name: :dag_delta, data: data}, socket) do
+  def handle_gateway_info(%Ichor.Signals.Message{name: :dag_delta, data: data}, socket) do
     if socket.assigns[:selected_session_id] == data[:session_id] do
       push_session_dag(socket, data[:session_id])
     else
@@ -129,7 +129,7 @@ defmodule IchorWeb.DashboardGatewayHandlers do
     end
   end
 
-  def handle_gateway_info(%Ichor.Signal.Payload{name: :entropy_alert, data: data}, socket) do
+  def handle_gateway_info(%Ichor.Signals.Message{name: :entropy_alert, data: data}, socket) do
     scores =
       Map.put(
         socket.assigns[:entropy_scores] || %{},

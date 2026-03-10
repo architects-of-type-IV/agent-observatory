@@ -4,7 +4,7 @@ defmodule IchorWeb.Components.SignalComponents do
   """
   use Phoenix.Component
 
-  alias Ichor.Signal.Catalog
+  alias Ichor.Signals.Catalog
 
   attr :stream_events, :list, required: true
   attr :stream_filter, :string, required: true

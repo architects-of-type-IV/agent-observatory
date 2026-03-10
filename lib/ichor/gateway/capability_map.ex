@@ -68,6 +68,6 @@ defmodule Ichor.Gateway.CapabilityMap do
   end
 
   defp broadcast_capability_update(state) do
-    Ichor.Signal.emit(:capability_update, %{state_map: state})
+    Ichor.Signals.emit(:capability_update, %{state_map: state})
   end
 end

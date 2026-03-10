@@ -1,13 +1,13 @@
-defmodule Ichor.Signal.AshNotifier do
+defmodule Ichor.Signals.FromAsh do
   @moduledoc """
-  Ash notifier that auto-emits signals on resource mutations.
+  Ash notifier that translates resource mutations into signals.
 
   Attach to any Ash resource:
 
-      use Ash.Resource, simple_notifiers: [Ichor.Signal.AshNotifier]
+      use Ash.Resource, simple_notifiers: [Ichor.Signals.FromAsh]
 
-  Fires `Signal.emit/2` for mapped resource+action_type combinations.
-  Unmapped resources are silently ignored (safe to attach broadly).
+  Ash notification shapes are translated into the Signals.Message envelope
+  before the rest of the app sees them. Unmapped resources are silently ignored.
   """
 
   use Ash.Notifier
@@ -16,7 +16,7 @@ defmodule Ichor.Signal.AshNotifier do
   def notify(%Ash.Notifier.Notification{resource: resource, action: action, data: data}) do
     case signal_for(resource, action.type) do
       nil -> :ok
-      {name, extract_fn} -> Ichor.Signal.emit(name, extract_fn.(data, action))
+      {name, extract_fn} -> Ichor.Signals.emit(name, extract_fn.(data, action))
     end
 
     :ok

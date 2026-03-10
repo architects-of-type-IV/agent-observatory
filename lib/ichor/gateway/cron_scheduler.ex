@@ -99,7 +99,7 @@ defmodule Ichor.Gateway.CronScheduler do
   def handle_info({:fire_job, job_id, agent_id, payload_json}, state) do
     payload = Jason.decode!(payload_json)
 
-    Ichor.Signal.emit(:scheduled_job, agent_id, %{agent_id: agent_id, payload: payload})
+    Ichor.Signals.emit(:scheduled_job, agent_id, %{agent_id: agent_id, payload: payload})
 
     try do
       case Repo.get(CronJob, job_id) do

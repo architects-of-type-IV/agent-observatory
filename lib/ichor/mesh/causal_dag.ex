@@ -398,7 +398,7 @@ defmodule Ichor.Mesh.CausalDAG do
   end
 
   defp broadcast_delta(session_id, added_nodes, _updated_nodes, _added_edges) do
-    Ichor.Signal.emit(:dag_delta, session_id, %{
+    Ichor.Signals.emit(:dag_delta, session_id, %{
       session_id: session_id,
       added_nodes: added_nodes
     })

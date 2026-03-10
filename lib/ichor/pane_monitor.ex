@@ -29,12 +29,12 @@ defmodule Ichor.PaneMonitor do
 
   @impl true
   def init(_opts) do
-    Ichor.Signal.subscribe(:heartbeat)
+    Ichor.Signals.subscribe(:heartbeat)
     {:ok, %{captures: %{}, signals: %{}}}
   end
 
   @impl true
-  def handle_info(%Ichor.Signal.Payload{name: :heartbeat}, state) do
+  def handle_info(%Ichor.Signals.Message{name: :heartbeat}, state) do
     state = scan_all_agents(state)
     {:noreply, state}
   end
@@ -123,7 +123,7 @@ defmodule Ichor.PaneMonitor do
         if Map.get(state.signals, signal_key) != summary do
           Logger.info("PaneMonitor: DONE signal from #{agent.id}: #{summary}")
 
-          Ichor.Signal.emit(:agent_done, %{
+          Ichor.Signals.emit(:agent_done, %{
             session_id: agent.session_id,
             summary: String.trim(summary)
           })
@@ -146,7 +146,7 @@ defmodule Ichor.PaneMonitor do
         if Map.get(state.signals, signal_key) != reason do
           Logger.info("PaneMonitor: BLOCKED signal from #{agent.id}: #{reason}")
 
-          Ichor.Signal.emit(:agent_blocked, %{
+          Ichor.Signals.emit(:agent_blocked, %{
             session_id: agent.session_id,
             reason: String.trim(reason)
           })

@@ -88,7 +88,7 @@ defmodule Ichor.Gateway.OutputCapture do
     prev = Map.get(acc, session_id, "")
 
     if output != prev do
-      Ichor.Signal.emit(:terminal_output, session_id, %{session_id: session_id, output: output})
+      Ichor.Signals.emit(:terminal_output, session_id, %{session_id: session_id, output: output})
       Map.put(acc, session_id, output)
     else
       acc

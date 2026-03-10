@@ -100,7 +100,7 @@ defmodule Ichor.Channels do
   Publish a dashboard command.
   """
   def publish_dashboard_command(command) do
-    Ichor.Signal.emit(:dashboard_command, %{command: command})
+    Ichor.Signals.emit(:dashboard_command, %{command: command})
   end
 
   @doc """

@@ -68,7 +68,7 @@ defmodule Ichor.QualityGate do
     case run_gate_command(done_when, cwd) do
       {:ok, :passed} ->
         Logger.info("QualityGate: Gate passed for session #{session_id}, task #{task_id}")
-        Ichor.Signal.emit(:gate_passed, %{session_id: session_id, task_id: task_id})
+        Ichor.Signals.emit(:gate_passed, %{session_id: session_id, task_id: task_id})
 
       {:error, output} ->
         Logger.warning(
@@ -77,7 +77,7 @@ defmodule Ichor.QualityGate do
 
         nudge_agent(session_id, task_id, done_when, output)
 
-        Ichor.Signal.emit(:gate_failed, %{
+        Ichor.Signals.emit(:gate_failed, %{
           session_id: session_id,
           task_id: task_id,
           output: output

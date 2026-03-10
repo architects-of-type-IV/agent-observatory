@@ -1,41 +1,34 @@
 # ICHOR IV - Handoff
 
-## Current Status: Credo COMPLETE (2026-03-11)
+## Current Status: Signals Migration COMPLETE (2026-03-11)
 
-`mix credo --strict` -- 0 issues across 223 files
-`mix compile --warnings-as-errors` -- CLEAN
+### Just Completed
 
-### Next Task: Migrate Ichor.Signal -> Ichor.Signals per signals.md convention
+**Migrated `Ichor.Signal` -> `Ichor.Signals` per signals.md convention**
 
-The `signals.md` in project root defines the target architecture. Key changes:
+- Namespace: `Ichor.Signal` -> `Ichor.Signals` across 42 consumer files
+- Envelope: `Signal.Payload` -> `Signals.Message` with richer fields (kind, domain, correlation_id, causation_id, meta)
+- New `Signals.Bus` -- sole PubSub transport interface
+- New `Signals.Topics` -- centralized topic string builder
+- `Signal.AshNotifier` -> `Signals.FromAsh` (Ash notification adapter)
+- `Signal.Catalog` -> `Signals.Catalog` (preserved, compile-time validation)
+- `Signal.Buffer` -> `Signals.Buffer`
+- `Signal.Event` -> `Signals.Event`
+- Old `lib/ichor/signal/` moved to `tmp/trash/`
+- Config updated: `ash_domains` references `Ichor.Signals`
 
-1. **Namespace rename**: `Ichor.Signal` -> `Ichor.Signals` (all 45+ signal refs across ~30 files)
-2. **Richer envelope**: `Payload{name, category, data, ts, source}` -> `Message{kind, topic, domain, resource, action, data, tenant_id, actor_id, correlation_id, causation_id, timestamp, meta}`
-3. **Signal identity**: atom name (`emit(:agent_started, ...)`) -> tuple (`kind+domain+resource+action`)
-4. **New modules**:
-   - `Signals.Bus` -- sole PubSub interface (replaces direct Phoenix.PubSub in signal.ex)
-   - `Signals.Topics` -- centralized topic string builder
-   - `Signals.FromAsh` -- Ash notification -> Signals.Message adapter
-   - `Signals.Message` -- replaces Payload
-5. **API change**: `emit/2` -> `publish/1` with `new_message/7`
-6. **Domain helpers**: optional per-domain signal modules (e.g., `Ichor.Fleet.Signals`)
+### Build Status
+- `mix compile --warnings-as-errors` -- CLEAN (225 files, 0 warnings)
+- `mix credo --strict` -- 0 issues
 
-### Current files to migrate:
-- `lib/ichor/signal.ex` -> `lib/ichor/signals/signals.ex`
-- `lib/ichor/signal/catalog.ex` -> absorbed into domain+resource+action identity
-- `lib/ichor/signal/payload.ex` -> `lib/ichor/signals/message.ex`
-- `lib/ichor/signal/buffer.ex` -> `lib/ichor/signals/buffer.ex` (update imports)
-- `lib/ichor/signal/event.ex` -> `lib/ichor/signals/event.ex`
-- `lib/ichor/signal/ash_notifier.ex` -> `lib/ichor/signals/from_ash.ex`
-- NEW: `lib/ichor/signals/bus.ex`, `lib/ichor/signals/topics.ex`
+### Architecture (per signals.md convention)
+- **Bus**: only module that talks to Phoenix.PubSub
+- **Topics**: only module that builds topic strings
+- **Message**: single envelope struct for all signals (kind + domain + name + data)
+- **Catalog**: compile-time signal registry with validation
+- **FromAsh**: translates Ash notifications into Message envelope
+- **Buffer**: subscribes to all categories, ETS ring buffer, re-broadcasts on stream:feed
 
-### Subscribers to update (~30 files):
-- All files that call `Ichor.Signal.emit/2` or `Ichor.Signal.emit/3`
-- All files that call `Ichor.Signal.subscribe/1` or `Ichor.Signal.subscribe/2`
-- All files that match `%Ichor.Signal.Payload{}`
-- DashboardInfoHandlers, DashboardGatewayHandlers, DashboardLive (mount)
-
-### Format-on-save Race Condition (IMPORTANT)
-When editing `.ex` files, the format-on-save hook races with the Edit tool and reverts changes.
-**Workaround**: use `cat > file << 'ELIXIR_EOF'` bash heredoc for full file writes.
-For targeted edits: use `perl -i -0pe` for multiline pattern replacement.
+### Runtime Notes
+- Port 4005, `~/.ichor/tmux/obs.sock`
+- Memories server on port 4000 (must be running for Archon memory tools)

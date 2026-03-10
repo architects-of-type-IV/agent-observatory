@@ -34,7 +34,7 @@ defmodule Ichor.Gateway.EventBridge do
     log = event_to_decision_log(event)
     log = maybe_enrich_entropy(log)
 
-    Ichor.Signal.emit(:decision_log, %{log: log})
+    Ichor.Signals.emit(:decision_log, %{log: log})
 
     state = maybe_insert_dag_node(log, state)
 
