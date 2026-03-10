@@ -8,16 +8,22 @@ defmodule Ichor.Fleet.Preparations.LoadTeams do
 
   import Ichor.Fleet.AgentHealth, only: [compute_agent_health: 2]
 
+  alias Ichor.EventBuffer
+  alias Ichor.Fleet.AgentProcess
+  alias Ichor.Fleet.Team
+  alias Ichor.Fleet.TeamSupervisor
+  alias Ichor.Gateway.AgentRegistry
+
   @dead_team_threshold_sec 300
 
   @impl true
   def prepare(query, _opts, _context) do
-    events = Ichor.EventBuffer.list_events()
+    events = EventBuffer.list_events()
     now = DateTime.utc_now()
 
     registry_by_id =
-      Ichor.Gateway.AgentRegistry.list_all()
-      |> Ichor.Gateway.AgentRegistry.build_lookup()
+      AgentRegistry.list_all()
+      |> AgentRegistry.build_lookup()
 
     events_by_session = Enum.group_by(events, & &1.session_id)
 
@@ -77,18 +83,18 @@ defmodule Ichor.Fleet.Preparations.LoadTeams do
 
   # Merge BEAM-native teams (from TeamSupervisor/FleetSupervisor) with legacy sources
   defp merge_with_beam_teams(existing_teams) do
-    beam_teams = Ichor.Fleet.TeamSupervisor.list_all()
+    beam_teams = TeamSupervisor.list_all()
     existing_names = MapSet.new(existing_teams, & &1.name)
 
     new_teams =
       beam_teams
       |> Enum.reject(fn {name, _meta} -> MapSet.member?(existing_names, name) end)
       |> Enum.map(fn {name, meta} ->
-        member_ids = Ichor.Fleet.TeamSupervisor.member_ids(name)
+        member_ids = TeamSupervisor.member_ids(name)
 
         members =
           Enum.map(member_ids, fn id ->
-            case Ichor.Fleet.AgentProcess.lookup(id) do
+            case AgentProcess.lookup(id) do
               {_pid, agent_meta} ->
                 %{
                   name: id,
@@ -146,7 +152,9 @@ defmodule Ichor.Fleet.Preparations.LoadTeams do
         cwd = extract_cwd(member_events) || m[:cwd]
 
         first_event = Enum.min_by(member_events, & &1.inserted_at, DateTime, fn -> nil end)
-        uptime = if first_event, do: DateTime.diff(now, first_event.inserted_at, :second), else: nil
+
+        uptime =
+          if first_event, do: DateTime.diff(now, first_event.inserted_at, :second), else: nil
 
         Map.merge(m, %{
           event_count: length(member_events),
@@ -203,7 +211,7 @@ defmodule Ichor.Fleet.Preparations.LoadTeams do
         true -> :unknown
       end
 
-    struct!(Ichor.Fleet.Team, %{
+    struct!(Team, %{
       name: team.name,
       lead_session: team[:lead_session],
       description: team[:description],

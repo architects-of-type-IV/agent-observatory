@@ -6,17 +6,26 @@ defmodule Ichor.Fleet.Preparations.LoadAgents do
 
   use Ash.Resource.Preparation
 
+  alias Ichor.EventBuffer
+  alias Ichor.Fleet.Agent
+  alias Ichor.Fleet.AgentProcess
+  alias Ichor.Fleet.Team
+  alias Ichor.Gateway.AgentRegistry
+  alias Ichor.Gateway.AgentRegistry.AgentEntry
+  alias Ichor.Gateway.Channels.Tmux
+  alias Ichor.Gateway.TmuxDiscovery
+
   @idle_threshold_seconds 120
   @stale_seconds 600
 
   @impl true
   def prepare(query, _opts, _context) do
-    events = Ichor.EventBuffer.list_events()
+    events = EventBuffer.list_events()
     now = DateTime.utc_now()
-    teams = Ichor.Fleet.Team.alive!()
+    teams = Team.alive!()
     tmux_sessions = list_tmux_sessions()
 
-    registry_agents = Ichor.Gateway.AgentRegistry.list_all()
+    registry_agents = AgentRegistry.list_all()
 
     subagent_map = build_subagent_map(events)
 
@@ -65,7 +74,7 @@ defmodule Ichor.Fleet.Preparations.LoadAgents do
 
     name = derive_display_name(session_id, tmux_session, cwd)
 
-    struct!(Ichor.Fleet.Agent, %{
+    struct!(Agent, %{
       agent_id: session_id,
       name: name,
       role: nil,
@@ -115,9 +124,11 @@ defmodule Ichor.Fleet.Preparations.LoadAgents do
         team.members
         |> Enum.filter(fn m -> m[:agent_id] && not MapSet.member?(event_sids, m[:agent_id]) end)
         |> Enum.map(fn m ->
-          struct!(Ichor.Fleet.Agent, %{
+          struct!(Agent, %{
             agent_id: m[:agent_id],
-            name: m[:name] || m[:agent_type] || Ichor.Gateway.AgentRegistry.AgentEntry.short_id(m[:agent_id] || ""),
+            name:
+              m[:name] || m[:agent_type] ||
+                AgentEntry.short_id(m[:agent_id] || ""),
             role: m[:name] || m[:agent_type],
             model: m[:model],
             status: m[:status] || :idle,
@@ -148,10 +159,11 @@ defmodule Ichor.Fleet.Preparations.LoadAgents do
 
     tmux_agents =
       tmux_sessions
-      |> Enum.reject(fn name -> MapSet.member?(known_tmux, name) end)
-      |> Enum.reject(&Ichor.Gateway.TmuxDiscovery.infrastructure_session?/1)
+      |> Enum.reject(fn name ->
+        MapSet.member?(known_tmux, name) or TmuxDiscovery.infrastructure_session?(name)
+      end)
       |> Enum.map(fn name ->
-        struct!(Ichor.Fleet.Agent, %{
+        struct!(Agent, %{
           agent_id: "tmux:#{name}",
           name: name,
           role: nil,
@@ -178,7 +190,7 @@ defmodule Ichor.Fleet.Preparations.LoadAgents do
   # For spawned Claude agents, EventBuffer.resolve_session_id/2 rewrites the session_id
   # to match the BEAM process id on ingest, so agent_id matching works directly.
   defp merge_beam_processes(agents, _now) do
-    process_agents = Ichor.Fleet.AgentProcess.list_all()
+    process_agents = AgentProcess.list_all()
     known_ids = MapSet.new(agents, & &1.agent_id)
 
     # Add process-only agents (not yet visible via events or tmux)
@@ -188,7 +200,7 @@ defmodule Ichor.Fleet.Preparations.LoadAgents do
       |> Enum.map(fn {id, meta} ->
         cwd = meta[:cwd]
 
-        struct!(Ichor.Fleet.Agent, %{
+        struct!(Agent, %{
           agent_id: id,
           name: id,
           role: to_string(meta[:role] || :worker),
@@ -237,22 +249,30 @@ defmodule Ichor.Fleet.Preparations.LoadAgents do
           # when short_name is just a truncated UUID (not human-readable)
           better_name =
             cond do
-              reg.short_name && not Ichor.Gateway.AgentRegistry.AgentEntry.uuid?(reg.session_id) -> reg.short_name
-              agent.name && agent.name != "" -> agent.name
-              reg.short_name -> reg.short_name
-              true -> agent.name
+              reg.short_name && not AgentEntry.uuid?(reg.session_id) ->
+                reg.short_name
+
+              agent.name && agent.name != "" ->
+                agent.name
+
+              reg.short_name ->
+                reg.short_name
+
+              true ->
+                agent.name
             end
 
-          %{agent |
-            session_id: reg.session_id,
-            short_name: reg.short_name,
-            host: Map.get(reg, :host, "local"),
-            channels: reg.channels,
-            last_event_at: reg.last_event_at,
-            name: better_name,
-            cwd: reg.cwd || agent.cwd,
-            model: reg.model || agent.model,
-            os_pid: Map.get(reg, :os_pid) || agent.os_pid
+          %{
+            agent
+            | session_id: reg.session_id,
+              short_name: reg.short_name,
+              host: Map.get(reg, :host, "local"),
+              channels: reg.channels,
+              last_event_at: reg.last_event_at,
+              name: better_name,
+              cwd: reg.cwd || agent.cwd,
+              model: reg.model || agent.model,
+              os_pid: Map.get(reg, :os_pid) || agent.os_pid
           }
       end
     end)
@@ -263,7 +283,10 @@ defmodule Ichor.Fleet.Preparations.LoadAgents do
   defp build_subagent_map(events) do
     completed_ids =
       events
-      |> Enum.filter(&(&1.hook_event_type in [:PostToolUse, :PostToolUseFailure] and &1.tool_name in ["Agent", "Task"]))
+      |> Enum.filter(
+        &(&1.hook_event_type in [:PostToolUse, :PostToolUseFailure] and
+            &1.tool_name in ["Agent", "Task"])
+      )
       |> MapSet.new(& &1.tool_use_id)
 
     events
@@ -272,14 +295,15 @@ defmodule Ichor.Fleet.Preparations.LoadAgents do
       input = (e.payload || %{})["tool_input"] || %{}
       status = if MapSet.member?(completed_ids, e.tool_use_id), do: :ended, else: :active
 
-      {e.session_id, %{
-        tool_use_id: e.tool_use_id,
-        type: input["subagent_type"] || "general",
-        description: input["description"] || "",
-        name: input["name"],
-        status: status,
-        started_at: e.inserted_at
-      }}
+      {e.session_id,
+       %{
+         tool_use_id: e.tool_use_id,
+         type: input["subagent_type"] || "general",
+         description: input["description"] || "",
+         name: input["name"],
+         status: status,
+         started_at: e.inserted_at
+       }}
     end)
     |> Enum.group_by(&elem(&1, 0), &elem(&1, 1))
   end
@@ -296,7 +320,6 @@ defmodule Ichor.Fleet.Preparations.LoadAgents do
   # Agent name: tmux session name or short UUID. Never Path.basename(cwd) --
   # the project directory is the PROJECT, not the agent's identity.
   defp derive_display_name(session_id, tmux_session, _cwd) do
-    alias Ichor.Gateway.AgentRegistry.AgentEntry
     cond do
       not AgentEntry.uuid?(session_id) -> session_id
       tmux_session && tmux_session != "" -> tmux_session
@@ -354,8 +377,14 @@ defmodule Ichor.Fleet.Preparations.LoadAgents do
     |> Enum.sort_by(& &1.inserted_at, {:desc, DateTime})
     |> Enum.find(fn e -> e.tool_use_id && not MapSet.member?(post_ids, e.tool_use_id) end)
     |> case do
-      nil -> nil
-      pre -> %{tool_name: pre.tool_name, elapsed: div(DateTime.diff(now, pre.inserted_at, :millisecond), 1000)}
+      nil ->
+        nil
+
+      pre ->
+        %{
+          tool_name: pre.tool_name,
+          elapsed: div(DateTime.diff(now, pre.inserted_at, :millisecond), 1000)
+        }
     end
   end
 
@@ -383,7 +412,10 @@ defmodule Ichor.Fleet.Preparations.LoadAgents do
 
       :Notification ->
         text = payload["message"] || payload["content"] || e.summary || ""
-        if text != "", do: [%{type: :notify, detail: String.slice(text, 0, 120), age: age_str}], else: []
+
+        if text != "",
+          do: [%{type: :notify, detail: String.slice(text, 0, 120), age: age_str}],
+          else: []
 
       :TaskCompleted ->
         task_id = payload["task_id"] || "?"
@@ -395,10 +427,14 @@ defmodule Ichor.Fleet.Preparations.LoadAgents do
   end
 
   defp extract_tool_detail("SendMessage", payload) do
-    to = payload["recipient"] || payload["target_agent_id"] || payload["to"] ||
-         get_in(payload, ["input", "recipient"]) || "?"
-    content = payload["content"] || payload["summary"] ||
-              get_in(payload, ["input", "content"]) || ""
+    to =
+      payload["recipient"] || payload["target_agent_id"] || payload["to"] ||
+        get_in(payload, ["input", "recipient"]) || "?"
+
+    content =
+      payload["content"] || payload["summary"] ||
+        get_in(payload, ["input", "content"]) || ""
+
     "-> #{to}: #{String.slice(content, 0, 80)}"
   end
 
@@ -407,7 +443,9 @@ defmodule Ichor.Fleet.Preparations.LoadAgents do
   defp extract_tool_detail("Write", payload), do: basename_from(payload, "file_path")
 
   defp extract_tool_detail("Bash", payload) do
-    cmd = payload["command"] || payload["description"] || get_in(payload, ["input", "command"]) || ""
+    cmd =
+      payload["command"] || payload["description"] || get_in(payload, ["input", "command"]) || ""
+
     String.slice(cmd, 0, 60)
   end
 
@@ -436,7 +474,7 @@ defmodule Ichor.Fleet.Preparations.LoadAgents do
   defp format_age(seconds), do: "#{div(seconds, 3600)}h"
 
   defp list_tmux_sessions do
-    Ichor.Gateway.Channels.Tmux.list_sessions()
+    Tmux.list_sessions()
   rescue
     _ -> []
   end
