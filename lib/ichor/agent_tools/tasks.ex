@@ -8,19 +8,19 @@ defmodule Ichor.AgentTools.Tasks do
 
   actions do
     action :get_tasks, {:array, :map} do
-      description "Get your assigned tasks from the Ichor task board."
+      description("Get your assigned tasks from the Ichor task board.")
 
       argument :session_id, :string do
-        allow_nil? false
-        description "Your agent session ID"
+        allow_nil?(false)
+        description("Your agent session ID")
       end
 
       argument :team_name, :string do
-        allow_nil? true
-        description "Filter tasks by team name (optional)"
+        allow_nil?(true)
+        description("Filter tasks by team name (optional)")
       end
 
-      run fn input, _context ->
+      run(fn input, _context ->
         session_id = input.arguments.session_id
         team_name = input.arguments[:team_name]
 
@@ -47,40 +47,45 @@ defmodule Ichor.AgentTools.Tasks do
           end)
 
         {:ok, my_tasks}
-      end
+      end)
     end
 
     action :update_task_status, :map do
-      description "Update the status of a task you are working on."
+      description("Update the status of a task you are working on.")
 
       argument :team_name, :string do
-        allow_nil? false
-        description "The team name the task belongs to"
+        allow_nil?(false)
+        description("The team name the task belongs to")
       end
 
       argument :task_id, :string do
-        allow_nil? false
-        description "The task ID to update"
+        allow_nil?(false)
+        description("The task ID to update")
       end
 
       argument :status, :string do
-        allow_nil? false
-        description "New status: pending, in_progress, or completed"
+        allow_nil?(false)
+        description("New status: pending, in_progress, or completed")
       end
 
-      run fn input, _context ->
+      run(fn input, _context ->
         team = input.arguments.team_name
         task_id = input.arguments.task_id
         status = input.arguments.status
 
         case TaskManager.update_task(team, task_id, %{"status" => status}) do
           {:ok, task} ->
-            {:ok, %{"status" => "updated", "task_id" => task_id, "new_status" => task["status"] || status}}
+            {:ok,
+             %{
+               "status" => "updated",
+               "task_id" => task_id,
+               "new_status" => task["status"] || status
+             }}
 
           {:error, reason} ->
             {:error, "Failed to update task: #{inspect(reason)}"}
         end
-      end
+      end)
     end
   end
 end

@@ -9,60 +9,62 @@ defmodule Ichor.AgentTools.Inbox do
 
   actions do
     action :check_inbox, {:array, :map} do
-      description "Check for pending messages in your Ichor inbox. Returns unread messages from the dashboard or other agents."
+      description(
+        "Check for pending messages in your Ichor inbox. Returns unread messages from the dashboard or other agents."
+      )
 
       argument :session_id, :string do
-        allow_nil? false
-        description "Your agent session ID"
+        allow_nil?(false)
+        description("Your agent session ID")
       end
 
-      run fn input, _context ->
+      run(fn input, _context ->
         session_id = input.arguments.session_id
 
         case FleetAgent.get_unread(session_id) do
           {:ok, messages} -> {:ok, messages}
           {:error, _} -> {:ok, []}
         end
-      end
+      end)
     end
 
     action :acknowledge_message, :map do
-      description "Mark a message as read after processing it."
+      description("Mark a message as read after processing it.")
 
       argument :session_id, :string do
-        allow_nil? false
-        description "Your agent session ID"
+        allow_nil?(false)
+        description("Your agent session ID")
       end
 
       argument :message_id, :string do
-        allow_nil? false
-        description "The ID of the message to acknowledge"
+        allow_nil?(false)
+        description("The ID of the message to acknowledge")
       end
 
-      run fn input, _context ->
+      run(fn input, _context ->
         FleetAgent.mark_read(input.arguments.session_id, input.arguments.message_id)
-      end
+      end)
     end
 
     action :send_message, :map do
-      description "Send a message to another agent or back to the Ichor dashboard."
+      description("Send a message to another agent or back to the Ichor dashboard.")
 
       argument :from_session_id, :string do
-        allow_nil? false
-        description "Your agent session ID (the sender)"
+        allow_nil?(false)
+        description("Your agent session ID (the sender)")
       end
 
       argument :to_session_id, :string do
-        allow_nil? false
-        description "The recipient agent's session ID"
+        allow_nil?(false)
+        description("The recipient agent's session ID")
       end
 
       argument :content, :string do
-        allow_nil? false
-        description "The message content"
+        allow_nil?(false)
+        description("The message content")
       end
 
-      run fn input, _context ->
+      run(fn input, _context ->
         from = input.arguments.from_session_id
         to = input.arguments.to_session_id
         content = input.arguments.content
@@ -77,14 +79,19 @@ defmodule Ichor.AgentTools.Inbox do
                 {:ok, %{"status" => "sent", "to" => to, "delivered" => delivered}}
 
               {:ok, 0} ->
-                {:ok, %{"status" => "no_recipients", "to" => to, "delivered" => 0,
-                  "error" => "No delivery channel found for #{to}. Agent may not be registered."}}
+                {:ok,
+                 %{
+                   "status" => "no_recipients",
+                   "to" => to,
+                   "delivered" => 0,
+                   "error" => "No delivery channel found for #{to}. Agent may not be registered."
+                 }}
 
               {:error, reason} ->
                 {:error, "Failed to send message: #{inspect(reason)}"}
             end
         end
-      end
+      end)
     end
   end
 end
