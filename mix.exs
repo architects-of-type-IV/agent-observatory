@@ -11,7 +11,8 @@ defmodule Ichor.MixProject do
       aliases: aliases(),
       deps: deps(),
       compilers: [:phoenix_live_view] ++ Mix.compilers(),
-      listeners: [Phoenix.CodeReloader]
+      listeners: [Phoenix.CodeReloader],
+      dialyzer: [plt_add_apps: [:mix, :ex_unit]]
     ]
   end
 
@@ -72,7 +73,10 @@ defmodule Ichor.MixProject do
       {:ash_sqlite, "~> 0.2"},
       {:ash_ai, "~> 0.5"},
       {:usage_rules, "~> 1.1", only: :dev},
-      {:earmark, "~> 1.4"}
+      {:earmark, "~> 1.4"},
+      # Code quality
+      {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
+      {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false}
     ]
   end
 
