@@ -9,17 +9,16 @@ defmodule Ichor.Archon.Chat do
   Slash commands are handled directly without LLM roundtrip.
   """
 
-  alias LangChain.ChatModels.ChatOpenAI
-  alias LangChain.Chains.LLMChain
-  alias LangChain.Message
-
   alias Ichor.Archon.Tools.Agents
   alias Ichor.Archon.Tools.Control
   alias Ichor.Archon.Tools.Events
   alias Ichor.Archon.Tools.Memory
   alias Ichor.Archon.Tools.Messages
-  alias Ichor.Archon.Tools.Teams
   alias Ichor.Archon.Tools.System, as: SystemTools
+  alias Ichor.Archon.Tools.Teams
+  alias LangChain.Chains.LLMChain
+  alias LangChain.ChatModels.ChatOpenAI
+  alias LangChain.Message
 
   require Logger
 
@@ -85,7 +84,9 @@ defmodule Ichor.Archon.Chat do
   defp dispatch_shortcode(["/teams"]), do: run_typed(:teams, Teams, :list_teams, %{})
   defp dispatch_shortcode(["/inbox"]), do: run_typed(:inbox, Messages, :recent_messages, %{})
   defp dispatch_shortcode(["/health"]), do: run_typed(:health, SystemTools, :system_health, %{})
-  defp dispatch_shortcode(["/sessions"]), do: run_typed(:sessions, SystemTools, :tmux_sessions, %{})
+
+  defp dispatch_shortcode(["/sessions"]),
+    do: run_typed(:sessions, SystemTools, :tmux_sessions, %{})
 
   defp dispatch_shortcode(["/status", agent_id]) do
     run_typed(:agent_status, Agents, :agent_status, %{agent_id: String.trim(agent_id)})
@@ -95,8 +96,14 @@ defmodule Ichor.Archon.Chat do
     case String.split(rest, " ", parts: 2) do
       [agent_id, limit] ->
         case Integer.parse(String.trim(limit)) do
-          {n, ""} -> run_typed(:agent_events, Events, :agent_events, %{agent_id: String.trim(agent_id), limit: n})
-          _ -> run_typed(:agent_events, Events, :agent_events, %{agent_id: String.trim(agent_id)})
+          {n, ""} ->
+            run_typed(:agent_events, Events, :agent_events, %{
+              agent_id: String.trim(agent_id),
+              limit: n
+            })
+
+          _ ->
+            run_typed(:agent_events, Events, :agent_events, %{agent_id: String.trim(agent_id)})
         end
 
       [agent_id] ->
@@ -121,7 +128,10 @@ defmodule Ichor.Archon.Chat do
   defp dispatch_shortcode(["/pause", rest]) do
     case String.split(rest, " ", parts: 2) do
       [agent_id, reason] ->
-        run_typed(:pause_agent, Control, :pause_agent, %{agent_id: String.trim(agent_id), reason: String.trim(reason)})
+        run_typed(:pause_agent, Control, :pause_agent, %{
+          agent_id: String.trim(agent_id),
+          reason: String.trim(reason)
+        })
 
       [agent_id] ->
         run_typed(:pause_agent, Control, :pause_agent, %{agent_id: String.trim(agent_id)})
@@ -167,13 +177,17 @@ defmodule Ichor.Archon.Chat do
   end
 
   defp dispatch_shortcode([cmd | _]) do
-    {:ok, %{type: :error, data: """
-    Unknown command: #{cmd}
-    Observation: /agents /teams /status <id> /events <id> [limit] /tasks [team] /inbox /health /sessions
-    Control:     /spawn <prompt> /stop <id> /pause <id> [reason] /resume <id> /sweep
-    Messaging:   /msg <target> <text>
-    Memory:      /remember <text> /recall <query> /query <question>
-    """}}
+    {:ok,
+     %{
+       type: :error,
+       data: """
+       Unknown command: #{cmd}
+       Observation: /agents /teams /status <id> /events <id> [limit] /tasks [team] /inbox /health /sessions
+       Control:     /spawn <prompt> /stop <id> /pause <id> [reason] /resume <id> /sweep
+       Messaging:   /msg <target> <text>
+       Memory:      /remember <text> /recall <query> /query <question>
+       """
+     }}
   end
 
   defp run_typed(type, resource, action, params) do
@@ -246,11 +260,12 @@ defmodule Ichor.Archon.Chat do
     if context == "" do
       {:ok, chain}
     else
-      memory_msg = Message.new_system!("""
-      [MEMORY CONTEXT - auto-retrieved from your knowledge graph]
-      This is your conversation history with the Architect and accumulated knowledge. Use it to answer questions about what you discussed, what you know, and what happened previously. Do NOT call recent_messages for this -- that tool is only for inter-agent pipeline messages.
-      #{context}\
-      """)
+      memory_msg =
+        Message.new_system!("""
+        [MEMORY CONTEXT - auto-retrieved from your knowledge graph]
+        This is your conversation history with the Architect and accumulated knowledge. Use it to answer questions about what you discussed, what you know, and what happened previously. Do NOT call recent_messages for this -- that tool is only for inter-agent pipeline messages.
+        #{context}\
+        """)
 
       {:ok, LLMChain.add_messages(chain, [memory_msg])}
     end
@@ -258,7 +273,8 @@ defmodule Ichor.Archon.Chat do
     _ -> {:ok, chain}
   end
 
-  defp format_edges({:ok, %{"results" => %{"edges" => edges}}}) when is_list(edges) and edges != [] do
+  defp format_edges({:ok, %{"results" => %{"edges" => edges}}})
+       when is_list(edges) and edges != [] do
     header = "Facts:"
 
     items =
@@ -273,7 +289,8 @@ defmodule Ichor.Archon.Chat do
 
   defp format_edges(_), do: ""
 
-  defp format_episodes({:ok, %{"results" => %{"episodes" => eps}}}) when is_list(eps) and eps != [] do
+  defp format_episodes({:ok, %{"results" => %{"episodes" => eps}}})
+       when is_list(eps) and eps != [] do
     header = "Recent conversations:"
 
     items =

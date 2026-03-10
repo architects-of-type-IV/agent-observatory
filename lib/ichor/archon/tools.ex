@@ -5,12 +5,12 @@ defmodule Ichor.Archon.Tools do
   """
   use Ash.Domain, extensions: [AshAi]
   alias Ichor.Archon.Tools.Agents
-  alias Ichor.Archon.Tools.Teams
-  alias Ichor.Archon.Tools.Messages
-  alias Ichor.Archon.Tools.System
-  alias Ichor.Archon.Tools.Memory
   alias Ichor.Archon.Tools.Control
   alias Ichor.Archon.Tools.Events
+  alias Ichor.Archon.Tools.Memory
+  alias Ichor.Archon.Tools.Messages
+  alias Ichor.Archon.Tools.System
+  alias Ichor.Archon.Tools.Teams
 
   resources do
     resource(Agents)
