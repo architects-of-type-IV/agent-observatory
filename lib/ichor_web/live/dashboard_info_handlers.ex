@@ -14,6 +14,8 @@ defmodule IchorWeb.DashboardInfoHandlers do
   import IchorWeb.DashboardNotificationHandlers, only: [handle_agent_crashed: 4]
   import IchorWeb.DashboardGatewayHandlers, only: [handle_gateway_info: 2]
 
+  alias Ichor.Gateway.HITLRelay
+
   alias Ichor.Signal.Payload
   alias IchorWeb.DashboardArchonHandlers
 
@@ -91,7 +93,7 @@ defmodule IchorWeb.DashboardInfoHandlers do
 
   # HITL: refresh paused_sessions assign
   def dispatch(%Payload{name: name}, socket) when name in [:gate_open, :gate_close] do
-    paused = Ichor.Gateway.HITLRelay.paused_sessions() |> MapSet.new()
+    paused = HITLRelay.paused_sessions() |> MapSet.new()
     {:noreply, assign(socket, :paused_sessions, paused)}
   rescue
     _ -> {:noreply, socket}

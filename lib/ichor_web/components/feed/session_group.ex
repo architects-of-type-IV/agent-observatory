@@ -304,13 +304,8 @@ defmodule IchorWeb.Components.Feed.SessionGroup do
   defp permission_label(_), do: nil
 
   defp session_end_reason(group) do
-    cond do
-      group.session_end && is_map(group.session_end.payload) ->
-        group.session_end.payload["reason"]
-
-      true ->
-        nil
-    end
+    if group.session_end && is_map(group.session_end.payload),
+      do: group.session_end.payload["reason"]
   end
 
   defp depth_style(0), do: "border border-border bg-base/40"

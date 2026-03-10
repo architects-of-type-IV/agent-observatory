@@ -1,5 +1,6 @@
 defmodule IchorWeb.Components.FleetCommandComponents do
   use Phoenix.Component
+  @moduledoc false
 
   attr :swarm_state, :map, default: %{}
   attr :throughput_rate, :any, default: nil

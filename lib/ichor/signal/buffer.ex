@@ -6,6 +6,8 @@ defmodule Ichor.Signal.Buffer do
   """
   use GenServer
 
+  alias Ichor.Signal.Catalog
+
   @max_events 500
   @table :signal_buffer
 
@@ -28,7 +30,7 @@ defmodule Ichor.Signal.Buffer do
   @impl true
   def init(_opts) do
     :ets.new(@table, [:named_table, :public, :set])
-    Enum.each(Ichor.Signal.Catalog.categories(), &Ichor.Signal.subscribe/1)
+    Enum.each(Catalog.categories(), &Ichor.Signal.subscribe/1)
     {:ok, %{seq: 0}}
   end
 

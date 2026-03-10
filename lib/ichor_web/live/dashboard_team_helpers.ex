@@ -6,6 +6,8 @@ defmodule IchorWeb.DashboardTeamHelpers do
 
   import IchorWeb.DashboardAgentHealthHelpers
 
+  alias Ichor.Gateway.AgentRegistry
+
   @doc """
   Derive teams from both events and disk state, merging them appropriately.
   Disk teams are authoritative when available.
@@ -110,7 +112,7 @@ defmodule IchorWeb.DashboardTeamHelpers do
   Delegates agent_type classification to AgentRegistry.derive_role/1.
   """
   def detect_role(team, member) do
-    case Ichor.Gateway.AgentRegistry.derive_role(member[:agent_type]) do
+    case AgentRegistry.derive_role(member[:agent_type]) do
       role when role in [:lead, :coordinator] ->
         :lead
 

@@ -39,7 +39,7 @@ defmodule Ichor.Activity.EventAnalysis do
         successes: length(successes),
         failures: length(failures),
         failure_rate:
-          if(length(completions) > 0,
+          if(completions != [],
             do: Float.round(length(failures) / length(completions), 2),
             else: 0.0
           ),

@@ -11,6 +11,11 @@ defmodule Ichor.Fleet.Agent do
 
   import Ichor.MapHelpers, only: [maybe_put: 3]
 
+  alias Ichor.AgentSpawner
+  alias Ichor.Fleet.AgentProcess
+  alias Ichor.Fleet.FleetSupervisor
+  alias Ichor.Fleet.TeamSupervisor
+
   attributes do
     attribute(:agent_id, :string, primary_key?: true, allow_nil?: false, public?: true)
     attribute(:name, :string, public?: true)
@@ -103,7 +108,7 @@ defmodule Ichor.Fleet.Agent do
       argument(:agent_id, :string, allow_nil?: false)
 
       run(fn input, _context ->
-        case Ichor.Fleet.AgentProcess.pause(input.arguments.agent_id) do
+        case AgentProcess.pause(input.arguments.agent_id) do
           :ok -> {:ok, %{agent_id: input.arguments.agent_id, status: :paused}}
           error -> {:error, "Failed to pause: #{inspect(error)}"}
         end
@@ -115,7 +120,7 @@ defmodule Ichor.Fleet.Agent do
       argument(:agent_id, :string, allow_nil?: false)
 
       run(fn input, _context ->
-        case Ichor.Fleet.AgentProcess.resume(input.arguments.agent_id) do
+        case AgentProcess.resume(input.arguments.agent_id) do
           :ok -> {:ok, %{agent_id: input.arguments.agent_id, status: :active}}
           error -> {:error, "Failed to resume: #{inspect(error)}"}
         end
@@ -129,12 +134,12 @@ defmodule Ichor.Fleet.Agent do
       run(fn input, _context ->
         agent_id = input.arguments.agent_id
 
-        case Ichor.Fleet.AgentProcess.lookup(agent_id) do
+        case AgentProcess.lookup(agent_id) do
           {_pid, meta} ->
             result =
               case meta[:team] do
-                nil -> Ichor.Fleet.FleetSupervisor.terminate_agent(agent_id)
-                team -> Ichor.Fleet.TeamSupervisor.terminate_member(team, agent_id)
+                nil -> FleetSupervisor.terminate_agent(agent_id)
+                team -> TeamSupervisor.terminate_member(team, agent_id)
               end
 
             case result do
@@ -180,7 +185,7 @@ defmodule Ichor.Fleet.Agent do
           |> maybe_put(:team_name, args[:team_name])
           |> maybe_put(:extra_instructions, args[:extra_instructions])
 
-        case Ichor.AgentSpawner.spawn_agent(opts) do
+        case AgentSpawner.spawn_agent(opts) do
           {:ok, result} ->
             {:ok, result}
 
@@ -208,7 +213,7 @@ defmodule Ichor.Fleet.Agent do
       run(fn input, _context ->
         args = input.arguments
 
-        Ichor.Fleet.AgentProcess.send_message(args.agent_id, %{
+        AgentProcess.send_message(args.agent_id, %{
           content: args.content,
           from: args.from,
           type: :message
@@ -226,8 +231,8 @@ defmodule Ichor.Fleet.Agent do
         agent_id = input.arguments.agent_id
 
         messages =
-          if Ichor.Fleet.AgentProcess.alive?(agent_id) do
-            Ichor.Fleet.AgentProcess.get_unread(agent_id)
+          if AgentProcess.alive?(agent_id) do
+            AgentProcess.get_unread(agent_id)
             |> Enum.map(fn msg ->
               %{
                 "id" => msg[:id] || Ecto.UUID.generate(),
@@ -265,7 +270,7 @@ defmodule Ichor.Fleet.Agent do
 
       run(fn input, _context ->
         args = input.arguments
-        Ichor.Fleet.AgentProcess.update_instructions(args.agent_id, args.instructions)
+        AgentProcess.update_instructions(args.agent_id, args.instructions)
         {:ok, %{agent_id: args.agent_id, status: :updated}}
       end)
     end
@@ -293,15 +298,15 @@ defmodule Ichor.Fleet.Agent do
 
   @spec spawn_in_fleet(String.t() | nil, keyword()) :: {:ok, pid()} | {:error, term()}
   defp spawn_in_fleet(nil, opts) do
-    Ichor.Fleet.FleetSupervisor.spawn_agent(opts)
+    FleetSupervisor.spawn_agent(opts)
   end
 
   defp spawn_in_fleet(team_name, opts) do
     # Ensure the team exists first
-    unless Ichor.Fleet.TeamSupervisor.exists?(team_name) do
-      Ichor.Fleet.FleetSupervisor.create_team(name: team_name)
+    unless TeamSupervisor.exists?(team_name) do
+      FleetSupervisor.create_team(name: team_name)
     end
 
-    Ichor.Fleet.TeamSupervisor.spawn_member(team_name, opts)
+    TeamSupervisor.spawn_member(team_name, opts)
   end
 end

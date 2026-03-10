@@ -11,6 +11,8 @@ defmodule IchorWeb.Components.CommandComponents do
   alias IchorWeb.Components.FleetHelpers, as: FH
   import Phoenix.HTML, only: [raw: 1]
 
+  alias Ichor.Gateway.AgentRegistry.AgentEntry
+
   embed_templates "command_components/*"
 
   def fleet_status_bar(assigns) do
@@ -265,7 +267,7 @@ defmodule IchorWeb.Components.CommandComponents do
   end
 
   defp short_id(nil), do: "?"
-  defp short_id(id), do: Ichor.Gateway.AgentRegistry.AgentEntry.short_id(id)
+  defp short_id(id), do: AgentEntry.short_id(id)
 
   defp activity_icon(:tool), do: "text-cyan"
   defp activity_icon(:error), do: "text-error"

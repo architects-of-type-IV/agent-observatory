@@ -1,5 +1,6 @@
 defmodule IchorWeb.Components.SessionClusterComponents do
   use Phoenix.Component
+  @moduledoc false
 
   attr :sessions, :list, default: []
   attr :entropy_filter_active, :boolean, default: false

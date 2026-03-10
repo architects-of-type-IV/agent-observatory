@@ -1,5 +1,6 @@
 defmodule IchorWeb.Components.ForensicComponents do
   use Phoenix.Component
+  @moduledoc false
 
   attr :archive_search, :string, default: ""
   attr :archive_results, :list, default: []

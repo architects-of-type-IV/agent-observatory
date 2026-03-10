@@ -2,7 +2,13 @@ defmodule IchorWeb.DebugController do
   @moduledoc "System diagnostics endpoint for quick debugging."
   use IchorWeb, :controller
 
+  alias Ichor.Activity.Message
+  alias Ichor.EventBuffer
+  alias Ichor.Fleet.{Agent, AgentProcess, Team}
   alias Ichor.Gateway.AgentRegistry
+  alias Ichor.Gateway.Channels.Tmux
+  alias Ichor.Gateway.HITLRelay
+  alias Ichor.ProtocolTracker
 
   def registry(conn, _params) do
     agents =
@@ -50,7 +56,7 @@ defmodule IchorWeb.DebugController do
   end
 
   defp check_team_watcher do
-    teams = Ichor.Fleet.Team.alive!()
+    teams = Team.alive!()
     team_names = Enum.map(teams, & &1.name)
     member_count = Enum.reduce(teams, 0, fn t, acc -> acc + t.member_count end)
     %{ok: true, teams: team_names, member_count: member_count}
@@ -64,15 +70,15 @@ defmodule IchorWeb.DebugController do
   end
 
   defp check_mailbox do
-    process_agents = Ichor.Fleet.AgentProcess.list_all()
+    process_agents = AgentProcess.list_all()
     %{ok: true, agent_processes: length(process_agents)}
   rescue
     e -> %{ok: false, error: Exception.message(e)}
   end
 
   defp check_event_buffer do
-    if Process.whereis(Ichor.EventBuffer) do
-      %{ok: true, pid: inspect(Process.whereis(Ichor.EventBuffer))}
+    if Process.whereis(EventBuffer) do
+      %{ok: true, pid: inspect(Process.whereis(EventBuffer))}
     else
       %{ok: false, error: "EventBuffer not running"}
     end
@@ -81,7 +87,7 @@ defmodule IchorWeb.DebugController do
   end
 
   def traces(conn, params) do
-    traces = Ichor.ProtocolTracker.get_traces()
+    traces = ProtocolTracker.get_traces()
     limit = String.to_integer(params["limit"] || "50")
     type_filter = params["type"]
 
@@ -105,14 +111,14 @@ defmodule IchorWeb.DebugController do
         }
       end)
 
-    stats = Ichor.ProtocolTracker.get_stats()
+    stats = ProtocolTracker.get_stats()
 
     json(conn, %{count: length(filtered), total: length(traces), stats: stats, traces: filtered})
   end
 
   def mailboxes(conn, _params) do
     messages =
-      Ichor.Activity.Message.recent!()
+      Message.recent!()
       |> Enum.take(50)
       |> Enum.map(fn m ->
         %{
@@ -129,14 +135,14 @@ defmodule IchorWeb.DebugController do
   end
 
   def fleet_agents(conn, _params) do
-    agents = Ichor.Fleet.Agent.all!()
+    agents = Agent.all!()
 
-    events = Ichor.EventBuffer.list_events()
+    events = EventBuffer.list_events()
     event_sessions = events |> Enum.map(& &1.session_id) |> Enum.uniq()
 
-    beam_processes = Ichor.Fleet.AgentProcess.list_all() |> Enum.map(fn {id, _} -> id end)
+    beam_processes = AgentProcess.list_all() |> Enum.map(fn {id, _} -> id end)
 
-    registry = Ichor.Gateway.AgentRegistry.list_all() |> Enum.map(& &1.session_id)
+    registry = AgentRegistry.list_all() |> Enum.map(& &1.session_id)
 
     json(conn, %{
       count: length(agents),
@@ -168,8 +174,8 @@ defmodule IchorWeb.DebugController do
   end
 
   def hitl_clear(conn, _params) do
-    paused = Ichor.Gateway.HITLRelay.paused_sessions()
-    Enum.each(paused, &Ichor.Gateway.HITLRelay.unpause(&1, "system", "debug-clear"))
+    paused = HITLRelay.paused_sessions()
+    Enum.each(paused, &HITLRelay.unpause(&1, "system", "debug-clear"))
     json(conn, %{cleared: length(paused), sessions: paused})
   end
 
@@ -180,8 +186,6 @@ defmodule IchorWeb.DebugController do
   end
 
   def tmux(conn, _params) do
-    alias Ichor.Gateway.Channels.Tmux
-
     sessions = Tmux.list_sessions()
     panes = Tmux.list_panes()
     socket_args = Tmux.socket_args()

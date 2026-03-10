@@ -5,10 +5,13 @@ defmodule Ichor.Activity.Preparations.LoadErrors do
 
   use Ash.Resource.Preparation
 
+  alias Ash.DataLayer.Simple
+  alias Ichor.EventBuffer
+
   @impl true
   def prepare(query, _opts, _context) do
     errors =
-      Ichor.EventBuffer.list_events()
+      EventBuffer.list_events()
       |> Enum.filter(&(&1.hook_event_type == :PostToolUseFailure))
       |> Enum.map(fn e ->
         struct!(Ichor.Activity.Error, %{
@@ -24,6 +27,6 @@ defmodule Ichor.Activity.Preparations.LoadErrors do
         })
       end)
 
-    Ash.DataLayer.Simple.set_data(query, errors)
+    Simple.set_data(query, errors)
   end
 end

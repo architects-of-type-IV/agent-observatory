@@ -10,6 +10,8 @@ defmodule Ichor.Gateway.TopologyBuilder do
 
   require Logger
 
+  alias Ichor.Mesh.CausalDAG
+
   @sweep_interval :timer.hours(1)
   @stale_ttl_seconds 7_200
 
@@ -44,7 +46,7 @@ defmodule Ichor.Gateway.TopologyBuilder do
   def handle_info(%{event: "dag_delta", session_id: session_id}, state) do
     state = put_in(state.session_last_active[session_id], System.monotonic_time(:second))
 
-    case Ichor.Mesh.CausalDAG.get_session_dag(session_id) do
+    case CausalDAG.get_session_dag(session_id) do
       {:ok, node_map} ->
         # Derive nodes list
         nodes =

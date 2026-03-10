@@ -1,5 +1,6 @@
 defmodule IchorWeb.Components.RegistryComponents do
   use Phoenix.Component
+  @moduledoc false
 
   attr :agent_types, :list, default: []
   attr :route_weights, :map, default: %{}

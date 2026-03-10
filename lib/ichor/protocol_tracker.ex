@@ -7,6 +7,8 @@ defmodule Ichor.ProtocolTracker do
   use GenServer
   require Logger
 
+  alias Ichor.Fleet.AgentProcess
+
   @table_name :protocol_traces
   @max_traces 200
 
@@ -240,7 +242,7 @@ defmodule Ichor.ProtocolTracker do
 
   defp compute_stats do
     traces = :ets.tab2list(@table_name) |> Enum.map(&elem(&1, 1))
-    agent_processes = Ichor.Fleet.AgentProcess.list_all()
+    agent_processes = AgentProcess.list_all()
 
     %{
       traces: length(traces),

@@ -1,5 +1,6 @@
 defmodule IchorWeb.Components.TeamTmuxComponents do
   use Phoenix.Component
+  @moduledoc false
   import IchorWeb.DashboardFormatHelpers
   import IchorWeb.DashboardTeamHelpers
 

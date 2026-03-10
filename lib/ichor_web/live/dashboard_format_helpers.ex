@@ -4,6 +4,8 @@ defmodule IchorWeb.DashboardFormatHelpers do
   Handles colors, time formatting, event summaries, and UI presentation.
   """
 
+  alias Ichor.Gateway.AgentRegistry.AgentEntry
+
   @session_palette [
     {"bg-info", "border-info", "text-info"},
     {"bg-success", "border-success", "text-success"},
@@ -40,7 +42,7 @@ defmodule IchorWeb.DashboardFormatHelpers do
   Abbreviate a session ID for display. UUIDs truncated to 8 chars; human-readable names pass through.
   """
   def short_session(session_id) when is_binary(session_id),
-    do: Ichor.Gateway.AgentRegistry.AgentEntry.short_id(session_id)
+    do: AgentEntry.short_id(session_id)
 
   def short_session(_), do: "?"
 
@@ -225,7 +227,7 @@ defmodule IchorWeb.DashboardFormatHelpers do
   @doc """
   Check if tool is a team coordination tool.
   """
-  def is_team_tool?(tool_name), do: tool_name in @team_tools
+  def team_tool?(tool_name), do: tool_name in @team_tools
 
   @doc """
   Get color class for duration based on threshold.

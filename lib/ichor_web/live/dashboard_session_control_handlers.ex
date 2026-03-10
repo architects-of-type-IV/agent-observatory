@@ -5,6 +5,10 @@ defmodule IchorWeb.DashboardSessionControlHandlers do
   Pause/resume goes through HITLRelay for message buffering.
   """
 
+  alias Ichor.EventBuffer
+  alias Ichor.Fleet.{AgentProcess, FleetSupervisor, TeamSupervisor}
+  alias Ichor.Gateway.AgentRegistry
+  alias Ichor.Gateway.AgentRegistry.AgentEntry
   alias Ichor.Gateway.Channels.Tmux
   alias Ichor.Gateway.HITLRelay
 
@@ -34,7 +38,7 @@ defmodule IchorWeb.DashboardSessionControlHandlers do
     )
 
     paused = MapSet.put(socket.assigns.paused_sessions, session_id)
-    short = Ichor.Gateway.AgentRegistry.AgentEntry.short_id(session_id)
+    short = AgentEntry.short_id(session_id)
 
     socket
     |> Phoenix.Component.assign(:paused_sessions, paused)
@@ -105,12 +109,12 @@ defmodule IchorWeb.DashboardSessionControlHandlers do
     tmux_killed = kill_tmux_for_agent(session_id)
 
     beam_stopped =
-      case Ichor.Fleet.AgentProcess.lookup(session_id) do
+      case AgentProcess.lookup(session_id) do
         {pid, meta} ->
           result =
             case meta[:team] do
-              nil -> Ichor.Fleet.FleetSupervisor.terminate_agent(session_id)
-              team -> Ichor.Fleet.TeamSupervisor.terminate_member(team, session_id)
+              nil -> FleetSupervisor.terminate_agent(session_id)
+              team -> TeamSupervisor.terminate_member(team, session_id)
             end
 
           # Fallback: if not under a supervisor, stop directly
@@ -128,8 +132,8 @@ defmodule IchorWeb.DashboardSessionControlHandlers do
           false
       end
 
-    Ichor.Gateway.AgentRegistry.remove(session_id)
-    Ichor.EventBuffer.tombstone_session(session_id)
+    AgentRegistry.remove(session_id)
+    EventBuffer.tombstone_session(session_id)
 
     short = String.slice(session_id, 0..7)
 
@@ -203,7 +207,7 @@ defmodule IchorWeb.DashboardSessionControlHandlers do
 
   defp kill_tmux_for_agent(session_id) do
     tmux_target =
-      case Ichor.Gateway.AgentRegistry.get(session_id) do
+      case AgentRegistry.get(session_id) do
         %{channels: %{tmux: name}} when is_binary(name) -> name
         _ -> session_id
       end

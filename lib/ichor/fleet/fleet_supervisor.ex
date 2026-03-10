@@ -17,6 +17,8 @@ defmodule Ichor.Fleet.FleetSupervisor do
   use DynamicSupervisor
   require Logger
 
+  alias Ichor.Fleet.{AgentProcess, TeamSupervisor}
+
   # ── Public API ──────────────────────────────────────────────────────
 
   @doc "Start the fleet supervisor."
@@ -37,10 +39,10 @@ defmodule Ichor.Fleet.FleetSupervisor do
   def create_team(opts) do
     name = Keyword.fetch!(opts, :name)
 
-    if Ichor.Fleet.TeamSupervisor.exists?(name) do
+    if TeamSupervisor.exists?(name) do
       {:error, :already_exists}
     else
-      DynamicSupervisor.start_child(__MODULE__, {Ichor.Fleet.TeamSupervisor, opts})
+      DynamicSupervisor.start_child(__MODULE__, {TeamSupervisor, opts})
     end
   end
 
@@ -60,7 +62,7 @@ defmodule Ichor.Fleet.FleetSupervisor do
   @doc "Spawn a standalone agent (not part of any team)."
   @spec spawn_agent(keyword()) :: DynamicSupervisor.on_start_child()
   def spawn_agent(opts) do
-    DynamicSupervisor.start_child(__MODULE__, {Ichor.Fleet.AgentProcess, opts})
+    DynamicSupervisor.start_child(__MODULE__, {AgentProcess, opts})
   end
 
   @doc """
@@ -93,8 +95,8 @@ defmodule Ichor.Fleet.FleetSupervisor do
   @spec status() :: map()
   def status do
     children = DynamicSupervisor.which_children(__MODULE__)
-    teams = Ichor.Fleet.TeamSupervisor.list_all()
-    agents = Ichor.Fleet.AgentProcess.list_all()
+    teams = TeamSupervisor.list_all()
+    agents = AgentProcess.list_all()
 
     %{
       child_count: length(children),

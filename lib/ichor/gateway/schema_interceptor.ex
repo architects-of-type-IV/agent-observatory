@@ -11,8 +11,7 @@ defmodule Ichor.Gateway.SchemaInterceptor do
 
   require Logger
 
-  alias Ichor.Gateway.EntropyTracker
-  alias Ichor.Gateway.HITLRelay
+  alias Ichor.Gateway.{CronScheduler, EntropyTracker, Envelope, HITLRelay}
   alias Ichor.Mesh.DecisionLog
 
   @spec validate(map()) :: {:ok, DecisionLog.t()} | {:error, Ecto.Changeset.t()}
@@ -110,7 +109,7 @@ defmodule Ichor.Gateway.SchemaInterceptor do
       {:ok, %{"agent_id" => agent_id, "delay_ms" => delay_ms} = input} ->
         payload = Map.get(input, "payload", %{})
 
-        case Ichor.Gateway.CronScheduler.schedule_once(agent_id, delay_ms, payload) do
+        case CronScheduler.schedule_once(agent_id, delay_ms, payload) do
           :ok -> :ok
           {:error, reason} -> {:error, reason}
         end
@@ -130,8 +129,8 @@ defmodule Ichor.Gateway.SchemaInterceptor do
   Checks that channel pattern and payload are well-formed.
   Returns :ok or {:error, reason}.
   """
-  @spec validate_envelope(Ichor.Gateway.Envelope.t()) :: :ok | {:error, String.t()}
-  def validate_envelope(%Ichor.Gateway.Envelope{channel: channel, payload: payload}) do
+  @spec validate_envelope(Envelope.t()) :: :ok | {:error, String.t()}
+  def validate_envelope(%Envelope{channel: channel, payload: payload}) do
     cond do
       !is_binary(channel) or channel == "" ->
         {:error, "channel must be a non-empty string"}

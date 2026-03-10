@@ -6,6 +6,8 @@ defmodule IchorWeb.DashboardArchonHandlers do
 
   import Phoenix.Component, only: [assign: 3]
 
+  alias Ichor.Archon.Chat
+
   require Logger
 
   @doc "Toggle the Archon overlay visibility."
@@ -114,7 +116,7 @@ defmodule IchorWeb.DashboardArchonHandlers do
     lv = self()
 
     Task.start(fn ->
-      result = Ichor.Archon.Chat.chat(content, history)
+      result = Chat.chat(content, history)
       send(lv, {:archon_response, result})
     end)
   end

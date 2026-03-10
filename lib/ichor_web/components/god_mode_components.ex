@@ -1,5 +1,6 @@
 defmodule IchorWeb.Components.GodModeComponents do
   use Phoenix.Component
+  @moduledoc false
 
   attr :kill_switch_confirm_step, :atom, default: nil
   attr :agent_classes, :list, default: []

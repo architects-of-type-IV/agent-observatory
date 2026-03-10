@@ -256,7 +256,7 @@ defmodule Ichor.Mesh.CausalDAG do
 
         if Code.ensure_loaded?(topology_builder) &&
              function_exported?(topology_builder, :subscribe_to_session, 1) do
-          apply(topology_builder, :subscribe_to_session, [session_id])
+          topology_builder.subscribe_to_session(session_id)
         end
 
         table_name

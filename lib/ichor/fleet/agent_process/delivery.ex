@@ -9,6 +9,8 @@ defmodule Ichor.Fleet.AgentProcess.Delivery do
 
   require Logger
 
+  alias Ichor.Gateway.Channels.{SshTmux, Tmux, WebhookAdapter}
+
   # ── Message Normalization ────────────────────────────────────────────
 
   @doc "Normalize a message into canonical form with ID, recipient, and timestamp."
@@ -44,21 +46,21 @@ defmodule Ichor.Fleet.AgentProcess.Delivery do
 
   def deliver(%{type: :tmux, session: session}, msg) do
     content = msg[:content] || inspect(msg)
-    Ichor.Gateway.Channels.Tmux.deliver(session, %{content: content})
+    Tmux.deliver(session, %{content: content})
   end
 
   def deliver(%{type: :ssh_tmux, address: address}, msg) do
     content = msg[:content] || inspect(msg)
-    Ichor.Gateway.Channels.SshTmux.deliver(address, %{content: content})
+    SshTmux.deliver(address, %{content: content})
   end
 
   def deliver(%{type: :ssh_tmux, session: session, host: host}, msg) do
     content = msg[:content] || inspect(msg)
-    Ichor.Gateway.Channels.SshTmux.deliver("#{session}@#{host}", %{content: content})
+    SshTmux.deliver("#{session}@#{host}", %{content: content})
   end
 
   def deliver(%{type: :webhook, url: url}, msg) do
-    Ichor.Gateway.Channels.WebhookAdapter.deliver(url, msg)
+    WebhookAdapter.deliver(url, msg)
   end
 
   def deliver(%{type: type}, _msg) do

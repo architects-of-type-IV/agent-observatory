@@ -5,6 +5,9 @@ defmodule IchorWeb.DashboardSwarmHandlers do
   """
   import Phoenix.Component, only: [assign: 3]
 
+  alias Ichor.Gateway.AgentRegistry.AgentEntry
+  alias Ichor.SwarmMonitor
+
   def dispatch("select_project", p, s), do: handle_select_project(p, s)
   def dispatch("heal_task", p, s), do: handle_heal_task(p, s)
   def dispatch("reset_all_stale", p, s), do: handle_reset_all_stale(p, s)
@@ -19,48 +22,48 @@ defmodule IchorWeb.DashboardSwarmHandlers do
   def dispatch("clear_command_selection", p, s), do: handle_clear_command_selection(p, s)
 
   def handle_select_project(%{"project" => key}, socket) do
-    Ichor.SwarmMonitor.set_active_project(key)
+    SwarmMonitor.set_active_project(key)
     socket
   end
 
   def handle_add_project(%{"path" => path}, socket) do
     key = Path.basename(path)
-    Ichor.SwarmMonitor.add_project(key, path)
+    SwarmMonitor.add_project(key, path)
     socket
   end
 
   def handle_heal_task(%{"id" => task_id}, socket) do
-    Ichor.SwarmMonitor.heal_task(task_id)
+    SwarmMonitor.heal_task(task_id)
     socket
   end
 
   def handle_reassign_swarm_task(%{"id" => task_id, "owner" => owner}, socket) do
-    Ichor.SwarmMonitor.reassign_task(task_id, owner)
+    SwarmMonitor.reassign_task(task_id, owner)
     socket
   end
 
   def handle_reset_all_stale(_params, socket) do
-    Ichor.SwarmMonitor.reset_all_stale()
+    SwarmMonitor.reset_all_stale()
     socket
   end
 
   def handle_trigger_gc(%{"team" => team_name}, socket) do
-    Ichor.SwarmMonitor.trigger_gc(team_name)
+    SwarmMonitor.trigger_gc(team_name)
     socket
   end
 
   def handle_run_health_check(_params, socket) do
-    Ichor.SwarmMonitor.run_health_check()
+    SwarmMonitor.run_health_check()
     socket
   end
 
   def handle_claim_swarm_task(%{"id" => task_id, "agent" => agent}, socket) do
-    Ichor.SwarmMonitor.claim_task(task_id, agent)
+    SwarmMonitor.claim_task(task_id, agent)
     socket
   end
 
   def handle_select_dag_node(%{"id" => task_id}, socket) do
-    swarm = Ichor.SwarmMonitor.get_state()
+    swarm = SwarmMonitor.get_state()
     task = Enum.find(swarm.tasks, &(&1.id == task_id))
 
     current = socket.assigns[:selected_dag_task]
@@ -113,12 +116,12 @@ defmodule IchorWeb.DashboardSwarmHandlers do
     |> Enum.find(fn e -> e.session_id == session_id end)
     |> case do
       nil ->
-        Ichor.Gateway.AgentRegistry.AgentEntry.short_id(session_id)
+        AgentEntry.short_id(session_id)
 
       event ->
         if event.tmux_session,
           do: event.tmux_session,
-          else: Ichor.Gateway.AgentRegistry.AgentEntry.short_id(session_id)
+          else: AgentEntry.short_id(session_id)
     end
   end
 

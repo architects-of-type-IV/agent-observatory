@@ -19,7 +19,9 @@ defmodule Ichor.Gateway.Router do
 
   require Logger
 
+  alias Ichor.Fleet.{AgentProcess, FleetSupervisor, TeamSupervisor}
   alias Ichor.Gateway.{AgentRegistry, Envelope, SchemaInterceptor}
+  alias Ichor.ProtocolTracker
 
   @default_channels [
     {Ichor.Gateway.Channels.MailboxAdapter, primary: true},
@@ -113,7 +115,7 @@ defmodule Ichor.Gateway.Router do
 
   defp handle_team_delete(input) do
     if team_name = input["team_name"] do
-      Ichor.Fleet.FleetSupervisor.disband_team(team_name)
+      FleetSupervisor.disband_team(team_name)
     end
   end
 
@@ -152,8 +154,8 @@ defmodule Ichor.Gateway.Router do
 
   @spec ensure_team_supervisor(String.t()) :: :ok
   defp ensure_team_supervisor(team_name) do
-    unless Ichor.Fleet.TeamSupervisor.exists?(team_name) do
-      case Ichor.Fleet.FleetSupervisor.create_team(name: team_name) do
+    unless TeamSupervisor.exists?(team_name) do
+      case FleetSupervisor.create_team(name: team_name) do
         {:ok, _pid} ->
           :ok
 
@@ -218,7 +220,7 @@ defmodule Ichor.Gateway.Router do
     recipient_ids = Enum.map(recipients, & &1.id)
     content = envelope.payload[:content] || envelope.payload["content"] || ""
 
-    Ichor.ProtocolTracker.track_gateway_broadcast(%{
+    ProtocolTracker.track_gateway_broadcast(%{
       trace_id: envelope.trace_id,
       from: envelope.from,
       channel: envelope.channel,
@@ -249,9 +251,9 @@ defmodule Ichor.Gateway.Router do
   # Stop the BEAM AgentProcess when a session ends, closing the lifecycle loop.
   # AgentProcess.terminate/2 handles cross-registry cleanup (AgentRegistry + EventBuffer).
   defp terminate_agent_process(session_id) do
-    case Ichor.Fleet.AgentProcess.lookup(session_id) do
+    case AgentProcess.lookup(session_id) do
       {pid, _meta} ->
-        Ichor.Fleet.FleetSupervisor.terminate_agent(session_id)
+        FleetSupervisor.terminate_agent(session_id)
         |> case do
           :ok ->
             :ok

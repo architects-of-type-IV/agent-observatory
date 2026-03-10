@@ -8,6 +8,7 @@ defmodule Ichor.Costs.CostAggregator do
 
   require Logger
 
+  alias Ichor.Gateway.AgentRegistry.AgentEntry
   alias Ichor.Repo
 
   @doc """
@@ -126,7 +127,7 @@ defmodule Ichor.Costs.CostAggregator do
 
           %{
             session_id: sid,
-            label: map["source_app"] || Ichor.Gateway.AgentRegistry.AgentEntry.short_id(sid),
+            label: map["source_app"] || AgentEntry.short_id(sid),
             model: map["model_name"],
             input_tokens: map["input_tokens"] || 0,
             output_tokens: map["output_tokens"] || 0,

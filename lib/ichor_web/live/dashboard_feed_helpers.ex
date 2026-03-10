@@ -5,6 +5,8 @@ defmodule IchorWeb.DashboardFeedHelpers do
   then by activity phases (consecutive tools of the same category).
   """
 
+  alias Ichor.Gateway.AgentRegistry.AgentEntry
+
   # ═══════════════════════════════════════════════════════
   # Public API
   # ═══════════════════════════════════════════════════════
@@ -353,11 +355,7 @@ defmodule IchorWeb.DashboardFeedHelpers do
     has_subagents = Enum.any?(sorted, &(&1.hook_event_type == :SubagentStart))
     turns = build_turns(sorted)
 
-    role =
-      cond do
-        has_subagents -> :lead
-        true -> :standalone
-      end
+    role = if has_subagents, do: :lead, else: :standalone
 
     subagent_count =
       sorted |> Enum.count(&(&1.hook_event_type == :SubagentStop))
@@ -392,10 +390,10 @@ defmodule IchorWeb.DashboardFeedHelpers do
           else: first_event && first_event.inserted_at
         ),
       end_time:
-        cond do
-          session_end -> session_end.inserted_at
-          true -> last_event && last_event.inserted_at
-        end,
+        if(session_end,
+          do: session_end.inserted_at,
+          else: last_event && last_event.inserted_at
+        ),
       is_active: session_end == nil
     }
   end
@@ -457,14 +455,13 @@ defmodule IchorWeb.DashboardFeedHelpers do
       |> Enum.reduce(%{}, fn e, acc ->
         # Prefer tmux session name over project directory. Project dir is NOT the agent name.
         name =
-          cond do
-            e.tmux_session && e.tmux_session != "" -> e.tmux_session
-            true -> Ichor.Gateway.AgentRegistry.AgentEntry.short_id(e.session_id)
-          end
+          if e.tmux_session && e.tmux_session != "",
+            do: e.tmux_session,
+            else: AgentEntry.short_id(e.session_id)
 
-        if !Map.has_key?(acc, e.session_id),
-          do: Map.put(acc, e.session_id, name),
-          else: acc
+        if Map.has_key?(acc, e.session_id),
+          do: acc,
+          else: Map.put(acc, e.session_id, name)
       end)
 
     Map.merge(session_start_names, team_names)
@@ -510,13 +507,9 @@ defmodule IchorWeb.DashboardFeedHelpers do
   defp extract_model(events) do
     session_start = Enum.find(events, &(&1.hook_event_type == :SessionStart))
 
-    cond do
-      session_start && is_map(session_start.payload) ->
-        session_start.payload["model"] || session_start.model_name
-
-      true ->
-        Enum.find_value(events, fn e -> e.model_name || (e.payload || %{})["model"] end)
-    end
+    if session_start && is_map(session_start.payload),
+      do: session_start.payload["model"] || session_start.model_name,
+      else: Enum.find_value(events, fn e -> e.model_name || (e.payload || %{})["model"] end)
   end
 
   defp extract_cwd(events) do

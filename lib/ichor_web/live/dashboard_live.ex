@@ -15,6 +15,8 @@ defmodule IchorWeb.DashboardLive do
 
   import IchorWeb.DashboardMessagingHandlers, only: [subscribe_to_mailboxes: 1]
 
+  alias Ichor.Signal.{Buffer, Catalog}
+
   alias IchorWeb.{
     DashboardArchonHandlers,
     DashboardFeedHandlers,
@@ -75,7 +77,7 @@ defmodule IchorWeb.DashboardLive do
 
     if connected?(socket) do
       Enum.each(@pubsub_topics, &Phoenix.PubSub.subscribe(Ichor.PubSub, &1))
-      Enum.each(Ichor.Signal.Catalog.categories(), &Ichor.Signal.subscribe/1)
+      Enum.each(Catalog.categories(), &Ichor.Signal.subscribe/1)
       subscribe_gateway_topics()
       send(self(), :load_data)
     end
@@ -109,7 +111,7 @@ defmodule IchorWeb.DashboardLive do
             Phoenix.PubSub.subscribe(Ichor.PubSub, "stream:feed")
           end
 
-          assign(socket, :stream_events, Ichor.Signal.Buffer.recent(200))
+          assign(socket, :stream_events, Buffer.recent(200))
 
         _ ->
           socket

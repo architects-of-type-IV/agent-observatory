@@ -247,11 +247,9 @@ defmodule Ichor.EventBuffer do
   defp coerce_hook_type(t) when is_atom(t), do: t
 
   defp coerce_hook_type(t) when is_binary(t) do
-    try do
-      String.to_existing_atom(t)
-    rescue
-      ArgumentError -> String.to_atom(t)
-    end
+    String.to_existing_atom(t)
+  rescue
+    ArgumentError -> String.to_atom(t)
   end
 
   defp coerce_hook_type(_), do: :Stop

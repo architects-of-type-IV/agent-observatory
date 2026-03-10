@@ -8,6 +8,8 @@ defmodule Ichor.Heartbeat do
   """
   use GenServer
 
+  alias Ichor.Gateway.AgentRegistry
+
   @interval 5_000
 
   def start_link(opts) do
@@ -37,7 +39,7 @@ defmodule Ichor.Heartbeat do
   defp run_maintenance(count) do
     # Every 12 beats (1min): sweep stale agents from registry
     if rem(count, 12) == 0 do
-      spawn(fn -> Ichor.Gateway.AgentRegistry.purge_stale() end)
+      spawn(fn -> AgentRegistry.purge_stale() end)
     end
   end
 

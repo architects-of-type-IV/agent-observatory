@@ -4,11 +4,13 @@ defmodule IchorWeb.DashboardTimelineHelpers do
   Converts events into timeline blocks for swimlane visualization.
   """
 
+  alias Ichor.Activity.EventAnalysis
+
   @doc """
   Compute timeline data from events grouped by session.
   Delegates to Activity.EventAnalysis.timeline/1.
   """
-  def compute_timeline_data(events), do: Ichor.Activity.EventAnalysis.timeline(events)
+  def compute_timeline_data(events), do: EventAnalysis.timeline(events)
 
   @doc """
   Calculate positioning for timeline blocks as percentages.

@@ -1,5 +1,6 @@
 defmodule IchorWeb.Components.SchedulerComponents do
   use Phoenix.Component
+  @moduledoc false
 
   attr :cron_jobs, :list, default: []
   attr :dlq_entries, :list, default: []

@@ -6,6 +6,7 @@ defmodule Ichor.Fleet.Preparations.LoadAgents do
 
   use Ash.Resource.Preparation
 
+  alias Ash.DataLayer.Simple
   alias Ichor.EventBuffer
   alias Ichor.Fleet.Agent
   alias Ichor.Fleet.AgentProcess
@@ -41,7 +42,7 @@ defmodule Ichor.Fleet.Preparations.LoadAgents do
       |> filter_stale(tmux_sessions, now)
       |> sort_agents()
 
-    Ash.DataLayer.Simple.set_data(query, agents)
+    Simple.set_data(query, agents)
   end
 
   defp build_from_events(events, now) do

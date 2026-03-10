@@ -6,6 +6,7 @@ defmodule Ichor.AgentTools.Inbox do
   use Ash.Resource, domain: Ichor.AgentTools
 
   alias Ichor.Fleet.Agent, as: FleetAgent
+  alias Ichor.Gateway.Router
 
   actions do
     action :check_inbox, {:array, :map} do
@@ -74,7 +75,7 @@ defmodule Ichor.AgentTools.Inbox do
             {:ok, %{"status" => "sent", "to" => to, "delivered" => 1, "via" => "fleet"}}
 
           {:error, _reason} ->
-            case Ichor.Gateway.Router.broadcast("agent:#{to}", %{content: content, from: from}) do
+            case Router.broadcast("agent:#{to}", %{content: content, from: from}) do
               {:ok, delivered} when delivered > 0 ->
                 {:ok, %{"status" => "sent", "to" => to, "delivered" => delivered}}
 

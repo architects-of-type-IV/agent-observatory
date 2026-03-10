@@ -6,6 +6,12 @@ defmodule Ichor.AgentMonitor do
   use GenServer
   require Logger
 
+  alias Ichor.Fleet.AgentProcess
+  alias Ichor.Gateway.AgentRegistry
+  alias Ichor.Gateway.AgentRegistry.AgentEntry
+  alias Ichor.Gateway.Channels.Tmux
+  alias Ichor.TaskManager
+
   @check_interval 5_000
   @crash_threshold_sec 120
 
@@ -89,16 +95,16 @@ defmodule Ichor.AgentMonitor do
   end
 
   defp agent_alive?(session_id) do
-    Ichor.Fleet.AgentProcess.alive?(session_id) or tmux_session_alive?(session_id)
+    AgentProcess.alive?(session_id) or tmux_session_alive?(session_id)
   end
 
   defp tmux_session_alive?(session_id) do
-    registry_entry = Ichor.Gateway.AgentRegistry.get(session_id)
+    registry_entry = AgentRegistry.get(session_id)
     tmux_target = registry_entry && registry_entry.channels && registry_entry.channels.tmux
 
     case tmux_target do
       nil -> false
-      target -> Ichor.Gateway.Channels.Tmux.available?(target)
+      target -> Tmux.available?(target)
     end
   rescue
     _ -> false
@@ -127,7 +133,7 @@ defmodule Ichor.AgentMonitor do
   end
 
   defp reassign_agent_tasks(session_id, team_name) do
-    tasks = Ichor.TaskManager.list_tasks(team_name)
+    tasks = TaskManager.list_tasks(team_name)
 
     # Find tasks owned by crashed agent
     owned_tasks =
@@ -138,7 +144,7 @@ defmodule Ichor.AgentMonitor do
     # Reset to pending status and count successes
     owned_tasks
     |> Enum.map(fn task ->
-      case Ichor.TaskManager.update_task(team_name, task["id"], %{
+      case TaskManager.update_task(team_name, task["id"], %{
              "status" => "pending",
              "owner" => nil
            }) do
@@ -175,7 +181,7 @@ defmodule Ichor.AgentMonitor do
     inbox_dir = Path.expand("~/.claude/inbox")
     File.mkdir_p(inbox_dir)
 
-    short_sid = Ichor.Gateway.AgentRegistry.AgentEntry.short_id(session_id)
+    short_sid = AgentEntry.short_id(session_id)
     timestamp = System.system_time(:millisecond)
     filename = "crash_#{team_name}_#{short_sid}_#{timestamp}.json"
 

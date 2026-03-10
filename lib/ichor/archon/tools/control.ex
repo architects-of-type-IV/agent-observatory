@@ -5,8 +5,11 @@ defmodule Ichor.Archon.Tools.Control do
   """
   use Ash.Resource, domain: Ichor.Archon.Tools
 
+  alias Ash.Error.Unknown
+
   alias Ichor.AgentSpawner
   alias Ichor.Fleet.Agent, as: FleetAgent
+  alias Ichor.Gateway.AgentRegistry
   alias Ichor.Gateway.HITLRelay
 
   actions do
@@ -71,7 +74,7 @@ defmodule Ichor.Archon.Tools.Control do
              }}
 
           {:error, reason} ->
-            {:error, Ash.Error.Unknown.exception(errors: [inspect(reason)])}
+            {:error, Unknown.exception(errors: [inspect(reason)])}
         end
       end)
     end
@@ -168,7 +171,7 @@ defmodule Ichor.Archon.Tools.Control do
       description("Trigger an immediate GC sweep of dead agents from the registry.")
 
       run(fn _input, _context ->
-        Ichor.Gateway.AgentRegistry.purge_stale()
+        AgentRegistry.purge_stale()
         {:ok, %{"swept" => true}}
       end)
     end

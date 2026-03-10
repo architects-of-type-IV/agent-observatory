@@ -1,38 +1,34 @@
 # ICHOR IV - Handoff
 
-## Current Status: Credo Strict Cleanup IN PROGRESS (2026-03-10)
+## Current Status: Credo Strict Cleanup IN PROGRESS (2026-03-11)
 
 ### Task
-Fix ALL `mix credo --strict` issues. Started with ~200, now at 173 remaining.
+Fix ALL `mix credo --strict` issues. Started with ~200, now at 74 remaining.
 
-### Completed (27 issues fixed, clean build)
-- **C1+C2: ModuleDoc (14)** -- added `@moduledoc false` to 14 modules (domain, event, web component files)
-- **C24: Misc mechanical (13)** -- ParenthesesOnZeroArityDefs, PredicateFunctionNames (+ heex callers), CondStatements (5), NegatedConditionsWithElse, PreferImplicitTry (2), Apply, ExpensiveEmptyEnumCheck
+### Completed
+- **ModuleDoc (14)** -- `@moduledoc false` to 14 modules
+- **Misc mechanical (13)** -- CondStatements, PreferImplicitTry, Apply, etc.
+- **AliasUsage (99->0)** -- all alias issues fixed across ~45 files
+- **AliasOrder (3->0)** -- alphabetized alias declarations
 
-### Remaining (173 issues)
-- **AliasUsage: 99 issues** across ~46 files (C3-C12)
-- **Nesting: 40 issues** across ~25 files (C13-C17)
-- **CyclomaticComplexity: 34 issues** across ~25 files (C18-C23)
+### Remaining (74 issues)
+- **Nesting: 40 issues** across 23 files -- extract inner logic into `defp` helpers (max depth 2)
+  - Biggest: swarm_monitor.ex (10), memory_store.ex (5), load_teams.ex (2), tmux_discovery.ex (2)
+- **CyclomaticComplexity: 34 issues** across ~25 files -- break complex functions
 
 ### Approach
-- **Direct manual fixes ONLY** -- no spawned workers (workers failed 3 times, user lost trust)
-- AliasUsage: add `alias` at module top, use short names. Watch for conflicts (two modules sharing last segment).
+- **Direct manual fixes ONLY** -- no spawned workers
 - Nesting: extract inner logic into `defp` helpers INSIDE same module. Max depth 2.
 - CyclomaticComplexity: break complex functions into smaller `defp` functions.
-- After each file: `mix compile --warnings-as-errors` to verify.
+- After each batch: `mix compile --warnings-as-errors` to verify.
 
-### Key Lessons from Previous Session
-- Sonnet workers cannot reliably refactor Elixir -- they break module dependency graphs
+### Key Lessons
+- `replace_all: true` corrupts alias declarations -- must manually fix `alias ShortName` back to `alias Full.Path.ShortName`
+- Sonnet workers cannot reliably refactor Elixir module dependency graphs
 - Multi-line `use Ash.Resource,` statements: `@moduledoc false` goes BEFORE the `use` line
-- PredicateFunctionNames: must update ALL callers including .heex templates
-- Format-on-save race: Edit tool can fail when hooks modify file between Read and Edit
 
 ### After Credo
 - Migrate `Ichor.Signal` to `Ichor.Signals` convention per `signals.md`
 
 ### Build Status
 `mix compile --warnings-as-errors` -- CLEAN (0 warnings)
-
-### Runtime
-- Port 4005, `~/.ichor/tmux/obs.sock`
-- Memories server on port 4000 (for Archon memory tools)

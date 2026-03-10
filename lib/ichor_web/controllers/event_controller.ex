@@ -5,6 +5,10 @@ defmodule IchorWeb.EventController do
   """
   use IchorWeb, :controller
 
+  alias Ichor.Costs.CostAggregator
+  alias Ichor.EventBuffer
+  alias Ichor.Gateway.Router
+
   def create(conn, params) do
     {raw, hook_type, source_app, tmux_session, os_pid} = extract_envelope(params)
 
@@ -23,13 +27,13 @@ defmodule IchorWeb.EventController do
       os_pid: os_pid
     }
 
-    {:ok, event} = Ichor.EventBuffer.ingest(event_attrs)
+    {:ok, event} = EventBuffer.ingest(event_attrs)
 
-    Ichor.Costs.CostAggregator.record_usage(event, raw)
+    CostAggregator.record_usage(event, raw)
 
     Ichor.Signal.emit(:new_event, %{event: event})
 
-    Ichor.Gateway.Router.ingest(event)
+    Router.ingest(event)
 
     conn
     |> put_status(:created)

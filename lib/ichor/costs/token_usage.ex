@@ -1,4 +1,5 @@
 defmodule Ichor.Costs.TokenUsage do
+  @moduledoc false
   use Ash.Resource,
     domain: Ichor.Costs,
     data_layer: AshSqlite.DataLayer

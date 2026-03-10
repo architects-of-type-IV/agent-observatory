@@ -7,10 +7,13 @@ defmodule Ichor.Activity.Preparations.LoadTasks do
 
   use Ash.Resource.Preparation
 
+  alias Ash.DataLayer.Simple
+  alias Ichor.EventBuffer
+
   @impl true
   def prepare(query, _opts, _context) do
     tasks =
-      Ichor.EventBuffer.list_events()
+      EventBuffer.list_events()
       |> Enum.filter(fn e ->
         e.hook_event_type == :PreToolUse and e.tool_name in ["TaskCreate", "TaskUpdate"]
       end)
@@ -20,7 +23,7 @@ defmodule Ichor.Activity.Preparations.LoadTasks do
       |> Enum.sort_by(& &1.id)
       |> Enum.map(&to_resource/1)
 
-    Ash.DataLayer.Simple.set_data(query, tasks)
+    Simple.set_data(query, tasks)
   end
 
   defp reduce_task(e, acc) do

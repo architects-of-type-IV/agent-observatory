@@ -1,15 +1,15 @@
-# Credo Strict Cleanup Progress (2026-03-10)
+# Credo Strict Cleanup Progress (2026-03-11)
 
-## Status: 173/200 remaining (27 fixed)
+## Status: 74/200 remaining (126 fixed)
 
 ### Completed Categories
-- ModuleDoc: 14/14 DONE (C1, C2)
-- Misc mechanical: 13/13 DONE (C24) -- CondStatements, PreferImplicitTry, Apply, etc.
+- ModuleDoc: 14/14 DONE
+- Misc mechanical: 13/13 DONE -- CondStatements, PreferImplicitTry, Apply, etc.
+- AliasUsage: 99/99 DONE -- all alias issues fixed across ~45 files
+- AliasOrder: 3/3 DONE -- alphabetized alias declarations
 
 ### Remaining Categories
-- AliasUsage: 99 issues across ~46 files (C3-C12)
-- Nesting: 40 issues across ~25 files (C13-C17)
-- CyclomaticComplexity: 34 issues across ~25 files (C18-C23)
+- Nesting: 40 issues across 23 files
+- CyclomaticComplexity: 34 issues across ~25 files
 
-### Approach: direct manual fixes, no workers
 ### Build: mix compile --warnings-as-errors CLEAN

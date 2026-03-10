@@ -5,10 +5,13 @@ defmodule Ichor.Activity.Preparations.LoadMessages do
 
   use Ash.Resource.Preparation
 
+  alias Ash.DataLayer.Simple
+  alias Ichor.EventBuffer
+
   @impl true
   def prepare(query, _opts, _context) do
     hook_messages =
-      Ichor.EventBuffer.list_events()
+      EventBuffer.list_events()
       |> Enum.filter(fn e ->
         e.hook_event_type == :PreToolUse and e.tool_name == "SendMessage"
       end)
@@ -29,6 +32,6 @@ defmodule Ichor.Activity.Preparations.LoadMessages do
 
     all = Enum.sort_by(hook_messages, & &1.timestamp, {:desc, DateTime})
 
-    Ash.DataLayer.Simple.set_data(query, all)
+    Simple.set_data(query, all)
   end
 end

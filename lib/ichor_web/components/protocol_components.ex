@@ -7,6 +7,8 @@ defmodule IchorWeb.Components.ProtocolComponents do
   use Phoenix.Component
   import IchorWeb.DashboardFormatHelpers
 
+  alias Ichor.Gateway.AgentRegistry.AgentEntry
+
   embed_templates "protocol_components/*"
 
   # ═══════════════════════════════════════════════════════
@@ -17,7 +19,7 @@ defmodule IchorWeb.Components.ProtocolComponents do
   defp short_id("unknown"), do: "?"
   defp short_id("system"), do: "system"
   defp short_id("broadcast"), do: "all"
-  defp short_id(id), do: Ichor.Gateway.AgentRegistry.AgentEntry.short_id(id)
+  defp short_id(id), do: AgentEntry.short_id(id)
 
   defp trace_type_label(:send_message), do: "message"
   defp trace_type_label(:team_create), do: "team"
@@ -71,7 +73,7 @@ defmodule IchorWeb.Components.ProtocolComponents do
       nil ->
         case String.split(id, "@") do
           [agent, team] -> "#{agent}@#{team}"
-          _ -> Ichor.Gateway.AgentRegistry.AgentEntry.short_id(id)
+          _ -> AgentEntry.short_id(id)
         end
 
       name ->

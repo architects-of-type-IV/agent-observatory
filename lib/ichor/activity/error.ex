@@ -6,6 +6,8 @@ defmodule Ichor.Activity.Error do
 
   use Ash.Resource, domain: Ichor.Activity
 
+  alias Ichor.Activity.Preparations.LoadErrors
+
   attributes do
     attribute(:id, :string, primary_key?: true, allow_nil?: false, public?: true)
     attribute(:tool_name, :string, public?: true)
@@ -20,12 +22,12 @@ defmodule Ichor.Activity.Error do
 
   actions do
     read :recent do
-      prepare({Ichor.Activity.Preparations.LoadErrors, []})
+      prepare({LoadErrors, []})
     end
 
     action :by_tool, {:array, :map} do
       run(fn _input, _context ->
-        errors = Ichor.Activity.Error.recent!()
+        errors = __MODULE__.recent!()
 
         grouped =
           errors

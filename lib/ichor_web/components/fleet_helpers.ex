@@ -9,6 +9,7 @@ defmodule IchorWeb.Components.FleetHelpers do
   # Adds map-based and name-heuristic overloads for display contexts.
 
   alias Ichor.Gateway.AgentRegistry
+  alias Ichor.Gateway.AgentRegistry.AgentEntry
 
   def classify_role(%{role: r}) when is_atom(r), do: r
 
@@ -110,7 +111,7 @@ defmodule IchorWeb.Components.FleetHelpers do
   def resolve_label(id, map), do: Map.get(map, id, short_id(id))
 
   defp short_id(nil), do: "?"
-  defp short_id(id), do: Ichor.Gateway.AgentRegistry.AgentEntry.short_id(id)
+  defp short_id(id), do: AgentEntry.short_id(id)
 
   def filter_by_team(messages, nil, _teams), do: messages
 

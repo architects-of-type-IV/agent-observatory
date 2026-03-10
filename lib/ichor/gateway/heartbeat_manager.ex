@@ -9,6 +9,8 @@ defmodule Ichor.Gateway.HeartbeatManager do
 
   require Logger
 
+  alias Ichor.Gateway.CapabilityMap
+
   @eviction_threshold_seconds 90
   @check_interval_ms 30_000
 
@@ -76,7 +78,7 @@ defmodule Ichor.Gateway.HeartbeatManager do
       |> Enum.map(fn {id, _entry} -> id end)
 
     Enum.each(evicted_ids, fn agent_id ->
-      Ichor.Gateway.CapabilityMap.remove_agent(agent_id)
+      CapabilityMap.remove_agent(agent_id)
       Logger.info("Evicted stale agent #{agent_id}")
     end)
 

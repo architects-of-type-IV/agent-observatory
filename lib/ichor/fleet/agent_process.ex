@@ -11,6 +11,8 @@ defmodule Ichor.Fleet.AgentProcess do
   require Logger
 
   alias Ichor.Fleet.AgentProcess.Delivery
+  alias Ichor.Gateway.AgentRegistry
+  alias Ichor.Gateway.Channels.Tmux
 
   @max_message_buffer 200
   @type_iv_registry Ichor.Fleet.ProcessRegistry
@@ -233,7 +235,7 @@ defmodule Ichor.Fleet.AgentProcess do
   def terminate(reason, state) do
     # Single cleanup point: reconcile all registries and kill tmux when any AgentProcess stops
     kill_tmux_backend(state.backend)
-    Ichor.Gateway.AgentRegistry.remove(state.id)
+    AgentRegistry.remove(state.id)
     Ichor.EventBuffer.tombstone_session(state.id)
     broadcast_lifecycle({:agent_stopped, state.id, reason})
     Logger.info("[AgentProcess] Stopped #{state.id} (reason=#{inspect(reason)})")
@@ -243,7 +245,7 @@ defmodule Ichor.Fleet.AgentProcess do
   # ── Internal ────────────────────────────────────────────────────────
 
   defp kill_tmux_backend(%{type: :tmux, session: session}) when is_binary(session) do
-    Ichor.Gateway.Channels.Tmux.run_command(["kill-session", "-t", session])
+    Tmux.run_command(["kill-session", "-t", session])
   end
 
   defp kill_tmux_backend(_), do: :ok

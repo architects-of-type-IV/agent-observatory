@@ -8,6 +8,7 @@ defmodule Ichor.Fleet.Preparations.LoadTeams do
 
   import Ichor.Fleet.AgentHealth, only: [compute_agent_health: 2]
 
+  alias Ash.DataLayer.Simple
   alias Ichor.EventBuffer
   alias Ichor.Fleet.AgentProcess
   alias Ichor.Fleet.Team
@@ -35,7 +36,7 @@ defmodule Ichor.Fleet.Preparations.LoadTeams do
       |> mark_dead(now)
       |> Enum.map(&to_resource/1)
 
-    Ash.DataLayer.Simple.set_data(query, teams)
+    Simple.set_data(query, teams)
   end
 
   defp derive_from_events(events) do

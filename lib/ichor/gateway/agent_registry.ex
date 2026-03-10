@@ -14,6 +14,7 @@ defmodule Ichor.Gateway.AgentRegistry do
   use GenServer
   require Logger
 
+  alias Ichor.Fleet.{AgentProcess, FleetSupervisor}
   alias Ichor.Gateway.AgentRegistry.{AgentEntry, EventHandler, IdentityMerge, Sweep, TeamSync}
 
   @table :gateway_agent_registry
@@ -274,7 +275,7 @@ defmodule Ichor.Gateway.AgentRegistry do
   end
 
   defp ensure_agent_process(id, opts) do
-    case Ichor.Fleet.AgentProcess.alive?(id) do
+    case AgentProcess.alive?(id) do
       true ->
         :ok
 
@@ -286,7 +287,7 @@ defmodule Ichor.Gateway.AgentRegistry do
           backend: opts[:backend]
         ]
 
-        case Ichor.Fleet.FleetSupervisor.spawn_agent(process_opts) do
+        case FleetSupervisor.spawn_agent(process_opts) do
           {:ok, _pid} ->
             :ok
 

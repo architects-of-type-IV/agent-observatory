@@ -1,4 +1,5 @@
 defmodule Ichor.Events.Event do
+  @moduledoc false
   use Ash.Resource,
     domain: Ichor.Events,
     data_layer: AshSqlite.DataLayer

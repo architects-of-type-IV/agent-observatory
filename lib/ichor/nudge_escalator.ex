@@ -18,6 +18,7 @@ defmodule Ichor.NudgeEscalator do
   require Logger
 
   alias Ichor.Gateway.AgentRegistry
+  alias Ichor.Gateway.AgentRegistry.AgentEntry
   alias Ichor.Gateway.Channels.Tmux
   alias Ichor.Gateway.HITLRelay
 
@@ -149,7 +150,7 @@ defmodule Ichor.NudgeEscalator do
   defp execute_escalation(session_id, agent, level) do
     agent_name =
       agent[:name] || agent[:short_name] ||
-        Ichor.Gateway.AgentRegistry.AgentEntry.short_id(session_id)
+        AgentEntry.short_id(session_id)
 
     case level do
       0 ->

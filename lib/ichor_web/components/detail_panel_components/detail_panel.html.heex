@@ -11,7 +11,7 @@
       </span>
       <span
         :if={ev.tool_name}
-        class={"text-xs font-mono #{if is_team_tool?(ev.tool_name), do: "text-cyan", else: "text-interactive"}"}
+        class={"text-xs font-mono #{if team_tool?(ev.tool_name), do: "text-cyan", else: "text-interactive"}"}
       >
         {ev.tool_name}
       </span>
@@ -25,7 +25,7 @@
     <p class="text-[11px] text-high">{ev.summary || event_summary(ev)}</p>
   </div>
 
-  <div :if={is_team_tool?(ev.tool_name)} class="px-3 py-1.5 border-b border-border/50 bg-cyan/5">
+  <div :if={team_tool?(ev.tool_name)} class="px-3 py-1.5 border-b border-border/50 bg-cyan/5">
     <span class="text-[10px] text-cyan font-mono">Team coordination event</span>
   </div>
 
@@ -50,7 +50,7 @@
       </div>
       <div :if={ev.tool_name} class="ichor-detail-field">
         <span class="df-label w-16">Tool</span>
-        <span class={"df-value #{if is_team_tool?(ev.tool_name), do: "!text-cyan", else: "!text-interactive"}"}>
+        <span class={"df-value #{if team_tool?(ev.tool_name), do: "!text-cyan", else: "!text-interactive"}"}>
           {ev.tool_name}
         </span>
       </div>

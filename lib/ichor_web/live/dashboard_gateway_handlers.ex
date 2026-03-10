@@ -146,13 +146,11 @@ defmodule IchorWeb.DashboardGatewayHandlers do
   # ── Private helpers ────────────────────────────────────────────────
 
   defp safe_call(fun, default) do
-    try do
-      fun.()
-    rescue
-      _ -> default
-    catch
-      :exit, _ -> default
-    end
+    fun.()
+  rescue
+    _ -> default
+  catch
+    :exit, _ -> default
   end
 
   defp derive_agent_types(agents) when is_map(agents) do

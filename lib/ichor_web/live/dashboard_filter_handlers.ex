@@ -6,6 +6,8 @@ defmodule IchorWeb.DashboardFilterHandlers do
   import IchorWeb.DashboardDataHelpers, only: [blank_to_nil: 1]
   import IchorWeb.DashboardTeamHelpers, only: [derive_teams: 2, team_member_sids: 1]
 
+  alias Ichor.Gateway.AgentRegistry.AgentEntry
+
   def handle_filter(params, socket) do
     socket
     |> assign(:filter_source_app, blank_to_nil(params["source_app"]))
@@ -49,7 +51,7 @@ defmodule IchorWeb.DashboardFilterHandlers do
       agent ||
         %{
           agent_id: sid,
-          name: Ichor.Gateway.AgentRegistry.AgentEntry.short_id(sid),
+          name: AgentEntry.short_id(sid),
           status: :unknown,
           health: :unknown,
           health_issues: []

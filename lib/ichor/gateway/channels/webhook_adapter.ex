@@ -6,6 +6,8 @@ defmodule Ichor.Gateway.Channels.WebhookAdapter do
 
   @behaviour Ichor.Gateway.Channel
 
+  alias Ichor.Gateway.WebhookRouter
+
   @impl true
   def channel_key, do: :webhook
 
@@ -17,7 +19,7 @@ defmodule Ichor.Gateway.Channels.WebhookAdapter do
     body =
       Jason.encode!(Map.drop(payload, [:webhook_secret, "webhook_secret", :agent_id, "agent_id"]))
 
-    case Ichor.Gateway.WebhookRouter.enqueue(agent_id, webhook_url, body, secret) do
+    case WebhookRouter.enqueue(agent_id, webhook_url, body, secret) do
       {:ok, _delivery_id} -> :ok
       {:error, reason} -> {:error, reason}
     end

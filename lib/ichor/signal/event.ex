@@ -5,7 +5,7 @@ defmodule Ichor.Signal.Event do
   """
   use Ash.Resource, domain: Ichor.Signal
 
-  alias Ichor.Signal.Catalog
+  alias Ichor.Signal.{Buffer, Catalog}
 
   actions do
     action :emit, :map do
@@ -61,7 +61,7 @@ defmodule Ichor.Signal.Event do
       end
 
       run(fn input, _context ->
-        {:ok, Ichor.Signal.Buffer.recent(input.arguments.limit)}
+        {:ok, Buffer.recent(input.arguments.limit)}
       end)
     end
 

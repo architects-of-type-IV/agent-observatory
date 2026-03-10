@@ -13,7 +13,10 @@ defmodule Ichor.Gateway.AgentRegistry.Sweep do
   require Logger
 
   alias Ichor.Fleet.{AgentProcess, FleetSupervisor}
+  alias Ichor.Fleet.TeamSupervisor
   alias Ichor.Gateway.AgentRegistry.AgentEntry
+  alias Ichor.Gateway.Channels.Tmux
+  alias Ichor.Gateway.TmuxDiscovery
 
   @table :gateway_agent_registry
 
@@ -93,7 +96,7 @@ defmodule Ichor.Gateway.AgentRegistry.Sweep do
   defp sweep_standalone(sid, _stale_cutoff) when not is_binary(sid), do: :ok
 
   defp sweep_standalone(sid, stale_cutoff) do
-    case {Ichor.Gateway.TmuxDiscovery.infrastructure_session?(sid), AgentEntry.uuid?(sid)} do
+    case {TmuxDiscovery.infrastructure_session?(sid), AgentEntry.uuid?(sid)} do
       {true, _} ->
         Logger.info("[Sweep] #{sid} removed: infrastructure session")
         full_sweep(sid)
@@ -193,7 +196,7 @@ defmodule Ichor.Gateway.AgentRegistry.Sweep do
   # ── Helpers ──────────────────────────────────────────────────────
 
   defp live_team_names do
-    Ichor.Fleet.TeamSupervisor.list_all()
+    TeamSupervisor.list_all()
     |> Enum.map(fn {name, _meta} -> name end)
     |> MapSet.new()
   rescue
@@ -201,7 +204,7 @@ defmodule Ichor.Gateway.AgentRegistry.Sweep do
   end
 
   defp live_tmux_sessions do
-    {:ok, Ichor.Gateway.Channels.Tmux.list_sessions() |> MapSet.new()}
+    {:ok, Tmux.list_sessions() |> MapSet.new()}
   rescue
     _ -> :error
   end

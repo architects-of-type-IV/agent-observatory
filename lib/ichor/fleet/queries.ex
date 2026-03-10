@@ -7,6 +7,8 @@ defmodule Ichor.Fleet.Queries do
   import IchorWeb.DashboardSessionHelpers, only: [short_model_name: 1]
   import IchorWeb.DashboardFormatHelpers, only: [session_duration_sec: 1]
 
+  alias Ichor.Gateway.AgentRegistry.AgentEntry
+
   @doc """
   Derive active sessions from raw events and tmux sessions.
   """
@@ -95,7 +97,7 @@ defmodule Ichor.Fleet.Queries do
           state: status,
           label:
             team_info[:role] || s.source_app ||
-              Ichor.Gateway.AgentRegistry.AgentEntry.short_id(s.session_id),
+              AgentEntry.short_id(s.session_id),
           model: short_model_name(s.model),
           team: team_info[:team],
           events: s.event_count,
@@ -116,7 +118,7 @@ defmodule Ichor.Fleet.Queries do
             state: to_string(m[:status] || :idle),
             label:
               m[:name] || m[:agent_type] ||
-                Ichor.Gateway.AgentRegistry.AgentEntry.short_id(m[:agent_id] || ""),
+                AgentEntry.short_id(m[:agent_id] || ""),
             model: short_model_name(m[:model]),
             team: team.name,
             events: m[:event_count] || 0,

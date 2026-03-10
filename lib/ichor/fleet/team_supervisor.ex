@@ -9,6 +9,8 @@ defmodule Ichor.Fleet.TeamSupervisor do
   use DynamicSupervisor
   require Logger
 
+  alias Ichor.Fleet.AgentProcess
+
   @team_registry Ichor.Fleet.TeamRegistry
   @pg_scope :ichor_agents
 
@@ -27,7 +29,7 @@ defmodule Ichor.Fleet.TeamSupervisor do
   @spec spawn_member(String.t(), keyword()) :: DynamicSupervisor.on_start_child()
   def spawn_member(team_name, agent_opts) do
     agent_opts = Keyword.put(agent_opts, :team, team_name)
-    DynamicSupervisor.start_child(via(team_name), {Ichor.Fleet.AgentProcess, agent_opts})
+    DynamicSupervisor.start_child(via(team_name), {AgentProcess, agent_opts})
   end
 
   @doc "Terminate a specific member by agent ID."
@@ -57,7 +59,7 @@ defmodule Ichor.Fleet.TeamSupervisor do
   @doc "Get IDs of all members in this team from the agent registry."
   @spec member_ids(String.t()) :: [String.t()]
   def member_ids(team_name) do
-    Ichor.Fleet.AgentProcess.list_all()
+    AgentProcess.list_all()
     |> Enum.filter(fn {_id, meta} -> meta[:team] == team_name end)
     |> Enum.map(fn {id, _meta} -> id end)
   end
