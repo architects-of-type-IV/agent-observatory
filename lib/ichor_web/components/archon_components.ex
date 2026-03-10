@@ -65,16 +65,25 @@ defmodule IchorWeb.Components.ArchonComponents do
               <span class="archon-status-text">ONLINE</span>
             </div>
             <div class="archon-tab-bar">
-              <button phx-click="archon_set_tab" phx-value-tab="command"
-                class={"archon-tab #{if @tab == :command, do: "archon-tab-active", else: ""}"}>
+              <button
+                phx-click="archon_set_tab"
+                phx-value-tab="command"
+                class={"archon-tab #{if @tab == :command, do: "archon-tab-active", else: ""}"}
+              >
                 <span class="archon-tab-key">Q</span> Command
               </button>
-              <button phx-click="archon_set_tab" phx-value-tab="chat"
-                class={"archon-tab #{if @tab == :chat, do: "archon-tab-active", else: ""}"}>
+              <button
+                phx-click="archon_set_tab"
+                phx-value-tab="chat"
+                class={"archon-tab #{if @tab == :chat, do: "archon-tab-active", else: ""}"}
+              >
                 <span class="archon-tab-key">W</span> Chat
               </button>
-              <button phx-click="archon_set_tab" phx-value-tab="ref"
-                class={"archon-tab #{if @tab == :ref, do: "archon-tab-active", else: ""}"}>
+              <button
+                phx-click="archon_set_tab"
+                phx-value-tab="ref"
+                class={"archon-tab #{if @tab == :ref, do: "archon-tab-active", else: ""}"}
+              >
                 <span class="archon-tab-key">E</span> Reference
               </button>
             </div>
@@ -86,7 +95,12 @@ defmodule IchorWeb.Components.ArchonComponents do
 
         <%!-- Content area --%>
         <div class="archon-content">
-          <.command_hud :if={@tab == :command} actions={@quick_actions} loading={@loading} messages={@messages} />
+          <.command_hud
+            :if={@tab == :command}
+            actions={@quick_actions}
+            loading={@loading}
+            messages={@messages}
+          />
           <.chat_panel :if={@tab == :chat} messages={@messages} loading={@loading} />
           <.reference_panel :if={@tab == :ref} shortcodes={@shortcodes} />
         </div>

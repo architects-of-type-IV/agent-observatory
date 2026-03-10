@@ -108,8 +108,10 @@ defmodule IchorWeb.Components.TeamInspectorComponents do
               <span>{member[:name]}</span>
             </div>
             <div class="ip-output">
-              <span :if={member[:status]} class={member_status_text(member[:status])}>{member[:status]}</span>
-              <span :if={member[:agent_type]} class="text-muted"> {member[:agent_type]}</span>
+              <span :if={member[:status]} class={member_status_text(member[:status])}>
+                {member[:status]}
+              </span>
+              <span :if={member[:agent_type]} class="text-muted">{member[:agent_type]}</span>
             </div>
           </div>
         </div>

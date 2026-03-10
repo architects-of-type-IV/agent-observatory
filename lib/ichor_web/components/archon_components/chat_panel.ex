@@ -13,13 +13,28 @@ defmodule IchorWeb.Components.ArchonComponents.ChatPanel do
     <div class="flex flex-col h-full">
       <div id="archon-messages" class="archon-messages" phx-hook="ScrollBottom">
         <.empty_state :if={@messages == []} />
-        <.chat_bubble :for={msg <- @messages} role={msg.role} content={msg[:content] || format_structured(msg)} />
+        <.chat_bubble
+          :for={msg <- @messages}
+          role={msg.role}
+          content={msg[:content] || format_structured(msg)}
+        />
         <.typing_indicator :if={@loading} />
       </div>
       <div class="archon-input-area">
         <div id="archon-input-stable" phx-update="ignore">
-          <form id="archon-chat-form" phx-submit="archon_send" phx-hook="ClearFormOnSubmit" class="flex gap-2">
-            <input type="text" name="content" autocomplete="off" placeholder="Command Archon..." class="archon-input" />
+          <form
+            id="archon-chat-form"
+            phx-submit="archon_send"
+            phx-hook="ClearFormOnSubmit"
+            class="flex gap-2"
+          >
+            <input
+              type="text"
+              name="content"
+              autocomplete="off"
+              placeholder="Command Archon..."
+              class="archon-input"
+            />
             <button type="submit" class="archon-send-btn">Transmit</button>
           </form>
         </div>
@@ -31,7 +46,13 @@ defmodule IchorWeb.Components.ArchonComponents.ChatPanel do
   defp empty_state(assigns) do
     ~H"""
     <div class="flex flex-col items-center justify-center h-full opacity-40">
-      <svg class="w-16 h-16 text-brand/30 mb-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="0.5">
+      <svg
+        class="w-16 h-16 text-brand/30 mb-4"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="0.5"
+      >
         <circle cx="12" cy="12" r="10" />
         <path d="M12 2L2 7l10 5 10-5-10-5z" />
         <path d="M2 17l10 5 10-5" />
@@ -101,5 +122,4 @@ defmodule IchorWeb.Components.ArchonComponents.ChatPanel do
 
   defp format_structured(%{data: data}) when is_binary(data), do: data
   defp format_structured(_), do: ""
-
 end

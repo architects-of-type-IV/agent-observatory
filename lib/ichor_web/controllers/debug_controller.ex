@@ -98,9 +98,10 @@ defmodule IchorWeb.DebugController do
           content_preview: t.content_preview,
           message_type: t.message_type,
           timestamp: t.timestamp,
-          hops: Enum.map(t.hops, fn h ->
-            %{protocol: h.protocol, status: h.status, at: h.at, detail: h.detail}
-          end)
+          hops:
+            Enum.map(t.hops, fn h ->
+              %{protocol: h.protocol, status: h.status, at: h.at, detail: h.detail}
+            end)
         }
       end)
 
@@ -139,14 +140,23 @@ defmodule IchorWeb.DebugController do
 
     json(conn, %{
       count: length(agents),
-      agents: Enum.map(agents, fn a ->
-        %{agent_id: a.agent_id, name: a.name, status: a.status, team: a.team_name,
-          session_id: a.session_id, cwd: a.cwd, source_app: a.source_app,
-          subagent_count: length(a.subagents),
-          subagents: Enum.map(a.subagents, fn s ->
-            %{description: s[:description], type: s[:type], status: s[:status]}
-          end)}
-      end),
+      agents:
+        Enum.map(agents, fn a ->
+          %{
+            agent_id: a.agent_id,
+            name: a.name,
+            status: a.status,
+            team: a.team_name,
+            session_id: a.session_id,
+            cwd: a.cwd,
+            source_app: a.source_app,
+            subagent_count: length(a.subagents),
+            subagents:
+              Enum.map(a.subagents, fn s ->
+                %{description: s[:description], type: s[:type], status: s[:status]}
+              end)
+          }
+        end),
       sources: %{
         event_buffer_sessions: event_sessions,
         beam_processes: beam_processes,
@@ -199,6 +209,7 @@ defmodule IchorWeb.DebugController do
   end
 
   defp maybe_filter_type(traces, nil), do: traces
+
   defp maybe_filter_type(traces, type) do
     atom_type = String.to_existing_atom(type)
     Enum.filter(traces, &(&1.type == atom_type))

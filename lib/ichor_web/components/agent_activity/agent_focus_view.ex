@@ -116,5 +116,4 @@ defmodule IchorWeb.Components.AgentActivity.AgentFocusView do
   defp format_status(:idle), do: "Idle"
   defp format_status(:stopped), do: "Stopped"
   defp format_status(_), do: "Unknown"
-
 end

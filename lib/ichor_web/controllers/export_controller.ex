@@ -108,9 +108,7 @@ defmodule IchorWeb.ExportController do
       end)
 
     csv_content =
-      [headers | rows]
-      |> Enum.map(&Enum.join(&1, ","))
-      |> Enum.join("\n")
+      Enum.map_join([headers | rows], "\n", &Enum.join(&1, ","))
 
     conn
     |> put_resp_content_type("text/csv")

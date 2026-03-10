@@ -16,7 +16,10 @@ defmodule IchorWeb.Components.CommandComponents do
   def fleet_status_bar(assigns) do
     # Use the unified agent_index from DashboardState.recompute
     agent_index = assigns[:agent_index] || %{}
-    agents = agent_index |> Map.values() |> Enum.uniq_by(fn a -> a[:session_id] || a[:agent_id] end)
+
+    agents =
+      agent_index |> Map.values() |> Enum.uniq_by(fn a -> a[:session_id] || a[:agent_id] end)
+
     stats = fleet_stats(agents)
     pipeline = assigns.swarm_state.pipeline
     health = assigns.swarm_state.health
@@ -29,7 +32,11 @@ defmodule IchorWeb.Components.CommandComponents do
     msg_count = length(messages)
     task_count = length(active_tasks)
     task_done = Enum.count(active_tasks, fn t -> t[:status] == "completed" end)
-    tool_count = agents |> Enum.map(fn a -> if is_integer(a.tool_count), do: a.tool_count, else: 0 end) |> Enum.sum()
+
+    tool_count =
+      agents
+      |> Enum.map(fn a -> if is_integer(a.tool_count), do: a.tool_count, else: 0 end)
+      |> Enum.sum()
 
     proto_traces = protocol_stats[:traces] || 0
     proto_mailbox = get_in(protocol_stats, [:mailbox, :total_unread]) || 0
@@ -56,7 +63,10 @@ defmodule IchorWeb.Components.CommandComponents do
 
     ~H"""
     <div class="flex items-center gap-2 text-[10px]">
-      <div class="ichor-tip ichor-tip-bottom flex items-center gap-1" data-tip={"#{@stats.total} agents: #{@stats.active} active, #{@stats.idle} idle, #{@stats.ended} ended"}>
+      <div
+        class="ichor-tip ichor-tip-bottom flex items-center gap-1"
+        data-tip={"#{@stats.total} agents: #{@stats.active} active, #{@stats.idle} idle, #{@stats.ended} ended"}
+      >
         <span class="font-bold text-high">{@stats.total}</span>
         <div class="flex items-center gap-1 font-mono">
           <span :if={@stats.active > 0} class="text-success">{@stats.active}a</span>
@@ -65,28 +75,54 @@ defmodule IchorWeb.Components.CommandComponents do
         </div>
       </div>
       <span class="w-px h-3 bg-raised" />
-      <div class={["ichor-tip ichor-tip-bottom flex items-center gap-1", if(@error_count > 0, do: "text-error", else: "text-muted")]} data-tip={"#{@error_count} tool errors"}>
-        <span class={["w-1.5 h-1.5 rounded-full", if(@error_count > 0, do: "bg-error", else: "bg-highlight")]} />
+      <div
+        class={[
+          "ichor-tip ichor-tip-bottom flex items-center gap-1",
+          if(@error_count > 0, do: "text-error", else: "text-muted")
+        ]}
+        data-tip={"#{@error_count} tool errors"}
+      >
+        <span class={[
+          "w-1.5 h-1.5 rounded-full",
+          if(@error_count > 0, do: "bg-error", else: "bg-highlight")
+        ]} />
         <span class="font-mono">{@error_count}</span><span>err</span>
       </div>
-      <div class="ichor-tip ichor-tip-bottom flex items-center gap-1 text-low" data-tip={"#{@msg_count} messages in mailbox"}>
+      <div
+        class="ichor-tip ichor-tip-bottom flex items-center gap-1 text-low"
+        data-tip={"#{@msg_count} messages in mailbox"}
+      >
         <span class="font-mono">{@msg_count}</span><span>msg</span>
       </div>
-      <div class="ichor-tip ichor-tip-bottom flex items-center gap-1 text-low" data-tip={"#{@tool_count} total tool calls"}>
+      <div
+        class="ichor-tip ichor-tip-bottom flex items-center gap-1 text-low"
+        data-tip={"#{@tool_count} total tool calls"}
+      >
         <span class="font-mono">{@tool_count}</span><span>tools</span>
       </div>
-      <div class="ichor-tip ichor-tip-bottom flex items-center gap-1 text-low" data-tip={"#{@visible_count} visible / #{@event_count} total events"}>
+      <div
+        class="ichor-tip ichor-tip-bottom flex items-center gap-1 text-low"
+        data-tip={"#{@visible_count} visible / #{@event_count} total events"}
+      >
         <span class="font-mono">{@visible_count}/{@event_count}</span><span>events</span>
       </div>
       <span class="w-px h-3 bg-raised" />
-      <div :if={@task_count > 0} class="ichor-tip ichor-tip-bottom flex items-center gap-1" data-tip={"Tasks: #{@task_done} completed / #{@task_count} total (#{if @task_count > 0, do: round(@task_done / @task_count * 100), else: 0}%)"}>
+      <div
+        :if={@task_count > 0}
+        class="ichor-tip ichor-tip-bottom flex items-center gap-1"
+        data-tip={"Tasks: #{@task_done} completed / #{@task_count} total (#{if @task_count > 0, do: round(@task_done / @task_count * 100), else: 0}%)"}
+      >
         <% pct = if @task_count > 0, do: round(@task_done / @task_count * 100), else: 0 %>
         <div class="w-12 h-1 bg-raised rounded-full overflow-hidden">
           <div class="h-full bg-success rounded-full" style={"width: #{pct}%"} />
         </div>
         <span class="font-mono text-low">{@task_done}/{@task_count}</span>
       </div>
-      <div :if={@pipeline.total > 0 && @pipeline.total != @task_count} class="ichor-tip ichor-tip-bottom flex items-center gap-1" data-tip={"Pipeline: #{@pipeline.completed} completed / #{@pipeline.total} total"}>
+      <div
+        :if={@pipeline.total > 0 && @pipeline.total != @task_count}
+        class="ichor-tip ichor-tip-bottom flex items-center gap-1"
+        data-tip={"Pipeline: #{@pipeline.completed} completed / #{@pipeline.total} total"}
+      >
         <% ppct = progress_pct(@pipeline) %>
         <div class="w-10 h-1 bg-raised rounded-full overflow-hidden">
           <div class="h-full bg-cyan rounded-full" style={"width: #{ppct}%"} />
@@ -101,7 +137,12 @@ defmodule IchorWeb.Components.CommandComponents do
             else: "ichor-badge-red"
           )
         ]}
-        data-tip={if(@health.healthy && @error_count == 0, do: "Fleet healthy", else: "#{@error_count} errors, #{length(@health.issues)} health issues")}
+        data-tip={
+          if(@health.healthy && @error_count == 0,
+            do: "Fleet healthy",
+            else: "#{@error_count} errors, #{length(@health.issues)} health issues"
+          )
+        }
       >
         <span class={[
           "w-1.5 h-1.5 rounded-full",
@@ -114,7 +155,11 @@ defmodule IchorWeb.Components.CommandComponents do
           true -> "OK"
         end}
       </div>
-      <div :if={@proto_traces + @proto_mailbox + @proto_cmdq > 0} class="ichor-tip ichor-tip-bottom flex items-center gap-1 font-mono text-muted" data-tip={"Protocol: #{@proto_traces} traces, #{@proto_mailbox} mailbox pending, #{@proto_cmdq} command queue pending"}>
+      <div
+        :if={@proto_traces + @proto_mailbox + @proto_cmdq > 0}
+        class="ichor-tip ichor-tip-bottom flex items-center gap-1 font-mono text-muted"
+        data-tip={"Protocol: #{@proto_traces} traces, #{@proto_mailbox} mailbox pending, #{@proto_cmdq} command queue pending"}
+      >
         <span :if={@proto_traces > 0}>T:{@proto_traces}</span>
         <span :if={@proto_mailbox > 0}>M:{@proto_mailbox}</span>
         <span :if={@proto_cmdq > 0}>Q:{@proto_cmdq}</span>
@@ -169,7 +214,6 @@ defmodule IchorWeb.Components.CommandComponents do
 
   defp progress_pct(%{total: 0}), do: 0
   defp progress_pct(%{total: t, completed: c}), do: round(c / t * 100)
-
 
   defp role_badge_class(role) when is_binary(role) do
     cond do
@@ -239,5 +283,4 @@ defmodule IchorWeb.Components.CommandComponents do
   defp format_health_issue(:looping), do: "looping"
   defp format_health_issue(:high_failure_rate), do: "high fail"
   defp format_health_issue(other), do: to_string(other)
-
 end

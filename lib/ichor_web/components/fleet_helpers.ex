@@ -11,8 +11,12 @@ defmodule IchorWeb.Components.FleetHelpers do
   alias Ichor.Gateway.AgentRegistry
 
   def classify_role(%{role: r}) when is_atom(r), do: r
-  def classify_role(%{role: r}) when is_binary(r), do: normalize_role(AgentRegistry.derive_role(r))
-  def classify_role(%{"role" => r}) when is_binary(r), do: normalize_role(AgentRegistry.derive_role(r))
+
+  def classify_role(%{role: r}) when is_binary(r),
+    do: normalize_role(AgentRegistry.derive_role(r))
+
+  def classify_role(%{"role" => r}) when is_binary(r),
+    do: normalize_role(AgentRegistry.derive_role(r))
 
   def classify_role(name) when is_binary(name) do
     cond do

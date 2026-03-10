@@ -9,8 +9,8 @@ defmodule IchorWeb.HITLController do
 
   use IchorWeb, :controller
 
-  alias Ichor.Gateway.HITLRelay
   alias Ichor.Gateway.HITLInterventionEvent
+  alias Ichor.Gateway.HITLRelay
   alias Ichor.Repo
 
   def pause(conn, %{"agent_id" => agent_id, "reason" => reason} = _params)
@@ -24,13 +24,19 @@ defmodule IchorWeb.HITLController do
         json(conn, %{status: "ok"})
 
       {:ok, :already_paused} ->
-        audit!(session_id, agent_id, operator_id, "pause", %{reason: reason, note: "already_paused"})
+        audit!(session_id, agent_id, operator_id, "pause", %{
+          reason: reason,
+          note: "already_paused"
+        })
+
         json(conn, %{status: "ok", note: "already_paused"})
     end
   end
 
   def pause(conn, _params) do
-    conn |> put_status(422) |> json(%{status: "error", reason: "missing_required_fields", fields: ["agent_id", "reason"]})
+    conn
+    |> put_status(422)
+    |> json(%{status: "error", reason: "missing_required_fields", fields: ["agent_id", "reason"]})
   end
 
   def unpause(conn, %{"agent_id" => agent_id} = _params)
@@ -49,7 +55,9 @@ defmodule IchorWeb.HITLController do
   end
 
   def unpause(conn, _params) do
-    conn |> put_status(422) |> json(%{status: "error", reason: "missing_required_fields", fields: ["agent_id"]})
+    conn
+    |> put_status(422)
+    |> json(%{status: "error", reason: "missing_required_fields", fields: ["agent_id"]})
   end
 
   def rewrite(conn, %{"trace_id" => trace_id, "new_payload" => new_payload} = _params)
@@ -68,7 +76,13 @@ defmodule IchorWeb.HITLController do
   end
 
   def rewrite(conn, _params) do
-    conn |> put_status(422) |> json(%{status: "error", reason: "missing_required_fields", fields: ["trace_id", "new_payload"]})
+    conn
+    |> put_status(422)
+    |> json(%{
+      status: "error",
+      reason: "missing_required_fields",
+      fields: ["trace_id", "new_payload"]
+    })
   end
 
   def inject(conn, %{"agent_id" => agent_id, "payload" => payload} = _params)
@@ -82,7 +96,13 @@ defmodule IchorWeb.HITLController do
   end
 
   def inject(conn, _params) do
-    conn |> put_status(422) |> json(%{status: "error", reason: "missing_required_fields", fields: ["agent_id", "payload"]})
+    conn
+    |> put_status(422)
+    |> json(%{
+      status: "error",
+      reason: "missing_required_fields",
+      fields: ["agent_id", "payload"]
+    })
   end
 
   defp audit!(session_id, agent_id, operator_id, action, details) do

@@ -12,7 +12,9 @@ defmodule IchorWeb.Components.SessionClusterComponents do
   attr :protocols_panel_open, :boolean, default: false
 
   def session_cluster_view(assigns) do
-    filtered_sessions = filter_sessions(assigns.sessions, assigns.entropy_filter_active, assigns.entropy_threshold)
+    filtered_sessions =
+      filter_sessions(assigns.sessions, assigns.entropy_filter_active, assigns.entropy_threshold)
+
     assigns = assign(assigns, :filtered_sessions, filtered_sessions)
 
     ~H"""
@@ -39,7 +41,9 @@ defmodule IchorWeb.Components.SessionClusterComponents do
             class={"p-3 rounded-lg border cursor-pointer transition #{if @selected_session_id == session_id(session), do: "bg-raised border-interactive/50", else: "bg-base/50 border-border hover:border-border-subtle"}"}
           >
             <div class="flex items-center justify-between">
-              <span class="text-sm font-mono text-high">{session_id(session) |> String.slice(0..11)}</span>
+              <span class="text-sm font-mono text-high">
+                {session_id(session) |> String.slice(0..11)}
+              </span>
               <span class="text-xs text-low">{Map.get(session, :source_app, "unknown")}</span>
             </div>
           </div>
@@ -48,27 +52,46 @@ defmodule IchorWeb.Components.SessionClusterComponents do
 
       <%!-- Drill-Down Panel (visible when session selected) --%>
       <div :if={@selected_session_id} class="space-y-4">
-        <div id="session-dag-hook" phx-hook="TopologyMap" phx-update="ignore" data-event="session_dag_update" class="bg-base/30 border border-border rounded-lg p-4 min-h-[120px] relative">
-          <h3 class="topo-title text-[10px] font-semibold text-muted uppercase tracking-wider mb-2">Causal DAG: {@selected_session_id |> String.slice(0..11)}</h3>
+        <div
+          id="session-dag-hook"
+          phx-hook="TopologyMap"
+          phx-update="ignore"
+          data-event="session_dag_update"
+          class="bg-base/30 border border-border rounded-lg p-4 min-h-[120px] relative"
+        >
+          <h3 class="topo-title text-[10px] font-semibold text-muted uppercase tracking-wider mb-2">
+            Causal DAG: {@selected_session_id |> String.slice(0..11)}
+          </h3>
         </div>
 
         <div id="live-scratchpad-panel" class="bg-base/50 border border-border rounded-lg p-4">
-          <h3 class="text-sm font-semibold text-default uppercase tracking-wider mb-2">Live Scratchpad</h3>
+          <h3 class="text-sm font-semibold text-default uppercase tracking-wider mb-2">
+            Live Scratchpad
+          </h3>
           <%= if @scratchpad_intents == [] do %>
             <p class="text-xs text-low">No intents captured yet</p>
           <% else %>
             <div class="space-y-1.5 max-h-64 overflow-y-auto">
-              <div :for={intent <- Enum.take(@scratchpad_intents, 50)} class="flex items-center gap-2 text-xs">
+              <div
+                :for={intent <- Enum.take(@scratchpad_intents, 50)}
+                class="flex items-center gap-2 text-xs"
+              >
                 <span class="font-mono text-interactive">{format_intent(intent)}</span>
-                <span :if={format_confidence(intent)} class="text-muted">{format_confidence(intent)}</span>
-                <span :if={format_strategy(intent)} class="text-muted italic">{format_strategy(intent)}</span>
+                <span :if={format_confidence(intent)} class="text-muted">
+                  {format_confidence(intent)}
+                </span>
+                <span :if={format_strategy(intent)} class="text-muted italic">
+                  {format_strategy(intent)}
+                </span>
               </div>
             </div>
           <% end %>
         </div>
 
         <div id="hitl-console-panel" class="bg-base/50 border border-border rounded-lg p-4">
-          <h3 class="text-sm font-semibold text-default uppercase tracking-wider mb-2">HITL Console</h3>
+          <h3 class="text-sm font-semibold text-default uppercase tracking-wider mb-2">
+            HITL Console
+          </h3>
           <p class="text-xs text-low">Human-in-the-loop console placeholder</p>
         </div>
 

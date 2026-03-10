@@ -9,17 +9,15 @@ defmodule IchorWeb.Components.CostComponents do
 
   def cost_view(assigns) do
     ~H"""
-    <%
-      data = @cost_data
-      by_model = data[:by_model] || []
-      by_session = data[:by_session] || []
-      totals = data[:totals] || %{}
-      total_cost = totals[:cost_cents] || 0
-      total_input = totals[:input_tokens] || 0
-      total_output = totals[:output_tokens] || 0
-      total_cache_read = totals[:cache_read] || 0
-      max_session_cost = by_session |> Enum.map(& &1.cost_cents) |> Enum.max(fn -> 1 end)
-    %>
+    <% data = @cost_data
+    by_model = data[:by_model] || []
+    by_session = data[:by_session] || []
+    totals = data[:totals] || %{}
+    total_cost = totals[:cost_cents] || 0
+    total_input = totals[:input_tokens] || 0
+    total_output = totals[:output_tokens] || 0
+    total_cache_read = totals[:cache_read] || 0
+    max_session_cost = by_session |> Enum.map(& &1.cost_cents) |> Enum.max(fn -> 1 end) %>
     <div class="flex flex-col gap-3 p-3 h-full overflow-y-auto">
       <%!-- Summary Cards --%>
       <div class="grid grid-cols-4 gap-2">
@@ -49,7 +47,10 @@ defmodule IchorWeb.Components.CostComponents do
           </div>
           <div class="flex-1 overflow-y-auto p-2">
             <div :if={by_model == []} class="text-[10px] text-muted p-2">No cost data yet</div>
-            <div :for={model <- by_model} class="flex items-center gap-2 py-1.5 px-1 border-b border-border/50 last:border-0">
+            <div
+              :for={model <- by_model}
+              class="flex items-center gap-2 py-1.5 px-1 border-b border-border/50 last:border-0"
+            >
               <span class={"w-2 h-2 rounded-full shrink-0 #{model_color(model.model)}"}></span>
               <div class="flex-1 min-w-0">
                 <div class="text-[11px] text-high font-mono truncate">{short_model(model.model)}</div>
@@ -59,7 +60,9 @@ defmodule IchorWeb.Components.CostComponents do
                   <span>{model.count} calls</span>
                 </div>
               </div>
-              <span class="text-[11px] font-semibold text-success shrink-0">{format_cost(model.cost_cents)}</span>
+              <span class="text-[11px] font-semibold text-success shrink-0">
+                {format_cost(model.cost_cents)}
+              </span>
             </div>
           </div>
         </div>
@@ -71,10 +74,17 @@ defmodule IchorWeb.Components.CostComponents do
           </div>
           <div class="flex-1 overflow-y-auto p-2">
             <div :if={by_session == []} class="text-[10px] text-muted p-2">No cost data yet</div>
-            <div :for={session <- by_session} class="py-1.5 px-1 border-b border-border/50 last:border-0">
+            <div
+              :for={session <- by_session}
+              class="py-1.5 px-1 border-b border-border/50 last:border-0"
+            >
               <div class="flex items-center justify-between mb-0.5">
-                <span class="text-[10px] text-high font-mono truncate max-w-[180px]">{session.label}</span>
-                <span class="text-[10px] font-semibold text-success">{format_cost(session.cost_cents)}</span>
+                <span class="text-[10px] text-high font-mono truncate max-w-[180px]">
+                  {session.label}
+                </span>
+                <span class="text-[10px] font-semibold text-success">
+                  {format_cost(session.cost_cents)}
+                </span>
               </div>
               <div class="h-1.5 bg-raised rounded-full overflow-hidden">
                 <div
@@ -83,7 +93,9 @@ defmodule IchorWeb.Components.CostComponents do
                 />
               </div>
               <div class="flex gap-3 text-[9px] text-muted mt-0.5">
-                <span :if={session.model} class="text-interactive/60">{short_model(session.model)}</span>
+                <span :if={session.model} class="text-interactive/60">
+                  {short_model(session.model)}
+                </span>
                 <span>{format_tokens(session.input_tokens)} in</span>
                 <span>{format_tokens(session.output_tokens)} out</span>
               </div>
@@ -114,6 +126,7 @@ defmodule IchorWeb.Components.CostComponents do
   defp format_tokens(_), do: "0"
 
   defp short_model(nil), do: "unknown"
+
   defp short_model(model) when is_binary(model) do
     model
     |> String.replace(~r/^claude-/, "")

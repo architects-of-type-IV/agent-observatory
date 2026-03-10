@@ -14,8 +14,12 @@ defmodule IchorWeb.Components.ArchonComponents.ReferencePanel do
       </div>
       <div class="flex-1 overflow-y-auto p-5">
         <div class="grid grid-cols-2 gap-2">
-          <div :for={{cmd, desc} <- @shortcodes}
-            class="archon-ref-item" phx-click="archon_shortcode" phx-value-cmd={cmd}>
+          <div
+            :for={{cmd, desc} <- @shortcodes}
+            class="archon-ref-item"
+            phx-click="archon_shortcode"
+            phx-value-cmd={cmd}
+          >
             <code class="archon-ref-cmd">/{cmd}</code>
             <p class="archon-ref-desc">{desc}</p>
           </div>

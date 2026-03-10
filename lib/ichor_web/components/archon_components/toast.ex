@@ -8,8 +8,13 @@ defmodule IchorWeb.Components.ArchonComponents.Toast do
   def toast_stack(assigns) do
     ~H"""
     <div class="ichor-toast-stack" aria-live="polite">
-      <div :for={toast <- @toasts} id={"toast-#{toast.id}"} class={"ichor-toast ichor-toast-#{toast.level}"}
-        phx-click="dismiss_toast" phx-value-id={toast.id}>
+      <div
+        :for={toast <- @toasts}
+        id={"toast-#{toast.id}"}
+        class={"ichor-toast ichor-toast-#{toast.level}"}
+        phx-click="dismiss_toast"
+        phx-value-id={toast.id}
+      >
         <div class="ichor-toast-accent" />
         <div class="ichor-toast-body">
           <span class="ichor-toast-label">{level_label(toast.level)}</span>

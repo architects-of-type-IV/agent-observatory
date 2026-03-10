@@ -27,11 +27,7 @@ defmodule IchorWeb.EventController do
 
     Ichor.Costs.CostAggregator.record_usage(event, raw)
 
-    Phoenix.PubSub.broadcast(
-      Ichor.PubSub,
-      "events:stream",
-      {:new_event, event}
-    )
+    Ichor.Signal.emit(:new_event, %{event: event})
 
     Ichor.Gateway.Router.ingest(event)
 

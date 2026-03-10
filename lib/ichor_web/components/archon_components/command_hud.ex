@@ -26,7 +26,9 @@ defmodule IchorWeb.Components.ArchonComponents.CommandHud do
       <div class="flex-1 p-5 flex flex-col">
         <div class="flex items-center justify-between mb-4">
           <h3 class="archon-section-title">Quick Actions</h3>
-          <span class="text-[9px] text-brand/60 font-mono uppercase tracking-widest">Press key to execute</span>
+          <span class="text-[9px] text-brand/60 font-mono uppercase tracking-widest">
+            Press key to execute
+          </span>
         </div>
         <div class="grid grid-cols-4 gap-2.5 flex-1 content-start">
           <.action_card :for={action <- @actions} action={action} />
@@ -37,8 +39,13 @@ defmodule IchorWeb.Components.ArchonComponents.CommandHud do
             </div>
             <div id="archon-quick-input" phx-update="ignore">
               <form phx-submit="archon_send" class="flex flex-col gap-1">
-                <input type="text" name="content" autocomplete="off" placeholder="Free command..."
-                  class="w-full bg-transparent border-0 border-b border-border text-[11px] text-high placeholder-muted p-0 pb-1 focus:outline-none focus:border-brand/50 focus:ring-0" />
+                <input
+                  type="text"
+                  name="content"
+                  autocomplete="off"
+                  placeholder="Free command..."
+                  class="w-full bg-transparent border-0 border-b border-border text-[11px] text-high placeholder-muted p-0 pb-1 focus:outline-none focus:border-brand/50 focus:ring-0"
+                />
               </form>
             </div>
           </div>
@@ -50,7 +57,13 @@ defmodule IchorWeb.Components.ArchonComponents.CommandHud do
         <div class="archon-output-header">
           <%= if @loading do %>
             <span class="archon-output-status-icon archon-output-status-active">
-              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <svg
+                class="w-3.5 h-3.5"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
                 <path d="M12 2L2 7l10 5 10-5-10-5z" />
                 <path d="M2 17l10 5 10-5" />
                 <path d="M2 12l10 5 10-5" />
@@ -58,7 +71,13 @@ defmodule IchorWeb.Components.ArchonComponents.CommandHud do
             </span>
           <% else %>
             <span class="archon-output-status-icon archon-output-status-idle">
-              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <svg
+                class="w-3.5 h-3.5"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.5"
+              >
                 <path d="M4 17l6-6-6-6" /><line x1="12" y1="19" x2="20" y2="19" />
               </svg>
             </span>
@@ -115,7 +134,9 @@ defmodule IchorWeb.Components.ArchonComponents.CommandHud do
           <div class="archon-output-card-meta">
             <span :if={a["team"]}>{to_string(a["team"])}</span>
             <span :if={a["role"]}>{to_string(a["role"])}</span>
-            <span :if={a["current_tool"]} class="archon-output-card-tool">{format_tool(a["current_tool"])}</span>
+            <span :if={a["current_tool"]} class="archon-output-card-tool">
+              {format_tool(a["current_tool"])}
+            </span>
           </div>
           <div :if={a["model"]} class="archon-output-card-detail">{a["model"]}</div>
         </div>
@@ -163,11 +184,27 @@ defmodule IchorWeb.Components.ArchonComponents.CommandHud do
     <div class="archon-output-section">
       <div class="archon-output-label">System Health</div>
       <div class="archon-output-health-grid">
-        <.health_row label="Agents" value={"#{@health["active_agents"]}/#{@health["agents"]}"} ok={@health["active_agents"] > 0} />
+        <.health_row
+          label="Agents"
+          value={"#{@health["active_agents"]}/#{@health["agents"]}"}
+          ok={@health["active_agents"] > 0}
+        />
         <.health_row label="Teams" value={to_string(@health["teams"])} ok={true} />
-        <.health_row label="EventBuffer" value={if @health["event_buffer"], do: "UP", else: "DOWN"} ok={@health["event_buffer"]} />
-        <.health_row label="Heartbeat" value={if @health["heartbeat"], do: "UP", else: "DOWN"} ok={@health["heartbeat"]} />
-        <.health_row label="ProtocolTracker" value={if @health["protocol_tracker"], do: "UP", else: "DOWN"} ok={@health["protocol_tracker"]} />
+        <.health_row
+          label="EventBuffer"
+          value={if @health["event_buffer"], do: "UP", else: "DOWN"}
+          ok={@health["event_buffer"]}
+        />
+        <.health_row
+          label="Heartbeat"
+          value={if @health["heartbeat"], do: "UP", else: "DOWN"}
+          ok={@health["heartbeat"]}
+        />
+        <.health_row
+          label="ProtocolTracker"
+          value={if @health["protocol_tracker"], do: "UP", else: "DOWN"}
+          ok={@health["protocol_tracker"]}
+        />
       </div>
     </div>
     """
@@ -247,13 +284,24 @@ defmodule IchorWeb.Components.ArchonComponents.CommandHud do
         </div>
         <div class="archon-output-detail-grid">
           <.detail_row label="ID" value={to_string(@agent["id"])} />
-          <.detail_row :if={@agent["session_id"]} label="Session" value={to_string(@agent["session_id"])} />
+          <.detail_row
+            :if={@agent["session_id"]}
+            label="Session"
+            value={to_string(@agent["session_id"])}
+          />
           <.detail_row :if={@agent["team"]} label="Team" value={to_string(@agent["team"])} />
           <.detail_row :if={@agent["role"]} label="Role" value={to_string(@agent["role"])} />
           <.detail_row :if={@agent["model"]} label="Model" value={to_string(@agent["model"])} />
-          <.detail_row :if={@agent["current_tool"]} label="Tool" value={format_tool(@agent["current_tool"])} />
+          <.detail_row
+            :if={@agent["current_tool"]}
+            label="Tool"
+            value={format_tool(@agent["current_tool"])}
+          />
           <.detail_row :if={@agent["cwd"]} label="CWD" value={to_string(@agent["cwd"])} />
-          <.detail_row label="Tmux" value={if @agent["tmux_available"], do: @agent["tmux"], else: "disconnected"} />
+          <.detail_row
+            label="Tmux"
+            value={if @agent["tmux_available"], do: @agent["tmux"], else: "disconnected"}
+          />
         </div>
       </div>
     </div>
@@ -272,7 +320,9 @@ defmodule IchorWeb.Components.ArchonComponents.CommandHud do
           <span>to: {@result["to"]}</span>
           <span :if={@result["delivered"]}>{@result["delivered"]}</span>
         </div>
-        <div :if={@result["error"]} class="archon-output-card-detail text-error">{@result["error"]}</div>
+        <div :if={@result["error"]} class="archon-output-card-detail text-error">
+          {@result["error"]}
+        </div>
       </div>
     </div>
     """
@@ -368,5 +418,4 @@ defmodule IchorWeb.Components.ArchonComponents.CommandHud do
   defp safe_str(val) when is_binary(val), do: val
   defp safe_str(val) when is_atom(val), do: to_string(val)
   defp safe_str(val), do: inspect(val)
-
 end

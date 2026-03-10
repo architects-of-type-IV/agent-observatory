@@ -25,8 +25,15 @@ defmodule IchorWeb.Components.FleetCommandComponents do
       <h2 class="text-lg font-semibold text-high">Fleet Command</h2>
 
       <%!-- Primary Zone: Mesh Topology Map --%>
-      <div id="fleet-topology-hook" phx-hook="TopologyMap" data-event="fleet_topology_update" class="bg-base/50 border border-border rounded-lg p-4 min-h-[300px]">
-        <h3 class="text-sm font-semibold text-default uppercase tracking-wider mb-2">Mesh Topology</h3>
+      <div
+        id="fleet-topology-hook"
+        phx-hook="TopologyMap"
+        data-event="fleet_topology_update"
+        class="bg-base/50 border border-border rounded-lg p-4 min-h-[300px]"
+      >
+        <h3 class="text-sm font-semibold text-default uppercase tracking-wider mb-2">
+          Mesh Topology
+        </h3>
         <canvas width="800" height="280" class="w-full rounded"></canvas>
       </div>
 
@@ -45,13 +52,17 @@ defmodule IchorWeb.Components.FleetCommandComponents do
         </div>
 
         <div id="cost-heatmap-panel" class="bg-base/50 border border-border rounded-lg p-4">
-          <h3 class="text-sm font-semibold text-default uppercase tracking-wider mb-2">Cost Heatmap</h3>
+          <h3 class="text-sm font-semibold text-default uppercase tracking-wider mb-2">
+            Cost Heatmap
+          </h3>
           <%= if @cost_heatmap == [] do %>
             <p class="text-sm text-low">No cost data available</p>
           <% else %>
             <div class="space-y-1">
               <div :for={entry <- @cost_heatmap} class="flex justify-between text-xs">
-                <span class="text-default font-mono">{Map.get(entry, :agent_id, "unknown") |> String.slice(0..7)}</span>
+                <span class="text-default font-mono">
+                  {Map.get(entry, :agent_id, "unknown") |> String.slice(0..7)}
+                </span>
                 <span class="text-high">${Map.get(entry, :cost, 0.0) |> Float.round(4)}</span>
               </div>
             </div>
@@ -59,14 +70,20 @@ defmodule IchorWeb.Components.FleetCommandComponents do
         </div>
 
         <div id="infrastructure-health-panel" class="bg-base/50 border border-border rounded-lg p-4">
-          <h3 class="text-sm font-semibold text-default uppercase tracking-wider mb-2">Infrastructure Health</h3>
+          <h3 class="text-sm font-semibold text-default uppercase tracking-wider mb-2">
+            Infrastructure Health
+          </h3>
           <%= cond do %>
             <% is_map(@node_status) and map_size(@node_status) > 0 -> %>
               <div class="space-y-1">
                 <div class="flex items-center gap-2">
-                  <span class={"w-2 h-2 rounded-full #{node_state_color(Map.get(@node_status, :state))}"}></span>
+                  <span class={"w-2 h-2 rounded-full #{node_state_color(Map.get(@node_status, :state))}"}>
+                  </span>
                   <span class="text-sm text-high">
-                    {Map.get(@node_status, :agent_id) || Map.get(@node_status, :session_id, "unknown") |> to_string() |> String.slice(0..11)}
+                    {Map.get(@node_status, :agent_id) ||
+                      Map.get(@node_status, :session_id, "unknown")
+                      |> to_string()
+                      |> String.slice(0..11)}
                   </span>
                   <span class="text-xs text-low">{Map.get(@node_status, :state, "unknown")}</span>
                 </div>
@@ -84,22 +101,30 @@ defmodule IchorWeb.Components.FleetCommandComponents do
             <div class="grid grid-cols-3 gap-2 text-center">
               <div>
                 <div class="text-xs text-low">p50</div>
-                <div class="text-sm font-mono text-high">{Map.get(@latency_metrics, :p50, "-")}ms</div>
+                <div class="text-sm font-mono text-high">
+                  {Map.get(@latency_metrics, :p50, "-")}ms
+                </div>
               </div>
               <div>
                 <div class="text-xs text-low">p95</div>
-                <div class="text-sm font-mono text-high">{Map.get(@latency_metrics, :p95, "-")}ms</div>
+                <div class="text-sm font-mono text-high">
+                  {Map.get(@latency_metrics, :p95, "-")}ms
+                </div>
               </div>
               <div>
                 <div class="text-xs text-low">p99</div>
-                <div class="text-sm font-mono text-high">{Map.get(@latency_metrics, :p99, "-")}ms</div>
+                <div class="text-sm font-mono text-high">
+                  {Map.get(@latency_metrics, :p99, "-")}ms
+                </div>
               </div>
             </div>
           <% end %>
         </div>
 
         <div id="mtls-status-panel" class="bg-base/50 border border-border rounded-lg p-4">
-          <h3 class="text-sm font-semibold text-default uppercase tracking-wider mb-2">mTLS Status</h3>
+          <h3 class="text-sm font-semibold text-default uppercase tracking-wider mb-2">
+            mTLS Status
+          </h3>
           <p class="text-sm text-low">{@mtls_status || "Not configured"}</p>
         </div>
       </div>

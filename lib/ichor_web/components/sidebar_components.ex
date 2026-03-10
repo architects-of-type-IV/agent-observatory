@@ -5,7 +5,10 @@ defmodule IchorWeb.Components.SidebarComponents do
   use Phoenix.Component
 
   import IchorWeb.DashboardTeamHelpers, only: [member_status_color: 1]
-  import IchorWeb.DashboardFormatHelpers, only: [session_duration: 2, short_session: 1, session_color: 1]
+
+  import IchorWeb.DashboardFormatHelpers,
+    only: [session_duration: 2, short_session: 1, session_color: 1]
+
   import IchorWeb.DashboardSessionHelpers, only: [abbreviate_cwd: 1]
 
   attr :teams, :list, required: true
@@ -101,9 +104,10 @@ defmodule IchorWeb.Components.SidebarComponents do
     <div>
       <div class="flex items-center justify-between mb-1.5 px-1">
         <h2 class="ichor-section-title">
-          {if @has_teams, do: "Standalone", else: "Sessions"} <span class="font-mono">({length(@sessions)}<span :if={
-            length(@sessions) != @total_sessions
-          }>/{@total_sessions}</span>)</span>
+          {if @has_teams, do: "Standalone", else: "Sessions"}
+          <span class="font-mono">
+            ({length(@sessions)}<span :if={length(@sessions) != @total_sessions}>/{@total_sessions}</span>)
+          </span>
         </h2>
       </div>
       <form phx-change="search_sessions" class="mb-1.5 px-0.5">
@@ -179,7 +183,11 @@ defmodule IchorWeb.Components.SidebarComponents do
         </h2>
       </div>
       <div class="space-y-0.5">
-        <.tmux_item :for={name <- @tmux_sessions} name={name} orphan={!MapSet.member?(@registry_tmux, name)} />
+        <.tmux_item
+          :for={name <- @tmux_sessions}
+          name={name}
+          orphan={!MapSet.member?(@registry_tmux, name)}
+        />
       </div>
     </div>
     """

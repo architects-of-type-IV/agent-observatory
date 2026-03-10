@@ -83,8 +83,8 @@ defmodule IchorWeb do
       import IchorWeb.IchorComponents, only: [stable_select: 1]
 
       # Common modules used in templates
-      alias Phoenix.LiveView.JS
       alias IchorWeb.Layouts
+      alias Phoenix.LiveView.JS
 
       # Routes generation with the ~p sigil
       unquote(verified_routes())

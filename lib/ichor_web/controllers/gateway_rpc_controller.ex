@@ -9,7 +9,8 @@ defmodule IchorWeb.GatewayRpcController do
   use IchorWeb, :controller
   require Logger
 
-  def create(conn, %{"channel" => channel, "payload" => payload}) when is_binary(channel) and is_map(payload) do
+  def create(conn, %{"channel" => channel, "payload" => payload})
+      when is_binary(channel) and is_map(payload) do
     case Ichor.Gateway.Router.broadcast(channel, payload) do
       {:ok, delivered} ->
         conn

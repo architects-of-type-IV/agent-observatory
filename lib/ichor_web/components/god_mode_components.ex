@@ -18,17 +18,21 @@ defmodule IchorWeb.Components.GodModeComponents do
         <%= cond do %>
           <% @kill_switch_confirm_step == :second -> %>
             <div class="space-y-3">
-              <p class="text-sm text-error font-semibold">FINAL CONFIRMATION: This will pause ALL mesh operations.</p>
+              <p class="text-sm text-error font-semibold">
+                FINAL CONFIRMATION: This will pause ALL mesh operations.
+              </p>
               <div class="flex items-center gap-2">
                 <button phx-click="kill_switch_second_confirm" class="god-mode-button-danger">
                   CONFIRM KILL
                 </button>
-                <button phx-click="kill_switch_cancel" class="px-3 py-1.5 text-xs bg-highlight hover:bg-highlight text-high rounded transition">
+                <button
+                  phx-click="kill_switch_cancel"
+                  class="px-3 py-1.5 text-xs bg-highlight hover:bg-highlight text-high rounded transition"
+                >
                   Cancel
                 </button>
               </div>
             </div>
-
           <% @kill_switch_confirm_step == :first -> %>
             <div class="space-y-3">
               <p class="text-sm text-brand">Are you sure? This will pause all active agents.</p>
@@ -36,12 +40,14 @@ defmodule IchorWeb.Components.GodModeComponents do
                 <button phx-click="kill_switch_first_confirm" class="god-mode-button-danger">
                   Yes, proceed
                 </button>
-                <button phx-click="kill_switch_cancel" class="px-3 py-1.5 text-xs bg-highlight hover:bg-highlight text-high rounded transition">
+                <button
+                  phx-click="kill_switch_cancel"
+                  class="px-3 py-1.5 text-xs bg-highlight hover:bg-highlight text-high rounded transition"
+                >
                   Cancel
                 </button>
               </div>
             </div>
-
           <% true -> %>
             <button phx-click="kill_switch_click" class="god-mode-button-danger">
               Emergency Kill Switch
@@ -51,7 +57,9 @@ defmodule IchorWeb.Components.GodModeComponents do
 
       <%!-- Global Instructions Section --%>
       <div class="god-mode-panel">
-        <h3 class="text-sm font-semibold text-default uppercase tracking-wider mb-4">Global Instructions</h3>
+        <h3 class="text-sm font-semibold text-default uppercase tracking-wider mb-4">
+          Global Instructions
+        </h3>
 
         <%!-- Banner --%>
         <%= if @instructions_banner do %>
@@ -80,11 +88,20 @@ defmodule IchorWeb.Components.GodModeComponents do
                     <button type="submit" class="god-mode-button-danger text-xs">
                       Confirm Push
                     </button>
-                    <button type="button" phx-click="push_instructions_cancel" class="px-3 py-1.5 text-xs bg-highlight hover:bg-highlight text-high rounded transition">
+                    <button
+                      type="button"
+                      phx-click="push_instructions_cancel"
+                      class="px-3 py-1.5 text-xs bg-highlight hover:bg-highlight text-high rounded transition"
+                    >
                       Cancel
                     </button>
                   <% else %>
-                    <button type="button" phx-click="push_instructions_intent" phx-value-agent_class={ac} class="px-3 py-1.5 text-xs bg-highlight hover:bg-highlight text-high rounded transition">
+                    <button
+                      type="button"
+                      phx-click="push_instructions_intent"
+                      phx-value-agent_class={ac}
+                      class="px-3 py-1.5 text-xs bg-highlight hover:bg-highlight text-high rounded transition"
+                    >
                       Push to all
                     </button>
                   <% end %>

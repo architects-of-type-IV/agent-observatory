@@ -41,7 +41,12 @@ defmodule IchorWeb.Components.ArchonComponents.Icons do
   def hud_icon(%{name: "terminal"} = assigns) do
     ~H"""
     <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-      <rect x="2" y="3" width="20" height="18" rx="2" /><path d="M6 9l4 3-4 3" /><line x1="13" y1="15" x2="18" y2="15" />
+      <rect x="2" y="3" width="20" height="18" rx="2" /><path d="M6 9l4 3-4 3" /><line
+        x1="13"
+        y1="15"
+        x2="18"
+        y2="15"
+      />
     </svg>
     """
   end
@@ -84,7 +89,10 @@ defmodule IchorWeb.Components.ArchonComponents.Icons do
   def archon_icon(assigns) do
     ~H"""
     <svg
-      class={["archon-fab-icon", if(@active, do: "archon-fab-icon-active", else: "archon-fab-icon-idle")]}
+      class={[
+        "archon-fab-icon",
+        if(@active, do: "archon-fab-icon-active", else: "archon-fab-icon-idle")
+      ]}
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"

@@ -13,7 +13,12 @@ defmodule IchorWeb.Components.TeamMessageComponents do
   def message_composer(assigns) do
     ~H"""
     <form phx-submit="send_targeted_message" class="flex flex-col gap-2">
-      <.stable_select id="select-message-target" name="target" phx-change="set_message_target" class="ichor-select text-xs py-1.5">
+      <.stable_select
+        id="select-message-target"
+        name="target"
+        phx-change="set_message_target"
+        class="ichor-select text-xs py-1.5"
+      >
         <option value="">Select target...</option>
         <option value="all_teams">All teams ({length(@teams)} teams)</option>
         <%= for team <- @teams do %>

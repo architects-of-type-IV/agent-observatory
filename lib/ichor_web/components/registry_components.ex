@@ -8,7 +8,13 @@ defmodule IchorWeb.Components.RegistryComponents do
   attr :route_weight_errors, :map, default: %{}
 
   def registry_view(assigns) do
-    sorted_types = sort_agent_types(assigns.agent_types, assigns.capability_sort_field, assigns.capability_sort_dir)
+    sorted_types =
+      sort_agent_types(
+        assigns.agent_types,
+        assigns.capability_sort_field,
+        assigns.capability_sort_dir
+      )
+
     assigns = assign(assigns, :sorted_types, sorted_types)
 
     ~H"""
@@ -18,7 +24,9 @@ defmodule IchorWeb.Components.RegistryComponents do
       <%!-- Capability Directory --%>
       <div class="bg-base/50 border border-border rounded-lg">
         <div class="px-4 py-3 border-b border-border">
-          <h3 class="text-sm font-semibold text-default uppercase tracking-wider">Capability Directory</h3>
+          <h3 class="text-sm font-semibold text-default uppercase tracking-wider">
+            Capability Directory
+          </h3>
         </div>
         <table class="w-full">
           <thead>
@@ -35,27 +43,39 @@ defmodule IchorWeb.Components.RegistryComponents do
                 phx-click="sort_capability_directory"
                 phx-value-field="instance_count"
               >
-                Instances {sort_indicator(@capability_sort_field, :instance_count, @capability_sort_dir)}
+                Instances {sort_indicator(
+                  @capability_sort_field,
+                  :instance_count,
+                  @capability_sort_dir
+                )}
               </th>
               <th
                 class="px-4 py-2 text-left cursor-pointer hover:text-high"
                 phx-click="sort_capability_directory"
                 phx-value-field="capability_version"
               >
-                Version {sort_indicator(@capability_sort_field, :capability_version, @capability_sort_dir)}
+                Version {sort_indicator(
+                  @capability_sort_field,
+                  :capability_version,
+                  @capability_sort_dir
+                )}
               </th>
             </tr>
           </thead>
           <tbody>
             <%= if @sorted_types == [] do %>
               <tr>
-                <td colspan="3" class="px-4 py-4 text-sm text-low text-center">No agent types registered</td>
+                <td colspan="3" class="px-4 py-4 text-sm text-low text-center">
+                  No agent types registered
+                </td>
               </tr>
             <% else %>
               <tr :for={at <- @sorted_types} class="border-t border-border/50 hover:bg-raised/30">
                 <td class="px-4 py-2 text-sm text-high">{Map.get(at, :agent_type, "unknown")}</td>
                 <td class="px-4 py-2 text-sm text-default">{Map.get(at, :instance_count, 0)}</td>
-                <td class="px-4 py-2 text-sm font-mono text-low">{Map.get(at, :capability_version, "-")}</td>
+                <td class="px-4 py-2 text-sm font-mono text-low">
+                  {Map.get(at, :capability_version, "-")}
+                </td>
               </tr>
             <% end %>
           </tbody>
@@ -64,7 +84,9 @@ defmodule IchorWeb.Components.RegistryComponents do
 
       <%!-- Routing Logic Manager --%>
       <div class="bg-base/50 border border-border rounded-lg p-4">
-        <h3 class="text-sm font-semibold text-default uppercase tracking-wider mb-4">Routing Logic Manager</h3>
+        <h3 class="text-sm font-semibold text-default uppercase tracking-wider mb-4">
+          Routing Logic Manager
+        </h3>
         <%= if @sorted_types == [] do %>
           <p class="text-sm text-low">No agent types to configure</p>
         <% else %>
@@ -82,7 +104,10 @@ defmodule IchorWeb.Components.RegistryComponents do
                   max="100"
                   class="w-20 bg-raised border border-border-subtle rounded px-2 py-1 text-xs text-high focus:border-interactive focus:ring-0"
                 />
-                <button type="submit" class="px-2 py-1 text-xs bg-highlight hover:bg-highlight text-high rounded transition">
+                <button
+                  type="submit"
+                  class="px-2 py-1 text-xs bg-highlight hover:bg-highlight text-high rounded transition"
+                >
                   Set
                 </button>
               </form>
@@ -101,7 +126,11 @@ defmodule IchorWeb.Components.RegistryComponents do
   end
 
   defp sort_agent_types(types, field, dir) do
-    Enum.sort_by(types, fn at -> Map.get(at, field, "") end, if(dir == :asc, do: :asc, else: :desc))
+    Enum.sort_by(
+      types,
+      fn at -> Map.get(at, field, "") end,
+      if(dir == :asc, do: :asc, else: :desc)
+    )
   end
 
   defp sort_indicator(current_field, field, dir) do

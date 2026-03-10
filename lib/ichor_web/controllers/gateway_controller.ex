@@ -24,13 +24,7 @@ defmodule IchorWeb.GatewayController do
   end
 
   defp handle_valid(conn, log) do
-    Task.start(fn ->
-      case Phoenix.PubSub.broadcast(Ichor.PubSub, "gateway:messages", {:decision_log, log}) do
-        :ok -> :ok
-        {:error, reason} ->
-          Logger.warning("Failed to broadcast decision_log: #{inspect(reason)}")
-      end
-    end)
+    Task.start(fn -> Ichor.Signal.emit(:decision_log, %{log: log}) end)
 
     trace_id = if log.meta, do: log.meta.trace_id, else: nil
 
@@ -43,27 +37,13 @@ defmodule IchorWeb.GatewayController do
     raw_body = conn.assigns[:raw_body]
     event = SchemaInterceptor.build_violation_event(changeset, params, raw_body)
 
-    Task.start(fn ->
-      case Phoenix.PubSub.broadcast(Ichor.PubSub, "gateway:violations", {:schema_violation, event}) do
-        :ok -> :ok
-        {:error, reason} ->
-          Logger.warning("Failed to broadcast schema_violation event: #{inspect(reason)}")
-      end
-    end)
+    Task.start(fn -> Ichor.Signal.emit(:schema_violation, %{event_map: event}) end)
 
     Task.start(fn ->
-      topology_update = %{
+      Ichor.Signal.emit(:node_state_update, %{
         agent_id: event["agent_id"],
-        state: :schema_violation,
-        clear_after_ms: 30_000,
-        timestamp: event["timestamp"]
-      }
-
-      case Phoenix.PubSub.broadcast(Ichor.PubSub, "gateway:topology", {:node_state_update, topology_update}) do
-        :ok -> :ok
-        {:error, reason} ->
-          Logger.warning("Failed to broadcast topology node_state_update: #{inspect(reason)}")
-      end
+        state: :schema_violation
+      })
     end)
 
     conn

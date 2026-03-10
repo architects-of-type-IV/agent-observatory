@@ -13,17 +13,26 @@ defmodule IchorWeb.Components.SchedulerComponents do
       <%!-- Cron Job Dashboard --%>
       <div class="bg-base/50 border border-border rounded-lg">
         <div class="px-4 py-3 border-b border-border">
-          <h3 class="text-sm font-semibold text-default uppercase tracking-wider">Cron Job Dashboard</h3>
+          <h3 class="text-sm font-semibold text-default uppercase tracking-wider">
+            Cron Job Dashboard
+          </h3>
         </div>
         <%= if @cron_jobs == [] do %>
           <p class="px-4 py-4 text-sm text-low">No scheduled jobs</p>
         <% else %>
           <div class="divide-y divide-border/50">
-            <div :for={job <- @cron_jobs} class={"px-4 py-3 flex items-center justify-between cron-status-#{Map.get(job, :state, "pending")}"}>
+            <div
+              :for={job <- @cron_jobs}
+              class={"px-4 py-3 flex items-center justify-between cron-status-#{Map.get(job, :state, "pending")}"}
+            >
               <div>
                 <span class="text-sm text-high">{Map.get(job, :name, "unnamed")}</span>
                 <div class="text-xs text-low mt-0.5">
-                  Next: {Map.get(job, :next_run_at, "-")} | Last success: {Map.get(job, :last_success_at, "-")}
+                  Next: {Map.get(job, :next_run_at, "-")} | Last success: {Map.get(
+                    job,
+                    :last_success_at,
+                    "-"
+                  )}
                 </div>
               </div>
               <div class="flex items-center gap-2">
@@ -42,7 +51,9 @@ defmodule IchorWeb.Components.SchedulerComponents do
       <%!-- Dead Letter Queue --%>
       <div class="bg-base/50 border border-border rounded-lg">
         <div class="px-4 py-3 border-b border-border">
-          <h3 class="text-sm font-semibold text-default uppercase tracking-wider">Dead Letter Queue</h3>
+          <h3 class="text-sm font-semibold text-default uppercase tracking-wider">
+            Dead Letter Queue
+          </h3>
         </div>
         <%= if @dlq_entries == [] do %>
           <p class="empty-state px-4 py-4 text-sm text-low">No failed deliveries.</p>
@@ -51,11 +62,17 @@ defmodule IchorWeb.Components.SchedulerComponents do
             <div :for={entry <- @dlq_entries} class="px-4 py-3">
               <div class="flex items-center justify-between">
                 <div>
-                  <span class="text-sm font-mono text-high">{Map.get(entry, :id, "unknown") |> to_string() |> String.slice(0..11)}</span>
-                  <p class="text-xs text-low mt-0.5">{Map.get(entry, :failure_reason, "Unknown failure")}</p>
+                  <span class="text-sm font-mono text-high">
+                    {Map.get(entry, :id, "unknown") |> to_string() |> String.slice(0..11)}
+                  </span>
+                  <p class="text-xs text-low mt-0.5">
+                    {Map.get(entry, :failure_reason, "Unknown failure")}
+                  </p>
                 </div>
                 <div class="flex items-center gap-2">
-                  <span :if={Map.get(entry, :state) == "pending"} class="text-xs text-brand">pending</span>
+                  <span :if={Map.get(entry, :state) == "pending"} class="text-xs text-brand">
+                    pending
+                  </span>
                   <button
                     :if={Map.get(entry, :state) != "pending"}
                     phx-click="retry_dlq_entry"
@@ -77,7 +94,9 @@ defmodule IchorWeb.Components.SchedulerComponents do
       <%!-- Heartbeat Monitor --%>
       <div class="bg-base/50 border border-border rounded-lg">
         <div class="px-4 py-3 border-b border-border">
-          <h3 class="text-sm font-semibold text-default uppercase tracking-wider">Heartbeat Monitor</h3>
+          <h3 class="text-sm font-semibold text-default uppercase tracking-wider">
+            Heartbeat Monitor
+          </h3>
         </div>
         <%= if @zombie_agents == [] do %>
           <p class="px-4 py-4 text-sm text-low">No zombie agents detected</p>
@@ -85,7 +104,9 @@ defmodule IchorWeb.Components.SchedulerComponents do
           <div class="divide-y divide-border/50">
             <div :for={agent <- @zombie_agents} class="px-4 py-3 flex items-center justify-between">
               <div>
-                <span class="text-sm font-mono text-high">{Map.get(agent, :name, Map.get(agent, :session_id, "unknown"))}</span>
+                <span class="text-sm font-mono text-high">
+                  {Map.get(agent, :name, Map.get(agent, :session_id, "unknown"))}
+                </span>
                 <span class="text-xs text-error ml-2">zombie</span>
               </div>
               <span class="text-xs text-low">{Map.get(agent, :last_heartbeat, "-")}</span>
