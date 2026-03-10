@@ -37,8 +37,8 @@ defmodule Ichor.Heartbeat do
 
   # Run maintenance at different cadences based on heartbeat count
   defp run_maintenance(count) do
-    # Every 60 beats (5min): sweep stale agents from registry
-    if rem(count, 60) == 0 do
+    # Every 12 beats (1min): sweep stale agents from registry
+    if rem(count, 12) == 0 do
       spawn(fn -> Ichor.Gateway.AgentRegistry.purge_stale() end)
     end
   end

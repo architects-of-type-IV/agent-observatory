@@ -2,10 +2,15 @@ defmodule Ichor.Gateway.AgentRegistry.Sweep do
   @moduledoc """
   Garbage collection for stale agent entries.
 
+  Liveness is determined by observable facts (OS pid, tmux session),
+  not by hook events. SessionEnd is a convenience hint, not required.
+
   Full sweep: terminates BEAM process (cascades to tmux kill,
   AgentRegistry removal, EventBuffer cleanup via AgentProcess.terminate/2),
   then deletes the ETS entry.
   """
+
+  require Logger
 
   alias Ichor.Gateway.AgentRegistry.AgentEntry
   alias Ichor.Fleet.{AgentProcess, FleetSupervisor}
@@ -19,34 +24,69 @@ defmodule Ichor.Gateway.AgentRegistry.Sweep do
     ended_cutoff = DateTime.add(now, -ended_ttl_seconds, :second)
     stale_cutoff = DateTime.add(now, -stale_ttl_seconds, :second)
     live_teams = live_team_names()
+    live_tmux = live_tmux_sessions()
 
     @table
     |> :ets.tab2list()
-    |> Enum.each(&maybe_sweep(&1, live_teams, ended_cutoff, stale_cutoff))
+    |> Enum.each(&maybe_sweep(&1, live_teams, live_tmux, ended_cutoff, stale_cutoff))
 
     sweep_orphan_processes()
   rescue
     ArgumentError -> :ok
   end
 
-  # ── Sweep Rules (pattern-matched, declarative) ───────────────────
+  # ── Sweep Rules ───────────────────────────────────────────────────
 
-  defp maybe_sweep({_sid, %{id: "operator"}}, _live, _ended, _stale), do: :ok
+  defp maybe_sweep({_sid, %{id: "operator"}}, _live, _tmux, _ended, _stale), do: :ok
 
-  defp maybe_sweep({sid, %{team: team}}, live, _ended, _stale)
-       when team != nil and live != nil do
-    sweep_unless_member(sid, team, live)
+  defp maybe_sweep({sid, entry}, live, live_tmux, ended_cutoff, stale_cutoff) do
+    cond do
+      # Observable liveness checks — no hook required
+      dead_by_pid?(entry) ->
+        Logger.info("[Sweep] #{sid} removed: os_pid #{entry[:os_pid]} is dead")
+        full_sweep(sid)
+
+      dead_by_tmux?(entry, live_tmux) ->
+        Logger.info("[Sweep] #{sid} removed: tmux session #{entry[:tmux_session]} is gone")
+        full_sweep(sid)
+
+      # Hook-assisted hint: clean exit signalled via SessionEnd
+      entry[:status] == :ended ->
+        sweep_if_before(sid, entry[:last_event_at], ended_cutoff, "SessionEnd + TTL elapsed")
+
+      # Team member whose team is gone
+      entry[:team] != nil ->
+        sweep_unless_member(sid, entry[:team], live)
+
+      # Standalone agent past stale TTL
+      entry[:role] == :standalone and entry[:team] == nil ->
+        sweep_standalone(sid, stale_cutoff)
+
+      true ->
+        :ok
+    end
   end
 
-  defp maybe_sweep({sid, %{status: :ended, last_event_at: ts}}, _live, ended_cutoff, _stale) do
-    sweep_if_before(sid, ts, ended_cutoff)
+  # ── Liveness Checks ──────────────────────────────────────────────
+  # Failure mode is always :keep — if we cannot confirm dead, do not sweep.
+
+  defp dead_by_pid?(%{os_pid: pid}) when is_integer(pid) do
+    not pid_alive?(pid)
   end
 
-  defp maybe_sweep({sid, %{role: :standalone, team: nil}}, _live, _ended, stale_cutoff) do
-    sweep_standalone(sid, stale_cutoff)
+  defp dead_by_pid?(_), do: false
+
+  # :error means tmux listing failed — treat as unknown, keep the agent.
+  defp dead_by_tmux?(%{tmux_session: tmux}, {:ok, live_tmux})
+       when is_binary(tmux) and tmux != "" do
+    not MapSet.member?(live_tmux, tmux)
   end
 
-  defp maybe_sweep(_entry, _live, _ended, _stale), do: :ok
+  defp dead_by_tmux?(_entry, _live_tmux), do: false
+
+  defp pid_alive?(os_pid) do
+    match?({_, 0}, System.cmd("kill", ["-0", to_string(os_pid)], stderr_to_stdout: true))
+  end
 
   # ── Standalone classification ────────────────────────────────────
 
@@ -54,34 +94,44 @@ defmodule Ichor.Gateway.AgentRegistry.Sweep do
 
   defp sweep_standalone(sid, stale_cutoff) do
     case {Ichor.Gateway.TmuxDiscovery.infrastructure_session?(sid), AgentEntry.uuid?(sid)} do
-      {true, _} -> full_sweep(sid)
-      {_, false} -> full_sweep(sid)
-      {_, true} -> sweep_stale_uuid(sid, stale_cutoff)
+      {true, _} ->
+        Logger.info("[Sweep] #{sid} removed: infrastructure session")
+        full_sweep(sid)
+      {_, false} ->
+        Logger.info("[Sweep] #{sid} removed: standalone non-UUID with no team")
+        full_sweep(sid)
+      {_, true} ->
+        sweep_stale_uuid(sid, stale_cutoff)
     end
   end
 
   defp sweep_stale_uuid(sid, stale_cutoff) do
     case :ets.lookup(@table, sid) do
-      [{_, %{last_event_at: ts}}] -> sweep_if_before(sid, ts, stale_cutoff)
+      [{_, %{last_event_at: ts}}] -> sweep_if_before(sid, ts, stale_cutoff, "stale idle TTL elapsed")
       _ -> :ok
     end
   end
 
   # ── DateTime-aware sweep predicates ──────────────────────────────
 
-  defp sweep_if_before(_sid, nil, _cutoff), do: :ok
+  defp sweep_if_before(_sid, nil, _cutoff, _reason), do: :ok
 
-  defp sweep_if_before(sid, ts, cutoff) do
+  defp sweep_if_before(sid, ts, cutoff, reason) do
     case DateTime.compare(ts, cutoff) do
-      :lt -> full_sweep(sid)
-      _ -> :ok
+      :lt ->
+        Logger.info("[Sweep] #{sid} removed: #{reason} (last_event_at=#{ts})")
+        full_sweep(sid)
+      _ ->
+        :ok
     end
   end
 
   defp sweep_unless_member(sid, team, live) do
     case MapSet.member?(live, team) do
       true -> :ok
-      false -> full_sweep(sid)
+      false ->
+        Logger.info("[Sweep] #{sid} removed: team #{team} is no longer alive")
+        full_sweep(sid)
     end
   end
 
@@ -140,5 +190,11 @@ defmodule Ichor.Gateway.AgentRegistry.Sweep do
     |> MapSet.new()
   rescue
     _ -> nil
+  end
+
+  defp live_tmux_sessions do
+    {:ok, Ichor.Gateway.Channels.Tmux.list_sessions() |> MapSet.new()}
+  rescue
+    _ -> :error
   end
 end

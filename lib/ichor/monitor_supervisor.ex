@@ -18,7 +18,8 @@ defmodule Ichor.MonitorSupervisor do
       {Ichor.AgentMonitor, []},
       {Ichor.NudgeEscalator, []},
       {Ichor.QualityGate, []},
-      {Ichor.PaneMonitor, []}
+      {Ichor.PaneMonitor, []},
+      {Ichor.Stream.StreamBuffer, []}
     ]
 
     Supervisor.init(children, strategy: :one_for_one)

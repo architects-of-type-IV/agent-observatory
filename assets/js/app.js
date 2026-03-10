@@ -378,6 +378,24 @@ let Hooks = {
         })
       }
     }
+  },
+  StreamAutoScroll: {
+    mounted() {
+      this._scrollToBottom()
+      this._observer = new MutationObserver(() => {
+        if (this._isNearBottom()) this._scrollToBottom()
+      })
+      this._observer.observe(this.el, { childList: true, subtree: true })
+    },
+    destroyed() {
+      if (this._observer) this._observer.disconnect()
+    },
+    _isNearBottom() {
+      return this.el.scrollHeight - this.el.scrollTop - this.el.clientHeight < 100
+    },
+    _scrollToBottom() {
+      this.el.scrollTop = this.el.scrollHeight
+    }
   }
 }
 

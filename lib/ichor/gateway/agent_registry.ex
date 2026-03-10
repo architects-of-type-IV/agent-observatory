@@ -17,8 +17,8 @@ defmodule Ichor.Gateway.AgentRegistry do
   alias Ichor.Gateway.AgentRegistry.{AgentEntry, EventHandler, IdentityMerge, Sweep, TeamSync}
 
   @table :gateway_agent_registry
-  @ended_ttl_seconds 1_800
-  @stale_ttl_seconds 3_600
+  @ended_ttl_seconds 60
+  @stale_ttl_seconds 600
 
   # ── Client API ───────────────────────────────────────────────────────
 

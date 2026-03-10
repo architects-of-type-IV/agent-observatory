@@ -86,19 +86,29 @@ defmodule IchorWeb.DashboardLive do
         "fleet" -> :fleet
         "protocols" -> :fleet
         "workshop" -> :workshop
+        "stream" -> :stream
         _ -> :pipeline
       end
 
     socket = assign(socket, :nav_view, nav_view)
 
     socket =
-      if nav_view == :workshop do
-        socket
-        |> assign(:ws_blueprints, list_blueprints())
-        |> assign(:ws_agent_types, list_agent_types())
-        |> push_ws_state()
-      else
-        socket
+      case nav_view do
+        :workshop ->
+          socket
+          |> assign(:ws_blueprints, list_blueprints())
+          |> assign(:ws_agent_types, list_agent_types())
+          |> push_ws_state()
+
+        :stream ->
+          if connected?(socket) do
+            Phoenix.PubSub.subscribe(Ichor.PubSub, "stream:feed")
+          end
+
+          assign(socket, :stream_events, Ichor.Stream.StreamBuffer.recent(200))
+
+        _ ->
+          socket
       end
 
     {:noreply, socket}
@@ -112,6 +122,15 @@ defmodule IchorWeb.DashboardLive do
     socket = socket |> assign(:events, events) |> seed_gateway_assigns() |> recompute()
     subscribe_to_mailboxes(socket.assigns.sessions)
     {:noreply, socket}
+  end
+
+  def handle_info({:stream_event, entry}, socket) do
+    if socket.assigns.stream_paused do
+      {:noreply, socket}
+    else
+      events = [entry | Enum.take(socket.assigns.stream_events, 499)]
+      {:noreply, assign(socket, :stream_events, events)}
+    end
   end
 
   def handle_info(msg, socket), do: DashboardInfoHandlers.dispatch(msg, socket)
@@ -187,6 +206,13 @@ defmodule IchorWeb.DashboardLive do
   def handle_event("ws_new_blueprint" = e, p, s), do: IchorWeb.WorkshopPersistence.handle_event(e, p, s)
   def handle_event("ws_list_blueprints" = e, p, s), do: IchorWeb.WorkshopPersistence.handle_event(e, p, s)
   def handle_event("ws_" <> _ = e, p, s), do: IchorWeb.DashboardWorkshopHandlers.handle_event(e, p, s)
+
+  # ── Events: stream ─────────────────────────────────────────────────
+
+  def handle_event("stream_search", %{"q" => q}, s), do: {:noreply, assign(s, :stream_filter, q)}
+  def handle_event("stream_toggle_pause", _p, s), do: {:noreply, assign(s, :stream_paused, !s.assigns.stream_paused)}
+  def handle_event("stream_clear", _p, s), do: {:noreply, assign(s, :stream_events, [])}
+  def handle_event("stream_filter_topic", %{"topic" => t}, s), do: {:noreply, assign(s, :stream_filter, t)}
 
   def handle_event("stop", _p, s), do: {:noreply, s}
 end

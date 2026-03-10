@@ -1,41 +1,39 @@
 ICHOR IV Progress (formerly Observatory)
 ========================================
 
-## Current: os_pid tracking + dashboard mount fix (2026-03-10)
+## Current: Fleet GC + Archon Control + /stream page (2026-03-10)
 
 ### This Session
-- [x] Investigated why agent 226ec980 wasn't detected as closed (no SessionEnd event without tmux)
+- [x] Rewrote AgentRegistry.Sweep: liveness-first using kill -0 (PID) + tmux session list
+- [x] Safe-by-default: live_tmux_sessions returns {:ok, MapSet} | :error (no false-sweep)
+- [x] Reduced ended TTL 1800->60s, stale TTL 3600->600s, sweep cadence 5min->1min
+- [x] Added LoadAgents.filter_stale/3: display-layer filter (ended/dead-PID/dead-tmux/idle>10m)
+- [x] Built Archon.Tools.Control: spawn/stop/pause/resume/sweep (5 actions)
+- [x] Built Archon.Tools.Events: agent_events/fleet_tasks (2 actions)
+- [x] Registered 7 new Archon tools, updated chat system prompt + slash commands
+- [x] Analyzed Archon Watchdog options: chose Option C (tiered rules + LLM escalation)
+- [x] Built TopicCatalog: 30 PubSub topics cataloged (static module attribute)
+- [x] Built StreamBuffer: GenServer, ETS ring buffer, subscribe-classify-rebroadcast
+- [x] Built StreamComponents: two-panel layout, filter/pause/clear, category colors
+- [x] Added /stream nav icon + route, StreamAutoScroll JS hook
+- [x] All compiles clean (mix compile --warnings-as-errors)
+
+### Prior: os_pid tracking + dashboard mount fix (2026-03-10)
 - [x] Added os_pid field end-to-end: hook -> controller -> buffer -> registry -> LoadAgents -> Fleet.Agent
-- [x] Hook walks PID tree to find claude process, falls back to PPID
-- [x] Found root cause: dashboard mount starts with empty assigns.events, non-tmux agents invisible
 - [x] Added EventBuffer.latest_per_session/0 -- single-pass :ets.foldl, 1 event per session
 - [x] Dashboard :load_data seeds assigns.events from latest_per_session on mount
-- [x] Optimized: foldl instead of tab2list+group_by, no intermediate lists
 
 ### Prior: Shutdown Ghost Fix + EventBuffer Rewrite (2026-03-10)
-- [x] Fixed all 20+ short_id/String.slice(x,0,8) sites to use UUID-aware AgentEntry.short_id/1
-- [x] Fixed agent naming: tmux session name or short UUID, never Path.basename(cwd)
-- [x] Fixed EventBuffer resolve_session_id: tmux_session IS canonical ID (no BEAM alive check)
-- [x] Fixed AgentMonitor false crash detection (checks actual liveness)
-- [x] Rewrote TmuxDiscovery as continuous BEAM invariant enforcer
-- [x] Fixed ghost detection (no events + no tmux + ended status, no template Registry lookups)
-- [x] Fixed shutdown ghost: session aliases + tombstones in EventBuffer
-- [x] Full EventBuffer rewrite: idiomatic Elixir, pattern-matched dispatch, single ensure_ets
-- [x] Shutdown preserves events (tombstone_session, not remove_session) -- agents stay visible
+- [x] Fixed all 20+ short_id sites to use UUID-aware AgentEntry.short_id/1
+- [x] Full EventBuffer rewrite: idiomatic Elixir, pattern-matched dispatch
+- [x] Shutdown preserves events (tombstone_session, not remove_session)
 
 ### Prior: Fleet Observability + MCP Spawn Tool (2026-03-09)
-- [x] Rewrote subagent hierarchy: PreToolUse/PostToolUse events (rich metadata)
-- [x] Made subagents clickable in fleet tree with detail panel
-- [x] Fixed NudgeEscalator: increased thresholds, auto-unpause, non-tmux cap
-- [x] Built spawn_agent/stop_agent MCP tools (Ichor.AgentTools.Spawn)
+- [x] Rewrote subagent hierarchy, NudgeEscalator fixes, spawn_agent MCP tool
 
 ### Prior: Codebase Rename (2026-03-09)
 - [x] Full codebase rename: Observatory -> Ichor (211 modules, OTP :ichor)
 
 ### Prior: Agent Lifecycle + Tokenization + Archon + Fleet
-- [x] Agent lifecycle closed-loop (6 gaps fixed)
-- [x] Full CSS tokenization (1,200+ refs migrated)
-- [x] Archon HUD + Chat + Memories integration
-- [x] BEAM-native fleet foundation
-- [x] DashboardLive dispatch/3 refactor (594->164 lines)
-- [x] Legacy module elimination (Mailbox, CommandQueue, TeamWatcher)
+- [x] Agent lifecycle closed-loop, full CSS tokenization, Archon HUD/Chat/Memories
+- [x] BEAM-native fleet, DashboardLive dispatch/3 refactor, legacy module elimination

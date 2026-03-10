@@ -156,7 +156,11 @@ defmodule IchorWeb.DashboardState do
       event_notes: [],
       feed_groups: [],
       sel_team: nil,
-      nav_view: :pipeline
+      nav_view: :pipeline,
+      # Stream view
+      stream_events: [],
+      stream_filter: "",
+      stream_paused: false
     }
   end
 

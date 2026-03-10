@@ -54,9 +54,24 @@ BEAM processes BEFORE tmux-only so that tmux_session field from BEAM metadata en
 - Generic `action :name, :map do ... run fn ... end`
 - **Naming**: avoid Ash reserved words for arguments (e.g., `prompt` not `task`)
 
-## Archon Architecture (2026-03-09)
-- `Archon.Tools` subdomain (10 tools, 5 resources), `Archon.Chat` (LangChain + AshAi)
+## Archon Architecture (2026-03-10)
+- `Archon.Tools` subdomain (17 tools, 7 resources), `Archon.Chat` (LangChain + AshAi)
 - Fleet tools in-process; Memory tools HTTP localhost:4000 via MemoriesClient
+- **Control resource**: spawn/stop/pause/resume/sweep -- wraps AgentSpawner, HITLRelay, AgentRegistry
+- **Events resource**: agent_events (EventBuffer), fleet_tasks (TaskManager)
+- **No autonomous triggers yet** -- tools without triggers = chatbot. Watchdog planned (Option C).
+
+## GC Architecture (2026-03-10, CRITICAL)
+- **Observable liveness > hooks**: sweep checks `kill -0` (PID) and tmux session list, NOT SessionEnd hooks
+- **Safe-by-default**: `live_tmux_sessions/0` returns `{:ok, MapSet} | :error`. On tmux failure, KEEP all agents.
+- **Two-layer**: BEAM-level (AgentRegistry.Sweep, 1min cadence) + display-layer (LoadAgents.filter_stale)
+- **Stale thresholds**: ended TTL 60s, general stale TTL 600s, display idle 600s
+
+## PubSub Stream Architecture (2026-03-10)
+- **TopicCatalog**: static module attribute, 30 topics, source of truth for /stream + future Watchdog
+- **StreamBuffer**: GenServer subscribing all static topics, ETS ring buffer (500), classify+rebroadcast on "stream:feed"
+- **classify/1**: maps raw PubSub messages to `{topic, shape_label, summary}` tuples
+- **Dynamic topics** (agent:{id}:*) excluded from StreamBuffer subscription -- only static topics
 
 ## BEAM-Native Fleet Architecture
 - **AgentProcess** GenServer: PID = identity, process mailbox = delivery

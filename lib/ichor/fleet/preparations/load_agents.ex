@@ -7,6 +7,7 @@ defmodule Ichor.Fleet.Preparations.LoadAgents do
   use Ash.Resource.Preparation
 
   @idle_threshold_seconds 120
+  @stale_seconds 600
 
   @impl true
   def prepare(query, _opts, _context) do
@@ -28,6 +29,7 @@ defmodule Ichor.Fleet.Preparations.LoadAgents do
       |> append_tmux_only(tmux_sessions)
       |> merge_with_registry(registry_agents)
       |> attach_subagents(subagent_map)
+      |> filter_stale(tmux_sessions, now)
       |> sort_agents()
 
     Ash.DataLayer.Simple.set_data(query, agents)
@@ -80,6 +82,7 @@ defmodule Ichor.Fleet.Preparations.LoadAgents do
       team_name: nil,
       tmux_session: tmux_session,
       os_pid: os_pid,
+      last_event_at: latest.inserted_at,
       recent_activity: build_recent_activity(sorted, now)
     })
   end
@@ -299,6 +302,37 @@ defmodule Ichor.Fleet.Preparations.LoadAgents do
       tmux_session && tmux_session != "" -> tmux_session
       true -> AgentEntry.short_id(session_id)
     end
+  end
+
+  # Remove agents that are no longer relevant: ended sessions, dead processes,
+  # gone tmux sessions, or idle for more than @stale_seconds.
+  defp filter_stale(agents, tmux_sessions, now) do
+    tmux_set = MapSet.new(tmux_sessions)
+    Enum.reject(agents, &stale?(&1, tmux_set, now))
+  end
+
+  defp stale?(agent, tmux_set, now) do
+    cond do
+      agent.status == :ended ->
+        true
+
+      agent.os_pid != nil and not pid_alive?(agent.os_pid) ->
+        true
+
+      agent.tmux_session != nil and not MapSet.member?(tmux_set, agent.tmux_session) ->
+        true
+
+      agent.last_event_at != nil and
+          DateTime.diff(now, agent.last_event_at, :second) > @stale_seconds ->
+        true
+
+      true ->
+        false
+    end
+  end
+
+  defp pid_alive?(os_pid) do
+    match?({_, 0}, System.cmd("kill", ["-0", to_string(os_pid)], stderr_to_stdout: true))
   end
 
   defp sort_agents(agents) do

@@ -14,6 +14,8 @@ defmodule Ichor.Archon.Chat do
   alias LangChain.Message
 
   alias Ichor.Archon.Tools.Agents
+  alias Ichor.Archon.Tools.Control
+  alias Ichor.Archon.Tools.Events
   alias Ichor.Archon.Tools.Memory
   alias Ichor.Archon.Tools.Messages
   alias Ichor.Archon.Tools.Teams
@@ -26,16 +28,21 @@ defmodule Ichor.Archon.Chat do
   @system_prompt """
   You are Archon, the sovereign AI agent for ICHOR IV -- a control plane that manages autonomous coding agents.
 
+  You are the Architect's eyes and ears. When the Architect is away, you monitor the fleet, intervene when needed, and keep things running.
+
   Your capabilities:
-  - **Fleet awareness**: list agents, check agent status, list teams
-  - **Messaging**: send messages to agents (use send_message tool)
-  - **System health**: check process liveness, view tmux sessions
+  - **Fleet observation**: list agents, check agent status, list teams, view tmux sessions
+  - **Fleet control**: spawn new agents, stop agents, pause/resume agents via HITL, trigger GC sweep
+  - **Messaging**: send messages to agents or teams
+  - **Event monitoring**: view raw event stream per agent, see what any agent is doing in real time
+  - **Task oversight**: view tasks across all teams or a specific team
+  - **System health**: check process liveness
+  - **Memory**: persistent knowledge graph, auto-searched each turn
 
-  You serve the Architect (the user). Be direct, concise, and precise.
-  When asked about agents or the system, use your tools to get real-time data.
-  Do not use emoji. Do not be verbose.
+  You serve the Architect. Be direct, concise, decisive. Use your tools to get real data before answering.
+  Do not use emoji. Do not be verbose. When something is wrong, say so and act.
 
-  MEMORY: Your knowledge graph is automatically searched each turn. Relevant facts and past conversations are injected as a system message before your response. Use that context directly -- do not call search_memory or query_memory unless the Architect explicitly asks for a deeper search. When the Architect asks what you discussed or know, answer from the injected memory context.
+  MEMORY: Your knowledge graph is automatically searched each turn. Relevant facts and past conversations are injected before your response. Use that context directly -- do not call search_memory or query_memory unless the Architect asks for a deeper search.
   """
 
   @doc """
@@ -72,6 +79,8 @@ defmodule Ichor.Archon.Chat do
     |> dispatch_shortcode()
   end
 
+  # ── Observation ──────────────────────────────────────────────────────
+
   defp dispatch_shortcode(["/agents"]), do: run_typed(:agents, Agents, :list_agents, %{})
   defp dispatch_shortcode(["/teams"]), do: run_typed(:teams, Teams, :list_teams, %{})
   defp dispatch_shortcode(["/inbox"]), do: run_typed(:inbox, Messages, :recent_messages, %{})
@@ -82,6 +91,57 @@ defmodule Ichor.Archon.Chat do
     run_typed(:agent_status, Agents, :agent_status, %{agent_id: String.trim(agent_id)})
   end
 
+  defp dispatch_shortcode(["/events", rest]) do
+    case String.split(rest, " ", parts: 2) do
+      [agent_id, limit] ->
+        case Integer.parse(String.trim(limit)) do
+          {n, ""} -> run_typed(:agent_events, Events, :agent_events, %{agent_id: String.trim(agent_id), limit: n})
+          _ -> run_typed(:agent_events, Events, :agent_events, %{agent_id: String.trim(agent_id)})
+        end
+
+      [agent_id] ->
+        run_typed(:agent_events, Events, :agent_events, %{agent_id: String.trim(agent_id)})
+    end
+  end
+
+  defp dispatch_shortcode(["/tasks"]) do
+    run_typed(:fleet_tasks, Events, :fleet_tasks, %{})
+  end
+
+  defp dispatch_shortcode(["/tasks", team_name]) do
+    run_typed(:fleet_tasks, Events, :fleet_tasks, %{team_name: String.trim(team_name)})
+  end
+
+  # ── Control ──────────────────────────────────────────────────────────
+
+  defp dispatch_shortcode(["/stop", agent_id]) do
+    run_typed(:stop_agent, Control, :stop_agent, %{agent_id: String.trim(agent_id)})
+  end
+
+  defp dispatch_shortcode(["/pause", rest]) do
+    case String.split(rest, " ", parts: 2) do
+      [agent_id, reason] ->
+        run_typed(:pause_agent, Control, :pause_agent, %{agent_id: String.trim(agent_id), reason: String.trim(reason)})
+
+      [agent_id] ->
+        run_typed(:pause_agent, Control, :pause_agent, %{agent_id: String.trim(agent_id)})
+    end
+  end
+
+  defp dispatch_shortcode(["/resume", agent_id]) do
+    run_typed(:resume_agent, Control, :resume_agent, %{agent_id: String.trim(agent_id)})
+  end
+
+  defp dispatch_shortcode(["/sweep"]) do
+    run_typed(:sweep, Control, :sweep, %{})
+  end
+
+  defp dispatch_shortcode(["/spawn", prompt]) do
+    run_typed(:spawn_agent, Control, :spawn_agent, %{prompt: String.trim(prompt)})
+  end
+
+  # ── Messaging ────────────────────────────────────────────────────────
+
   defp dispatch_shortcode(["/msg", rest]) do
     case String.split(rest, " ", parts: 2) do
       [to, content] ->
@@ -91,6 +151,8 @@ defmodule Ichor.Archon.Chat do
         {:ok, %{type: :error, data: "Usage: /msg <target> <message>"}}
     end
   end
+
+  # ── Memory ───────────────────────────────────────────────────────────
 
   defp dispatch_shortcode(["/remember", content]) do
     run_typed(:remember, Memory, :remember, %{content: String.trim(content)})
@@ -105,7 +167,13 @@ defmodule Ichor.Archon.Chat do
   end
 
   defp dispatch_shortcode([cmd | _]) do
-    {:ok, %{type: :error, data: "Unknown command: #{cmd}\nAvailable: /agents /teams /status /msg /inbox /health /sessions /remember /recall /query"}}
+    {:ok, %{type: :error, data: """
+    Unknown command: #{cmd}
+    Observation: /agents /teams /status <id> /events <id> [limit] /tasks [team] /inbox /health /sessions
+    Control:     /spawn <prompt> /stop <id> /pause <id> [reason] /resume <id> /sweep
+    Messaging:   /msg <target> <text>
+    Memory:      /remember <text> /recall <query> /query <question>
+    """}}
   end
 
   defp run_typed(type, resource, action, params) do
@@ -134,6 +202,8 @@ defmodule Ichor.Archon.Chat do
               {Teams, :*},
               {Messages, :*},
               {SystemTools, :*},
+              {Control, :*},
+              {Events, :*},
               {Memory, [:remember]}
             ]
           )

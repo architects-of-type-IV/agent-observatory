@@ -1,48 +1,44 @@
 # ICHOR IV - Handoff
 
-## Current Status: os_pid tracking + dashboard mount fix (2026-03-10)
+## Current Status: Fleet GC + Archon Control + /stream page (2026-03-10)
 
 ### Just Completed
 
-**1. os_pid tracking -- capture Claude process PID**
+**1. Liveness-first GC sweep**
+- Rewrote `AgentRegistry.Sweep` to use observable facts: `kill -0` for PID, tmux session list membership
+- Safe-by-default: `live_tmux_sessions/0` returns `{:ok, MapSet} | :error` -- on tmux failure, keep agents (never false-sweep)
+- Reduced `@ended_ttl_seconds` 1800->60, `@stale_ttl_seconds` 3600->600
+- Heartbeat sweep cadence 5min->1min (every 12 beats)
+- `LoadAgents.filter_stale/3`: display-layer filter for ended/dead-PID/dead-tmux/idle>10min agents
 
-Root cause investigation: agent `226ec980` showed as closed session but system didn't detect it. Non-tmux agents have no way to detect process death.
+**2. Archon advanced system control**
+- `Archon.Tools.Control` (5 actions): spawn_agent, stop_agent, pause_agent, resume_agent, sweep
+- `Archon.Tools.Events` (2 actions): agent_events, fleet_tasks
+- 7 new tools registered in Archon.Tools domain
+- Chat system prompt updated with full capability list + slash commands
 
-Added `os_pid` field end-to-end:
-- **Hook** (`~/.claude/hooks/observatory/send_event.sh`): walks PID tree from `$$` upward to find `claude` process, falls back to `$PPID`. Sends as integer in JSON envelope.
-- **EventController**: extracts `os_pid` from params, coerces to integer via `Integer.parse`
-- **EventBuffer**: stores `os_pid` on every event struct
-- **AgentRegistry.AgentEntry**: default map includes `os_pid: nil`
-- **AgentRegistry.EventHandler**: `apply_event` updates `os_pid` from incoming events
-- **LoadAgents**: extracts most recent `os_pid` from events, attaches to Fleet.Agent, merges from registry
-- **Fleet.Agent**: new `:os_pid` integer attribute
-
-Not yet wired into UI or liveness detection. Future use: `kill -0 <pid>` for alive check, tmux pane_pid tree walking.
-
-**2. Dashboard mount event seed -- agents visible on page load**
-
-Root cause: non-tmux agents invisible after page refresh. `assigns.events` starts empty on mount. `FQ.active_sessions` derives sessions from `assigns.events`, so no events = no sessions. Tmux-only agents were fine (tmux scan path). Non-tmux agents only appeared after their next hook event.
-
-Fix: `EventBuffer.latest_per_session/0` -- single-pass `:ets.foldl` returning one event per session. Seeds `assigns.events` on `:load_data` mount. PubSub stream handles everything after. Memory-efficient: accumulator is just `%{session_id => event}`, no intermediate lists.
+**3. /stream page -- PubSub topic catalog + live feed**
+- `Ichor.Stream.TopicCatalog`: 30 PubSub topics cataloged with category/shapes/broadcasters/subscribers
+- `Ichor.Stream.StreamBuffer`: GenServer subscribing all static topics, 500-event ring buffer, re-broadcasts on `"stream:feed"`
+- `IchorWeb.StreamComponents`: two-panel layout (topic catalog + live feed), filter/pause/clear
+- Nav icon (radio wave SVG) added to dashboard, route via `?view=stream`
+- `StreamAutoScroll` JS hook
 
 ### Build Status
 `mix compile --warnings-as-errors` -- CLEAN
 
 ### Pending / Next
-- **Wire os_pid into liveness detection** -- use `kill -0` or `System.cmd` to check if Claude process is alive
-- **Idle vs zombie visual distinction** (task 57)
-- **Live test spawn_agent MCP tool** (task 58)
-- **Archon CSS tokenization**: archon-* classes still use hardcoded rgba()
-- **Hook script directory rename**: `~/.claude/hooks/observatory/` -> `~/.claude/hooks/ichor/`
+- **Archon.Watchdog** -- tiered rules + LLM escalation (Option C from analysis)
+- **Stream page sidebar** -- user noted uncertainty about sidebar layout
+- Wire os_pid into liveness detection (kill -0)
+- Archon CSS tokenization: archon-* classes still use hardcoded rgba()
 
 ### Key Architecture Decisions
-- **`os_pid`** is the single name for the OS process ID everywhere (hook, controller, buffer, registry, agent)
-- **Dashboard mount seeds 1 event per session** -- not bulk load. Stream handles the rest.
-- **`:ets.foldl`** for memory-efficient single-pass aggregation over ETS
-- **tmux session name IS the canonical ID** for agents running in tmux
-- **Shutdown preserves events** -- agents stay visible as ended, tombstone blocks ghost UUIDs
+- **Observable liveness > hook dependency**: sweep uses PID+tmux checks, not SessionEnd hooks
+- **Safe-by-default GC**: `{:ok, set} | :error` pattern prevents false-sweep on tmux failure
+- **TopicCatalog**: compile-time module attribute, source of truth for /stream and future Watchdog
+- **StreamBuffer**: subscribe-classify-buffer-rebroadcast pattern. ETS ring buffer, 500 events max.
 
 ### Runtime Notes
-- Port 4005
-- `~/.ichor/tmux/obs.sock` -- tmux socket path
+- Port 4005, `~/.ichor/tmux/obs.sock`
 - Memories server on port 4000 (must be running for Archon memory tools)
