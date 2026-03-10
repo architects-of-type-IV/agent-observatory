@@ -59,8 +59,13 @@ defmodule Ichor.EventBuffer do
         sid = event.session_id
 
         case Map.get(acc, sid) do
-          nil -> Map.put(acc, sid, event)
-          prev -> if DateTime.compare(event.inserted_at, prev.inserted_at) == :gt, do: Map.put(acc, sid, event), else: acc
+          nil ->
+            Map.put(acc, sid, event)
+
+          prev ->
+            if DateTime.compare(event.inserted_at, prev.inserted_at) == :gt,
+              do: Map.put(acc, sid, event),
+              else: acc
         end
       end,
       %{},
