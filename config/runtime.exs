@@ -12,6 +12,7 @@ if config_env() in [:dev, :test] do
       case String.split(line, "=", parts: 2) do
         [key, value] ->
           key = String.trim(key)
+
           unless key == "" or String.starts_with?(key, "#") do
             System.put_env(key, String.trim(value))
           end
@@ -43,8 +44,7 @@ if System.get_env("PHX_SERVER") do
   config :ichor, IchorWeb.Endpoint, server: true
 end
 
-config :ichor, IchorWeb.Endpoint,
-  http: [port: String.to_integer(System.get_env("PORT", "4005"))]
+config :ichor, IchorWeb.Endpoint, http: [port: String.to_integer(System.get_env("PORT", "4005"))]
 
 if config_env() == :prod do
   database_path =
