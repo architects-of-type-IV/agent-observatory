@@ -167,7 +167,14 @@ defmodule Ichor.AgentSpawner do
 
     start_agent_process(process_opts, opts[:team_name], name, cwd)
 
-    {:ok, %{session_name: session_name, agent_id: session_name, name: name, cwd: cwd, node: Node.self()}}
+    {:ok,
+     %{
+       session_name: session_name,
+       agent_id: session_name,
+       name: name,
+       cwd: cwd,
+       node: Node.self()
+     }}
   end
 
   defp start_agent_process(process_opts, nil, name, cwd) do
@@ -271,7 +278,9 @@ defmodule Ichor.AgentSpawner do
   end
 
   defp do_terminate(%{team: nil}, session_name), do: FleetSupervisor.terminate_agent(session_name)
-  defp do_terminate(%{team: team}, session_name), do: TeamSupervisor.terminate_member(team, session_name)
+
+  defp do_terminate(%{team: team}, session_name),
+    do: TeamSupervisor.terminate_member(team, session_name)
 
   defp send_tmux_exit(session_name) do
     case Tmux.run_command(["send-keys", "-t", session_name, "/exit", "Enter"]) do

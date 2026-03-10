@@ -6,25 +6,24 @@ defmodule Ichor.Activity.Message do
 
   use Ash.Resource, domain: Ichor.Activity
 
-
   attributes do
-    attribute :id, :string, primary_key?: true, allow_nil?: false, public?: true
-    attribute :sender_session, :string, public?: true
-    attribute :sender_app, :string, public?: true
-    attribute :type, :string, default: "message", public?: true
-    attribute :recipient, :string, public?: true
-    attribute :content, :string, public?: true
-    attribute :summary, :string, public?: true
-    attribute :timestamp, :utc_datetime_usec, public?: true
+    attribute(:id, :string, primary_key?: true, allow_nil?: false, public?: true)
+    attribute(:sender_session, :string, public?: true)
+    attribute(:sender_app, :string, public?: true)
+    attribute(:type, :string, default: "message", public?: true)
+    attribute(:recipient, :string, public?: true)
+    attribute(:content, :string, public?: true)
+    attribute(:summary, :string, public?: true)
+    attribute(:timestamp, :utc_datetime_usec, public?: true)
   end
 
   actions do
     read :recent do
-      prepare {Ichor.Activity.Preparations.LoadMessages, []}
+      prepare({Ichor.Activity.Preparations.LoadMessages, []})
     end
   end
 
   code_interface do
-    define :recent
+    define(:recent)
   end
 end

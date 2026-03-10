@@ -117,11 +117,10 @@ defmodule Ichor.AgentMonitor do
       end
 
     # Broadcast crash event
-    Phoenix.PubSub.broadcast(
-      Ichor.PubSub,
-      "agent:crashes",
-      {:agent_crashed, session_id, team_name, reassigned_count}
-    )
+    Ichor.Signal.emit(:agent_crashed, %{
+      session_id: session_id,
+      team_name: team_name
+    })
 
     # Write inbox notification
     write_inbox_notification(session_id, team_name, reassigned_count)

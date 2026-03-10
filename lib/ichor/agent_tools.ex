@@ -6,7 +6,7 @@ defmodule Ichor.AgentTools do
   """
   use Ash.Domain, extensions: [AshAi]
 
-  alias Ichor.AgentTools.{Inbox, Tasks, Memory, Recall, Archival, Agents, Spawn}
+  alias Ichor.AgentTools.{Agents, Archival, Inbox, Memory, Recall, Spawn, Tasks}
 
   resources do
     resource(Inbox)

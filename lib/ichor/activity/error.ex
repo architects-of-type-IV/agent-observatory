@@ -6,26 +6,25 @@ defmodule Ichor.Activity.Error do
 
   use Ash.Resource, domain: Ichor.Activity
 
-
   attributes do
-    attribute :id, :string, primary_key?: true, allow_nil?: false, public?: true
-    attribute :tool_name, :string, public?: true
-    attribute :session_id, :string, public?: true
-    attribute :source_app, :string, public?: true
-    attribute :error, :string, public?: true
-    attribute :timestamp, :utc_datetime_usec, public?: true
-    attribute :tool_use_id, :string, public?: true
-    attribute :cwd, :string, public?: true
-    attribute :hook_event_type, :atom, public?: true
+    attribute(:id, :string, primary_key?: true, allow_nil?: false, public?: true)
+    attribute(:tool_name, :string, public?: true)
+    attribute(:session_id, :string, public?: true)
+    attribute(:source_app, :string, public?: true)
+    attribute(:error, :string, public?: true)
+    attribute(:timestamp, :utc_datetime_usec, public?: true)
+    attribute(:tool_use_id, :string, public?: true)
+    attribute(:cwd, :string, public?: true)
+    attribute(:hook_event_type, :atom, public?: true)
   end
 
   actions do
     read :recent do
-      prepare {Ichor.Activity.Preparations.LoadErrors, []}
+      prepare({Ichor.Activity.Preparations.LoadErrors, []})
     end
 
     action :by_tool, {:array, :map} do
-      run fn _input, _context ->
+      run(fn _input, _context ->
         errors = Ichor.Activity.Error.recent!()
 
         grouped =
@@ -42,12 +41,12 @@ defmodule Ichor.Activity.Error do
           |> Enum.sort_by(& &1.count, :desc)
 
         {:ok, grouped}
-      end
+      end)
     end
   end
 
   code_interface do
-    define :recent
-    define :by_tool
+    define(:recent)
+    define(:by_tool)
   end
 end
