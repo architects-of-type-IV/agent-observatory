@@ -52,6 +52,23 @@ defmodule Ichor.EventBuffer do
     |> Enum.sort_by(& &1.inserted_at, {:desc, DateTime})
   end
 
+  @doc "Get the latest event per session (lightweight seed for dashboard mount)."
+  def latest_per_session do
+    :ets.foldl(
+      fn {_id, event}, acc ->
+        sid = event.session_id
+
+        case Map.get(acc, sid) do
+          nil -> Map.put(acc, sid, event)
+          prev -> if DateTime.compare(event.inserted_at, prev.inserted_at) == :gt, do: Map.put(acc, sid, event), else: acc
+        end
+      end,
+      %{},
+      @table
+    )
+    |> Map.values()
+  end
+
   @doc "Remove all events for a session and tombstone it."
   def remove_session(session_id) do
     @table
@@ -216,6 +233,7 @@ defmodule Ichor.EventBuffer do
       permission_mode: attrs[:permission_mode] || attrs["permission_mode"],
       duration_ms: attrs[:duration_ms] || attrs["duration_ms"],
       tmux_session: tmux_session,
+      os_pid: attrs[:os_pid] || attrs["os_pid"],
       inserted_at: now,
       updated_at: now
     }

@@ -52,6 +52,8 @@ defmodule Ichor.Fleet.Preparations.LoadAgents do
           do: (e.payload || %{})["model"] || e.model_name
       end) || Enum.find_value(events, & &1.model_name)
 
+    os_pid = Enum.find_value(sorted, & &1.os_pid)
+
     status =
       cond do
         ended? -> :ended
@@ -77,6 +79,7 @@ defmodule Ichor.Fleet.Preparations.LoadAgents do
       health_issues: [],
       team_name: nil,
       tmux_session: tmux_session,
+      os_pid: os_pid,
       recent_activity: build_recent_activity(sorted, now)
     })
   end
@@ -245,7 +248,8 @@ defmodule Ichor.Fleet.Preparations.LoadAgents do
             last_event_at: reg.last_event_at,
             name: better_name,
             cwd: reg.cwd || agent.cwd,
-            model: reg.model || agent.model
+            model: reg.model || agent.model,
+            os_pid: Map.get(reg, :os_pid) || agent.os_pid
           }
       end
     end)

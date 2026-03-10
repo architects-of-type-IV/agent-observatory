@@ -14,6 +14,7 @@ defmodule Ichor.Gateway.AgentRegistry.EventHandler do
     agent
     |> maybe_put(:model, event.model_name)
     |> maybe_put(:cwd, event.cwd)
+    |> maybe_put(:os_pid, event[:os_pid] || Map.get(event, :os_pid))
     |> update_current_tool(event)
     |> update_session_start(event)
     |> Map.put(:last_event_at, DateTime.utc_now())

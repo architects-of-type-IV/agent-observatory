@@ -1,18 +1,24 @@
 ICHOR IV Progress (formerly Observatory)
 ========================================
 
-## Current: Agent Identity + Naming Fixes (2026-03-10)
+## Current: os_pid tracking + dashboard mount fix (2026-03-10)
 
 ### This Session
+- [x] Investigated why agent 226ec980 wasn't detected as closed (no SessionEnd event without tmux)
+- [x] Added os_pid field end-to-end: hook -> controller -> buffer -> registry -> LoadAgents -> Fleet.Agent
+- [x] Hook walks PID tree to find claude process, falls back to PPID
+- [x] Found root cause: dashboard mount starts with empty assigns.events, non-tmux agents invisible
+- [x] Added EventBuffer.latest_per_session/0 -- single-pass :ets.foldl, 1 event per session
+- [x] Dashboard :load_data seeds assigns.events from latest_per_session on mount
+- [x] Optimized: foldl instead of tab2list+group_by, no intermediate lists
+
+### Prior: Shutdown Ghost Fix + EventBuffer Rewrite (2026-03-10)
 - [x] Fixed all 20+ short_id/String.slice(x,0,8) sites to use UUID-aware AgentEntry.short_id/1
 - [x] Fixed agent naming: tmux session name or short UUID, never Path.basename(cwd)
 - [x] Fixed EventBuffer resolve_session_id: tmux_session IS canonical ID (no BEAM alive check)
 - [x] Fixed AgentMonitor false crash detection (checks actual liveness)
 - [x] Rewrote TmuxDiscovery as continuous BEAM invariant enforcer
 - [x] Fixed ghost detection (no events + no tmux + ended status, no template Registry lookups)
-- [x] Added InstructionsLoaded/ConfigChange/TeammateIdle hook events
-- [x] Renamed send_event.sh env vars OBSERVATORY -> ICHOR
-- [x] Code quality sweep: removed dead code, cheap uuid? check, consolidated maybe_put
 - [x] Fixed shutdown ghost: session aliases + tombstones in EventBuffer
 - [x] Full EventBuffer rewrite: idiomatic Elixir, pattern-matched dispatch, single ensure_ets
 - [x] Shutdown preserves events (tombstone_session, not remove_session) -- agents stay visible

@@ -26,6 +26,7 @@ defmodule Ichor.Gateway.AgentRegistry.AgentEntry do
       current_tool: nil,
       started_at: DateTime.utc_now(),
       last_event_at: DateTime.utc_now(),
+      os_pid: nil,
       channels: %{tmux: nil, ssh_tmux: nil, mailbox: session_id, webhook: nil}
     }
   end

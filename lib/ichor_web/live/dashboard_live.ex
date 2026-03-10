@@ -108,7 +108,8 @@ defmodule IchorWeb.DashboardLive do
 
   @impl true
   def handle_info(:load_data, socket) do
-    socket = socket |> seed_gateway_assigns() |> recompute()
+    events = Ichor.EventBuffer.latest_per_session()
+    socket = socket |> assign(:events, events) |> seed_gateway_assigns() |> recompute()
     subscribe_to_mailboxes(socket.assigns.sessions)
     {:noreply, socket}
   end

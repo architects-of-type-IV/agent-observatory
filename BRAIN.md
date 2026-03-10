@@ -13,6 +13,13 @@
 - **`AgentEntry.short_id/1`** is the SINGLE source for display abbreviation. Uses `uuid?/1` (binary pattern match, zero allocation) to detect UUIDs. UUIDs -> 8 chars. Human names -> pass through.
 - **Don't filter, fix implementation**: `infrastructure_session?` filtering masks bugs. Only "obs" (tmux server) and numeric-only sessions are infrastructure. "ichor-" prefixed sessions are real agents.
 - **BEAM is god**: every non-infrastructure tmux session MUST have a supervised AgentProcess. TmuxDiscovery enforces this continuously (5s poll), not just at startup.
+- **os_pid**: OS process ID of the Claude process, captured by hook via PID tree walk. Single name everywhere. Enables process liveness checks without tmux.
+
+## Dashboard Data Flow (2026-03-10, CRITICAL)
+- **Two parallel data paths**: `assigns.sessions` (from `FQ.active_sessions` over `assigns.events`) vs `assigns.agent_index` (from `Fleet.Agent.all!()` which reads EventBuffer directly)
+- **Mount seed**: `EventBuffer.latest_per_session/0` seeds `assigns.events` with 1 event per session. Uses `:ets.foldl` (single pass, no table copy). PubSub stream fills in the rest.
+- **Without seed**: non-tmux agents invisible after page refresh because `assigns.events` starts empty
+- **Memory rule**: never bulk-load ETS into LiveView assigns. Stream + minimal seed.
 
 ## Subagent Architecture (2026-03-09)
 - **Subagents are metadata on the parent**: they share the parent's session_id, don't create separate Fleet.Agent entries
@@ -64,5 +71,6 @@ BEAM processes BEFORE tmux-only so that tmux_session field from BEAM metadata en
 ## User Preferences (ENFORCED)
 - **"We dont filter. We fix implementation so filtering out is not needed."**
 - **"BEAM is god"** -- every agent tmux session must have a BEAM AgentProcess
+- **"streaming non blocking memory efficient async data"** -- never bulk-load. Stream + minimal seed.
 - Minimal JavaScript. BEAM-native vision. No emoji. Execute directly.
 - Build modular. DRY CSS. Ash-first. `.env` for secrets.
