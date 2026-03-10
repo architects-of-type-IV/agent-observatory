@@ -7,10 +7,10 @@ defmodule Ichor.Workshop do
   use Ash.Domain
 
   resources do
-    resource Ichor.Workshop.AgentType
-    resource Ichor.Workshop.TeamBlueprint
-    resource Ichor.Workshop.AgentBlueprint
-    resource Ichor.Workshop.SpawnLink
-    resource Ichor.Workshop.CommRule
+    resource(Ichor.Workshop.AgentType)
+    resource(Ichor.Workshop.TeamBlueprint)
+    resource(Ichor.Workshop.AgentBlueprint)
+    resource(Ichor.Workshop.SpawnLink)
+    resource(Ichor.Workshop.CommRule)
   end
 end

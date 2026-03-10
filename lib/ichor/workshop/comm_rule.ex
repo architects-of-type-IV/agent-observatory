@@ -33,7 +33,7 @@ defmodule Ichor.Workshop.CommRule do
 
     attribute :via_slot, :integer do
       public?(true)
-      description "For route policy: the intermediary agent slot"
+      description("For route policy: the intermediary agent slot")
     end
 
     timestamps()
@@ -46,22 +46,22 @@ defmodule Ichor.Workshop.CommRule do
   end
 
   actions do
-    defaults [:read, :destroy]
+    defaults([:read, :destroy])
 
     create :create do
-      primary? true
-      accept [:from_slot, :to_slot, :policy, :via_slot, :team_blueprint_id]
+      primary?(true)
+      accept([:from_slot, :to_slot, :policy, :via_slot, :team_blueprint_id])
     end
 
     update :update do
-      primary? true
-      accept [:from_slot, :to_slot, :policy, :via_slot]
+      primary?(true)
+      accept([:from_slot, :to_slot, :policy, :via_slot])
     end
   end
 
   code_interface do
-    define :create
-    define :read
-    define :destroy
+    define(:create)
+    define(:read)
+    define(:destroy)
   end
 end

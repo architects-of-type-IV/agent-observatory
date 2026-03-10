@@ -48,50 +48,50 @@ defmodule Ichor.Workshop.TeamBlueprint do
   end
 
   actions do
-    defaults [:read, :destroy]
+    defaults([:read, :destroy])
 
     create :create do
-      accept [:name, :strategy, :default_model, :cwd]
+      accept([:name, :strategy, :default_model, :cwd])
 
-      argument :agent_blueprints, {:array, :map}, default: []
-      argument :spawn_links, {:array, :map}, default: []
-      argument :comm_rules, {:array, :map}, default: []
+      argument(:agent_blueprints, {:array, :map}, default: [])
+      argument(:spawn_links, {:array, :map}, default: [])
+      argument(:comm_rules, {:array, :map}, default: [])
 
-      change manage_relationship(:agent_blueprints, type: :direct_control)
-      change manage_relationship(:spawn_links, type: :direct_control)
-      change manage_relationship(:comm_rules, type: :direct_control)
+      change(manage_relationship(:agent_blueprints, type: :direct_control))
+      change(manage_relationship(:spawn_links, type: :direct_control))
+      change(manage_relationship(:comm_rules, type: :direct_control))
     end
 
     update :update do
-      accept [:name, :strategy, :default_model, :cwd]
+      accept([:name, :strategy, :default_model, :cwd])
       require_atomic?(false)
 
-      argument :agent_blueprints, {:array, :map}
-      argument :spawn_links, {:array, :map}
-      argument :comm_rules, {:array, :map}
+      argument(:agent_blueprints, {:array, :map})
+      argument(:spawn_links, {:array, :map})
+      argument(:comm_rules, {:array, :map})
 
-      change manage_relationship(:agent_blueprints, type: :direct_control)
-      change manage_relationship(:spawn_links, type: :direct_control)
-      change manage_relationship(:comm_rules, type: :direct_control)
+      change(manage_relationship(:agent_blueprints, type: :direct_control))
+      change(manage_relationship(:spawn_links, type: :direct_control))
+      change(manage_relationship(:comm_rules, type: :direct_control))
     end
 
     read :by_id do
-      argument :id, :uuid, allow_nil?: false
-      get? true
-      filter expr(id == ^arg(:id))
-      prepare build(load: [:agent_blueprints, :spawn_links, :comm_rules])
+      argument(:id, :uuid, allow_nil?: false)
+      get?(true)
+      filter(expr(id == ^arg(:id)))
+      prepare(build(load: [:agent_blueprints, :spawn_links, :comm_rules]))
     end
   end
 
   code_interface do
-    define :create
-    define :read
-    define :update
-    define :destroy
-    define :by_id, args: [:id]
+    define(:create)
+    define(:read)
+    define(:update)
+    define(:destroy)
+    define(:by_id, args: [:id])
   end
 
   identities do
-    identity :unique_name, [:name]
+    identity(:unique_name, [:name])
   end
 end

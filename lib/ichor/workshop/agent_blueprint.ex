@@ -19,7 +19,7 @@ defmodule Ichor.Workshop.AgentBlueprint do
     attribute :slot, :integer do
       allow_nil?(false)
       public?(true)
-      description "Stable integer ID for spawn/comm link references within a blueprint"
+      description("Stable integer ID for spawn/comm link references within a blueprint")
     end
 
     attribute :name, :string do
@@ -82,31 +82,47 @@ defmodule Ichor.Workshop.AgentBlueprint do
   end
 
   actions do
-    defaults [:read, :destroy]
+    defaults([:read, :destroy])
 
     create :create do
-      primary? true
-      accept [
-        :slot, :name, :capability, :model, :permission,
-        :persona, :file_scope, :quality_gates,
-        :canvas_x, :canvas_y, :team_blueprint_id
-      ]
+      primary?(true)
+
+      accept([
+        :slot,
+        :name,
+        :capability,
+        :model,
+        :permission,
+        :persona,
+        :file_scope,
+        :quality_gates,
+        :canvas_x,
+        :canvas_y,
+        :team_blueprint_id
+      ])
     end
 
     update :update do
-      primary? true
-      accept [
-        :name, :capability, :model, :permission,
-        :persona, :file_scope, :quality_gates,
-        :canvas_x, :canvas_y
-      ]
+      primary?(true)
+
+      accept([
+        :name,
+        :capability,
+        :model,
+        :permission,
+        :persona,
+        :file_scope,
+        :quality_gates,
+        :canvas_x,
+        :canvas_y
+      ])
     end
   end
 
   code_interface do
-    define :create
-    define :read
-    define :update
-    define :destroy
+    define(:create)
+    define(:read)
+    define(:update)
+    define(:destroy)
   end
 end

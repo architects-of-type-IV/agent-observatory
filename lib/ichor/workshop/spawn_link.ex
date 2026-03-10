@@ -36,22 +36,22 @@ defmodule Ichor.Workshop.SpawnLink do
   end
 
   actions do
-    defaults [:read, :destroy]
+    defaults([:read, :destroy])
 
     create :create do
-      primary? true
-      accept [:from_slot, :to_slot, :team_blueprint_id]
+      primary?(true)
+      accept([:from_slot, :to_slot, :team_blueprint_id])
     end
 
     update :update do
-      primary? true
-      accept [:from_slot, :to_slot]
+      primary?(true)
+      accept([:from_slot, :to_slot])
     end
   end
 
   code_interface do
-    define :create
-    define :read
-    define :destroy
+    define(:create)
+    define(:read)
+    define(:destroy)
   end
 end

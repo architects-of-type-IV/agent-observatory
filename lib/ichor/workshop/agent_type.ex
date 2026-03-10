@@ -57,7 +57,7 @@ defmodule Ichor.Workshop.AgentType do
     attribute :color, :string do
       default("")
       public?(true)
-      description "Optional hex color for canvas display"
+      description("Optional hex color for canvas display")
     end
 
     attribute :sort_order, :integer do
@@ -69,47 +69,61 @@ defmodule Ichor.Workshop.AgentType do
   end
 
   actions do
-    defaults [:read, :destroy]
+    defaults([:read, :destroy])
 
     create :create do
-      primary? true
-      accept [
-        :name, :capability, :default_model, :default_permission,
-        :default_persona, :default_file_scope, :default_quality_gates,
-        :color, :sort_order
-      ]
+      primary?(true)
+
+      accept([
+        :name,
+        :capability,
+        :default_model,
+        :default_permission,
+        :default_persona,
+        :default_file_scope,
+        :default_quality_gates,
+        :color,
+        :sort_order
+      ])
     end
 
     update :update do
-      primary? true
-      accept [
-        :name, :capability, :default_model, :default_permission,
-        :default_persona, :default_file_scope, :default_quality_gates,
-        :color, :sort_order
-      ]
+      primary?(true)
+
+      accept([
+        :name,
+        :capability,
+        :default_model,
+        :default_permission,
+        :default_persona,
+        :default_file_scope,
+        :default_quality_gates,
+        :color,
+        :sort_order
+      ])
     end
 
     read :by_id do
-      argument :id, :uuid, allow_nil?: false
-      get? true
-      filter expr(id == ^arg(:id))
+      argument(:id, :uuid, allow_nil?: false)
+      get?(true)
+      filter(expr(id == ^arg(:id)))
     end
 
     read :sorted do
-      prepare build(sort: [sort_order: :asc, name: :asc])
+      prepare(build(sort: [sort_order: :asc, name: :asc]))
     end
   end
 
   identities do
-    identity :unique_name, [:name]
+    identity(:unique_name, [:name])
   end
 
   code_interface do
-    define :create
-    define :read
-    define :update
-    define :destroy
-    define :by_id, args: [:id]
-    define :sorted
+    define(:create)
+    define(:read)
+    define(:update)
+    define(:destroy)
+    define(:by_id, args: [:id])
+    define(:sorted)
   end
 end
