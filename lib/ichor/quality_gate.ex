@@ -66,11 +66,7 @@ defmodule Ichor.QualityGate do
           {:ok, :passed} ->
             Logger.info("QualityGate: Gate passed for session #{session_id}, task #{task_id}")
 
-            Phoenix.PubSub.broadcast(
-              Ichor.PubSub,
-              "quality:gate",
-              {:gate_passed, session_id, task_id, done_when}
-            )
+            Ichor.Signal.emit(:gate_passed, %{session_id: session_id, task_id: task_id})
 
           {:error, output} ->
             Logger.warning(
@@ -79,11 +75,11 @@ defmodule Ichor.QualityGate do
 
             nudge_agent(session_id, task_id, done_when, output)
 
-            Phoenix.PubSub.broadcast(
-              Ichor.PubSub,
-              "quality:gate",
-              {:gate_failed, session_id, task_id, done_when, output}
-            )
+            Ichor.Signal.emit(:gate_failed, %{
+              session_id: session_id,
+              task_id: task_id,
+              output: output
+            })
         end
       end)
     end
@@ -103,7 +99,8 @@ defmodule Ichor.QualityGate do
   end
 
   defp run_gate_command(command, cwd) do
-    timeout = Application.get_env(:ichor, __MODULE__, []) |> Keyword.get(:timeout, @default_timeout)
+    timeout =
+      Application.get_env(:ichor, __MODULE__, []) |> Keyword.get(:timeout, @default_timeout)
 
     try do
       case System.cmd("bash", ["-c", command], cd: cwd, stderr_to_stdout: true, timeout: timeout) do

@@ -226,7 +226,14 @@ defmodule Ichor.SwarmMonitor do
       if File.exists?(tasks_path) and not Map.has_key?(state.watched_projects, key) do
         projects = Map.put(state.watched_projects, key, cwd)
         active = state.active_project || key
-        state = %{state | watched_projects: projects, active_project: active, known_cwds: new_cwds}
+
+        state = %{
+          state
+          | watched_projects: projects,
+            active_project: active,
+            known_cwds: new_cwds
+        }
+
         state = refresh_tasks(state)
         broadcast(state)
         {:noreply, state}
@@ -329,8 +336,7 @@ defmodule Ichor.SwarmMonitor do
           _ -> nil
         end
       end)
-      |> Enum.reject(&is_nil/1)
-      |> Enum.reject(fn t -> t.status == "deleted" end)
+      |> Enum.reject(fn t -> is_nil(t) or t.status == "deleted" end)
     else
       []
     end
@@ -779,10 +785,6 @@ defmodule Ichor.SwarmMonitor do
   defp empty_dag, do: %{waves: [], edges: [], critical_path: []}
 
   defp broadcast(state) do
-    Phoenix.PubSub.broadcast(
-      Ichor.PubSub,
-      "swarm:update",
-      {:swarm_state, state}
-    )
+    Ichor.Signal.emit(:swarm_state, %{state_map: state})
   end
 end

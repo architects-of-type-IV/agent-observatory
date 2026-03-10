@@ -134,7 +134,7 @@ defmodule Ichor.InstructionOverlay do
   defp format_criteria([]), do: "- [ ] Implementation matches task description"
 
   defp format_criteria(criteria) do
-    criteria |> Enum.map(&"- [ ] #{&1}") |> Enum.join("\n")
+    Enum.map_join(criteria, "\n", &"- [ ] #{&1}")
   end
 
   defp format_done_when(nil), do: ""
@@ -146,7 +146,7 @@ defmodule Ichor.InstructionOverlay do
   defp file_scope_section([]), do: nil
 
   defp file_scope_section(files) do
-    file_list = files |> Enum.map(&"- `#{&1}`") |> Enum.join("\n")
+    file_list = Enum.map_join(files, "\n", &"- `#{&1}`")
 
     """
     ## File Scope
@@ -159,10 +159,7 @@ defmodule Ichor.InstructionOverlay do
 
   defp quality_gates_section(gates) do
     gate_text =
-      gates
-      |> Enum.with_index(1)
-      |> Enum.map(fn {gate, i} -> "#{i}. `#{gate}`" end)
-      |> Enum.join("\n")
+      Enum.map_join(Enum.with_index(gates, 1), "\n", fn {gate, i} -> "#{i}. `#{gate}`" end)
 
     """
     ## Quality Gates
@@ -218,10 +215,9 @@ defmodule Ichor.InstructionOverlay do
   end
 
   defp gates_as_steps(gates) do
-    gates
-    |> Enum.with_index(1)
-    |> Enum.map(fn {gate, i} -> "#{i}. Run `#{gate}` -- must pass cleanly" end)
-    |> Enum.join("\n")
+    Enum.map_join(Enum.with_index(gates, 1), "\n", fn {gate, i} ->
+      "#{i}. Run `#{gate}` -- must pass cleanly"
+    end)
   end
 
   defp default_gates do

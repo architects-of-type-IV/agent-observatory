@@ -13,8 +13,8 @@ defmodule Ichor.Operator do
     - raw session_id string -- treated as agent target
   """
 
-  alias Ichor.Gateway.Router
   alias Ichor.Fleet.{AgentProcess, TeamSupervisor}
+  alias Ichor.Gateway.Router
 
   @from "operator"
 
@@ -137,11 +137,7 @@ defmodule Ichor.Operator do
       metadata: Map.put(metadata, :via_fallback, true)
     }
 
-    Phoenix.PubSub.broadcast(
-      Ichor.PubSub,
-      "agent:#{session_id}",
-      {:new_mailbox_message, message}
-    )
+    Ichor.Signal.emit(:mailbox_message, session_id, %{message: message})
 
     {:ok, 1}
   end

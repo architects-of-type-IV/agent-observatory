@@ -159,7 +159,10 @@ defmodule Ichor.MemoryStore do
 
   @doc "Search recall memory by date range. Letta's conversation_search_date."
   def conversation_search_date(agent_name, start_date, end_date, opts \\ []) do
-    GenServer.call(__MODULE__, {:conversation_search_date, agent_name, start_date, end_date, opts})
+    GenServer.call(
+      __MODULE__,
+      {:conversation_search_date, agent_name, start_date, end_date, opts}
+    )
   end
 
   # ═══════════════════════════════════════════════════════
@@ -226,8 +229,7 @@ defmodule Ichor.MemoryStore do
 
       :ets.insert(@blocks_table, {block.id, block})
 
-      {:reply, {:ok, block},
-       %{state | dirty_blocks: MapSet.put(state.dirty_blocks, block.id)}}
+      {:reply, {:ok, block}, %{state | dirty_blocks: MapSet.put(state.dirty_blocks, block.id)}}
     end
   end
 
@@ -257,6 +259,7 @@ defmodule Ichor.MemoryStore do
         else
           :ets.insert(@blocks_table, {block_id, updated})
           broadcast_block_change(block_id, updated.label)
+
           {:reply, {:ok, updated},
            %{state | dirty_blocks: MapSet.put(state.dirty_blocks, block_id)}}
         end
@@ -370,7 +373,12 @@ defmodule Ichor.MemoryStore do
   def handle_call({:detach_block, agent_name, block_id}, _from, state) do
     case :ets.lookup(@agents_table, agent_name) do
       [{^agent_name, agent}] ->
-        updated = %{agent | block_ids: List.delete(agent.block_ids, block_id), updated_at: now_iso()}
+        updated = %{
+          agent
+          | block_ids: List.delete(agent.block_ids, block_id),
+            updated_at: now_iso()
+        }
+
         :ets.insert(@agents_table, {agent_name, updated})
 
         {:reply, {:ok, updated},
@@ -408,9 +416,15 @@ defmodule Ichor.MemoryStore do
 
         result = %{
           agent: agent_name,
-          blocks: Enum.map(blocks, fn b ->
-            %{label: b.label, description: b.description, value: b.value, read_only: b.read_only}
-          end),
+          blocks:
+            Enum.map(blocks, fn b ->
+              %{
+                label: b.label,
+                description: b.description,
+                value: b.value,
+                read_only: b.read_only
+              }
+            end),
           recall_count: length(get_recall(agent_name)),
           archival_count: archival_count_with_disk(agent_name)
         }
@@ -428,14 +442,12 @@ defmodule Ichor.MemoryStore do
         blocks = resolve_blocks(agent.block_ids)
 
         compiled =
-          blocks
-          |> Enum.map(fn b ->
+          Enum.map_join(blocks, "\n\n", fn b ->
             header = "<memory_block label=\"#{b.label}\" read_only=\"#{b.read_only}\">"
             footer = "</memory_block>"
             desc = if b.description != "", do: "<!-- #{b.description} -->\n", else: ""
             "#{header}\n#{desc}#{b.value}\n#{footer}"
           end)
-          |> Enum.join("\n\n")
 
         {:reply, {:ok, compiled}, state}
 
@@ -531,8 +543,7 @@ defmodule Ichor.MemoryStore do
     updated = [entry | recall] |> Enum.take(@recall_limit)
     :ets.insert(@recall_table, {agent_name, updated})
 
-    {:reply, {:ok, entry},
-     %{state | dirty_agents: MapSet.put(state.dirty_agents, agent_name)}}
+    {:reply, {:ok, entry}, %{state | dirty_agents: MapSet.put(state.dirty_agents, agent_name)}}
   end
 
   def handle_call({:conversation_search, agent_name, query, opts}, _from, state) do
@@ -550,7 +561,11 @@ defmodule Ichor.MemoryStore do
     {:reply, {:ok, results}, state}
   end
 
-  def handle_call({:conversation_search_date, agent_name, start_date, end_date, opts}, _from, state) do
+  def handle_call(
+        {:conversation_search_date, agent_name, start_date, end_date, opts},
+        _from,
+        state
+      ) do
     recall = get_recall(agent_name)
     limit = Keyword.get(opts, :limit, 10)
 
@@ -584,8 +599,7 @@ defmodule Ichor.MemoryStore do
     :ets.insert(@archival_table, {agent_name, updated})
     broadcast_agent_change(agent_name, :archival_insert)
 
-    {:reply, {:ok, passage},
-     %{state | dirty_agents: MapSet.put(state.dirty_agents, agent_name)}}
+    {:reply, {:ok, passage}, %{state | dirty_agents: MapSet.put(state.dirty_agents, agent_name)}}
   end
 
   def handle_call({:archival_search, agent_name, query, opts}, _from, state) do
@@ -622,8 +636,7 @@ defmodule Ichor.MemoryStore do
     updated = Enum.reject(archival, fn e -> e.id == passage_id end)
     :ets.insert(@archival_table, {agent_name, updated})
 
-    {:reply, :ok,
-     %{state | dirty_agents: MapSet.put(state.dirty_agents, agent_name)}}
+    {:reply, :ok, %{state | dirty_agents: MapSet.put(state.dirty_agents, agent_name)}}
   end
 
   def handle_call({:archival_list, agent_name, opts}, _from, state) do
@@ -912,7 +925,10 @@ defmodule Ichor.MemoryStore do
             |> Stream.map(&String.trim/1)
             |> Stream.reject(&(&1 == ""))
             |> Stream.map(&Jason.decode/1)
-            |> Stream.filter(fn {:ok, _} -> true; _ -> false end)
+            |> Stream.filter(fn
+              {:ok, _} -> true
+              _ -> false
+            end)
             |> Stream.map(fn {:ok, d} -> d["id"] end)
             |> MapSet.new()
           else
@@ -963,18 +979,10 @@ defmodule Ichor.MemoryStore do
   end
 
   defp broadcast_block_change(block_id, label) do
-    Phoenix.PubSub.broadcast(
-      Ichor.PubSub,
-      "memory:blocks",
-      {:block_changed, block_id, label}
-    )
+    Ichor.Signal.emit(:block_changed, %{block_id: block_id, label: label})
   end
 
   defp broadcast_agent_change(agent_name, event) do
-    Phoenix.PubSub.broadcast(
-      Ichor.PubSub,
-      "memory:#{agent_name}",
-      {:memory_changed, agent_name, event}
-    )
+    Ichor.Signal.emit(:memory_changed, agent_name, %{agent_name: agent_name, event: event})
   end
 end

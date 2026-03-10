@@ -13,13 +13,19 @@ defmodule Ichor.Plugs.OperatorAuth do
   def call(conn, _opts) do
     case conn |> get_req_header("x-ichor-operator-id") |> List.first() do
       nil ->
-        conn |> put_status(401) |> json(%{status: "error", reason: "missing_operator_id"}) |> halt()
+        conn
+        |> put_status(401)
+        |> json(%{status: "error", reason: "missing_operator_id"})
+        |> halt()
 
       value ->
         trimmed = String.trim(value)
 
         if trimmed == "" do
-          conn |> put_status(401) |> json(%{status: "error", reason: "missing_operator_id"}) |> halt()
+          conn
+          |> put_status(401)
+          |> json(%{status: "error", reason: "missing_operator_id"})
+          |> halt()
         else
           assign(conn, :operator_id, trimmed)
         end

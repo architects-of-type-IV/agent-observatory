@@ -225,7 +225,15 @@ defmodule Ichor.Mesh.CausalDAG do
     Process.send_after(self(), :sweep_stale_sessions, @session_sweep_interval)
   end
 
-  @required_fields [:trace_id, :agent_id, :intent, :confidence_score, :entropy_score, :action_status, :timestamp]
+  @required_fields [
+    :trace_id,
+    :agent_id,
+    :intent,
+    :confidence_score,
+    :entropy_score,
+    :action_status,
+    :timestamp
+  ]
 
   defp validate_fields(%Node{} = node) do
     missing =
@@ -386,17 +394,10 @@ defmodule Ichor.Mesh.CausalDAG do
     |> Enum.find(fn {_trace_id, dag_node} -> dag_node.parent_step_id == nil end)
   end
 
-  defp broadcast_delta(session_id, added_nodes, updated_nodes, added_edges) do
-    Phoenix.PubSub.broadcast(
-      Ichor.PubSub,
-      "session:dag:#{session_id}",
-      %{
-        event: "dag_delta",
-        session_id: session_id,
-        added_nodes: added_nodes,
-        updated_nodes: updated_nodes,
-        added_edges: added_edges
-      }
-    )
+  defp broadcast_delta(session_id, added_nodes, _updated_nodes, _added_edges) do
+    Ichor.Signal.emit(:dag_delta, session_id, %{
+      session_id: session_id,
+      added_nodes: added_nodes
+    })
   end
 end
