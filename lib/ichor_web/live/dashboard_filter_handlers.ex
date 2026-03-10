@@ -74,31 +74,71 @@ defmodule IchorWeb.DashboardFilterHandlers do
   defp normalize_view_mode(mode) when is_binary(mode) do
     case mode do
       # Primary screens
-      "command" -> {:command, []}
-      "activity" -> {:activity, []}
-      "pipeline" -> {:pipeline, []}
-      "forensic" -> {:forensic, []}
-      "control" -> {:control, []}
+      "command" ->
+        {:command, []}
+
+      "activity" ->
+        {:activity, []}
+
+      "pipeline" ->
+        {:pipeline, []}
+
+      "forensic" ->
+        {:forensic, []}
+
+      "control" ->
+        {:control, []}
+
       # Legacy -> Command
-      "fleet_command" -> {:command, []}
-      "overview" -> {:command, []}
-      "agents" -> {:command, []}
-      "teams" -> {:command, []}
-      "protocols" -> {:command, []}
+      "fleet_command" ->
+        {:command, []}
+
+      "overview" ->
+        {:command, []}
+
+      "agents" ->
+        {:command, []}
+
+      "teams" ->
+        {:command, []}
+
+      "protocols" ->
+        {:command, []}
+
       # Legacy -> Activity (with sub-tab)
-      "feed" -> {:activity, [{:activity_tab, :feed}]}
-      "timeline" -> {:activity, [{:activity_tab, :timeline}]}
-      "analytics" -> {:activity, [{:activity_tab, :analytics}]}
-      "messages" -> {:activity, [{:activity_tab, :messages}]}
-      "errors" -> {:activity, [{:activity_tab, :errors}]}
+      "feed" ->
+        {:activity, [{:activity_tab, :feed}]}
+
+      "timeline" ->
+        {:activity, [{:activity_tab, :timeline}]}
+
+      "analytics" ->
+        {:activity, [{:activity_tab, :analytics}]}
+
+      "messages" ->
+        {:activity, [{:activity_tab, :messages}]}
+
+      "errors" ->
+        {:activity, [{:activity_tab, :errors}]}
+
       # Legacy -> Pipeline
-      "tasks" -> {:pipeline, [{:pipeline_tab, :board}]}
-      "scheduler" -> {:pipeline, [{:pipeline_tab, :scheduler}]}
+      "tasks" ->
+        {:pipeline, [{:pipeline_tab, :board}]}
+
+      "scheduler" ->
+        {:pipeline, [{:pipeline_tab, :scheduler}]}
+
       # Legacy -> Forensic
-      "registry" -> {:forensic, [{:forensic_tab, :registry}]}
+      "registry" ->
+        {:forensic, [{:forensic_tab, :registry}]}
+
       # Legacy -> Control
-      "god_mode" -> {:control, [{:control_tab, :emergency}]}
-      "session_cluster" -> {:control, [{:control_tab, :sessions}]}
+      "god_mode" ->
+        {:control, [{:control_tab, :emergency}]}
+
+      "session_cluster" ->
+        {:control, [{:control_tab, :sessions}]}
+
       # Fallback
       other ->
         try do
@@ -129,7 +169,10 @@ defmodule IchorWeb.DashboardFilterHandlers do
   end
 
   def handle_filter_agent(sid, socket) do
-    socket |> assign(:filter_session_id, sid) |> assign(:view_mode, :activity) |> assign(:activity_tab, :feed)
+    socket
+    |> assign(:filter_session_id, sid)
+    |> assign(:view_mode, :activity)
+    |> assign(:activity_tab, :feed)
   end
 
   def dispatch("filter", p, s), do: handle_filter(p, s)

@@ -10,27 +10,67 @@ defmodule IchorWeb.DashboardNavigationHandlers do
     view_mode =
       case value do
         # New consolidated screens
-        "command" -> :command
-        "activity" -> :activity
-        "pipeline" -> :pipeline
-        "forensic" -> :forensic
-        "control" -> :control
+        "command" ->
+          :command
+
+        "activity" ->
+          :activity
+
+        "pipeline" ->
+          :pipeline
+
+        "forensic" ->
+          :forensic
+
+        "control" ->
+          :control
+
         # Legacy view modes -> consolidated screens
-        "fleet_command" -> :command
-        "overview" -> :command
-        "agents" -> :command
-        "teams" -> :command
-        "feed" -> :activity
-        "timeline" -> :activity
-        "analytics" -> :activity
-        "messages" -> :activity
-        "errors" -> :activity
-        "tasks" -> :pipeline
-        "scheduler" -> :pipeline
-        "protocols" -> :command
-        "registry" -> :forensic
-        "god_mode" -> :control
-        "session_cluster" -> :control
+        "fleet_command" ->
+          :command
+
+        "overview" ->
+          :command
+
+        "agents" ->
+          :command
+
+        "teams" ->
+          :command
+
+        "feed" ->
+          :activity
+
+        "timeline" ->
+          :activity
+
+        "analytics" ->
+          :activity
+
+        "messages" ->
+          :activity
+
+        "errors" ->
+          :activity
+
+        "tasks" ->
+          :pipeline
+
+        "scheduler" ->
+          :pipeline
+
+        "protocols" ->
+          :command
+
+        "registry" ->
+          :forensic
+
+        "god_mode" ->
+          :control
+
+        "session_cluster" ->
+          :control
+
         _ ->
           Logger.warning("Unrecognized view_mode: #{inspect(value)}")
           :command

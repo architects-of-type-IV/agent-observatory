@@ -1,9 +1,7 @@
 <%= if @task do %>
-  <%
-    status = @task.status
-    border = dag_border(status, @is_critical, @is_selected)
-    bg = dag_bg(status)
-  %>
+  <% status = @task.status
+  border = dag_border(status, @is_critical, @is_selected)
+  bg = dag_bg(status) %>
   <button
     phx-click="select_dag_node"
     phx-value-id={@task_id}

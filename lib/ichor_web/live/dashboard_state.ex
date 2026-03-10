@@ -11,8 +11,20 @@ defmodule IchorWeb.DashboardState do
   import IchorWeb.DashboardTeamHelpers, only: [all_team_sids: 1]
   import IchorWeb.DashboardFeedHelpers, only: [build_feed_groups: 2]
 
+  alias Ichor.Activity.Error
   alias Ichor.Activity.EventAnalysis
+  alias Ichor.Activity.Message
+  alias Ichor.Activity.Task
+  alias Ichor.Costs.CostAggregator
+  alias Ichor.Fleet.Agent
   alias Ichor.Fleet.Queries, as: FQ
+  alias Ichor.Fleet.Team
+  alias Ichor.Gateway.AgentRegistry
+  alias Ichor.Gateway.Channels.Tmux
+  alias Ichor.Gateway.HITLRelay
+  alias Ichor.Gateway.TmuxDiscovery
+  alias Ichor.Notes
+  alias Ichor.SwarmMonitor
 
   def default_assigns(disk_teams) do
     %{
@@ -41,7 +53,7 @@ defmodule IchorWeb.DashboardState do
       slideout_activity: [],
       expanded_sessions: MapSet.new(),
       disk_teams: disk_teams,
-      swarm_state: Ichor.SwarmMonitor.get_state(),
+      swarm_state: SwarmMonitor.get_state(),
       protocol_stats: %{},
       selected_dag_task: nil,
       selected_command_agent: nil,
@@ -169,27 +181,31 @@ defmodule IchorWeb.DashboardState do
     assigns = socket.assigns
 
     # Ash domain queries
-    teams = Ichor.Fleet.Team.alive!()
-    all_teams = Ichor.Fleet.Team.all!()
-    messages = Ichor.Activity.Message.recent!()
-    event_tasks = Ichor.Activity.Task.current!()
-    errors = Ichor.Activity.Error.recent!()
-    error_groups = Ichor.Activity.Error.by_tool!()
+    teams = Team.alive!()
+    all_teams = Team.all!()
+    messages = Message.recent!()
+    event_tasks = Task.current!()
+    errors = Error.recent!()
+    error_groups = Error.by_tool!()
 
     # Session derivation (Fleet.Queries)
-    all_sessions = FQ.active_sessions(assigns.events, tmux: assigns[:tmux_sessions] || [], now: assigns.now)
+    all_sessions =
+      FQ.active_sessions(assigns.events, tmux: assigns[:tmux_sessions] || [], now: assigns.now)
+
     tmux_only = FQ.active_sessions([], tmux: assigns[:tmux_sessions] || [], now: assigns.now)
     team_sids = all_team_sids(all_teams)
+
     standalone =
       all_sessions
-      |> Enum.reject(fn s -> MapSet.member?(team_sids, s.session_id) end)
-      |> Enum.reject(&infrastructure_entry?/1)
+      |> Enum.reject(fn s ->
+        MapSet.member?(team_sids, s.session_id) or infrastructure_entry?(s)
+      end)
 
     # Messages (single query, reused for both assigns)
     filtered_messages = search_messages(messages, assigns.search_messages)
     message_threads = group_messages_by_thread(filtered_messages)
 
-    event_notes = Ichor.Notes.list_notes()
+    event_notes = Notes.list_notes()
 
     # Auto-select team when only 1 exists
     selected_team = resolve_selected_team(assigns.selected_team, teams)
@@ -215,7 +231,7 @@ defmodule IchorWeb.DashboardState do
     {topo_nodes, topo_edges} = FQ.topology(all_sessions, teams, assigns.now)
 
     # Unified agent index from Fleet.Agent
-    agent_index = build_agent_lookup(Ichor.Fleet.Agent.all!())
+    agent_index = build_agent_lookup(Agent.all!())
 
     # Tmux session list (for sidebar)
     tmux_session_names = safe_tmux_sessions()
@@ -291,13 +307,13 @@ defmodule IchorWeb.DashboardState do
   end
 
   defp safe_paused_sessions do
-    Ichor.Gateway.HITLRelay.paused_sessions() |> MapSet.new()
+    HITLRelay.paused_sessions() |> MapSet.new()
   rescue
     _ -> MapSet.new()
   end
 
   defp safe_tmux_sessions do
-    Ichor.Gateway.Channels.Tmux.list_sessions()
+    Tmux.list_sessions()
   rescue
     _ -> []
   end
@@ -307,18 +323,19 @@ defmodule IchorWeb.DashboardState do
     |> Enum.flat_map(fn a ->
       agent_map = Map.from_struct(a)
 
-      agent_map = Map.merge(agent_map, %{
-        team: a.team_name,
-        project: if(a.cwd, do: Path.basename(a.cwd), else: nil),
-        tmux_session: get_in(a.channels || %{}, [:tmux]) || a.tmux_session
-      })
+      agent_map =
+        Map.merge(agent_map, %{
+          team: a.team_name,
+          project: if(a.cwd, do: Path.basename(a.cwd), else: nil),
+          tmux_session: get_in(a.channels || %{}, [:tmux]) || a.tmux_session
+        })
 
       [a.agent_id, a.session_id, a.short_name]
       |> Enum.reject(&is_nil/1)
       |> Enum.uniq()
       |> Enum.map(&{&1, agent_map})
     end)
-    |> Ichor.Gateway.AgentRegistry.dedup_by_status()
+    |> AgentRegistry.dedup_by_status()
   end
 
   # Reuse already-fetched messages instead of querying Activity.Message.recent!() again
@@ -360,14 +377,14 @@ defmodule IchorWeb.DashboardState do
   # Cost data only needed on forensic/control views (3 SQL queries)
   defp maybe_costs(assigns) do
     if assigns.view_mode in [:forensic, :control] do
-      Ichor.Costs.CostAggregator.load_cost_data()
+      CostAggregator.load_cost_data()
     else
       assigns[:cost_data] || %{by_model: [], by_session: [], totals: %{}}
     end
   end
 
   defp infrastructure_entry?(%{session_id: sid}) do
-    sid == "operator" or Ichor.Gateway.TmuxDiscovery.infrastructure_session?(sid)
+    sid == "operator" or TmuxDiscovery.infrastructure_session?(sid)
   end
 
   defp tmux_feed_entry(s, now) do

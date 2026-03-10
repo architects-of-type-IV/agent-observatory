@@ -1,20 +1,24 @@
-<%
-  phase_key = "phase:#{@turn_id}:#{@phase.index}"
-  expanded = MapSet.member?(@expanded_sessions, phase_key)
-  pair_count = length(@phase.pairs)
-  status_color = case @phase.status do
+<% phase_key = "phase:#{@turn_id}:#{@phase.index}"
+expanded = MapSet.member?(@expanded_sessions, phase_key)
+pair_count = length(@phase.pairs)
+
+status_color =
+  case @phase.status do
     :success -> "text-success"
     :in_progress -> "text-brand"
     :has_failures -> "text-error"
     _ -> "text-low"
-  end
-%>
+  end %>
 <.feed_nest>
   <.feed_row collapse_key={phase_key} expanded_sessions={@expanded_sessions}>
     <span class={label_class(phase_color(@phase.phase))}>{phase_label(@phase.phase)}</span>
     <span class={summary_class()}>{@phase.tool_summary}</span>
-    <span :if={@phase.permission_count > 0} class={stat_class("text-brand/70")}>{@phase.permission_count} perms</span>
-    <span :if={@phase.duration_ms} class={stat_class(duration_color(@phase.duration_ms))}>{format_duration(@phase.duration_ms)}</span>
+    <span :if={@phase.permission_count > 0} class={stat_class("text-brand/70")}>
+      {@phase.permission_count} perms
+    </span>
+    <span :if={@phase.duration_ms} class={stat_class(duration_color(@phase.duration_ms))}>
+      {format_duration(@phase.duration_ms)}
+    </span>
     <span :if={pair_count > 1} class={stat_class(status_color)}>{pair_count}</span>
   </.feed_row>
 

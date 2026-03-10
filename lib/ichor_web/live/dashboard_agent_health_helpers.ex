@@ -23,9 +23,7 @@ defmodule IchorWeb.DashboardAgentHealthHelpers do
 
   def format_issue({:looping, loops}) do
     loop_desc =
-      loops
-      |> Enum.map(fn %{tool: tool, count: count} -> "#{tool} x#{count}" end)
-      |> Enum.join(", ")
+      Enum.map_join(loops, ", ", fn %{tool: tool, count: count} -> "#{tool} x#{count}" end)
 
     "Possible loop detected: #{loop_desc}"
   end

@@ -1,30 +1,28 @@
-<%
-  tasks = @swarm_state.tasks
-  active_project = @swarm_state.active_project
-  projects = @swarm_state.watched_projects
-  dag = @swarm_state.dag
+<% tasks = @swarm_state.tasks
+active_project = @swarm_state.active_project
+projects = @swarm_state.watched_projects
+dag = @swarm_state.dag
 
-  # Group tasks by status for kanban columns
-  kanban = %{
-    "blocked" => Enum.filter(tasks, &(&1.status == "blocked")),
-    "pending" => Enum.filter(tasks, &(&1.status == "pending")),
-    "in_progress" => Enum.filter(tasks, &(&1.status == "in_progress")),
-    "completed" => Enum.filter(tasks, &(&1.status == "completed")),
-    "failed" => Enum.filter(tasks, &(&1.status == "failed"))
-  }
+# Group tasks by status for kanban columns
+kanban = %{
+  "blocked" => Enum.filter(tasks, &(&1.status == "blocked")),
+  "pending" => Enum.filter(tasks, &(&1.status == "pending")),
+  "in_progress" => Enum.filter(tasks, &(&1.status == "in_progress")),
+  "completed" => Enum.filter(tasks, &(&1.status == "completed")),
+  "failed" => Enum.filter(tasks, &(&1.status == "failed"))
+}
 
-  columns = [
-    {"blocked", "Blocked", "border-brand/30", "text-brand"},
-    {"pending", "Pending", "border-border-subtle", "text-default"},
-    {"in_progress", "In Progress", "border-info/30", "text-info"},
-    {"completed", "Done", "border-success/30", "text-success"},
-    {"failed", "Failed", "border-error/30", "text-error"}
-  ]
+columns = [
+  {"blocked", "Blocked", "border-brand/30", "text-brand"},
+  {"pending", "Pending", "border-border-subtle", "text-default"},
+  {"in_progress", "In Progress", "border-info/30", "text-info"},
+  {"completed", "Done", "border-success/30", "text-success"},
+  {"failed", "Failed", "border-error/30", "text-error"}
+]
 
-  task_map = Map.new(tasks, &{&1.id, &1})
-  waves = dag.waves
-  critical_path = MapSet.new(dag.critical_path)
-%>
+task_map = Map.new(tasks, &{&1.id, &1})
+waves = dag.waves
+critical_path = MapSet.new(dag.critical_path) %>
 <div class="flex gap-0 h-full">
   <%!-- Left Sidebar: Projects + Stats + Task Detail --%>
   <div class="w-[240px] shrink-0 flex flex-col gap-3 bg-base/30 border-r border-border p-3 overflow-x-hidden overflow-y-auto">
@@ -36,7 +34,9 @@
           <span :for={{key, _path} <- projects} class="ichor-badge ichor-badge-zinc font-mono">
             {key}
           </span>
-          <span :if={map_size(projects) == 0} class="text-[10px] text-muted">Auto-detecting...</span>
+          <span :if={map_size(projects) == 0} class="text-[10px] text-muted">
+            Auto-detecting...
+          </span>
         </div>
         <div class="flex flex-wrap gap-1">
           <button
@@ -64,17 +64,34 @@
     <div :if={@selected_dag_task} class="ichor-card p-3 min-w-0 overflow-hidden">
       <span class="text-[10px] text-muted uppercase tracking-wider">Task Detail</span>
       <div class="flex items-center gap-2 flex-wrap mt-2 mb-2">
-        <span :if={@selected_dag_task[:project]} class="text-[10px] font-mono text-violet truncate">{@selected_dag_task.project}</span>
+        <span
+          :if={@selected_dag_task[:project]}
+          class="text-[10px] font-mono text-violet truncate"
+        >
+          {@selected_dag_task.project}
+        </span>
         <span class="text-xs font-mono text-default">#{@selected_dag_task.id}</span>
-        <span class={task_badge_class(@selected_dag_task.status)}>{@selected_dag_task.status}</span>
-        <span :if={@selected_dag_task.priority} class="text-[10px] text-low">{@selected_dag_task.priority}</span>
+        <span class={task_badge_class(@selected_dag_task.status)}>
+          {@selected_dag_task.status}
+        </span>
+        <span :if={@selected_dag_task.priority} class="text-[10px] text-low">
+          {@selected_dag_task.priority}
+        </span>
       </div>
       <div class="text-xs text-high mb-1 break-words">{@selected_dag_task.subject}</div>
-      <div :if={@selected_dag_task[:description]} class="text-xs text-low mb-2 break-words">{@selected_dag_task.description}</div>
+      <div :if={@selected_dag_task[:description]} class="text-xs text-low mb-2 break-words">
+        {@selected_dag_task.description}
+      </div>
       <div class="flex flex-col gap-1 text-[10px] text-muted mb-2 break-all">
-        <span :if={@selected_dag_task.owner && @selected_dag_task.owner != ""} class="truncate">owner: {@selected_dag_task.owner}</span>
-        <span :if={@selected_dag_task.blocked_by != []} class="truncate">blocked by: {Enum.join(@selected_dag_task.blocked_by, ", ")}</span>
-        <span :if={@selected_dag_task[:updated]}>updated: {short_timestamp(@selected_dag_task.updated)}</span>
+        <span :if={@selected_dag_task.owner && @selected_dag_task.owner != ""} class="truncate">
+          owner: {@selected_dag_task.owner}
+        </span>
+        <span :if={@selected_dag_task.blocked_by != []} class="truncate">
+          blocked by: {Enum.join(@selected_dag_task.blocked_by, ", ")}
+        </span>
+        <span :if={@selected_dag_task[:updated]}>
+          updated: {short_timestamp(@selected_dag_task.updated)}
+        </span>
       </div>
       <div class="flex flex-wrap gap-1">
         <button
@@ -124,21 +141,34 @@
               class={[
                 "ichor-card-compact cursor-pointer",
                 border_color,
-                @selected_dag_task && @selected_dag_task.id == task.id && "!ring-1 !ring-interactive/50 !bg-raised/60"
+                @selected_dag_task && @selected_dag_task.id == task.id &&
+                  "!ring-1 !ring-interactive/50 !bg-raised/60"
               ]}
             >
               <div class="flex items-center gap-1 mb-0.5">
-                <span :if={task[:project] && task.project != ""} class="text-[9px] font-mono text-violet/60">{task.project}</span>
+                <span
+                  :if={task[:project] && task.project != ""}
+                  class="text-[9px] font-mono text-violet/60"
+                >
+                  {task.project}
+                </span>
                 <span class="text-[9px] font-mono text-muted">{task.id}</span>
-                <span :if={task.priority} class={"text-[9px] #{priority_color(task.priority)}"}>{task.priority}</span>
+                <span :if={task.priority} class={"text-[9px] #{priority_color(task.priority)}"}>
+                  {task.priority}
+                </span>
               </div>
               <div class="text-[10px] text-high leading-tight line-clamp-2">{task.subject}</div>
-              <div :if={task.owner && task.owner != ""} class="mt-0.5 text-[9px] font-mono text-low">
+              <div
+                :if={task.owner && task.owner != ""}
+                class="mt-0.5 text-[9px] font-mono text-low"
+              >
                 {task.owner}
               </div>
               <div :if={task.blocked_by != []} class="mt-0.5 flex items-center gap-1">
                 <span class="text-[9px] text-brand">blocks:</span>
-                <span class="text-[9px] font-mono text-muted">{Enum.join(task.blocked_by, ", ")}</span>
+                <span class="text-[9px] font-mono text-muted">
+                  {Enum.join(task.blocked_by, ", ")}
+                </span>
               </div>
             </div>
           </div>
@@ -146,7 +176,10 @@
       </div>
 
       <%!-- DAG Dependency Graph --%>
-      <div :if={waves != []} class="border border-border/60 rounded-md p-3 overflow-x-auto bg-base/20">
+      <div
+        :if={waves != []}
+        class="border border-border/60 rounded-md p-3 overflow-x-auto bg-base/20"
+      >
         <h3 class="text-[10px] font-semibold text-muted uppercase tracking-wider mb-2">
           Dependency Graph
           <span :if={dag.critical_path != []} class="text-muted normal-case font-normal ml-2">

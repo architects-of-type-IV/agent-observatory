@@ -39,7 +39,8 @@ defmodule IchorWeb.WorkshopTypes do
 
     case result do
       {:ok, _} ->
-        {:noreply, socket |> assign(:ws_agent_types, WP.list_agent_types()) |> assign(:ws_editing_type, nil)}
+        {:noreply,
+         socket |> assign(:ws_agent_types, WP.list_agent_types()) |> assign(:ws_editing_type, nil)}
 
       {:error, _} ->
         {:noreply, Phoenix.LiveView.put_flash(socket, :error, "Failed to save agent type")}

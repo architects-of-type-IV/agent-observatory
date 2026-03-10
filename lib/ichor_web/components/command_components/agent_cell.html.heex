@@ -1,18 +1,16 @@
-<%
-  is_selected = @selected && @selected[:agent_id] == @agent[:agent_id]
-  health = @agent[:health] || :unknown
-  status = @agent[:status] || :unknown
+<% is_selected = @selected && @selected[:agent_id] == @agent[:agent_id]
+health = @agent[:health] || :unknown
+status = @agent[:status] || :unknown
 
-  border_color =
-    cond do
-      is_selected -> "border-interactive/60 bg-raised/60"
-      health == :critical -> "border-error/40"
-      health == :warning -> "border-brand/40"
-      status == :active -> "border-success/30"
-      status == :idle -> "border-border-subtle"
-      true -> "border-border"
-    end
-%>
+border_color =
+  cond do
+    is_selected -> "border-interactive/60 bg-raised/60"
+    health == :critical -> "border-error/40"
+    health == :warning -> "border-brand/40"
+    status == :active -> "border-success/30"
+    status == :idle -> "border-border-subtle"
+    true -> "border-border"
+  end %>
 <button
   phx-click="select_command_agent"
   phx-value-id={@agent[:agent_id] || @agent[:name]}

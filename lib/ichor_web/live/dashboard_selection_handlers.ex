@@ -14,7 +14,12 @@ defmodule IchorWeb.DashboardSelectionHandlers do
 
   def dispatch("select_task", %{"id" => id}, socket) do
     cur = socket.assigns.selected_task
-    sel = if cur && cur[:id] == id, do: nil, else: Enum.find(socket.assigns.active_tasks, &(&1[:id] == id))
+
+    sel =
+      if cur && cur[:id] == id,
+        do: nil,
+        else: Enum.find(socket.assigns.active_tasks, &(&1[:id] == id))
+
     socket |> clear_selections() |> assign(:selected_task, sel)
   end
 

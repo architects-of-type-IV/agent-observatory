@@ -7,7 +7,7 @@ defmodule IchorWeb.WorkshopPersistence do
   import Phoenix.Component, only: [assign: 3]
   import Phoenix.LiveView, only: [push_event: 3]
 
-  alias Ichor.Workshop.{TeamBlueprint, AgentType}
+  alias Ichor.Workshop.{AgentType, TeamBlueprint}
 
   # ── Public Queries ─────────────────────────────────────────
 
@@ -48,7 +48,9 @@ defmodule IchorWeb.WorkshopPersistence do
 
   def handle_event("ws_save_blueprint", _, socket) do
     socket = auto_save(socket)
-    {:noreply, socket |> assign(:ws_blueprints, list_blueprints()) |> flash(:info, "Blueprint saved")}
+
+    {:noreply,
+     socket |> assign(:ws_blueprints, list_blueprints()) |> flash(:info, "Blueprint saved")}
   end
 
   def handle_event("ws_load_blueprint", %{"id" => id}, socket) do
@@ -62,10 +64,15 @@ defmodule IchorWeb.WorkshopPersistence do
     case TeamBlueprint.by_id(id) do
       {:ok, bp} ->
         Ash.destroy!(bp)
-        socket = if socket.assigns[:ws_blueprint_id] == id,
-          do: socket |> clear_canvas() |> push_ws_state(),
-          else: socket
-        {:noreply, socket |> assign(:ws_blueprints, list_blueprints()) |> flash(:info, "Blueprint deleted")}
+
+        socket =
+          if socket.assigns[:ws_blueprint_id] == id,
+            do: socket |> clear_canvas() |> push_ws_state(),
+            else: socket
+
+        {:noreply,
+         socket |> assign(:ws_blueprints, list_blueprints()) |> flash(:info, "Blueprint deleted")}
+
       _ ->
         {:noreply, socket}
     end
@@ -84,17 +91,23 @@ defmodule IchorWeb.WorkshopPersistence do
   @spec auto_save(Phoenix.LiveView.Socket.t()) :: Phoenix.LiveView.Socket.t()
   def auto_save(socket) do
     assigns = socket.assigns
+
     team_params = %{
-      name: assigns.ws_team_name, strategy: assigns.ws_strategy,
-      default_model: assigns.ws_default_model, cwd: assigns.ws_cwd,
+      name: assigns.ws_team_name,
+      strategy: assigns.ws_strategy,
+      default_model: assigns.ws_default_model,
+      cwd: assigns.ws_cwd,
       agent_blueprints: Enum.map(assigns.ws_agents, &agent_to_ash/1),
       spawn_links: Enum.map(assigns.ws_spawn_links, &link_to_ash/1),
       comm_rules: Enum.map(assigns.ws_comm_rules, &rule_to_ash/1)
     }
 
     case persist(assigns[:ws_blueprint_id], team_params) do
-      {:ok, bp} -> socket |> assign(:ws_blueprint_id, bp.id) |> assign(:ws_blueprints, list_blueprints())
-      {:error, _} -> socket
+      {:ok, bp} ->
+        socket |> assign(:ws_blueprint_id, bp.id) |> assign(:ws_blueprints, list_blueprints())
+
+      {:error, _} ->
+        socket
     end
   end
 
@@ -136,15 +149,33 @@ defmodule IchorWeb.WorkshopPersistence do
   defp flash(socket, level, msg), do: Phoenix.LiveView.put_flash(socket, level, msg)
 
   defp agent_to_ash(a) do
-    %{slot: a.id, name: a.name, capability: a.capability, model: a.model,
-      permission: a.permission, persona: a.persona || "", file_scope: a.file_scope || "",
-      quality_gates: a.quality_gates || "", canvas_x: a.x, canvas_y: a.y}
+    %{
+      slot: a.id,
+      name: a.name,
+      capability: a.capability,
+      model: a.model,
+      permission: a.permission,
+      persona: a.persona || "",
+      file_scope: a.file_scope || "",
+      quality_gates: a.quality_gates || "",
+      canvas_x: a.x,
+      canvas_y: a.y
+    }
   end
 
   defp ash_to_agent(a) do
-    %{id: a.slot, name: a.name, capability: a.capability, model: a.model,
-      permission: a.permission, persona: a.persona || "", file_scope: a.file_scope || "",
-      quality_gates: a.quality_gates || "", x: a.canvas_x, y: a.canvas_y}
+    %{
+      id: a.slot,
+      name: a.name,
+      capability: a.capability,
+      model: a.model,
+      permission: a.permission,
+      persona: a.persona || "",
+      file_scope: a.file_scope || "",
+      quality_gates: a.quality_gates || "",
+      x: a.canvas_x,
+      y: a.canvas_y
+    }
   end
 
   defp link_to_ash(l), do: %{from_slot: l.from, to_slot: l.to}

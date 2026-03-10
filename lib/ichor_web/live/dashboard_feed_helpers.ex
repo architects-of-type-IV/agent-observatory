@@ -36,10 +36,9 @@ defmodule IchorWeb.DashboardFeedHelpers do
     pairs
     |> Enum.frequencies_by(& &1.tool_name)
     |> Enum.sort_by(fn {_name, count} -> -count end)
-    |> Enum.map(fn {name, count} ->
+    |> Enum.map_join(", ", fn {name, count} ->
       if count == 1, do: name, else: "#{name} x#{count}"
     end)
-    |> Enum.join(", ")
   end
 
   @doc """
@@ -217,11 +216,21 @@ defmodule IchorWeb.DashboardFeedHelpers do
               case items do
                 [%{type: :preamble} = preamble | rest] ->
                   updated = %{preamble | events: preamble.events ++ [event]}
-                  updated = if tool_pair, do: %{updated | tool_pairs: updated.tool_pairs ++ [tool_pair]}, else: updated
+
+                  updated =
+                    if tool_pair,
+                      do: %{updated | tool_pairs: updated.tool_pairs ++ [tool_pair]},
+                      else: updated
+
                   {[updated | rest], nil}
 
                 _ ->
-                  preamble = %{type: :preamble, events: [event], tool_pairs: if(tool_pair, do: [tool_pair], else: [])}
+                  preamble = %{
+                    type: :preamble,
+                    events: [event],
+                    tool_pairs: if(tool_pair, do: [tool_pair], else: [])
+                  }
+
                   {items ++ [preamble], nil}
               end
             end
@@ -257,7 +266,10 @@ defmodule IchorWeb.DashboardFeedHelpers do
           permission_count: permission_count,
           start_time: turn.prompt_event.inserted_at,
           end_time:
-            if(turn.stop_event, do: turn.stop_event.inserted_at, else: turn.prompt_event.inserted_at)
+            if(turn.stop_event,
+              do: turn.stop_event.inserted_at,
+              else: turn.prompt_event.inserted_at
+            )
         })
 
       %{type: :preamble} = preamble ->
@@ -375,7 +387,10 @@ defmodule IchorWeb.DashboardFeedHelpers do
       subagent_count: subagent_count,
       total_duration_ms: total_duration_ms,
       start_time:
-        if(session_start, do: session_start.inserted_at, else: first_event && first_event.inserted_at),
+        if(session_start,
+          do: session_start.inserted_at,
+          else: first_event && first_event.inserted_at
+        ),
       end_time:
         cond do
           session_end -> session_end.inserted_at

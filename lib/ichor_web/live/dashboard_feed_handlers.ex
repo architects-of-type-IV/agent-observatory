@@ -8,7 +8,12 @@ defmodule IchorWeb.DashboardFeedHandlers do
 
   def dispatch("toggle_session_collapse", %{"session_id" => sid}, socket) do
     expanded = socket.assigns.expanded_sessions
-    expanded = if MapSet.member?(expanded, sid), do: MapSet.delete(expanded, sid), else: MapSet.put(expanded, sid)
+
+    expanded =
+      if MapSet.member?(expanded, sid),
+        do: MapSet.delete(expanded, sid),
+        else: MapSet.put(expanded, sid)
+
     assign(socket, :expanded_sessions, expanded)
   end
 
@@ -21,7 +26,10 @@ defmodule IchorWeb.DashboardFeedHandlers do
           |> Enum.flat_map(fn
             %{type: :turn} = turn ->
               turn_key = "turn:#{turn.first_event_id}"
-              phase_keys = Enum.map(turn.phases, fn p -> "phase:#{turn.first_event_id}:#{p.index}" end)
+
+              phase_keys =
+                Enum.map(turn.phases, fn p -> "phase:#{turn.first_event_id}:#{p.index}" end)
+
               [turn_key | phase_keys]
 
             %{type: :preamble} = preamble ->
@@ -30,7 +38,8 @@ defmodule IchorWeb.DashboardFeedHandlers do
               phase_keys = Enum.map(preamble.phases, fn p -> "phase:preamble:#{p.index}" end)
               [preamble_key | phase_keys]
 
-            _ -> []
+            _ ->
+              []
           end)
 
         [g.session_id | item_keys]

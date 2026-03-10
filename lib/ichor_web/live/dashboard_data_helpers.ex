@@ -115,5 +115,4 @@ defmodule IchorWeb.DashboardDataHelpers do
   def unique_values(events, field) do
     events |> Enum.map(&Map.get(&1, field)) |> Enum.uniq() |> Enum.sort()
   end
-
 end

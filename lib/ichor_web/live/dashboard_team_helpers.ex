@@ -111,7 +111,9 @@ defmodule IchorWeb.DashboardTeamHelpers do
   """
   def detect_role(team, member) do
     case Ichor.Gateway.AgentRegistry.derive_role(member[:agent_type]) do
-      role when role in [:lead, :coordinator] -> :lead
+      role when role in [:lead, :coordinator] ->
+        :lead
+
       _ ->
         if team.lead_session != nil and member[:agent_id] == team.lead_session,
           do: :lead,

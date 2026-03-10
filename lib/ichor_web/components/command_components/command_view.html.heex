@@ -481,7 +481,10 @@ selected = @selected_command_agent %>
     <%= if selected[:subagent] do %>
       <% sub = selected[:subagent]
       parent_agent = Map.get(agent_index, selected[:session_id], %{})
-      parent_name = parent_agent[:name] || Ichor.Gateway.AgentRegistry.AgentEntry.short_id(selected[:session_id] || "") %>
+
+      parent_name =
+        parent_agent[:name] ||
+          Ichor.Gateway.AgentRegistry.AgentEntry.short_id(selected[:session_id] || "") %>
       <div class="px-3 py-1.5 border-b border-border flex items-center justify-between shrink-0">
         <h3 class="text-[11px] font-semibold text-high truncate">
           {sub[:description] || sub[:type] || "Subagent"}
@@ -774,7 +777,9 @@ selected = @selected_command_agent %>
                     <span class="text-muted font-mono shrink-0">#{idx + 1}</span>
                     <div class="min-w-0">
                       <span :if={msg[:agent_id]} class="text-low">
-                        from: {Ichor.Gateway.AgentRegistry.AgentEntry.short_id(to_string(msg.agent_id))}
+                        from: {Ichor.Gateway.AgentRegistry.AgentEntry.short_id(
+                          to_string(msg.agent_id)
+                        )}
                       </span>
                       <p class="text-default truncate">
                         {inspect(msg[:payload] || msg[:content] || msg, limit: 120)}

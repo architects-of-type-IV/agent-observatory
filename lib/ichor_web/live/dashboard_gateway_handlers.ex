@@ -19,16 +19,9 @@ defmodule IchorWeb.DashboardGatewayHandlers do
 
   @doc "Subscribe to all gateway PubSub topics. Call from mount/3 when connected."
   def subscribe_gateway_topics do
-    topics = [
-      "gateway:messages",
-      "gateway:violations",
-      "gateway:topology",
-      "gateway:entropy_alerts",
-      "gateway:dlq",
-      "gateway:capabilities"
-    ]
-
-    Enum.each(topics, &Phoenix.PubSub.subscribe(Ichor.PubSub, &1))
+    # All gateway signals now flow through Signal categories (subscribed in mount).
+    # This function is kept as a no-op for the import contract.
+    :ok
   end
 
   @doc "Seed initial gateway data from GenServer queries. Call from mount/3."
@@ -63,8 +56,8 @@ defmodule IchorWeb.DashboardGatewayHandlers do
   """
   def handle_gateway_info(msg, socket)
 
-  # DecisionLog broadcast -> throughput, cost, scratchpad, latency
-  def handle_gateway_info({:decision_log, log}, socket) do
+  # DecisionLog -> throughput, cost, scratchpad, latency
+  def handle_gateway_info(%Ichor.Signal.Payload{name: :decision_log, data: %{log: log}}, socket) do
     now = System.monotonic_time(:second)
 
     events = [{now, log} | socket.assigns[:throughput_events] || []]
@@ -76,7 +69,11 @@ defmodule IchorWeb.DashboardGatewayHandlers do
     cost_attribution = update_cost_attribution(socket.assigns.cost_attribution, log)
 
     scratchpad_intents =
-      maybe_append_intent(socket.assigns.scratchpad_intents, log, socket.assigns[:selected_session_id])
+      maybe_append_intent(
+        socket.assigns.scratchpad_intents,
+        log,
+        socket.assigns[:selected_session_id]
+      )
 
     latency_metrics = update_latency_metrics(socket.assigns.latency_metrics, log)
 
@@ -90,67 +87,57 @@ defmodule IchorWeb.DashboardGatewayHandlers do
   end
 
   # Schema violations are already captured via :new_event
-  def handle_gateway_info({:schema_violation, _event}, socket), do: socket
+  def handle_gateway_info(%Ichor.Signal.Payload{name: :schema_violation}, socket), do: socket
 
-  # Topology node state update
-  def handle_gateway_info({:node_state_update, data}, socket) do
-    node_status = Map.merge(socket.assigns[:node_status] || %{}, %{
-      agent_id: data.agent_id,
-      state: data.state,
-      timestamp: data[:timestamp]
-    })
+  def handle_gateway_info(%Ichor.Signal.Payload{name: :node_state_update, data: data}, socket) do
+    node_status =
+      Map.merge(socket.assigns[:node_status] || %{}, %{
+        agent_id: data[:agent_id],
+        state: data[:state]
+      })
 
     assign(socket, :node_status, node_status)
   end
 
-  # Dead letter notification -> append to dlq_entries
-  def handle_gateway_info({:dead_letter, delivery}, socket) do
+  def handle_gateway_info(
+        %Ichor.Signal.Payload{name: :dead_letter, data: %{delivery: delivery}},
+        socket
+      ) do
     entries = [delivery | socket.assigns.dlq_entries] |> Enum.take(@max_dlq_entries)
     assign(socket, :dlq_entries, entries)
   end
 
-  # Capability map update -> refresh agent_types and agent_classes
-  def handle_gateway_info({:capability_update, agents}, socket) do
+  def handle_gateway_info(
+        %Ichor.Signal.Payload{name: :capability_update, data: %{state_map: agents}},
+        socket
+      ) do
     socket
     |> assign(:gateway_agents_raw, agents)
     |> assign(:agent_types, derive_agent_types(agents))
     |> assign(:agent_classes, derive_agent_classes(agents))
   end
 
-  # Full topology refresh (nodes + edges from TopologyBuilder) -> push to fleet canvas
-  def handle_gateway_info(%{nodes: nodes, edges: edges}, socket) do
-    push_event(socket, "fleet_topology_update", %{nodes: nodes, edges: edges})
+  def handle_gateway_info(%Ichor.Signal.Payload{name: :topology_snapshot, data: data}, socket) do
+    push_event(socket, "fleet_topology_update", %{nodes: data.nodes, edges: data.edges})
   end
 
-  # Per-session DAG delta -> push updated session DAG to canvas
-  def handle_gateway_info(%{event: "dag_delta", session_id: session_id}, socket) do
-    if socket.assigns[:selected_session_id] == session_id do
-      push_session_dag(socket, session_id)
+  def handle_gateway_info(%Ichor.Signal.Payload{name: :dag_delta, data: data}, socket) do
+    if socket.assigns[:selected_session_id] == data[:session_id] do
+      push_session_dag(socket, data[:session_id])
     else
       socket
     end
   end
 
-  # Entropy alert -> update per-session entropy scores
-  def handle_gateway_info(%{event_type: "entropy_alert"} = alert, socket) do
-    scores = Map.put(
-      socket.assigns[:entropy_scores] || %{},
-      alert.session_id,
-      alert.entropy_score
-    )
+  def handle_gateway_info(%Ichor.Signal.Payload{name: :entropy_alert, data: data}, socket) do
+    scores =
+      Map.put(
+        socket.assigns[:entropy_scores] || %{},
+        data[:session_id],
+        data[:entropy_score]
+      )
 
     assign(socket, :entropy_scores, scores)
-  end
-
-  # Entropy state change -> update node status
-  def handle_gateway_info(%{session_id: session_id, state: state}, socket)
-      when is_binary(session_id) and is_binary(state) do
-    node_status = Map.merge(socket.assigns[:node_status] || %{}, %{
-      session_id: session_id,
-      state: state
-    })
-
-    assign(socket, :node_status, node_status)
   end
 
   # Catch-all
@@ -211,7 +198,11 @@ defmodule IchorWeb.DashboardGatewayHandlers do
     end
   end
 
-  defp extract_cost(%{state_delta: %{cumulative_session_cost: cost}, identity: %{agent_id: aid}, meta: %{trace_id: sid}})
+  defp extract_cost(%{
+         state_delta: %{cumulative_session_cost: cost},
+         identity: %{agent_id: aid},
+         meta: %{trace_id: sid}
+       })
        when is_number(cost) do
     %{agent_id: aid, session_id: sid, cost: cost, timestamp: DateTime.utc_now()}
   end
@@ -281,8 +272,17 @@ defmodule IchorWeb.DashboardGatewayHandlers do
     edges =
       Enum.flat_map(node_map, fn {_trace_id, node} ->
         Enum.map(node.children, fn child_id ->
-          %{from: node.trace_id, to: child_id, traffic_volume: 0, latency_ms: 0, status: "active",
-            from_x: nil, from_y: nil, to_x: nil, to_y: nil}
+          %{
+            from: node.trace_id,
+            to: child_id,
+            traffic_volume: 0,
+            latency_ms: 0,
+            status: "active",
+            from_x: nil,
+            from_y: nil,
+            to_x: nil,
+            to_y: nil
+          }
         end)
       end)
 

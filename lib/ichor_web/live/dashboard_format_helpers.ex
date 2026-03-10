@@ -41,6 +41,7 @@ defmodule IchorWeb.DashboardFormatHelpers do
   """
   def short_session(session_id) when is_binary(session_id),
     do: Ichor.Gateway.AgentRegistry.AgentEntry.short_id(session_id)
+
   def short_session(_), do: "?"
 
   @doc """

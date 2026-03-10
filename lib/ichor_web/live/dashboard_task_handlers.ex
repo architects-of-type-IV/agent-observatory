@@ -44,17 +44,8 @@ defmodule IchorWeb.DashboardTaskHandlers do
     case Ichor.TaskManager.create_task(team_name, attrs) do
       {:ok, task} ->
         # Broadcast task creation event
-        Phoenix.PubSub.broadcast(
-          Ichor.PubSub,
-          "team:#{team_name}",
-          {:task_created, task}
-        )
-
-        Phoenix.PubSub.broadcast(
-          Ichor.PubSub,
-          "teams:update",
-          {:tasks_updated, team_name}
-        )
+        Ichor.Signal.emit(:task_created, team_name, %{task: task})
+        Ichor.Signal.emit(:tasks_updated, %{team_name: team_name})
 
         socket =
           Phoenix.LiveView.push_event(socket, "toast", %{
@@ -144,17 +135,8 @@ defmodule IchorWeb.DashboardTaskHandlers do
 
     case Ichor.TaskManager.delete_task(team_name, task_id) do
       :ok ->
-        Phoenix.PubSub.broadcast(
-          Ichor.PubSub,
-          "team:#{team_name}",
-          {:task_deleted, task_id}
-        )
-
-        Phoenix.PubSub.broadcast(
-          Ichor.PubSub,
-          "teams:update",
-          {:tasks_updated, team_name}
-        )
+        Ichor.Signal.emit(:task_deleted, team_name, %{task_id: task_id})
+        Ichor.Signal.emit(:tasks_updated, %{team_name: team_name})
 
         socket =
           Phoenix.LiveView.push_event(socket, "toast", %{
@@ -174,17 +156,8 @@ defmodule IchorWeb.DashboardTaskHandlers do
   # ═══════════════════════════════════════════════════════
 
   defp broadcast_task_update(team_name, task) do
-    Phoenix.PubSub.broadcast(
-      Ichor.PubSub,
-      "team:#{team_name}",
-      {:task_updated, task}
-    )
-
-    Phoenix.PubSub.broadcast(
-      Ichor.PubSub,
-      "teams:update",
-      {:tasks_updated, team_name}
-    )
+    Ichor.Signal.emit(:task_updated, team_name, %{task: task})
+    Ichor.Signal.emit(:tasks_updated, %{team_name: team_name})
   end
 
   defp extract_active_form(subject) do

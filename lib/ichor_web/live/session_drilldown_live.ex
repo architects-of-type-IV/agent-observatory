@@ -80,7 +80,9 @@ defmodule IchorWeb.SessionDrilldownLive do
 
       <div class="mb-4">
         <span class="font-medium">HITL Status: </span>
-        <span class={if @hitl_status == :paused, do: "text-yellow-500 font-bold", else: "text-green-500"}>
+        <span class={
+          if @hitl_status == :paused, do: "text-yellow-500 font-bold", else: "text-green-500"
+        }>
           {@hitl_status}
         </span>
       </div>
@@ -91,20 +93,37 @@ defmodule IchorWeb.SessionDrilldownLive do
 
       <%= if @hitl_status == :paused do %>
         <div class="space-y-2">
-          <button phx-click="approve" class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">
+          <button
+            phx-click="approve"
+            class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+          >
             Approve (Flush Buffer)
           </button>
 
           <form phx-submit="reject" class="inline">
-            <input type="text" name="reason" placeholder="Rejection reason" class="border rounded px-2 py-1" />
+            <input
+              type="text"
+              name="reason"
+              placeholder="Rejection reason"
+              class="border rounded px-2 py-1"
+            />
             <button type="submit" class="px-4 py-2 bg-error text-white rounded hover:bg-error">
               Reject
             </button>
           </form>
 
           <form phx-submit="rewrite" class="mt-2">
-            <input type="text" name="trace_id" placeholder="Trace ID" class="border rounded px-2 py-1" />
-            <textarea name="new_payload" placeholder='{"key": "value"}' class="border rounded px-2 py-1 w-full mt-1"></textarea>
+            <input
+              type="text"
+              name="trace_id"
+              placeholder="Trace ID"
+              class="border rounded px-2 py-1"
+            />
+            <textarea
+              name="new_payload"
+              placeholder='{"key": "value"}'
+              class="border rounded px-2 py-1 w-full mt-1"
+            ></textarea>
             <button type="submit" class="px-4 py-2 bg-info text-white rounded hover:bg-info mt-1">
               Rewrite Message
             </button>

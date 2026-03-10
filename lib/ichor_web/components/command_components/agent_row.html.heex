@@ -3,7 +3,7 @@
   phx-value-id={@agent.agent_id}
   class={[
     "flex items-center gap-3 px-3 py-1.5 cursor-pointer hover:bg-raised/50 transition",
-    if(@selected && ((@selected[:agent_id] || @selected[:session_id]) == @agent.agent_id),
+    if(@selected && (@selected[:agent_id] || @selected[:session_id]) == @agent.agent_id,
       do: "bg-raised/80 border-l-2 border-interactive",
       else: "border-l-2 border-transparent"
     )
@@ -33,7 +33,9 @@
   <span class="text-[10px] font-mono text-muted w-10 text-right">{@agent.event_count}e</span>
 
   <%!-- Tool count --%>
-  <span class="text-[10px] font-mono text-muted w-8 text-right">{if is_integer(@agent.tool_count), do: @agent.tool_count, else: 0}t</span>
+  <span class="text-[10px] font-mono text-muted w-8 text-right">
+    {if is_integer(@agent.tool_count), do: @agent.tool_count, else: 0}t
+  </span>
 
   <%!-- Source app --%>
   <span class="text-[10px] font-mono text-muted ml-auto">{@agent.source_app}</span>

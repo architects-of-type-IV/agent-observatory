@@ -10,17 +10,31 @@ defmodule IchorWeb.DashboardPhase5Handlers do
   def dispatch("toggle_entropy_filter", _p, s), do: handle_toggle_entropy_filter(s)
   def dispatch("select_session", %{"session_id" => sid}, s), do: handle_select_session(sid, s)
   def dispatch("toggle_subpanel", %{"panel" => p}, s), do: handle_toggle_subpanel(p, s)
-  def dispatch("sort_capability_directory", %{"field" => f}, s), do: handle_sort_capability_directory(f, s)
-  def dispatch("update_route_weight", %{"agent_type" => at, "weight" => w}, s), do: handle_update_route_weight(at, w, s)
+
+  def dispatch("sort_capability_directory", %{"field" => f}, s),
+    do: handle_sort_capability_directory(f, s)
+
+  def dispatch("update_route_weight", %{"agent_type" => at, "weight" => w}, s),
+    do: handle_update_route_weight(at, w, s)
+
   def dispatch("retry_dlq_entry", %{"entry_id" => eid}, s), do: handle_retry_dlq_entry(eid, s)
   def dispatch("search_archive", %{"q" => q}, s), do: handle_search_archive(q, s)
   def dispatch("set_cost_group_by", %{"field" => f}, s), do: handle_set_cost_group_by(f, s)
-  def dispatch("add_policy_rule", %{"name" => n, "condition" => c, "action" => a}, s), do: handle_add_policy_rule(n, c, a, s)
-  def dispatch("toggle_forensic_panel", %{"panel" => p}, s), do: handle_toggle_forensic_panel(p, s)
+
+  def dispatch("add_policy_rule", %{"name" => n, "condition" => c, "action" => a}, s),
+    do: handle_add_policy_rule(n, c, a, s)
+
+  def dispatch("toggle_forensic_panel", %{"panel" => p}, s),
+    do: handle_toggle_forensic_panel(p, s)
 
   def dispatch("toggle_protocol_item", %{"id" => id}, s) do
     expanded = s.assigns.expanded_protocol_items
-    expanded = if MapSet.member?(expanded, id), do: MapSet.delete(expanded, id), else: MapSet.put(expanded, id)
+
+    expanded =
+      if MapSet.member?(expanded, id),
+        do: MapSet.delete(expanded, id),
+        else: MapSet.put(expanded, id)
+
     assign(s, :expanded_protocol_items, expanded)
   end
 

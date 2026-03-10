@@ -8,11 +8,17 @@ defmodule IchorWeb.DashboardFleetTreeHandlers do
 
   def dispatch("toggle_fleet_team", %{"name" => name}, socket) do
     collapsed = socket.assigns.collapsed_fleet_teams
-    collapsed = if MapSet.member?(collapsed, name), do: MapSet.delete(collapsed, name), else: MapSet.put(collapsed, name)
+
+    collapsed =
+      if MapSet.member?(collapsed, name),
+        do: MapSet.delete(collapsed, name),
+        else: MapSet.put(collapsed, name)
+
     assign(socket, :collapsed_fleet_teams, collapsed)
   end
 
-  def dispatch("set_comms_filter", %{"team" => ""}, socket), do: assign(socket, :comms_team_filter, nil)
+  def dispatch("set_comms_filter", %{"team" => ""}, socket),
+    do: assign(socket, :comms_team_filter, nil)
 
   def dispatch("set_comms_filter", %{"team" => team_name}, socket) do
     new_filter = if socket.assigns.comms_team_filter == team_name, do: nil, else: team_name

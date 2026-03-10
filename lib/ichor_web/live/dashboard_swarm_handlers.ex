@@ -112,8 +112,13 @@ defmodule IchorWeb.DashboardSwarmHandlers do
     events
     |> Enum.find(fn e -> e.session_id == session_id end)
     |> case do
-      nil -> Ichor.Gateway.AgentRegistry.AgentEntry.short_id(session_id)
-      event -> if event.tmux_session, do: event.tmux_session, else: Ichor.Gateway.AgentRegistry.AgentEntry.short_id(session_id)
+      nil ->
+        Ichor.Gateway.AgentRegistry.AgentEntry.short_id(session_id)
+
+      event ->
+        if event.tmux_session,
+          do: event.tmux_session,
+          else: Ichor.Gateway.AgentRegistry.AgentEntry.short_id(session_id)
     end
   end
 
@@ -152,7 +157,8 @@ defmodule IchorWeb.DashboardSwarmHandlers do
       case Ichor.Operator.send(to, content) do
         {:ok, delivered} when delivered > 0 ->
           Phoenix.LiveView.push_event(socket, "toast", %{
-            message: "Sent to #{String.slice(to, 0, 12)} (#{delivered} channel#{if delivered > 1, do: "s", else: ""})",
+            message:
+              "Sent to #{String.slice(to, 0, 12)} (#{delivered} channel#{if delivered > 1, do: "s", else: ""})",
             type: "success"
           })
 

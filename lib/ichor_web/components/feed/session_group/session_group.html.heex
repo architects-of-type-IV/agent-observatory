@@ -8,7 +8,10 @@
   <div
     class={[
       "px-2.5 py-1.5 flex items-center gap-2 cursor-pointer select-none",
-      if(@group.is_active, do: "bg-raised/60 hover:bg-raised/80", else: "bg-base/40 hover:bg-base/60")
+      if(@group.is_active,
+        do: "bg-raised/60 hover:bg-raised/80",
+        else: "bg-base/40 hover:bg-base/60"
+      )
     ]}
     phx-click="toggle_session_collapse"
     phx-value-session_id={@group.session_id}
@@ -62,11 +65,17 @@
 
     <%!-- Time range --%>
     <span :if={@group.start_time} class="text-[10px] font-mono text-muted">
-      {format_time(@group.start_time)}{if @group.end_time && @group.end_time != @group.start_time, do: "-#{format_time(@group.end_time)}", else: ""}
+      {format_time(@group.start_time)}{if @group.end_time && @group.end_time != @group.start_time,
+        do: "-#{format_time(@group.end_time)}",
+        else: ""}
     </span>
 
     <%!-- CWD --%>
-    <span :if={@group.cwd} class="text-[10px] font-mono text-muted truncate max-w-[160px]" title={@group.cwd}>
+    <span
+      :if={@group.cwd}
+      class="text-[10px] font-mono text-muted truncate max-w-[160px]"
+      title={@group.cwd}
+    >
       {abbreviate_cwd(@group.cwd)}
     </span>
   </div>

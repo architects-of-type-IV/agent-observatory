@@ -25,8 +25,13 @@ defmodule IchorWeb.DashboardSessionControlHandlers do
 
   def handle_pause_agent(%{"session_id" => session_id}, socket) do
     HITLRelay.pause(session_id, session_id, "operator", "Operator paused from dashboard")
-    Phoenix.PubSub.subscribe(Ichor.PubSub, "session:hitl:#{session_id}")
-    Ichor.Operator.send(session_id, "Pause requested by dashboard", type: :session_control, metadata: %{action: "pause"})
+    Ichor.Signal.subscribe(:gate_open, session_id)
+    Ichor.Signal.subscribe(:gate_close, session_id)
+
+    Ichor.Operator.send(session_id, "Pause requested by dashboard",
+      type: :session_control,
+      metadata: %{action: "pause"}
+    )
 
     paused = MapSet.put(socket.assigns.paused_sessions, session_id)
     short = Ichor.Gateway.AgentRegistry.AgentEntry.short_id(session_id)
@@ -43,7 +48,11 @@ defmodule IchorWeb.DashboardSessionControlHandlers do
   """
   def handle_resume_agent(%{"session_id" => session_id}, socket) do
     HITLRelay.unpause(session_id, session_id, "operator")
-    Ichor.Operator.send(session_id, "Resume requested by dashboard", type: :session_control, metadata: %{action: "resume"})
+
+    Ichor.Operator.send(session_id, "Resume requested by dashboard",
+      type: :session_control,
+      metadata: %{action: "resume"}
+    )
 
     paused = MapSet.delete(socket.assigns.paused_sessions, session_id)
 
@@ -89,7 +98,9 @@ defmodule IchorWeb.DashboardSessionControlHandlers do
   """
   def handle_shutdown_agent(%{"session_id" => session_id}, socket) do
     Ichor.Operator.send(session_id, "Shutdown requested by dashboard",
-      type: :session_control, metadata: %{action: "shutdown"})
+      type: :session_control,
+      metadata: %{action: "shutdown"}
+    )
 
     tmux_killed = kill_tmux_for_agent(session_id)
 
@@ -121,6 +132,7 @@ defmodule IchorWeb.DashboardSessionControlHandlers do
     Ichor.EventBuffer.tombstone_session(session_id)
 
     short = String.slice(session_id, 0..7)
+
     details = [
       "registry removed",
       if(tmux_killed, do: "tmux killed", else: "no tmux"),
@@ -141,7 +153,10 @@ defmodule IchorWeb.DashboardSessionControlHandlers do
     Phoenix.Component.assign(socket, :kill_switch_confirm_step, :second)
   end
 
-  def handle_kill_switch_second_confirm(_params, %{assigns: %{kill_switch_confirm_step: :second}} = socket) do
+  def handle_kill_switch_second_confirm(
+        _params,
+        %{assigns: %{kill_switch_confirm_step: :second}} = socket
+      ) do
     dispatch_mesh_pause(socket)
     Phoenix.Component.assign(socket, :kill_switch_confirm_step, nil)
   end
@@ -159,16 +174,21 @@ defmodule IchorWeb.DashboardSessionControlHandlers do
     Phoenix.Component.assign(socket, :instructions_confirm_pending, agent_class)
   end
 
-  def handle_push_instructions_confirm(%{"agent_class" => agent_class, "instructions" => instructions}, socket) do
-    Phoenix.PubSub.broadcast(
-      Ichor.PubSub,
-      "agent:#{agent_class}:instructions",
-      {:global_instructions, %{agent_class: agent_class, instructions: instructions}}
-    )
+  def handle_push_instructions_confirm(
+        %{"agent_class" => agent_class, "instructions" => instructions},
+        socket
+      ) do
+    Ichor.Signal.emit(:agent_instructions, agent_class, %{
+      agent_class: agent_class,
+      instructions: instructions
+    })
 
     socket
     |> Phoenix.Component.assign(:instructions_confirm_pending, nil)
-    |> Phoenix.Component.assign(:instructions_banner, {:success, "Instructions pushed to #{agent_class}"})
+    |> Phoenix.Component.assign(
+      :instructions_banner,
+      {:success, "Instructions pushed to #{agent_class}"}
+    )
   end
 
   def handle_push_instructions_cancel(_params, socket) do
@@ -176,11 +196,8 @@ defmodule IchorWeb.DashboardSessionControlHandlers do
   end
 
   defp dispatch_mesh_pause(socket) do
-    Phoenix.PubSub.broadcast(
-      Ichor.PubSub,
-      "gateway:mesh_control",
-      {:mesh_pause, %{initiated_by: "god_mode", timestamp: DateTime.utc_now()}}
-    )
+    Ichor.Signal.emit(:mesh_pause, %{initiated_by: "god_mode"})
+
     socket
   end
 

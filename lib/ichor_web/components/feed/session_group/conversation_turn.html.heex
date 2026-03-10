@@ -1,17 +1,26 @@
-<%
-  turn_key = "turn:#{@item.first_event_id}"
-  expanded = MapSet.member?(@expanded_sessions, turn_key)
-  prompt_display = if @item.prompt && @item.prompt != "", do: String.slice(@item.prompt, 0, 80), else: "(no prompt)"
-%>
+<% turn_key = "turn:#{@item.first_event_id}"
+expanded = MapSet.member?(@expanded_sessions, turn_key)
+
+prompt_display =
+  if @item.prompt && @item.prompt != "",
+    do: String.slice(@item.prompt, 0, 80),
+    else: "(no prompt)" %>
 <.feed_nest>
   <.feed_row collapse_key={turn_key} expanded_sessions={@expanded_sessions}>
     <span class={label_class("text-default")}>Prompt</span>
     <span class={summary_class("text-high")} title={@item.prompt}>
       {prompt_display}{if String.length(@item.prompt || "") > 80, do: "...", else: ""}
     </span>
-    <span :if={@item.tool_count > 0} class={stat_class("text-low")}>{@item.tool_count} tools</span>
-    <span :if={@item.permission_count > 0} class={stat_class("text-brand/70")}>{@item.permission_count} perms</span>
-    <span :if={@item.total_duration_ms} class={stat_class(duration_color(@item.total_duration_ms))}>
+    <span :if={@item.tool_count > 0} class={stat_class("text-low")}>
+      {@item.tool_count} tools
+    </span>
+    <span :if={@item.permission_count > 0} class={stat_class("text-brand/70")}>
+      {@item.permission_count} perms
+    </span>
+    <span
+      :if={@item.total_duration_ms}
+      class={stat_class(duration_color(@item.total_duration_ms))}
+    >
       {format_duration(@item.total_duration_ms)}
     </span>
     <span class={stat_class()}>{format_time(@item.start_time)}</span>

@@ -2,10 +2,22 @@
   <%!-- Row 1: Identity + role + status + tmux --%>
   <div class="flex items-center gap-2 mb-1">
     <span class={["w-2 h-2 rounded-full shrink-0", status_dot_color(@agent.status)]} />
-    <span :if={@agent[:role]} class={["text-[10px] font-bold uppercase px-1 py-0.5 rounded", role_badge_class(@agent.role)]}>{@agent.role}</span>
+    <span
+      :if={@agent[:role]}
+      class={[
+        "text-[10px] font-bold uppercase px-1 py-0.5 rounded",
+        role_badge_class(@agent.role)
+      ]}
+    >
+      {@agent.role}
+    </span>
     <span class="text-xs font-semibold text-high truncate">{@agent.name}</span>
-    <span :if={@agent.model} class="text-[10px] text-interactive font-mono">{short_model(@agent.model)}</span>
-    <span class={["text-[10px] font-mono", status_text_color(@agent.status)]}>{@agent.status}</span>
+    <span :if={@agent.model} class="text-[10px] text-interactive font-mono">
+      {short_model(@agent.model)}
+    </span>
+    <span class={["text-[10px] font-mono", status_text_color(@agent.status)]}>
+      {@agent.status}
+    </span>
     <span class="flex-1" />
     <span class="text-[10px] text-muted font-mono">{@agent.event_count}ev</span>
   </div>
@@ -15,13 +27,20 @@
     <span :if={@agent[:current_tool]} class="text-[10px] font-mono text-cyan truncate">
       {@agent.current_tool.tool_name} ({@agent.current_tool.elapsed}s)
     </span>
-    <span :if={@agent.cwd} class="text-[10px] font-mono text-muted truncate">{Path.basename(@agent.cwd)}</span>
+    <span :if={@agent.cwd} class="text-[10px] font-mono text-muted truncate">
+      {Path.basename(@agent.cwd)}
+    </span>
   </div>
 
   <%!-- Row 3: Live Activity Stream --%>
-  <div :if={@agent.recent_activity != []} class="mb-1.5 space-y-0.5 border-l-2 border-border pl-2 ml-1">
+  <div
+    :if={@agent.recent_activity != []}
+    class="mb-1.5 space-y-0.5 border-l-2 border-border pl-2 ml-1"
+  >
     <div :for={act <- @agent.recent_activity} class="flex items-center gap-1.5 text-[10px]">
-      <span class={["font-mono shrink-0 w-10 text-right", activity_icon(act.type)]}>{activity_label(act.type, act)}</span>
+      <span class={["font-mono shrink-0 w-10 text-right", activity_icon(act.type)]}>
+        {activity_label(act.type, act)}
+      </span>
       <span class="text-low truncate flex-1">{act.detail}</span>
       <span class="text-muted font-mono shrink-0">{act.age}</span>
     </div>
@@ -31,8 +50,12 @@
   <div class="flex gap-1 items-center">
     <form phx-submit="send_agent_message" class="flex gap-1 flex-1 min-w-0">
       <input type="hidden" name="session_id" value={@agent.agent_id} />
-      <input type="text" name="content" placeholder="Message..."
-        class="flex-1 ichor-input min-w-0" />
+      <input
+        type="text"
+        name="content"
+        placeholder="Message..."
+        class="flex-1 ichor-input min-w-0"
+      />
       <button type="submit" class="ichor-btn ichor-btn-primary shrink-0">Msg</button>
     </form>
   </div>
