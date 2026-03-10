@@ -221,8 +221,7 @@ defmodule IchorWeb.Components.CommandComponents do
   end
 
   defp short_id(nil), do: "?"
-  defp short_id(id) when byte_size(id) > 8, do: String.slice(id, 0, 8) <> "..."
-  defp short_id(id), do: id
+  defp short_id(id), do: Ichor.Gateway.AgentRegistry.AgentEntry.short_id(id)
 
   defp activity_icon(:tool), do: "text-cyan"
   defp activity_icon(:error), do: "text-error"

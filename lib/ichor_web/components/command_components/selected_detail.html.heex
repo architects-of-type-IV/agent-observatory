@@ -73,8 +73,10 @@
     <%!-- Message form --%>
     <div class="border-t border-border pt-3">
       <div class="text-[10px] text-muted mb-1">
-        To: <span class="text-default font-mono">{@agent[:name] || @agent[:agent_id]}</span>
-        <span class="text-muted ml-1">({String.slice(to_string(@agent[:agent_id]), 0, 8)})</span>
+        <% display_name = @agent[:name] || @agent[:agent_id]
+        aid = to_string(@agent[:agent_id]) %>
+        To: <span class="text-default font-mono">{display_name}</span>
+        <span :if={display_name != aid} class="text-muted ml-1">({Ichor.Gateway.AgentRegistry.AgentEntry.short_id(aid)})</span>
       </div>
       <form phx-submit="send_command_message" class="flex gap-2">
         <input type="hidden" name="to" value={@agent[:agent_id]} />

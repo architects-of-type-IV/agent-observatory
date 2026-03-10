@@ -6,6 +6,8 @@ defmodule Ichor.Gateway.AgentRegistry.EventHandler do
   No ETS access, no side effects.
   """
 
+  import Ichor.MapHelpers, only: [maybe_put: 3]
+
   @doc "Apply a hook event to an existing agent map. Updates model, cwd, tool, status."
   @spec apply_event(map(), map()) :: map()
   def apply_event(agent, event) do
@@ -47,8 +49,4 @@ defmodule Ichor.Gateway.AgentRegistry.EventHandler do
 
   defp derive_status(_event, existing), do: existing.status
 
-  # ── Helpers ────────────────────────────────────────────────────────
-
-  defp maybe_put(map, _key, nil), do: map
-  defp maybe_put(map, key, value), do: Map.put(map, key, value)
 end

@@ -68,23 +68,45 @@ defmodule Ichor.AgentMonitor do
   defp detect_and_handle_crashes(state) do
     now = DateTime.utc_now()
 
-    {crashed_sessions, active_sessions} =
+    {stale_sessions, active_sessions} =
       state.sessions
       |> Enum.split_with(fn {_session_id, data} ->
         DateTime.diff(now, data.last_event_at, :second) > @crash_threshold_sec
       end)
 
-    # Handle crashed sessions
-    Enum.each(crashed_sessions, fn {session_id, data} ->
+    # Only declare crash if the agent is actually dead (no tmux session, no BEAM process)
+    {crashed, still_alive} =
+      Enum.split_with(stale_sessions, fn {session_id, _data} ->
+        not agent_alive?(session_id)
+      end)
+
+    Enum.each(crashed, fn {session_id, data} ->
       handle_crash(session_id, data.team_name)
     end)
 
-    # Remove crashed sessions from state
-    %{state | sessions: Map.new(active_sessions)}
+    # Keep still-alive stale sessions in tracking (agent is alive, just idle)
+    %{state | sessions: Map.new(active_sessions ++ still_alive)}
+  end
+
+  defp agent_alive?(session_id) do
+    Ichor.Fleet.AgentProcess.alive?(session_id) or tmux_session_alive?(session_id)
+  end
+
+  defp tmux_session_alive?(session_id) do
+    registry_entry = Ichor.Gateway.AgentRegistry.get(session_id)
+    tmux_target = registry_entry && registry_entry.channels && registry_entry.channels.tmux
+
+    case tmux_target do
+      nil -> false
+      target -> Ichor.Gateway.Channels.Tmux.available?(target)
+    end
+  rescue
+    _ -> false
   end
 
   defp handle_crash(session_id, team_name) do
-    Logger.warning("AgentMonitor: Detected crash for session #{session_id} in team #{team_name}")
+    team_label = team_name || "standalone"
+    Logger.warning("AgentMonitor: Detected crash for session #{session_id} (#{team_label})")
 
     # Reassign tasks if team exists
     reassigned_count =
@@ -154,7 +176,7 @@ defmodule Ichor.AgentMonitor do
     inbox_dir = Path.expand("~/.claude/inbox")
     File.mkdir_p(inbox_dir)
 
-    short_sid = String.slice(session_id, 0, 8)
+    short_sid = Ichor.Gateway.AgentRegistry.AgentEntry.short_id(session_id)
     timestamp = System.system_time(:millisecond)
     filename = "crash_#{team_name}_#{short_sid}_#{timestamp}.json"
 

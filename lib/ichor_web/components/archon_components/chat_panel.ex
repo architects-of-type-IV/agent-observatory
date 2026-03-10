@@ -3,6 +3,8 @@ defmodule IchorWeb.Components.ArchonComponents.ChatPanel do
 
   use Phoenix.Component
 
+  import IchorWeb.Markdown, only: [render: 1]
+
   attr :messages, :list, required: true
   attr :loading, :boolean, default: false
 
@@ -44,7 +46,7 @@ defmodule IchorWeb.Components.ArchonComponents.ChatPanel do
   attr :content, :string, required: true
 
   defp chat_bubble(assigns) do
-    assigns = Phoenix.Component.assign(assigns, :rendered, render_markdown(assigns.content))
+    assigns = Phoenix.Component.assign(assigns, :rendered, render(assigns.content))
 
     ~H"""
     <div class={["archon-msg", role_class(@role)]}>
@@ -100,14 +102,4 @@ defmodule IchorWeb.Components.ArchonComponents.ChatPanel do
   defp format_structured(%{data: data}) when is_binary(data), do: data
   defp format_structured(_), do: ""
 
-  defp render_markdown(nil), do: Phoenix.HTML.raw("")
-  defp render_markdown(""), do: Phoenix.HTML.raw("")
-
-  defp render_markdown(text) when is_binary(text) do
-    text
-    |> Earmark.as_html!(compact_output: true, smartypants: false)
-    |> Phoenix.HTML.raw()
-  end
-
-  defp render_markdown(other), do: Phoenix.HTML.raw(to_string(other))
 end

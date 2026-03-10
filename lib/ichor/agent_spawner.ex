@@ -1,8 +1,11 @@
 defmodule Ichor.AgentSpawner do
   @moduledoc """
-  Spawns Claude Code agents in isolated tmux sessions with BEAM process backing.
+  Spawns agents in isolated tmux sessions with BEAM process backing.
 
-  Pipeline: validate -> write overlay -> create tmux session -> start AgentProcess -> register.
+  Session naming: `ichor-{team_hash}-{n}` (team) or `ichor-{n}` (standalone).
+  Counter is global and monotonic. Human-readable names live in registry metadata.
+
+  Pipeline: validate -> write overlay -> create tmux session -> start AgentProcess.
   Supports remote spawning on connected BEAM nodes via `:host` option.
   """
 
@@ -17,6 +20,8 @@ defmodule Ichor.AgentSpawner do
   alias Ichor.InstructionOverlay
 
   @ichor_socket Path.expand("~/.ichor/tmux/obs.sock")
+  @counter_key :ichor_spawn_counter
+  @prefix "ichor"
 
   @type spawn_opts :: %{
           optional(:name) => String.t(),
@@ -34,7 +39,15 @@ defmodule Ichor.AgentSpawner do
 
   # ── Public API ──────────────────────────────────────────────────────
 
-  @doc "Spawn a new Claude Code agent. Routes to local or remote node based on `:host` option."
+  @doc "Initialize the spawn counter. Called from Application.start/2."
+  @spec init_counter() :: :ok
+  def init_counter do
+    ref = :atomics.new(1, signed: false)
+    :persistent_term.put(@counter_key, ref)
+    :ok
+  end
+
+  @doc "Spawn a new agent. Routes to local or remote node based on `:host` option."
   @spec spawn_agent(spawn_opts()) :: {:ok, map()} | {:error, term()}
   def spawn_agent(%{host: target} = opts) when target != nil do
     case HostRegistry.available?(target) do
@@ -47,9 +60,9 @@ defmodule Ichor.AgentSpawner do
 
   @doc false
   def spawn_local(opts) do
-    name = opts[:name] || generate_name(opts[:capability] || "agent")
+    name = opts[:name] || opts[:capability] || "agent"
     cwd = opts[:cwd] || File.cwd!()
-    session_name = "obs-#{name}"
+    session_name = generate_session_name(opts[:team_name])
 
     with :ok <- validate_no_conflict(session_name),
          :ok <- validate_cwd(cwd),
@@ -63,19 +76,52 @@ defmodule Ichor.AgentSpawner do
   @spec list_spawned() :: [String.t()]
   def list_spawned do
     Tmux.list_sessions()
-    |> Enum.filter(&String.starts_with?(&1, "obs-"))
+    |> Enum.filter(&spawned_session?/1)
   end
+
+  @doc "Returns true if the session name was created by the spawner."
+  @spec spawned_session?(String.t()) :: boolean()
+  def spawned_session?(@prefix <> "-" <> rest) do
+    case String.split(rest, "-") do
+      [n] -> integer?(n)
+      [_team_hash, _n] -> true
+      _ -> false
+    end
+  end
+
+  def spawned_session?(_), do: false
 
   @doc "Stop a spawned agent by terminating its BEAM process and sending /exit to tmux."
   @spec stop_agent(String.t()) :: :ok | {:error, term()}
   def stop_agent(session_name) do
     terminate_beam_process(session_name)
     send_tmux_exit(session_name)
-    # AgentProcess.terminate/2 handles registry cleanup when process stops,
-    # but clean up explicitly in case the process was already dead
-    Ichor.Gateway.AgentRegistry.remove(session_name)
+    AgentRegistry.remove(session_name)
     Ichor.EventBuffer.remove_session(session_name)
   end
+
+  # ── Private: Session Naming ─────────────────────────────────────────
+
+  defp generate_session_name(nil) do
+    "#{@prefix}-#{next_counter()}"
+  end
+
+  defp generate_session_name(team_name) do
+    "#{@prefix}-#{team_hash(team_name)}-#{next_counter()}"
+  end
+
+  defp next_counter do
+    ref = :persistent_term.get(@counter_key)
+    :atomics.add_get(ref, 1, 1)
+  end
+
+  defp team_hash(name) do
+    :crypto.hash(:md5, name)
+    |> binary_part(0, 2)
+    |> Base.encode16(case: :lower)
+  end
+
+  defp integer?(str), do: match?({_, ""}, Integer.parse(str))
 
   # ── Private: Spawn Pipeline ────────────────────────────────────────
 
@@ -120,16 +166,6 @@ defmodule Ichor.AgentSpawner do
     ]
 
     start_agent_process(process_opts, opts[:team_name], name, cwd)
-
-    AgentRegistry.register_spawned(session_name,
-      name: name,
-      role: role,
-      team: opts[:team_name],
-      cwd: cwd,
-      parent_id: opts[:parent_id],
-      host: Atom.to_string(Node.self()),
-      channels: %{tmux: session_name}
-    )
 
     {:ok, %{session_name: session_name, agent_id: session_name, name: name, cwd: cwd, node: Node.self()}}
   end
@@ -258,11 +294,6 @@ defmodule Ichor.AgentSpawner do
   defp capability_to_role("lead"), do: :lead
   defp capability_to_role("coordinator"), do: :coordinator
   defp capability_to_role(_), do: :worker
-
-  defp generate_name(capability) do
-    suffix = :rand.uniform(9999) |> Integer.to_string() |> String.pad_leading(4, "0")
-    "#{capability}-#{suffix}"
-  end
 
   defp node_to_host(node) do
     node |> Atom.to_string() |> String.split("@") |> List.last()

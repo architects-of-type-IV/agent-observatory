@@ -197,10 +197,14 @@ defmodule Ichor.EventBuffer do
         _ -> :Stop
       end
 
+    tmux_session = attrs[:tmux_session] || attrs["tmux_session"]
+    raw_session_id = attrs[:session_id] || attrs["session_id"] || "unknown"
+    session_id = resolve_session_id(raw_session_id, tmux_session)
+
     %{
       id: Ash.UUID.generate(),
       source_app: attrs[:source_app] || attrs["source_app"] || "unknown",
-      session_id: attrs[:session_id] || attrs["session_id"] || "unknown",
+      session_id: session_id,
       hook_event_type: hook_type,
       payload: attrs[:payload] || attrs["payload"] || %{},
       summary: attrs[:summary] || attrs["summary"],
@@ -210,9 +214,15 @@ defmodule Ichor.EventBuffer do
       cwd: attrs[:cwd] || attrs["cwd"],
       permission_mode: attrs[:permission_mode] || attrs["permission_mode"],
       duration_ms: attrs[:duration_ms] || attrs["duration_ms"],
-      tmux_session: attrs[:tmux_session] || attrs["tmux_session"],
+      tmux_session: tmux_session,
       inserted_at: now,
       updated_at: now
     }
   end
+
+  # tmux session name is the canonical identity. No BEAM process check needed —
+  # if the event says it came from a tmux session, that's the ID. Period.
+  defp resolve_session_id(raw_id, nil), do: raw_id
+  defp resolve_session_id(raw_id, ""), do: raw_id
+  defp resolve_session_id(_raw_id, tmux_session), do: tmux_session
 end

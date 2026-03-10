@@ -4,6 +4,7 @@ defmodule IchorWeb.Components.ArchonComponents.CommandHud do
   use Phoenix.Component
 
   import IchorWeb.Components.ArchonComponents.Icons, only: [hud_icon: 1]
+  import IchorWeb.Markdown, only: [render: 1]
 
   attr :actions, :list, required: true
   attr :loading, :boolean, default: false
@@ -271,7 +272,7 @@ defmodule IchorWeb.Components.ArchonComponents.CommandHud do
           <span>to: {@result["to"]}</span>
           <span :if={@result["delivered"]}>{@result["delivered"]}</span>
         </div>
-        <div :if={@result["error"]} class="archon-output-card-detail" class="text-error">{@result["error"]}</div>
+        <div :if={@result["error"]} class="archon-output-card-detail text-error">{@result["error"]}</div>
       </div>
     </div>
     """
@@ -282,7 +283,7 @@ defmodule IchorWeb.Components.ArchonComponents.CommandHud do
 
     ~H"""
     <div class="archon-output-section">
-      <div class="archon-output-entry" class="text-error">
+      <div class="archon-output-entry text-error">
         <div class="whitespace-pre-wrap">{@error}</div>
       </div>
     </div>
@@ -292,7 +293,7 @@ defmodule IchorWeb.Components.ArchonComponents.CommandHud do
   # Fallback: markdown (LLM responses, remember/recall/query results)
   defp output_entry(%{msg: msg} = assigns) do
     content = msg[:content] || inspect(msg[:data], pretty: true)
-    rendered = render_markdown(content)
+    rendered = render(content)
     assigns = assign(assigns, :rendered, rendered)
 
     ~H"""
@@ -333,12 +334,9 @@ defmodule IchorWeb.Components.ArchonComponents.CommandHud do
 
   # ── Helpers ──────────────────────────────────────────────────────────
 
+  defp status_color(status) when is_atom(status), do: status_color(to_string(status))
   defp status_color("active"), do: "archon-badge-ok"
-  defp status_color(:active), do: "archon-badge-ok"
   defp status_color("paused"), do: "archon-badge-warn"
-  defp status_color(:paused), do: "archon-badge-warn"
-  defp status_color("ended"), do: "archon-badge-dim"
-  defp status_color(:ended), do: "archon-badge-dim"
   defp status_color(_), do: "archon-badge-dim"
 
   defp health_color("healthy"), do: "archon-badge-ok"
@@ -371,11 +369,4 @@ defmodule IchorWeb.Components.ArchonComponents.CommandHud do
   defp safe_str(val) when is_atom(val), do: to_string(val)
   defp safe_str(val), do: inspect(val)
 
-  defp render_markdown(text) when is_binary(text) do
-    text
-    |> Earmark.as_html!(compact_output: true, smartypants: false)
-    |> Phoenix.HTML.raw()
-  end
-
-  defp render_markdown(other), do: Phoenix.HTML.raw(to_string(other))
 end

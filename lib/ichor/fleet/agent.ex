@@ -9,6 +9,8 @@ defmodule Ichor.Fleet.Agent do
 
   use Ash.Resource, domain: Ichor.Fleet
 
+  import Ichor.MapHelpers, only: [maybe_put: 3]
+
   attributes do
     attribute :agent_id, :string, primary_key?: true, allow_nil?: false, public?: true
     attribute :name, :string, public?: true
@@ -280,8 +282,4 @@ defmodule Ichor.Fleet.Agent do
     Ichor.Fleet.TeamSupervisor.spawn_member(team_name, opts)
   end
 
-  @spec maybe_put(map(), atom(), term()) :: map()
-  defp maybe_put(map, _key, nil), do: map
-  defp maybe_put(map, _key, ""), do: map
-  defp maybe_put(map, key, value), do: Map.put(map, key, value)
 end

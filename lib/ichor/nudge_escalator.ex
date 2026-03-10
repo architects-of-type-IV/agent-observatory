@@ -58,7 +58,15 @@ defmodule Ichor.NudgeEscalator do
       entry = Map.get(state.escalations, session_id)
 
       if entry.level >= 2 do
-        HITLRelay.unpause(session_id, session_id, "ichor-auto")
+        case HITLRelay.unpause(session_id, session_id, "ichor-auto") do
+          {:ok, _} ->
+            :ok
+
+          error ->
+            Logger.warning(
+              "NudgeEscalator: auto-unpause failed for #{session_id}: #{inspect(error)}"
+            )
+        end
       end
 
       {:noreply, %{state | escalations: Map.delete(state.escalations, session_id)}}
@@ -139,11 +147,13 @@ defmodule Ichor.NudgeEscalator do
   end
 
   defp execute_escalation(session_id, agent, level) do
-    agent_name = agent[:name] || agent[:short_name] || String.slice(session_id, 0, 8)
+    agent_name = agent[:name] || agent[:short_name] || Ichor.Gateway.AgentRegistry.AgentEntry.short_id(session_id)
 
     case level do
       0 ->
-        Logger.warning("NudgeEscalator: Agent #{agent_name} (#{session_id}) is stale (level 0: warn)")
+        Logger.warning(
+          "NudgeEscalator: Agent #{agent_name} (#{session_id}) is stale (level 0: warn)"
+        )
 
         Phoenix.PubSub.broadcast(
           Ichor.PubSub,
@@ -153,11 +163,22 @@ defmodule Ichor.NudgeEscalator do
 
       1 ->
         Logger.warning("NudgeEscalator: Nudging agent #{agent_name} via tmux (level 1)")
-        nudge_message = "[Ichor] Are you still working? No activity detected for >#{config(:stale_threshold_sec, @default_stale_threshold)}s. Reply or take action to clear this alert."
 
-        case Tmux.deliver(agent[:tmux_session] || session_id, %{content: nudge_message, from: "ichor", type: :nudge}) do
-          :ok -> :ok
-          {:error, reason} -> Logger.warning("NudgeEscalator: Tmux nudge failed for #{agent_name}: #{inspect(reason)}")
+        nudge_message =
+          "[Ichor] Are you still working? No activity detected for >#{config(:stale_threshold_sec, @default_stale_threshold)}s. Reply or take action to clear this alert."
+
+        case Tmux.deliver(agent[:tmux_session] || session_id, %{
+               content: nudge_message,
+               from: "ichor",
+               type: :nudge
+             }) do
+          :ok ->
+            :ok
+
+          {:error, reason} ->
+            Logger.warning(
+              "NudgeEscalator: Tmux nudge failed for #{agent_name}: #{inspect(reason)}"
+            )
         end
 
         Phoenix.PubSub.broadcast(
@@ -177,7 +198,9 @@ defmodule Ichor.NudgeEscalator do
         )
 
       3 ->
-        Logger.warning("NudgeEscalator: Agent #{agent_name} marked as zombie (level 3: terminate)")
+        Logger.warning(
+          "NudgeEscalator: Agent #{agent_name} marked as zombie (level 3: terminate)"
+        )
 
         Phoenix.PubSub.broadcast(
           Ichor.PubSub,

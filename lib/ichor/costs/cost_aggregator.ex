@@ -126,7 +126,7 @@ defmodule Ichor.Costs.CostAggregator do
 
           %{
             session_id: sid,
-            label: map["source_app"] || String.slice(sid, 0, 8),
+            label: map["source_app"] || Ichor.Gateway.AgentRegistry.AgentEntry.short_id(sid),
             model: map["model_name"],
             input_tokens: map["input_tokens"] || 0,
             output_tokens: map["output_tokens"] || 0,

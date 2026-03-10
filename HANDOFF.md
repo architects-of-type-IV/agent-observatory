@@ -1,56 +1,51 @@
 # ICHOR IV - Handoff
 
-## Current Status: Fleet Observability + MCP Spawn Tool (2026-03-09)
+## Current Status: Fleet Identity + Agent Naming Fixes (2026-03-10)
 
 ### Just Completed
 
-**Subagent Hierarchy Fix + Clickable Subagents**
-- Rewrote `build_subagent_map` in LoadAgents to use PreToolUse/PostToolUse "Agent"/"Task" events (rich metadata: description, subagent_type, name) instead of SubagentStart (nil subagent_id, no metadata)
-- Subagents are metadata on the parent agent, not separate Fleet.Agent entries
-- Clickable subagent rows in fleet tree with `phx-click="select_subagent"` -> detail panel showing type, parent (clickable), description, tool_use_id, started_at
-- Added `subagents` attribute to Fleet.Agent (`:array, :map`, default `[]`)
+**Agent Identity Overhaul -- 3 root causes fixed**
 
-**NudgeEscalator Fixes**
-- Increased thresholds: stale 600s, nudge interval 300s (was 120s/60s)
-- Auto-unpause on activity resume: new events trigger HITLRelay.unpause when level >= 2
-- Non-tmux agents capped at escalation level 0 (no tmux nudge or HITL pause)
-- Added `/api/debug/hitl-clear` endpoint for bulk unpause
+1. **`short_id` UUID-aware**: All 20+ `String.slice(x, 0, 8)` sites replaced with `AgentEntry.short_id/1` which uses binary pattern match to detect UUIDs. UUIDs truncated to 8 chars; human-readable names (like tmux session names) pass through unchanged. Fixes "obs-agen" truncation of "obs-agent-9725".
 
-**spawn_agent MCP Tool**
-- `Ichor.AgentTools.Spawn` resource with `spawn_agent` and `stop_agent` actions
-- Registered in AgentTools domain and MCP router tools list
-- Delegates to `Ichor.AgentSpawner.spawn_agent/1`
-- 8 params: prompt, capability, model, name, team_name, cwd, file_scope, extra_instructions
+2. **Agent naming: never use `Path.basename(cwd)`**: `derive_display_name/3` in LoadAgents uses tmux session name or short UUID, never the project directory. `build_agent_name_map` in feed helpers follows the same rule. Fixes "observatory" appearing as agent name instead of UUID/tmux name.
 
-### Previously Completed
-- Codebase rename: Observatory -> Ichor (211 modules)
-- Agent lifecycle closed-loop (6 gaps fixed)
-- Full CSS tokenization (1,200+ refs migrated)
-- Archon HUD + Chat + Memories integration
-- BEAM-native fleet foundation
-- DashboardLive dispatch/3 refactor
-- Legacy module elimination (Mailbox, CommandQueue, TeamWatcher)
+3. **EventBuffer canonical session_id**: `resolve_session_id/2` now uses tmux_session as canonical ID unconditionally when present. No BEAM process alive check (was a race condition -- events arriving before TmuxDiscovery created the process got stored under UUID). Fixes duplicate agent entries and empty feed for tmux agents.
 
-### Pending / Next
-- **Idle vs zombie visual distinction**: User wants clear differentiation. Fleet.Agent status has `[:active, :idle, :ended]` -- may need `:zombie` status or visual treatment
-- **Live test spawn_agent MCP tool**: Registered and verified via tools/list, no live spawn test yet
-- **Archon CSS tokenization**: archon-* classes still use hardcoded rgba()
+**Code quality sweep (3 review agents)**
+- Removed dead `rewrite_tmux_session/2` from EventBuffer
+- Removed unreachable clause in `protocol_components.ex`
+- Replaced `Ecto.UUID.cast` with binary pattern match in `uuid?/1` (zero allocation)
+- Moved ghost detection out of template (uses `:status` field instead of per-agent Registry lookups)
+- Consolidated `maybe_put/3` in `agent_tools/spawn.ex` to shared `MapHelpers`
+- Fixed missed `Path.basename(cwd)` in `swarm_handlers.ex`
 
-### .env Setup
-- `ANTHROPIC_API_KEY` in `.env` at project root
-- Not auto-loaded -- `source .env` before `mix phx.server`
+**Other fixes from prior session (carried over)**
+- AgentMonitor: false crash detection fixed (checks BEAM + tmux liveness before declaring crash)
+- TmuxDiscovery: rewritten as continuous BEAM invariant enforcer (every tmux session gets AgentProcess)
+- Ghost detection: requires no events AND no tmux AND ended/unknown status
+- `infrastructure_session?/1`: only "obs" and numeric-only sessions are infrastructure
+- Added InstructionsLoaded, ConfigChange, TeammateIdle hook events to settings.json
+- Renamed send_event.sh env vars from OBSERVATORY to ICHOR
 
 ### Build Status
 `mix compile --warnings-as-errors` -- CLEAN
 
+### Pending / Next
+- **Idle vs zombie visual distinction** (task 57)
+- **Live test spawn_agent MCP tool** (task 58)
+- **Archon CSS tokenization**: archon-* classes still use hardcoded rgba()
+- **Hook script directory rename**: `~/.claude/hooks/observatory/` should be `~/.claude/hooks/ichor/`
+- **TeamSync dead code**: listens for `{:teams_updated, teams}` but PubSub sends `{:tasks_updated, team_name}` -- never fires
+
 ### Key Architecture Decisions
-- **Module prefix**: `Ichor` (not `IchorIV`). Dashboard title is "ICHOR IV".
-- **AgentProcess.terminate/2** is the single lifecycle reconciliation point.
-- **Subagents are decorative metadata** on parents, not independent Fleet.Agent entries.
-- **No theme switcher UI** -- user decided against on-demand theme switching.
+- **tmux session name IS the canonical ID** for agents running in tmux. No BEAM process check needed.
+- **Agent name is NOT the project directory**. Project name goes in `:project` field.
+- **`AgentEntry.short_id/1`** is the single source of truth for display abbreviation.
+- **`AgentEntry.uuid?/1`** uses binary pattern match (36 chars, dashes at positions 8/13/18/23).
 
 ### Runtime Notes
 - Port 4005
 - `~/.ichor/tmux/obs.sock` -- tmux socket path
+- `~/.observatory/tmux/obs.sock` -- dead leftover from rename (user will kill)
 - Memories server on port 4000 (must be running for Archon memory tools)
-- Docker: postgres (5434) + falkordb (6379) for Memories

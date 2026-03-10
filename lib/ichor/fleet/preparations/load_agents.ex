@@ -24,8 +24,8 @@ defmodule Ichor.Fleet.Preparations.LoadAgents do
       |> build_from_events(now)
       |> enrich_with_teams(teams)
       |> append_disk_only_members(teams, now)
-      |> append_tmux_only(tmux_sessions)
       |> merge_beam_processes(now)
+      |> append_tmux_only(tmux_sessions)
       |> merge_with_registry(registry_agents)
       |> attach_subagents(subagent_map)
       |> sort_agents()
@@ -44,6 +44,7 @@ defmodule Ichor.Fleet.Preparations.LoadAgents do
     latest = hd(sorted)
     ended? = Enum.any?(events, &(&1.hook_event_type == :SessionEnd))
     cwd = latest.cwd || Enum.find_value(events, & &1.cwd)
+    tmux_session = Enum.find_value(events, & &1.tmux_session)
 
     model =
       Enum.find_value(events, fn e ->
@@ -58,9 +59,11 @@ defmodule Ichor.Fleet.Preparations.LoadAgents do
         true -> :active
       end
 
+    name = derive_display_name(session_id, tmux_session, cwd)
+
     struct!(Ichor.Fleet.Agent, %{
       agent_id: session_id,
-      name: if(cwd, do: Path.basename(cwd), else: String.slice(session_id, 0, 8)),
+      name: name,
       role: nil,
       model: model,
       status: status,
@@ -73,7 +76,7 @@ defmodule Ichor.Fleet.Preparations.LoadAgents do
       project: if(cwd, do: Path.basename(cwd), else: nil),
       health_issues: [],
       team_name: nil,
-      tmux_session: Enum.find_value(events, & &1.tmux_session),
+      tmux_session: tmux_session,
       recent_activity: build_recent_activity(sorted, now)
     })
   end
@@ -108,7 +111,7 @@ defmodule Ichor.Fleet.Preparations.LoadAgents do
         |> Enum.map(fn m ->
           struct!(Ichor.Fleet.Agent, %{
             agent_id: m[:agent_id],
-            name: m[:name] || m[:agent_type] || String.slice(m[:agent_id] || "", 0, 8),
+            name: m[:name] || m[:agent_type] || Ichor.Gateway.AgentRegistry.AgentEntry.short_id(m[:agent_id] || ""),
             role: m[:name] || m[:agent_type],
             model: m[:model],
             status: m[:status] || :idle,
@@ -165,7 +168,9 @@ defmodule Ichor.Fleet.Preparations.LoadAgents do
     agents ++ tmux_agents
   end
 
-  # Merge BEAM-native agent processes: enrich existing agents or add process-only agents
+  # Merge BEAM-native agent processes: enrich existing agents or add process-only agents.
+  # For spawned Claude agents, EventBuffer.resolve_session_id/2 rewrites the session_id
+  # to match the BEAM process id on ingest, so agent_id matching works directly.
   defp merge_beam_processes(agents, _now) do
     process_agents = Ichor.Fleet.AgentProcess.list_all()
     known_ids = MapSet.new(agents, & &1.agent_id)
@@ -175,6 +180,8 @@ defmodule Ichor.Fleet.Preparations.LoadAgents do
       process_agents
       |> Enum.reject(fn {id, _meta} -> MapSet.member?(known_ids, id) end)
       |> Enum.map(fn {id, meta} ->
+        cwd = meta[:cwd]
+
         struct!(Ichor.Fleet.Agent, %{
           agent_id: id,
           name: id,
@@ -185,12 +192,12 @@ defmodule Ichor.Fleet.Preparations.LoadAgents do
           current_tool: nil,
           event_count: 0,
           tool_count: 0,
-          cwd: nil,
+          cwd: cwd,
           source_app: nil,
-          project: nil,
+          project: if(cwd, do: Path.basename(cwd), else: nil),
           health_issues: [],
           team_name: meta[:team],
-          tmux_session: nil,
+          tmux_session: meta[:tmux_session],
           recent_activity: []
         })
       end)
@@ -220,13 +227,23 @@ defmodule Ichor.Fleet.Preparations.LoadAgents do
           %{agent | session_id: agent.agent_id}
 
         reg ->
+          # Prefer the agent name from derive_display_name over registry short_name
+          # when short_name is just a truncated UUID (not human-readable)
+          better_name =
+            cond do
+              reg.short_name && not Ichor.Gateway.AgentRegistry.AgentEntry.uuid?(reg.session_id) -> reg.short_name
+              agent.name && agent.name != "" -> agent.name
+              reg.short_name -> reg.short_name
+              true -> agent.name
+            end
+
           %{agent |
             session_id: reg.session_id,
             short_name: reg.short_name,
             host: Map.get(reg, :host, "local"),
             channels: reg.channels,
             last_event_at: reg.last_event_at,
-            name: reg.short_name || agent.name,
+            name: better_name,
             cwd: reg.cwd || agent.cwd,
             model: reg.model || agent.model
           }
@@ -267,6 +284,17 @@ defmodule Ichor.Fleet.Preparations.LoadAgents do
       subs = Map.get(subagent_map, agent.agent_id, [])
       %{agent | subagents: subs}
     end)
+  end
+
+  # Agent name: tmux session name or short UUID. Never Path.basename(cwd) --
+  # the project directory is the PROJECT, not the agent's identity.
+  defp derive_display_name(session_id, tmux_session, _cwd) do
+    alias Ichor.Gateway.AgentRegistry.AgentEntry
+    cond do
+      not AgentEntry.uuid?(session_id) -> session_id
+      tmux_session && tmux_session != "" -> tmux_session
+      true -> AgentEntry.short_id(session_id)
+    end
   end
 
   defp sort_agents(agents) do

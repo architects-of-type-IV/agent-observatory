@@ -147,13 +147,6 @@ defmodule IchorWeb.DashboardMessageHelpers do
     Enum.join(participants, "<->")
   end
 
-  defp short_id(id) when is_binary(id) do
-    if String.length(id) > 12 do
-      String.slice(id, 0..11)
-    else
-      id
-    end
-  end
-
+  defp short_id(id) when is_binary(id), do: Ichor.Gateway.AgentRegistry.AgentEntry.short_id(id)
   defp short_id(_), do: "?"
 end

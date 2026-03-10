@@ -55,8 +55,11 @@ defmodule IchorWeb.DashboardArchonHandlers do
 
   alias Ichor.Archon.MemoriesClient
 
-  defp build_response_msg(%{type: type, data: data}), do: %{role: :assistant, type: type, data: data, content: nil}
-  defp build_response_msg(text) when is_binary(text), do: %{role: :assistant, type: :text, data: nil, content: text}
+  defp build_response_msg(%{type: type, data: data}),
+    do: %{role: :assistant, type: type, data: data, content: nil}
+
+  defp build_response_msg(text) when is_binary(text),
+    do: %{role: :assistant, type: :text, data: nil, content: text}
 
   defp last_user_input(messages) do
     messages
@@ -75,7 +78,7 @@ defmodule IchorWeb.DashboardArchonHandlers do
     Task.start(fn ->
       case MemoriesClient.ingest(content, type: "message") do
         {:ok, _} -> :ok
-        {:error, reason} -> Logger.debug("[Archon] Memory ingest failed: #{inspect(reason)}")
+        {:error, reason} -> Logger.warning("[Archon] Memory ingest failed: #{inspect(reason)}")
       end
     end)
   end
@@ -89,13 +92,7 @@ defmodule IchorWeb.DashboardArchonHandlers do
   end
 
   defp dispatch_shortcode(content, socket) do
-    history = socket.assigns.archon_history
-    lv = self()
-
-    Task.start(fn ->
-      result = Ichor.Archon.Chat.chat(content, history)
-      send(lv, {:archon_response, result})
-    end)
+    start_chat_task(content, socket.assigns.archon_history)
 
     socket
     |> assign(:archon_messages, [])
@@ -105,18 +102,20 @@ defmodule IchorWeb.DashboardArchonHandlers do
 
   defp dispatch_message(content, socket) do
     user_msg = %{role: :user, content: content}
-    messages = socket.assigns.archon_messages ++ [user_msg]
-    history = socket.assigns.archon_history
+    start_chat_task(content, socket.assigns.archon_history)
+
+    socket
+    |> assign(:archon_messages, socket.assigns.archon_messages ++ [user_msg])
+    |> assign(:archon_loading, true)
+    |> assign(:show_archon, true)
+  end
+
+  defp start_chat_task(content, history) do
     lv = self()
 
     Task.start(fn ->
       result = Ichor.Archon.Chat.chat(content, history)
       send(lv, {:archon_response, result})
     end)
-
-    socket
-    |> assign(:archon_messages, messages)
-    |> assign(:archon_loading, true)
-    |> assign(:show_archon, true)
   end
 end

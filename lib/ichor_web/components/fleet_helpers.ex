@@ -106,8 +106,7 @@ defmodule IchorWeb.Components.FleetHelpers do
   def resolve_label(id, map), do: Map.get(map, id, short_id(id))
 
   defp short_id(nil), do: "?"
-  defp short_id(id) when byte_size(id) > 8, do: String.slice(id, 0, 8) <> "..."
-  defp short_id(id), do: id
+  defp short_id(id), do: Ichor.Gateway.AgentRegistry.AgentEntry.short_id(id)
 
   def filter_by_team(messages, nil, _teams), do: messages
 

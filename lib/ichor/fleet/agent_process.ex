@@ -167,7 +167,12 @@ defmodule Ichor.Fleet.AgentProcess do
       metadata: Keyword.get(opts, :metadata, %{})
     }
 
-    update_registry(id, %{role: role, team: team, status: :active, backend_type: backend_type(state.backend)})
+    meta = Keyword.get(opts, :metadata, %{})
+    tmux_session = case state.backend do
+      %{type: :tmux, session: s} -> s
+      _ -> nil
+    end
+    update_registry(id, %{role: role, team: team, status: :active, backend_type: backend_type(state.backend), cwd: meta[:cwd], tmux_session: tmux_session})
 
     # Join :pg group for cluster-wide discovery
     :pg.join(@pg_scope, {:agent, id}, self())

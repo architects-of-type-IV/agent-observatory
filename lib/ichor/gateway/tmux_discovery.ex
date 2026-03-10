@@ -1,8 +1,10 @@
 defmodule Ichor.Gateway.TmuxDiscovery do
   @moduledoc """
-  Polls tmux sessions and wires them to the agent registry.
-  Discovers new tmux sessions, auto-registers unknown ones,
-  and enriches existing agents with tmux channel info.
+  Polls tmux sessions and enforces the BEAM invariant:
+  every non-infrastructure tmux session MUST have a BEAM AgentProcess.
+
+  Continuously discovers tmux sessions, ensures BEAM processes exist,
+  and enriches agents with tmux channel info. Runs every 5 seconds.
   """
 
   use GenServer
@@ -10,6 +12,8 @@ defmodule Ichor.Gateway.TmuxDiscovery do
 
   alias Ichor.Gateway.AgentRegistry
   alias Ichor.Gateway.Channels.Tmux
+  alias Ichor.Fleet.AgentProcess
+  alias Ichor.Fleet.FleetSupervisor
 
   @poll_interval 5_000
 
@@ -43,32 +47,52 @@ defmodule Ichor.Gateway.TmuxDiscovery do
     tmux_panes = Tmux.list_panes()
     all_agents = AgentRegistry.list_all_raw()
 
-    register_unknown_sessions(tmux_sessions, all_agents)
+    ensure_beam_processes(tmux_sessions)
     enrich_tmux_channels(tmux_sessions, tmux_panes, all_agents)
 
     AgentRegistry.broadcast_update()
   end
 
-  defp register_unknown_sessions(tmux_sessions, all_entries) do
-    known_ids = all_entries |> Enum.map(fn {_sid, a} -> a.id end) |> MapSet.new()
-
-    known_tmux_targets =
-      all_entries
-      |> Enum.flat_map(fn {_sid, a} ->
-        case a.channels.tmux do
-          nil -> []
-          target -> [target]
-        end
-      end)
-      |> MapSet.new()
-
+  # Enforce the invariant: every agent tmux session has a BEAM process.
+  # No filtering by naming convention — if it's not infrastructure, it's an agent.
+  defp ensure_beam_processes(tmux_sessions) do
     for session_name <- tmux_sessions,
         not infrastructure_session?(session_name),
-        not MapSet.member?(known_ids, session_name),
-        not MapSet.member?(known_tmux_targets, session_name),
-        is_nil(AgentRegistry.get(session_name)) do
-      AgentRegistry.register_tmux_session(session_name)
+        not AgentProcess.alive?(session_name) do
+      cwd = detect_cwd(session_name)
+      create_agent_process(session_name, cwd)
     end
+  end
+
+  defp create_agent_process(session_name, cwd) do
+    process_opts = [
+      id: session_name,
+      role: :worker,
+      backend: %{type: :tmux, session: session_name},
+      metadata: %{cwd: cwd, source: :tmux_discovery}
+    ]
+
+    case FleetSupervisor.spawn_agent(process_opts) do
+      {:ok, _pid} ->
+        Logger.info("[TmuxDiscovery] Created BEAM process for tmux session #{session_name}")
+
+      {:error, {:already_started, _pid}} ->
+        :ok
+
+      {:error, reason} ->
+        Logger.debug("[TmuxDiscovery] Failed to create process for #{session_name}: #{inspect(reason)}")
+    end
+  rescue
+    _ -> :ok
+  end
+
+  defp detect_cwd(session_name) do
+    case Tmux.run_command(["display-message", "-t", session_name, "-p", "\#{pane_current_path}"]) do
+      {:ok, output} -> String.trim(output)
+      _ -> nil
+    end
+  rescue
+    _ -> nil
   end
 
   defp enrich_tmux_channels(tmux_sessions, tmux_panes, all_entries) do
@@ -104,9 +128,8 @@ defmodule Ichor.Gateway.TmuxDiscovery do
     target in sessions or Enum.any?(panes, &(&1.pane_id == target))
   end
 
-  @doc "Returns true for Ichor infrastructure tmux sessions that should be ignored."
+  @doc "Returns true for tmux server infrastructure sessions (not agents)."
   def infrastructure_session?("obs"), do: true
-  def infrastructure_session?("obs-" <> _), do: true
   def infrastructure_session?(name), do: match?({_, ""}, Integer.parse(name))
 
   defp schedule_poll do

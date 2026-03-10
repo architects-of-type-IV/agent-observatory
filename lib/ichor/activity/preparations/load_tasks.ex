@@ -3,6 +3,8 @@ defmodule Ichor.Activity.Preparations.LoadTasks do
   Loads tasks from TaskCreate/TaskUpdate hook events in the EventBuffer.
   """
 
+  import Ichor.MapHelpers, only: [maybe_put: 3]
+
   use Ash.Resource.Preparation
 
   @impl true
@@ -60,9 +62,6 @@ defmodule Ichor.Activity.Preparations.LoadTasks do
         acc
     end
   end
-
-  defp maybe_put(map, _key, nil), do: map
-  defp maybe_put(map, key, val), do: Map.put(map, key, val)
 
   defp to_resource(task) do
     struct!(Ichor.Activity.Task, task)

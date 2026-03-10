@@ -49,7 +49,7 @@ defmodule IchorWeb.DashboardFilterHandlers do
       agent ||
         %{
           agent_id: sid,
-          name: String.slice(sid, 0, 8),
+          name: Ichor.Gateway.AgentRegistry.AgentEntry.short_id(sid),
           status: :unknown,
           health: :unknown,
           health_issues: []

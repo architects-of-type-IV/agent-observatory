@@ -465,7 +465,7 @@
 >
   <%
     so = @agent_slideout
-    so_name = so[:short_name] || so[:id] || so[:session_id] && String.slice(to_string(so[:session_id]), 0, 8) || "Agent"
+    so_name = so[:short_name] || so[:id] || so[:session_id] && Ichor.Gateway.AgentRegistry.AgentEntry.short_id(to_string(so[:session_id])) || "Agent"
     so_sid = to_string(so[:session_id] || "")
   %>
   <div

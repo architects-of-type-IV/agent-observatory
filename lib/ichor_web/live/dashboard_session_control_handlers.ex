@@ -29,7 +29,7 @@ defmodule IchorWeb.DashboardSessionControlHandlers do
     Ichor.Operator.send(session_id, "Pause requested by dashboard", type: :session_control, metadata: %{action: "pause"})
 
     paused = MapSet.put(socket.assigns.paused_sessions, session_id)
-    short = String.slice(session_id, 0, 8)
+    short = Ichor.Gateway.AgentRegistry.AgentEntry.short_id(session_id)
 
     socket
     |> Phoenix.Component.assign(:paused_sessions, paused)

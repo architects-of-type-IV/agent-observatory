@@ -37,9 +37,10 @@ defmodule IchorWeb.DashboardFormatHelpers do
   @team_tools ~w(TeamCreate TeamDelete TaskCreate TaskUpdate TaskList TaskGet SendMessage)
 
   @doc """
-  Get short session ID (first 8 chars).
+  Abbreviate a session ID for display. UUIDs truncated to 8 chars; human-readable names pass through.
   """
-  def short_session(session_id) when is_binary(session_id), do: String.slice(session_id, 0..7)
+  def short_session(session_id) when is_binary(session_id),
+    do: Ichor.Gateway.AgentRegistry.AgentEntry.short_id(session_id)
   def short_session(_), do: "?"
 
   @doc """

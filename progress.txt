@@ -1,39 +1,32 @@
 ICHOR IV Progress (formerly Observatory)
 ========================================
 
-## Current: Fleet Observability + MCP Spawn Tool (2026-03-09)
+## Current: Agent Identity + Naming Fixes (2026-03-10)
 
 ### This Session
-- [x] Rewrote subagent hierarchy: PreToolUse/PostToolUse events (rich metadata) instead of SubagentStart (nil)
-- [x] Made subagents clickable in fleet tree with detail panel (type, parent, description, tool_use_id)
-- [x] Added Fleet.Agent :subagents attribute ({:array, :map})
-- [x] Fixed NudgeEscalator: increased thresholds (600s/300s), auto-unpause on activity, non-tmux cap at level 0
-- [x] Added /api/debug/hitl-clear endpoint for bulk unpause
+- [x] Fixed all 20+ short_id/String.slice(x,0,8) sites to use UUID-aware AgentEntry.short_id/1
+- [x] Fixed agent naming: tmux session name or short UUID, never Path.basename(cwd)
+- [x] Fixed EventBuffer resolve_session_id: tmux_session IS canonical ID (no BEAM alive check)
+- [x] Fixed AgentMonitor false crash detection (checks actual liveness)
+- [x] Rewrote TmuxDiscovery as continuous BEAM invariant enforcer
+- [x] Fixed ghost detection (no events + no tmux + ended status, no template Registry lookups)
+- [x] Added InstructionsLoaded/ConfigChange/TeammateIdle hook events
+- [x] Renamed send_event.sh env vars OBSERVATORY -> ICHOR
+- [x] Code quality sweep: removed dead code, cheap uuid? check, consolidated maybe_put
+
+### Prior: Fleet Observability + MCP Spawn Tool (2026-03-09)
+- [x] Rewrote subagent hierarchy: PreToolUse/PostToolUse events (rich metadata)
+- [x] Made subagents clickable in fleet tree with detail panel
+- [x] Fixed NudgeEscalator: increased thresholds, auto-unpause, non-tmux cap
 - [x] Built spawn_agent/stop_agent MCP tools (Ichor.AgentTools.Spawn)
-- [x] Registered spawn tools in AgentTools domain + MCP router
-- [x] Added select_subagent event handler in DashboardSwarmHandlers
 
 ### Prior: Codebase Rename (2026-03-09)
 - [x] Full codebase rename: Observatory -> Ichor (211 modules, OTP :ichor)
-- [x] Dashboard title: "ICHOR IV" (header, tab, root layout)
-- [x] All paths, atoms, strings, configs, assets, snapshots updated
-- [x] mix compile --warnings-as-errors -- CLEAN
 
-### Prior: Agent Lifecycle Management (2026-03-09)
-- [x] Fixed shutdown_agent: tmux + BEAM + registries cleanup
-- [x] Ghost detection: GHOST badge for event_count=0
-- [x] Standalone agents grouped by project
-- [x] AgentProcess.terminate/2 = single cleanup point
-- [x] Sweep rewritten in idiomatic Elixir
-
-### Prior: Full Tokenization Complete (2026-03-09)
-- [x] 30+ --ichor-* CSS tokens, two themes (ICHOR IV + Swiss)
-- [x] 1,171 hardcoded color references migrated to semantic tokens
-- [x] obs-* -> ichor-* rename across CSS + 13 templates
-
-### Prior: Archon + Fleet + Legacy Elimination
+### Prior: Agent Lifecycle + Tokenization + Archon + Fleet
+- [x] Agent lifecycle closed-loop (6 gaps fixed)
+- [x] Full CSS tokenization (1,200+ refs migrated)
 - [x] Archon HUD + Chat + Memories integration
-- [x] DashboardLive refactor: 594 -> 164 lines (dispatch/3 pattern)
-- [x] AgentRegistry decomposition + Distribution foundation
-- [x] Legacy modules eliminated (Mailbox, CommandQueue, TeamWatcher)
-- [x] Net -730 lines from web layer
+- [x] BEAM-native fleet foundation
+- [x] DashboardLive dispatch/3 refactor (594->164 lines)
+- [x] Legacy module elimination (Mailbox, CommandQueue, TeamWatcher)

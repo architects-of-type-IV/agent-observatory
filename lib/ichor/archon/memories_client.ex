@@ -7,6 +7,8 @@ defmodule Ichor.Archon.MemoriesClient do
   dedicated group_id namespace.
   """
 
+  import Ichor.MapHelpers, only: [maybe_put: 3]
+
   require Logger
 
   @memories_url "http://localhost:4000"
@@ -27,7 +29,7 @@ defmodule Ichor.Archon.MemoriesClient do
         scope: to_string(scope),
         limit: limit
       }
-      |> maybe_put("space", space)
+      |> maybe_put(:space, space)
 
     post("/api/graph/search", body)
   end
@@ -46,7 +48,7 @@ defmodule Ichor.Archon.MemoriesClient do
         type: type,
         source: source
       }
-      |> maybe_put("space", space)
+      |> maybe_put(:space, space)
 
     post("/api/episodes/ingest", body)
   end
@@ -69,9 +71,6 @@ defmodule Ichor.Archon.MemoriesClient do
 
   @spec user_id() :: String.t()
   def user_id, do: @archon_user_id
-
-  defp maybe_put(map, _key, nil), do: map
-  defp maybe_put(map, key, value), do: Map.put(map, key, value)
 
   defp post(path, body) do
     url = @memories_url <> path

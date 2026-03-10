@@ -5,6 +5,7 @@ defmodule Ichor.AgentTools.Spawn do
   can receive messages, and are traceable.
   """
   use Ash.Resource, domain: Ichor.AgentTools
+  import Ichor.MapHelpers, only: [maybe_put: 3]
 
   actions do
     action :spawn_agent, :map do
@@ -114,7 +115,4 @@ defmodule Ichor.AgentTools.Spawn do
     end
   end
 
-  defp maybe_put(map, _key, nil), do: map
-  defp maybe_put(map, _key, ""), do: map
-  defp maybe_put(map, key, value), do: Map.put(map, key, value)
 end

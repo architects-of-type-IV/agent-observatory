@@ -17,8 +17,7 @@ defmodule IchorWeb.Components.ProtocolComponents do
   defp short_id("unknown"), do: "?"
   defp short_id("system"), do: "system"
   defp short_id("broadcast"), do: "all"
-  defp short_id(id) when byte_size(id) > 12, do: String.slice(id, 0, 8) <> "..."
-  defp short_id(id), do: id
+  defp short_id(id), do: Ichor.Gateway.AgentRegistry.AgentEntry.short_id(id)
 
   defp trace_type_label(:send_message), do: "message"
   defp trace_type_label(:team_create), do: "team"
@@ -72,8 +71,7 @@ defmodule IchorWeb.Components.ProtocolComponents do
       nil ->
         case String.split(id, "@") do
           [agent, team] -> "#{agent}@#{team}"
-          _ when byte_size(id) > 16 -> String.slice(id, 0, 8) <> "..."
-          _ -> id
+          _ -> Ichor.Gateway.AgentRegistry.AgentEntry.short_id(id)
         end
 
       name ->

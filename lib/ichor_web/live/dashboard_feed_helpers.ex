@@ -440,10 +440,14 @@ defmodule IchorWeb.DashboardFeedHelpers do
       events
       |> Enum.filter(&(&1.hook_event_type == :SessionStart))
       |> Enum.reduce(%{}, fn e, acc ->
-        cwd = e.cwd
-        name = if cwd && cwd != "", do: Path.basename(cwd), else: nil
+        # Prefer tmux session name over project directory. Project dir is NOT the agent name.
+        name =
+          cond do
+            e.tmux_session && e.tmux_session != "" -> e.tmux_session
+            true -> Ichor.Gateway.AgentRegistry.AgentEntry.short_id(e.session_id)
+          end
 
-        if name && !Map.has_key?(acc, e.session_id),
+        if !Map.has_key?(acc, e.session_id),
           do: Map.put(acc, e.session_id, name),
           else: acc
       end)

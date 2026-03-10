@@ -20,16 +20,9 @@ defmodule IchorWeb.Components.Feed.SessionGroup do
   import IchorWeb.DashboardSessionHelpers
   alias IchorWeb.DashboardFeedHelpers
 
+  import IchorWeb.Markdown, only: [render: 1]
+
   embed_templates "session_group/*"
-
-  defp render_markdown(text) when is_binary(text) do
-    text
-    |> String.slice(0, 2000)
-    |> Earmark.as_html!(compact_output: true, smartypants: false)
-    |> Phoenix.HTML.raw()
-  end
-
-  defp render_markdown(_), do: ""
 
   # ═══════════════════════════════════════════════════════
   # Composable primitives
@@ -104,9 +97,12 @@ defmodule IchorWeb.Components.Feed.SessionGroup do
     >
       <span class="text-muted text-[10px] font-mono w-3 shrink-0">
         <%= cond do %>
-          <% @collapse_key && @expanded -> %>-
-          <% @collapse_key -> %>+
-          <% true -> %>&middot;
+          <% @collapse_key && @expanded -> %>
+            -
+          <% @collapse_key -> %>
+            +
+          <% true -> %>
+            &middot;
         <% end %>
       </span>
       {render_slot(@inner_block)}
@@ -119,7 +115,8 @@ defmodule IchorWeb.Components.Feed.SessionGroup do
   # ═══════════════════════════════════════════════════════
 
   @doc "CSS class for a row label (PROMPT, RESEARCH, START, etc.)"
-  def label_class(color), do: "text-xs font-mono font-bold uppercase tracking-wider #{color} shrink-0"
+  def label_class(color),
+    do: "text-xs font-mono font-bold uppercase tracking-wider #{color} shrink-0"
 
   @doc "CSS class for the main summary text (truncated, fills remaining space)"
   def summary_class(color \\ "text-low"), do: "text-xs #{color} truncate flex-1 min-w-0"
@@ -207,7 +204,8 @@ defmodule IchorWeb.Components.Feed.SessionGroup do
   # ═══════════════════════════════════════════════════════
 
   defp preamble_segment(assigns) do
-    assigns = assign(assigns, :preamble_key, "preamble:#{(assigns.item.events |> List.first()).id}")
+    assigns =
+      assign(assigns, :preamble_key, "preamble:#{(assigns.item.events |> List.first()).id}")
 
     ~H"""
     <% expanded = MapSet.member?(@expanded_sessions, @preamble_key) %>
@@ -215,7 +213,10 @@ defmodule IchorWeb.Components.Feed.SessionGroup do
       <.feed_row collapse_key={@preamble_key} expanded_sessions={@expanded_sessions}>
         <span class={label_class("text-low")}>Preamble</span>
         <span :if={@item.tool_count > 0} class={stat_class()}>{@item.tool_count} tools</span>
-        <span :if={@item.total_duration_ms} class={stat_class(duration_color(@item.total_duration_ms))}>
+        <span
+          :if={@item.total_duration_ms}
+          class={stat_class(duration_color(@item.total_duration_ms))}
+        >
           {format_duration(@item.total_duration_ms)}
         </span>
         <span :if={@item.start_time} class={stat_class()}>{format_time(@item.start_time)}</span>
@@ -225,7 +226,7 @@ defmodule IchorWeb.Components.Feed.SessionGroup do
         <.activity_phase
           :for={phase <- @item.phases}
           phase={phase}
-          turn_id={"preamble"}
+          turn_id="preamble"
           selected_event={@selected_event}
           event_notes={@event_notes}
           expanded_sessions={@expanded_sessions}

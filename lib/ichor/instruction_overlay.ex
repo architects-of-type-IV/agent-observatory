@@ -244,52 +244,7 @@ defmodule Ichor.InstructionOverlay do
 
     File.mkdir_p!(Path.dirname(overlay_path))
     File.write!(overlay_path, overlay_content)
-
-    write_hooks(cwd, opts)
     :ok
-  end
-
-  defp write_hooks(cwd, opts) do
-    settings_path = Path.join(cwd, ".claude/settings.local.json")
-    port = ichor_port()
-    agent_name = opts[:name] || "agent"
-
-    hooks = %{
-      "hooks" => %{
-        "PostToolUse" => [
-          %{
-            "matcher" => "",
-            "hooks" => [
-              %{
-                "type" => "command",
-                "command" =>
-                  "curl -s -X POST http://localhost:#{port}/api/events " <>
-                    "-H 'Content-Type: application/json' " <>
-                    "-d '{\"event_type\": \"PostToolUse\", \"agent_name\": \"#{agent_name}\"}' " <>
-                    "> /dev/null 2>&1 || true"
-              }
-            ]
-          }
-        ]
-      }
-    }
-
-    existing = read_existing_settings(settings_path)
-    merged = Map.merge(existing, hooks)
-
-    case Jason.encode(merged, pretty: true) do
-      {:ok, json} -> File.write!(settings_path, json)
-      _ -> :ok
-    end
-  end
-
-  defp read_existing_settings(path) do
-    with {:ok, content} <- File.read(path),
-         {:ok, map} <- Jason.decode(content) do
-      map
-    else
-      _ -> %{}
-    end
   end
 
   defp ichor_port do

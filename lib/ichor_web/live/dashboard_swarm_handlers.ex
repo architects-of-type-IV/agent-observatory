@@ -112,8 +112,8 @@ defmodule IchorWeb.DashboardSwarmHandlers do
     events
     |> Enum.find(fn e -> e.session_id == session_id end)
     |> case do
-      nil -> String.slice(session_id, 0, 8)
-      event -> if event.cwd, do: Path.basename(event.cwd), else: String.slice(session_id, 0, 8)
+      nil -> Ichor.Gateway.AgentRegistry.AgentEntry.short_id(session_id)
+      event -> if event.tmux_session, do: event.tmux_session, else: Ichor.Gateway.AgentRegistry.AgentEntry.short_id(session_id)
     end
   end
 

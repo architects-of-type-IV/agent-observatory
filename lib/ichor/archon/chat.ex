@@ -150,16 +150,27 @@ defmodule Ichor.Archon.Chat do
   defp inject_memory_context(chain, user_input) do
     client = Ichor.Archon.MemoriesClient
 
-    {facts, episodes} =
-      [
-        Task.async(fn -> client.search(user_input, scope: "edges", limit: 5) end),
-        Task.async(fn -> client.search(user_input, scope: "episodes", limit: 3) end)
-      ]
-      |> Task.await_many(5_000)
-      |> then(fn [edges_result, episodes_result] ->
-        {format_edges(edges_result), format_episodes(episodes_result)}
+    tasks = [
+      Task.async(fn -> client.search(user_input, scope: "edges", limit: 5) end),
+      Task.async(fn -> client.search(user_input, scope: "episodes", limit: 3) end)
+    ]
+
+    [edges_result, episodes_result] =
+      tasks
+      |> Task.yield_many(2_000)
+      |> Enum.map(fn {task, result} ->
+        case result do
+          {:ok, value} ->
+            value
+
+          _ ->
+            Task.shutdown(task, :brutal_kill)
+            {:error, :timeout}
+        end
       end)
 
+    facts = format_edges(edges_result)
+    episodes = format_episodes(episodes_result)
     context = String.trim("#{facts}\n#{episodes}")
 
     if context == "" do
@@ -242,15 +253,12 @@ defmodule Ichor.Archon.Chat do
   defp content_part_text(text) when is_binary(text), do: text
   defp content_part_text(other), do: inspect(other)
 
-  defp model do
-    Application.get_env(:ichor, __MODULE__, [])
-    |> Keyword.get(:model, @default_model)
-  end
+  defp config, do: Application.get_env(:ichor, __MODULE__, [])
+
+  defp model, do: Keyword.get(config(), :model, @default_model)
 
   defp api_key do
-    Application.get_env(:ichor, __MODULE__, [])
-    |> Keyword.get(:api_key)
-    |> case do
+    case Keyword.get(config(), :api_key) do
       nil -> System.get_env("OPENAI_API_KEY")
       key -> key
     end
