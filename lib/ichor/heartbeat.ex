@@ -9,7 +9,6 @@ defmodule Ichor.Heartbeat do
   use GenServer
 
   @interval 5_000
-  @topic "heartbeat"
 
   def start_link(opts) do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
@@ -25,8 +24,7 @@ defmodule Ichor.Heartbeat do
   def handle_info(:beat, %{count: count} = state) do
     next = count + 1
 
-    # Broadcast through PubSub for local subscribers (LiveView, ProtocolTracker)
-    Phoenix.PubSub.broadcast(Ichor.PubSub, @topic, {:heartbeat, next})
+    Ichor.Signal.emit(:heartbeat, %{count: next})
 
     # Maintenance jobs on heartbeat intervals
     run_maintenance(next)

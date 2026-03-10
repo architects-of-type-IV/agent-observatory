@@ -1,6 +1,6 @@
 defmodule IchorWeb.DashboardInfoHandlers do
   @moduledoc """
-  PubSub and process message handlers for the dashboard LiveView.
+  Signal and process message handlers for the dashboard LiveView.
   Each dispatch/2 clause returns {:noreply, socket}.
 
   Uses debounced recompute to coalesce rapid-fire events (e.g. multiple agents
@@ -14,15 +14,13 @@ defmodule IchorWeb.DashboardInfoHandlers do
   import IchorWeb.DashboardNotificationHandlers, only: [handle_agent_crashed: 4]
   import IchorWeb.DashboardGatewayHandlers, only: [handle_gateway_info: 2]
 
+  alias Ichor.Signal.Payload
   alias IchorWeb.DashboardArchonHandlers
 
   @max_events 500
   @recompute_debounce_ms 100
 
   # ── Debounced recompute ──────────────────────────────────────────────
-  # Instead of recomputing immediately on every PubSub message, mark the
-  # socket dirty and schedule a single recompute after @recompute_debounce_ms.
-  # Multiple events within the window coalesce into one recompute cycle.
 
   defp schedule_recompute(socket) do
     if socket.assigns[:recompute_timer] do
@@ -37,38 +35,32 @@ defmodule IchorWeb.DashboardInfoHandlers do
     {:noreply, socket |> assign(:recompute_timer, nil) |> recompute()}
   end
 
-  # ── Data-changing events (schedule debounced recompute) ──────────────
+  # ── Signal-native: data-changing events ────────────────────────────────
 
-  def dispatch({:new_event, event}, socket) do
+  def dispatch(%Payload{name: :new_event, data: %{event: event}}, socket) do
     events = [event | socket.assigns.events] |> Enum.take(@max_events)
-    {:noreply, socket |> assign(:events, events) |> assign(:now, DateTime.utc_now()) |> schedule_recompute()}
-  end
-
-  def dispatch({:teams_updated, teams}, socket) do
-    disk_teams = if is_map(teams), do: teams, else: %{}
-
-    team_names =
-      disk_teams |> Map.values() |> Enum.map(fn t -> t[:name] || t["name"] end) |> MapSet.new()
-
-    pruned =
-      Enum.filter(socket.assigns.inspected_teams, fn t -> MapSet.member?(team_names, t.name) end)
 
     {:noreply,
-     socket |> assign(:disk_teams, disk_teams) |> assign(:inspected_teams, pruned) |> schedule_recompute()}
+     socket |> assign(:events, events) |> assign(:now, DateTime.utc_now()) |> schedule_recompute()}
   end
 
-  def dispatch({:agent_crashed, sid, team, count}, socket),
-    do: {:noreply, handle_agent_crashed(sid, team, count, socket) |> schedule_recompute()}
-
-  def dispatch({:agent_spawned, _id, _name, _cap}, socket),
+  def dispatch(%Payload{name: :tasks_updated}, socket),
     do: {:noreply, schedule_recompute(socket)}
 
-  def dispatch(:registry_changed, socket),
+  def dispatch(%Payload{name: :agent_crashed, data: data}, socket),
+    do:
+      {:noreply,
+       handle_agent_crashed(data.session_id, data[:team_name], 0, socket) |> schedule_recompute()}
+
+  def dispatch(%Payload{name: :agent_spawned}, socket),
     do: {:noreply, schedule_recompute(socket)}
 
-  # ── Lightweight events (assign only, no recompute) ───────────────────
+  def dispatch(%Payload{name: :registry_changed}, socket),
+    do: {:noreply, schedule_recompute(socket)}
 
-  def dispatch({:heartbeat, _count}, socket) do
+  # ── Signal-native: lightweight events ──────────────────────────────────
+
+  def dispatch(%Payload{name: :heartbeat}, socket) do
     socket =
       if socket.assigns.tmux_panels != [] do
         refresh_tmux_panels(socket)
@@ -79,34 +71,26 @@ defmodule IchorWeb.DashboardInfoHandlers do
     {:noreply, socket}
   end
 
-  def dispatch({:new_mailbox_message, message}, socket),
+  def dispatch(%Payload{name: :mailbox_message, data: %{message: message}}, socket),
     do: handle_new_mailbox_message(message, socket)
 
-  # Swarm state: assign only. SwarmMonitor re-broadcasts events:stream,
-  # so recomputing here would double-recompute with {:new_event}.
-  def dispatch({:swarm_state, state}, socket),
+  def dispatch(%Payload{name: :swarm_state, data: %{state_map: state}}, socket),
     do: {:noreply, assign(socket, :swarm_state, state)}
 
-  def dispatch({:protocol_update, stats}, socket),
+  def dispatch(%Payload{name: :protocol_update, data: %{stats_map: stats}}, socket),
     do: {:noreply, socket |> assign(:protocol_stats, stats) |> assign(:dirty, true)}
 
-  def dispatch({:message_read, _}, socket),
-    do:
-      {:noreply,
-       socket
-       |> assign(:protocol_stats, Ichor.ProtocolTracker.get_stats())
-       |> assign(:dirty, true)}
-
-  def dispatch({:terminal_output, session_id, output}, socket) do
-    if socket.assigns.agent_slideout && socket.assigns.agent_slideout[:session_id] == session_id do
-      {:noreply, assign(socket, :slideout_terminal, output)}
+  def dispatch(%Payload{name: :terminal_output, data: data}, socket) do
+    if socket.assigns.agent_slideout &&
+         socket.assigns.agent_slideout[:session_id] == data.session_id do
+      {:noreply, assign(socket, :slideout_terminal, data.output)}
     else
       {:noreply, socket}
     end
   end
 
-  # HITL: just refresh paused_sessions assign, no full recompute needed
-  def dispatch({:hitl, _event}, socket) do
+  # HITL: refresh paused_sessions assign
+  def dispatch(%Payload{name: name}, socket) when name in [:gate_open, :gate_close] do
     paused = Ichor.Gateway.HITLRelay.paused_sessions() |> MapSet.new()
     {:noreply, assign(socket, :paused_sessions, paused)}
   rescue
@@ -114,41 +98,47 @@ defmodule IchorWeb.DashboardInfoHandlers do
   end
 
   # Nudge/gate: notifications only -- no data changed, no recompute
-  def dispatch({nudge_type, _sid, _name, _level}, socket)
-      when nudge_type in [:nudge_warning, :nudge_sent, :nudge_escalated, :nudge_zombie],
+  def dispatch(%Payload{name: name}, socket)
+      when name in [:nudge_warning, :nudge_sent, :nudge_escalated, :nudge_zombie],
       do: {:noreply, socket}
 
-  def dispatch({gate_type, _sid, _task_id, _cmd}, socket)
-      when gate_type in [:gate_passed],
-      do: {:noreply, socket}
+  def dispatch(%Payload{name: :gate_passed}, socket), do: {:noreply, socket}
+  def dispatch(%Payload{name: :gate_failed}, socket), do: {:noreply, socket}
 
-  def dispatch({:gate_failed, _sid, _task_id, _cmd, _output}, socket),
-    do: {:noreply, socket}
+  # ── Signal-native: gateway signals ─────────────────────────────────────
 
-  # ── Gateway PubSub (handle_gateway_info updates its own assigns) ─────
+  def dispatch(%Payload{name: :decision_log} = sig, socket),
+    do: {:noreply, handle_gateway_info(sig, socket)}
 
-  def dispatch(msg, socket) when is_tuple(msg) and elem(msg, 0) in [
-    :decision_log, :schema_violation, :node_state_update, :dead_letter, :capability_update
-  ] do
-    {:noreply, handle_gateway_info(msg, socket)}
-  end
+  def dispatch(%Payload{name: :schema_violation} = sig, socket),
+    do: {:noreply, handle_gateway_info(sig, socket)}
 
-  def dispatch(%{event_type: "entropy_alert"} = msg, socket),
-    do: {:noreply, handle_gateway_info(msg, socket)}
+  def dispatch(%Payload{name: :node_state_update} = sig, socket),
+    do: {:noreply, handle_gateway_info(sig, socket)}
 
-  def dispatch(%{session_id: _sid, state: _state} = msg, socket)
-      when map_size(msg) == 2,
-      do: {:noreply, handle_gateway_info(msg, socket)}
+  def dispatch(%Payload{name: :dead_letter} = sig, socket),
+    do: {:noreply, handle_gateway_info(sig, socket)}
 
-  def dispatch(%{nodes: _nodes, edges: _edges} = msg, socket),
-    do: {:noreply, handle_gateway_info(msg, socket)}
+  def dispatch(%Payload{name: :capability_update} = sig, socket),
+    do: {:noreply, handle_gateway_info(sig, socket)}
 
-  def dispatch(%{event: "dag_delta"} = msg, socket),
-    do: {:noreply, handle_gateway_info(msg, socket)}
+  def dispatch(%Payload{name: :topology_snapshot} = sig, socket),
+    do: {:noreply, handle_gateway_info(sig, socket)}
+
+  def dispatch(%Payload{name: :entropy_alert} = sig, socket),
+    do: {:noreply, handle_gateway_info(sig, socket)}
+
+  def dispatch(%Payload{name: :dag_delta} = sig, socket),
+    do: {:noreply, handle_gateway_info(sig, socket)}
+
+  # ── Non-signal messages ────────────────────────────────────────────────
 
   def dispatch({:archon_response, result}, socket),
     do: {:noreply, DashboardArchonHandlers.handle_archon_response(result, socket)}
 
   def dispatch({:dismiss_toast, id}, socket),
     do: {:noreply, IchorWeb.DashboardToast.dismiss_toast(socket, id)}
+
+  # Catch-all: ignore unknown signals (new signals added to catalog won't crash)
+  def dispatch(%Payload{}, socket), do: {:noreply, socket}
 end

@@ -18,7 +18,8 @@ config :ichor,
     Ichor.Activity,
     Ichor.Workshop,
     Ichor.Archon,
-    Ichor.Archon.Tools
+    Ichor.Archon.Tools,
+    Ichor.Signal
   ]
 
 # Configure the endpoint

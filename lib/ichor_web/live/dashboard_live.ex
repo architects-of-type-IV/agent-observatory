@@ -6,8 +6,13 @@ defmodule IchorWeb.DashboardLive do
   import IchorWeb.DashboardAgentHelpers, only: [agent_tasks: 2]
   import IchorWeb.DashboardAgentActivityHelpers, only: [agent_events: 2]
   import IchorWeb.DashboardState, only: [recompute: 1, recompute_view: 1, default_assigns: 1]
-  import IchorWeb.DashboardGatewayHandlers, only: [subscribe_gateway_topics: 0, seed_gateway_assigns: 1]
-  import IchorWeb.DashboardWorkshopHandlers, only: [list_blueprints: 0, list_agent_types: 0, push_ws_state: 1]
+
+  import IchorWeb.DashboardGatewayHandlers,
+    only: [subscribe_gateway_topics: 0, seed_gateway_assigns: 1]
+
+  import IchorWeb.DashboardWorkshopHandlers,
+    only: [list_blueprints: 0, list_agent_types: 0, push_ws_state: 1]
+
   import IchorWeb.DashboardMessagingHandlers, only: [subscribe_to_mailboxes: 1]
 
   alias IchorWeb.{
@@ -31,10 +36,8 @@ defmodule IchorWeb.DashboardLive do
     DashboardUIHandlers
   }
 
-  @pubsub_topics ~w(
-    events:stream teams:update agent:crashes agent:operator swarm:update
-    protocols:update heartbeat agent:nudge agent:spawned quality:gate gateway:registry
-  )
+  # Legacy PubSub topics still used for transport (not nervous system signals)
+  @pubsub_topics ~w(agent:operator)
 
   # Events that change filter/search state and need view recompute
   @filter_events ~w(filter clear_filters apply_preset search_feed search_sessions filter_tool filter_tool_use_id clear_events filter_session filter_team filter_agent set_view)
@@ -72,6 +75,7 @@ defmodule IchorWeb.DashboardLive do
 
     if connected?(socket) do
       Enum.each(@pubsub_topics, &Phoenix.PubSub.subscribe(Ichor.PubSub, &1))
+      Enum.each(Ichor.Signal.Catalog.categories(), &Ichor.Signal.subscribe/1)
       subscribe_gateway_topics()
       send(self(), :load_data)
     end
@@ -86,7 +90,7 @@ defmodule IchorWeb.DashboardLive do
         "fleet" -> :fleet
         "protocols" -> :fleet
         "workshop" -> :workshop
-        "stream" -> :stream
+        "signals" -> :signals
         _ -> :pipeline
       end
 
@@ -100,12 +104,12 @@ defmodule IchorWeb.DashboardLive do
           |> assign(:ws_agent_types, list_agent_types())
           |> push_ws_state()
 
-        :stream ->
+        :signals ->
           if connected?(socket) do
             Phoenix.PubSub.subscribe(Ichor.PubSub, "stream:feed")
           end
 
-          assign(socket, :stream_events, Ichor.Stream.StreamBuffer.recent(200))
+          assign(socket, :stream_events, Ichor.Signal.Buffer.recent(200))
 
         _ ->
           socket
@@ -138,50 +142,101 @@ defmodule IchorWeb.DashboardLive do
   # ── Events: full recompute (data-changing) ───────────────────────────
 
   @impl true
-  def handle_event(e, p, s) when e in @filter_events, do: {:noreply, DashboardFilterHandlers.dispatch(e, p, s) |> recompute()}
-  def handle_event(e, p, s) when e in @ui_recompute, do: {:noreply, DashboardUIHandlers.dispatch(e, p, s) |> recompute()}
-  def handle_event(e, p, s) when e in @session_control_events, do: {:noreply, DashboardSessionControlHandlers.dispatch(e, p, s) |> recompute()}
-  def handle_event(e, p, s) when e in @inspector_events, do: {:noreply, DashboardTeamInspectorHandlers.dispatch(e, p, s) |> recompute()}
-  def handle_event(e, p, s) when e in @swarm_events, do: {:noreply, DashboardSwarmHandlers.dispatch(e, p, s) |> recompute()}
-  def handle_event(e, p, s) when e in @task_events, do: {:noreply, DashboardTaskHandlers.dispatch(e, p, s) |> recompute()}
-  def handle_event(e, p, s) when e in @note_events, do: {:noreply, DashboardNotesHandlers.dispatch(e, p, s) |> recompute()}
-  def handle_event(e, p, s) when e in @p5_events, do: {:noreply, DashboardPhase5Handlers.dispatch(e, p, s) |> recompute()}
-  def handle_event(e, p, s) when e in @spawn_events, do: {:noreply, DashboardSpawnHandlers.dispatch(e, p, s) |> recompute()}
-  def handle_event(e, p, s) when e in @nav_events, do: {:noreply, DashboardNavigationHandlers.handle_event(e, p, s) |> recompute()}
+  def handle_event(e, p, s) when e in @filter_events,
+    do: {:noreply, DashboardFilterHandlers.dispatch(e, p, s) |> recompute()}
+
+  def handle_event(e, p, s) when e in @ui_recompute,
+    do: {:noreply, DashboardUIHandlers.dispatch(e, p, s) |> recompute()}
+
+  def handle_event(e, p, s) when e in @session_control_events,
+    do: {:noreply, DashboardSessionControlHandlers.dispatch(e, p, s) |> recompute()}
+
+  def handle_event(e, p, s) when e in @inspector_events,
+    do: {:noreply, DashboardTeamInspectorHandlers.dispatch(e, p, s) |> recompute()}
+
+  def handle_event(e, p, s) when e in @swarm_events,
+    do: {:noreply, DashboardSwarmHandlers.dispatch(e, p, s) |> recompute()}
+
+  def handle_event(e, p, s) when e in @task_events,
+    do: {:noreply, DashboardTaskHandlers.dispatch(e, p, s) |> recompute()}
+
+  def handle_event(e, p, s) when e in @note_events,
+    do: {:noreply, DashboardNotesHandlers.dispatch(e, p, s) |> recompute()}
+
+  def handle_event(e, p, s) when e in @p5_events,
+    do: {:noreply, DashboardPhase5Handlers.dispatch(e, p, s) |> recompute()}
+
+  def handle_event(e, p, s) when e in @spawn_events,
+    do: {:noreply, DashboardSpawnHandlers.dispatch(e, p, s) |> recompute()}
+
+  def handle_event(e, p, s) when e in @nav_events,
+    do: {:noreply, DashboardNavigationHandlers.handle_event(e, p, s) |> recompute()}
 
   # ── Events: view-only recompute (no Ash/SQL queries) ─────────────────
 
-  def handle_event(e, p, s) when e in @selection_recompute, do: {:noreply, DashboardSelectionHandlers.dispatch(e, p, s) |> recompute_view()}
-  def handle_event(e, p, s) when e in @messaging_view, do: {:noreply, DashboardMessagingHandlers.dispatch(e, p, s) |> recompute_view()}
+  def handle_event(e, p, s) when e in @selection_recompute,
+    do: {:noreply, DashboardSelectionHandlers.dispatch(e, p, s) |> recompute_view()}
+
+  def handle_event(e, p, s) when e in @messaging_view,
+    do: {:noreply, DashboardMessagingHandlers.dispatch(e, p, s) |> recompute_view()}
 
   # ── Events: no recompute (pure UI state) ─────────────────────────────
 
-  def handle_event(e, p, s) when e in @ui_no_recompute, do: {:noreply, DashboardUIHandlers.dispatch(e, p, s)}
-  def handle_event(e, p, s) when e in @selection_no_recompute, do: {:noreply, DashboardSelectionHandlers.dispatch(e, p, s)}
-  def handle_event(e, p, s) when e in @tmux_events, do: {:noreply, DashboardTmuxHandlers.dispatch(e, p, s)}
-  def handle_event(e, p, s) when e in @feed_events, do: {:noreply, DashboardFeedHandlers.dispatch(e, p, s)}
-  def handle_event(e, p, s) when e in @fleet_events, do: {:noreply, DashboardFleetTreeHandlers.dispatch(e, p, s)}
+  def handle_event(e, p, s) when e in @ui_no_recompute,
+    do: {:noreply, DashboardUIHandlers.dispatch(e, p, s)}
+
+  def handle_event(e, p, s) when e in @selection_no_recompute,
+    do: {:noreply, DashboardSelectionHandlers.dispatch(e, p, s)}
+
+  def handle_event(e, p, s) when e in @tmux_events,
+    do: {:noreply, DashboardTmuxHandlers.dispatch(e, p, s)}
+
+  def handle_event(e, p, s) when e in @feed_events,
+    do: {:noreply, DashboardFeedHandlers.dispatch(e, p, s)}
+
+  def handle_event(e, p, s) when e in @fleet_events,
+    do: {:noreply, DashboardFleetTreeHandlers.dispatch(e, p, s)}
 
   # ── Events: messaging (passthrough -- handlers return {:noreply, socket}) ──
 
-  def handle_event("send_agent_message", p, s), do: DashboardMessagingHandlers.handle_send_agent_message(p, s)
-  def handle_event("send_team_broadcast", p, s), do: DashboardMessagingHandlers.handle_send_team_broadcast(p, s)
+  def handle_event("send_agent_message", p, s),
+    do: DashboardMessagingHandlers.handle_send_agent_message(p, s)
+
+  def handle_event("send_team_broadcast", p, s),
+    do: DashboardMessagingHandlers.handle_send_team_broadcast(p, s)
+
   def handle_event("push_context", p, s), do: DashboardMessagingHandlers.handle_push_context(p, s)
 
   # ── Events: standalone ─────────────────────────────────────────────────
 
-  def handle_event("toggle_sidebar", _p, s), do: {:noreply, DashboardUIHandlers.dispatch("toggle_sidebar", %{}, s)}
-  def handle_event("clear_topology_selection", _p, s), do: {:noreply, assign(s, :selected_topology_node, nil)}
-  def handle_event("restore_state", p, s), do: {:noreply, DashboardUIHandlers.handle_restore_state(p, s) |> recompute()}
+  def handle_event("toggle_sidebar", _p, s),
+    do: {:noreply, DashboardUIHandlers.dispatch("toggle_sidebar", %{}, s)}
+
+  def handle_event("clear_topology_selection", _p, s),
+    do: {:noreply, assign(s, :selected_topology_node, nil)}
+
+  def handle_event("restore_state", p, s),
+    do: {:noreply, DashboardUIHandlers.handle_restore_state(p, s) |> recompute()}
 
   # ── Events: archon ─────────────────────────────────────────────────────
 
-  def handle_event("archon_toggle", _p, s), do: {:noreply, DashboardArchonHandlers.handle_archon_toggle(s)}
-  def handle_event("archon_close", _p, s), do: {:noreply, DashboardArchonHandlers.handle_archon_close(s)}
-  def handle_event("archon_send", p, s), do: {:noreply, DashboardArchonHandlers.handle_archon_send(p, s)}
-  def handle_event("archon_shortcode", p, s), do: {:noreply, DashboardArchonHandlers.handle_archon_shortcode(p, s)}
-  def handle_event("archon_set_tab", %{"tab" => tab}, s), do: {:noreply, assign(s, :archon_tab, String.to_existing_atom(tab))}
-  def handle_event("dismiss_toast", %{"id" => id}, s), do: {:noreply, IchorWeb.DashboardToast.dismiss_toast(s, id)}
+  def handle_event("archon_toggle", _p, s),
+    do: {:noreply, DashboardArchonHandlers.handle_archon_toggle(s)}
+
+  def handle_event("archon_close", _p, s),
+    do: {:noreply, DashboardArchonHandlers.handle_archon_close(s)}
+
+  def handle_event("archon_send", p, s),
+    do: {:noreply, DashboardArchonHandlers.handle_archon_send(p, s)}
+
+  def handle_event("archon_shortcode", p, s),
+    do: {:noreply, DashboardArchonHandlers.handle_archon_shortcode(p, s)}
+
+  def handle_event("archon_set_tab", %{"tab" => tab}, s),
+    do: {:noreply, assign(s, :archon_tab, String.to_existing_atom(tab))}
+
+  def handle_event("dismiss_toast", %{"id" => id}, s),
+    do: {:noreply, IchorWeb.DashboardToast.dismiss_toast(s, id)}
 
   # ── Events: slideout ───────────────────────────────────────────────────
 
@@ -196,23 +251,44 @@ defmodule IchorWeb.DashboardLive do
 
   # ── Events: workshop (prefix-match delegation) ─────────────────────────
 
-  def handle_event("ws_edit_type" <> _ = e, p, s), do: IchorWeb.WorkshopTypes.handle_event(e, p, s)
-  def handle_event("ws_cancel_edit_type" = e, p, s), do: IchorWeb.WorkshopTypes.handle_event(e, p, s)
+  def handle_event("ws_edit_type" <> _ = e, p, s),
+    do: IchorWeb.WorkshopTypes.handle_event(e, p, s)
+
+  def handle_event("ws_cancel_edit_type" = e, p, s),
+    do: IchorWeb.WorkshopTypes.handle_event(e, p, s)
+
   def handle_event("ws_save_type" = e, p, s), do: IchorWeb.WorkshopTypes.handle_event(e, p, s)
   def handle_event("ws_delete_type" = e, p, s), do: IchorWeb.WorkshopTypes.handle_event(e, p, s)
-  def handle_event("ws_save_blueprint" = e, p, s), do: IchorWeb.WorkshopPersistence.handle_event(e, p, s)
-  def handle_event("ws_load_blueprint" = e, p, s), do: IchorWeb.WorkshopPersistence.handle_event(e, p, s)
-  def handle_event("ws_delete_blueprint" = e, p, s), do: IchorWeb.WorkshopPersistence.handle_event(e, p, s)
-  def handle_event("ws_new_blueprint" = e, p, s), do: IchorWeb.WorkshopPersistence.handle_event(e, p, s)
-  def handle_event("ws_list_blueprints" = e, p, s), do: IchorWeb.WorkshopPersistence.handle_event(e, p, s)
-  def handle_event("ws_" <> _ = e, p, s), do: IchorWeb.DashboardWorkshopHandlers.handle_event(e, p, s)
 
-  # ── Events: stream ─────────────────────────────────────────────────
+  def handle_event("ws_save_blueprint" = e, p, s),
+    do: IchorWeb.WorkshopPersistence.handle_event(e, p, s)
+
+  def handle_event("ws_load_blueprint" = e, p, s),
+    do: IchorWeb.WorkshopPersistence.handle_event(e, p, s)
+
+  def handle_event("ws_delete_blueprint" = e, p, s),
+    do: IchorWeb.WorkshopPersistence.handle_event(e, p, s)
+
+  def handle_event("ws_new_blueprint" = e, p, s),
+    do: IchorWeb.WorkshopPersistence.handle_event(e, p, s)
+
+  def handle_event("ws_list_blueprints" = e, p, s),
+    do: IchorWeb.WorkshopPersistence.handle_event(e, p, s)
+
+  def handle_event("ws_" <> _ = e, p, s),
+    do: IchorWeb.DashboardWorkshopHandlers.handle_event(e, p, s)
+
+  # ── Events: signals ────────────────────────────────────────────────
 
   def handle_event("stream_search", %{"q" => q}, s), do: {:noreply, assign(s, :stream_filter, q)}
-  def handle_event("stream_toggle_pause", _p, s), do: {:noreply, assign(s, :stream_paused, !s.assigns.stream_paused)}
+
+  def handle_event("stream_toggle_pause", _p, s),
+    do: {:noreply, assign(s, :stream_paused, !s.assigns.stream_paused)}
+
   def handle_event("stream_clear", _p, s), do: {:noreply, assign(s, :stream_events, [])}
-  def handle_event("stream_filter_topic", %{"topic" => t}, s), do: {:noreply, assign(s, :stream_filter, t)}
+
+  def handle_event("stream_filter_topic", %{"topic" => t}, s),
+    do: {:noreply, assign(s, :stream_filter, t)}
 
   def handle_event("stop", _p, s), do: {:noreply, s}
 end

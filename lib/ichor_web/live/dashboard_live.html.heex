@@ -19,7 +19,8 @@
         <h1 class="text-sm font-bold tracking-tight text-high">ICHOR IV</h1>
         <div class="flex items-center gap-1.5">
           <span class="relative flex h-1.5 w-1.5">
-            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-75"></span>
+            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-75">
+            </span>
             <span class="relative inline-flex rounded-full h-1.5 w-1.5 bg-success"></span>
           </span>
           <span class="text-muted text-[10px]">live</span>
@@ -55,7 +56,11 @@
           />
         </form>
         <form phx-change="filter">
-          <.stable_select id="filter-source-app" name="source_app" class="bg-raised/80 border-l border-border-subtle/60 rounded-none px-1.5 py-1 text-[11px] text-high focus:outline-none">
+          <.stable_select
+            id="filter-source-app"
+            name="source_app"
+            class="bg-raised/80 border-l border-border-subtle/60 rounded-none px-1.5 py-1 text-[11px] text-high focus:outline-none"
+          >
             <option value="">All Apps</option>
             <option
               :for={app <- unique_values(@events, :source_app)}
@@ -65,7 +70,11 @@
               {app}
             </option>
           </.stable_select>
-          <.stable_select id="filter-event-type" name="event_type" class="bg-raised/80 border-l border-border-subtle/60 rounded-none px-1.5 py-1 text-[11px] text-high focus:outline-none">
+          <.stable_select
+            id="filter-event-type"
+            name="event_type"
+            class="bg-raised/80 border-l border-border-subtle/60 rounded-none px-1.5 py-1 text-[11px] text-high focus:outline-none"
+          >
             <option value="">All Events</option>
             <option
               :for={et <- unique_values(@events, :hook_event_type)}
@@ -81,10 +90,34 @@
       <div class="flex items-center">
         <div class="flex items-center rounded overflow-hidden border border-border-subtle/60">
           <span class="text-[10px] text-muted px-1.5 py-1 bg-raised/80">Presets</span>
-          <button phx-click="apply_preset" phx-value-preset="failed_tools" class="text-[10px] px-2 py-1 bg-error/20 text-error hover:bg-error/30 transition">Failed</button>
-          <button phx-click="apply_preset" phx-value-preset="team_events" class="text-[10px] px-2 py-1 bg-cyan/15 text-cyan hover:bg-cyan/25 transition">Teams</button>
-          <button phx-click="apply_preset" phx-value-preset="slow" class="text-[10px] px-2 py-1 bg-brand/15 text-brand hover:bg-brand/25 transition">Slow</button>
-          <button phx-click="apply_preset" phx-value-preset="errors_only" class="text-[10px] px-2 py-1 bg-error/20 text-error hover:bg-error/30 transition">Errors</button>
+          <button
+            phx-click="apply_preset"
+            phx-value-preset="failed_tools"
+            class="text-[10px] px-2 py-1 bg-error/20 text-error hover:bg-error/30 transition"
+          >
+            Failed
+          </button>
+          <button
+            phx-click="apply_preset"
+            phx-value-preset="team_events"
+            class="text-[10px] px-2 py-1 bg-cyan/15 text-cyan hover:bg-cyan/25 transition"
+          >
+            Teams
+          </button>
+          <button
+            phx-click="apply_preset"
+            phx-value-preset="slow"
+            class="text-[10px] px-2 py-1 bg-brand/15 text-brand hover:bg-brand/25 transition"
+          >
+            Slow
+          </button>
+          <button
+            phx-click="apply_preset"
+            phx-value-preset="errors_only"
+            class="text-[10px] px-2 py-1 bg-error/20 text-error hover:bg-error/30 transition"
+          >
+            Errors
+          </button>
           <button
             :if={
               @filter_source_app || @filter_session_id || @filter_event_type || @search_feed != "" ||
@@ -101,20 +134,30 @@
         <div class="ichor-pill">
           <%!-- Export dropdown --%>
           <div class="relative flex" id="export-dropdown" phx-hook="ExportDropdown">
-            <button id="export-button" class="ichor-tip ichor-tip-bottom text-[10px] px-2 py-1 bg-raised text-default hover:bg-highlight hover:text-high transition cursor-pointer" data-tip="Export events as JSON or CSV">Export</button>
+            <button
+              id="export-button"
+              class="ichor-tip ichor-tip-bottom text-[10px] px-2 py-1 bg-raised text-default hover:bg-highlight hover:text-high transition cursor-pointer"
+              data-tip="Export events as JSON or CSV"
+            >
+              Export
+            </button>
             <div
               id="export-menu"
               class="hidden absolute right-0 mt-1 w-32 bg-raised border border-border-subtle rounded-md shadow-lg z-10"
             >
               <a
-                href={build_export_url(@filter_session_id, @search_feed, @filter_event_type, "json")}
+                href={
+                  build_export_url(@filter_session_id, @search_feed, @filter_event_type, "json")
+                }
                 class="block px-3 py-1.5 text-[10px] text-high hover:bg-highlight transition"
                 download
               >
                 JSON
               </a>
               <a
-                href={build_export_url(@filter_session_id, @search_feed, @filter_event_type, "csv")}
+                href={
+                  build_export_url(@filter_session_id, @search_feed, @filter_event_type, "csv")
+                }
                 class="block px-3 py-1.5 text-[10px] text-high hover:bg-highlight transition"
                 download
               >
@@ -122,8 +165,20 @@
               </a>
             </div>
           </div>
-          <button phx-click="clear_events" class="ichor-tip ichor-tip-bottom text-[10px] px-2 py-1 bg-raised text-default hover:bg-highlight hover:text-high transition border-l border-border-subtle/60 cursor-pointer" data-tip="Clear all events">Clear</button>
-          <button phx-click="toggle_shortcuts_help" class="ichor-tip ichor-tip-bottom text-[10px] px-2 py-1 bg-raised text-default hover:bg-highlight hover:text-high transition border-l border-border-subtle/60 cursor-pointer" data-tip="Keyboard shortcuts">?</button>
+          <button
+            phx-click="clear_events"
+            class="ichor-tip ichor-tip-bottom text-[10px] px-2 py-1 bg-raised text-default hover:bg-highlight hover:text-high transition border-l border-border-subtle/60 cursor-pointer"
+            data-tip="Clear all events"
+          >
+            Clear
+          </button>
+          <button
+            phx-click="toggle_shortcuts_help"
+            class="ichor-tip ichor-tip-bottom text-[10px] px-2 py-1 bg-raised text-default hover:bg-highlight hover:text-high transition border-l border-border-subtle/60 cursor-pointer"
+            data-tip="Keyboard shortcuts"
+          >
+            ?
+          </button>
         </div>
       </div>
     </div>
@@ -137,38 +192,109 @@
         class={"ichor-tip ichor-tip-right flex items-center justify-center w-7 h-7 rounded transition #{if @nav_view == :pipeline, do: "bg-interactive/20 text-interactive", else: "text-muted hover:text-default hover:bg-raised"}"}
         data-tip="Pipeline"
       >
-        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" /></svg>
+        <svg
+          class="w-4 h-4"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <path d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" />
+        </svg>
       </.link>
       <.link
         patch="/fleet"
         class={"ichor-tip ichor-tip-right flex items-center justify-center w-7 h-7 rounded transition #{if @nav_view == :fleet, do: "bg-interactive/20 text-interactive", else: "text-muted hover:text-default hover:bg-raised"}"}
         data-tip="Fleet Control"
       >
-        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+        <svg
+          class="w-4 h-4"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <path d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+        </svg>
       </.link>
       <.link
         patch="/workshop"
         class={"ichor-tip ichor-tip-right flex items-center justify-center w-7 h-7 rounded transition #{if @nav_view == :workshop, do: "bg-interactive/20 text-interactive", else: "text-muted hover:text-default hover:bg-raised"}"}
         data-tip="Workshop"
       >
-        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M11.42 15.17L17.25 21A2.652 2.652 0 0021 17.25l-5.877-5.877M11.42 15.17l2.496-3.03c.317-.384.74-.626 1.208-.766M11.42 15.17l-4.655 5.653a2.548 2.548 0 11-3.586-3.586l6.837-5.63m5.108-.233c.55-.164 1.163-.188 1.743-.14a4.5 4.5 0 004.486-6.336l-3.276 3.277a3.004 3.004 0 01-2.25-2.25l3.276-3.276a4.5 4.5 0 00-6.336 4.486c.091 1.076-.071 2.264-.904 2.95l-.102.085" /></svg>
+        <svg
+          class="w-4 h-4"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <path d="M11.42 15.17L17.25 21A2.652 2.652 0 0021 17.25l-5.877-5.877M11.42 15.17l2.496-3.03c.317-.384.74-.626 1.208-.766M11.42 15.17l-4.655 5.653a2.548 2.548 0 11-3.586-3.586l6.837-5.63m5.108-.233c.55-.164 1.163-.188 1.743-.14a4.5 4.5 0 004.486-6.336l-3.276 3.277a3.004 3.004 0 01-2.25-2.25l3.276-3.276a4.5 4.5 0 00-6.336 4.486c.091 1.076-.071 2.264-.904 2.95l-.102.085" />
+        </svg>
       </.link>
       <.link
-        patch="/stream"
-        class={"ichor-tip ichor-tip-right flex items-center justify-center w-7 h-7 rounded transition #{if @nav_view == :stream, do: "bg-interactive/20 text-interactive", else: "text-muted hover:text-default hover:bg-raised"}"}
-        data-tip="Stream"
+        patch="/signals"
+        class={"ichor-tip ichor-tip-right flex items-center justify-center w-7 h-7 rounded transition #{if @nav_view == :signals, do: "bg-interactive/20 text-interactive", else: "text-muted hover:text-default hover:bg-raised"}"}
+        data-tip="Signals"
       >
-        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.14 0M1.394 9.393c5.857-5.858 15.355-5.858 21.213 0" /></svg>
+        <svg
+          class="w-4 h-4"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <path d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.14 0M1.394 9.393c5.857-5.858 15.355-5.858 21.213 0" />
+        </svg>
       </.link>
       <span class="flex-1" />
-      <a href="/dev/dashboard" target="_blank" class="ichor-tip ichor-tip-right flex items-center justify-center w-7 h-7 rounded text-muted hover:text-default hover:bg-raised transition" data-tip="LiveDashboard">
-        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
+      <a
+        href="/dev/dashboard"
+        target="_blank"
+        class="ichor-tip ichor-tip-right flex items-center justify-center w-7 h-7 rounded text-muted hover:text-default hover:bg-raised transition"
+        data-tip="LiveDashboard"
+      >
+        <svg
+          class="w-3.5 h-3.5"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+        </svg>
       </a>
-      <a href="/dev/mailbox" target="_blank" class="ichor-tip ichor-tip-right flex items-center justify-center w-7 h-7 rounded text-muted hover:text-default hover:bg-raised transition" data-tip="Mailbox">
-        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+      <a
+        href="/dev/mailbox"
+        target="_blank"
+        class="ichor-tip ichor-tip-right flex items-center justify-center w-7 h-7 rounded text-muted hover:text-default hover:bg-raised transition"
+        data-tip="Mailbox"
+      >
+        <svg
+          class="w-3.5 h-3.5"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+        </svg>
       </a>
-      <a href="/mcp" target="_blank" class="ichor-tip ichor-tip-right flex items-center justify-center w-7 h-7 rounded text-muted hover:text-default hover:bg-raised transition" data-tip="MCP API">
-        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" /></svg>
+      <a
+        href="/mcp"
+        target="_blank"
+        class="ichor-tip ichor-tip-right flex items-center justify-center w-7 h-7 rounded text-muted hover:text-default hover:bg-raised transition"
+        data-tip="MCP API"
+      >
+        <svg
+          class="w-3.5 h-3.5"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <path d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+        </svg>
       </a>
     </nav>
 
@@ -190,30 +316,78 @@
         <div :if={@nav_view == :pipeline} class="h-full -m-2 flex flex-col overflow-hidden">
           <%!-- Pipeline header bar --%>
           <div class="flex items-center justify-between px-3 py-1.5 border-b border-border shrink-0">
-            <h3 class="text-[10px] font-semibold text-low uppercase tracking-wider">Pipeline Board</h3>
-            <div :if={@swarm_state.pipeline.total > 0} class="flex items-center rounded overflow-hidden">
-              <span class="text-[9px] font-semibold px-1.5 py-0.5 bg-success/15 text-success">{@swarm_state.pipeline.completed} done</span>
-              <span class="text-[9px] font-semibold px-1.5 py-0.5 bg-info/15 text-info">{@swarm_state.pipeline.in_progress} running</span>
-              <span class="text-[9px] font-semibold px-1.5 py-0.5 bg-raised text-default">{@swarm_state.pipeline.pending} pending</span>
-              <span :if={@swarm_state.pipeline.blocked > 0} class="text-[9px] font-semibold px-1.5 py-0.5 bg-brand/15 text-brand">{@swarm_state.pipeline.blocked} blocked</span>
-              <span :if={@swarm_state.pipeline.failed > 0} class="text-[9px] font-semibold px-1.5 py-0.5 bg-error/15 text-error">{@swarm_state.pipeline.failed} failed</span>
+            <h3 class="text-[10px] font-semibold text-low uppercase tracking-wider">
+              Pipeline Board
+            </h3>
+            <div
+              :if={@swarm_state.pipeline.total > 0}
+              class="flex items-center rounded overflow-hidden"
+            >
+              <span class="text-[9px] font-semibold px-1.5 py-0.5 bg-success/15 text-success">
+                {@swarm_state.pipeline.completed} done
+              </span>
+              <span class="text-[9px] font-semibold px-1.5 py-0.5 bg-info/15 text-info">
+                {@swarm_state.pipeline.in_progress} running
+              </span>
+              <span class="text-[9px] font-semibold px-1.5 py-0.5 bg-raised text-default">
+                {@swarm_state.pipeline.pending} pending
+              </span>
+              <span
+                :if={@swarm_state.pipeline.blocked > 0}
+                class="text-[9px] font-semibold px-1.5 py-0.5 bg-brand/15 text-brand"
+              >
+                {@swarm_state.pipeline.blocked} blocked
+              </span>
+              <span
+                :if={@swarm_state.pipeline.failed > 0}
+                class="text-[9px] font-semibold px-1.5 py-0.5 bg-error/15 text-error"
+              >
+                {@swarm_state.pipeline.failed} failed
+              </span>
             </div>
           </div>
 
           <%!-- Topology node info bar --%>
-          <div :if={@selected_topology_node} class="px-3 py-1.5 bg-base/50 border-b border-border flex items-center gap-4 text-[10px] shrink-0">
+          <div
+            :if={@selected_topology_node}
+            class="px-3 py-1.5 bg-base/50 border-b border-border flex items-center gap-4 text-[10px] shrink-0"
+          >
             <div class="flex items-center gap-2">
               <span class={"w-2 h-2 rounded-full #{if @selected_topology_node.status == :active, do: "bg-success", else: if(@selected_topology_node.status == :idle, do: "bg-low", else: "bg-highlight")}"} />
-              <span class="font-mono text-high">{String.slice(@selected_topology_node.session_id, 0, 12)}</span>
+              <span class="font-mono text-high">
+                {String.slice(@selected_topology_node.session_id, 0, 12)}
+              </span>
             </div>
-            <span :if={@selected_topology_node[:source_app]} class="text-default">{@selected_topology_node.source_app}</span>
-            <span :if={@selected_topology_node[:model]} class="text-interactive">{@selected_topology_node.model}</span>
-            <span :if={@selected_topology_node[:event_count]} class="text-low">{@selected_topology_node.event_count} events</span>
-            <span :if={@selected_topology_node[:tool_count]} class="text-low">{@selected_topology_node.tool_count} tools</span>
-            <span :if={@selected_topology_node[:duration]} class="text-low">{@selected_topology_node.duration}</span>
-            <span :if={@selected_topology_node[:cwd]} class="font-mono text-muted truncate max-w-[200px]">{@selected_topology_node.cwd}</span>
-            <span :if={@selected_topology_node[:last_tool]} class="text-cyan">{@selected_topology_node.last_tool}</span>
-            <button phx-click="clear_topology_selection" class="ml-auto text-muted hover:text-default">x</button>
+            <span :if={@selected_topology_node[:source_app]} class="text-default">
+              {@selected_topology_node.source_app}
+            </span>
+            <span :if={@selected_topology_node[:model]} class="text-interactive">
+              {@selected_topology_node.model}
+            </span>
+            <span :if={@selected_topology_node[:event_count]} class="text-low">
+              {@selected_topology_node.event_count} events
+            </span>
+            <span :if={@selected_topology_node[:tool_count]} class="text-low">
+              {@selected_topology_node.tool_count} tools
+            </span>
+            <span :if={@selected_topology_node[:duration]} class="text-low">
+              {@selected_topology_node.duration}
+            </span>
+            <span
+              :if={@selected_topology_node[:cwd]}
+              class="font-mono text-muted truncate max-w-[200px]"
+            >
+              {@selected_topology_node.cwd}
+            </span>
+            <span :if={@selected_topology_node[:last_tool]} class="text-cyan">
+              {@selected_topology_node.last_tool}
+            </span>
+            <button
+              phx-click="clear_topology_selection"
+              class="ml-auto text-muted hover:text-default"
+            >
+              x
+            </button>
           </div>
 
           <%!-- Pipeline content --%>
@@ -245,9 +419,9 @@
           />
         </div>
 
-        <%!-- Stream View --%>
-        <div :if={@nav_view == :stream} class="h-full -m-2">
-          <IchorWeb.Components.StreamComponents.stream_view
+        <%!-- Signals View --%>
+        <div :if={@nav_view == :signals} class="h-full -m-2">
+          <IchorWeb.Components.SignalComponents.signals_view
             stream_events={@stream_events}
             stream_filter={@stream_filter}
             stream_paused={@stream_paused}
@@ -284,7 +458,6 @@
             mailbox_messages={@mailbox_messages}
           />
         </div>
-
       </div>
 
       <%!-- ═══ Detail Panel (bottom drawer) ═══ --%>
@@ -317,7 +490,9 @@
           <%!-- Header: tabs + controls --%>
           <div class="flex items-center justify-between px-3 py-1.5 border-b border-border bg-base/95 shrink-0">
             <div class="flex items-center gap-1 overflow-x-auto">
-              <span class="text-[10px] font-semibold text-brand uppercase tracking-wider mr-2 shrink-0">tmux</span>
+              <span class="text-[10px] font-semibold text-brand uppercase tracking-wider mr-2 shrink-0">
+                tmux
+              </span>
               <%= for session <- @tmux_panels do %>
                 <% is_active = session == @active_tmux_session %>
                 <button
@@ -325,7 +500,8 @@
                   phx-value-session={session}
                   class={"flex items-center gap-1.5 px-2.5 py-1 rounded text-[11px] font-mono transition shrink-0 cursor-pointer #{if is_active, do: "bg-brand/15 text-brand border border-brand/30", else: "text-low hover:text-high hover:bg-raised"}"}
                 >
-                  <span class={"w-1.5 h-1.5 rounded-full #{if is_active, do: "bg-success", else: "bg-highlight"}"}></span>
+                  <span class={"w-1.5 h-1.5 rounded-full #{if is_active, do: "bg-success", else: "bg-highlight"}"}>
+                  </span>
                   {session}
                 </button>
               <% end %>
@@ -347,10 +523,18 @@
               >
                 Kill
               </button>
-              <button phx-click="disconnect_tmux" class="ichor-btn ichor-btn-muted text-[10px]" title="Close active tab">
+              <button
+                phx-click="disconnect_tmux"
+                class="ichor-btn ichor-btn-muted text-[10px]"
+                title="Close active tab"
+              >
                 Close Tab
               </button>
-              <button phx-click="close_all_tmux" class="ichor-btn ichor-btn-muted text-[10px]" title="Close all">
+              <button
+                phx-click="close_all_tmux"
+                class="ichor-btn ichor-btn-muted text-[10px]"
+                title="Close all"
+              >
                 x
               </button>
             </div>
@@ -364,7 +548,8 @@
             </div>
           <% else %>
             <%!-- Tiled: grid of all open panes --%>
-            <% cols = if length(@tmux_panels) <= 2, do: "grid-cols-1 md:grid-cols-2", else: "grid-cols-2" %>
+            <% cols =
+              if length(@tmux_panels) <= 2, do: "grid-cols-1 md:grid-cols-2", else: "grid-cols-2" %>
             <div class={"flex-1 grid #{cols} gap-px bg-raised overflow-hidden"}>
               <%= for session <- @tmux_panels do %>
                 <% is_active = session == @active_tmux_session %>
@@ -375,7 +560,8 @@
                 >
                   <div class={"flex items-center justify-between px-2 py-1 shrink-0 #{if is_active, do: "bg-brand/10", else: "bg-base/80"}"}>
                     <span class="text-[10px] font-mono text-default">{session}</span>
-                    <span class={"w-1.5 h-1.5 rounded-full #{if is_active, do: "bg-success", else: "bg-highlight"}"}></span>
+                    <span class={"w-1.5 h-1.5 rounded-full #{if is_active, do: "bg-success", else: "bg-highlight"}"}>
+                    </span>
                   </div>
                   <div class="flex-1 overflow-y-auto p-2 bg-base">
                     <pre class="text-[10px] font-mono text-default leading-relaxed whitespace-pre-wrap">{Map.get(@tmux_outputs, session, "")}</pre>
@@ -386,9 +572,14 @@
           <% end %>
 
           <%!-- Input (always targets active session) --%>
-          <div :if={@active_tmux_session} class="px-4 py-2 border-t border-border bg-base/95 shrink-0">
+          <div
+            :if={@active_tmux_session}
+            class="px-4 py-2 border-t border-border bg-base/95 shrink-0"
+          >
             <div class="flex items-center gap-2">
-              <span class="text-[10px] text-brand font-mono shrink-0">{@active_tmux_session} ></span>
+              <span class="text-[10px] text-brand font-mono shrink-0">
+                {@active_tmux_session} >
+              </span>
               <div id="tmux-input-stable" phx-update="ignore" class="flex-1">
                 <form phx-submit="send_tmux_keys" class="flex gap-2">
                   <input
@@ -405,7 +596,6 @@
           </div>
         </div>
       </div>
-
     </main>
 
     <%!-- ═══ Sidebar Toggle ═══ --%>
@@ -418,7 +608,10 @@
     </button>
 
     <%!-- ═══ Right Sidebar ═══ --%>
-    <aside class={["bg-[rgb(24,24,27)]/50 border-l border-border shrink-0 transition-all flex flex-col", if(@sidebar_collapsed, do: "w-0 overflow-hidden", else: "w-60")]}>
+    <aside class={[
+      "bg-[rgb(24,24,27)]/50 border-l border-border shrink-0 transition-all flex flex-col",
+      if(@sidebar_collapsed, do: "w-0 overflow-hidden", else: "w-60")
+    ]}>
       <div class="p-2 flex-1 overflow-y-auto">
         <IchorWeb.Components.SidebarComponents.teams_section
           teams={@teams}
@@ -479,11 +672,14 @@
   class="fixed inset-0 z-50 flex justify-end bg-black/50 backdrop-blur-sm"
   phx-click="close_agent_slideout"
 >
-  <%
-    so = @agent_slideout
-    so_name = so[:short_name] || so[:id] || so[:session_id] && Ichor.Gateway.AgentRegistry.AgentEntry.short_id(to_string(so[:session_id])) || "Agent"
-    so_sid = to_string(so[:session_id] || "")
-  %>
+  <% so = @agent_slideout
+
+  so_name =
+    so[:short_name] || so[:id] ||
+      (so[:session_id] &&
+         Ichor.Gateway.AgentRegistry.AgentEntry.short_id(to_string(so[:session_id]))) || "Agent"
+
+  so_sid = to_string(so[:session_id] || "") %>
   <div
     class="w-[480px] max-w-full h-full bg-base border-l border-border-subtle shadow-2xl flex flex-col overflow-hidden"
     onclick="event.stopPropagation()"
@@ -491,11 +687,19 @@
     <%!-- Header --%>
     <div class="flex items-center justify-between px-4 py-2.5 border-b border-border shrink-0">
       <div class="flex items-center gap-2 min-w-0">
-        <span class={"w-2 h-2 rounded-full shrink-0 #{if so[:status] == :active, do: "bg-success", else: "bg-highlight"}"}></span>
+        <span class={"w-2 h-2 rounded-full shrink-0 #{if so[:status] == :active, do: "bg-success", else: "bg-highlight"}"}>
+        </span>
         <span class="text-sm font-semibold text-high truncate">{so_name}</span>
-        <span class="text-[10px] text-muted font-mono shrink-0">{String.slice(so_sid, 0, 12)}</span>
+        <span class="text-[10px] text-muted font-mono shrink-0">
+          {String.slice(so_sid, 0, 12)}
+        </span>
       </div>
-      <button phx-click="close_agent_slideout" class="text-muted hover:text-high text-sm cursor-pointer">x</button>
+      <button
+        phx-click="close_agent_slideout"
+        class="text-muted hover:text-high text-sm cursor-pointer"
+      >
+        x
+      </button>
     </div>
 
     <%!-- Agent Info --%>
@@ -503,7 +707,9 @@
       <dl class="grid grid-cols-2 gap-x-4 gap-y-1.5 text-[11px]">
         <div :if={so[:status]} class="flex justify-between col-span-2">
           <dt class="text-low">Status</dt>
-          <dd class={"font-medium #{if so[:status] == :active, do: "text-success", else: "text-default"}"}>{so[:status]}</dd>
+          <dd class={"font-medium #{if so[:status] == :active, do: "text-success", else: "text-default"}"}>
+            {so[:status]}
+          </dd>
         </div>
         <div :if={so[:role]} class="flex justify-between col-span-2">
           <dt class="text-low">Role</dt>
@@ -515,12 +721,17 @@
         </div>
         <div :if={so[:cwd]} class="flex justify-between col-span-2">
           <dt class="text-low">CWD</dt>
-          <dd class="text-high font-mono truncate max-w-[200px]" title={so[:cwd]}>{Path.basename(to_string(so[:cwd]))}</dd>
+          <dd class="text-high font-mono truncate max-w-[200px]" title={so[:cwd]}>
+            {Path.basename(to_string(so[:cwd]))}
+          </dd>
         </div>
         <div :if={so[:channels]} class="flex justify-between col-span-2">
           <dt class="text-low">Channels</dt>
           <dd class="text-default font-mono text-[10px]">
-            {so[:channels] |> Map.reject(fn {_k, v} -> is_nil(v) end) |> Map.keys() |> Enum.join(", ")}
+            {so[:channels]
+            |> Map.reject(fn {_k, v} -> is_nil(v) end)
+            |> Map.keys()
+            |> Enum.join(", ")}
           </dd>
         </div>
       </dl>
@@ -530,7 +741,9 @@
     <div class="flex-1 flex flex-col overflow-hidden">
       <div class="px-4 py-1.5 border-b border-border/50 shrink-0 flex items-center justify-between">
         <h4 class="text-[10px] font-semibold text-low uppercase tracking-wider">Terminal</h4>
-        <span class="text-[9px] text-muted font-mono">{String.length(@slideout_terminal)} chars</span>
+        <span class="text-[9px] text-muted font-mono">
+          {String.length(@slideout_terminal)} chars
+        </span>
       </div>
       <div class="flex-1 overflow-y-auto p-3 bg-base/50 min-h-[120px] max-h-[40vh]">
         <%= if @slideout_terminal != "" do %>
@@ -554,11 +767,14 @@
           <div class="divide-y divide-border/30">
             <%= for item <- Enum.take(@slideout_activity, 50) do %>
               <div class="px-4 py-1.5 flex items-start gap-2 text-[10px]">
-                <span class={"shrink-0 mt-0.5 w-1.5 h-1.5 rounded-full #{if item.type == :event, do: "bg-cyan/60", else: "bg-violet/60"}"}></span>
+                <span class={"shrink-0 mt-0.5 w-1.5 h-1.5 rounded-full #{if item.type == :event, do: "bg-cyan/60", else: "bg-violet/60"}"}>
+                </span>
                 <div class="min-w-0 flex-1">
                   <p class="text-default truncate">{item.content}</p>
                 </div>
-                <span class="text-muted font-mono shrink-0">{Calendar.strftime(item.timestamp, "%H:%M:%S")}</span>
+                <span class="text-muted font-mono shrink-0">
+                  {Calendar.strftime(item.timestamp, "%H:%M:%S")}
+                </span>
               </div>
             <% end %>
           </div>
@@ -568,11 +784,32 @@
 
     <%!-- Quick Actions --%>
     <div class="px-4 py-2.5 border-t border-border shrink-0 flex gap-1.5">
-      <button :if={so[:channels][:tmux]} phx-click="connect_tmux" phx-value-session={so[:channels][:tmux]} class="ichor-btn bg-brand/15 text-brand hover:bg-brand/25 text-[10px]">Tmux</button>
-      <button phx-click="pause_agent" phx-value-session_id={so_sid} class="ichor-btn ichor-btn-muted text-[10px]">Pause</button>
-      <button phx-click="shutdown_agent" phx-value-session_id={so_sid} class="ichor-btn ichor-btn-muted text-error text-[10px]">Shutdown</button>
+      <button
+        :if={so[:channels][:tmux]}
+        phx-click="connect_tmux"
+        phx-value-session={so[:channels][:tmux]}
+        class="ichor-btn bg-brand/15 text-brand hover:bg-brand/25 text-[10px]"
+      >
+        Tmux
+      </button>
+      <button
+        phx-click="pause_agent"
+        phx-value-session_id={so_sid}
+        class="ichor-btn ichor-btn-muted text-[10px]"
+      >
+        Pause
+      </button>
+      <button
+        phx-click="shutdown_agent"
+        phx-value-session_id={so_sid}
+        class="ichor-btn ichor-btn-muted text-error text-[10px]"
+      >
+        Shutdown
+      </button>
       <div class="flex-1"></div>
-      <button phx-click="close_agent_slideout" class="ichor-btn ichor-btn-muted text-[10px]">Close</button>
+      <button phx-click="close_agent_slideout" class="ichor-btn ichor-btn-muted text-[10px]">
+        Close
+      </button>
     </div>
   </div>
 </div>

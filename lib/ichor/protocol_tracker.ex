@@ -47,7 +47,7 @@ defmodule Ichor.ProtocolTracker do
   def init(_opts) do
     :ets.new(@table_name, [:named_table, :public, :set])
     Phoenix.PubSub.subscribe(Ichor.PubSub, "events:stream")
-    Phoenix.PubSub.subscribe(Ichor.PubSub, "heartbeat")
+    Ichor.Signal.subscribe(:heartbeat)
 
     {:ok, %{trace_count: 0}}
   end
@@ -58,14 +58,10 @@ defmodule Ichor.ProtocolTracker do
     {:noreply, state}
   end
 
-  def handle_info({:heartbeat, _count}, state) do
+  def handle_info(%Ichor.Signal.Payload{name: :heartbeat}, state) do
     stats = compute_stats()
 
-    Phoenix.PubSub.broadcast(
-      Ichor.PubSub,
-      "protocols:update",
-      {:protocol_update, stats}
-    )
+    Ichor.Signal.emit(:protocol_update, %{stats_map: stats})
 
     {:noreply, state}
   end
@@ -101,9 +97,23 @@ defmodule Ichor.ProtocolTracker do
         %{protocol: :gateway, status: :routed, at: data.timestamp, detail: data.channel}
       ] ++
         if data.delivered > 0 do
-          [%{protocol: :mailbox, status: :delivered, at: DateTime.utc_now(), detail: "#{data.delivered} delivered"}]
+          [
+            %{
+              protocol: :mailbox,
+              status: :delivered,
+              at: DateTime.utc_now(),
+              detail: "#{data.delivered} delivered"
+            }
+          ]
         else
-          [%{protocol: :mailbox, status: :failed, at: DateTime.utc_now(), detail: "no recipients"}]
+          [
+            %{
+              protocol: :mailbox,
+              status: :failed,
+              at: DateTime.utc_now(),
+              detail: "no recipients"
+            }
+          ]
         end
 
     trace = %{

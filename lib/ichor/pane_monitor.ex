@@ -15,10 +15,9 @@ defmodule Ichor.PaneMonitor do
   require Logger
 
   alias Ichor.Gateway.AgentRegistry
-  alias Ichor.Gateway.Channels.{Tmux, SshTmux}
+  alias Ichor.Gateway.Channels.{SshTmux, Tmux}
 
   @capture_lines 30
-  @topic "pane:signals"
 
   def start_link(opts), do: GenServer.start_link(__MODULE__, opts, name: __MODULE__)
 
@@ -30,12 +29,12 @@ defmodule Ichor.PaneMonitor do
 
   @impl true
   def init(_opts) do
-    Phoenix.PubSub.subscribe(Ichor.PubSub, "heartbeat")
+    Ichor.Signal.subscribe(:heartbeat)
     {:ok, %{captures: %{}, signals: %{}}}
   end
 
   @impl true
-  def handle_info({:heartbeat, _count}, state) do
+  def handle_info(%Ichor.Signal.Payload{name: :heartbeat}, state) do
     state = scan_all_agents(state)
     {:noreply, state}
   end
@@ -124,11 +123,10 @@ defmodule Ichor.PaneMonitor do
         if Map.get(state.signals, signal_key) != summary do
           Logger.info("PaneMonitor: DONE signal from #{agent.id}: #{summary}")
 
-          Phoenix.PubSub.broadcast(
-            Ichor.PubSub,
-            @topic,
-            {:agent_done, agent.session_id, agent.id, String.trim(summary)}
-          )
+          Ichor.Signal.emit(:agent_done, %{
+            session_id: agent.session_id,
+            summary: String.trim(summary)
+          })
 
           put_in(state.signals[signal_key], summary)
         else
@@ -148,11 +146,10 @@ defmodule Ichor.PaneMonitor do
         if Map.get(state.signals, signal_key) != reason do
           Logger.info("PaneMonitor: BLOCKED signal from #{agent.id}: #{reason}")
 
-          Phoenix.PubSub.broadcast(
-            Ichor.PubSub,
-            @topic,
-            {:agent_blocked, agent.session_id, agent.id, String.trim(reason)}
-          )
+          Ichor.Signal.emit(:agent_blocked, %{
+            session_id: agent.session_id,
+            reason: String.trim(reason)
+          })
 
           put_in(state.signals[signal_key], reason)
         else
