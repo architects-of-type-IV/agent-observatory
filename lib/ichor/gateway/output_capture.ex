@@ -71,30 +71,28 @@ defmodule Ichor.Gateway.OutputCapture do
     Enum.reduce(watched, last_capture, fn session_id, acc ->
       agent = AgentRegistry.get(session_id)
       tmux_target = agent && agent.channels.tmux
-
-      if tmux_target do
-        case Tmux.capture_pane(tmux_target) do
-          {:ok, output} ->
-            prev = Map.get(acc, session_id, "")
-
-            if output != prev do
-              Ichor.Signal.emit(:terminal_output, session_id, %{
-                session_id: session_id,
-                output: output
-              })
-
-              Map.put(acc, session_id, output)
-            else
-              acc
-            end
-
-          {:error, _} ->
-            acc
-        end
-      else
-        acc
-      end
+      capture_session(session_id, tmux_target, acc)
     end)
+  end
+
+  defp capture_session(_session_id, nil, acc), do: acc
+
+  defp capture_session(session_id, tmux_target, acc) do
+    case Tmux.capture_pane(tmux_target) do
+      {:ok, output} -> maybe_emit_output(session_id, output, acc)
+      {:error, _} -> acc
+    end
+  end
+
+  defp maybe_emit_output(session_id, output, acc) do
+    prev = Map.get(acc, session_id, "")
+
+    if output != prev do
+      Ichor.Signal.emit(:terminal_output, session_id, %{session_id: session_id, output: output})
+      Map.put(acc, session_id, output)
+    else
+      acc
+    end
   end
 
   defp sweep_stale(watched, last_capture) do

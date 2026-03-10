@@ -67,22 +67,25 @@ defmodule IchorWeb.Components.FleetHelpers do
     role = classify_role(member)
     my_depth = depth(role)
     sid = member[:session_id] || member["session_id"]
-
-    reports_to =
-      if my_depth > 0 do
-        case Enum.find(sorted_members, fn {_m, _a, d} -> d < my_depth end) do
-          {m, _a, _d} -> m
-          nil -> nil
-        end
-      end
-
-    manages =
-      sorted_members
-      |> Enum.filter(fn {_m, _a, d} -> d > my_depth end)
-      |> Enum.reject(fn {m, _a, _d} -> (m[:session_id] || m["session_id"]) == sid end)
-      |> Enum.map(fn {m, _a, _d} -> m end)
-
+    reports_to = find_reports_to(my_depth, sorted_members)
+    manages = find_manages(my_depth, sid, sorted_members)
     {reports_to, manages}
+  end
+
+  defp find_reports_to(0, _sorted_members), do: nil
+
+  defp find_reports_to(my_depth, sorted_members) do
+    case Enum.find(sorted_members, fn {_m, _a, d} -> d < my_depth end) do
+      {m, _a, _d} -> m
+      nil -> nil
+    end
+  end
+
+  defp find_manages(my_depth, sid, sorted_members) do
+    sorted_members
+    |> Enum.filter(fn {_m, _a, d} -> d > my_depth end)
+    |> Enum.reject(fn {m, _a, _d} -> (m[:session_id] || m["session_id"]) == sid end)
+    |> Enum.map(fn {m, _a, _d} -> m end)
   end
 
   # -- Comms helpers --
@@ -162,17 +165,14 @@ defmodule IchorWeb.Components.FleetHelpers do
 
   def group_teams_by_project(teams, agent_index \\ %{}) do
     teams
-    |> Enum.group_by(fn t ->
-      Enum.find_value(t.members, "unknown", fn m ->
-        # Try member cwd first, then fall back to unified agent_index
-        cwd = m[:cwd] || get_in(agent_index, [m[:agent_id], :cwd])
-
-        case cwd do
-          nil -> nil
-          cwd -> Path.basename(cwd)
-        end
-      end)
-    end)
+    |> Enum.group_by(fn t -> team_project(t, agent_index) end)
     |> Enum.sort_by(fn {project, _} -> project end)
+  end
+
+  defp team_project(team, agent_index) do
+    Enum.find_value(team.members, "unknown", fn m ->
+      cwd = m[:cwd] || get_in(agent_index, [m[:agent_id], :cwd])
+      cwd && Path.basename(cwd)
+    end)
   end
 end

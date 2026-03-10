@@ -40,46 +40,49 @@ defmodule Ichor.Fleet.Preparations.LoadTeams do
   end
 
   defp derive_from_events(events) do
-    team_creates =
-      events
-      |> Enum.filter(fn e ->
-        e.hook_event_type == :PreToolUse and e.tool_name == "TeamCreate"
-      end)
-      |> Enum.map(fn e ->
-        input = (e.payload || %{})["tool_input"] || %{}
-        %{name: input["team_name"], lead_session: e.session_id, created_at: e.inserted_at}
-      end)
-      |> Enum.reject(fn t -> is_nil(t.name) end)
-      |> Enum.uniq_by(& &1.name)
+    team_creates = extract_team_creates(events)
+    spawns = extract_team_spawns(events)
+    Enum.map(team_creates, &build_team_from_create(&1, spawns))
+  end
 
-    spawns =
-      events
-      |> Enum.filter(fn e ->
-        e.hook_event_type == :PreToolUse and e.tool_name == "Task" and
-          ((e.payload || %{})["tool_input"] || %{})["team_name"] != nil
-      end)
-
-    Enum.map(team_creates, fn tc ->
-      members =
-        spawns
-        |> Enum.filter(fn s ->
-          ((s.payload || %{})["tool_input"] || %{})["team_name"] == tc.name
-        end)
-        |> Enum.map(fn s ->
-          input = (s.payload || %{})["tool_input"] || %{}
-          %{name: input["name"], agent_type: input["subagent_type"], agent_id: nil}
-        end)
-
-      %{
-        name: tc.name,
-        lead_session: tc.lead_session,
-        description: nil,
-        members: [%{name: "lead", agent_type: "lead", agent_id: tc.lead_session} | members],
-        tasks: [],
-        source: :events,
-        created_at: tc.created_at
-      }
+  defp extract_team_creates(events) do
+    events
+    |> Enum.filter(&(&1.hook_event_type == :PreToolUse and &1.tool_name == "TeamCreate"))
+    |> Enum.map(fn e ->
+      input = (e.payload || %{})["tool_input"] || %{}
+      %{name: input["team_name"], lead_session: e.session_id, created_at: e.inserted_at}
     end)
+    |> Enum.reject(&is_nil(&1.name))
+    |> Enum.uniq_by(& &1.name)
+  end
+
+  defp extract_team_spawns(events) do
+    Enum.filter(events, fn e ->
+      e.hook_event_type == :PreToolUse and e.tool_name == "Task" and
+        ((e.payload || %{})["tool_input"] || %{})["team_name"] != nil
+    end)
+  end
+
+  defp build_team_from_create(tc, spawns) do
+    members =
+      spawns
+      |> Enum.filter(fn s ->
+        ((s.payload || %{})["tool_input"] || %{})["team_name"] == tc.name
+      end)
+      |> Enum.map(fn s ->
+        input = (s.payload || %{})["tool_input"] || %{}
+        %{name: input["name"], agent_type: input["subagent_type"], agent_id: nil}
+      end)
+
+    %{
+      name: tc.name,
+      lead_session: tc.lead_session,
+      description: nil,
+      members: [%{name: "lead", agent_type: "lead", agent_id: tc.lead_session} | members],
+      tasks: [],
+      source: :events,
+      created_at: tc.created_at
+    }
   end
 
   # Merge BEAM-native teams (from TeamSupervisor/FleetSupervisor) with legacy sources
@@ -93,21 +96,7 @@ defmodule Ichor.Fleet.Preparations.LoadTeams do
       |> Enum.map(fn {name, meta} ->
         member_ids = TeamSupervisor.member_ids(name)
 
-        members =
-          Enum.map(member_ids, fn id ->
-            case AgentProcess.lookup(id) do
-              {_pid, agent_meta} ->
-                %{
-                  name: id,
-                  agent_id: id,
-                  agent_type: to_string(agent_meta[:role] || :worker),
-                  status: agent_meta[:status] || :active
-                }
-
-              nil ->
-                %{name: id, agent_id: id, agent_type: "worker"}
-            end
-          end)
+        members = Enum.map(member_ids, &build_beam_member/1)
 
         %{
           name: name,
@@ -124,6 +113,21 @@ defmodule Ichor.Fleet.Preparations.LoadTeams do
     existing_teams ++ new_teams
   end
 
+  defp build_beam_member(id) do
+    case AgentProcess.lookup(id) do
+      {_pid, agent_meta} ->
+        %{
+          name: id,
+          agent_id: id,
+          agent_type: to_string(agent_meta[:role] || :worker),
+          status: agent_meta[:status] || :active
+        }
+
+      nil ->
+        %{name: id, agent_id: id, agent_type: "worker"}
+    end
+  end
+
   defp enrich_members(team, events_by_session, now, registry_by_id) do
     enriched_members =
       Enum.map(team.members, fn m ->
@@ -138,15 +142,7 @@ defmodule Ichor.Fleet.Preparations.LoadTeams do
           |> Enum.sort_by(& &1.inserted_at, {:desc, DateTime})
           |> List.first()
 
-        # Registry is authoritative for status; fall back to event-derived
-        status =
-          cond do
-            reg != nil -> reg.status
-            latest == nil -> :unknown
-            latest.hook_event_type == :SessionEnd -> :ended
-            DateTime.diff(now, latest.inserted_at, :second) > 30 -> :idle
-            true -> :active
-          end
+        status = derive_member_status(reg, latest, now)
 
         health_data = compute_agent_health(member_events, now)
         model = extract_model(member_events) || m[:model]
@@ -173,33 +169,43 @@ defmodule Ichor.Fleet.Preparations.LoadTeams do
     %{team | members: enriched_members}
   end
 
+  defp derive_member_status(reg, latest, now) do
+    cond do
+      reg != nil -> reg.status
+      latest == nil -> :unknown
+      latest.hook_event_type == :SessionEnd -> :ended
+      DateTime.diff(now, latest.inserted_at, :second) > 30 -> :idle
+      true -> :active
+    end
+  end
+
   defp mark_dead(teams, now) do
     Enum.map(teams, fn team ->
       if team.source == :beam do
-        # BEAM-supervised teams are never marked dead by staleness
         Map.put(team, :dead?, false)
       else
-        latest_member_event =
-          team.members
-          |> Enum.map(& &1[:latest_event])
-          |> Enum.reject(&is_nil/1)
-          |> Enum.max_by(& &1.inserted_at, DateTime, fn -> nil end)
-
-        all_inactive? =
-          Enum.all?(team.members, fn m ->
-            m[:status] in [:ended, :idle, :unknown, nil]
-          end)
-
-        stale? =
-          case latest_member_event do
-            nil -> true
-            event -> DateTime.diff(now, event.inserted_at, :second) > @dead_team_threshold_sec
-          end
-
-        Map.put(team, :dead?, all_inactive? and stale?)
+        Map.put(team, :dead?, team_dead?(team, now))
       end
     end)
   end
+
+  defp team_dead?(team, now) do
+    latest_member_event =
+      team.members
+      |> Enum.map(& &1[:latest_event])
+      |> Enum.reject(&is_nil/1)
+      |> Enum.max_by(& &1.inserted_at, DateTime, fn -> nil end)
+
+    all_inactive? = Enum.all?(team.members, &(&1[:status] in [:ended, :idle, :unknown, nil]))
+    stale? = team_stale?(latest_member_event, now)
+
+    all_inactive? and stale?
+  end
+
+  defp team_stale?(nil, _now), do: true
+
+  defp team_stale?(event, now),
+    do: DateTime.diff(now, event.inserted_at, :second) > @dead_team_threshold_sec
 
   defp to_resource(team) do
     healths = Enum.map(team.members, & &1[:health])

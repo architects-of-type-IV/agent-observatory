@@ -198,22 +198,30 @@ defmodule Ichor.Gateway.Router do
     Enum.reduce(channels(), 0, fn {mod, opts}, count ->
       key = mod.channel_key()
       address = agent.channels[key]
-
       skip? = function_exported?(mod, :skip?, 1) and mod.skip?(payload)
-
-      if address && !skip? && mod.available?(address) do
-        # Webhook gets agent_id injected for routing
-        deliver_payload =
-          if key == :webhook, do: Map.put(payload, :agent_id, agent.session_id), else: payload
-
-        case mod.deliver(address, deliver_payload) do
-          :ok -> if Keyword.get(opts, :primary, false), do: count + 1, else: count
-          {:error, _} -> count
-        end
-      else
-        count
-      end
+      deliver_via_channel(mod, opts, key, address, agent, payload, skip?, count)
     end)
+  end
+
+  defp deliver_via_channel(_mod, _opts, _key, nil, _agent, _payload, _skip?, count), do: count
+  defp deliver_via_channel(_mod, _opts, _key, _address, _agent, _payload, true, count), do: count
+
+  defp deliver_via_channel(mod, opts, key, address, agent, payload, false, count) do
+    if mod.available?(address) do
+      deliver_payload =
+        if key == :webhook, do: Map.put(payload, :agent_id, agent.session_id), else: payload
+
+      count_after_deliver(mod, opts, address, deliver_payload, count)
+    else
+      count
+    end
+  end
+
+  defp count_after_deliver(mod, opts, address, deliver_payload, count) do
+    case mod.deliver(address, deliver_payload) do
+      :ok -> if Keyword.get(opts, :primary, false), do: count + 1, else: count
+      {:error, _} -> count
+    end
   end
 
   defp track_protocol_trace(envelope, recipients, delivered) do

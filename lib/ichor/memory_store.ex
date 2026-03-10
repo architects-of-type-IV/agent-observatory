@@ -216,17 +216,7 @@ defmodule Ichor.MemoryStore do
     if :ets.info(@blocks_table, :size) >= @max_blocks do
       {:reply, {:error, :max_blocks_reached}, state}
     else
-      block = %{
-        id: generate_id(),
-        label: attrs[:label] || attrs["label"],
-        description: attrs[:description] || attrs["description"] || "",
-        value: attrs[:value] || attrs["value"] || "",
-        limit: attrs[:limit] || attrs["limit"] || @default_block_limit,
-        read_only: attrs[:read_only] || attrs["read_only"] || false,
-        created_at: now_iso(),
-        updated_at: now_iso()
-      }
-
+      block = build_block(attrs)
       :ets.insert(@blocks_table, {block.id, block})
 
       {:reply, {:ok, block}, %{state | dirty_blocks: MapSet.put(state.dirty_blocks, block.id)}}
@@ -314,17 +304,7 @@ defmodule Ichor.MemoryStore do
         # Create blocks from inline definitions
         {created_ids, dirty} =
           Enum.reduce(memory_blocks, {[], state.dirty_blocks}, fn mb, {ids, d} ->
-            block = %{
-              id: generate_id(),
-              label: mb[:label] || mb["label"],
-              description: mb[:description] || mb["description"] || "",
-              value: mb[:value] || mb["value"] || "",
-              limit: mb[:limit] || mb["limit"] || @default_block_limit,
-              read_only: mb[:read_only] || mb["read_only"] || false,
-              created_at: now_iso(),
-              updated_at: now_iso()
-            }
-
+            block = build_block(mb)
             :ets.insert(@blocks_table, {block.id, block})
             {[block.id | ids], MapSet.put(d, block.id)}
           end)
@@ -441,13 +421,7 @@ defmodule Ichor.MemoryStore do
       [{^agent_name, agent}] ->
         blocks = resolve_blocks(agent.block_ids)
 
-        compiled =
-          Enum.map_join(blocks, "\n\n", fn b ->
-            header = "<memory_block label=\"#{b.label}\" read_only=\"#{b.read_only}\">"
-            footer = "</memory_block>"
-            desc = if b.description != "", do: "<!-- #{b.description} -->\n", else: ""
-            "#{header}\n#{desc}#{b.value}\n#{footer}"
-          end)
+        compiled = Enum.map_join(blocks, "\n\n", &compile_block/1)
 
         {:reply, {:ok, compiled}, state}
 
@@ -465,17 +439,7 @@ defmodule Ichor.MemoryStore do
          :ok <- check_writable(block) do
       if String.contains?(block.value, old_text) do
         new_value = String.replace(block.value, old_text, new_text, global: false)
-
-        if String.length(new_value) > block.limit do
-          {:reply, {:error, :exceeds_limit}, state}
-        else
-          updated = %{block | value: new_value, updated_at: now_iso()}
-          :ets.insert(@blocks_table, {block.id, updated})
-          broadcast_block_change(block.id, block.label)
-
-          {:reply, {:ok, updated},
-           %{state | dirty_blocks: MapSet.put(state.dirty_blocks, block.id)}}
-        end
+        save_block_value(block, new_value, state)
       else
         {:reply, {:error, :text_not_found}, state}
       end
@@ -613,15 +577,7 @@ defmodule Ichor.MemoryStore do
 
     results =
       archival
-      |> then(fn entries ->
-        if tags_filter != [] do
-          Enum.filter(entries, fn e ->
-            Enum.any?(tags_filter, &(&1 in (e.tags || [])))
-          end)
-        else
-          entries
-        end
-      end)
+      |> filter_by_tags(tags_filter)
       |> Enum.filter(fn e ->
         String.contains?(String.downcase(e.content), query_down)
       end)
@@ -749,45 +705,75 @@ defmodule Ichor.MemoryStore do
     if block.read_only, do: {:error, :read_only}, else: :ok
   end
 
+  defp build_block(attrs) do
+    %{
+      id: generate_id(),
+      label: attr(attrs, :label),
+      description: attr(attrs, :description, ""),
+      value: attr(attrs, :value, ""),
+      limit: attr(attrs, :limit, @default_block_limit),
+      read_only: attr(attrs, :read_only, false),
+      created_at: now_iso(),
+      updated_at: now_iso()
+    }
+  end
+
+  defp attr(map, key, default \\ nil), do: map[key] || map[to_string(key)] || default
+
+  defp compile_block(b) do
+    header = "<memory_block label=\"#{b.label}\" read_only=\"#{b.read_only}\">"
+    footer = "</memory_block>"
+    desc = if b.description != "", do: "<!-- #{b.description} -->\n", else: ""
+    "#{header}\n#{desc}#{b.value}\n#{footer}"
+  end
+
+  defp save_block_value(block, new_value, state) do
+    if String.length(new_value) > block.limit do
+      {:reply, {:error, :exceeds_limit}, state}
+    else
+      updated = %{block | value: new_value, updated_at: now_iso()}
+      :ets.insert(@blocks_table, {block.id, updated})
+      broadcast_block_change(block.id, block.label)
+
+      {:reply, {:ok, updated}, %{state | dirty_blocks: MapSet.put(state.dirty_blocks, block.id)}}
+    end
+  end
+
+  defp filter_by_tags(entries, []), do: entries
+
+  defp filter_by_tags(entries, tags) do
+    Enum.filter(entries, fn e -> Enum.any?(tags, &(&1 in (e.tags || []))) end)
+  end
+
   # ═══════════════════════════════════════════════════════
   # Disk Persistence
   # ═══════════════════════════════════════════════════════
 
   defp load_from_disk do
     dir = data_dir()
+    load_blocks_from_dir(Path.join(dir, "blocks"))
+    load_agents_from_dir(Path.join(dir, "agents"))
+  end
 
-    # Load blocks
-    blocks_dir = Path.join(dir, "blocks")
-
-    if File.dir?(blocks_dir) do
-      case File.ls(blocks_dir) do
-        {:ok, files} ->
-          Enum.each(files, fn file ->
-            if String.ends_with?(file, ".json") do
-              path = Path.join(blocks_dir, file)
-              load_block_file(path)
-            end
-          end)
-
-        _ ->
-          :ok
-      end
+  defp load_blocks_from_dir(blocks_dir) do
+    with true <- File.dir?(blocks_dir),
+         {:ok, files} <- File.ls(blocks_dir) do
+      files
+      |> Enum.filter(&String.ends_with?(&1, ".json"))
+      |> Enum.each(fn file -> load_block_file(Path.join(blocks_dir, file)) end)
+    else
+      _ -> :ok
     end
+  end
 
-    # Load agents
-    agents_dir = Path.join(dir, "agents")
-
-    if File.dir?(agents_dir) do
-      case File.ls(agents_dir) do
-        {:ok, entries} ->
-          Enum.each(entries, fn name ->
-            agent_dir = Path.join(agents_dir, name)
-            if File.dir?(agent_dir), do: load_agent_from_disk(name, agent_dir)
-          end)
-
-        _ ->
-          :ok
-      end
+  defp load_agents_from_dir(agents_dir) do
+    with true <- File.dir?(agents_dir),
+         {:ok, entries} <- File.ls(agents_dir) do
+      entries
+      |> Enum.filter(&File.dir?(Path.join(agents_dir, &1)))
+      |> Enum.each(fn name -> load_agent_from_disk(name, Path.join(agents_dir, name)) end)
+    else
+      _ -> :ok
     end
   end
 
@@ -866,85 +852,98 @@ defmodule Ichor.MemoryStore do
 
   defp flush_dirty(state) do
     dir = data_dir()
+    flush_dirty_blocks(state, dir)
+    flush_dirty_agents(state, dir)
+  rescue
+    e -> Logger.warning("MemoryStore: flush failed: #{inspect(e)}")
+  end
 
-    # Flush dirty blocks
-    blocks_dir = Path.join(dir, "blocks")
-
+  defp flush_dirty_blocks(state, dir) do
     if MapSet.size(state.dirty_blocks) > 0 do
+      blocks_dir = Path.join(dir, "blocks")
       File.mkdir_p!(blocks_dir)
 
       Enum.each(state.dirty_blocks, fn block_id ->
-        path = Path.join(blocks_dir, "#{block_id}.json")
-
-        case :ets.lookup(@blocks_table, block_id) do
-          [{^block_id, block}] ->
-            File.write!(path, Jason.encode!(block, pretty: true))
-
-          [] ->
-            # Block was deleted
-            if File.exists?(path), do: File.rm(path)
-        end
+        flush_single_block(block_id, blocks_dir)
       end)
     end
+  end
 
-    # Flush dirty agents
+  defp flush_single_block(block_id, blocks_dir) do
+    path = Path.join(blocks_dir, "#{block_id}.json")
+
+    case :ets.lookup(@blocks_table, block_id) do
+      [{^block_id, block}] ->
+        File.write!(path, Jason.encode!(block, pretty: true))
+
+      [] ->
+        if File.exists?(path), do: File.rm(path)
+    end
+  end
+
+  defp flush_dirty_agents(state, dir) do
     Enum.each(state.dirty_agents, fn agent_name ->
       agent_dir = Path.join([dir, "agents", agent_name])
       File.mkdir_p!(agent_dir)
-
-      # Agent config
-      case :ets.lookup(@agents_table, agent_name) do
-        [{^agent_name, agent}] ->
-          config_path = Path.join(agent_dir, "agent.json")
-          File.write!(config_path, Jason.encode!(agent, pretty: true))
-
-        [] ->
-          :ok
-      end
-
-      # Recall
-      recall = get_recall(agent_name)
-
-      if recall != [] do
-        recall_path = Path.join(agent_dir, "recall.jsonl")
-        lines = recall |> Enum.reverse() |> Enum.map_join("\n", &Jason.encode!/1)
-        File.write!(recall_path, lines <> "\n")
-      end
-
-      # Archival -- append-only to preserve entries evicted from ETS.
-      # Read existing disk IDs, write only entries not already on disk.
-      archival = get_archival(agent_name)
-
-      if archival != [] do
-        archival_path = Path.join(agent_dir, "archival.jsonl")
-
-        existing_ids =
-          if File.exists?(archival_path) do
-            archival_path
-            |> File.stream!()
-            |> Stream.map(&String.trim/1)
-            |> Stream.reject(&(&1 == ""))
-            |> Stream.map(&Jason.decode/1)
-            |> Stream.filter(fn
-              {:ok, _} -> true
-              _ -> false
-            end)
-            |> Stream.map(fn {:ok, d} -> d["id"] end)
-            |> MapSet.new()
-          else
-            MapSet.new()
-          end
-
-        new_entries = Enum.reject(archival, fn e -> MapSet.member?(existing_ids, e.id) end)
-
-        if new_entries != [] do
-          append_lines = new_entries |> Enum.reverse() |> Enum.map_join("\n", &Jason.encode!/1)
-          File.write!(archival_path, append_lines <> "\n", [:append])
-        end
-      end
+      flush_agent_config(agent_name, agent_dir)
+      flush_agent_recall(agent_name, agent_dir)
+      flush_agent_archival(agent_name, agent_dir)
     end)
-  rescue
-    e -> Logger.warning("MemoryStore: flush failed: #{inspect(e)}")
+  end
+
+  defp flush_agent_config(agent_name, agent_dir) do
+    case :ets.lookup(@agents_table, agent_name) do
+      [{^agent_name, agent}] ->
+        config_path = Path.join(agent_dir, "agent.json")
+        File.write!(config_path, Jason.encode!(agent, pretty: true))
+
+      [] ->
+        :ok
+    end
+  end
+
+  defp flush_agent_recall(agent_name, agent_dir) do
+    recall = get_recall(agent_name)
+
+    if recall != [] do
+      recall_path = Path.join(agent_dir, "recall.jsonl")
+      lines = recall |> Enum.reverse() |> Enum.map_join("\n", &Jason.encode!/1)
+      File.write!(recall_path, lines <> "\n")
+    end
+  end
+
+  defp flush_agent_archival(agent_name, agent_dir) do
+    archival = get_archival(agent_name)
+    if archival == [], do: :ok, else: do_flush_archival(archival, agent_dir)
+  end
+
+  defp do_flush_archival(archival, agent_dir) do
+    archival_path = Path.join(agent_dir, "archival.jsonl")
+    existing_ids = load_existing_archival_ids(archival_path)
+    new_entries = Enum.reject(archival, fn e -> MapSet.member?(existing_ids, e.id) end)
+
+    if new_entries != [] do
+      append_lines = new_entries |> Enum.reverse() |> Enum.map_join("\n", &Jason.encode!/1)
+      File.write!(archival_path, append_lines <> "\n", [:append])
+    end
+  end
+
+  defp load_existing_archival_ids(path) do
+    if File.exists?(path) do
+      path
+      |> File.stream!()
+      |> Stream.map(&String.trim/1)
+      |> Stream.reject(&(&1 == ""))
+      |> Stream.map(&Jason.decode/1)
+      |> Stream.filter(fn
+        {:ok, _} -> true
+        _ -> false
+      end)
+      |> Stream.map(fn {:ok, d} -> d["id"] end)
+      |> MapSet.new()
+    else
+      MapSet.new()
+    end
   end
 
   defp atomize_entry(data) when is_map(data) do

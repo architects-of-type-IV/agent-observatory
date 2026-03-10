@@ -57,22 +57,9 @@ defmodule Ichor.Fleet.Preparations.LoadAgents do
     ended? = Enum.any?(events, &(&1.hook_event_type == :SessionEnd))
     cwd = latest.cwd || Enum.find_value(events, & &1.cwd)
     tmux_session = Enum.find_value(events, & &1.tmux_session)
-
-    model =
-      Enum.find_value(events, fn e ->
-        if e.hook_event_type == :SessionStart,
-          do: (e.payload || %{})["model"] || e.model_name
-      end) || Enum.find_value(events, & &1.model_name)
-
+    model = extract_model_from_events(events)
     os_pid = Enum.find_value(sorted, & &1.os_pid)
-
-    status =
-      cond do
-        ended? -> :ended
-        DateTime.diff(now, latest.inserted_at, :second) > @idle_threshold_seconds -> :idle
-        true -> :active
-      end
-
+    status = derive_agent_status(ended?, latest, now)
     name = derive_display_name(session_id, tmux_session, cwd)
 
     struct!(Agent, %{
@@ -95,6 +82,21 @@ defmodule Ichor.Fleet.Preparations.LoadAgents do
       last_event_at: latest.inserted_at,
       recent_activity: build_recent_activity(sorted, now)
     })
+  end
+
+  defp extract_model_from_events(events) do
+    Enum.find_value(events, fn e ->
+      if e.hook_event_type == :SessionStart,
+        do: (e.payload || %{})["model"] || e.model_name
+    end) || Enum.find_value(events, & &1.model_name)
+  end
+
+  defp derive_agent_status(true, _latest, _now), do: :ended
+
+  defp derive_agent_status(false, latest, now) do
+    if DateTime.diff(now, latest.inserted_at, :second) > @idle_threshold_seconds,
+      do: :idle,
+      else: :active
   end
 
   defp enrich_with_teams(agents, teams) do
@@ -246,23 +248,6 @@ defmodule Ichor.Fleet.Preparations.LoadAgents do
           %{agent | session_id: agent.agent_id}
 
         reg ->
-          # Prefer the agent name from derive_display_name over registry short_name
-          # when short_name is just a truncated UUID (not human-readable)
-          better_name =
-            cond do
-              reg.short_name && not AgentEntry.uuid?(reg.session_id) ->
-                reg.short_name
-
-              agent.name && agent.name != "" ->
-                agent.name
-
-              reg.short_name ->
-                reg.short_name
-
-              true ->
-                agent.name
-            end
-
           %{
             agent
             | session_id: reg.session_id,
@@ -270,13 +255,22 @@ defmodule Ichor.Fleet.Preparations.LoadAgents do
               host: Map.get(reg, :host, "local"),
               channels: reg.channels,
               last_event_at: reg.last_event_at,
-              name: better_name,
+              name: pick_display_name(agent, reg),
               cwd: reg.cwd || agent.cwd,
               model: reg.model || agent.model,
               os_pid: Map.get(reg, :os_pid) || agent.os_pid
           }
       end
     end)
+  end
+
+  defp pick_display_name(agent, reg) do
+    cond do
+      reg.short_name && not AgentEntry.uuid?(reg.session_id) -> reg.short_name
+      agent.name && agent.name != "" -> agent.name
+      reg.short_name -> reg.short_name
+      true -> agent.name
+    end
   end
 
   # Build a map of session_id -> [%{tool_use_id, type, description, status}]
@@ -396,36 +390,37 @@ defmodule Ichor.Fleet.Preparations.LoadAgents do
     |> Enum.take(5)
   end
 
-  defp event_to_activity(e, now) do
-    age = DateTime.diff(now, e.inserted_at, :second)
-    age_str = format_age(age)
+  defp event_to_activity(%{hook_event_type: :PreToolUse} = e, now) do
+    age_str = format_age(DateTime.diff(now, e.inserted_at, :second))
     payload = e.payload || %{}
-
-    case e.hook_event_type do
-      :PreToolUse ->
-        tool = e.tool_name || "?"
-        detail = extract_tool_detail(tool, payload)
-        [%{type: :tool, tool: tool, detail: detail, age: age_str}]
-
-      :PostToolUseFailure ->
-        tool = e.tool_name || "?"
-        [%{type: :error, tool: tool, detail: "failed", age: age_str}]
-
-      :Notification ->
-        text = payload["message"] || payload["content"] || e.summary || ""
-
-        if text != "",
-          do: [%{type: :notify, detail: String.slice(text, 0, 120), age: age_str}],
-          else: []
-
-      :TaskCompleted ->
-        task_id = payload["task_id"] || "?"
-        [%{type: :task_done, detail: "Task #{task_id} completed", age: age_str}]
-
-      _ ->
-        []
-    end
+    tool = e.tool_name || "?"
+    [%{type: :tool, tool: tool, detail: extract_tool_detail(tool, payload), age: age_str}]
   end
+
+  defp event_to_activity(%{hook_event_type: :PostToolUseFailure} = e, now) do
+    age_str = format_age(DateTime.diff(now, e.inserted_at, :second))
+    tool = e.tool_name || "?"
+    [%{type: :error, tool: tool, detail: "failed", age: age_str}]
+  end
+
+  defp event_to_activity(%{hook_event_type: :Notification} = e, now) do
+    age_str = format_age(DateTime.diff(now, e.inserted_at, :second))
+    payload = e.payload || %{}
+    text = payload["message"] || payload["content"] || e.summary || ""
+
+    if text != "",
+      do: [%{type: :notify, detail: String.slice(text, 0, 120), age: age_str}],
+      else: []
+  end
+
+  defp event_to_activity(%{hook_event_type: :TaskCompleted} = e, now) do
+    age_str = format_age(DateTime.diff(now, e.inserted_at, :second))
+    payload = e.payload || %{}
+    task_id = payload["task_id"] || "?"
+    [%{type: :task_done, detail: "Task #{task_id} completed", age: age_str}]
+  end
+
+  defp event_to_activity(_e, _now), do: []
 
   defp extract_tool_detail("SendMessage", payload) do
     to =

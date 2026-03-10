@@ -87,38 +87,33 @@ defmodule IchorWeb.DashboardLive do
 
   @impl true
   def handle_params(params, _uri, socket) do
-    nav_view =
-      case params["view"] do
-        "fleet" -> :fleet
-        "protocols" -> :fleet
-        "workshop" -> :workshop
-        "signals" -> :signals
-        _ -> :pipeline
-      end
-
+    nav_view = parse_nav_view(params["view"])
     socket = assign(socket, :nav_view, nav_view)
-
-    socket =
-      case nav_view do
-        :workshop ->
-          socket
-          |> assign(:ws_blueprints, list_blueprints())
-          |> assign(:ws_agent_types, list_agent_types())
-          |> push_ws_state()
-
-        :signals ->
-          if connected?(socket) do
-            Phoenix.PubSub.subscribe(Ichor.PubSub, "stream:feed")
-          end
-
-          assign(socket, :stream_events, Buffer.recent(200))
-
-        _ ->
-          socket
-      end
-
-    {:noreply, socket}
+    {:noreply, apply_nav_view(nav_view, socket)}
   end
+
+  defp parse_nav_view("fleet"), do: :fleet
+  defp parse_nav_view("protocols"), do: :fleet
+  defp parse_nav_view("workshop"), do: :workshop
+  defp parse_nav_view("signals"), do: :signals
+  defp parse_nav_view(_), do: :pipeline
+
+  defp apply_nav_view(:workshop, socket) do
+    socket
+    |> assign(:ws_blueprints, list_blueprints())
+    |> assign(:ws_agent_types, list_agent_types())
+    |> push_ws_state()
+  end
+
+  defp apply_nav_view(:signals, socket) do
+    if connected?(socket) do
+      Phoenix.PubSub.subscribe(Ichor.PubSub, "stream:feed")
+    end
+
+    assign(socket, :stream_events, Buffer.recent(200))
+  end
+
+  defp apply_nav_view(_nav_view, socket), do: socket
 
   # ── handle_info ──────────────────────────────────────────────────────
 

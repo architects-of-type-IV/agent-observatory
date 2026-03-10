@@ -48,41 +48,7 @@ defmodule Ichor.Gateway.TopologyBuilder do
 
     case CausalDAG.get_session_dag(session_id) do
       {:ok, node_map} ->
-        # Derive nodes list
-        nodes =
-          node_map
-          |> Enum.map(fn {_trace_id, node} ->
-            %{
-              trace_id: node.trace_id,
-              agent_id: node.agent_id,
-              state: node.action_status || :idle,
-              x: nil,
-              y: nil
-            }
-          end)
-
-        # Derive edges list
-        edges =
-          node_map
-          |> Enum.flat_map(fn {_trace_id, node} ->
-            Enum.map(node.children, fn child_id ->
-              %{
-                from: node.trace_id,
-                to: child_id,
-                traffic_volume: 0,
-                latency_ms: 0,
-                status: "active",
-                from_x: nil,
-                from_y: nil,
-                to_x: nil,
-                to_y: nil
-              }
-            end)
-          end)
-
-        # Broadcast to gateway:topology
-        Ichor.Signal.emit(:topology_snapshot, %{nodes: nodes, edges: edges})
-
+        Ichor.Signal.emit(:topology_snapshot, build_topology(node_map))
         {:noreply, state}
 
       {:error, :session_not_found} ->
@@ -114,6 +80,38 @@ defmodule Ichor.Gateway.TopologyBuilder do
   def handle_info(_msg, state), do: {:noreply, state}
 
   # ── Private ──────────────────────────────────────────────────────
+
+  defp build_topology(node_map) do
+    nodes =
+      Enum.map(node_map, fn {_trace_id, node} ->
+        %{
+          trace_id: node.trace_id,
+          agent_id: node.agent_id,
+          state: node.action_status || :idle,
+          x: nil,
+          y: nil
+        }
+      end)
+
+    edges =
+      Enum.flat_map(node_map, fn {_trace_id, node} ->
+        Enum.map(node.children, fn child_id ->
+          %{
+            from: node.trace_id,
+            to: child_id,
+            traffic_volume: 0,
+            latency_ms: 0,
+            status: "active",
+            from_x: nil,
+            from_y: nil,
+            to_x: nil,
+            to_y: nil
+          }
+        end)
+      end)
+
+    %{nodes: nodes, edges: edges}
+  end
 
   defp schedule_sweep do
     Process.send_after(self(), :sweep, @sweep_interval)

@@ -56,20 +56,7 @@ defmodule Ichor.NudgeEscalator do
     session_id = event.session_id
 
     if Map.has_key?(state.escalations, session_id) do
-      entry = Map.get(state.escalations, session_id)
-
-      if entry.level >= 2 do
-        case HITLRelay.unpause(session_id, session_id, "ichor-auto") do
-          {:ok, _} ->
-            :ok
-
-          error ->
-            Logger.warning(
-              "NudgeEscalator: auto-unpause failed for #{session_id}: #{inspect(error)}"
-            )
-        end
-      end
-
+      maybe_unpause(session_id, Map.get(state.escalations, session_id))
       {:noreply, %{state | escalations: Map.delete(state.escalations, session_id)}}
     else
       {:noreply, state}
@@ -147,74 +134,68 @@ defmodule Ichor.NudgeEscalator do
     %{state | escalations: escalations}
   end
 
-  defp execute_escalation(session_id, agent, level) do
-    agent_name =
-      agent[:name] || agent[:short_name] ||
-        AgentEntry.short_id(session_id)
+  defp maybe_unpause(_session_id, %{level: level}) when level < 2, do: :ok
 
-    case level do
-      0 ->
-        Logger.warning(
-          "NudgeEscalator: Agent #{agent_name} (#{session_id}) is stale (level 0: warn)"
-        )
-
-        Ichor.Signal.emit(:nudge_warning, %{
-          session_id: session_id,
-          agent_name: agent_name,
-          level: 0
-        })
-
-      1 ->
-        Logger.warning("NudgeEscalator: Nudging agent #{agent_name} via tmux (level 1)")
-
-        nudge_message =
-          "[Ichor] Are you still working? No activity detected for >#{config(:stale_threshold_sec, @default_stale_threshold)}s. Reply or take action to clear this alert."
-
-        case Tmux.deliver(agent[:tmux_session] || session_id, %{
-               content: nudge_message,
-               from: "ichor",
-               type: :nudge
-             }) do
-          :ok ->
-            :ok
-
-          {:error, reason} ->
-            Logger.warning(
-              "NudgeEscalator: Tmux nudge failed for #{agent_name}: #{inspect(reason)}"
-            )
-        end
-
-        Ichor.Signal.emit(:nudge_sent, %{
-          session_id: session_id,
-          agent_name: agent_name,
-          level: 1
-        })
-
-      2 ->
-        Logger.warning("NudgeEscalator: Escalating agent #{agent_name} to HITL pause (level 2)")
-        HITLRelay.pause(session_id, session_id, "ichor", "Auto-paused: no activity detected")
-
-        Ichor.Signal.emit(:nudge_escalated, %{
-          session_id: session_id,
-          agent_name: agent_name,
-          level: 2
-        })
-
-      3 ->
-        Logger.warning(
-          "NudgeEscalator: Agent #{agent_name} marked as zombie (level 3: terminate)"
-        )
-
-        Ichor.Signal.emit(:nudge_zombie, %{
-          session_id: session_id,
-          agent_name: agent_name,
-          level: 3
-        })
-
-      _ ->
+  defp maybe_unpause(session_id, _entry) do
+    case HITLRelay.unpause(session_id, session_id, "ichor-auto") do
+      {:ok, _} ->
         :ok
+
+      error ->
+        Logger.warning("NudgeEscalator: auto-unpause failed for #{session_id}: #{inspect(error)}")
     end
   end
+
+  defp execute_escalation(session_id, agent, level) do
+    agent_name = agent[:name] || agent[:short_name] || AgentEntry.short_id(session_id)
+    do_escalate(session_id, agent, agent_name, level)
+  end
+
+  defp do_escalate(session_id, _agent, agent_name, 0) do
+    Logger.warning("NudgeEscalator: Agent #{agent_name} (#{session_id}) is stale (level 0: warn)")
+
+    Ichor.Signal.emit(:nudge_warning, %{session_id: session_id, agent_name: agent_name, level: 0})
+  end
+
+  defp do_escalate(session_id, agent, agent_name, 1) do
+    Logger.warning("NudgeEscalator: Nudging agent #{agent_name} via tmux (level 1)")
+
+    nudge_message =
+      "[Ichor] Are you still working? No activity detected for >#{config(:stale_threshold_sec, @default_stale_threshold)}s. Reply or take action to clear this alert."
+
+    case Tmux.deliver(agent[:tmux_session] || session_id, %{
+           content: nudge_message,
+           from: "ichor",
+           type: :nudge
+         }) do
+      :ok ->
+        :ok
+
+      {:error, reason} ->
+        Logger.warning("NudgeEscalator: Tmux nudge failed for #{agent_name}: #{inspect(reason)}")
+    end
+
+    Ichor.Signal.emit(:nudge_sent, %{session_id: session_id, agent_name: agent_name, level: 1})
+  end
+
+  defp do_escalate(session_id, _agent, agent_name, 2) do
+    Logger.warning("NudgeEscalator: Escalating agent #{agent_name} to HITL pause (level 2)")
+    HITLRelay.pause(session_id, session_id, "ichor", "Auto-paused: no activity detected")
+
+    Ichor.Signal.emit(:nudge_escalated, %{
+      session_id: session_id,
+      agent_name: agent_name,
+      level: 2
+    })
+  end
+
+  defp do_escalate(session_id, _agent, agent_name, 3) do
+    Logger.warning("NudgeEscalator: Agent #{agent_name} marked as zombie (level 3: terminate)")
+
+    Ichor.Signal.emit(:nudge_zombie, %{session_id: session_id, agent_name: agent_name, level: 3})
+  end
+
+  defp do_escalate(_session_id, _agent, _agent_name, _level), do: :ok
 
   defp config(key, default) do
     Application.get_env(:ichor, __MODULE__, [])

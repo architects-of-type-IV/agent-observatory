@@ -146,12 +146,7 @@ defmodule Ichor.SwarmMonitor do
           |> Enum.filter(fn t ->
             t.status == "in_progress" && stale?(t, now, threshold_min)
           end)
-          |> Enum.reduce(0, fn t, acc ->
-            case jq_update_task(path, t.id, "pending", "") do
-              :ok -> acc + 1
-              _ -> acc
-            end
-          end)
+          |> Enum.reduce(0, &count_reset(&1, &2, path))
 
         state = refresh_tasks(state)
         broadcast(state)
@@ -194,20 +189,7 @@ defmodule Ichor.SwarmMonitor do
         {:reply, {:error, :no_active_project}, state}
 
       path ->
-        claim_script = Path.expand("~/.claude/skills/dag/scripts/claim-task.sh")
-
-        result =
-          case System.cmd("bash", [claim_script, task_id, agent_name, path],
-                 stderr_to_stdout: true,
-                 env: []
-               ) do
-            {output, 0} ->
-              if String.contains?(output, "CLAIMED"), do: :ok, else: {:error, String.trim(output)}
-
-            {output, _} ->
-              {:error, String.trim(output)}
-          end
-
+        result = run_claim_script(task_id, agent_name, path)
         state = refresh_tasks(state)
         broadcast(state)
         {:reply, result, state}
@@ -330,35 +312,39 @@ defmodule Ichor.SwarmMonitor do
     if File.exists?(path) do
       path
       |> File.stream!()
-      |> Enum.map(fn line ->
-        case Jason.decode(String.trim(line)) do
-          {:ok, task} -> normalize_task(task)
-          _ -> nil
-        end
-      end)
+      |> Enum.map(&decode_task_line/1)
       |> Enum.reject(fn t -> is_nil(t) or t.status == "deleted" end)
     else
       []
     end
   end
 
+  defp decode_task_line(line) do
+    case Jason.decode(String.trim(line)) do
+      {:ok, task} -> normalize_task(task)
+      _ -> nil
+    end
+  end
+
   defp normalize_task(t) do
     %{
-      id: t["id"] || "",
-      status: t["status"] || "pending",
-      subject: t["subject"] || "",
-      description: t["description"] || "",
-      owner: t["owner"] || "",
-      priority: t["priority"] || "medium",
-      blocked_by: t["blocked_by"] || [],
-      files: t["files"] || [],
-      done_when: t["done_when"] || "",
+      id: field(t, "id", ""),
+      status: field(t, "status", "pending"),
+      subject: field(t, "subject", ""),
+      description: field(t, "description", ""),
+      owner: field(t, "owner", ""),
+      priority: field(t, "priority", "medium"),
+      blocked_by: field(t, "blocked_by", []),
+      files: field(t, "files", []),
+      done_when: field(t, "done_when", ""),
       updated: t["updated"] || t["created"] || "",
-      notes: t["notes"] || "",
-      tags: t["tags"] || [],
+      notes: field(t, "notes", ""),
+      tags: field(t, "tags", []),
       project: ""
     }
   end
+
+  defp field(map, key, default), do: map[key] || default
 
   defp compute_pipeline(tasks) do
     %{
@@ -410,20 +396,12 @@ defmodule Ichor.SwarmMonitor do
     else
       wave =
         tasks
-        |> Enum.filter(fn t ->
-          not MapSet.member?(assigned, t.id) and
-            Enum.all?(t.blocked_by, fn dep ->
-              MapSet.member?(assigned, dep) or not MapSet.member?(all_ids, dep)
-            end)
-        end)
+        |> Enum.filter(&wave_ready?(&1, assigned, all_ids))
         |> Enum.map(& &1.id)
 
       case wave do
         [] ->
-          # Remaining tasks have circular deps or missing deps, put them all in final wave
-          remaining =
-            Enum.reject(tasks, fn t -> MapSet.member?(assigned, t.id) end) |> Enum.map(& &1.id)
-
+          remaining = collect_remaining_ids(tasks, assigned)
           Enum.reverse([remaining | waves])
 
         _ ->
@@ -451,52 +429,51 @@ defmodule Ichor.SwarmMonitor do
 
   defp longest_chain(id, task_map, memo) do
     case Map.get(memo, id) do
+      nil -> compute_chain_depth(id, task_map, memo)
+      depth -> {depth, memo}
+    end
+  end
+
+  defp compute_chain_depth(id, task_map, memo) do
+    case Map.get(task_map, id) do
       nil ->
-        case Map.get(task_map, id) do
-          nil ->
-            {0, Map.put(memo, id, 0)}
+        {0, Map.put(memo, id, 0)}
 
-          task ->
-            {max_dep, memo} =
-              Enum.reduce(task.blocked_by, {0, memo}, fn dep_id, {max, m} ->
-                {depth, m} = longest_chain(dep_id, task_map, m)
-                {max(max, depth), m}
-              end)
+      task ->
+        {max_dep, memo} =
+          Enum.reduce(task.blocked_by, {0, memo}, fn dep_id, {max, m} ->
+            {depth, m} = longest_chain(dep_id, task_map, m)
+            {max(max, depth), m}
+          end)
 
-            depth = max_dep + 1
-            {depth, Map.put(memo, id, depth)}
-        end
-
-      depth ->
-        {depth, memo}
+        depth = max_dep + 1
+        {depth, Map.put(memo, id, depth)}
     end
   end
 
   defp trace_critical_path(id, task_map) do
     case Map.get(task_map, id) do
-      nil ->
-        []
+      nil -> []
+      task -> trace_from_task(id, task, task_map)
+    end
+  end
 
-      task ->
-        case task.blocked_by do
-          [] ->
-            [id]
+  defp trace_from_task(id, %{blocked_by: []}, _task_map), do: [id]
 
-          deps ->
-            # Follow the longest dependency
-            longest_dep =
-              deps
-              |> Enum.map(fn dep_id ->
-                case Map.get(task_map, dep_id) do
-                  nil -> {dep_id, 0}
-                  _ -> {dep_id, length(trace_critical_path(dep_id, task_map))}
-                end
-              end)
-              |> Enum.max_by(fn {_id, len} -> len end)
-              |> elem(0)
+  defp trace_from_task(id, %{blocked_by: deps}, task_map) do
+    longest_dep =
+      deps
+      |> Enum.map(&dep_path_length(&1, task_map))
+      |> Enum.max_by(fn {_id, len} -> len end)
+      |> elem(0)
 
-            trace_critical_path(longest_dep, task_map) ++ [id]
-        end
+    trace_critical_path(longest_dep, task_map) ++ [id]
+  end
+
+  defp dep_path_length(dep_id, task_map) do
+    case Map.get(task_map, dep_id) do
+      nil -> {dep_id, 0}
+      _ -> {dep_id, length(trace_critical_path(dep_id, task_map))}
     end
   end
 
@@ -508,32 +485,39 @@ defmodule Ichor.SwarmMonitor do
     project_path = get_active_project_path(state)
 
     if project_path && File.exists?(@health_check_script) do
-      case System.cmd("bash", [@health_check_script, project_path, "10"],
-             stderr_to_stdout: true,
-             env: []
-           ) do
-        {output, 0} ->
-          case Jason.decode(output) do
-            {:ok, report} ->
-              health = %{
-                healthy: report["healthy"] || false,
-                issues: parse_issues(report),
-                agents: report["agents"] || %{},
-                timestamp: DateTime.utc_now()
-              }
-
-              %{state | health: health}
-
-            _ ->
-              Logger.warning("SwarmMonitor: Failed to parse health report")
-              state
-          end
-
-        {_output, _code} ->
-          state
+      case run_health_script(project_path) do
+        {:ok, health} -> %{state | health: health}
+        :error -> state
       end
     else
       state
+    end
+  end
+
+  defp run_health_script(project_path) do
+    case System.cmd("bash", [@health_check_script, project_path, "10"],
+           stderr_to_stdout: true,
+           env: []
+         ) do
+      {output, 0} -> parse_health_output(output)
+      {_output, _code} -> :error
+    end
+  end
+
+  defp parse_health_output(output) do
+    case Jason.decode(output) do
+      {:ok, report} ->
+        {:ok,
+         %{
+           healthy: report["healthy"] || false,
+           issues: parse_issues(report),
+           agents: report["agents"] || %{},
+           timestamp: DateTime.utc_now()
+         }}
+
+      _ ->
+        Logger.warning("SwarmMonitor: Failed to parse health report")
+        :error
     end
   end
 
@@ -550,6 +534,41 @@ defmodule Ichor.SwarmMonitor do
         details: issue
       }
     end)
+  end
+
+  defp run_claim_script(task_id, agent_name, path) do
+    claim_script = Path.expand("~/.claude/skills/dag/scripts/claim-task.sh")
+
+    case System.cmd("bash", [claim_script, task_id, agent_name, path],
+           stderr_to_stdout: true,
+           env: []
+         ) do
+      {output, 0} ->
+        if String.contains?(output, "CLAIMED"), do: :ok, else: {:error, String.trim(output)}
+
+      {output, _} ->
+        {:error, String.trim(output)}
+    end
+  end
+
+  defp wave_ready?(task, assigned, all_ids) do
+    not MapSet.member?(assigned, task.id) and
+      Enum.all?(task.blocked_by, fn dep ->
+        MapSet.member?(assigned, dep) or not MapSet.member?(all_ids, dep)
+      end)
+  end
+
+  defp collect_remaining_ids(tasks, assigned) do
+    tasks
+    |> Enum.reject(fn t -> MapSet.member?(assigned, t.id) end)
+    |> Enum.map(& &1.id)
+  end
+
+  defp count_reset(task, acc, path) do
+    case jq_update_task(path, task.id, "pending", "") do
+      :ok -> acc + 1
+      _ -> acc
+    end
   end
 
   # ═══════════════════════════════════════════════════════
@@ -657,32 +676,26 @@ defmodule Ichor.SwarmMonitor do
       {:ok, entries} ->
         entries
         |> Enum.reject(&(&1 == ".archive"))
-        |> Enum.reduce(%{}, fn name, acc ->
-          config_path = Path.join([@teams_dir, name, "config.json"])
-
-          case read_team_project(config_path) do
-            nil -> acc
-            project_path -> Map.put(acc, Path.basename(project_path), project_path)
-          end
-        end)
+        |> Enum.reduce(%{}, &collect_project_from_config(&1, @teams_dir, &2))
 
       _ ->
         %{}
     end
   end
 
+  defp collect_project_from_config(name, dir, acc) do
+    config_path = Path.join([dir, name, "config.json"])
+
+    case read_team_project(config_path) do
+      nil -> acc
+      project_path -> Map.put(acc, Path.basename(project_path), project_path)
+    end
+  end
+
   defp discover_from_archives do
     case File.ls(@archive_dir) do
       {:ok, entries} ->
-        entries
-        |> Enum.reduce(%{}, fn name, acc ->
-          config_path = Path.join([@archive_dir, name, "config.json"])
-
-          case read_team_project(config_path) do
-            nil -> acc
-            project_path -> Map.put(acc, Path.basename(project_path), project_path)
-          end
-        end)
+        Enum.reduce(entries, %{}, &collect_project_from_config(&1, @archive_dir, &2))
 
       _ ->
         %{}
@@ -702,34 +715,25 @@ defmodule Ichor.SwarmMonitor do
 
   defp scan_archives do
     case File.ls(@archive_dir) do
-      {:ok, entries} ->
-        entries
-        |> Enum.map(fn name ->
-          archive_path = Path.join(@archive_dir, name)
-          summary_path = Path.join(archive_path, "gc-summary.json")
+      {:ok, entries} -> Enum.map(entries, &parse_archive_entry/1)
+      _ -> []
+    end
+  end
 
-          case File.read(summary_path) do
-            {:ok, json} ->
-              case Jason.decode(json) do
-                {:ok, summary} ->
-                  %{
-                    team: summary["team"] || name,
-                    timestamp: summary["archived_at"],
-                    path: archive_path,
-                    task_count: get_in(summary, ["task_summary"]) |> total_from_summary()
-                  }
+  defp parse_archive_entry(name) do
+    archive_path = Path.join(@archive_dir, name)
+    summary_path = Path.join(archive_path, "gc-summary.json")
 
-                _ ->
-                  %{team: name, timestamp: nil, path: archive_path, task_count: 0}
-              end
-
-            _ ->
-              %{team: name, timestamp: nil, path: archive_path, task_count: 0}
-          end
-        end)
-
-      _ ->
-        []
+    with {:ok, json} <- File.read(summary_path),
+         {:ok, summary} <- Jason.decode(json) do
+      %{
+        team: summary["team"] || name,
+        timestamp: summary["archived_at"],
+        path: archive_path,
+        task_count: get_in(summary, ["task_summary"]) |> total_from_summary()
+      }
+    else
+      _ -> %{team: name, timestamp: nil, path: archive_path, task_count: 0}
     end
   end
 

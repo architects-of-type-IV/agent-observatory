@@ -85,38 +85,30 @@ defmodule IchorWeb.DashboardUIHandlers do
   end
 
   def handle_keyboard_navigate(%{"direction" => direction}, socket) do
-    # Simple implementation: just move selection in feed view
     if socket.assigns.view_mode == :activity && socket.assigns.visible_events != [] do
-      current = socket.assigns.selected_event
       events = socket.assigns.visible_events
-
-      new_event =
-        case direction do
-          "next" ->
-            if current do
-              idx = Enum.find_index(events, &(&1.id == current.id))
-              if idx && idx < length(events) - 1, do: Enum.at(events, idx + 1), else: current
-            else
-              List.first(events)
-            end
-
-          "prev" ->
-            if current do
-              idx = Enum.find_index(events, &(&1.id == current.id))
-              if idx && idx > 0, do: Enum.at(events, idx - 1), else: current
-            else
-              List.first(events)
-            end
-
-          _ ->
-            current
-        end
-
-      socket |> Phoenix.Component.assign(:selected_event, new_event)
+      current = socket.assigns.selected_event
+      new_event = navigate_event(direction, events, current)
+      Phoenix.Component.assign(socket, :selected_event, new_event)
     else
       socket
     end
   end
+
+  defp navigate_event("next", events, nil), do: List.first(events)
+  defp navigate_event("prev", events, nil), do: List.first(events)
+
+  defp navigate_event("next", events, current) do
+    idx = Enum.find_index(events, &(&1.id == current.id))
+    if idx && idx < length(events) - 1, do: Enum.at(events, idx + 1), else: current
+  end
+
+  defp navigate_event("prev", events, current) do
+    idx = Enum.find_index(events, &(&1.id == current.id))
+    if idx && idx > 0, do: Enum.at(events, idx - 1), else: current
+  end
+
+  defp navigate_event(_, _events, current), do: current
 
   def handle_restore_state(params, socket) do
     socket

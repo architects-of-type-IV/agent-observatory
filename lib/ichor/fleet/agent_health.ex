@@ -11,39 +11,22 @@ defmodule Ichor.Fleet.AgentHealth do
   Compute health status for an agent based on their events.
   Returns health level (:healthy, :warning, :critical) and issues list.
   """
+  def compute_agent_health([], _now) do
+    %{health: :unknown, issues: [], failure_rate: 0.0}
+  end
+
   def compute_agent_health(member_events, now) do
-    if Enum.empty?(member_events) do
-      %{health: :unknown, issues: [], failure_rate: 0.0}
-    else
-      sorted_events = Enum.sort_by(member_events, & &1.inserted_at, {:desc, DateTime})
-      latest = List.first(sorted_events)
+    sorted_events = Enum.sort_by(member_events, & &1.inserted_at, {:desc, DateTime})
+    latest = List.first(sorted_events)
 
-      stuck? = latest && DateTime.diff(now, latest.inserted_at, :second) > @stuck_threshold_sec
-      loops = detect_tool_loops(sorted_events)
-      failure_rate = calculate_failure_rate(member_events)
+    stuck? = latest && DateTime.diff(now, latest.inserted_at, :second) > @stuck_threshold_sec
+    loops = detect_tool_loops(sorted_events)
+    failure_rate = calculate_failure_rate(member_events)
 
-      issues = []
-      issues = if stuck?, do: [{:stuck, latest} | issues], else: issues
-      issues = if loops != [], do: [{:looping, loops} | issues], else: issues
+    issues = build_issues(stuck?, loops, failure_rate, latest)
+    health = classify_health(stuck?, loops, failure_rate)
 
-      issues =
-        if failure_rate > 0.5, do: [{:high_failure_rate, failure_rate} | issues], else: issues
-
-      health =
-        cond do
-          stuck? or loops != [] -> :critical
-          failure_rate > 0.3 -> :warning
-          true -> :healthy
-        end
-
-      %{
-        health: health,
-        issues: issues,
-        failure_rate: failure_rate,
-        stuck?: stuck?,
-        loops: loops
-      }
-    end
+    %{health: health, issues: issues, failure_rate: failure_rate, stuck?: stuck?, loops: loops}
   end
 
   @doc """
@@ -63,6 +46,21 @@ defmodule Ichor.Fleet.AgentHealth do
       Float.round(failures / length(tool_events), 2)
     end
   end
+
+  defp build_issues(stuck?, loops, failure_rate, latest) do
+    []
+    |> then(fn issues -> if stuck?, do: [{:stuck, latest} | issues], else: issues end)
+    |> then(fn issues -> if loops != [], do: [{:looping, loops} | issues], else: issues end)
+    |> then(fn issues ->
+      if failure_rate > 0.5, do: [{:high_failure_rate, failure_rate} | issues], else: issues
+    end)
+  end
+
+  defp classify_health(stuck?, loops, _failure_rate) when stuck? == true or loops != [],
+    do: :critical
+
+  defp classify_health(_stuck?, _loops, failure_rate) when failure_rate > 0.3, do: :warning
+  defp classify_health(_stuck?, _loops, _failure_rate), do: :healthy
 
   defp detect_tool_loops(sorted_events) do
     recent_tools =

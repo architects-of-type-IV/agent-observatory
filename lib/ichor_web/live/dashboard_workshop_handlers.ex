@@ -72,40 +72,15 @@ defmodule IchorWeb.DashboardWorkshopHandlers do
 
   def handle_event("ws_update_agent", params, socket) do
     case socket.assigns.ws_selected_agent do
-      nil ->
-        {:noreply, socket}
-
-      id ->
-        agents =
-          Enum.map(socket.assigns.ws_agents, fn a ->
-            if a.id == id, do: merge_agent(a, params), else: a
-          end)
-
-        {:noreply, socket |> assign(:ws_agents, agents) |> save_and_push()}
+      nil -> {:noreply, socket}
+      id -> {:noreply, apply_agent_update(socket, id, params)}
     end
   end
 
   def handle_event("ws_remove_agent", _, socket) do
     case socket.assigns.ws_selected_agent do
-      nil ->
-        {:noreply, socket}
-
-      id ->
-        socket
-        |> assign(:ws_agents, Enum.reject(socket.assigns.ws_agents, &(&1.id == id)))
-        |> assign(
-          :ws_spawn_links,
-          Enum.reject(socket.assigns.ws_spawn_links, fn l -> l.from == id || l.to == id end)
-        )
-        |> assign(
-          :ws_comm_rules,
-          Enum.reject(socket.assigns.ws_comm_rules, fn r ->
-            r.from == id || r.to == id || r.via == id
-          end)
-        )
-        |> assign(:ws_selected_agent, nil)
-        |> save_and_push()
-        |> then(&{:noreply, &1})
+      nil -> {:noreply, socket}
+      id -> {:noreply, apply_agent_remove(socket, id)}
     end
   end
 
@@ -242,6 +217,32 @@ defmodule IchorWeb.DashboardWorkshopHandlers do
         file_scope: params["file_scope"] || agent.file_scope,
         quality_gates: params["quality_gates"] || agent.quality_gates
     }
+  end
+
+  defp apply_agent_update(socket, id, params) do
+    agents =
+      Enum.map(socket.assigns.ws_agents, fn a ->
+        if a.id == id, do: merge_agent(a, params), else: a
+      end)
+
+    socket |> assign(:ws_agents, agents) |> save_and_push()
+  end
+
+  defp apply_agent_remove(socket, id) do
+    socket
+    |> assign(:ws_agents, Enum.reject(socket.assigns.ws_agents, &(&1.id == id)))
+    |> assign(
+      :ws_spawn_links,
+      Enum.reject(socket.assigns.ws_spawn_links, fn l -> l.from == id || l.to == id end)
+    )
+    |> assign(
+      :ws_comm_rules,
+      Enum.reject(socket.assigns.ws_comm_rules, fn r ->
+        r.from == id || r.to == id || r.via == id
+      end)
+    )
+    |> assign(:ws_selected_agent, nil)
+    |> save_and_push()
   end
 
   defp save_and_push(socket), do: socket |> WP.auto_save() |> push_ws_state()

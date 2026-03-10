@@ -93,18 +93,18 @@ defmodule Ichor.TaskManager do
       team_dir
       |> File.ls!()
       |> Enum.filter(&String.ends_with?(&1, ".json"))
-      |> Enum.map(fn file ->
-        file_path = Path.join(team_dir, file)
-
-        case read_task_file(file_path) do
-          {:ok, task} -> task
-          {:error, _} -> nil
-        end
-      end)
+      |> Enum.map(&read_task_or_nil(team_dir, &1))
       |> Enum.reject(&is_nil/1)
       |> Enum.sort_by(fn task -> String.to_integer(task["id"]) end)
     else
       []
+    end
+  end
+
+  defp read_task_or_nil(team_dir, file) do
+    case read_task_file(Path.join(team_dir, file)) do
+      {:ok, task} -> task
+      {:error, _} -> nil
     end
   end
 

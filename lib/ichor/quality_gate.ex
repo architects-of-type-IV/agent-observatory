@@ -58,30 +58,30 @@ defmodule Ichor.QualityGate do
     done_when = find_done_when(task_id, event)
 
     if done_when && done_when != "" do
-      # Run the gate asynchronously to not block the event pipeline
       Task.start(fn ->
-        cwd = event.cwd || File.cwd!()
-
-        case run_gate_command(done_when, cwd) do
-          {:ok, :passed} ->
-            Logger.info("QualityGate: Gate passed for session #{session_id}, task #{task_id}")
-
-            Ichor.Signal.emit(:gate_passed, %{session_id: session_id, task_id: task_id})
-
-          {:error, output} ->
-            Logger.warning(
-              "QualityGate: Gate FAILED for session #{session_id}, task #{task_id}: #{String.slice(output, 0, 200)}"
-            )
-
-            nudge_agent(session_id, task_id, done_when, output)
-
-            Ichor.Signal.emit(:gate_failed, %{
-              session_id: session_id,
-              task_id: task_id,
-              output: output
-            })
-        end
+        run_gate_async(session_id, task_id, done_when, event.cwd || File.cwd!())
       end)
+    end
+  end
+
+  defp run_gate_async(session_id, task_id, done_when, cwd) do
+    case run_gate_command(done_when, cwd) do
+      {:ok, :passed} ->
+        Logger.info("QualityGate: Gate passed for session #{session_id}, task #{task_id}")
+        Ichor.Signal.emit(:gate_passed, %{session_id: session_id, task_id: task_id})
+
+      {:error, output} ->
+        Logger.warning(
+          "QualityGate: Gate FAILED for session #{session_id}, task #{task_id}: #{String.slice(output, 0, 200)}"
+        )
+
+        nudge_agent(session_id, task_id, done_when, output)
+
+        Ichor.Signal.emit(:gate_failed, %{
+          session_id: session_id,
+          task_id: task_id,
+          output: output
+        })
     end
   end
 

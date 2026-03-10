@@ -85,18 +85,7 @@ defmodule Ichor.Gateway.Channels.Tmux do
         {output, 0} ->
           output
           |> String.split("\n", trim: true)
-          |> Enum.map(fn line ->
-            case String.split(line, "\t") do
-              [pane_id, session, title, pid] ->
-                %{pane_id: pane_id, session: session, title: title, pid: pid}
-
-              [pane_id, session, title] ->
-                %{pane_id: pane_id, session: session, title: title, pid: nil}
-
-              _ ->
-                nil
-            end
-          end)
+          |> Enum.map(&parse_pane_line/1)
           |> Enum.reject(&is_nil/1)
 
         _ ->
@@ -162,6 +151,19 @@ defmodule Ichor.Gateway.Channels.Tmux do
 
         Process.put(:tmux_server_arg_sets_cache, {sets, now})
         sets
+    end
+  end
+
+  defp parse_pane_line(line) do
+    case String.split(line, "\t") do
+      [pane_id, session, title, pid] ->
+        %{pane_id: pane_id, session: session, title: title, pid: pid}
+
+      [pane_id, session, title] ->
+        %{pane_id: pane_id, session: session, title: title, pid: nil}
+
+      _ ->
+        nil
     end
   end
 

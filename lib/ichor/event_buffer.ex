@@ -54,24 +54,21 @@ defmodule Ichor.EventBuffer do
 
   @doc "Get the latest event per session (lightweight seed for dashboard mount)."
   def latest_per_session do
-    :ets.foldl(
-      fn {_id, event}, acc ->
-        sid = event.session_id
-
-        case Map.get(acc, sid) do
-          nil ->
-            Map.put(acc, sid, event)
-
-          prev ->
-            if DateTime.compare(event.inserted_at, prev.inserted_at) == :gt,
-              do: Map.put(acc, sid, event),
-              else: acc
-        end
-      end,
-      %{},
-      @table
-    )
+    :ets.foldl(fn {_id, event}, acc -> keep_latest(acc, event) end, %{}, @table)
     |> Map.values()
+  end
+
+  defp keep_latest(acc, event) do
+    sid = event.session_id
+
+    case Map.get(acc, sid) do
+      nil -> Map.put(acc, sid, event)
+      prev -> if newer?(event, prev), do: Map.put(acc, sid, event), else: acc
+    end
+  end
+
+  defp newer?(event, prev) do
+    DateTime.compare(event.inserted_at, prev.inserted_at) == :gt
   end
 
   @doc "Remove all events for a session and tombstone it."
@@ -221,27 +218,31 @@ defmodule Ichor.EventBuffer do
 
   defp build_event(attrs) do
     now = DateTime.utc_now()
-    tmux_session = attrs[:tmux_session] || attrs["tmux_session"]
-    raw_id = attrs[:session_id] || attrs["session_id"] || "unknown"
+    tmux_session = get_field(attrs, :tmux_session)
+    raw_id = get_field(attrs, :session_id) || "unknown"
 
     %{
       id: Ash.UUID.generate(),
-      source_app: attrs[:source_app] || attrs["source_app"] || "unknown",
+      source_app: get_field(attrs, :source_app) || "unknown",
       session_id: resolve_session_id(raw_id, tmux_session),
-      hook_event_type: coerce_hook_type(attrs[:hook_event_type] || attrs["hook_event_type"]),
-      payload: attrs[:payload] || attrs["payload"] || %{},
-      summary: attrs[:summary] || attrs["summary"],
-      model_name: attrs[:model_name] || attrs["model_name"],
-      tool_name: attrs[:tool_name] || attrs["tool_name"],
-      tool_use_id: attrs[:tool_use_id] || attrs["tool_use_id"],
-      cwd: attrs[:cwd] || attrs["cwd"],
-      permission_mode: attrs[:permission_mode] || attrs["permission_mode"],
-      duration_ms: attrs[:duration_ms] || attrs["duration_ms"],
+      hook_event_type: coerce_hook_type(get_field(attrs, :hook_event_type)),
+      payload: get_field(attrs, :payload) || %{},
+      summary: get_field(attrs, :summary),
+      model_name: get_field(attrs, :model_name),
+      tool_name: get_field(attrs, :tool_name),
+      tool_use_id: get_field(attrs, :tool_use_id),
+      cwd: get_field(attrs, :cwd),
+      permission_mode: get_field(attrs, :permission_mode),
+      duration_ms: get_field(attrs, :duration_ms),
       tmux_session: tmux_session,
-      os_pid: attrs[:os_pid] || attrs["os_pid"],
+      os_pid: get_field(attrs, :os_pid),
       inserted_at: now,
       updated_at: now
     }
+  end
+
+  defp get_field(attrs, key) do
+    attrs[key] || attrs[Atom.to_string(key)]
   end
 
   defp coerce_hook_type(t) when is_atom(t), do: t

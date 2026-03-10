@@ -208,21 +208,24 @@ defmodule IchorWeb.DashboardGatewayHandlers do
   defp extract_cost(_), do: nil
 
   defp maybe_append_intent(intents, log, selected_session_id) do
-    session_id = if log.meta, do: log.meta.trace_id, else: nil
-    intent = if log.cognition, do: log.cognition.intent, else: nil
+    session_id = log.meta && log.meta.trace_id
+    intent = log.cognition && log.cognition.intent
 
-    if intent && session_id && session_id == selected_session_id do
-      entry = %{
-        intent: intent,
-        confidence: (log.cognition && log.cognition.confidence_score) || nil,
-        strategy: (log.cognition && log.cognition.strategy_used) || nil,
-        timestamp: DateTime.utc_now()
-      }
-
+    if intent && session_id == selected_session_id && selected_session_id != nil do
+      entry = build_intent_entry(intent, log.cognition)
       [entry | intents] |> Enum.take(100)
     else
       intents
     end
+  end
+
+  defp build_intent_entry(intent, cognition) do
+    %{
+      intent: intent,
+      confidence: cognition && cognition.confidence_score,
+      strategy: cognition && cognition.strategy_used,
+      timestamp: DateTime.utc_now()
+    }
   end
 
   @doc """

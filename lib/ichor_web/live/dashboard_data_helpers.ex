@@ -29,8 +29,18 @@ defmodule IchorWeb.DashboardDataHelpers do
   end
 
   defp event_searchable_text(event) do
-    input = (event.payload || %{})["tool_input"] || %{}
+    payload = event.payload || %{}
+    input = payload["tool_input"] || %{}
 
+    (event_fields(event) ++
+       input_fields(input) ++
+       payload_fields(payload))
+    |> Enum.reject(&is_nil/1)
+    |> Enum.join(" ")
+    |> String.downcase()
+  end
+
+  defp event_fields(event) do
     [
       event.source_app,
       event.session_id,
@@ -40,7 +50,12 @@ defmodule IchorWeb.DashboardDataHelpers do
       event.summary,
       event.cwd,
       event.permission_mode,
-      event.model_name,
+      event.model_name
+    ]
+  end
+
+  defp input_fields(input) do
+    [
       input["command"],
       input["file_path"],
       input["pattern"],
@@ -51,18 +66,20 @@ defmodule IchorWeb.DashboardDataHelpers do
       input["subject"],
       input["content"],
       input["recipient"],
-      input["team_name"],
-      (event.payload || %{})["message"],
-      (event.payload || %{})["prompt"],
-      (event.payload || %{})["error"],
-      (event.payload || %{})["agent_type"],
-      (event.payload || %{})["notification_type"],
-      (event.payload || %{})["reason"],
-      (event.payload || %{})["model"]
+      input["team_name"]
     ]
-    |> Enum.reject(&is_nil/1)
-    |> Enum.join(" ")
-    |> String.downcase()
+  end
+
+  defp payload_fields(payload) do
+    [
+      payload["message"],
+      payload["prompt"],
+      payload["error"],
+      payload["agent_type"],
+      payload["notification_type"],
+      payload["reason"],
+      payload["model"]
+    ]
   end
 
   @doc """

@@ -17,18 +17,12 @@ defmodule Ichor.Costs.CostAggregator do
   """
   @spec record_usage(map(), map()) :: :ok
   def record_usage(event, raw) when is_map(raw) do
-    input_tokens = raw["input_tokens"] || get_in(raw, ["usage", "input_tokens"]) || 0
-    output_tokens = raw["output_tokens"] || get_in(raw, ["usage", "output_tokens"]) || 0
+    input_tokens = usage_field(raw, "input_tokens")
+    output_tokens = usage_field(raw, "output_tokens")
 
     if input_tokens > 0 or output_tokens > 0 do
-      cache_read =
-        raw["cache_read_input_tokens"] ||
-          get_in(raw, ["usage", "cache_read_input_tokens"]) || 0
-
-      cache_write =
-        raw["cache_creation_input_tokens"] ||
-          get_in(raw, ["usage", "cache_creation_input_tokens"]) || 0
-
+      cache_read = usage_field(raw, "cache_read_input_tokens")
+      cache_write = usage_field(raw, "cache_creation_input_tokens")
       cost_cents = estimate_cost_cents(event.model_name, input_tokens, output_tokens, cache_read)
 
       attrs = %{
@@ -179,5 +173,9 @@ defmodule Ichor.Costs.CostAggregator do
       end
 
     trunc((input * in_rate + output * out_rate + cache_read * cache_rate) / 1_000_000)
+  end
+
+  defp usage_field(raw, key) do
+    raw[key] || get_in(raw, ["usage", key]) || 0
   end
 end

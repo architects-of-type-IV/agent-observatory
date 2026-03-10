@@ -46,20 +46,20 @@ defmodule IchorWeb.Components.ProtocolComponents do
   defp hop_status_text(_), do: "text-muted"
 
   defp build_agent_name_map(teams) when is_list(teams) do
-    Enum.flat_map(teams, fn team ->
-      team_name = team.name
-
-      team.members
-      |> Enum.flat_map(fn member ->
-        id = member[:agent_id] || member[:session_id]
-        name = member[:name] || member[:agent_type]
-        if id && name, do: [{id, "#{name}@#{team_name}"}], else: []
-      end)
-    end)
+    teams
+    |> Enum.flat_map(&team_name_entries/1)
     |> Map.new()
   end
 
   defp build_agent_name_map(_), do: %{}
+
+  defp team_name_entries(team) do
+    Enum.flat_map(team.members, fn member ->
+      id = member[:agent_id] || member[:session_id]
+      name = member[:name] || member[:agent_type]
+      if id && name, do: [{id, "#{name}@#{team.name}"}], else: []
+    end)
+  end
 
   defp resolve_agent_label(nil, _map), do: "?"
   defp resolve_agent_label("unknown", _map), do: "?"

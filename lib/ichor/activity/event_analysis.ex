@@ -144,21 +144,20 @@ defmodule Ichor.Activity.EventAnalysis do
 
   defp event_summary(pre) do
     input = (pre.payload || %{})["tool_input"] || %{}
-
-    case pre.tool_name do
-      "Bash" -> truncate(input["command"] || "", 60)
-      "Read" -> Path.basename(input["file_path"] || "")
-      "Write" -> Path.basename(input["file_path"] || "")
-      "Edit" -> Path.basename(input["file_path"] || "")
-      "Grep" -> "grep: #{truncate(input["pattern"] || "", 30)}"
-      "Glob" -> "glob: #{truncate(input["pattern"] || "", 30)}"
-      "Task" -> truncate(input["description"] || "", 50)
-      "WebSearch" -> truncate(input["query"] || "", 40)
-      "SendMessage" -> "msg: #{input["recipient"] || "?"}"
-      "TaskCreate" -> truncate(input["subject"] || "", 40)
-      _ -> pre.tool_name || "?"
-    end
+    tool_summary(pre.tool_name, input)
   end
+
+  defp tool_summary("Bash", input), do: truncate(input["command"] || "", 60)
+  defp tool_summary("Read", input), do: Path.basename(input["file_path"] || "")
+  defp tool_summary("Write", input), do: Path.basename(input["file_path"] || "")
+  defp tool_summary("Edit", input), do: Path.basename(input["file_path"] || "")
+  defp tool_summary("Grep", input), do: "grep: #{truncate(input["pattern"] || "", 30)}"
+  defp tool_summary("Glob", input), do: "glob: #{truncate(input["pattern"] || "", 30)}"
+  defp tool_summary("Task", input), do: truncate(input["description"] || "", 50)
+  defp tool_summary("WebSearch", input), do: truncate(input["query"] || "", 40)
+  defp tool_summary("SendMessage", input), do: "msg: #{input["recipient"] || "?"}"
+  defp tool_summary("TaskCreate", input), do: truncate(input["subject"] || "", 40)
+  defp tool_summary(tool_name, _input), do: tool_name || "?"
 
   defp truncate(str, max) when is_binary(str) and byte_size(str) > max do
     String.slice(str, 0, max) <> "..."
@@ -167,52 +166,44 @@ defmodule Ichor.Activity.EventAnalysis do
   defp truncate(str, _max) when is_binary(str), do: str
   defp truncate(_, _), do: ""
 
+  defp add_idle_gaps(blocks, _all_events) when blocks == [], do: []
+
   defp add_idle_gaps(blocks, all_events) do
     sorted_blocks = Enum.sort_by(blocks, & &1.start_time, {:asc, DateTime})
+    session_start = List.first(all_events).inserted_at
+    session_end = List.last(all_events).inserted_at
+    first_block = List.first(sorted_blocks)
 
-    if Enum.empty?(sorted_blocks) do
-      []
-    else
-      session_start = List.first(all_events).inserted_at
-      session_end = List.last(all_events).inserted_at
+    initial =
+      if DateTime.compare(session_start, first_block.start_time) == :lt do
+        [%{type: :idle, start_time: session_start, end_time: first_block.start_time}]
+      else
+        []
+      end
 
-      result = []
+    result = Enum.reduce(sorted_blocks, initial, &append_block_with_gap(&1, &2, session_start))
+    last_block = List.first(result)
 
-      first_block = List.first(sorted_blocks)
+    result =
+      if last_block && DateTime.compare(last_block.end_time, session_end) == :lt do
+        [%{type: :idle, start_time: last_block.end_time, end_time: session_end} | result]
+      else
+        result
+      end
 
-      result =
-        if DateTime.compare(session_start, first_block.start_time) == :lt do
-          [%{type: :idle, start_time: session_start, end_time: first_block.start_time} | result]
-        else
-          result
-        end
+    Enum.reverse(result)
+  end
 
-      result =
-        sorted_blocks
-        |> Enum.reduce(result, fn block, acc ->
-          prev_end =
-            if Enum.empty?(acc), do: session_start, else: List.first(acc).end_time
+  defp append_block_with_gap(block, acc, session_start) do
+    prev_end = if acc == [], do: session_start, else: List.first(acc).end_time
 
-          acc =
-            if DateTime.compare(prev_end, block.start_time) == :lt do
-              [%{type: :idle, start_time: prev_end, end_time: block.start_time} | acc]
-            else
-              acc
-            end
+    acc =
+      if DateTime.compare(prev_end, block.start_time) == :lt do
+        [%{type: :idle, start_time: prev_end, end_time: block.start_time} | acc]
+      else
+        acc
+      end
 
-          [Map.put(block, :type, :tool) | acc]
-        end)
-
-      last_block = List.first(result)
-
-      result =
-        if last_block && DateTime.compare(last_block.end_time, session_end) == :lt do
-          [%{type: :idle, start_time: last_block.end_time, end_time: session_end} | result]
-        else
-          result
-        end
-
-      Enum.reverse(result)
-    end
+    [Map.put(block, :type, :tool) | acc]
   end
 end

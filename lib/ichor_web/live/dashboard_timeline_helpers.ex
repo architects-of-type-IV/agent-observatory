@@ -41,24 +41,20 @@ defmodule IchorWeb.DashboardTimelineHelpers do
   @doc """
   Get tool color class based on tool name.
   """
-  def tool_color(tool_name) do
-    case tool_name do
-      "Bash" -> "bg-brand"
-      "Read" -> "bg-info"
-      "Write" -> "bg-success"
-      "Edit" -> "bg-violet"
-      "Grep" -> "bg-cyan"
-      "Glob" -> "bg-teal-500"
-      "Task" -> "bg-interactive"
-      "WebSearch" -> "bg-orange-500"
-      "WebFetch" -> "bg-orange-400"
-      "SendMessage" -> "bg-fuchsia-500"
-      "TaskCreate" -> "bg-pink-500"
-      "TaskUpdate" -> "bg-pink-400"
-      "TeamCreate" -> "bg-cyan"
-      _ -> "bg-low"
-    end
-  end
+  def tool_color("Bash"), do: "bg-brand"
+  def tool_color("Read"), do: "bg-info"
+  def tool_color("Write"), do: "bg-success"
+  def tool_color("Edit"), do: "bg-violet"
+  def tool_color("Grep"), do: "bg-cyan"
+  def tool_color("Glob"), do: "bg-teal-500"
+  def tool_color("Task"), do: "bg-interactive"
+  def tool_color("WebSearch"), do: "bg-orange-500"
+  def tool_color("WebFetch"), do: "bg-orange-400"
+  def tool_color("SendMessage"), do: "bg-fuchsia-500"
+  def tool_color("TaskCreate"), do: "bg-pink-500"
+  def tool_color("TaskUpdate"), do: "bg-pink-400"
+  def tool_color("TeamCreate"), do: "bg-cyan"
+  def tool_color(_), do: "bg-low"
 
   @doc """
   Generate time axis labels for the timeline.

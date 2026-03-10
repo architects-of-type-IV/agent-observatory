@@ -69,76 +69,31 @@ defmodule Ichor.Gateway.EntropyTracker do
 
   @impl true
   def handle_call({:record_and_score, session_id, tuple}, _from, %{table: table} = state) do
-    # Read config on every call (FR-9.11)
     window_size = read_config(:entropy_window_size, 5)
     loop_threshold = read_config(:entropy_loop_threshold, 0.25)
     warning_threshold = read_config(:entropy_warning_threshold, 0.50)
 
-    # Read existing entry or initialize
     {window, prior_severity, agent_id} =
       case :ets.lookup(table, session_id) do
         [{^session_id, {w, ps, aid}}] -> {w, ps, aid}
         [] -> {[], :normal, nil}
       end
 
-    # Append tuple, evict oldest if over window_size
-    updated_window = window ++ [tuple]
-
-    updated_window =
-      if length(updated_window) > window_size do
-        List.delete_at(updated_window, 0)
-      else
-        updated_window
-      end
-
-    # Compute score
+    updated_window = slide_window(window ++ [tuple], window_size)
     score = compute_score(updated_window)
 
-    # Classify severity
-    {severity, reply} =
-      cond do
-        score < loop_threshold ->
-          # LOOP: broadcast alert + topology
-          case build_alert_event(session_id, agent_id, score, updated_window) do
-            {:error, :missing_agent_id} = err ->
-              # Still update window and severity, but return error
-              :ets.insert(table, {session_id, {updated_window, :loop, agent_id}})
-              {:loop, err}
+    reply =
+      classify_and_store(
+        table,
+        session_id,
+        agent_id,
+        prior_severity,
+        updated_window,
+        score,
+        loop_threshold,
+        warning_threshold
+      )
 
-            :ok ->
-              Ichor.Signal.emit(:node_state_update, %{
-                agent_id: session_id,
-                state: "alert_entropy"
-              })
-
-              :ets.insert(table, {session_id, {updated_window, :loop, agent_id}})
-              {:loop, {:ok, score, :loop}}
-          end
-
-        score < warning_threshold ->
-          # WARNING: topology only, no alert
-          Ichor.Signal.emit(:node_state_update, %{
-            agent_id: session_id,
-            state: "blocked"
-          })
-
-          :ets.insert(table, {session_id, {updated_window, :warning, agent_id}})
-          {:warning, {:ok, score, :warning}}
-
-        true ->
-          # NORMAL: reset topology if recovering
-          if prior_severity in [:warning, :loop] do
-            Ichor.Signal.emit(:node_state_update, %{
-              agent_id: session_id,
-              state: "active"
-            })
-          end
-
-          :ets.insert(table, {session_id, {updated_window, :normal, agent_id}})
-          {:normal, {:ok, score, :normal}}
-      end
-
-    _ = severity
     {:reply, reply, state}
   end
 
@@ -173,6 +128,69 @@ defmodule Ichor.Gateway.EntropyTracker do
   end
 
   # -- Private Functions --
+
+  defp slide_window(window, max_size) when length(window) > max_size do
+    List.delete_at(window, 0)
+  end
+
+  defp slide_window(window, _max_size), do: window
+
+  defp classify_and_store(
+         table,
+         session_id,
+         agent_id,
+         _prior_severity,
+         window,
+         score,
+         loop_threshold,
+         _warning_threshold
+       )
+       when score < loop_threshold do
+    case build_alert_event(session_id, agent_id, score, window) do
+      {:error, :missing_agent_id} = err ->
+        :ets.insert(table, {session_id, {window, :loop, agent_id}})
+        err
+
+      :ok ->
+        Ichor.Signal.emit(:node_state_update, %{agent_id: session_id, state: "alert_entropy"})
+        :ets.insert(table, {session_id, {window, :loop, agent_id}})
+        {:ok, score, :loop}
+    end
+  end
+
+  defp classify_and_store(
+         table,
+         session_id,
+         agent_id,
+         _prior_severity,
+         window,
+         score,
+         _loop_threshold,
+         warning_threshold
+       )
+       when score < warning_threshold do
+    Ichor.Signal.emit(:node_state_update, %{agent_id: session_id, state: "blocked"})
+    :ets.insert(table, {session_id, {window, :warning, agent_id}})
+    {:ok, score, :warning}
+  end
+
+  defp classify_and_store(
+         table,
+         session_id,
+         agent_id,
+         prior_severity,
+         window,
+         score,
+         _loop_threshold,
+         _warning_threshold
+       ) do
+    if prior_severity in [:warning, :loop] do
+      Ichor.Signal.emit(:node_state_update, %{agent_id: session_id, state: "active"})
+    end
+
+    :ets.insert(table, {session_id, {window, :normal, agent_id}})
+    {:ok, score, :normal}
+  end
 
   defp compute_score([]), do: 1.0
 

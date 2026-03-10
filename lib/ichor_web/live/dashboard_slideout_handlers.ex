@@ -49,49 +49,48 @@ defmodule IchorWeb.DashboardSlideoutHandlers do
   end
 
   def handle_node_selected(trace_id, socket) do
-    events = socket.assigns.events
-    now = socket.assigns.now
-
-    session_events = Enum.filter(events, fn e -> e.session_id == trace_id end)
-
-    info =
-      if session_events != [] do
-        sorted = Enum.sort_by(session_events, & &1.inserted_at, {:desc, DateTime})
-        latest = hd(sorted)
-        ended? = Enum.any?(session_events, &(&1.hook_event_type == :SessionEnd))
-
-        model =
-          Enum.find_value(session_events, fn e ->
-            if e.hook_event_type == :SessionStart,
-              do: (e.payload || %{})["model"] || e.model_name
-          end) || Enum.find_value(session_events, & &1.model_name)
-
-        status =
-          cond do
-            ended? -> :ended
-            DateTime.diff(now, latest.inserted_at, :second) > 120 -> :idle
-            true -> :active
-          end
-
-        first = Enum.min_by(session_events, & &1.inserted_at, DateTime)
-        dur_sec = DateTime.diff(now, first.inserted_at, :second)
-
-        %{
-          session_id: trace_id,
-          model: model,
-          status: status,
-          event_count: length(session_events),
-          tool_count: Enum.count(session_events, &(&1.hook_event_type == :PreToolUse)),
-          source_app: latest.source_app,
-          cwd: latest.cwd || Enum.find_value(session_events, & &1.cwd),
-          last_tool: latest.tool_name,
-          duration: session_duration_sec(dur_sec)
-        }
-      else
-        %{session_id: trace_id, status: :unknown, event_count: 0}
-      end
-
+    session_events = Enum.filter(socket.assigns.events, fn e -> e.session_id == trace_id end)
+    info = build_node_info(trace_id, session_events, socket.assigns.now)
     assign(socket, :selected_topology_node, info)
+  end
+
+  defp build_node_info(trace_id, [], _now) do
+    %{session_id: trace_id, status: :unknown, event_count: 0}
+  end
+
+  defp build_node_info(trace_id, session_events, now) do
+    sorted = Enum.sort_by(session_events, & &1.inserted_at, {:desc, DateTime})
+    latest = hd(sorted)
+    ended? = Enum.any?(session_events, &(&1.hook_event_type == :SessionEnd))
+    model = extract_model(session_events)
+    status = derive_status(ended?, now, latest.inserted_at)
+    first = Enum.min_by(session_events, & &1.inserted_at, DateTime)
+    dur_sec = DateTime.diff(now, first.inserted_at, :second)
+
+    %{
+      session_id: trace_id,
+      model: model,
+      status: status,
+      event_count: length(session_events),
+      tool_count: Enum.count(session_events, &(&1.hook_event_type == :PreToolUse)),
+      source_app: latest.source_app,
+      cwd: latest.cwd || Enum.find_value(session_events, & &1.cwd),
+      last_tool: latest.tool_name,
+      duration: session_duration_sec(dur_sec)
+    }
+  end
+
+  defp extract_model(session_events) do
+    Enum.find_value(session_events, fn e ->
+      if e.hook_event_type == :SessionStart,
+        do: (e.payload || %{})["model"] || e.model_name
+    end) || Enum.find_value(session_events, & &1.model_name)
+  end
+
+  defp derive_status(true, _now, _inserted_at), do: :ended
+
+  defp derive_status(false, now, inserted_at) do
+    if DateTime.diff(now, inserted_at, :second) > 120, do: :idle, else: :active
   end
 
   defp build_slideout_activity(session_id, events, messages) do

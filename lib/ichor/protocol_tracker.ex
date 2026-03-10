@@ -137,75 +137,77 @@ defmodule Ichor.ProtocolTracker do
   # Trace creation from events
   # ═══════════════════════════════════════════════════════
 
-  defp maybe_create_trace(event, state) do
+  defp maybe_create_trace(
+         %{hook_event_type: :PreToolUse, tool_name: "SendMessage"} = event,
+         state
+       ) do
     payload = event.payload || %{}
 
-    cond do
-      # SendMessage events create message traces
-      event.hook_event_type == :PreToolUse && event.tool_name == "SendMessage" ->
-        trace = %{
-          id: event.tool_use_id || generate_id(),
-          type: :send_message,
-          from: event.session_id,
-          to:
-            get_in(payload, ["tool_input", "recipient"]) ||
-              get_in(payload, ["tool_input", "target_agent_id"]) || "unknown",
-          content_preview: get_in(payload, ["tool_input", "content"]) |> truncate(100),
-          message_type: get_in(payload, ["tool_input", "type"]) || "message",
-          timestamp: event.inserted_at,
-          hops: [
-            %{
-              protocol: :http,
-              status: :received,
-              at: event.inserted_at,
-              detail: "PreToolUse/SendMessage"
-            }
-          ]
+    trace = %{
+      id: event.tool_use_id || generate_id(),
+      type: :send_message,
+      from: event.session_id,
+      to:
+        get_in(payload, ["tool_input", "recipient"]) ||
+          get_in(payload, ["tool_input", "target_agent_id"]) || "unknown",
+      content_preview: get_in(payload, ["tool_input", "content"]) |> truncate(100),
+      message_type: get_in(payload, ["tool_input", "type"]) || "message",
+      timestamp: event.inserted_at,
+      hops: [
+        %{
+          protocol: :http,
+          status: :received,
+          at: event.inserted_at,
+          detail: "PreToolUse/SendMessage"
         }
+      ]
+    }
 
-        insert_trace(trace)
-        %{state | trace_count: state.trace_count + 1}
-
-      # TeamCreate events
-      event.hook_event_type == :PreToolUse && event.tool_name == "TeamCreate" ->
-        trace = %{
-          id: event.tool_use_id || generate_id(),
-          type: :team_create,
-          from: event.session_id,
-          to: "system",
-          content_preview: get_in(payload, ["tool_input", "team_name"]) || "team",
-          message_type: "team_create",
-          timestamp: event.inserted_at,
-          hops: [
-            %{protocol: :http, status: :received, at: event.inserted_at, detail: "TeamCreate"}
-          ]
-        }
-
-        insert_trace(trace)
-        %{state | trace_count: state.trace_count + 1}
-
-      # Task tool spawns
-      event.hook_event_type == :SubagentStart ->
-        trace = %{
-          id: event.tool_use_id || generate_id(),
-          type: :agent_spawn,
-          from: event.session_id,
-          to: get_in(payload, ["subagent_id"]) || "subagent",
-          content_preview: get_in(payload, ["description"]) || "spawn",
-          message_type: "subagent_start",
-          timestamp: event.inserted_at,
-          hops: [
-            %{protocol: :http, status: :received, at: event.inserted_at, detail: "SubagentStart"}
-          ]
-        }
-
-        insert_trace(trace)
-        %{state | trace_count: state.trace_count + 1}
-
-      true ->
-        state
-    end
+    insert_trace(trace)
+    %{state | trace_count: state.trace_count + 1}
   end
+
+  defp maybe_create_trace(%{hook_event_type: :PreToolUse, tool_name: "TeamCreate"} = event, state) do
+    payload = event.payload || %{}
+
+    trace = %{
+      id: event.tool_use_id || generate_id(),
+      type: :team_create,
+      from: event.session_id,
+      to: "system",
+      content_preview: get_in(payload, ["tool_input", "team_name"]) || "team",
+      message_type: "team_create",
+      timestamp: event.inserted_at,
+      hops: [
+        %{protocol: :http, status: :received, at: event.inserted_at, detail: "TeamCreate"}
+      ]
+    }
+
+    insert_trace(trace)
+    %{state | trace_count: state.trace_count + 1}
+  end
+
+  defp maybe_create_trace(%{hook_event_type: :SubagentStart} = event, state) do
+    payload = event.payload || %{}
+
+    trace = %{
+      id: event.tool_use_id || generate_id(),
+      type: :agent_spawn,
+      from: event.session_id,
+      to: get_in(payload, ["subagent_id"]) || "subagent",
+      content_preview: get_in(payload, ["description"]) || "spawn",
+      message_type: "subagent_start",
+      timestamp: event.inserted_at,
+      hops: [
+        %{protocol: :http, status: :received, at: event.inserted_at, detail: "SubagentStart"}
+      ]
+    }
+
+    insert_trace(trace)
+    %{state | trace_count: state.trace_count + 1}
+  end
+
+  defp maybe_create_trace(_event, state), do: state
 
   defp insert_trace(trace) do
     :ets.insert(@table_name, {trace.id, trace})

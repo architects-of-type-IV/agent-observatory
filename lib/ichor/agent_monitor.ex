@@ -57,17 +57,18 @@ defmodule Ichor.AgentMonitor do
         %{state | sessions: sessions}
 
       _ ->
-        # Update last activity timestamp for any non-SessionEnd event
-        if Map.has_key?(state.sessions, event.session_id) do
-          sessions =
-            Map.update!(state.sessions, event.session_id, fn session_data ->
-              %{session_data | last_event_at: DateTime.utc_now()}
-            end)
+        touch_session_activity(event.session_id, state)
+    end
+  end
 
-          %{state | sessions: sessions}
-        else
-          state
-        end
+  defp touch_session_activity(session_id, state) do
+    if Map.has_key?(state.sessions, session_id) do
+      sessions =
+        Map.update!(state.sessions, session_id, &%{&1 | last_event_at: DateTime.utc_now()})
+
+      %{state | sessions: sessions}
+    else
+      state
     end
   end
 

@@ -16,52 +16,7 @@ defmodule IchorWeb.Components.CommandComponents do
   embed_templates "command_components/*"
 
   def fleet_status_bar(assigns) do
-    # Use the unified agent_index from DashboardState.recompute
-    agent_index = assigns[:agent_index] || %{}
-
-    agents =
-      agent_index |> Map.values() |> Enum.uniq_by(fn a -> a[:session_id] || a[:agent_id] end)
-
-    stats = fleet_stats(agents)
-    pipeline = assigns.swarm_state.pipeline
-    health = assigns.swarm_state.health
-    errors = assigns[:errors] || []
-    messages = assigns[:messages] || []
-    protocol_stats = assigns[:protocol_stats] || %{}
-    active_tasks = assigns[:active_tasks] || []
-
-    error_count = length(errors)
-    msg_count = length(messages)
-    task_count = length(active_tasks)
-    task_done = Enum.count(active_tasks, fn t -> t[:status] == "completed" end)
-
-    tool_count =
-      agents
-      |> Enum.map(fn a -> if is_integer(a.tool_count), do: a.tool_count, else: 0 end)
-      |> Enum.sum()
-
-    proto_traces = protocol_stats[:traces] || 0
-    proto_mailbox = get_in(protocol_stats, [:mailbox, :total_unread]) || 0
-    proto_cmdq = get_in(protocol_stats, [:command_queue, :total_pending]) || 0
-
-    visible_count = length(assigns[:visible_events] || [])
-    event_count = length(assigns[:events] || [])
-
-    assigns =
-      assigns
-      |> assign(:stats, stats)
-      |> assign(:pipeline, pipeline)
-      |> assign(:health, health)
-      |> assign(:error_count, error_count)
-      |> assign(:msg_count, msg_count)
-      |> assign(:task_count, task_count)
-      |> assign(:task_done, task_done)
-      |> assign(:tool_count, tool_count)
-      |> assign(:proto_traces, proto_traces)
-      |> assign(:proto_mailbox, proto_mailbox)
-      |> assign(:proto_cmdq, proto_cmdq)
-      |> assign(:visible_count, visible_count)
-      |> assign(:event_count, event_count)
+    assigns = assign_fleet_stats(assigns)
 
     ~H"""
     <div class="flex items-center gap-2 text-[10px]">
@@ -172,6 +127,42 @@ defmodule IchorWeb.Components.CommandComponents do
 
   # Agent data collection moved to DashboardState.build_agent_index/3
   # The unified agent_index is built in recompute() and passed as @agent_index
+
+  defp assign_fleet_stats(assigns) do
+    agent_index = assigns[:agent_index] || %{}
+    agents = agent_index |> Map.values() |> Enum.uniq_by(&agent_key/1)
+    active_tasks = assigns[:active_tasks] || []
+    protocol_stats = assigns[:protocol_stats] || %{}
+
+    assigns
+    |> assign(:stats, fleet_stats(agents))
+    |> assign(:pipeline, assigns.swarm_state.pipeline)
+    |> assign(:health, assigns.swarm_state.health)
+    |> assign(:error_count, length(assigns[:errors] || []))
+    |> assign(:msg_count, length(assigns[:messages] || []))
+    |> assign(:task_count, length(active_tasks))
+    |> assign(:task_done, Enum.count(active_tasks, &task_done?/1))
+    |> assign_protocol_stats(agents, protocol_stats)
+  end
+
+  defp assign_protocol_stats(assigns, agents, protocol_stats) do
+    assigns
+    |> assign(:tool_count, sum_tool_count(agents))
+    |> assign(:proto_traces, protocol_stats[:traces] || 0)
+    |> assign(:proto_mailbox, get_in(protocol_stats, [:mailbox, :total_unread]) || 0)
+    |> assign(:proto_cmdq, get_in(protocol_stats, [:command_queue, :total_pending]) || 0)
+    |> assign(:visible_count, length(assigns[:visible_events] || []))
+    |> assign(:event_count, length(assigns[:events] || []))
+  end
+
+  defp agent_key(a), do: a[:session_id] || a[:agent_id]
+  defp task_done?(t), do: t[:status] == "completed"
+
+  defp sum_tool_count(agents) do
+    agents
+    |> Enum.map(fn a -> if is_integer(a.tool_count), do: a.tool_count, else: 0 end)
+    |> Enum.sum()
+  end
 
   defp fleet_stats(agents) do
     %{

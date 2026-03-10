@@ -12,6 +12,10 @@
 - `Ash.DataLayer.Simple` is a common AliasUsage target in Ash preparations -- alias it.
 - AliasOrder check requires alphabetical ordering of alias declarations.
 - Framework modules (Phoenix.HTML.Form, Ash.Error.Unknown) also trigger AliasUsage.
+- **Nesting fixes**: extract inner logic into `defp` helpers. `with` chains flatten nested `case`. `field/3` helper (`map[key] || default`) reduces cyclomatic complexity from `||` operators.
+- **CyclomaticComplexity**: each `||` counts as +1 branch. Extract defaults into helpers or use `field/3` pattern.
+- **Clause grouping**: when agents add `defp` helpers between `def` clauses of the same function, Elixir warns. Must group all clauses of the same function together.
+- **Sonnet agents for credo**: unreliable for complex refactoring (failed 3x in prior session), but worked well for mechanical fixes when given precise file scopes and clear instructions in this session.
 
 ## Signal Nervous System (CRITICAL)
 - **Ichor.Signal** Ash Domain + API. `emit/2` (static), `emit/3` (dynamic/scoped)

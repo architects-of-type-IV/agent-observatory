@@ -160,40 +160,27 @@ defmodule IchorWeb.DashboardTaskHandlers do
     Ichor.Signal.emit(:tasks_updated, %{team_name: team_name})
   end
 
+  @verb_prefixes [
+    {"Add ", "Adding "},
+    {"Fix ", "Fixing "},
+    {"Update ", "Updating "},
+    {"Remove ", "Removing "},
+    {"Create ", "Creating "},
+    {"Delete ", "Deleting "},
+    {"Implement ", "Implementing "}
+  ]
+
   defp extract_active_form(subject) do
-    # Convert imperative subject to present continuous
-    # "Fix bug" -> "Fixing bug"
-    # "Add feature" -> "Adding feature"
-    cond do
-      String.starts_with?(subject, "Add ") ->
-        String.replace_prefix(subject, "Add ", "Adding ")
+    case Enum.find(@verb_prefixes, fn {prefix, _} -> String.starts_with?(subject, prefix) end) do
+      {prefix, replacement} -> String.replace_prefix(subject, prefix, replacement)
+      nil -> gerundify(subject)
+    end
+  end
 
-      String.starts_with?(subject, "Fix ") ->
-        String.replace_prefix(subject, "Fix ", "Fixing ")
-
-      String.starts_with?(subject, "Update ") ->
-        String.replace_prefix(subject, "Update ", "Updating ")
-
-      String.starts_with?(subject, "Remove ") ->
-        String.replace_prefix(subject, "Remove ", "Removing ")
-
-      String.starts_with?(subject, "Create ") ->
-        String.replace_prefix(subject, "Create ", "Creating ")
-
-      String.starts_with?(subject, "Delete ") ->
-        String.replace_prefix(subject, "Delete ", "Deleting ")
-
-      String.starts_with?(subject, "Implement ") ->
-        String.replace_prefix(subject, "Implement ", "Implementing ")
-
-      true ->
-        # Default: just append "ing" to first word
-        subject
-        |> String.split(" ", parts: 2)
-        |> case do
-          [first | rest] -> [first <> "ing" | rest] |> Enum.join(" ")
-          _ -> subject
-        end
+  defp gerundify(subject) do
+    case String.split(subject, " ", parts: 2) do
+      [first | rest] -> Enum.join([first <> "ing" | rest], " ")
+      _ -> subject
     end
   end
 end

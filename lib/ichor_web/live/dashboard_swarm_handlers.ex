@@ -82,33 +82,28 @@ defmodule IchorWeb.DashboardSwarmHandlers do
       |> assign(:selected_command_agent, nil)
       |> assign(:selected_command_task, nil)
     else
-      # Search team members first, then build from events
-      team_agent =
-        socket.assigns.teams
-        |> Enum.flat_map(& &1.members)
-        |> Enum.find(fn m -> m[:agent_id] == id || m[:name] == id end)
-
-      selected =
-        team_agent ||
-          %{
-            agent_id: id,
-            name: find_session_name(socket.assigns.events, id),
-            session_id: id
-          }
-
-      # Find the agent's current task from swarm state
-      swarm = socket.assigns[:swarm_state] || %{tasks: []}
-      agent_name = selected[:name]
-
-      task =
-        if agent_name do
-          Enum.find(swarm.tasks, fn t -> t.status == "in_progress" && t.owner == agent_name end)
-        end
+      selected = find_agent_entry(id, socket.assigns.teams, socket.assigns.events)
+      task = find_active_task(selected[:name], socket.assigns[:swarm_state] || %{tasks: []})
 
       socket
       |> assign(:selected_command_agent, selected)
       |> assign(:selected_command_task, task)
     end
+  end
+
+  defp find_agent_entry(id, teams, events) do
+    team_agent =
+      teams
+      |> Enum.flat_map(& &1.members)
+      |> Enum.find(fn m -> m[:agent_id] == id || m[:name] == id end)
+
+    team_agent || %{agent_id: id, name: find_session_name(events, id), session_id: id}
+  end
+
+  defp find_active_task(nil, _swarm), do: nil
+
+  defp find_active_task(agent_name, swarm) do
+    Enum.find(swarm.tasks, fn t -> t.status == "in_progress" && t.owner == agent_name end)
   end
 
   defp find_session_name(events, session_id) do

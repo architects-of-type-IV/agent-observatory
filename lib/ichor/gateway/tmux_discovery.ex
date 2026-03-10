@@ -99,31 +99,32 @@ defmodule Ichor.Gateway.TmuxDiscovery do
 
   defp enrich_tmux_channels(tmux_sessions, tmux_panes, all_entries) do
     Enum.each(all_entries, fn {session_id, agent} ->
-      current_tmux = agent.channels.tmux
-
-      unless current_tmux && target_alive?(current_tmux, tmux_sessions, tmux_panes) do
-        matched = find_target(agent, tmux_sessions, tmux_panes)
-
-        if matched && matched != current_tmux do
-          AgentRegistry.update_tmux_channel(session_id, matched)
-        end
-      end
+      maybe_update_tmux_channel(session_id, agent, tmux_sessions, tmux_panes)
     end)
   end
 
-  defp find_target(agent, sessions, panes) do
-    exact = Enum.find(sessions, &(&1 == agent.id))
+  defp maybe_update_tmux_channel(session_id, agent, tmux_sessions, tmux_panes) do
+    current_tmux = agent.channels.tmux
 
-    if exact do
-      exact
+    if current_tmux && target_alive?(current_tmux, tmux_sessions, tmux_panes) do
+      :ok
     else
-      Enum.find(sessions, fn s ->
-        String.starts_with?(s, agent.id) or String.contains?(s, agent.id)
-      end) ||
-        Enum.find_value(panes, fn p ->
-          if String.contains?(p.title || "", agent.id), do: p.pane_id
-        end)
+      matched = find_target(agent, tmux_sessions, tmux_panes)
+
+      if matched && matched != current_tmux do
+        AgentRegistry.update_tmux_channel(session_id, matched)
+      end
     end
+  end
+
+  defp find_target(agent, sessions, panes) do
+    Enum.find(sessions, &(&1 == agent.id)) ||
+      Enum.find(sessions, &(String.starts_with?(&1, agent.id) or String.contains?(&1, agent.id))) ||
+      Enum.find_value(panes, &pane_match(&1, agent.id))
+  end
+
+  defp pane_match(pane, agent_id) do
+    if String.contains?(pane.title || "", agent_id), do: pane.pane_id
   end
 
   defp target_alive?(target, sessions, panes) do

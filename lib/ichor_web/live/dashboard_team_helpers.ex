@@ -18,49 +18,49 @@ defmodule IchorWeb.DashboardTeamHelpers do
   end
 
   defp derive_teams_from_events(events) do
-    # Find TeamCreate events
-    team_creates =
-      events
-      |> Enum.filter(fn e ->
-        e.hook_event_type == :PreToolUse and e.tool_name == "TeamCreate"
-      end)
-      |> Enum.map(fn e ->
-        input = (e.payload || %{})["tool_input"] || %{}
-        %{name: input["team_name"], lead_session: e.session_id, created_at: e.inserted_at}
-      end)
-      |> Enum.reject(fn t -> is_nil(t.name) end)
-      |> Enum.uniq_by(& &1.name)
+    team_creates = extract_team_creates(events)
+    spawns = extract_spawns(events)
+    Enum.map(team_creates, &build_event_team(&1, spawns))
+  end
 
-    # Find teammate spawn events (Task tool with team_name)
-    spawns =
-      events
-      |> Enum.filter(fn e ->
-        e.hook_event_type == :PreToolUse and e.tool_name == "Task" and
-          ((e.payload || %{})["tool_input"] || %{})["team_name"] != nil
-      end)
-
-    # Build team structs
-    Enum.map(team_creates, fn tc ->
-      members =
-        spawns
-        |> Enum.filter(fn s ->
-          ((s.payload || %{})["tool_input"] || %{})["team_name"] == tc.name
-        end)
-        |> Enum.map(fn s ->
-          input = (s.payload || %{})["tool_input"] || %{}
-          %{name: input["name"], agent_type: input["subagent_type"], agent_id: nil}
-        end)
-
-      %{
-        name: tc.name,
-        lead_session: tc.lead_session,
-        description: nil,
-        members: [%{name: "lead", agent_type: "lead", agent_id: tc.lead_session} | members],
-        tasks: [],
-        source: :events,
-        created_at: tc.created_at
-      }
+  defp extract_team_creates(events) do
+    events
+    |> Enum.filter(fn e -> e.hook_event_type == :PreToolUse and e.tool_name == "TeamCreate" end)
+    |> Enum.map(fn e ->
+      input = (e.payload || %{})["tool_input"] || %{}
+      %{name: input["team_name"], lead_session: e.session_id, created_at: e.inserted_at}
     end)
+    |> Enum.reject(fn t -> is_nil(t.name) end)
+    |> Enum.uniq_by(& &1.name)
+  end
+
+  defp extract_spawns(events) do
+    Enum.filter(events, fn e ->
+      e.hook_event_type == :PreToolUse and e.tool_name == "Task" and
+        ((e.payload || %{})["tool_input"] || %{})["team_name"] != nil
+    end)
+  end
+
+  defp build_event_team(tc, spawns) do
+    members =
+      spawns
+      |> Enum.filter(fn s ->
+        ((s.payload || %{})["tool_input"] || %{})["team_name"] == tc.name
+      end)
+      |> Enum.map(fn s ->
+        input = (s.payload || %{})["tool_input"] || %{}
+        %{name: input["name"], agent_type: input["subagent_type"], agent_id: nil}
+      end)
+
+    %{
+      name: tc.name,
+      lead_session: tc.lead_session,
+      description: nil,
+      members: [%{name: "lead", agent_type: "lead", agent_id: tc.lead_session} | members],
+      tasks: [],
+      source: :events,
+      created_at: tc.created_at
+    }
   end
 
   defp merge_team_sources(event_teams, disk_teams) do

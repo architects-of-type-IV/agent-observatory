@@ -333,35 +333,38 @@ defmodule Ichor.Mesh.CausalDAG do
     orphans = :ets.lookup(:causal_dag_orphan_buffer, {session_id, trace_id})
 
     Enum.each(orphans, fn {{^session_id, ^trace_id}, orphan_node, _inserted_at} = entry ->
-      case detect_cycle(table, orphan_node.trace_id, trace_id) do
-        :cycle ->
-          :ets.delete_object(:causal_dag_orphan_buffer, entry)
-
-        :no_cycle ->
-          :ets.insert(table, {orphan_node.trace_id, orphan_node})
-
-          case :ets.lookup(table, trace_id) do
-            [{^trace_id, parent}] ->
-              updated_parent = %{parent | children: parent.children ++ [orphan_node.trace_id]}
-              :ets.insert(table, {trace_id, updated_parent})
-
-              broadcast_delta(
-                session_id,
-                [orphan_node],
-                [updated_parent],
-                [%{from: trace_id, to: orphan_node.trace_id}]
-              )
-
-            [] ->
-              :ok
-          end
-
-          :ets.delete_object(:causal_dag_orphan_buffer, entry)
-          check_and_promote_orphans(session_id, table, orphan_node.trace_id)
-      end
+      promote_orphan(session_id, table, trace_id, orphan_node, entry)
     end)
 
     :ok
+  end
+
+  defp promote_orphan(session_id, table, trace_id, orphan_node, entry) do
+    case detect_cycle(table, orphan_node.trace_id, trace_id) do
+      :cycle ->
+        :ets.delete_object(:causal_dag_orphan_buffer, entry)
+
+      :no_cycle ->
+        :ets.insert(table, {orphan_node.trace_id, orphan_node})
+        attach_orphan_to_parent(session_id, table, trace_id, orphan_node)
+        :ets.delete_object(:causal_dag_orphan_buffer, entry)
+        check_and_promote_orphans(session_id, table, orphan_node.trace_id)
+    end
+  end
+
+  defp attach_orphan_to_parent(session_id, table, trace_id, orphan_node) do
+    case :ets.lookup(table, trace_id) do
+      [{^trace_id, parent}] ->
+        updated_parent = %{parent | children: parent.children ++ [orphan_node.trace_id]}
+        :ets.insert(table, {trace_id, updated_parent})
+
+        broadcast_delta(session_id, [orphan_node], [updated_parent], [
+          %{from: trace_id, to: orphan_node.trace_id}
+        ])
+
+      [] ->
+        :ok
+    end
   end
 
   defp attach_expired_orphan(session_id, table, orphan_node) do

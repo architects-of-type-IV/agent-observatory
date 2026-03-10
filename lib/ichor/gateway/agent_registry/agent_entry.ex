@@ -44,7 +44,8 @@ defmodule Ichor.Gateway.AgentRegistry.AgentEntry do
   def uuid?(
         <<_::binary-size(8), ?-, _::binary-size(4), ?-, _::binary-size(4), ?-, _::binary-size(4),
           ?-, _::binary-size(12)>>
-      ), do: true
+      ),
+      do: true
 
   def uuid?(_), do: false
 

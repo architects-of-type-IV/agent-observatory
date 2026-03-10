@@ -7,74 +7,7 @@ defmodule IchorWeb.DashboardNavigationHandlers do
   require Logger
 
   def handle_event("restore_view_mode", %{"value" => value}, socket) do
-    view_mode =
-      case value do
-        # New consolidated screens
-        "command" ->
-          :command
-
-        "activity" ->
-          :activity
-
-        "pipeline" ->
-          :pipeline
-
-        "forensic" ->
-          :forensic
-
-        "control" ->
-          :control
-
-        # Legacy view modes -> consolidated screens
-        "fleet_command" ->
-          :command
-
-        "overview" ->
-          :command
-
-        "agents" ->
-          :command
-
-        "teams" ->
-          :command
-
-        "feed" ->
-          :activity
-
-        "timeline" ->
-          :activity
-
-        "analytics" ->
-          :activity
-
-        "messages" ->
-          :activity
-
-        "errors" ->
-          :activity
-
-        "tasks" ->
-          :pipeline
-
-        "scheduler" ->
-          :pipeline
-
-        "protocols" ->
-          :command
-
-        "registry" ->
-          :forensic
-
-        "god_mode" ->
-          :control
-
-        "session_cluster" ->
-          :control
-
-        _ ->
-          Logger.warning("Unrecognized view_mode: #{inspect(value)}")
-          :command
-      end
+    view_mode = normalize_view_mode(value)
 
     socket
     |> Phoenix.Component.assign(:view_mode, view_mode)
@@ -96,6 +29,32 @@ defmodule IchorWeb.DashboardNavigationHandlers do
 
   def handle_event("filter_analytics_tool", params, socket),
     do: handle_filter_analytics_tool(params, socket)
+
+  defp normalize_view_mode("command"), do: :command
+  defp normalize_view_mode("activity"), do: :activity
+  defp normalize_view_mode("pipeline"), do: :pipeline
+  defp normalize_view_mode("forensic"), do: :forensic
+  defp normalize_view_mode("control"), do: :control
+  defp normalize_view_mode("fleet_command"), do: :command
+  defp normalize_view_mode("overview"), do: :command
+  defp normalize_view_mode("agents"), do: :command
+  defp normalize_view_mode("teams"), do: :command
+  defp normalize_view_mode("feed"), do: :activity
+  defp normalize_view_mode("timeline"), do: :activity
+  defp normalize_view_mode("analytics"), do: :activity
+  defp normalize_view_mode("messages"), do: :activity
+  defp normalize_view_mode("errors"), do: :activity
+  defp normalize_view_mode("tasks"), do: :pipeline
+  defp normalize_view_mode("scheduler"), do: :pipeline
+  defp normalize_view_mode("protocols"), do: :command
+  defp normalize_view_mode("registry"), do: :forensic
+  defp normalize_view_mode("god_mode"), do: :control
+  defp normalize_view_mode("session_cluster"), do: :control
+
+  defp normalize_view_mode(value) do
+    Logger.warning("Unrecognized view_mode: #{inspect(value)}")
+    :command
+  end
 
   defp handle_jump_to_timeline(%{"session_id" => sid}, socket) do
     socket
