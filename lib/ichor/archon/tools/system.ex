@@ -4,34 +4,35 @@ defmodule Ichor.Archon.Tools.System do
   """
   use Ash.Resource, domain: Ichor.Archon.Tools
 
+  alias Ichor.{EventBuffer, Heartbeat, ProtocolTracker}
   alias Ichor.Fleet.Agent, as: FleetAgent
   alias Ichor.Fleet.Team, as: FleetTeam
   alias Ichor.Gateway.Channels.Tmux
-  alias Ichor.{EventBuffer, Heartbeat, ProtocolTracker}
 
   actions do
     action :system_health, :map do
-      description "Check Ichor system health: agents, teams, core processes."
+      description("Check Ichor system health: agents, teams, core processes.")
 
-      run fn _input, _context ->
+      run(fn _input, _context ->
         agents = FleetAgent.all!()
         teams = FleetTeam.alive!()
 
-        {:ok, %{
-          "agents" => length(agents),
-          "active_agents" => Enum.count(agents, fn a -> a.status == :active end),
-          "teams" => length(teams),
-          "event_buffer" => alive?(EventBuffer),
-          "heartbeat" => alive?(Heartbeat),
-          "protocol_tracker" => alive?(ProtocolTracker)
-        }}
-      end
+        {:ok,
+         %{
+           "agents" => length(agents),
+           "active_agents" => Enum.count(agents, fn a -> a.status == :active end),
+           "teams" => length(teams),
+           "event_buffer" => alive?(EventBuffer),
+           "heartbeat" => alive?(Heartbeat),
+           "protocol_tracker" => alive?(ProtocolTracker)
+         }}
+      end)
     end
 
     action :tmux_sessions, {:array, :map} do
-      description "List active tmux sessions and which agents are connected to them."
+      description("List active tmux sessions and which agents are connected to them.")
 
-      run fn _input, _context ->
+      run(fn _input, _context ->
         sessions = Tmux.list_sessions()
 
         agents_by_tmux =
@@ -45,14 +46,19 @@ defmodule Ichor.Archon.Tools.System do
 
             %{
               "session" => s,
-              "agents" => Enum.map(agents, fn a ->
-                %{"id" => a.agent_id, "name" => a.short_name || a.name || a.agent_id, "team" => a.team_name}
-              end)
+              "agents" =>
+                Enum.map(agents, fn a ->
+                  %{
+                    "id" => a.agent_id,
+                    "name" => a.short_name || a.name || a.agent_id,
+                    "team" => a.team_name
+                  }
+                end)
             }
           end)
 
         {:ok, result}
-      end
+      end)
     end
   end
 

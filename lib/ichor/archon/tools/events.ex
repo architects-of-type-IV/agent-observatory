@@ -12,18 +12,18 @@ defmodule Ichor.Archon.Tools.Events do
 
   actions do
     action :agent_events, {:array, :map} do
-      description "Get recent hook events for a specific agent. Raw event stream."
+      description("Get recent hook events for a specific agent. Raw event stream.")
 
       argument :agent_id, :string do
-        allow_nil? false
-        description "Agent name, short name, or session ID"
+        allow_nil?(false)
+        description("Agent name, short name, or session ID")
       end
 
       argument :limit, :integer do
-        description "Number of events to return (default: 30)"
+        description("Number of events to return (default: 30)")
       end
 
-      run fn input, _context ->
+      run(fn input, _context ->
         query = input.arguments.agent_id
         limit = Map.get(input.arguments, :limit) || 30
 
@@ -37,17 +37,17 @@ defmodule Ichor.Archon.Tools.Events do
           |> Enum.map(&format_event/1)
 
         {:ok, events}
-      end
+      end)
     end
 
     action :fleet_tasks, {:array, :map} do
-      description "List tasks across all teams, or for a specific team."
+      description("List tasks across all teams, or for a specific team.")
 
       argument :team_name, :string do
-        description "Filter to a specific team (default: all teams)"
+        description("Filter to a specific team (default: all teams)")
       end
 
-      run fn input, _context ->
+      run(fn input, _context ->
         team_filter = Map.get(input.arguments, :team_name)
 
         teams =
@@ -70,7 +70,7 @@ defmodule Ichor.Archon.Tools.Events do
           end)
 
         {:ok, tasks}
-      end
+      end)
     end
   end
 

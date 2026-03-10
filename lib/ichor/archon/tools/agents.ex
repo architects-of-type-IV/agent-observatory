@@ -9,26 +9,28 @@ defmodule Ichor.Archon.Tools.Agents do
 
   actions do
     action :list_agents, {:array, :map} do
-      description "List all registered agents with their status, team, role, model, and current tool."
+      description(
+        "List all registered agents with their status, team, role, model, and current tool."
+      )
 
-      run fn _input, _context ->
+      run(fn _input, _context ->
         agents =
           FleetAgent.active!()
           |> Enum.map(&format_agent/1)
 
         {:ok, agents}
-      end
+      end)
     end
 
     action :agent_status, :map do
-      description "Get detailed status of a specific agent by name or session ID."
+      description("Get detailed status of a specific agent by name or session ID.")
 
       argument :agent_id, :string do
-        allow_nil? false
-        description "Agent name, short name, or session ID"
+        allow_nil?(false)
+        description("Agent name, short name, or session ID")
       end
 
-      run fn input, _context ->
+      run(fn input, _context ->
         query = input.arguments.agent_id
 
         case find_agent(query) do
@@ -44,13 +46,14 @@ defmodule Ichor.Archon.Tools.Agents do
                 target -> Tmux.available?(target)
               end
 
-            {:ok, Map.merge(format_agent(agent), %{
-              "found" => true,
-              "tmux" => tmux_target,
-              "tmux_available" => tmux_ok
-            })}
+            {:ok,
+             Map.merge(format_agent(agent), %{
+               "found" => true,
+               "tmux" => tmux_target,
+               "tmux_available" => tmux_ok
+             })}
         end
-      end
+      end)
     end
   end
 

@@ -11,38 +11,40 @@ defmodule Ichor.Archon.Tools.Control do
 
   actions do
     action :spawn_agent, :map do
-      description "Spawn a new Claude agent in a tmux session. Returns session_id, session_name, name."
+      description(
+        "Spawn a new Claude agent in a tmux session. Returns session_id, session_name, name."
+      )
 
       argument :prompt, :string do
-        allow_nil? false
-        description "Task description / initial prompt for the agent"
+        allow_nil?(false)
+        description("Task description / initial prompt for the agent")
       end
 
       argument :name, :string do
-        description "Human-readable name for the agent"
+        description("Human-readable name for the agent")
       end
 
       argument :capability, :string do
-        description "builder | scout | lead | reviewer (default: builder)"
+        description("builder | scout | lead | reviewer (default: builder)")
       end
 
       argument :model, :string do
-        description "Claude model override (default: claude-sonnet-4-6)"
+        description("Claude model override (default: claude-sonnet-4-6)")
       end
 
       argument :team_name, :string do
-        description "Team to join"
+        description("Team to join")
       end
 
       argument :cwd, :string do
-        description "Working directory (default: current project root)"
+        description("Working directory (default: current project root)")
       end
 
       argument :extra_instructions, :string do
-        description "Additional instructions prepended to the agent's system prompt"
+        description("Additional instructions prepended to the agent's system prompt")
       end
 
-      run fn input, _context ->
+      run(fn input, _context ->
         args = input.arguments
 
         opts =
@@ -60,28 +62,31 @@ defmodule Ichor.Archon.Tools.Control do
 
         case AgentSpawner.spawn_agent(opts) do
           {:ok, result} ->
-            {:ok, %{
-              "session_id" => result[:agent_id] || result[:session_name],
-              "session_name" => result[:session_name],
-              "name" => result[:name],
-              "team" => result[:team_name]
-            }}
+            {:ok,
+             %{
+               "session_id" => result[:agent_id] || result[:session_name],
+               "session_name" => result[:session_name],
+               "name" => result[:name],
+               "team" => result[:team_name]
+             }}
 
           {:error, reason} ->
             {:error, Ash.Error.Unknown.exception(errors: [inspect(reason)])}
         end
-      end
+      end)
     end
 
     action :stop_agent, :map do
-      description "Stop an agent by name or session ID. Terminates its BEAM process and tmux session."
+      description(
+        "Stop an agent by name or session ID. Terminates its BEAM process and tmux session."
+      )
 
       argument :agent_id, :string do
-        allow_nil? false
-        description "Agent name, short name, or session ID"
+        allow_nil?(false)
+        description("Agent name, short name, or session ID")
       end
 
-      run fn input, _context ->
+      run(fn input, _context ->
         query = input.arguments.agent_id
 
         case find_agent(query) do
@@ -93,22 +98,22 @@ defmodule Ichor.Archon.Tools.Control do
             AgentSpawner.stop_agent(session)
             {:ok, %{"stopped" => true, "session" => session, "name" => agent.name}}
         end
-      end
+      end)
     end
 
     action :pause_agent, :map do
-      description "Pause an agent via HITL. Buffers incoming messages until resumed."
+      description("Pause an agent via HITL. Buffers incoming messages until resumed.")
 
       argument :agent_id, :string do
-        allow_nil? false
-        description "Agent name, short name, or session ID"
+        allow_nil?(false)
+        description("Agent name, short name, or session ID")
       end
 
       argument :reason, :string do
-        description "Reason for pausing (default: Paused by Archon)"
+        description("Reason for pausing (default: Paused by Archon)")
       end
 
-      run fn input, _context ->
+      run(fn input, _context ->
         query = input.arguments.agent_id
         reason = Map.get(input.arguments, :reason) || "Paused by Archon"
 
@@ -120,22 +125,25 @@ defmodule Ichor.Archon.Tools.Control do
             sid = agent.session_id || agent.agent_id
 
             case HITLRelay.pause(sid, sid, "archon", reason) do
-              :ok -> {:ok, %{"paused" => true, "session_id" => sid, "name" => agent.name}}
-              {:ok, :already_paused} -> {:ok, %{"paused" => true, "already_paused" => true, "session_id" => sid}}
+              :ok ->
+                {:ok, %{"paused" => true, "session_id" => sid, "name" => agent.name}}
+
+              {:ok, :already_paused} ->
+                {:ok, %{"paused" => true, "already_paused" => true, "session_id" => sid}}
             end
         end
-      end
+      end)
     end
 
     action :resume_agent, :map do
-      description "Resume a paused agent. Flushes any buffered messages in order."
+      description("Resume a paused agent. Flushes any buffered messages in order.")
 
       argument :agent_id, :string do
-        allow_nil? false
-        description "Agent name, short name, or session ID"
+        allow_nil?(false)
+        description("Agent name, short name, or session ID")
       end
 
-      run fn input, _context ->
+      run(fn input, _context ->
         query = input.arguments.agent_id
 
         case find_agent(query) do
@@ -146,20 +154,23 @@ defmodule Ichor.Archon.Tools.Control do
             sid = agent.session_id || agent.agent_id
 
             case HITLRelay.unpause(sid, sid, "archon") do
-              {:ok, flushed} -> {:ok, %{"resumed" => true, "flushed_messages" => flushed, "session_id" => sid}}
-              {:ok, :not_paused} -> {:ok, %{"resumed" => false, "reason" => "agent was not paused"}}
+              {:ok, flushed} ->
+                {:ok, %{"resumed" => true, "flushed_messages" => flushed, "session_id" => sid}}
+
+              {:ok, :not_paused} ->
+                {:ok, %{"resumed" => false, "reason" => "agent was not paused"}}
             end
         end
-      end
+      end)
     end
 
     action :sweep, :map do
-      description "Trigger an immediate GC sweep of dead agents from the registry."
+      description("Trigger an immediate GC sweep of dead agents from the registry.")
 
-      run fn _input, _context ->
+      run(fn _input, _context ->
         Ichor.Gateway.AgentRegistry.purge_stale()
         {:ok, %{"swept" => true}}
-      end
+      end)
     end
   end
 

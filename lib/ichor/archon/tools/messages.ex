@@ -9,15 +9,17 @@ defmodule Ichor.Archon.Tools.Messages do
 
   actions do
     action :recent_messages, {:array, :map} do
-      description "Get recent inter-agent messages (operator/agent communications). NOT for conversation history -- your memory context has that."
+      description(
+        "Get recent inter-agent messages (operator/agent communications). NOT for conversation history -- your memory context has that."
+      )
 
       argument :limit, :integer do
-        allow_nil? false
-        default 20
-        description "Max messages to return (default 20)"
+        allow_nil?(false)
+        default(20)
+        description("Max messages to return (default 20)")
       end
 
-      run fn input, _context ->
+      run(fn input, _context ->
         limit = input.arguments[:limit] || 20
 
         messages =
@@ -35,23 +37,23 @@ defmodule Ichor.Archon.Tools.Messages do
           end)
 
         {:ok, messages}
-      end
+      end)
     end
 
     action :send_message, :map do
-      description "Send a message to an agent or team as the operator (Architect)."
+      description("Send a message to an agent or team as the operator (Architect).")
 
       argument :to, :string do
-        allow_nil? false
-        description "Recipient: session ID, agent name, or team target (e.g. 'team:alpha')"
+        allow_nil?(false)
+        description("Recipient: session ID, agent name, or team target (e.g. 'team:alpha')")
       end
 
       argument :content, :string do
-        allow_nil? false
-        description "Message content"
+        allow_nil?(false)
+        description("Message content")
       end
 
-      run fn input, _context ->
+      run(fn input, _context ->
         to = input.arguments.to
         content = input.arguments.content
 
@@ -62,7 +64,7 @@ defmodule Ichor.Archon.Tools.Messages do
           {:error, reason} ->
             {:ok, %{"status" => "failed", "to" => to, "error" => inspect(reason)}}
         end
-      end
+      end)
     end
   end
 end
