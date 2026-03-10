@@ -224,7 +224,7 @@ defmodule Ichor.Fleet.AgentProcess do
     # Single cleanup point: reconcile all registries and kill tmux when any AgentProcess stops
     kill_tmux_backend(state.backend)
     Ichor.Gateway.AgentRegistry.remove(state.id)
-    Ichor.EventBuffer.remove_session(state.id)
+    Ichor.EventBuffer.tombstone_session(state.id)
     broadcast_lifecycle({:agent_stopped, state.id, reason})
     Logger.info("[AgentProcess] Stopped #{state.id} (reason=#{inspect(reason)})")
     :ok

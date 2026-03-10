@@ -13,6 +13,9 @@ ICHOR IV Progress (formerly Observatory)
 - [x] Added InstructionsLoaded/ConfigChange/TeammateIdle hook events
 - [x] Renamed send_event.sh env vars OBSERVATORY -> ICHOR
 - [x] Code quality sweep: removed dead code, cheap uuid? check, consolidated maybe_put
+- [x] Fixed shutdown ghost: session aliases + tombstones in EventBuffer
+- [x] Full EventBuffer rewrite: idiomatic Elixir, pattern-matched dispatch, single ensure_ets
+- [x] Shutdown preserves events (tombstone_session, not remove_session) -- agents stay visible
 
 ### Prior: Fleet Observability + MCP Spawn Tool (2026-03-09)
 - [x] Rewrote subagent hierarchy: PreToolUse/PostToolUse events (rich metadata)

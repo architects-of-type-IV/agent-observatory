@@ -20,9 +20,13 @@
 - **Pairing**: PreToolUse + PostToolUse matched by `tool_use_id`. Active = no PostToolUse yet.
 
 ## Agent Lifecycle (2026-03-10)
-- **Single cleanup point**: `AgentProcess.terminate/2` handles ALL cleanup (tmux kill, AgentRegistry remove, EventBuffer purge, PubSub broadcast)
-- **Ghost detection**: no events AND no tmux AND status :ended/:unknown. Uses `:status` field from LoadAgents (which already checks BEAM processes), NOT per-agent Registry lookups in templates.
+- **Single cleanup point**: `AgentProcess.terminate/2` handles cleanup (tmux kill, AgentRegistry remove, tombstone, PubSub broadcast)
+- **Shutdown preserves events**: terminate calls `tombstone_session` not `remove_session`. Agent stays visible in sidebar as ended. Only MCP `stop_agent` fully purges.
+- **Tombstones**: 30s ETS marker. Events resolving to tombstoned session are dropped (prevents SessionEnd ghost after tmux kill).
+- **Session aliases**: EventBuffer caches UUID->tmux_session in ETS. Late events with only UUID resolve via alias.
+- **Ghost detection**: no events AND no tmux AND status :ended/:unknown. Uses `:status` field from LoadAgents, NOT per-agent Registry lookups in templates.
 - **AgentMonitor crash detection**: checks actual liveness (BEAM process alive OR tmux session exists) before declaring crash. Idle != crashed.
+- **No idle filtering**: sidebar shows ALL sessions. Idle sessions sorted to bottom, never hidden.
 
 ## LoadAgents Pipeline Order (2026-03-10)
 events -> teams -> disk members -> **BEAM processes** -> tmux-only -> registry merge -> subagents -> sort

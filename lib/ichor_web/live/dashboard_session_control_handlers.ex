@@ -118,7 +118,7 @@ defmodule IchorWeb.DashboardSessionControlHandlers do
       end
 
     Ichor.Gateway.AgentRegistry.remove(session_id)
-    Ichor.EventBuffer.remove_session(session_id)
+    Ichor.EventBuffer.tombstone_session(session_id)
 
     short = String.slice(session_id, 0..7)
     details = [
