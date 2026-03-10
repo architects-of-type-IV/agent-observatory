@@ -1,40 +1,15 @@
-ICHOR IV Progress (formerly Observatory)
-========================================
+# Credo Strict Cleanup Progress (2026-03-10)
 
-## Current: Signal Nervous System Migration (2026-03-10)
+## Status: 173/200 remaining (27 fixed)
 
-### This Session
-- [x] Migrated ALL 52+ Phoenix.PubSub.broadcast calls to Ichor.Signal.emit (27+ files)
-- [x] Rewrote ALL subscribers from tuple matching to %Signal.Payload{} matching
-- [x] Signal.Catalog expanded to 45+ signals across 10 categories
-- [x] Signal.Buffer rewritten: Signal-only, subscribes to categories, ~80 lines (was ~205)
-- [x] DashboardInfoHandlers rewritten: all dispatch clauses match %Payload{}
-- [x] DashboardGatewayHandlers rewritten: handle_gateway_info matches %Payload{}
-- [x] Dashboard mount: single Enum.each(Catalog.categories(), &Signal.subscribe/1)
-- [x] Added debounced recompute (100ms coalesce) to DashboardInfoHandlers
-- [x] Added 4 new signals: nudge_sent, nudge_escalated, nudge_zombie, agent_spawned
-- [x] Verified: mix compile --warnings-as-errors --force -- CLEAN (223 files, 0 warnings)
+### Completed Categories
+- ModuleDoc: 14/14 DONE (C1, C2)
+- Misc mechanical: 13/13 DONE (C24) -- CondStatements, PreferImplicitTry, Apply, etc.
 
-### Prior: Fleet GC + Archon Control + /stream page (2026-03-10)
-- [x] Rewrote AgentRegistry.Sweep: liveness-first using kill -0 (PID) + tmux session list
-- [x] Built Archon.Tools.Control + Events (7 new tools)
-- [x] Built TopicCatalog + StreamBuffer + StreamComponents for /stream page
-- [x] Renamed /stream to /signals
+### Remaining Categories
+- AliasUsage: 99 issues across ~46 files (C3-C12)
+- Nesting: 40 issues across ~25 files (C13-C17)
+- CyclomaticComplexity: 34 issues across ~25 files (C18-C23)
 
-### Prior: os_pid tracking + dashboard mount fix (2026-03-10)
-- [x] Added os_pid field end-to-end: hook -> controller -> buffer -> registry -> LoadAgents
-- [x] Added EventBuffer.latest_per_session/0 -- single-pass :ets.foldl
-
-### Prior: Shutdown Ghost Fix + EventBuffer Rewrite (2026-03-10)
-- [x] Fixed all 20+ short_id sites to use UUID-aware AgentEntry.short_id/1
-- [x] Full EventBuffer rewrite: idiomatic Elixir, pattern-matched dispatch
-
-### Prior: Fleet Observability + MCP Spawn Tool (2026-03-09)
-- [x] Rewrote subagent hierarchy, NudgeEscalator fixes, spawn_agent MCP tool
-
-### Prior: Codebase Rename (2026-03-09)
-- [x] Full codebase rename: Observatory -> Ichor (211 modules, OTP :ichor)
-
-### Prior: Agent Lifecycle + Tokenization + Archon + Fleet
-- [x] Agent lifecycle closed-loop, full CSS tokenization, Archon HUD/Chat/Memories
-- [x] BEAM-native fleet, DashboardLive dispatch/3 refactor, legacy module elimination
+### Approach: direct manual fixes, no workers
+### Build: mix compile --warnings-as-errors CLEAN

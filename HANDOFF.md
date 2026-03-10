@@ -1,42 +1,38 @@
 # ICHOR IV - Handoff
 
-## Current Status: Signal Nervous System Migration COMPLETE (2026-03-10)
+## Current Status: Credo Strict Cleanup IN PROGRESS (2026-03-10)
 
-### Just Completed
+### Task
+Fix ALL `mix credo --strict` issues. Started with ~200, now at 173 remaining.
 
-**Signal Nervous System -- full PubSub migration to Ichor.Signal**
-- Migrated ALL 52+ scattered `Phoenix.PubSub.broadcast` calls across 27+ files to `Ichor.Signal.emit`
-- ALL subscribers rewritten from ad-hoc tuple matching to `%Ichor.Signal.Payload{}` pattern matching
-- `Signal.Catalog`: 45+ signals across 10 categories (fleet, system, events, gateway, agent, hitl, mesh, team, monitoring, messages)
-- `Signal.Buffer` fully rewritten: Signal-only (subscribes to categories, handles only Payload structs), ~80 lines (was ~205)
-- `DashboardInfoHandlers` fully rewritten: all dispatch clauses match `%Payload{name: ..., data: ...}`
-- `DashboardGatewayHandlers` fully rewritten: `handle_gateway_info` matches `%Payload{}`
-- Dashboard mount subscribes to ALL Signal categories: `Enum.each(Catalog.categories(), &Signal.subscribe/1)`
-- `@pubsub_topics` reduced to just `~w(agent:operator)` (transport only)
-- Debounced recompute: 100ms coalesce via `schedule_recompute/1`
+### Completed (27 issues fixed, clean build)
+- **C1+C2: ModuleDoc (14)** -- added `@moduledoc false` to 14 modules (domain, event, web component files)
+- **C24: Misc mechanical (13)** -- ParenthesesOnZeroArityDefs, PredicateFunctionNames (+ heex callers), CondStatements (5), NegatedConditionsWithElse, PreferImplicitTry (2), Apply, ExpensiveEmptyEnumCheck
 
-**Remaining intentional PubSub.broadcast (9 calls, all correct):**
-- `signal.ex` (4): internal Signal system PubSub layer -- the implementation underneath Signal.emit
-- `signal/buffer.ex` (1): re-broadcasts to "stream:feed" for /signals page
-- `channels.ex` (4): messaging transport (publish_to_agent, publish_to_team, etc.) -- NOT signals
+### Remaining (173 issues)
+- **AliasUsage: 99 issues** across ~46 files (C3-C12)
+- **Nesting: 40 issues** across ~25 files (C13-C17)
+- **CyclomaticComplexity: 34 issues** across ~25 files (C18-C23)
+
+### Approach
+- **Direct manual fixes ONLY** -- no spawned workers (workers failed 3 times, user lost trust)
+- AliasUsage: add `alias` at module top, use short names. Watch for conflicts (two modules sharing last segment).
+- Nesting: extract inner logic into `defp` helpers INSIDE same module. Max depth 2.
+- CyclomaticComplexity: break complex functions into smaller `defp` functions.
+- After each file: `mix compile --warnings-as-errors` to verify.
+
+### Key Lessons from Previous Session
+- Sonnet workers cannot reliably refactor Elixir -- they break module dependency graphs
+- Multi-line `use Ash.Resource,` statements: `@moduledoc false` goes BEFORE the `use` line
+- PredicateFunctionNames: must update ALL callers including .heex templates
+- Format-on-save race: Edit tool can fail when hooks modify file between Read and Edit
+
+### After Credo
+- Migrate `Ichor.Signal` to `Ichor.Signals` convention per `signals.md`
 
 ### Build Status
-`mix compile --warnings-as-errors --force` -- CLEAN (223 files, 0 warnings)
+`mix compile --warnings-as-errors` -- CLEAN (0 warnings)
 
-### Pending / Next
-- **Dialyzer**: PLT built, results not yet checked
-- **Credo**: 1 warning (length/1 vs empty list), 4 `[F]` issues (nesting/complexity), ~244 suggestions
-- **Archon.Watchdog** -- tiered rules + LLM escalation (Option C)
-- **Archon CSS tokenization**: archon-* classes still use hardcoded rgba()
-- Wire os_pid into liveness detection (kill -0)
-
-### Key Architecture Decisions
-- **Signal is the nervous system**: all inter-module communication flows through typed `Ichor.Signal.Payload` structs
-- **Category-based routing**: broadcasts to `signal:{category}` AND `signal:{category}:{name}` topics
-- **Dynamic signals**: `emit/3` with scope_id for per-agent/per-session scoping (terminal_output, gate_open, etc.)
-- **Telemetry tap**: every emit fires `:telemetry.execute([:ichor, :signal, name], ...)`
-- **Backwards-compatible catch-all**: `def dispatch(%Payload{}, socket), do: {:noreply, socket}` -- new signals won't crash dashboard
-
-### Runtime Notes
+### Runtime
 - Port 4005, `~/.ichor/tmux/obs.sock`
-- Memories server on port 4000 (must be running for Archon memory tools)
+- Memories server on port 4000 (for Archon memory tools)
