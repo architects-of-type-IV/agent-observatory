@@ -7,11 +7,12 @@ defmodule Ichor.SwarmMonitor do
   use GenServer
   require Logger
 
+  alias Ichor.Signals.Message
+  alias Ichor.SwarmMonitor.Discovery
+
   @tasks_poll_interval 3_000
   @health_poll_interval 30_000
   @health_check_script Path.expand("~/.claude/skills/swarm/scripts/health-check.sh")
-  @teams_dir Path.expand("~/.claude/teams")
-  @archive_dir Path.expand("~/.claude/teams/.archive")
 
   # ═══════════════════════════════════════════════════════
   # Client API
@@ -69,7 +70,7 @@ defmodule Ichor.SwarmMonitor do
     }
 
     # Auto-discover projects from hook events (session cwds)
-    Phoenix.PubSub.subscribe(Ichor.PubSub, "events:stream")
+    Ichor.Signals.subscribe(:events)
 
     send(self(), :poll_tasks)
     Process.send_after(self(), :poll_health, 5_000)
@@ -197,7 +198,7 @@ defmodule Ichor.SwarmMonitor do
   end
 
   # Auto-discover projects from hook event cwds
-  def handle_info({:new_event, event}, state) do
+  def handle_info(%Message{name: :new_event, data: %{event: event}}, state) do
     cwd = event.cwd
 
     if is_binary(cwd) and cwd != "" and not MapSet.member?(state.known_cwds, cwd) do
@@ -661,89 +662,11 @@ defmodule Ichor.SwarmMonitor do
   end
 
   # ═══════════════════════════════════════════════════════
-  # Project discovery
+  # Project discovery (delegated to SwarmMonitor.Discovery)
   # ═══════════════════════════════════════════════════════
 
-  defp discover_projects do
-    team_projects = discover_from_teams()
-    archive_projects = discover_from_archives()
-
-    Map.merge(archive_projects, team_projects)
-  end
-
-  defp discover_from_teams do
-    case File.ls(@teams_dir) do
-      {:ok, entries} ->
-        entries
-        |> Enum.reject(&(&1 == ".archive"))
-        |> Enum.reduce(%{}, &collect_project_from_config(&1, @teams_dir, &2))
-
-      _ ->
-        %{}
-    end
-  end
-
-  defp collect_project_from_config(name, dir, acc) do
-    config_path = Path.join([dir, name, "config.json"])
-
-    case read_team_project(config_path) do
-      nil -> acc
-      project_path -> Map.put(acc, Path.basename(project_path), project_path)
-    end
-  end
-
-  defp discover_from_archives do
-    case File.ls(@archive_dir) do
-      {:ok, entries} ->
-        Enum.reduce(entries, %{}, &collect_project_from_config(&1, @archive_dir, &2))
-
-      _ ->
-        %{}
-    end
-  end
-
-  defp read_team_project(config_path) do
-    with {:ok, json} <- File.read(config_path),
-         {:ok, config} <- Jason.decode(json) do
-      members = config["members"] || []
-
-      Enum.find_value(members, fn m -> m["cwd"] end)
-    else
-      _ -> nil
-    end
-  end
-
-  defp scan_archives do
-    case File.ls(@archive_dir) do
-      {:ok, entries} -> Enum.map(entries, &parse_archive_entry/1)
-      _ -> []
-    end
-  end
-
-  defp parse_archive_entry(name) do
-    archive_path = Path.join(@archive_dir, name)
-    summary_path = Path.join(archive_path, "gc-summary.json")
-
-    with {:ok, json} <- File.read(summary_path),
-         {:ok, summary} <- Jason.decode(json) do
-      %{
-        team: summary["team"] || name,
-        timestamp: summary["archived_at"],
-        path: archive_path,
-        task_count: get_in(summary, ["task_summary"]) |> total_from_summary()
-      }
-    else
-      _ -> %{team: name, timestamp: nil, path: archive_path, task_count: 0}
-    end
-  end
-
-  defp total_from_summary(nil), do: 0
-
-  defp total_from_summary(summary) when is_list(summary) do
-    Enum.reduce(summary, 0, fn item, acc -> acc + (item["count"] || 0) end)
-  end
-
-  defp total_from_summary(_), do: 0
+  defp discover_projects, do: Discovery.discover_projects()
+  defp scan_archives, do: Discovery.scan_archives()
 
   # ═══════════════════════════════════════════════════════
   # Helpers

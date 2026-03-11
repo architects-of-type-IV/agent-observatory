@@ -58,6 +58,19 @@ defmodule Ichor.EventBuffer do
     |> Map.values()
   end
 
+  @doc "Returns a MapSet of all unique non-empty cwd values from the event buffer."
+  @spec unique_project_cwds() :: MapSet.t(String.t())
+  def unique_project_cwds do
+    :ets.foldl(
+      fn
+        {_id, %{cwd: cwd}}, acc when is_binary(cwd) and cwd != "" -> MapSet.put(acc, cwd)
+        _, acc -> acc
+      end,
+      MapSet.new(),
+      @table
+    )
+  end
+
   defp keep_latest(acc, event) do
     sid = event.session_id
 
