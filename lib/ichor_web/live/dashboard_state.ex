@@ -184,7 +184,7 @@ defmodule IchorWeb.DashboardState do
     teams = Team.alive!()
     all_teams = Team.all!()
     messages = Message.recent!()
-    event_tasks = Task.current!()
+    event_tasks = Task.current!() |> Enum.map(&task_to_map/1)
     errors = Error.recent!()
     error_groups = Error.by_tool!()
 
@@ -386,6 +386,9 @@ defmodule IchorWeb.DashboardState do
   defp infrastructure_entry?(%{session_id: sid}) do
     sid == "operator" or TmuxDiscovery.infrastructure_session?(sid)
   end
+
+  defp task_to_map(%Ichor.Activity.Task{} = t), do: Map.from_struct(t)
+  defp task_to_map(t) when is_map(t), do: t
 
   defp tmux_feed_entry(s, now) do
     %{
