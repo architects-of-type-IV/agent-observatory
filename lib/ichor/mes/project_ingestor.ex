@@ -101,9 +101,8 @@ defmodule Ichor.Mes.ProjectIngestor do
 
   # ── Private: Plain Text Parser ─────────────────────────────────────
 
-  @doc false
   @spec parse_key_value_brief(String.t()) :: map()
-  def parse_key_value_brief(text) do
+  defp parse_key_value_brief(text) do
     text
     |> String.split("\n")
     |> Enum.reduce({%{}, nil}, fn line, {acc, current_key} ->

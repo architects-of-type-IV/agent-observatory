@@ -153,11 +153,7 @@ defmodule Ichor.Operator do
     targets = tmux_targets_for(session_id)
 
     Enum.any?(targets, fn target ->
-      if Tmux.available?(target) do
-        Tmux.deliver(target, %{content: content, from: @from}) == :ok
-      else
-        false
-      end
+      Tmux.deliver(target, %{content: content, from: @from}) == :ok
     end)
   end
 
