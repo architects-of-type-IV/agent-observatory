@@ -1,5 +1,25 @@
 # ICHOR IV Progress
 
+## Task 6: Delete Gateway.AgentRegistry ETS GenServer (2026-03-13) -- COMPLETE
+- [x] Moved agent_registry.ex to tmp/trash (ETS GenServer deleted)
+- [x] Moved 4 submodules to tmp/trash (event_handler, identity_merge, team_sync, sweep)
+- [x] Kept agent_entry.ex (pure utilities: short_id, uuid?, role_from_string)
+- [x] gateway_supervisor.ex: removed AgentRegistry child, changed strategy to :one_for_one
+- [x] mix compile --warnings-as-errors CLEAN
+- [x] grep verifies zero AgentRegistry. calls remain (excluding AgentEntry aliases)
+
+## Task 5: ETS Consumer Migration (2026-03-13) -- COMPLETE
+- [x] Migrated 23 files from Gateway.AgentRegistry ETS calls to AgentProcess API
+- [x] Router.resolve_channel moved inline as private resolve_recipients/1
+- [x] Router.mark_ended -> AgentProcess.update_fields(id, %{status: :ended})
+- [x] Agent terminate() no longer needs explicit remove (Ichor.Registry auto-deregisters)
+- [x] Heartbeat purge_stale -> no-op (process death = auto-cleanup)
+- [x] LoadAgents/LoadTeams read from AgentProcess.list_all() with {id, meta} tuples
+- [x] dedup_by_status inlined in dashboard_state.ex (no longer calls AgentRegistry)
+- [x] AgentEntry pure utilities (short_id, uuid?, role_from_string) kept -- no ETS dependency
+- [x] mix compile --warnings-as-errors CLEAN
+- [x] grep verifies zero ETS calls remain in consumer files
+
 ## MES Registry & Supervision Fix (2026-03-13) -- REGISTRY DONE
 - [x] Diagnosed MES agents not registering (5 tmux windows, 0 BEAM processes)
 - [x] Created Mes.AgentSupervisor (DynamicSupervisor, independent of RunProcess)
@@ -13,7 +33,6 @@
 - [x] Added missing signals to Catalog (:mes_agent_stopped, :mes_agent_tmux_gone)
 - [x] Consolidated to single Ichor.Registry (3 registries -> 1 with compound keys)
 - [x] /simplify fixes (duplicate helpers, scheduler N+1)
-- [ ] Verify MES agents appear in dashboard
 
 ## Signals Convention Migration (2026-03-11) -- COMPLETE
 - [x] Migrated Ichor.Signal -> Ichor.Signals namespace across 42 files
