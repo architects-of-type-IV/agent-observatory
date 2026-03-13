@@ -63,7 +63,7 @@ defmodule Ichor.Fleet.AgentProcess do
     spec = super(opts)
 
     if Keyword.get(opts, :liveness_poll, false) do
-      %{spec | restart: :temporary}
+      Map.put(spec, :restart, :temporary)
     else
       spec
     end
