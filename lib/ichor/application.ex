@@ -41,6 +41,12 @@ defmodule Ichor.Application do
       # Mesh/DAG services (rest_for_one: DAG first, then topology + event bridge)
       Ichor.MeshSupervisor,
 
+      # Task supervisor for fire-and-forget tasks
+      {Task.Supervisor, name: Ichor.TaskSupervisor},
+
+      # MES subsystem (Registry + DynamicSupervisor + ProjectIngestor + Scheduler)
+      Ichor.Mes.Supervisor,
+
       # Monitoring services (independent observers)
       Ichor.MonitorSupervisor,
 

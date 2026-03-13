@@ -7,7 +7,6 @@ defmodule Ichor.Fleet.TeamSupervisor do
   """
 
   use DynamicSupervisor
-  require Logger
 
   alias Ichor.Fleet.AgentProcess
 
@@ -109,7 +108,6 @@ defmodule Ichor.Fleet.TeamSupervisor do
     # Join :pg group for cluster-wide team discovery
     :pg.join(@pg_scope, {:team, name}, self())
 
-    Logger.info("[TeamSupervisor] Created team #{name} (strategy=#{strategy})")
     DynamicSupervisor.init(strategy: strategy, max_restarts: 5, max_seconds: 60)
   end
 end

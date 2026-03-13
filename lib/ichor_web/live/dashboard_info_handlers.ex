@@ -141,6 +141,31 @@ defmodule IchorWeb.DashboardInfoHandlers do
   def dispatch({:dismiss_toast, id}, socket),
     do: {:noreply, IchorWeb.DashboardToast.dismiss_toast(socket, id)}
 
+  # ── Signal-native: MES signals ─────────────────────────────────────
+
+  def dispatch(%Message{name: :mes_project_created}, socket) do
+    {:noreply, assign(socket, :mes_projects, Ichor.Mes.Project.list_all!())}
+  end
+
+  def dispatch(%Message{name: :mes_cycle_started}, socket) do
+    status =
+      try do
+        Ichor.Mes.Scheduler.status()
+      catch
+        :exit, _ -> %{tick: 0, active_runs: 0, next_tick_in: 60_000}
+      end
+
+    {:noreply, assign(socket, :mes_scheduler_status, status)}
+  end
+
+  def dispatch(%Message{name: :mes_subsystem_loaded}, socket) do
+    {:noreply, assign(socket, :mes_projects, Ichor.Mes.Project.list_all!())}
+  end
+
+  def dispatch(%Message{name: name}, socket)
+      when name in [:mes_cycle_timeout, :mes_project_picked_up],
+      do: {:noreply, socket}
+
   # Catch-all: ignore unknown signals (new signals added to catalog won't crash)
   def dispatch(%Message{}, socket), do: {:noreply, socket}
 end

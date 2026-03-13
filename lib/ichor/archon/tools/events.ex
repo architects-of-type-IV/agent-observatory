@@ -20,6 +20,7 @@ defmodule Ichor.Archon.Tools.Events do
       end
 
       argument :limit, :integer do
+        allow_nil?(false)
         description("Number of events to return (default: 30)")
       end
 
@@ -44,14 +45,15 @@ defmodule Ichor.Archon.Tools.Events do
       description("List tasks across all teams, or for a specific team.")
 
       argument :team_name, :string do
-        description("Filter to a specific team (default: all teams)")
+        allow_nil?(false)
+        description("Filter to a specific team (empty string for all teams)")
       end
 
       run(fn input, _context ->
         team_filter = Map.get(input.arguments, :team_name)
 
         teams =
-          if team_filter do
+          if team_filter not in [nil, ""] do
             FleetTeam.alive!()
             |> Enum.filter(fn t -> t.name == team_filter end)
           else

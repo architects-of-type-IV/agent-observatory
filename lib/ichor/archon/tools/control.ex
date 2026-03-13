@@ -24,27 +24,36 @@ defmodule Ichor.Archon.Tools.Control do
       end
 
       argument :name, :string do
+        allow_nil?(false)
         description("Human-readable name for the agent")
       end
 
       argument :capability, :string do
+        allow_nil?(false)
         description("builder | scout | lead | reviewer (default: builder)")
       end
 
       argument :model, :string do
+        allow_nil?(false)
         description("Claude model override (default: claude-sonnet-4-6)")
       end
 
       argument :team_name, :string do
-        description("Team to join")
+        allow_nil?(false)
+        description("Team to join (empty string if none)")
       end
 
       argument :cwd, :string do
+        allow_nil?(false)
         description("Working directory (default: current project root)")
       end
 
       argument :extra_instructions, :string do
-        description("Additional instructions prepended to the agent's system prompt")
+        allow_nil?(false)
+
+        description(
+          "Additional instructions prepended to the agent's system prompt (empty string if none)"
+        )
       end
 
       run(fn input, _context ->
@@ -60,7 +69,7 @@ defmodule Ichor.Archon.Tools.Control do
             cwd: Map.get(args, :cwd) || File.cwd!(),
             extra_instructions: Map.get(args, :extra_instructions)
           }
-          |> Enum.reject(fn {_k, v} -> is_nil(v) end)
+          |> Enum.reject(fn {_k, v} -> is_nil(v) or v == "" end)
           |> Map.new()
 
         case AgentSpawner.spawn_agent(opts) do
@@ -113,6 +122,7 @@ defmodule Ichor.Archon.Tools.Control do
       end
 
       argument :reason, :string do
+        allow_nil?(false)
         description("Reason for pausing (default: Paused by Archon)")
       end
 

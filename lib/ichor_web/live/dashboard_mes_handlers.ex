@@ -1,0 +1,45 @@
+defmodule IchorWeb.DashboardMesHandlers do
+  @moduledoc """
+  Handle events for the MES (Manufacturing Execution System) view.
+  """
+
+  import Phoenix.Component, only: [assign: 3]
+  import Phoenix.LiveView, only: [put_flash: 3]
+
+  alias Ichor.Mes.{Project, SubsystemLoader}
+  alias Ichor.Signals
+
+  @spec dispatch(String.t(), map(), Phoenix.LiveView.Socket.t()) :: Phoenix.LiveView.Socket.t()
+  def dispatch("mes_pick_up", %{"id" => id}, socket) do
+    project = Enum.find(socket.assigns.mes_projects, &(&1.id == id))
+
+    case Project.pick_up(project, "manual") do
+      {:ok, _} ->
+        Signals.emit(:mes_project_picked_up, %{project_id: id, session_id: "manual"})
+        assign(socket, :mes_projects, Project.list_all!())
+
+      {:error, reason} ->
+        put_flash(socket, :error, "Failed to pick up: #{inspect(reason)}")
+    end
+  end
+
+  def dispatch("mes_load_subsystem", %{"id" => id}, socket) do
+    project = Enum.find(socket.assigns.mes_projects, &(&1.id == id))
+
+    case SubsystemLoader.compile_and_load(project) do
+      {:ok, modules} ->
+        Project.mark_loaded(project)
+
+        socket
+        |> assign(:mes_projects, Project.list_all!())
+        |> put_flash(:info, "Loaded #{length(modules)} modules")
+
+      {:error, reason} ->
+        Project.mark_failed(project, reason)
+
+        socket
+        |> assign(:mes_projects, Project.list_all!())
+        |> put_flash(:error, reason)
+    end
+  end
+end

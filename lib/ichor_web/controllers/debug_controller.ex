@@ -185,6 +185,37 @@ defmodule IchorWeb.DebugController do
     json(conn, %{purged: purged, remaining: remaining})
   end
 
+  def mes_cleanup(conn, _params) do
+    alias Ichor.Fleet.{FleetSupervisor, TeamSupervisor}
+
+    before = Enum.map(TeamSupervisor.list_all(), &elem(&1, 0))
+    mes_teams = Enum.filter(before, &String.starts_with?(&1, "mes-"))
+
+    results =
+      Enum.map(mes_teams, fn name ->
+        result = FleetSupervisor.disband_team(name)
+        %{team: name, result: inspect(result), exists_after: TeamSupervisor.exists?(name)}
+      end)
+
+    after_teams = Enum.map(TeamSupervisor.list_all(), &elem(&1, 0))
+    json(conn, %{before: before, results: results, after: after_teams})
+  end
+
+  def mes_signals(conn, _params) do
+    signals =
+      Ichor.Signals.Buffer.recent(200)
+      |> Enum.filter(fn s ->
+        topic = Map.get(s, :topic, "")
+        String.contains?(topic, "mes")
+      end)
+      |> Enum.take(50)
+      |> Enum.map(fn s ->
+        %{topic: s[:topic], shape: s[:shape], summary: s[:summary], at: s[:at]}
+      end)
+
+    json(conn, %{count: length(signals), signals: signals})
+  end
+
   def tmux(conn, _params) do
     sessions = Tmux.list_sessions()
     panes = Tmux.list_panes()

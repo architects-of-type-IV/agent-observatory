@@ -120,7 +120,8 @@ defmodule Ichor.Fleet.Preparations.LoadTeams do
           name: id,
           agent_id: id,
           agent_type: to_string(agent_meta[:role] || :worker),
-          status: agent_meta[:status] || :active
+          status: agent_meta[:status] || :active,
+          cwd: agent_meta[:cwd]
         }
 
       nil ->
@@ -180,13 +181,17 @@ defmodule Ichor.Fleet.Preparations.LoadTeams do
   end
 
   defp mark_dead(teams, now) do
-    Enum.map(teams, fn team ->
-      if team.source == :beam do
-        Map.put(team, :dead?, false)
-      else
-        Map.put(team, :dead?, team_dead?(team, now))
-      end
+    teams
+    |> Enum.map(fn team ->
+      dead? =
+        case team.source do
+          :beam -> not TeamSupervisor.exists?(team.name)
+          _ -> team_dead?(team, now)
+        end
+
+      Map.put(team, :dead?, dead?)
     end)
+    |> Enum.reject(fn team -> team[:dead?] and team.members == [] end)
   end
 
   defp team_dead?(team, now) do

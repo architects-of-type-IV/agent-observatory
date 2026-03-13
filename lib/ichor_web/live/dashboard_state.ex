@@ -172,12 +172,21 @@ defmodule IchorWeb.DashboardState do
       # Stream view
       stream_events: [],
       stream_filter: "",
-      stream_paused: false
+      stream_paused: false,
+      # MES
+      mes_projects: [],
+      mes_scheduler_status: %{tick: 0, active_runs: 0, next_tick_in: 60_000}
     }
   end
 
   @doc "Full recompute: queries all Ash domains + derives view assigns."
   def recompute(socket) do
+    do_recompute(socket)
+  rescue
+    ArgumentError -> socket
+  end
+
+  defp do_recompute(socket) do
     assigns = socket.assigns
 
     # Ash domain queries

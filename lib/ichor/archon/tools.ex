@@ -8,6 +8,7 @@ defmodule Ichor.Archon.Tools do
   alias Ichor.Archon.Tools.Control
   alias Ichor.Archon.Tools.Events
   alias Ichor.Archon.Tools.Memory
+  alias Ichor.Archon.Tools.Mes
   alias Ichor.Archon.Tools.Messages
   alias Ichor.Archon.Tools.System
   alias Ichor.Archon.Tools.Teams
@@ -20,6 +21,7 @@ defmodule Ichor.Archon.Tools do
     resource(Memory)
     resource(Control)
     resource(Events)
+    resource(Mes)
   end
 
   tools do
@@ -46,5 +48,11 @@ defmodule Ichor.Archon.Tools do
     tool(:search_memory, Memory, :search_memory)
     tool(:remember, Memory, :remember)
     tool(:query_memory, Memory, :query_memory)
+    # MES floor management
+    tool(:list_projects, Mes, :list_projects)
+    tool(:create_project, Mes, :create_project)
+    tool(:check_operator_inbox, Mes, :check_operator_inbox)
+    tool(:mes_status, Mes, :mes_status)
+    tool(:cleanup_mes, Mes, :cleanup_mes)
   end
 end

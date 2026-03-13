@@ -167,7 +167,9 @@ defmodule Ichor.Gateway.AgentRegistry.Sweep do
       |> MapSet.union(event_session_ids())
 
     AgentProcess.list_all()
-    |> Enum.reject(fn {id, _} -> id == "operator" or MapSet.member?(known_ids, id) end)
+    |> Enum.reject(fn {id, meta} ->
+      id == "operator" or MapSet.member?(known_ids, id) or meta[:team] != nil
+    end)
     |> Enum.each(fn {id, _} -> terminate_process(id) end)
   rescue
     _ -> :ok

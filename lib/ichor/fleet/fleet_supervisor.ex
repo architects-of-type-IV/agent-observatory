@@ -15,7 +15,6 @@ defmodule Ichor.Fleet.FleetSupervisor do
   """
 
   use DynamicSupervisor
-  require Logger
 
   alias Ichor.Fleet.{AgentProcess, TeamSupervisor}
 
@@ -51,10 +50,18 @@ defmodule Ichor.Fleet.FleetSupervisor do
   def disband_team(team_name) do
     case Registry.lookup(Ichor.Fleet.TeamRegistry, team_name) do
       [{pid, _}] ->
-        Ichor.Signals.emit(:team_disbanded, %{team_name: team_name})
-        DynamicSupervisor.terminate_child(__MODULE__, pid)
+        result = DynamicSupervisor.terminate_child(__MODULE__, pid)
+
+        Ichor.Signals.emit(:team_disbanded, %{
+          team_name: team_name,
+          pid: inspect(pid),
+          result: inspect(result)
+        })
+
+        result
 
       [] ->
+        Ichor.Signals.emit(:team_disbanded, %{team_name: team_name, result: "not_found"})
         {:error, :not_found}
     end
   end

@@ -170,9 +170,21 @@ defmodule IchorWeb.Components.FleetHelpers do
   end
 
   defp team_project(team, agent_index) do
-    Enum.find_value(team.members, "unknown", fn m ->
-      cwd = m[:cwd] || get_in(agent_index, [m[:agent_id], :cwd])
-      cwd && Path.basename(cwd)
-    end)
+    # First try team members (Ash resource)
+    from_members =
+      Enum.find_value(team.members, nil, fn m ->
+        cwd = m[:cwd] || get_in(agent_index, [m[:agent_id], :cwd])
+        cwd && Path.basename(cwd)
+      end)
+
+    # Fallback: find any agent in agent_index belonging to this team
+    from_members ||
+      Enum.find_value(agent_index, "unknown", fn
+        {_id, %{team: t, cwd: cwd}} when t == team.name and not is_nil(cwd) ->
+          Path.basename(cwd)
+
+        _ ->
+          nil
+      end)
   end
 end

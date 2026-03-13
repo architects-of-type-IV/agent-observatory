@@ -7,8 +7,6 @@ defmodule Ichor.Fleet.AgentProcess.Delivery do
   - Dispatching messages to the configured backend transport (tmux, SSH, webhook)
   """
 
-  require Logger
-
   alias Ichor.Gateway.Channels.{SshTmux, Tmux, WebhookAdapter}
 
   # ── Message Normalization ────────────────────────────────────────────
@@ -63,10 +61,7 @@ defmodule Ichor.Fleet.AgentProcess.Delivery do
     WebhookAdapter.deliver(url, msg)
   end
 
-  def deliver(%{type: type}, _msg) do
-    Logger.warning("[AgentProcess.Delivery] Unknown backend type: #{type}")
-    :ok
-  end
+  def deliver(%{type: _type}, _msg), do: :ok
 
   # ── PubSub ───────────────────────────────────────────────────────────
 

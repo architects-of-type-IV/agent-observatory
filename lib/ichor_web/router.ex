@@ -30,6 +30,8 @@ defmodule IchorWeb.Router do
     get "/debug/fleet-agents", DebugController, :fleet_agents
     post "/debug/hitl-clear", DebugController, :hitl_clear
     post "/debug/purge", DebugController, :purge
+    post "/debug/mes-cleanup", DebugController, :mes_cleanup
+    get "/debug/mes-signals", DebugController, :mes_signals
   end
 
   scope "/gateway", IchorWeb do

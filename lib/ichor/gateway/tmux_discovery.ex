@@ -133,6 +133,7 @@ defmodule Ichor.Gateway.TmuxDiscovery do
 
   @doc "Returns true for tmux server infrastructure sessions (not agents)."
   def infrastructure_session?("obs"), do: true
+  def infrastructure_session?("mes-" <> _), do: true
   def infrastructure_session?(name), do: match?({_, ""}, Integer.parse(name))
 
   defp schedule_poll do

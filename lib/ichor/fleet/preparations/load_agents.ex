@@ -110,12 +110,29 @@ defmodule Ichor.Fleet.Preparations.LoadAgents do
       end)
       |> Map.new()
 
+    # MES teams: map tmux session prefix to team name for event-based agents
+    mes_teams =
+      teams
+      |> Enum.filter(fn t -> String.starts_with?(t.name, "mes-") end)
+      |> Map.new(fn t -> {t.name, t.name} end)
+
     Enum.map(agents, fn agent ->
       case Map.get(team_index, agent.agent_id) do
-        nil -> agent
+        nil -> maybe_assign_mes_team(agent, mes_teams)
         data -> %{agent | team_name: data.team_name, role: data.role}
       end
     end)
+  end
+
+  # Agents running inside MES tmux sessions inherit the team from the session name
+  defp maybe_assign_mes_team(agent, mes_teams) do
+    with tmux when is_binary(tmux) <- agent.tmux_session,
+         [session_name | _] <- String.split(tmux, ":"),
+         team_name when not is_nil(team_name) <- Map.get(mes_teams, session_name) do
+      %{agent | team_name: team_name}
+    else
+      _ -> agent
+    end
   end
 
   defp append_disk_only_members(agents, teams, _now) do

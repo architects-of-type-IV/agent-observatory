@@ -11,9 +11,11 @@ defmodule Ichor.Archon.MemoriesClient do
 
   require Logger
 
-  @memories_url "http://localhost:4000"
-  @archon_group_id "0f8eae17-15fc-5af1-8761-0093dc9b5027"
-  @archon_user_id "8fe50fd6-f0da-5adc-9251-6417dc3092e8"
+  defp memories_config, do: Application.fetch_env!(:ichor, :memories)
+  defp memories_url, do: Keyword.fetch!(memories_config(), :url)
+  defp api_key, do: Keyword.fetch!(memories_config(), :api_key)
+  defp group_id_default, do: Keyword.fetch!(memories_config(), :group_id)
+  defp user_id_default, do: Keyword.fetch!(memories_config(), :user_id)
 
   @spec search(String.t(), keyword()) :: {:ok, map()} | {:error, term()}
   def search(query, opts \\ []) do
@@ -24,8 +26,8 @@ defmodule Ichor.Archon.MemoriesClient do
     body =
       %{
         query: query,
-        group_id: @archon_group_id,
-        user_id: @archon_user_id,
+        group_id: group_id_default(),
+        user_id: user_id_default(),
         scope: to_string(scope),
         limit: limit
       }
@@ -43,8 +45,8 @@ defmodule Ichor.Archon.MemoriesClient do
     body =
       %{
         content: content,
-        group_id: @archon_group_id,
-        user_id: @archon_user_id,
+        group_id: group_id_default(),
+        user_id: user_id_default(),
         type: type,
         source: source
       }
@@ -59,7 +61,7 @@ defmodule Ichor.Archon.MemoriesClient do
 
     body = %{
       query: query,
-      group_id: @archon_group_id,
+      group_id: group_id_default(),
       limit: limit
     }
 
@@ -67,15 +69,15 @@ defmodule Ichor.Archon.MemoriesClient do
   end
 
   @spec group_id() :: String.t()
-  def group_id, do: @archon_group_id
+  def group_id, do: group_id_default()
 
   @spec user_id() :: String.t()
-  def user_id, do: @archon_user_id
+  def user_id, do: user_id_default()
 
   defp post(path, body) do
-    url = @memories_url <> path
+    url = memories_url() <> path
 
-    case Req.post(url, json: body) do
+    case Req.post(url, json: body, headers: auth_headers()) do
       {:ok, %{status: status, body: body}} when status in [200, 202] ->
         {:ok, body}
 

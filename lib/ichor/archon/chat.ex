@@ -13,6 +13,7 @@ defmodule Ichor.Archon.Chat do
   alias Ichor.Archon.Tools.Control
   alias Ichor.Archon.Tools.Events
   alias Ichor.Archon.Tools.Memory
+  alias Ichor.Archon.Tools.Mes
   alias Ichor.Archon.Tools.Messages
   alias Ichor.Archon.Tools.System, as: SystemTools
   alias Ichor.Archon.Tools.Teams
@@ -25,20 +26,24 @@ defmodule Ichor.Archon.Chat do
   @default_model "gpt-4o-mini"
 
   @system_prompt """
-  You are Archon, the sovereign AI agent for ICHOR IV -- a control plane that manages autonomous coding agents.
+  You are Archon, the floor manager of ICHOR IV -- a sovereign AI control plane that manages autonomous coding agents and a continuous manufacturing pipeline (MES).
 
-  You are the Architect's eyes and ears. When the Architect is away, you monitor the fleet, intervene when needed, and keep things running.
+  You are the Architect's spokesperson and operational authority. When the Architect is away, you ARE the decision-maker. Agents who message "operator" are reaching out to YOU. Handle their problems, acknowledge their work, and keep the factory running.
 
-  Your capabilities:
+  Your responsibilities:
+  - **Floor management**: Check your operator inbox regularly. MES agents send project briefs and status updates to "operator" -- that is you. Review them, create project records, and respond.
   - **Fleet observation**: list agents, check agent status, list teams, view tmux sessions
   - **Fleet control**: spawn new agents, stop agents, pause/resume agents via HITL, trigger GC sweep
-  - **Messaging**: send messages to agents or teams
+  - **MES pipeline**: check manufacturing status, list project briefs, create projects from agent proposals, cleanup orphaned teams
+  - **Messaging**: send messages to agents or teams. You speak for the Architect.
   - **Event monitoring**: view raw event stream per agent, see what any agent is doing in real time
   - **Task oversight**: view tasks across all teams or a specific team
   - **System health**: check process liveness
   - **Memory**: persistent knowledge graph, auto-searched each turn
 
-  You serve the Architect. Be direct, concise, decisive. Use your tools to get real data before answering.
+  When an agent sends you a project brief or asks for help, ACT on it. Create the project record if the brief is valid. Send guidance if they are stuck. You do not wait for the Architect's approval for routine operations.
+
+  Be direct, concise, decisive. Use your tools to get real data before answering.
   Do not use emoji. Do not be verbose. When something is wrong, say so and act.
 
   MEMORY: Your knowledge graph is automatically searched each turn. Relevant facts and past conversations are injected before your response. Use that context directly -- do not call search_memory or query_memory unless the Architect asks for a deeper search.
@@ -164,6 +169,28 @@ defmodule Ichor.Archon.Chat do
 
   # ── Memory ───────────────────────────────────────────────────────────
 
+  # ── MES ─────────────────────────────────────────────────────────────
+
+  defp dispatch_shortcode(["/projects"]) do
+    run_typed(:projects, Mes, :list_projects, %{})
+  end
+
+  defp dispatch_shortcode(["/projects", status]) do
+    run_typed(:projects, Mes, :list_projects, %{status: String.trim(status)})
+  end
+
+  defp dispatch_shortcode(["/mes"]) do
+    run_typed(:mes_status, Mes, :mes_status, %{})
+  end
+
+  defp dispatch_shortcode(["/operator-inbox"]) do
+    run_typed(:operator_inbox, Mes, :check_operator_inbox, %{})
+  end
+
+  defp dispatch_shortcode(["/cleanup-mes"]) do
+    run_typed(:cleanup_mes, Mes, :cleanup_mes, %{})
+  end
+
   defp dispatch_shortcode(["/remember", content]) do
     run_typed(:remember, Memory, :remember, %{content: String.trim(content)})
   end
@@ -185,6 +212,7 @@ defmodule Ichor.Archon.Chat do
        Observation: /agents /teams /status <id> /events <id> [limit] /tasks [team] /inbox /health /sessions
        Control:     /spawn <prompt> /stop <id> /pause <id> [reason] /resume <id> /sweep
        Messaging:   /msg <target> <text>
+       MES:         /mes /projects [status] /operator-inbox /cleanup-mes
        Memory:      /remember <text> /recall <query> /query <question>
        """
      }}
@@ -218,7 +246,8 @@ defmodule Ichor.Archon.Chat do
               {SystemTools, :*},
               {Control, :*},
               {Events, :*},
-              {Memory, [:remember]}
+              {Memory, [:remember]},
+              {Mes, :*}
             ]
           )
 

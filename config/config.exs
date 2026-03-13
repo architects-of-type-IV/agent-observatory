@@ -19,7 +19,8 @@ config :ichor,
     Ichor.Workshop,
     Ichor.Archon,
     Ichor.Archon.Tools,
-    Ichor.Signals
+    Ichor.Signals,
+    Ichor.Mes
   ]
 
 # Configure the endpoint
@@ -67,6 +68,13 @@ config :tailwind,
 config :logger, :default_formatter,
   format: "$time $metadata[$level] $message\n",
   metadata: [:request_id]
+
+# Memories knowledge graph API (fleet-wide access)
+config :ichor, :memories,
+  url: "http://localhost:4000",
+  api_key: "mem_bClhCPVjvDOW9StxLVHHc6zVoYlaYYxU2NS7i4LlTI4dlqanqPThYevtRz4rpT4C3_d5E10",
+  group_id: "0f8eae17-15fc-5af1-8761-0093dc9b5027",
+  user_id: "8fe50fd6-f0da-5adc-9251-6417dc3092e8"
 
 # Use Jason for JSON parsing in Phoenix
 config :phoenix, :json_library, Jason

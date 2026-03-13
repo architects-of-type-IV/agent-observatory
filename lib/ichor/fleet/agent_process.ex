@@ -8,7 +8,6 @@ defmodule Ichor.Fleet.AgentProcess do
   """
 
   use GenServer
-  require Logger
 
   alias Ichor.Fleet.AgentProcess.Delivery
   alias Ichor.Gateway.AgentRegistry
@@ -190,8 +189,6 @@ defmodule Ichor.Fleet.AgentProcess do
     :pg.join(@pg_scope, {:agent, id}, self())
 
     broadcast_lifecycle({:agent_started, id, %{role: role, team: team}})
-
-    Logger.info("[AgentProcess] Started #{id} (role=#{role}, team=#{team || "standalone"})")
     {:ok, state}
   end
 
@@ -238,14 +235,17 @@ defmodule Ichor.Fleet.AgentProcess do
     AgentRegistry.remove(state.id)
     Ichor.EventBuffer.tombstone_session(state.id)
     broadcast_lifecycle({:agent_stopped, state.id, reason})
-    Logger.info("[AgentProcess] Stopped #{state.id} (reason=#{inspect(reason)})")
     :ok
   end
 
   # ── Internal ────────────────────────────────────────────────────────
 
   defp kill_tmux_backend(%{type: :tmux, session: session}) when is_binary(session) do
-    Tmux.run_command(["kill-session", "-t", session])
+    if String.contains?(session, ":") do
+      Tmux.run_command(["kill-window", "-t", session])
+    else
+      Tmux.run_command(["kill-session", "-t", session])
+    end
   end
 
   defp kill_tmux_backend(_), do: :ok
