@@ -63,10 +63,10 @@ defmodule Ichor.Gateway.Router do
 
   @doc """
   Ingest an inbound hook event into the gateway pipeline.
-  Updates the AgentRegistry, handles channel side effects, and broadcasts.
+  Ensures an AgentProcess exists, handles channel side effects, and broadcasts.
   """
   def ingest(event) do
-    AgentRegistry.register_from_event(event)
+    ensure_agent_process(event.session_id, event)
 
     if event.hook_event_type in [:SessionEnd, "SessionEnd"] do
       AgentRegistry.mark_ended(event.session_id)
@@ -75,8 +75,11 @@ defmodule Ichor.Gateway.Router do
 
     handle_channel_events(event)
 
-    agent = AgentRegistry.get(event.session_id)
-    agent_name = if agent, do: agent.id, else: event.session_id
+    agent_name =
+      case AgentProcess.lookup(event.session_id) do
+        {_pid, meta} -> meta[:name] || meta[:short_name] || event.session_id
+        nil -> event.session_id
+      end
 
     Ichor.Signals.emit(:agent_event, agent_name, %{event: event})
 
@@ -119,37 +122,19 @@ defmodule Ichor.Gateway.Router do
     end
   end
 
+  # Signal only -- no delivery. The MCP tool path (Operator.send) handles
+  # authoritative delivery. Emitting here gives dashboard visibility without
+  # causing double-delivery from hook intercept + MCP tool.
   defp handle_send_message(event, input) do
-    type = input["type"] || "message"
     recipient = input["recipient"]
     content = input["content"] || input["summary"] || ""
 
-    payload = %{
-      content: content,
+    Ichor.Signals.emit(:agent_message_intercepted, event.session_id, %{
       from: event.session_id,
-      type: :text,
-      metadata: %{
-        source_app: event.source_app,
-        summary: input["summary"],
-        via: :hook_intercept
-      }
-    }
-
-    case type do
-      "message" when is_binary(recipient) ->
-        broadcast("agent:#{recipient}", payload)
-
-      "broadcast" ->
-        if team_name = input["team_name"] do
-          broadcast("team:#{team_name}", payload)
-        end
-
-      "shutdown_request" when is_binary(recipient) ->
-        broadcast("agent:#{recipient}", payload)
-
-      _ ->
-        :ok
-    end
+      to: recipient,
+      content: String.slice(content, 0, 200),
+      type: input["type"] || "message"
+    })
   end
 
   @spec ensure_team_supervisor(String.t()) :: :ok
@@ -168,6 +153,30 @@ defmodule Ichor.Gateway.Router do
           )
 
           :ok
+      end
+    end
+  rescue
+    _ -> :ok
+  end
+
+  @spec ensure_agent_process(String.t(), map()) :: :ok
+  defp ensure_agent_process(session_id, event) do
+    unless AgentProcess.alive?(session_id) do
+      opts = [
+        id: session_id,
+        role: :worker,
+        metadata: %{
+          cwd: event.cwd,
+          model: event.model_name,
+          os_pid: event.os_pid,
+          name: session_id
+        }
+      ]
+
+      case FleetSupervisor.spawn_agent(opts) do
+        {:ok, _pid} -> :ok
+        {:error, {:already_started, _}} -> :ok
+        {:error, _reason} -> :ok
       end
     end
   rescue
