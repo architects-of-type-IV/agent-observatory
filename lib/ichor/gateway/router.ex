@@ -77,13 +77,7 @@ defmodule Ichor.Gateway.Router do
 
     handle_channel_events(event)
 
-    agent_name =
-      case AgentProcess.lookup(event.session_id) do
-        {_pid, meta} -> meta[:name] || meta[:short_name] || event.session_id
-        nil -> event.session_id
-      end
-
-    Ichor.Signals.emit(:agent_event, agent_name, %{event: event})
+    Ichor.Signals.emit(:agent_event, event.session_id, %{event: event})
 
     :ok
   end
