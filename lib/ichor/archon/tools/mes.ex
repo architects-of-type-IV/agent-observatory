@@ -6,7 +6,7 @@ defmodule Ichor.Archon.Tools.Mes do
   use Ash.Resource, domain: Ichor.Archon.Tools
 
   alias Ichor.Fleet.AgentProcess
-  alias Ichor.Mes.{Project, RunProcess, TeamSpawner}
+  alias Ichor.Mes.{Project, RunProcess, Scheduler, TeamSpawner}
 
   actions do
     action :list_projects, {:array, :map} do
@@ -199,7 +199,7 @@ defmodule Ichor.Archon.Tools.Mes do
 
         scheduler_status =
           try do
-            Ichor.Mes.Scheduler.status()
+            Scheduler.status()
           rescue
             _ -> %{error: "Scheduler not running"}
           end

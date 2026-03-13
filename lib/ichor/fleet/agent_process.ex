@@ -188,47 +188,11 @@ defmodule Ichor.Fleet.AgentProcess do
     }
 
     meta = Keyword.get(opts, :metadata, %{})
+    update_registry(id, build_initial_registry_meta(id, state, meta))
 
-    tmux_target =
-      case state.backend do
-        %{type: :tmux, session: s} -> s
-        _ -> nil
-      end
-
-    # Extract plain session name for liveness matching
-    # "ichor-fleet:builder-1" -> "ichor-fleet", "mes-abc:coord" -> "mes-abc"
-    tmux_session = extract_session_name(tmux_target)
-
-    short_name = meta[:short_name] || meta[:name] || id
-
-    update_registry(id, %{
-      role: role,
-      team: team,
-      status: :active,
-      model: meta[:model],
-      cwd: meta[:cwd],
-      current_tool: nil,
-      channels: meta[:channels] || %{tmux: tmux_target, mailbox: id, webhook: nil},
-      os_pid: meta[:os_pid],
-      last_event_at: meta[:last_event_at] || DateTime.utc_now(),
-      short_name: short_name,
-      name: meta[:name] || id,
-      host: meta[:host] || "local",
-      parent_id: meta[:parent_id],
-      backend_type: backend_type(state.backend),
-      tmux_session: tmux_session,
-      tmux_target: tmux_target
-    })
-
-    # Subscribe to agent-scoped events so this process can update its own Registry metadata
     Ichor.Signals.subscribe(:agent_event, id)
-
-    # Join :pg group for cluster-wide discovery
     :pg.join(@pg_scope, {:agent, id}, self())
-
-    if Keyword.get(opts, :liveness_poll, false) do
-      schedule_liveness_check()
-    end
+    if Keyword.get(opts, :liveness_poll, false), do: schedule_liveness_check()
 
     broadcast_lifecycle({:agent_started, id, %{role: role, team: team}})
     {:ok, state}
@@ -321,6 +285,34 @@ defmodule Ichor.Fleet.AgentProcess do
   end
 
   # ── Internal ────────────────────────────────────────────────────────
+
+  defp build_initial_registry_meta(id, state, meta) do
+    tmux_target = extract_tmux_target(state.backend)
+    tmux_session = extract_session_name(tmux_target)
+    short_name = meta[:short_name] || meta[:name] || id
+
+    %{
+      role: state.role,
+      team: state.team,
+      status: :active,
+      model: meta[:model],
+      cwd: meta[:cwd],
+      current_tool: nil,
+      channels: meta[:channels] || %{tmux: tmux_target, mailbox: id, webhook: nil},
+      os_pid: meta[:os_pid],
+      last_event_at: meta[:last_event_at] || DateTime.utc_now(),
+      short_name: short_name,
+      name: meta[:name] || id,
+      host: meta[:host] || "local",
+      parent_id: meta[:parent_id],
+      backend_type: backend_type(state.backend),
+      tmux_session: tmux_session,
+      tmux_target: tmux_target
+    }
+  end
+
+  defp extract_tmux_target(%{type: :tmux, session: s}), do: s
+  defp extract_tmux_target(_), do: nil
 
   defp schedule_liveness_check do
     Process.send_after(self(), :check_liveness, @liveness_interval)

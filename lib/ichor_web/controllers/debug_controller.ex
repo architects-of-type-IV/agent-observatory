@@ -8,6 +8,7 @@ defmodule IchorWeb.DebugController do
   alias Ichor.Gateway.Channels.Tmux
   alias Ichor.Gateway.HITLRelay
   alias Ichor.ProtocolTracker
+  alias Ichor.Signals.Buffer
 
   def registry(conn, _params) do
     agents =
@@ -207,7 +208,7 @@ defmodule IchorWeb.DebugController do
 
   def mes_signals(conn, _params) do
     signals =
-      Ichor.Signals.Buffer.recent(200)
+      Buffer.recent(200)
       |> Enum.filter(fn s ->
         topic = Map.get(s, :topic, "")
         String.contains?(topic, "mes")

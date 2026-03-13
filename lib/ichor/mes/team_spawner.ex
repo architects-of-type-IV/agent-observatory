@@ -15,6 +15,7 @@ defmodule Ichor.Mes.TeamSpawner do
   """
 
   alias Ichor.Fleet.{FleetSupervisor, TeamSupervisor}
+  alias Ichor.Mes.RunProcess
   alias Ichor.Signals
 
   @prompt_dir Path.expand("~/.ichor/mes")
@@ -121,29 +122,28 @@ defmodule Ichor.Mes.TeamSpawner do
 
   defp cleanup_prompt_dir do
     case File.ls(@prompt_dir) do
-      {:ok, dirs} ->
-        Enum.each(dirs, fn dir ->
-          path = Path.join(@prompt_dir, dir)
+      {:ok, dirs} -> Enum.each(dirs, &remove_if_directory/1)
+      {:error, _} -> :ok
+    end
+  end
 
-          if File.dir?(path) do
-            File.rm_rf!(path)
-            Signals.emit(:mes_cleanup, %{target: dir})
-          end
-        end)
+  defp remove_if_directory(dir) do
+    path = Path.join(@prompt_dir, dir)
 
-      {:error, _} ->
-        :ok
+    if File.dir?(path) do
+      File.rm_rf!(path)
+      Signals.emit(:mes_cleanup, %{target: dir})
     end
   end
 
   @spec cleanup_orphaned_teams() :: :ok
   def cleanup_orphaned_teams do
     active_teams =
-      Ichor.Mes.RunProcess.list_all()
+      RunProcess.list_all()
       |> Enum.map(fn {run_id, _pid} -> "mes-#{run_id}" end)
       |> MapSet.new()
 
-    Ichor.Fleet.TeamSupervisor.list_all()
+    TeamSupervisor.list_all()
     |> Enum.filter(fn {name, _meta} -> String.starts_with?(name, "mes-") end)
     |> Enum.reject(fn {name, _meta} -> MapSet.member?(active_teams, name) end)
     |> Enum.each(fn {name, _meta} ->
@@ -345,9 +345,7 @@ defmodule Ichor.Mes.TeamSpawner do
   defp team_roster(session) do
     names = ~w(coordinator lead planner researcher-1 researcher-2)
 
-    ids =
-      Enum.map(names, fn name -> "  - #{name}: #{session}-#{name}" end)
-      |> Enum.join("\n")
+    ids = Enum.map_join(names, "\n", fn name -> "  - #{name}: #{session}-#{name}" end)
 
     """
     TEAM ROSTER (use these EXACT IDs with send_message/check_inbox):

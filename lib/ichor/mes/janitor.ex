@@ -17,6 +17,7 @@ defmodule Ichor.Mes.Janitor do
   use GenServer
 
   alias Ichor.Fleet.FleetSupervisor
+  alias Ichor.Gateway.Channels.Tmux
   alias Ichor.Mes.{RunProcess, TeamSpawner}
   alias Ichor.Signals
 
@@ -77,12 +78,12 @@ defmodule Ichor.Mes.Janitor do
     # MES agents are under Fleet.TeamSupervisor with liveness_poll and
     # self-terminate when their window dies. We only need to clean up
     # prompt files and any orphaned Fleet team registrations.
-    if not tmux_session_alive?(session) do
+    if tmux_session_alive?(session) do
+      Signals.emit(:mes_janitor_skipped, %{run_id: run_id, reason: "tmux_alive"})
+    else
       FleetSupervisor.disband_team("mes-#{run_id}")
       TeamSpawner.kill_session(session)
       Signals.emit(:mes_janitor_cleaned, %{run_id: run_id, trigger: "monitor"})
-    else
-      Signals.emit(:mes_janitor_skipped, %{run_id: run_id, reason: "tmux_alive"})
     end
   rescue
     e ->
@@ -93,7 +94,7 @@ defmodule Ichor.Mes.Janitor do
   end
 
   defp tmux_session_alive?(session) do
-    Ichor.Gateway.Channels.Tmux.available?(session)
+    Tmux.available?(session)
   end
 
   defp safe_sweep do

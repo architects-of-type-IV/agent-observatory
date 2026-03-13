@@ -49,18 +49,17 @@ defmodule Ichor.PaneMonitor do
   # ── Private ──────────────────────────────────────────────────────────
 
   defp scan_all_agents(state) do
-    agents = AgentProcess.list_all() |> Enum.map(fn {_id, meta} -> meta end)
+    AgentProcess.list_all()
+    |> Enum.map(fn {_id, meta} -> meta end)
+    |> Enum.filter(&(&1[:status] == :active))
+    |> Enum.reduce(state, &scan_active_agent/2)
+  end
 
-    Enum.reduce(agents, state, fn agent, acc ->
-      if agent[:status] == :active do
-        case resolve_capture_target(agent) do
-          {target, capture_fn} -> scan_agent(agent, target, capture_fn, acc)
-          _ -> acc
-        end
-      else
-        acc
-      end
-    end)
+  defp scan_active_agent(agent, acc) do
+    case resolve_capture_target(agent) do
+      {target, capture_fn} -> scan_agent(agent, target, capture_fn, acc)
+      _ -> acc
+    end
   end
 
   defp resolve_capture_target(%{channels: %{tmux: target}} = _meta) when is_binary(target) do

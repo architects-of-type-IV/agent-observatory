@@ -111,23 +111,24 @@ defmodule Ichor.Mes.ProjectIngestor do
           {Map.put(acc, key, clean_value(key, value)), key}
 
         nil ->
-          # Continuation line for list fields
-          if current_key && list_field?(current_key) && continuation_line?(line) do
-            existing = Map.get(acc, current_key, "")
-
-            appended =
-              if existing == "",
-                do: String.trim(line),
-                else: existing <> ", " <> String.trim(line)
-
-            {Map.put(acc, current_key, appended), current_key}
-          else
-            {acc, current_key}
-          end
+          maybe_append_continuation(acc, current_key, line)
       end
     end)
     |> elem(0)
     |> convert_list_fields()
+  end
+
+  defp maybe_append_continuation(acc, current_key, line) do
+    if current_key && list_field?(current_key) && continuation_line?(line) do
+      existing = Map.get(acc, current_key, "")
+
+      appended =
+        if existing == "", do: String.trim(line), else: existing <> ", " <> String.trim(line)
+
+      {Map.put(acc, current_key, appended), current_key}
+    else
+      {acc, current_key}
+    end
   end
 
   defp parse_key_line(line) do

@@ -53,11 +53,11 @@ defmodule Ichor.Archon.Tools.Events do
         team_filter = Map.get(input.arguments, :team_name)
 
         teams =
-          if team_filter not in [nil, ""] do
+          if team_filter in [nil, ""] do
             FleetTeam.alive!()
-            |> Enum.filter(fn t -> t.name == team_filter end)
           else
             FleetTeam.alive!()
+            |> Enum.filter(fn t -> t.name == team_filter end)
           end
 
         tasks =

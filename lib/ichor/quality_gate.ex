@@ -99,17 +99,15 @@ defmodule Ichor.QualityGate do
   end
 
   defp run_gate_command(command, cwd) do
-    try do
-      case System.cmd("bash", ["-c", command], cd: cwd, stderr_to_stdout: true) do
-        {_output, 0} ->
-          {:ok, :passed}
+    case System.cmd("bash", ["-c", command], cd: cwd, stderr_to_stdout: true) do
+      {_output, 0} ->
+        {:ok, :passed}
 
-        {output, _code} ->
-          {:error, String.trim(output)}
-      end
-    rescue
-      e -> {:error, "Gate command crashed: #{Exception.message(e)}"}
+      {output, _code} ->
+        {:error, String.trim(output)}
     end
+  rescue
+    e -> {:error, "Gate command crashed: #{Exception.message(e)}"}
   end
 
   defp nudge_agent(session_id, task_id, command, output) do

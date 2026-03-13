@@ -21,7 +21,7 @@ defmodule Ichor.Mes.RunProcess do
   use GenServer, restart: :temporary
 
   alias Ichor.Gateway.Channels.Tmux
-  alias Ichor.Mes.TeamSpawner
+  alias Ichor.Mes.{Janitor, TeamSpawner}
   alias Ichor.Signals
   alias Ichor.Signals.Message
 
@@ -92,7 +92,7 @@ defmodule Ichor.Mes.RunProcess do
   def handle_continue(:spawn_team, state) do
     case TeamSpawner.spawn_run(state.run_id, state.team_name) do
       {:ok, session} ->
-        Ichor.Mes.Janitor.monitor_run(state.run_id, self())
+        Janitor.monitor_run(state.run_id, self())
         Process.send_after(self(), :deadline, @deadline_ms)
         schedule_liveness_check()
         Signals.emit(:mes_run_started, %{run_id: state.run_id, session: session})

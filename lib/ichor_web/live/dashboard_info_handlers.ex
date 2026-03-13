@@ -16,6 +16,7 @@ defmodule IchorWeb.DashboardInfoHandlers do
 
   alias Ichor.Gateway.HITLRelay
 
+  alias Ichor.Mes.{Project, Scheduler}
   alias Ichor.Signals.Message
   alias IchorWeb.DashboardArchonHandlers
 
@@ -147,13 +148,13 @@ defmodule IchorWeb.DashboardInfoHandlers do
   # ── Signal-native: MES signals ─────────────────────────────────────
 
   def dispatch(%Message{name: :mes_project_created}, socket) do
-    {:noreply, assign(socket, :mes_projects, Ichor.Mes.Project.list_all!())}
+    {:noreply, assign(socket, :mes_projects, Project.list_all!())}
   end
 
   def dispatch(%Message{name: :mes_cycle_started}, socket) do
     status =
       try do
-        Ichor.Mes.Scheduler.status()
+        Scheduler.status()
       catch
         :exit, _ -> %{tick: 0, active_runs: 0, next_tick_in: 60_000}
       end
@@ -162,7 +163,7 @@ defmodule IchorWeb.DashboardInfoHandlers do
   end
 
   def dispatch(%Message{name: :mes_subsystem_loaded}, socket) do
-    {:noreply, assign(socket, :mes_projects, Ichor.Mes.Project.list_all!())}
+    {:noreply, assign(socket, :mes_projects, Project.list_all!())}
   end
 
   def dispatch(%Message{name: name}, socket)
