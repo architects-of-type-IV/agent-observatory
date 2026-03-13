@@ -74,9 +74,9 @@ defmodule Ichor.Mes.Janitor do
     session = "mes-#{run_id}"
 
     # Only clean up if tmux session is actually dead.
-    # MES agents are under Mes.AgentSupervisor and monitor their own tmux
-    # windows -- they self-terminate when their window dies. We only need
-    # to clean up prompt files and any orphaned Fleet team registrations.
+    # MES agents are under Fleet.TeamSupervisor with liveness_poll and
+    # self-terminate when their window dies. We only need to clean up
+    # prompt files and any orphaned Fleet team registrations.
     if not tmux_session_alive?(session) do
       FleetSupervisor.disband_team("mes-#{run_id}")
       TeamSpawner.kill_session(session)

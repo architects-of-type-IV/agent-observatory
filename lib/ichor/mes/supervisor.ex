@@ -5,11 +5,13 @@ defmodule Ichor.Mes.Supervisor do
   Supervision tree:
 
       Mes.Supervisor
-        +-- Mes.AgentSupervisor (DynamicSupervisor) # MES agent processes
         +-- DynamicSupervisor (Ichor.Mes.RunSupervisor)  # one child per run
         +-- Mes.Janitor                             # monitors RunProcesses, cleans orphans
         +-- Mes.ProjectIngestor                     # ingests project briefs
         +-- Mes.Scheduler                           # ticks every 60s, spawns teams
+
+  MES agents now live under Fleet.TeamSupervisor (via FleetSupervisor), sharing
+  the unified supervision tree with all other agents.
 
   All processes register in the unified Ichor.Registry (started in Application).
   Janitor uses Process.monitor on each RunProcess to guarantee cleanup
@@ -33,8 +35,6 @@ defmodule Ichor.Mes.Supervisor do
   @impl true
   def init(_opts) do
     children = [
-      # MES agent processes -- independent of RunProcess lifecycle, tied to tmux liveness
-      {Ichor.Mes.AgentSupervisor, []},
       {DynamicSupervisor, name: Ichor.Mes.RunSupervisor, strategy: :one_for_one},
       {Ichor.Mes.Janitor, []},
       {Ichor.Mes.ProjectIngestor, []},

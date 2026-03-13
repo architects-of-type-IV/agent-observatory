@@ -21,11 +21,6 @@ defmodule IchorWeb.WebhookController do
         conn
         |> put_status(:unauthorized)
         |> json(%{"status" => "error", "reason" => "invalid signature"})
-
-      {:error, reason} ->
-        conn
-        |> put_status(:bad_request)
-        |> json(%{"status" => "error", "reason" => to_string(reason)})
     end
   end
 

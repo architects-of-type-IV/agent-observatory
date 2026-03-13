@@ -27,22 +27,14 @@ defmodule Ichor.Gateway.Channels.MailboxAdapter do
       metadata: Map.drop(payload, [:content, :from, :type, "content", "from", "type"])
     }
 
-    if AgentProcess.alive?(session_id) do
-      AgentProcess.send_message(session_id, message)
-      Ichor.ProtocolTracker.track_mailbox_delivery(message.id, session_id, from)
-      :ok
-    else
-      # Signal for dashboard visibility even without a process
-      Ichor.Signals.emit(:mailbox_message, session_id, %{message: message})
-
-      Ichor.ProtocolTracker.track_mailbox_delivery(message.id, session_id, from)
-      :ok
-    end
+    AgentProcess.send_message(session_id, message)
+    Ichor.ProtocolTracker.track_mailbox_delivery(message.id, session_id, from)
+    :ok
   end
 
   @impl true
   def available?(session_id) when is_binary(session_id) do
-    is_binary(session_id) and session_id != ""
+    session_id != ""
   end
 
   defp generate_id do

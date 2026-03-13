@@ -242,8 +242,6 @@ defmodule Ichor.Gateway.EventBridge do
     :exit, _ -> log
   end
 
-  defp maybe_enrich_entropy(log), do: log
-
   defp maybe_insert_dag_node(%DecisionLog{} = log, state) do
     with %{event_id: event_id, trace_id: session_id}
          when is_binary(event_id) and is_binary(session_id) <- log.meta,

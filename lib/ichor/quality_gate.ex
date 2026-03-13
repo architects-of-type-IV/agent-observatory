@@ -99,11 +99,8 @@ defmodule Ichor.QualityGate do
   end
 
   defp run_gate_command(command, cwd) do
-    timeout =
-      Application.get_env(:ichor, __MODULE__, []) |> Keyword.get(:timeout, @default_timeout)
-
     try do
-      case System.cmd("bash", ["-c", command], cd: cwd, stderr_to_stdout: true, timeout: timeout) do
+      case System.cmd("bash", ["-c", command], cd: cwd, stderr_to_stdout: true) do
         {_output, 0} ->
           {:ok, :passed}
 

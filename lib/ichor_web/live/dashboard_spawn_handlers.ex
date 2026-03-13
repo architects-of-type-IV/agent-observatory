@@ -32,18 +32,11 @@ defmodule IchorWeb.DashboardSpawnHandlers do
   end
 
   def dispatch("stop_spawned_agent", %{"session" => session_name}, socket) do
-    case Ichor.Operator.stop_agent(session_name) do
-      :ok ->
-        Phoenix.LiveView.push_event(socket, "toast", %{
-          message: "Stopping #{session_name}",
-          type: "success"
-        })
+    :ok = Ichor.Operator.stop_agent(session_name)
 
-      {:error, reason} ->
-        Phoenix.LiveView.push_event(socket, "toast", %{
-          message: "Stop failed: #{inspect(reason)}",
-          type: "error"
-        })
-    end
+    Phoenix.LiveView.push_event(socket, "toast", %{
+      message: "Stopping #{session_name}",
+      type: "success"
+    })
   end
 end

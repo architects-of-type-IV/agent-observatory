@@ -146,8 +146,8 @@ defmodule Ichor.Mes.RunProcess do
   @impl true
   def terminate(_reason, state) do
     Signals.emit(:mes_run_terminated, %{run_id: state.run_id})
-    # MES agents are under Mes.AgentSupervisor and self-terminate when their
-    # tmux windows die. RunProcess does NOT own agent lifecycle.
+    # MES agents are under Fleet.TeamSupervisor and self-terminate when their
+    # tmux windows die (liveness_poll). RunProcess does NOT own agent lifecycle.
     :ok
   end
 

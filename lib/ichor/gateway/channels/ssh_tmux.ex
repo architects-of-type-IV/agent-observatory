@@ -101,7 +101,7 @@ defmodule Ichor.Gateway.Channels.SshTmux do
 
     args = ssh_opts ++ [host, tmux_cmd]
 
-    case System.cmd("ssh", args, stderr_to_stdout: true, timeout: (timeout + 5) * 1_000) do
+    case System.cmd("ssh", args, stderr_to_stdout: true) do
       {output, 0} -> {:ok, output}
       {output, _code} -> {:error, String.trim(output)}
     end

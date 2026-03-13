@@ -6,7 +6,7 @@ defmodule Ichor.Mes.TeamSpawner do
     1. Write per-agent prompt files to ~/.ichor/mes/{run_id}/
     2. Create one tmux session: `mes-{run_id}`
     3. Launch Claude in each window with its prompt file piped via stdin
-    4. Register each agent in BEAM fleet (MesAgentProcess under Mes.AgentSupervisor)
+    4. Register each agent in BEAM fleet (AgentProcess with liveness_poll under Fleet.TeamSupervisor)
     5. Return session name so Scheduler can set a kill timer
 
   All agents start in the observatory project root so they have access to
@@ -14,8 +14,7 @@ defmodule Ichor.Mes.TeamSpawner do
   through the Ichor app via send_message/check_inbox MCP tools.
   """
 
-  alias Ichor.Fleet.FleetSupervisor
-  alias Ichor.Mes.AgentSupervisor
+  alias Ichor.Fleet.{FleetSupervisor, TeamSupervisor}
   alias Ichor.Signals
 
   @prompt_dir Path.expand("~/.ichor/mes")
@@ -277,12 +276,15 @@ defmodule Ichor.Mes.TeamSpawner do
       id: agent_id,
       role: capability_to_role(agent.capability),
       team: team_name,
-      tmux_target: "#{session}:#{agent.name}",
-      run_id: run_id,
-      cwd: cwd
+      liveness_poll: true,
+      backend: %{type: :tmux, session: "#{session}:#{agent.name}"},
+      capabilities: capabilities_for(agent.capability),
+      metadata: %{cwd: cwd, run_id: run_id, model: "sonnet"}
     ]
 
-    case AgentSupervisor.spawn_agent(process_opts) do
+    ensure_team(team_name)
+
+    case TeamSupervisor.spawn_member(team_name, process_opts) do
       {:ok, _pid} ->
         Signals.emit(:mes_agent_registered, %{agent_name: agent.name, session: session})
 
@@ -293,6 +295,20 @@ defmodule Ichor.Mes.TeamSpawner do
         })
     end
   end
+
+  defp ensure_team(name) do
+    case FleetSupervisor.create_team(name: name) do
+      {:ok, _pid} -> :ok
+      {:error, :already_exists} -> :ok
+      {:error, {:already_started, _pid}} -> :ok
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  defp capabilities_for("lead"), do: [:read, :write, :spawn, :assign, :escalate]
+  defp capabilities_for("coordinator"), do: [:read, :write, :spawn, :assign, :escalate, :kill]
+  defp capabilities_for("scout"), do: [:read]
+  defp capabilities_for(_), do: [:read, :write]
 
   # ── Private: Role/Permission Helpers ───────────────────────────────
 

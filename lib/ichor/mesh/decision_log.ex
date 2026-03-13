@@ -19,6 +19,16 @@ defmodule Ichor.Mesh.DecisionLog do
     use Ecto.Schema
     import Ecto.Changeset
 
+    @type t :: %__MODULE__{
+            trace_id: String.t() | nil,
+            timestamp: DateTime.t() | nil,
+            parent_step_id: String.t() | nil,
+            cluster_id: String.t() | nil,
+            source_app: String.t() | nil,
+            tool_use_id: String.t() | nil,
+            event_id: String.t() | nil
+          }
+
     @primary_key false
     embedded_schema do
       field :trace_id, :string
@@ -46,6 +56,13 @@ defmodule Ichor.Mesh.DecisionLog do
     use Ecto.Schema
     import Ecto.Changeset
 
+    @type t :: %__MODULE__{
+            agent_id: String.t() | nil,
+            agent_type: String.t() | nil,
+            capability_version: String.t() | nil,
+            model_name: String.t() | nil
+          }
+
     @primary_key false
     embedded_schema do
       field :agent_id, :string
@@ -68,6 +85,16 @@ defmodule Ichor.Mesh.DecisionLog do
     @moduledoc false
     use Ecto.Schema
     import Ecto.Changeset
+
+    @type t :: %__MODULE__{
+            intent: String.t() | nil,
+            reasoning_chain: [String.t()] | nil,
+            confidence_score: float() | nil,
+            strategy_used: String.t() | nil,
+            entropy_score: float() | nil,
+            hook_event_type: String.t() | nil,
+            summary: String.t() | nil
+          }
 
     @primary_key false
     embedded_schema do
@@ -94,6 +121,17 @@ defmodule Ichor.Mesh.DecisionLog do
     @moduledoc false
     use Ecto.Schema
     import Ecto.Changeset
+
+    @type t :: %__MODULE__{
+            status: :success | :failure | :pending | :skipped | nil,
+            tool_call: String.t() | nil,
+            tool_input: String.t() | nil,
+            tool_output_summary: String.t() | nil,
+            duration_ms: integer() | nil,
+            permission_mode: String.t() | nil,
+            cwd: String.t() | nil,
+            payload: map() | nil
+          }
 
     @primary_key false
     embedded_schema do
@@ -122,6 +160,12 @@ defmodule Ichor.Mesh.DecisionLog do
     use Ecto.Schema
     import Ecto.Changeset
 
+    @type t :: %__MODULE__{
+            added_to_memory: [String.t()] | nil,
+            tokens_consumed: integer() | nil,
+            cumulative_session_cost: float() | nil
+          }
+
     @primary_key false
     embedded_schema do
       field :added_to_memory, {:array, :string}
@@ -141,6 +185,12 @@ defmodule Ichor.Mesh.DecisionLog do
     use Ecto.Schema
     import Ecto.Changeset
 
+    @type t :: %__MODULE__{
+            hitl_required: boolean(),
+            interrupt_signal: String.t() | nil,
+            is_terminal: boolean()
+          }
+
     @primary_key false
     embedded_schema do
       field :hitl_required, :boolean, default: false
@@ -154,6 +204,15 @@ defmodule Ichor.Mesh.DecisionLog do
       cast(struct, params, @all_fields)
     end
   end
+
+  @type t :: %__MODULE__{
+          meta: Meta.t() | nil,
+          identity: Identity.t() | nil,
+          cognition: Cognition.t() | nil,
+          action: Action.t() | nil,
+          state_delta: StateDelta.t() | nil,
+          control: Control.t() | nil
+        }
 
   embedded_schema do
     embeds_one :meta, Meta

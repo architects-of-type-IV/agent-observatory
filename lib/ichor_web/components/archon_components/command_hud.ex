@@ -219,7 +219,7 @@ defmodule IchorWeb.Components.ArchonComponents.CommandHud do
       <div class="archon-output-message-list">
         <div :for={m <- @inbox} class="archon-output-message">
           <div class="flex items-center justify-between">
-            <span class="archon-output-card-name">{safe_str(m["from"]) || "system"}</span>
+            <span class="archon-output-card-name">{safe_str(m["from"] || "system")}</span>
             <span class="archon-output-card-detail">{format_ts(m["timestamp"])}</span>
           </div>
           <div :if={m["to"]} class="archon-output-card-meta">

@@ -290,7 +290,7 @@ defmodule Ichor.Fleet.AgentProcess do
 
   def handle_info(%Ichor.Signals.Message{name: :agent_event, data: %{event: event}}, state) do
     fields =
-      %{last_event_at: DateTime.utc_now()}
+      %{last_event_at: DateTime.utc_now(), status: :active}
       |> maybe_merge(:model, Map.get(event, :model_name))
       |> maybe_merge(:cwd, Map.get(event, :cwd))
       |> maybe_merge(:os_pid, Map.get(event, :os_pid))
@@ -364,7 +364,7 @@ defmodule Ichor.Fleet.AgentProcess do
     state
   end
 
-  @spec update_registry(String.t(), map()) :: :ok
+  @spec update_registry(String.t(), map()) :: :error | {term(), term()}
   defp update_registry(id, fields) do
     Registry.update_value(@type_iv_registry, {:agent, id}, fn meta -> Map.merge(meta, fields) end)
   end

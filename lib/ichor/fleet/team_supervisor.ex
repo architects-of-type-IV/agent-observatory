@@ -41,7 +41,9 @@ defmodule Ichor.Fleet.TeamSupervisor do
   end
 
   @doc "List all child specs (members) of this team."
-  @spec members(String.t()) :: [DynamicSupervisor.child()]
+  @spec members(String.t()) :: [
+          {:undefined, :restarting | pid(), :supervisor | :worker, :dynamic | [atom()]}
+        ]
   def members(team_name) do
     DynamicSupervisor.which_children(via(team_name))
   end
@@ -49,10 +51,7 @@ defmodule Ichor.Fleet.TeamSupervisor do
   @doc "Count living members."
   @spec member_count(String.t()) :: non_neg_integer()
   def member_count(team_name) do
-    case members(team_name) do
-      children when is_list(children) -> length(children)
-      _ -> 0
-    end
+    members(team_name) |> length()
   end
 
   @doc "Get IDs of all members in this team from the agent registry."

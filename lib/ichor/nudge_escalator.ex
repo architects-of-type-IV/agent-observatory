@@ -137,13 +137,8 @@ defmodule Ichor.NudgeEscalator do
   defp maybe_unpause(_session_id, %{level: level}) when level < 2, do: :ok
 
   defp maybe_unpause(session_id, _entry) do
-    case HITLRelay.unpause(session_id, session_id, "ichor-auto") do
-      {:ok, _} ->
-        :ok
-
-      error ->
-        Logger.warning("NudgeEscalator: auto-unpause failed for #{session_id}: #{inspect(error)}")
-    end
+    {:ok, _} = HITLRelay.unpause(session_id, session_id, "ichor-auto")
+    :ok
   end
 
   defp execute_escalation(session_id, agent, level) do
