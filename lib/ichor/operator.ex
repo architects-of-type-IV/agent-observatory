@@ -14,6 +14,7 @@ defmodule Ichor.Operator do
   """
 
   alias Ichor.Fleet.{AgentProcess, TeamSupervisor}
+  alias Ichor.Gateway.Channels.Tmux
   alias Ichor.Gateway.Router
 
   @from "operator"
@@ -126,7 +127,10 @@ defmodule Ichor.Operator do
         raw -> raw
       end
 
-    # Deliver via PubSub for dashboard visibility even without a BEAM process
+    # Try direct tmux delivery for agents that have tmux sessions but no BEAM process
+    tmux_delivered = try_tmux_fallback(session_id, content)
+
+    # Always emit PubSub for dashboard visibility
     message = %{
       id: :crypto.strong_rand_bytes(8) |> Base.encode16(case: :lower),
       from: @from,
@@ -139,7 +143,32 @@ defmodule Ichor.Operator do
 
     Ichor.Signals.emit(:mailbox_message, session_id, %{message: message})
 
-    {:ok, 1}
+    {:ok, if(tmux_delivered, do: 1, else: 0)}
+  end
+
+  # Try to deliver directly via tmux when no BEAM process exists.
+  # Handles both "session-window" format (e.g. "mes-abc:coordinator")
+  # and plain session IDs where the tmux session matches the agent ID.
+  defp try_tmux_fallback(session_id, content) do
+    targets = tmux_targets_for(session_id)
+
+    Enum.any?(targets, fn target ->
+      if Tmux.available?(target) do
+        Tmux.deliver(target, %{content: content, from: @from}) == :ok
+      else
+        false
+      end
+    end)
+  end
+
+  # Build a list of tmux targets to try for a given session_id.
+  # MES agents: "mes-abc-coordinator" -> try "mes-abc:coordinator" (session:window)
+  # Regular agents: try the session_id directly as a tmux session name.
+  defp tmux_targets_for(session_id) do
+    case Regex.run(~r/^(mes-[a-f0-9]+)-(.+)$/, session_id) do
+      [_, session, window] -> ["#{session}:#{window}", session_id]
+      _ -> [session_id]
+    end
   end
 
   defp normalize_target("agent:" <> _ = channel), do: channel

@@ -14,7 +14,7 @@ defmodule Ichor.Fleet.AgentProcess do
   alias Ichor.Gateway.Channels.Tmux
 
   @max_message_buffer 200
-  @type_iv_registry Ichor.Fleet.ProcessRegistry
+  @type_iv_registry Ichor.Registry
   @pg_scope :ichor_agents
 
   @type status :: :initializing | :active | :paused | :terminating
@@ -103,7 +103,7 @@ defmodule Ichor.Fleet.AgentProcess do
   @doc "Check if an agent process is alive by ID."
   @spec alive?(String.t()) :: boolean()
   def alive?(agent_id) do
-    case Registry.lookup(@type_iv_registry, agent_id) do
+    case Registry.lookup(@type_iv_registry, {:agent, agent_id}) do
       [{_pid, _}] -> true
       [] -> false
     end
@@ -112,13 +112,15 @@ defmodule Ichor.Fleet.AgentProcess do
   @doc "List all registered agent IDs with metadata."
   @spec list_all() :: [{String.t(), map()}]
   def list_all do
-    Registry.select(@type_iv_registry, [{{:"$1", :_, :"$3"}, [], [{{:"$1", :"$3"}}]}])
+    Registry.select(@type_iv_registry, [
+      {{{:agent, :"$1"}, :_, :"$3"}, [], [{{:"$1", :"$3"}}]}
+    ])
   end
 
   @doc "Lookup a specific agent by ID. Returns {pid, metadata} or nil."
   @spec lookup(String.t()) :: {pid(), map()} | nil
   def lookup(agent_id) do
-    case Registry.lookup(@type_iv_registry, agent_id) do
+    case Registry.lookup(@type_iv_registry, {:agent, agent_id}) do
       [{pid, meta}] -> {pid, meta}
       [] -> nil
     end
@@ -251,7 +253,7 @@ defmodule Ichor.Fleet.AgentProcess do
   defp kill_tmux_backend(_), do: :ok
 
   @spec via(String.t()) :: {:via, module(), tuple()}
-  defp via(id), do: {:via, Registry, {@type_iv_registry, id, %{}}}
+  defp via(id), do: {:via, Registry, {@type_iv_registry, {:agent, id}, %{}}}
 
   @spec lookup_remote(String.t()) :: pid() | nil
   defp lookup_remote(agent_id) do
@@ -277,7 +279,7 @@ defmodule Ichor.Fleet.AgentProcess do
 
   @spec update_registry(String.t(), map()) :: :ok
   defp update_registry(id, fields) do
-    Registry.update_value(@type_iv_registry, id, fn meta -> Map.merge(meta, fields) end)
+    Registry.update_value(@type_iv_registry, {:agent, id}, fn meta -> Map.merge(meta, fields) end)
   end
 
   @spec broadcast_lifecycle(tuple()) :: :ok

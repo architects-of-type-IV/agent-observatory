@@ -6,18 +6,19 @@
 - **Archon**: the Architect's agent interface. NOT a rename of Operator.
 - **Operator**: current thin messaging relay. Will eventually be replaced by Archon.
 
-## Registry Architecture (2026-03-13, IN PROGRESS)
+## Registry Architecture (2026-03-13, COMPLETE for process registries)
 - User directive: **ONE registry for the entire ICHOR** -- `Ichor.Registry`
-- Current state: 5 fragmented registries (Fleet.ProcessRegistry, Fleet.TeamRegistry, Mes.Registry, Gateway.AgentRegistry ETS, :pg)
-- Target: single Elixir Registry with compound keys `{:agent, id}`, `{:team, name}`, `{:run, id}`
-- Gateway.AgentRegistry (50 refs, ETS-based) is the largest migration surface
+- **DONE**: Consolidated Fleet.ProcessRegistry + Fleet.TeamRegistry + Mes.Registry into `Ichor.Registry`
+- Compound keys: `{:agent, id}`, `{:team, name}`, `{:run, id}`
+- **Remaining**: Gateway.AgentRegistry (50 refs, ETS-based display cache) -- separate effort
+- **Remaining**: `:pg` groups for cluster-wide discovery -- stays as-is (different purpose)
 
-## MES Supervision Tree (2026-03-13, PARTIALLY COMPLETE)
+## MES Supervision Tree (2026-03-13, COMPLETE)
 - **MES agents MUST be independent of RunProcess lifecycle** -- tmux is source of truth
 - `Mes.AgentSupervisor` (DynamicSupervisor) owns MES agents, NOT Fleet.TeamSupervisor
 - `MesAgentProcess` GenServer: monitors own tmux window (15s interval), self-terminates when dead
 - RunProcess is spawner only -- terminate does NOT kill team or tmux
-- **Signals.Catalog crash**: new signals must be added BEFORE any process can emit them. `lookup!/1` raises on unknown.
+- **Signals.Catalog**: new signals must be added BEFORE any process can emit them. `lookup!/1` raises on unknown. `:mes_agent_stopped` and `:mes_agent_tmux_gone` now added.
 - **Elixir Registry auto-cleanup**: when a process dies, its entry is automatically removed. Good for live state, bad for historical display. EventBuffer covers history.
 
 ## Agent Identity (CRITICAL)

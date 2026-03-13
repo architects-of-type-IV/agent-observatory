@@ -3,14 +3,14 @@ defmodule Ichor.Fleet.TeamSupervisor do
   A team is a DynamicSupervisor. Its children are AgentProcess GenServers.
   The supervisor's restart strategy governs how member failures propagate.
 
-  Teams register in `Ichor.Fleet.TeamRegistry` for discovery.
+  Teams register in `Ichor.Registry` via `{:team, name}` for discovery.
   """
 
   use DynamicSupervisor
 
   alias Ichor.Fleet.AgentProcess
 
-  @team_registry Ichor.Fleet.TeamRegistry
+  @team_registry Ichor.Registry
   @pg_scope :ichor_agents
 
   defstruct [:name, :project, :strategy, :lead_id, metadata: %{}]
@@ -34,7 +34,7 @@ defmodule Ichor.Fleet.TeamSupervisor do
   @doc "Terminate a specific member by agent ID."
   @spec terminate_member(String.t(), String.t()) :: :ok | {:error, :not_found}
   def terminate_member(team_name, agent_id) do
-    case Registry.lookup(Ichor.Fleet.ProcessRegistry, agent_id) do
+    case Registry.lookup(Ichor.Registry, {:agent, agent_id}) do
       [{pid, _}] -> DynamicSupervisor.terminate_child(via(team_name), pid)
       [] -> {:error, :not_found}
     end
@@ -66,7 +66,7 @@ defmodule Ichor.Fleet.TeamSupervisor do
   @doc "Check if a team exists."
   @spec exists?(String.t()) :: boolean()
   def exists?(team_name) do
-    case Registry.lookup(@team_registry, team_name) do
+    case Registry.lookup(@team_registry, {:team, team_name}) do
       [{_pid, _}] -> true
       [] -> false
     end
@@ -75,7 +75,9 @@ defmodule Ichor.Fleet.TeamSupervisor do
   @doc "List all registered team names with metadata (local node)."
   @spec list_all() :: [{String.t(), map()}]
   def list_all do
-    Registry.select(@team_registry, [{{:"$1", :_, :"$3"}, [], [{{:"$1", :"$3"}}]}])
+    Registry.select(@team_registry, [
+      {{{:team, :"$1"}, :_, :"$3"}, [], [{{:"$1", :"$3"}}]}
+    ])
   end
 
   @doc "List all team names across the cluster via :pg."
@@ -91,7 +93,7 @@ defmodule Ichor.Fleet.TeamSupervisor do
 
   # ── Server Callbacks ────────────────────────────────────────────────
 
-  defp via(name), do: {:via, Registry, {@team_registry, name, %{}}}
+  defp via(name), do: {:via, Registry, {@team_registry, {:team, name}, %{}}}
 
   @impl true
   def init(opts) do
@@ -99,7 +101,7 @@ defmodule Ichor.Fleet.TeamSupervisor do
     strategy = Keyword.get(opts, :strategy, :one_for_one)
     project = Keyword.get(opts, :project)
 
-    Registry.update_value(@team_registry, name, fn _ ->
+    Registry.update_value(@team_registry, {:team, name}, fn _ ->
       %{project: project, strategy: strategy}
     end)
 

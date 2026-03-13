@@ -14,7 +14,7 @@ defmodule Ichor.Mes.RunProcess do
   counting this run as "active" but does NOT kill the tmux session.
   Cleanup only happens when all tmux windows are gone.
 
-  Registered in Ichor.Mes.Registry via `{:mes_run, run_id}`.
+  Registered in Ichor.Registry via `{:run, run_id}`.
   Supervised under Ichor.Mes.RunSupervisor (DynamicSupervisor).
   """
 
@@ -38,12 +38,12 @@ defmodule Ichor.Mes.RunProcess do
     GenServer.start_link(__MODULE__, opts, name: via(run_id))
   end
 
-  @spec via(String.t()) :: {:via, Registry, {Ichor.Mes.Registry, {:mes_run, String.t()}}}
-  def via(run_id), do: {:via, Registry, {Ichor.Mes.Registry, {:mes_run, run_id}}}
+  @spec via(String.t()) :: {:via, Registry, {Ichor.Registry, {:run, String.t()}}}
+  def via(run_id), do: {:via, Registry, {Ichor.Registry, {:run, run_id}}}
 
   @spec lookup(String.t()) :: pid() | nil
   def lookup(run_id) do
-    case Registry.lookup(Ichor.Mes.Registry, {:mes_run, run_id}) do
+    case Registry.lookup(Ichor.Registry, {:run, run_id}) do
       [{pid, _}] -> pid
       [] -> nil
     end
@@ -51,8 +51,8 @@ defmodule Ichor.Mes.RunProcess do
 
   @spec list_all() :: [{String.t(), pid()}]
   def list_all do
-    Registry.select(Ichor.Mes.Registry, [
-      {{{:mes_run, :"$1"}, :"$2", :_}, [], [{{:"$1", :"$2"}}]}
+    Registry.select(Ichor.Registry, [
+      {{{:run, :"$1"}, :"$2", :_}, [], [{{:"$1", :"$2"}}]}
     ])
   end
 

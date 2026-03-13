@@ -1,6 +1,6 @@
 # ICHOR IV Progress
 
-## MES Registry & Supervision Fix (2026-03-13) -- IN PROGRESS
+## MES Registry & Supervision Fix (2026-03-13) -- REGISTRY DONE
 - [x] Diagnosed MES agents not registering (5 tmux windows, 0 BEAM processes)
 - [x] Created Mes.AgentSupervisor (DynamicSupervisor, independent of RunProcess)
 - [x] Created Mes.MesAgentProcess (GenServer, tmux-liveness-driven lifecycle)
@@ -10,8 +10,9 @@
 - [x] Fixed LoadAgents.filter_stale (ghost detection for zero-signal agents)
 - [x] Updated TeamSpawner to register under Mes.AgentSupervisor
 - [x] Compiled clean (243 files, 0 warnings)
-- [ ] Add missing signals to Catalog (:mes_agent_stopped, :mes_agent_tmux_gone)
-- [ ] Consolidate to single Ichor.Registry (user directive)
+- [x] Added missing signals to Catalog (:mes_agent_stopped, :mes_agent_tmux_gone)
+- [x] Consolidated to single Ichor.Registry (3 registries -> 1 with compound keys)
+- [x] /simplify fixes (duplicate helpers, scheduler N+1)
 - [ ] Verify MES agents appear in dashboard
 
 ## Signals Convention Migration (2026-03-11) -- COMPLETE

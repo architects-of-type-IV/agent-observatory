@@ -2,15 +2,16 @@ defmodule Ichor.Mes.Supervisor do
   @moduledoc """
   Top-level supervisor for the MES subsystem.
 
-  Supervision tree (rest_for_one -- Registry must start before RunSupervisor):
+  Supervision tree:
 
       Mes.Supervisor
-        +-- Registry (Ichor.Mes.Registry)          # names MES processes
+        +-- Mes.AgentSupervisor (DynamicSupervisor) # MES agent processes
         +-- DynamicSupervisor (Ichor.Mes.RunSupervisor)  # one child per run
         +-- Mes.Janitor                             # monitors RunProcesses, cleans orphans
         +-- Mes.ProjectIngestor                     # ingests project briefs
         +-- Mes.Scheduler                           # ticks every 60s, spawns teams
 
+  All processes register in the unified Ichor.Registry (started in Application).
   Janitor uses Process.monitor on each RunProcess to guarantee cleanup
   even when terminate/2 does not fire (brutal kills, supervisor restarts).
 
@@ -32,7 +33,6 @@ defmodule Ichor.Mes.Supervisor do
   @impl true
   def init(_opts) do
     children = [
-      {Registry, keys: :unique, name: Ichor.Mes.Registry},
       # MES agent processes -- independent of RunProcess lifecycle, tied to tmux liveness
       {Ichor.Mes.AgentSupervisor, []},
       {DynamicSupervisor, name: Ichor.Mes.RunSupervisor, strategy: :one_for_one},

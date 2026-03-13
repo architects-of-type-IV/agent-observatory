@@ -7,7 +7,7 @@ defmodule Ichor.Mes.MesAgentProcess do
   This process monitors the window and self-terminates when it dies. It does NOT
   kill the tmux window on terminate -- tmux owns the agent's Claude process.
 
-  Registers in Fleet.ProcessRegistry so the dashboard and messaging pipeline
+  Registers in Ichor.Registry so the dashboard and messaging pipeline
   see MES agents as first-class fleet members.
   """
 
@@ -16,7 +16,7 @@ defmodule Ichor.Mes.MesAgentProcess do
   alias Ichor.Gateway.Channels.Tmux
   alias Ichor.Signals
 
-  @type_iv_registry Ichor.Fleet.ProcessRegistry
+  @type_iv_registry Ichor.Registry
   @pg_scope :ichor_agents
   @liveness_interval :timer.seconds(15)
   @max_message_buffer 200
@@ -61,7 +61,7 @@ defmodule Ichor.Mes.MesAgentProcess do
     }
 
     # Register in fleet-wide ProcessRegistry for dashboard + messaging visibility
-    Registry.update_value(@type_iv_registry, id, fn _ ->
+    Registry.update_value(@type_iv_registry, {:agent, id}, fn _ ->
       %{
         role: role,
         team: team,
@@ -132,7 +132,7 @@ defmodule Ichor.Mes.MesAgentProcess do
 
   # ── Private ─────────────────────────────────────────────────────────
 
-  defp via(id), do: {:via, Registry, {@type_iv_registry, id, %{}}}
+  defp via(id), do: {:via, Registry, {@type_iv_registry, {:agent, id}, %{}}}
 
   defp schedule_liveness_check do
     Process.send_after(self(), :check_liveness, @liveness_interval)

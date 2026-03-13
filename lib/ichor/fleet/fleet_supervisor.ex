@@ -48,7 +48,7 @@ defmodule Ichor.Fleet.FleetSupervisor do
   @doc "Disband a team, terminating all its members."
   @spec disband_team(String.t()) :: :ok | {:error, :not_found}
   def disband_team(team_name) do
-    case Registry.lookup(Ichor.Fleet.TeamRegistry, team_name) do
+    case Registry.lookup(Ichor.Registry, {:team, team_name}) do
       [{pid, _}] ->
         result = DynamicSupervisor.terminate_child(__MODULE__, pid)
 
@@ -92,7 +92,7 @@ defmodule Ichor.Fleet.FleetSupervisor do
   @doc "Terminate a standalone agent by ID."
   @spec terminate_agent(String.t()) :: :ok | {:error, :not_found}
   def terminate_agent(agent_id) do
-    case Registry.lookup(Ichor.Fleet.ProcessRegistry, agent_id) do
+    case Registry.lookup(Ichor.Registry, {:agent, agent_id}) do
       [{pid, _}] -> DynamicSupervisor.terminate_child(__MODULE__, pid)
       [] -> {:error, :not_found}
     end

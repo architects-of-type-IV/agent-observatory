@@ -109,14 +109,18 @@ defmodule IchorWeb.DashboardSlideoutHandlers do
     message_items =
       messages
       |> Enum.filter(fn m ->
-        m[:session_id] == session_id || m[:to] == session_id || m[:from] == session_id
+        Map.get(m, :session_id) == session_id ||
+          Map.get(m, :to) == session_id ||
+          Map.get(m, :from) == session_id ||
+          Map.get(m, :sender_session) == session_id ||
+          Map.get(m, :recipient) == session_id
       end)
       |> Enum.map(fn m ->
         %{
           type: :message,
-          timestamp: m[:timestamp] || m[:inserted_at],
-          content: m[:content] || m[:message] || "",
-          id: "msg-#{m[:id] || :erlang.unique_integer([:positive])}"
+          timestamp: Map.get(m, :timestamp) || Map.get(m, :inserted_at),
+          content: Map.get(m, :content) || Map.get(m, :message) || "",
+          id: "msg-#{Map.get(m, :id) || :erlang.unique_integer([:positive])}"
         }
       end)
 

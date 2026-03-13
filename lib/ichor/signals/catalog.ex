@@ -340,6 +340,31 @@ defmodule Ichor.Signals.Catalog do
       category: :mes,
       keys: [:project_id, :subsystem, :modules],
       doc: "Compiled subsystem hot-loaded into BEAM"
+    },
+    mes_quality_gate_passed: %{
+      category: :mes,
+      keys: [:run_id, :gate, :session_id],
+      doc: "MES quality gate check passed"
+    },
+    mes_quality_gate_failed: %{
+      category: :mes,
+      keys: [:run_id, :gate, :session_id, :reason],
+      doc: "MES quality gate check failed"
+    },
+    mes_quality_gate_escalated: %{
+      category: :mes,
+      keys: [:run_id, :gate, :failure_count],
+      doc: "MES quality gate escalated after repeated failures"
+    },
+    mes_agent_stopped: %{
+      category: :mes,
+      keys: [:agent_id, :role, :team, :reason],
+      doc: "MES agent process stopped (tmux window died or explicit stop)"
+    },
+    mes_agent_tmux_gone: %{
+      category: :mes,
+      keys: [:agent_id, :tmux_target],
+      doc: "MES agent's tmux window no longer exists"
     }
   }
 

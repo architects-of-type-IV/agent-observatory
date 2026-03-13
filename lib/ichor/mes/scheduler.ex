@@ -3,7 +3,7 @@ defmodule Ichor.Mes.Scheduler do
   Fires every 60 seconds. Spawns one MES run per tick as a RunProcess
   under the Mes.RunSupervisor DynamicSupervisor.
 
-  Active run count is derived from the Mes.Registry (no local state tracking).
+  Active run count is derived from Ichor.Registry (no local state tracking).
   RunProcess owns its own kill timer. Cleanup is handled by Mes.Janitor.
   """
 
@@ -34,8 +34,19 @@ defmodule Ichor.Mes.Scheduler do
 
   @impl true
   def handle_info(:tick, state) do
-    active = length(RunProcess.list_all())
-    Signals.emit(:mes_tick, %{tick: state.tick, active_runs: active})
+    all = RunProcess.list_all()
+    total = length(all)
+
+    active =
+      Enum.count(all, fn {_run_id, pid} ->
+        try do
+          not GenServer.call(pid, :deadline_passed?, 1_000)
+        catch
+          :exit, _ -> false
+        end
+      end)
+
+    Signals.emit(:mes_tick, %{tick: state.tick, active_runs: active, total_runs: total})
 
     if active < @max_concurrent do
       spawn_run()
@@ -49,10 +60,22 @@ defmodule Ichor.Mes.Scheduler do
 
   @impl true
   def handle_call(:status, _from, state) do
+    all = RunProcess.list_all()
+
+    active_count =
+      Enum.count(all, fn {_run_id, pid} ->
+        try do
+          not GenServer.call(pid, :deadline_passed?, 1_000)
+        catch
+          :exit, _ -> false
+        end
+      end)
+
     {:reply,
      %{
        tick: state.tick,
-       active_runs: length(RunProcess.list_all()),
+       active_runs: active_count,
+       total_runs: length(all),
        next_tick_in: @tick_interval
      }, state}
   end

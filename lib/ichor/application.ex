@@ -19,9 +19,8 @@ defmodule Ichor.Application do
       {DNSCluster, query: Application.get_env(:ichor, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: Ichor.PubSub},
 
-      # BEAM-native fleet registries (must start before FleetSupervisor)
-      {Registry, keys: :unique, name: Ichor.Fleet.ProcessRegistry},
-      {Registry, keys: :unique, name: Ichor.Fleet.TeamRegistry},
+      # Single BEAM-native registry for all process types (must start before FleetSupervisor)
+      {Registry, keys: :unique, name: Ichor.Registry},
 
       # :pg scope for cluster-wide process discovery
       %{id: :pg_ichor_agents, start: {:pg, :start_link, [:ichor_agents]}},
@@ -46,6 +45,9 @@ defmodule Ichor.Application do
 
       # MES subsystem (Registry + DynamicSupervisor + ProjectIngestor + Scheduler)
       Ichor.Mes.Supervisor,
+
+      # Memories bridge (signals -> knowledge graph)
+      Ichor.MemoriesBridge,
 
       # Monitoring services (independent observers)
       Ichor.MonitorSupervisor,
