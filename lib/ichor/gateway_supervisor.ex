@@ -1,10 +1,10 @@
 defmodule Ichor.GatewaySupervisor do
   @moduledoc """
-  Supervises gateway services: agent registry, entropy tracker, capability map,
+  Supervises gateway services: entropy tracker, capability map,
   heartbeat manager, cron scheduler, webhook router, and HITL relay.
 
-  Uses rest_for_one: AgentRegistry must start first. If it crashes, all downstream
-  gateway services restart in order (they depend on the registry for routing).
+  Uses one_for_one: services are independent. Agent lifecycle is owned by
+  Ichor.Registry (via FleetSupervisor/TeamSupervisor), not this supervisor.
   """
   use Supervisor
 
@@ -15,7 +15,6 @@ defmodule Ichor.GatewaySupervisor do
   @impl true
   def init(_opts) do
     children = [
-      {Ichor.Gateway.AgentRegistry, []},
       {Ichor.Gateway.TmuxDiscovery, []},
       {Ichor.Gateway.EntropyTracker, []},
       {Ichor.Gateway.CapabilityMap, []},
@@ -26,6 +25,6 @@ defmodule Ichor.GatewaySupervisor do
       {Ichor.Gateway.OutputCapture, []}
     ]
 
-    Supervisor.init(children, strategy: :rest_for_one)
+    Supervisor.init(children, strategy: :one_for_one)
   end
 end

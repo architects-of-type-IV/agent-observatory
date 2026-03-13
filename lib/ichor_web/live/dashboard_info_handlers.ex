@@ -60,6 +60,9 @@ defmodule IchorWeb.DashboardInfoHandlers do
   def dispatch(%Message{name: :registry_changed}, socket),
     do: {:noreply, schedule_recompute(socket)}
 
+  def dispatch(%Message{name: :fleet_changed}, socket),
+    do: {:noreply, schedule_recompute(socket)}
+
   # ── Signal-native: lightweight events ──────────────────────────────────
 
   def dispatch(%Message{name: :heartbeat}, socket) do

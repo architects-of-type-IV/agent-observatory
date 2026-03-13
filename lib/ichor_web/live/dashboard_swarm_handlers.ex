@@ -165,12 +165,6 @@ defmodule IchorWeb.DashboardSwarmHandlers do
             message: "No delivery channel for #{String.slice(to, 0, 12)}",
             type: "warning"
           })
-
-        {:error, _} ->
-          Phoenix.LiveView.push_event(socket, "toast", %{
-            message: "Send failed",
-            type: "error"
-          })
       end
     else
       socket

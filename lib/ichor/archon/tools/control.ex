@@ -9,7 +9,6 @@ defmodule Ichor.Archon.Tools.Control do
 
   alias Ichor.AgentSpawner
   alias Ichor.Fleet.Agent, as: FleetAgent
-  alias Ichor.Gateway.AgentRegistry
   alias Ichor.Gateway.HITLRelay
 
   actions do
@@ -181,7 +180,7 @@ defmodule Ichor.Archon.Tools.Control do
       description("Trigger an immediate GC sweep of dead agents from the registry.")
 
       run(fn _input, _context ->
-        AgentRegistry.purge_stale()
+        # Ichor.Registry auto-cleans on process death -- no explicit sweep needed.
         {:ok, %{"swept" => true}}
       end)
     end

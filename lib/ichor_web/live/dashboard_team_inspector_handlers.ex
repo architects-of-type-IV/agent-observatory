@@ -83,9 +83,6 @@ defmodule IchorWeb.DashboardTeamInspectorHandlers do
           message: "Sent to #{delivered} agent(s)",
           type: "success"
         })
-
-      {:error, _reason} ->
-        push_event(socket, "toast", %{message: "Delivery failed", type: "error"})
     end
   end
 

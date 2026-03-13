@@ -7,7 +7,7 @@ defmodule Ichor.Gateway.OutputCapture do
   use GenServer
   require Logger
 
-  alias Ichor.Gateway.AgentRegistry
+  alias Ichor.Fleet.AgentProcess
   alias Ichor.Gateway.Channels.Tmux
 
   @capture_poll_interval 1_500
@@ -69,8 +69,12 @@ defmodule Ichor.Gateway.OutputCapture do
 
   defp capture_watched(watched, last_capture) do
     Enum.reduce(watched, last_capture, fn session_id, acc ->
-      agent = AgentRegistry.get(session_id)
-      tmux_target = agent && agent.channels.tmux
+      tmux_target =
+        case AgentProcess.lookup(session_id) do
+          {_pid, %{channels: %{tmux: target}}} when is_binary(target) -> target
+          _ -> nil
+        end
+
       capture_session(session_id, tmux_target, acc)
     end)
   end

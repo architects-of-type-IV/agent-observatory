@@ -57,13 +57,8 @@ defmodule Ichor.Archon.Tools.Messages do
         to = input.arguments.to
         content = input.arguments.content
 
-        case Operator.send(to, content) do
-          {:ok, delivered} ->
-            {:ok, %{"status" => "sent", "to" => to, "delivered" => delivered}}
-
-          {:error, reason} ->
-            {:ok, %{"status" => "failed", "to" => to, "error" => inspect(reason)}}
-        end
+        {:ok, delivered} = Operator.send(to, content)
+        {:ok, %{"status" => "sent", "to" => to, "delivered" => delivered}}
       end)
     end
   end

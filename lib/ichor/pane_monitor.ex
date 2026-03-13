@@ -14,7 +14,7 @@ defmodule Ichor.PaneMonitor do
   use GenServer
   require Logger
 
-  alias Ichor.Gateway.AgentRegistry
+  alias Ichor.Fleet.AgentProcess
   alias Ichor.Gateway.Channels.{SshTmux, Tmux}
 
   @capture_lines 30
@@ -49,24 +49,25 @@ defmodule Ichor.PaneMonitor do
   # ── Private ──────────────────────────────────────────────────────────
 
   defp scan_all_agents(state) do
-    agents = AgentRegistry.list_all()
+    agents = AgentProcess.list_all() |> Enum.map(fn {_id, meta} -> meta end)
 
     Enum.reduce(agents, state, fn agent, acc ->
-      case resolve_capture_target(agent) do
-        {target, capture_fn} when agent.status == :active ->
-          scan_agent(agent, target, capture_fn, acc)
-
-        _ ->
-          acc
+      if agent[:status] == :active do
+        case resolve_capture_target(agent) do
+          {target, capture_fn} -> scan_agent(agent, target, capture_fn, acc)
+          _ -> acc
+        end
+      else
+        acc
       end
     end)
   end
 
-  defp resolve_capture_target(%{channels: %{tmux: target}}) when is_binary(target) do
+  defp resolve_capture_target(%{channels: %{tmux: target}} = _meta) when is_binary(target) do
     {target, &Tmux.capture_pane(&1, lines: @capture_lines)}
   end
 
-  defp resolve_capture_target(%{channels: %{ssh_tmux: target}}) when is_binary(target) do
+  defp resolve_capture_target(%{channels: %{ssh_tmux: target}} = _meta) when is_binary(target) do
     {target, &SshTmux.capture_pane(&1, lines: @capture_lines)}
   end
 
@@ -117,14 +118,15 @@ defmodule Ichor.PaneMonitor do
   defp check_done_signal(agent, text, state) do
     case Regex.run(~r/ICHOR_DONE:\s*(.+)/, text) do
       [_, summary] ->
-        signal_key = {agent.session_id, :done}
+        session_id = agent[:session_id] || agent[:id]
+        signal_key = {session_id, :done}
 
         # Deduplicate: only fire once per signal
         if Map.get(state.signals, signal_key) != summary do
-          Logger.info("PaneMonitor: DONE signal from #{agent.id}: #{summary}")
+          Logger.info("PaneMonitor: DONE signal from #{agent[:id]}: #{summary}")
 
           Ichor.Signals.emit(:agent_done, %{
-            session_id: agent.session_id,
+            session_id: session_id,
             summary: String.trim(summary)
           })
 
@@ -141,13 +143,14 @@ defmodule Ichor.PaneMonitor do
   defp check_blocked_signal(agent, text, state) do
     case Regex.run(~r/ICHOR_BLOCKED:\s*(.+)/, text) do
       [_, reason] ->
-        signal_key = {agent.session_id, :blocked}
+        session_id = agent[:session_id] || agent[:id]
+        signal_key = {session_id, :blocked}
 
         if Map.get(state.signals, signal_key) != reason do
-          Logger.info("PaneMonitor: BLOCKED signal from #{agent.id}: #{reason}")
+          Logger.info("PaneMonitor: BLOCKED signal from #{agent[:id]}: #{reason}")
 
           Ichor.Signals.emit(:agent_blocked, %{
-            session_id: agent.session_id,
+            session_id: session_id,
             reason: String.trim(reason)
           })
 
@@ -163,7 +166,12 @@ defmodule Ichor.PaneMonitor do
 
   defp check_activity(agent, _text, state) do
     # Any new output means the agent is active -- update registry timestamp
-    AgentRegistry.touch(agent.session_id)
+    session_id = agent[:session_id] || agent[:id]
+
+    if session_id do
+      AgentProcess.update_fields(session_id, %{last_event_at: DateTime.utc_now()})
+    end
+
     state
   end
 end

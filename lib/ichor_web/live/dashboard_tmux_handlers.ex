@@ -10,7 +10,6 @@ defmodule IchorWeb.DashboardTmuxHandlers do
   import IchorWeb.DashboardToast, only: [push_toast: 3]
 
   alias Ichor.AgentSpawner
-  alias Ichor.Gateway.AgentRegistry
   alias Ichor.Gateway.Channels.Tmux
 
   def dispatch("connect_tmux", p, s), do: handle_connect_tmux(p, s)
@@ -100,9 +99,6 @@ defmodule IchorWeb.DashboardTmuxHandlers do
       session ->
         Tmux.run_command(["kill-session", "-t", session])
 
-        AgentRegistry.remove(session)
-        AgentRegistry.remove("tmux:#{session}")
-
         panels = List.delete(socket.assigns.tmux_panels, session)
         outputs = Map.delete(socket.assigns.tmux_outputs, session)
         next_active = List.first(panels)
@@ -120,7 +116,6 @@ defmodule IchorWeb.DashboardTmuxHandlers do
     case Tmux.run_command(["has-session", "-t", session_name]) do
       {:ok, _} ->
         Tmux.run_command(["kill-session", "-t", session_name])
-        AgentRegistry.remove(session_name)
 
         # Also remove from open panels if connected
         panels = List.delete(socket.assigns.tmux_panels, session_name)
@@ -139,9 +134,7 @@ defmodule IchorWeb.DashboardTmuxHandlers do
         |> push_toast(:warning, "Killed tmux: #{session_name}")
 
       _ ->
-        # Session already gone -- just clean up registry
-        AgentRegistry.remove(session_name)
-
+        # Session already gone -- process death already cleaned up Ichor.Registry
         socket
         |> assign(:tmux_sessions, List.delete(socket.assigns.tmux_sessions, session_name))
         |> push_toast(:info, "#{session_name} already gone")

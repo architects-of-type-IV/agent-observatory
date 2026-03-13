@@ -12,7 +12,6 @@ defmodule Ichor.Gateway.TmuxDiscovery do
 
   alias Ichor.Fleet.AgentProcess
   alias Ichor.Fleet.FleetSupervisor
-  alias Ichor.Gateway.AgentRegistry
   alias Ichor.Gateway.Channels.Tmux
 
   @poll_interval 5_000
@@ -45,12 +44,12 @@ defmodule Ichor.Gateway.TmuxDiscovery do
   defp poll do
     tmux_sessions = Tmux.list_sessions()
     tmux_panes = Tmux.list_panes()
-    all_agents = AgentRegistry.list_all_raw()
+    all_agents = AgentProcess.list_all()
 
     ensure_beam_processes(tmux_sessions)
     enrich_tmux_channels(tmux_sessions, tmux_panes, all_agents)
 
-    AgentRegistry.broadcast_update()
+    Ichor.Signals.emit(:fleet_changed, %{})
   end
 
   # Enforce the invariant: every agent tmux session has a BEAM process.
@@ -103,24 +102,30 @@ defmodule Ichor.Gateway.TmuxDiscovery do
     end)
   end
 
-  defp maybe_update_tmux_channel(session_id, agent, tmux_sessions, tmux_panes) do
-    current_tmux = agent.channels.tmux
+  defp maybe_update_tmux_channel(agent_id, meta, tmux_sessions, tmux_panes) do
+    current_tmux = get_in(meta, [:channels, :tmux])
 
     if current_tmux && target_alive?(current_tmux, tmux_sessions, tmux_panes) do
       :ok
     else
-      matched = find_target(agent, tmux_sessions, tmux_panes)
+      matched = find_target(agent_id, tmux_sessions, tmux_panes)
 
       if matched && matched != current_tmux do
-        AgentRegistry.update_tmux_channel(session_id, matched)
+        channels = Map.put(meta[:channels] || %{}, :tmux, matched)
+
+        AgentProcess.update_fields(agent_id, %{
+          channels: channels,
+          tmux_session: extract_session_name(matched),
+          tmux_target: matched
+        })
       end
     end
   end
 
-  defp find_target(agent, sessions, panes) do
-    Enum.find(sessions, &(&1 == agent.id)) ||
-      Enum.find(sessions, &(String.starts_with?(&1, agent.id) or String.contains?(&1, agent.id))) ||
-      Enum.find_value(panes, &pane_match(&1, agent.id))
+  defp find_target(agent_id, sessions, panes) do
+    Enum.find(sessions, &(&1 == agent_id)) ||
+      Enum.find(sessions, &(String.starts_with?(&1, agent_id) or String.contains?(&1, agent_id))) ||
+      Enum.find_value(panes, &pane_match(&1, agent_id))
   end
 
   defp pane_match(pane, agent_id) do
@@ -133,8 +138,11 @@ defmodule Ichor.Gateway.TmuxDiscovery do
 
   @doc "Returns true for tmux server infrastructure sessions (not agents)."
   def infrastructure_session?("obs"), do: true
-  def infrastructure_session?("mes-" <> _), do: true
+  def infrastructure_session?("ichor-fleet"), do: true
   def infrastructure_session?(name), do: match?({_, ""}, Integer.parse(name))
+
+  defp extract_session_name(nil), do: nil
+  defp extract_session_name(target), do: target |> String.split(":") |> hd()
 
   defp schedule_poll do
     Process.send_after(self(), :poll, @poll_interval)

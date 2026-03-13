@@ -20,7 +20,8 @@ defmodule Ichor.Gateway.Router do
   require Logger
 
   alias Ichor.Fleet.{AgentProcess, FleetSupervisor, TeamSupervisor}
-  alias Ichor.Gateway.{AgentRegistry, Envelope, SchemaInterceptor}
+  alias Ichor.Gateway.AgentRegistry.AgentEntry
+  alias Ichor.Gateway.{Envelope, SchemaInterceptor}
   alias Ichor.ProtocolTracker
 
   @default_channels [
@@ -69,7 +70,8 @@ defmodule Ichor.Gateway.Router do
     ensure_agent_process(event.session_id, event)
 
     if event.hook_event_type in [:SessionEnd, "SessionEnd"] do
-      AgentRegistry.mark_ended(event.session_id)
+      # Update Ichor.Registry status to :ended before terminating the process
+      AgentProcess.update_fields(event.session_id, %{status: :ended})
       terminate_agent_process(event.session_id)
     end
 
@@ -193,7 +195,52 @@ defmodule Ichor.Gateway.Router do
   end
 
   defp route(envelope) do
-    AgentRegistry.resolve_channel(envelope.channel)
+    resolve_recipients(envelope.channel)
+  end
+
+  defp resolve_recipients("agent:" <> name) do
+    AgentProcess.list_all()
+    |> Enum.filter(fn {id, meta} ->
+      id == name || meta[:short_name] == name || meta[:name] == name
+    end)
+    |> Enum.map(fn {id, meta} -> recipient_from_meta(id, meta) end)
+  end
+
+  defp resolve_recipients("session:" <> sid) do
+    case AgentProcess.lookup(sid) do
+      {_pid, meta} -> [recipient_from_meta(sid, meta)]
+      nil -> []
+    end
+  end
+
+  defp resolve_recipients("team:" <> team_name) do
+    AgentProcess.list_all()
+    |> Enum.filter(fn {_id, meta} -> meta[:team] == team_name end)
+    |> Enum.map(fn {id, meta} -> recipient_from_meta(id, meta) end)
+  end
+
+  defp resolve_recipients("role:" <> role_str) do
+    role = AgentEntry.role_from_string(role_str)
+
+    AgentProcess.list_all()
+    |> Enum.filter(fn {_id, meta} -> meta[:role] == role end)
+    |> Enum.map(fn {id, meta} -> recipient_from_meta(id, meta) end)
+  end
+
+  defp resolve_recipients("fleet:" <> _) do
+    AgentProcess.list_all()
+    |> Enum.filter(fn {_id, meta} -> meta[:status] == :active end)
+    |> Enum.map(fn {id, meta} -> recipient_from_meta(id, meta) end)
+  end
+
+  defp resolve_recipients(_unknown), do: []
+
+  defp recipient_from_meta(id, meta) do
+    %{
+      id: id,
+      session_id: meta[:session_id] || id,
+      channels: meta[:channels] || %{}
+    }
   end
 
   defp deliver(envelope, recipients) do
@@ -206,7 +253,7 @@ defmodule Ichor.Gateway.Router do
   defp deliver_to_agent(agent, payload) do
     Enum.reduce(channels(), 0, fn {mod, opts}, count ->
       key = mod.channel_key()
-      address = agent.channels[key]
+      address = (agent[:channels] || %{})[key]
       skip? = function_exported?(mod, :skip?, 1) and mod.skip?(payload)
       deliver_via_channel(mod, opts, key, address, agent, payload, skip?, count)
     end)
@@ -218,7 +265,9 @@ defmodule Ichor.Gateway.Router do
   defp deliver_via_channel(mod, opts, key, address, agent, payload, false, count) do
     if mod.available?(address) do
       deliver_payload =
-        if key == :webhook, do: Map.put(payload, :agent_id, agent.session_id), else: payload
+        if key == :webhook,
+          do: Map.put(payload, :agent_id, agent[:session_id] || agent[:id]),
+          else: payload
 
       count_after_deliver(mod, opts, address, deliver_payload, count)
     else
@@ -234,7 +283,7 @@ defmodule Ichor.Gateway.Router do
   end
 
   defp track_protocol_trace(envelope, recipients, delivered) do
-    recipient_ids = Enum.map(recipients, & &1.id)
+    recipient_ids = Enum.map(recipients, & &1[:id])
     content = envelope.payload[:content] || envelope.payload["content"] || ""
 
     ProtocolTracker.track_gateway_broadcast(%{

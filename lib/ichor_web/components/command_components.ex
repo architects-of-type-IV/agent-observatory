@@ -9,7 +9,6 @@ defmodule IchorWeb.Components.CommandComponents do
   import IchorWeb.IchorComponents
   import IchorWeb.Components.FeedComponents, only: [feed_view: 1]
   alias IchorWeb.Components.FleetHelpers, as: FH
-  import Phoenix.HTML, only: [raw: 1]
 
   alias Ichor.Gateway.AgentRegistry.AgentEntry
 
@@ -218,6 +217,10 @@ defmodule IchorWeb.Components.CommandComponents do
   end
 
   defp role_badge_class(_), do: "bg-highlight text-default"
+
+  defp status_sort_val(:active), do: 0
+  defp status_sort_val(:idle), do: 1
+  defp status_sort_val(_), do: 2
 
   defp status_dot_color(:active), do: "bg-success"
   defp status_dot_color(:idle), do: "bg-low"

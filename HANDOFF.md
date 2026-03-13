@@ -1,31 +1,35 @@
 # ICHOR IV - Handoff
 
-## Current Status: Registry Consolidation COMPLETE (2026-03-13)
+## Current Status: Task 6 (Delete Gateway.AgentRegistry) COMPLETE (2026-03-13)
 
 ### What Was Done This Session
-1. **Added missing signals** -- `:mes_agent_stopped` and `:mes_agent_tmux_gone` added to Signals.Catalog. MesAgentProcess terminate no longer crashes.
-2. **Consolidated 3 registries into `Ichor.Registry`** -- Single Registry with compound keys:
-   - `{:agent, id}` (was Fleet.ProcessRegistry)
-   - `{:team, name}` (was Fleet.TeamRegistry)
-   - `{:run, id}` (was Mes.Registry)
-3. **Updated 9 files** -- agent_process.ex, team_supervisor.ex, fleet_supervisor.ex, mes_agent_process.ex, run_process.ex, mes/supervisor.ex, application.ex, catalog.ex, map_helpers.ex
-4. **Simplify fixes** -- Removed duplicate `short_id/1` (use AgentEntry), removed duplicate `maybe_put/3` (use MapHelpers), fixed scheduler N+1 (list_all called once not twice)
-5. **Prior session** -- Created Mes.AgentSupervisor, MesAgentProcess, fixed RunProcess.terminate, Janitor, LoadAgents.filter_stale, TeamSpawner
+**Task 6 - Delete Gateway.AgentRegistry ETS GenServer and submodules:**
+
+Files moved to `tmp/trash/`:
+1. `lib/ichor/gateway/agent_registry.ex` -- ETS GenServer (main module)
+2. `lib/ichor/gateway/agent_registry/event_handler.ex` -- submodule
+3. `lib/ichor/gateway/agent_registry/identity_merge.ex` -- submodule
+4. `lib/ichor/gateway/agent_registry/team_sync.ex` -- submodule
+5. `lib/ichor/gateway/agent_registry/sweep.ex` -- submodule
+
+File kept (pure utilities, still used):
+- `lib/ichor/gateway/agent_registry/agent_entry.ex` -- `short_id/1`, `uuid?/1`, `role_from_string/1`
+
+File updated:
+- `lib/ichor/gateway_supervisor.ex` -- removed `{Ichor.Gateway.AgentRegistry, []}` from children list; changed strategy from `:rest_for_one` to `:one_for_one`; updated `@moduledoc`
 
 ### Architecture Now
-- `Ichor.Registry` -- single Elixir Registry in application.ex, compound keys
-- `Gateway.AgentRegistry` -- ETS cache for dashboard display (50 refs, OUT OF SCOPE for now)
-- `:pg` -- cluster-wide process groups (unchanged)
-- `Mes.AgentSupervisor` -- DynamicSupervisor owning MES agents, independent of RunProcess
+- **Ichor.Registry** -- SOLE source of truth for all agent processes
+- **AgentProcess API** -- `list_all/0`, `lookup/1`, `alive?/1`, `update_fields/2`
+- **Gateway.AgentRegistry** -- DELETED (ETS table gone)
+- **AgentEntry** -- kept at `Ichor.Gateway.AgentRegistry.AgentEntry` (pure utils)
+- Many files still alias `AgentEntry` via the old path -- this is fine (module stays)
 
 ### Build Status
-- `mix compile --warnings-as-errors` -- CLEAN
-- Zero references to old registry names (Fleet.ProcessRegistry, Fleet.TeamRegistry, Mes.Registry)
+- `mix compile --warnings-as-errors` -- CLEAN (1 file compiled, 0 warnings)
+- `grep -r "AgentRegistry\." lib/ --include="*.ex" | grep -v AgentEntry` -- EMPTY
 
-### Next Steps
-- Verify MES agents appear in dashboard (start server, trigger MES run)
-- Gateway.AgentRegistry ETS consolidation (50 refs, separate effort)
-- Swarm Memory Phase 6 (spec exists at SPECS/implementation/6-swarm-memory.md)
-
-### Runtime
-- Port 4005, `~/.ichor/tmux/obs.sock`
+### Next Step
+Task 6 is the last planned registry task. The ETS AgentRegistry is fully removed.
+Consider: any future cleanup of the `AgentEntry` module path (renaming to `Ichor.Agent.Entry`
+or similar) would require updating ~15 alias sites, but this is cosmetic and low priority.

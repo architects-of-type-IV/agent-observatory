@@ -5,28 +5,26 @@ defmodule IchorWeb.DebugController do
   alias Ichor.Activity.Message
   alias Ichor.EventBuffer
   alias Ichor.Fleet.{Agent, AgentProcess, Team}
-  alias Ichor.Gateway.AgentRegistry
   alias Ichor.Gateway.Channels.Tmux
   alias Ichor.Gateway.HITLRelay
   alias Ichor.ProtocolTracker
 
   def registry(conn, _params) do
     agents =
-      AgentRegistry.list_all()
-      |> Enum.map(fn a ->
+      AgentProcess.list_all()
+      |> Enum.map(fn {id, meta} ->
         %{
-          id: a.id,
-          short_name: Map.get(a, :short_name),
-          session_id: a.session_id,
-          team: a.team,
-          role: a.role,
-          status: a.status,
-          model: a.model,
-          cwd: a.cwd,
-          current_tool: a.current_tool,
-          channels: a.channels,
-          started_at: a.started_at,
-          last_event_at: a.last_event_at
+          id: id,
+          short_name: meta[:short_name],
+          session_id: meta[:session_id] || id,
+          team: meta[:team],
+          role: meta[:role],
+          status: meta[:status],
+          model: meta[:model],
+          cwd: meta[:cwd],
+          current_tool: meta[:current_tool],
+          channels: meta[:channels],
+          last_event_at: meta[:last_event_at]
         }
       end)
 
@@ -49,8 +47,13 @@ defmodule IchorWeb.DebugController do
   end
 
   defp check_registry do
-    agents = AgentRegistry.list_all()
-    %{ok: true, count: length(agents), has_operator: Enum.any?(agents, &(&1.id == "operator"))}
+    agents = AgentProcess.list_all()
+
+    %{
+      ok: true,
+      count: length(agents),
+      has_operator: Enum.any?(agents, fn {id, _} -> id == "operator" end)
+    }
   rescue
     e -> %{ok: false, error: Exception.message(e)}
   end
@@ -142,7 +145,7 @@ defmodule IchorWeb.DebugController do
 
     beam_processes = AgentProcess.list_all() |> Enum.map(fn {id, _} -> id end)
 
-    registry = AgentRegistry.list_all() |> Enum.map(& &1.session_id)
+    registry = AgentProcess.list_all() |> Enum.map(fn {id, _} -> id end)
 
     json(conn, %{
       count: length(agents),
@@ -180,9 +183,10 @@ defmodule IchorWeb.DebugController do
   end
 
   def purge(conn, _params) do
-    {:ok, purged} = AgentRegistry.purge_stale()
-    remaining = length(AgentRegistry.list_all())
-    json(conn, %{purged: purged, remaining: remaining})
+    # With Ichor.Registry as source of truth, stale cleanup is process-death-driven.
+    # Return a no-op response for API compatibility.
+    remaining = length(AgentProcess.list_all())
+    json(conn, %{purged: 0, remaining: remaining})
   end
 
   def mes_cleanup(conn, _params) do
@@ -223,15 +227,17 @@ defmodule IchorWeb.DebugController do
 
     # Show which registry agents have tmux channels wired
     agents_with_tmux =
-      AgentRegistry.list_all()
-      |> Enum.filter(fn a -> a.channels.tmux != nil end)
-      |> Enum.map(fn a ->
+      AgentProcess.list_all()
+      |> Enum.filter(fn {_id, meta} -> get_in(meta, [:channels, :tmux]) != nil end)
+      |> Enum.map(fn {id, meta} ->
+        tmux = get_in(meta, [:channels, :tmux])
+
         %{
-          id: a.id,
-          session_id: a.session_id,
-          team: a.team,
-          tmux_target: a.channels.tmux,
-          available: Tmux.available?(a.channels.tmux)
+          id: id,
+          session_id: meta[:session_id] || id,
+          team: meta[:team],
+          tmux_target: tmux,
+          available: Tmux.available?(tmux)
         }
       end)
 

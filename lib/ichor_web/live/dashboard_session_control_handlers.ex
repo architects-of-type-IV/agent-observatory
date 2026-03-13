@@ -7,7 +7,6 @@ defmodule IchorWeb.DashboardSessionControlHandlers do
 
   alias Ichor.EventBuffer
   alias Ichor.Fleet.{AgentProcess, FleetSupervisor, TeamSupervisor}
-  alias Ichor.Gateway.AgentRegistry
   alias Ichor.Gateway.AgentRegistry.AgentEntry
   alias Ichor.Gateway.Channels.Tmux
   alias Ichor.Gateway.HITLRelay
@@ -132,13 +131,11 @@ defmodule IchorWeb.DashboardSessionControlHandlers do
           false
       end
 
-    AgentRegistry.remove(session_id)
     EventBuffer.tombstone_session(session_id)
 
     short = String.slice(session_id, 0..7)
 
     details = [
-      "registry removed",
       if(tmux_killed, do: "tmux killed", else: "no tmux"),
       if(beam_stopped, do: "process stopped", else: "no process")
     ]
@@ -207,8 +204,8 @@ defmodule IchorWeb.DashboardSessionControlHandlers do
 
   defp kill_tmux_for_agent(session_id) do
     tmux_target =
-      case AgentRegistry.get(session_id) do
-        %{channels: %{tmux: name}} when is_binary(name) -> name
+      case AgentProcess.lookup(session_id) do
+        {_pid, %{channels: %{tmux: name}}} when is_binary(name) -> name
         _ -> session_id
       end
 

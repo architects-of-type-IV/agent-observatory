@@ -19,7 +19,6 @@ defmodule IchorWeb.DashboardState do
   alias Ichor.Fleet.Agent
   alias Ichor.Fleet.Queries, as: FQ
   alias Ichor.Fleet.Team
-  alias Ichor.Gateway.AgentRegistry
   alias Ichor.Gateway.Channels.Tmux
   alias Ichor.Gateway.HITLRelay
   alias Ichor.Gateway.TmuxDiscovery
@@ -344,7 +343,17 @@ defmodule IchorWeb.DashboardState do
       |> Enum.uniq()
       |> Enum.map(&{&1, agent_map})
     end)
-    |> AgentRegistry.dedup_by_status()
+    |> dedup_by_status()
+  end
+
+  defp dedup_by_status(pairs) do
+    Enum.reduce(pairs, %{}, fn {k, entry}, acc ->
+      case Map.get(acc, k) do
+        nil -> Map.put(acc, k, entry)
+        %{status: :active} -> acc
+        _existing -> Map.put(acc, k, entry)
+      end
+    end)
   end
 
   # Reuse already-fetched messages instead of querying Activity.Message.recent!() again

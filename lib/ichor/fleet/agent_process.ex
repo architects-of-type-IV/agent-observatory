@@ -10,7 +10,6 @@ defmodule Ichor.Fleet.AgentProcess do
   use GenServer
 
   alias Ichor.Fleet.AgentProcess.Delivery
-  alias Ichor.Gateway.AgentRegistry
   alias Ichor.Gateway.Channels.Tmux
 
   @max_message_buffer 200
@@ -115,8 +114,7 @@ defmodule Ichor.Fleet.AgentProcess do
   @doc "Update arbitrary metadata fields directly on the Registry entry."
   @spec update_fields(String.t(), map()) :: :ok
   def update_fields(agent_id, fields) when is_map(fields) do
-    update_registry(agent_id, fields)
-    :ok
+    GenServer.cast(via(agent_id), {:update_fields, fields})
   end
 
   @doc "Check if an agent process is alive by ID."
@@ -272,6 +270,11 @@ defmodule Ichor.Fleet.AgentProcess do
     {:noreply, %{state | metadata: Map.merge(state.metadata, fields)}}
   end
 
+  def handle_cast({:update_fields, fields}, state) do
+    update_registry(state.id, fields)
+    {:noreply, state}
+  end
+
   @impl true
   def handle_info(:check_liveness, state) do
     tmux_target = get_in(state.backend, [:session]) || ""
@@ -302,8 +305,8 @@ defmodule Ichor.Fleet.AgentProcess do
 
   @impl true
   def terminate(:tmux_gone, state) do
-    # Tmux window already dead -- skip kill, just clean up BEAM-side registrations
-    AgentRegistry.remove(state.id)
+    # Tmux window already dead -- skip kill, just clean up BEAM-side registrations.
+    # Ichor.Registry auto-deregisters when the process exits -- no explicit remove needed.
     Ichor.EventBuffer.tombstone_session(state.id)
     broadcast_lifecycle({:agent_stopped, state.id, :tmux_gone})
     :ok
@@ -311,7 +314,7 @@ defmodule Ichor.Fleet.AgentProcess do
 
   def terminate(reason, state) do
     kill_tmux_backend(state.backend)
-    AgentRegistry.remove(state.id)
+    # Ichor.Registry auto-deregisters when the process exits -- no explicit remove needed.
     Ichor.EventBuffer.tombstone_session(state.id)
     broadcast_lifecycle({:agent_stopped, state.id, reason})
     :ok

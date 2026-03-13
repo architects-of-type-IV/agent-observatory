@@ -8,8 +8,6 @@ defmodule Ichor.Heartbeat do
   """
   use GenServer
 
-  alias Ichor.Gateway.AgentRegistry
-
   @interval 5_000
 
   def start_link(opts) do
@@ -36,11 +34,9 @@ defmodule Ichor.Heartbeat do
   end
 
   # Run maintenance at different cadences based on heartbeat count
-  defp run_maintenance(count) do
-    # Every 12 beats (1min): sweep stale agents from registry
-    if rem(count, 12) == 0 do
-      spawn(fn -> AgentRegistry.purge_stale() end)
-    end
+  defp run_maintenance(_count) do
+    # Process-death auto-deregisters from Ichor.Registry -- no sweep needed
+    :ok
   end
 
   defp schedule, do: Process.send_after(self(), :beat, @interval)

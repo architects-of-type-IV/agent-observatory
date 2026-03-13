@@ -36,7 +36,7 @@ defmodule Ichor.Signals.Catalog do
 
     # ── System ─────────────────────────────────────────────────────
     heartbeat: %{category: :system, keys: [:count], doc: "Monotonic counter every 5s"},
-    registry_changed: %{category: :system, keys: [], doc: "AgentRegistry ETS modified"},
+    registry_changed: %{category: :system, keys: [], doc: "Agent registry modified"},
     dashboard_command: %{
       category: :system,
       keys: [:command],

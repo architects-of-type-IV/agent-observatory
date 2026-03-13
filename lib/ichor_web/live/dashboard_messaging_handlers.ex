@@ -32,15 +32,6 @@ defmodule IchorWeb.DashboardMessagingHandlers do
           })
 
         {:noreply, socket}
-
-      {:error, _reason} ->
-        socket =
-          Phoenix.LiveView.push_event(socket, "toast", %{
-            message: "Failed to send message",
-            type: "error"
-          })
-
-        {:noreply, socket}
     end
   end
 
@@ -51,15 +42,6 @@ defmodule IchorWeb.DashboardMessagingHandlers do
           Phoenix.LiveView.push_event(socket, "toast", %{
             message: "Sent to #{team_name} (#{delivered} delivered)",
             type: "success"
-          })
-
-        {:noreply, socket}
-
-      {:error, _reason} ->
-        socket =
-          Phoenix.LiveView.push_event(socket, "toast", %{
-            message: "Failed to broadcast to #{team_name}",
-            type: "error"
           })
 
         {:noreply, socket}

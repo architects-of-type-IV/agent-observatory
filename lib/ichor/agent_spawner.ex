@@ -1,11 +1,13 @@
 defmodule Ichor.AgentSpawner do
   @moduledoc """
-  Spawns agents in isolated tmux sessions with BEAM process backing.
+  Spawns agents as tmux windows within team sessions, with BEAM process backing.
 
-  Session naming: `ichor-{team_hash}-{n}` (team) or `ichor-{n}` (standalone).
-  Counter is global and monotonic. Human-readable names live in registry metadata.
+  Tmux model: one session per team, one window per agent.
+    - Team agents:    session = team_name,      window = agent_name
+    - Standalone:     session = "ichor-fleet",   window = agent_name
+    - MES (separate): session = "mes-{run_id}",  window = role_name
 
-  Pipeline: validate -> write overlay -> create tmux session -> start AgentProcess.
+  Pipeline: validate -> write overlay -> ensure session -> create window -> start AgentProcess.
   Supports remote spawning on connected BEAM nodes via `:host` option.
   """
 
@@ -15,13 +17,12 @@ defmodule Ichor.AgentSpawner do
   alias Ichor.Fleet.FleetSupervisor
   alias Ichor.Fleet.HostRegistry
   alias Ichor.Fleet.TeamSupervisor
-  alias Ichor.Gateway.AgentRegistry
   alias Ichor.Gateway.Channels.Tmux
   alias Ichor.InstructionOverlay
 
   @ichor_socket Path.expand("~/.ichor/tmux/obs.sock")
   @counter_key :ichor_spawn_counter
-  @prefix "ichor"
+  @standalone_session "ichor-fleet"
 
   @type spawn_opts :: %{
           optional(:name) => String.t(),
@@ -62,13 +63,16 @@ defmodule Ichor.AgentSpawner do
   def spawn_local(opts) do
     name = opts[:name] || opts[:capability] || "agent"
     cwd = opts[:cwd] || File.cwd!()
-    session_name = generate_session_name(opts[:team_name])
+    window_name = unique_window_name(name)
+    team_session = resolve_team_session(opts[:team_name])
 
-    with :ok <- validate_no_conflict(session_name),
-         :ok <- validate_cwd(cwd),
+    with :ok <- validate_cwd(cwd),
+         :ok <- validate_no_window_conflict(team_session, window_name),
          :ok <- InstructionOverlay.write_session_files(cwd, opts),
-         {:ok, _} <- create_tmux_session(session_name, cwd, opts) do
-      register_agent(session_name, name, cwd, opts)
+         :ok <- ensure_session(team_session, cwd),
+         {:ok, _} <- create_window(team_session, window_name, cwd, opts) do
+      tmux_target = "#{team_session}:#{window_name}"
+      register_agent(tmux_target, window_name, name, cwd, opts)
     end
   end
 
@@ -81,7 +85,9 @@ defmodule Ichor.AgentSpawner do
 
   @doc "Returns true if the session name was created by the spawner."
   @spec spawned_session?(String.t()) :: boolean()
-  def spawned_session?(@prefix <> "-" <> rest) do
+  def spawned_session?(@standalone_session), do: true
+
+  def spawned_session?("ichor-" <> rest) do
     case String.split(rest, "-") do
       [n] -> integer?(n)
       [_team_hash, _n] -> true
@@ -93,32 +99,26 @@ defmodule Ichor.AgentSpawner do
 
   @doc "Stop a spawned agent by terminating its BEAM process and sending /exit to tmux."
   @spec stop_agent(String.t()) :: :ok | {:error, term()}
-  def stop_agent(session_name) do
-    terminate_beam_process(session_name)
-    send_tmux_exit(session_name)
-    AgentRegistry.remove(session_name)
-    Ichor.EventBuffer.remove_session(session_name)
+  def stop_agent(agent_id) do
+    # Look up tmux_target from Registry metadata before terminating
+    tmux_target = resolve_tmux_target(agent_id)
+    terminate_beam_process(agent_id)
+    send_tmux_exit(tmux_target || agent_id)
+    Ichor.EventBuffer.remove_session(agent_id)
   end
 
-  # ── Private: Session Naming ─────────────────────────────────────────
+  # ── Private: Session & Window Naming ─────────────────────────────────
 
-  defp generate_session_name(nil) do
-    "#{@prefix}-#{next_counter()}"
-  end
+  defp resolve_team_session(nil), do: @standalone_session
+  defp resolve_team_session(team_name), do: team_name
 
-  defp generate_session_name(team_name) do
-    "#{@prefix}-#{team_hash(team_name)}-#{next_counter()}"
+  defp unique_window_name(name) do
+    "#{name}-#{next_counter()}"
   end
 
   defp next_counter do
     ref = :persistent_term.get(@counter_key)
     :atomics.add_get(ref, 1, 1)
-  end
-
-  defp team_hash(name) do
-    :crypto.hash(:md5, name)
-    |> binary_part(0, 2)
-    |> Base.encode16(case: :lower)
   end
 
   defp integer?(str), do: match?({_, ""}, Integer.parse(str))
@@ -133,18 +133,6 @@ defmodule Ichor.AgentSpawner do
         {:error, {:remote_spawn_failed, node, reason}}
 
       {:ok, result} ->
-        host = node_to_host(node)
-
-        AgentRegistry.register_spawned(result.agent_id,
-          name: result.name,
-          role: capability_to_role(opts[:capability] || "builder"),
-          team: opts[:team_name],
-          cwd: result.cwd,
-          parent_id: opts[:parent_id],
-          host: Atom.to_string(node),
-          channels: %{ssh_tmux: "#{result.session_name}@#{host}"}
-        )
-
         {:ok, Map.put(result, :node, node)}
 
       {:error, _} = error ->
@@ -152,15 +140,15 @@ defmodule Ichor.AgentSpawner do
     end
   end
 
-  defp register_agent(session_name, name, cwd, opts) do
+  defp register_agent(tmux_target, agent_id, name, cwd, opts) do
     capability = opts[:capability] || "builder"
     role = capability_to_role(capability)
 
     process_opts = [
-      id: session_name,
+      id: agent_id,
       role: role,
       team: opts[:team_name],
-      backend: %{type: :tmux, session: session_name},
+      backend: %{type: :tmux, session: tmux_target},
       capabilities: capabilities_for(capability),
       metadata: %{cwd: cwd, model: opts[:model] || "sonnet", parent_id: opts[:parent_id]}
     ]
@@ -169,8 +157,8 @@ defmodule Ichor.AgentSpawner do
 
     {:ok,
      %{
-       session_name: session_name,
-       agent_id: session_name,
+       session_name: tmux_target,
+       agent_id: agent_id,
        name: name,
        cwd: cwd,
        node: Node.self()
@@ -194,17 +182,21 @@ defmodule Ichor.AgentSpawner do
   end
 
   defp ensure_team(name) do
-    case TeamSupervisor.exists?(name) do
-      true -> :ok
-      false -> FleetSupervisor.create_team(name: name)
+    case FleetSupervisor.create_team(name: name) do
+      {:ok, _pid} -> :ok
+      {:error, :already_exists} -> :ok
+      {:error, {:already_started, _pid}} -> :ok
+      {:error, reason} -> {:error, reason}
     end
   end
 
   # ── Private: Validation ────────────────────────────────────────────
 
-  defp validate_no_conflict(session_name) do
-    case Tmux.available?(session_name) do
-      true -> {:error, {:session_exists, session_name}}
+  defp validate_no_window_conflict(session, window_name) do
+    target = "#{session}:#{window_name}"
+
+    case Tmux.available?(target) do
+      true -> {:error, {:window_exists, target}}
       false -> :ok
     end
   end
@@ -216,15 +208,31 @@ defmodule Ichor.AgentSpawner do
     end
   end
 
-  # ── Private: Tmux Session ─────────────────────────────────────────
+  # ── Private: Tmux Session & Window ─────────────────────────────────
 
-  defp create_tmux_session(session_name, cwd, opts) do
+  defp ensure_session(session, cwd) do
+    if Tmux.available?(session) do
+      :ok
+    else
+      args = tmux_server_args() ++ ["new-session", "-d", "-s", session, "-c", cwd]
+
+      case System.cmd("tmux", args, stderr_to_stdout: true) do
+        {_, 0} -> :ok
+        {output, code} -> {:error, {:session_create_failed, output, code}}
+      end
+    end
+  end
+
+  defp create_window(session, window_name, cwd, opts) do
     command = build_command(opts)
-    args = tmux_server_args() ++ ["new-session", "-d", "-s", session_name, "-c", cwd, command]
+
+    args =
+      tmux_server_args() ++
+        ["new-window", "-t", session, "-n", window_name, "-c", cwd, command]
 
     case System.cmd("tmux", args, stderr_to_stdout: true) do
-      {_, 0} -> {:ok, session_name}
-      {output, code} -> {:error, {:tmux_create_failed, output, code}}
+      {_, 0} -> {:ok, "#{session}:#{window_name}"}
+      {output, code} -> {:error, {:window_create_failed, output, code}}
     end
   end
 
@@ -266,26 +274,33 @@ defmodule Ichor.AgentSpawner do
 
   # ── Private: Stop ──────────────────────────────────────────────────
 
-  defp terminate_beam_process(session_name) do
-    case AgentProcess.alive?(session_name) do
+  defp resolve_tmux_target(agent_id) do
+    case AgentProcess.lookup(agent_id) do
+      {_pid, %{tmux_target: target}} when is_binary(target) -> target
+      _ -> nil
+    end
+  end
+
+  defp terminate_beam_process(agent_id) do
+    case AgentProcess.alive?(agent_id) do
       false ->
         :ok
 
       true ->
-        state = AgentProcess.get_state(session_name)
-        do_terminate(state, session_name)
+        state = AgentProcess.get_state(agent_id)
+        do_terminate(state, agent_id)
     end
   end
 
-  defp do_terminate(%{team: nil}, session_name), do: FleetSupervisor.terminate_agent(session_name)
+  defp do_terminate(%{team: nil}, agent_id), do: FleetSupervisor.terminate_agent(agent_id)
 
-  defp do_terminate(%{team: team}, session_name),
-    do: TeamSupervisor.terminate_member(team, session_name)
+  defp do_terminate(%{team: team}, agent_id),
+    do: TeamSupervisor.terminate_member(team, agent_id)
 
-  defp send_tmux_exit(session_name) do
-    case Tmux.run_command(["send-keys", "-t", session_name, "/exit", "Enter"]) do
+  defp send_tmux_exit(tmux_target) do
+    case Tmux.run_command(["send-keys", "-t", tmux_target, "/exit", "Enter"]) do
       {_, 0} ->
-        Logger.info("[AgentSpawner] Stopped #{session_name}")
+        Logger.info("[AgentSpawner] Stopped #{tmux_target}")
         :ok
 
       {output, code} ->
@@ -303,8 +318,4 @@ defmodule Ichor.AgentSpawner do
   defp capability_to_role("lead"), do: :lead
   defp capability_to_role("coordinator"), do: :coordinator
   defp capability_to_role(_), do: :worker
-
-  defp node_to_host(node) do
-    node |> Atom.to_string() |> String.split("@") |> List.last()
-  end
 end

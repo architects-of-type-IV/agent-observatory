@@ -6,7 +6,7 @@ defmodule IchorWeb.DashboardSlideoutHandlers do
   import Phoenix.Component, only: [assign: 3]
   import IchorWeb.DashboardFormatHelpers, only: [session_duration_sec: 1]
 
-  alias Ichor.Gateway.AgentRegistry
+  alias Ichor.Fleet.AgentProcess
   alias Ichor.Gateway.OutputCapture
 
   def handle_open_agent_slideout(sid, socket) do
@@ -20,7 +20,12 @@ defmodule IchorWeb.DashboardSlideoutHandlers do
       if prev_sid, do: OutputCapture.unwatch(prev_sid)
     end
 
-    agent = AgentRegistry.get(sid)
+    agent =
+      case AgentProcess.lookup(sid) do
+        {_pid, meta} -> meta
+        nil -> nil
+      end
+
     Phoenix.PubSub.subscribe(Ichor.PubSub, "agent:#{sid}:activity")
     OutputCapture.watch(sid)
 

@@ -17,7 +17,7 @@ defmodule Ichor.NudgeEscalator do
   use GenServer
   require Logger
 
-  alias Ichor.Gateway.AgentRegistry
+  alias Ichor.Fleet.AgentProcess
   alias Ichor.Gateway.AgentRegistry.AgentEntry
   alias Ichor.Gateway.Channels.Tmux
   alias Ichor.Gateway.HITLRelay
@@ -81,7 +81,7 @@ defmodule Ichor.NudgeEscalator do
     nudge_interval = config(:nudge_interval_sec, @default_nudge_interval)
     max_level = config(:max_level, @default_max_level)
 
-    agents = AgentRegistry.list_all()
+    agents = AgentProcess.list_all() |> Enum.map(fn {_id, meta} -> meta end)
 
     stale_agents =
       agents

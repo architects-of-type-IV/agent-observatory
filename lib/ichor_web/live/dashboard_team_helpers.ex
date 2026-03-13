@@ -6,7 +6,7 @@ defmodule IchorWeb.DashboardTeamHelpers do
 
   import IchorWeb.DashboardAgentHealthHelpers
 
-  alias Ichor.Gateway.AgentRegistry
+  alias Ichor.Gateway.AgentRegistry.AgentEntry
 
   @doc """
   Derive teams from both events and disk state, merging them appropriately.
@@ -109,10 +109,10 @@ defmodule IchorWeb.DashboardTeamHelpers do
 
   @doc """
   Detect whether a team member is a lead or regular member.
-  Delegates agent_type classification to AgentRegistry.derive_role/1.
+  Delegates agent_type classification to AgentEntry.role_from_string/1.
   """
   def detect_role(team, member) do
-    case AgentRegistry.derive_role(member[:agent_type]) do
+    case AgentEntry.role_from_string(member[:agent_type]) do
       role when role in [:lead, :coordinator] ->
         :lead
 

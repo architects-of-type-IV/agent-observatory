@@ -5,19 +5,18 @@ defmodule IchorWeb.Components.FleetHelpers do
   """
 
   # -- Role classification --
-  # Delegates to AgentRegistry.derive_role/1 for canonical agent_type mapping.
+  # Delegates to AgentEntry.role_from_string/1 for canonical agent_type mapping.
   # Adds map-based and name-heuristic overloads for display contexts.
 
-  alias Ichor.Gateway.AgentRegistry
   alias Ichor.Gateway.AgentRegistry.AgentEntry
 
   def classify_role(%{role: r}) when is_atom(r), do: r
 
   def classify_role(%{role: r}) when is_binary(r),
-    do: normalize_role(AgentRegistry.derive_role(r))
+    do: normalize_role(AgentEntry.role_from_string(r))
 
   def classify_role(%{"role" => r}) when is_binary(r),
-    do: normalize_role(AgentRegistry.derive_role(r))
+    do: normalize_role(AgentEntry.role_from_string(r))
 
   def classify_role(name) when is_binary(name) do
     cond do

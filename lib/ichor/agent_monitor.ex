@@ -7,7 +7,6 @@ defmodule Ichor.AgentMonitor do
   require Logger
 
   alias Ichor.Fleet.AgentProcess
-  alias Ichor.Gateway.AgentRegistry
   alias Ichor.Gateway.AgentRegistry.AgentEntry
   alias Ichor.Gateway.Channels.Tmux
   alias Ichor.TaskManager
@@ -100,8 +99,11 @@ defmodule Ichor.AgentMonitor do
   end
 
   defp tmux_session_alive?(session_id) do
-    registry_entry = AgentRegistry.get(session_id)
-    tmux_target = registry_entry && registry_entry.channels && registry_entry.channels.tmux
+    tmux_target =
+      case AgentProcess.lookup(session_id) do
+        {_pid, %{channels: %{tmux: target}}} when is_binary(target) -> target
+        _ -> nil
+      end
 
     case tmux_target do
       nil -> false

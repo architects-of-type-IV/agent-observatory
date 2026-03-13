@@ -13,7 +13,6 @@ defmodule Ichor.Fleet.Preparations.LoadTeams do
   alias Ichor.Fleet.AgentProcess
   alias Ichor.Fleet.Team
   alias Ichor.Fleet.TeamSupervisor
-  alias Ichor.Gateway.AgentRegistry
 
   @dead_team_threshold_sec 300
 
@@ -22,9 +21,7 @@ defmodule Ichor.Fleet.Preparations.LoadTeams do
     events = EventBuffer.list_events()
     now = DateTime.utc_now()
 
-    registry_by_id =
-      AgentRegistry.list_all()
-      |> AgentRegistry.build_lookup()
+    registry_by_id = build_registry_lookup()
 
     events_by_session = Enum.group_by(events, & &1.session_id)
 
@@ -134,7 +131,7 @@ defmodule Ichor.Fleet.Preparations.LoadTeams do
       Enum.map(team.members, fn m ->
         # Find registry entry for this member (correlates short names with UUIDs)
         reg = Map.get(registry_by_id, m[:agent_id])
-        event_sid = if(reg, do: reg.session_id, else: m[:agent_id])
+        event_sid = if(reg, do: reg[:session_id] || m[:agent_id], else: m[:agent_id])
 
         member_events = Map.get(events_by_session, event_sid, [])
 
@@ -172,7 +169,7 @@ defmodule Ichor.Fleet.Preparations.LoadTeams do
 
   defp derive_member_status(reg, latest, now) do
     cond do
-      reg != nil -> reg.status
+      reg != nil -> reg[:status]
       latest == nil -> :unknown
       latest.hook_event_type == :SessionEnd -> :ended
       DateTime.diff(now, latest.inserted_at, :second) > 30 -> :idle
@@ -251,5 +248,24 @@ defmodule Ichor.Fleet.Preparations.LoadTeams do
     events
     |> Enum.sort_by(& &1.inserted_at, {:desc, DateTime})
     |> Enum.find_value(fn e -> e.cwd end)
+  end
+
+  # Build a lookup map keyed by all known agent identifiers from Ichor.Registry.
+  # Active entries win ties. Used by enrich_members/4 for status correlation.
+  defp build_registry_lookup do
+    AgentProcess.list_all()
+    |> Enum.flat_map(fn {id, meta} ->
+      [id, meta[:session_id], meta[:short_name]]
+      |> Enum.reject(&is_nil/1)
+      |> Enum.uniq()
+      |> Enum.map(&{&1, meta})
+    end)
+    |> Enum.reduce(%{}, fn {k, entry}, acc ->
+      case Map.get(acc, k) do
+        nil -> Map.put(acc, k, entry)
+        %{status: :active} -> acc
+        _existing -> Map.put(acc, k, entry)
+      end
+    end)
   end
 end
