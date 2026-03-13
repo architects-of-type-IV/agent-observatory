@@ -32,6 +32,7 @@ defmodule Ichor.Signals.Catalog do
     team_created: %{category: :fleet, keys: [:name, :project, :strategy], doc: "New team started"},
     team_disbanded: %{category: :fleet, keys: [:team_name], doc: "Team removed"},
     hosts_changed: %{category: :fleet, keys: [], doc: "Cluster node joined/departed"},
+    fleet_changed: %{category: :fleet, keys: [:agent_id], doc: "Agent Registry metadata changed"},
 
     # ── System ─────────────────────────────────────────────────────
     heartbeat: %{category: :system, keys: [:count], doc: "Monotonic counter every 5s"},
@@ -108,6 +109,12 @@ defmodule Ichor.Signals.Catalog do
       doc: "Agent spawned via dashboard"
     },
     agent_event: %{category: :agent, keys: [:event], dynamic: true, doc: "Per-agent event stream"},
+    agent_message_intercepted: %{
+      category: :agent,
+      keys: [:from, :to, :content, :type],
+      dynamic: true,
+      doc: "Hook-intercepted SendMessage (signal only, no delivery)"
+    },
     terminal_output: %{
       category: :agent,
       keys: [:session_id, :output],
