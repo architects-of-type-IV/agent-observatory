@@ -6,7 +6,7 @@ defmodule Ichor.Mes.TeamSpawner do
     1. Write per-agent prompt files to ~/.ichor/mes/{run_id}/
     2. Create one tmux session: `mes-{run_id}`
     3. Launch Claude in each window with its prompt file piped via stdin
-    4. Register each agent in BEAM fleet (AgentProcess under TeamSupervisor)
+    4. Register each agent in BEAM fleet (MesAgentProcess under Mes.AgentSupervisor)
     5. Return session name so Scheduler can set a kill timer
 
   All agents start in the observatory project root so they have access to
@@ -14,7 +14,8 @@ defmodule Ichor.Mes.TeamSpawner do
   through the Ichor app via send_message/check_inbox MCP tools.
   """
 
-  alias Ichor.Fleet.{FleetSupervisor, TeamSupervisor}
+  alias Ichor.Fleet.FleetSupervisor
+  alias Ichor.Mes.AgentSupervisor
   alias Ichor.Signals
 
   @prompt_dir Path.expand("~/.ichor/mes")
@@ -41,7 +42,6 @@ defmodule Ichor.Mes.TeamSpawner do
     ]
 
     with :ok <- write_agent_scripts(run_id, agents),
-         :ok <- ensure_team(team_name),
          :ok <- create_session_with_agent(session, cwd, run_id, hd(agents)),
          :ok <- create_remaining_windows(session, cwd, run_id, tl(agents)) do
       Enum.each(agents, &register_agent(session, &1, team_name, run_id, cwd))
@@ -64,6 +64,53 @@ defmodule Ichor.Mes.TeamSpawner do
     cleanup_prompt_files(run_id)
 
     :ok
+  end
+
+  @spec spawn_corrective_agent(String.t(), String.t(), String.t() | nil, pos_integer()) ::
+          :ok | {:error, term()}
+  def spawn_corrective_agent(run_id, session, reason, attempt) do
+    cwd = project_root()
+    name = "corrective-#{attempt}"
+
+    agent = %{
+      name: name,
+      capability: "builder",
+      prompt: corrective_prompt(run_id, session, reason)
+    }
+
+    dir = prompt_dir(run_id)
+    File.mkdir_p!(dir)
+
+    prompt_path = Path.join(dir, "#{name}.txt")
+    script_path = Path.join(dir, "#{name}.sh")
+
+    cli_args =
+      ["--model", "sonnet"]
+      |> add_permission_args(agent.capability)
+      |> Enum.join(" ")
+
+    File.write!(prompt_path, agent.prompt)
+
+    File.write!(
+      script_path,
+      "#!/bin/sh\ncat #{prompt_path} | env -u CLAUDECODE claude #{cli_args}\n"
+    )
+
+    File.chmod!(script_path, 0o755)
+
+    args =
+      tmux_args() ++
+        ["new-window", "-t", session, "-n", name, "-c", cwd, build_agent_command(agent, run_id)]
+
+    case System.cmd("tmux", args, stderr_to_stdout: true) do
+      {_, 0} ->
+        register_agent(session, agent, "mes-#{run_id}", run_id, cwd)
+        :ok
+
+      {output, code} ->
+        Signals.emit(:mes_tmux_spawn_failed, %{session: session, output: output, exit_code: code})
+        {:error, {:corrective_spawn_failed, output, code}}
+    end
   end
 
   @spec cleanup_old_runs() :: :ok
@@ -97,7 +144,7 @@ defmodule Ichor.Mes.TeamSpawner do
       |> Enum.map(fn {run_id, _pid} -> "mes-#{run_id}" end)
       |> MapSet.new()
 
-    TeamSupervisor.list_all()
+    Ichor.Fleet.TeamSupervisor.list_all()
     |> Enum.filter(fn {name, _meta} -> String.starts_with?(name, "mes-") end)
     |> Enum.reject(fn {name, _meta} -> MapSet.member?(active_teams, name) end)
     |> Enum.each(fn {name, _meta} ->
@@ -230,12 +277,12 @@ defmodule Ichor.Mes.TeamSpawner do
       id: agent_id,
       role: capability_to_role(agent.capability),
       team: team_name,
-      backend: %{type: :tmux, session: "#{session}:#{agent.name}"},
-      capabilities: capabilities_for(agent.capability),
-      metadata: %{cwd: cwd, model: "sonnet", mes_run: run_id}
+      tmux_target: "#{session}:#{agent.name}",
+      run_id: run_id,
+      cwd: cwd
     ]
 
-    case TeamSupervisor.spawn_member(team_name, process_opts) do
+    case AgentSupervisor.spawn_agent(process_opts) do
       {:ok, _pid} ->
         Signals.emit(:mes_agent_registered, %{agent_name: agent.name, session: session})
 
@@ -247,29 +294,11 @@ defmodule Ichor.Mes.TeamSpawner do
     end
   end
 
-  defp ensure_team(name) do
-    case TeamSupervisor.exists?(name) do
-      true ->
-        :ok
-
-      false ->
-        case FleetSupervisor.create_team(name: name) do
-          {:ok, _} -> :ok
-          {:error, reason} -> {:error, {:team_create_failed, reason}}
-        end
-    end
-  end
-
   # ── Private: Role/Permission Helpers ───────────────────────────────
 
   defp capability_to_role("lead"), do: :lead
   defp capability_to_role("coordinator"), do: :coordinator
   defp capability_to_role(_), do: :worker
-
-  defp capabilities_for("lead"), do: [:read, :write, :spawn, :assign, :escalate]
-  defp capabilities_for("coordinator"), do: [:read, :write, :spawn, :assign, :escalate, :kill]
-  defp capabilities_for("scout"), do: [:read]
-  defp capabilities_for(_), do: [:read, :write]
 
   defp add_permission_args(args, cap) when cap in ["builder", "lead", "coordinator"],
     do: args ++ ["--dangerously-skip-permissions"]
@@ -319,38 +348,107 @@ defmodule Ichor.Mes.TeamSpawner do
     """
     You are the MES Coordinator for manufacturing run #{run_id}.
     Your session_id is: mes-#{run_id}-coordinator
+    You are in charge. You drive the entire pipeline.
 
     #{roster}
 
-    YOUR FIRST ACTION RIGHT NOW: call send_message to mes-#{run_id}-lead with content "Start research. Researchers send ideas to planner. Planner sends brief to me."
+    CRITICAL RULES -- READ BEFORE DOING ANYTHING:
+    - You communicate ONLY by calling the send_message and check_inbox MCP tools.
+    - NEVER write text to describe what you would send. ALWAYS call the tool.
+    - If you find yourself typing "I would send..." STOP. Call send_message instead.
+    - Every message MUST go through send_message. No exceptions.
 
-    YOUR SECOND ACTION: call check_inbox with session_id "mes-#{run_id}-coordinator". This is a pull-based inbox -- nothing arrives unless you call check_inbox. If empty, wait 30 seconds, call check_inbox again. Repeat this loop.
+    ============================================================
+    PHASE 1: DISPATCH (do ALL of these RIGHT NOW, one after another)
+    ============================================================
 
-    WHEN YOU RECEIVE THE BRIEF: send the COMPLETE brief (all fields: TITLE, DESCRIPTION, SUBSYSTEM, SIGNAL_INTERFACE, TOPIC, VERSION, FEATURES, USE_CASES, ARCHITECTURE, DEPENDENCIES, SIGNALS_EMITTED, SIGNALS_SUBSCRIBED) to "operator" using send_message (from_session_id: "mes-#{run_id}-coordinator", to_session_id: "operator"). The operator (Archon) will create the project record. Also write it to subsystems/briefs/#{run_id}.md as a backup (mkdir -p subsystems/briefs first).
+    Call send_message 4 times in sequence:
 
-    DEADLINE: 10 minutes total. If no brief after 8 minutes, send whatever partial info you have to "operator" and write a fallback brief to disk.
+    1. from: "mes-#{run_id}-coordinator", to: "mes-#{run_id}-researcher-1"
+       content: "You are assigned: signal correlation OR entropy management OR temporal reasoning (pick one). Do up to 3 web searches, then call send_message to mes-#{run_id}-coordinator with your proposal. Include: subsystem name, purpose, signal interface, key algorithm. You MUST call send_message when done."
+
+    2. from: "mes-#{run_id}-coordinator", to: "mes-#{run_id}-researcher-2"
+       content: "You are assigned: self-healing OR adaptive load balancing OR anomaly detection (pick one, different from researcher-1). Do up to 3 web searches, then call send_message to mes-#{run_id}-coordinator with your proposal. Include: subsystem name, purpose, signal interface, key algorithm. You MUST call send_message when done."
+
+    3. from: "mes-#{run_id}-coordinator", to: "mes-#{run_id}-planner"
+       content: "Stand by. I will forward researcher proposals to you shortly. When you receive them, synthesize into a brief and send_message it back to mes-#{run_id}-coordinator."
+
+    4. from: "mes-#{run_id}-coordinator", to: "mes-#{run_id}-lead"
+       content: "Stand by as quality reviewer. I will send you the final brief for review before delivery."
+
+    ============================================================
+    PHASE 2: COLLECT (poll inbox, forward to planner)
+    ============================================================
+
+    After dispatching, call check_inbox with session_id "mes-#{run_id}-coordinator".
+    If empty, wait 20 seconds, call check_inbox again. REPEAT.
+
+    When you receive a researcher proposal:
+    - Forward it to the planner: send_message from "mes-#{run_id}-coordinator" to "mes-#{run_id}-planner"
+    - Keep polling for the second researcher
+    - After forwarding both (or after 5 minutes if only one arrived), send_message to planner: "Synthesize now with what you have. Send the brief back to me."
+
+    ============================================================
+    PHASE 3: DELIVER (send brief to operator)
+    ============================================================
+
+    When you receive the synthesized brief from the planner:
+    - Send it to lead for quick review: send_message to "mes-#{run_id}-lead"
+    - Then send it to operator: send_message from "mes-#{run_id}-coordinator" to "operator"
+
+    The content to operator MUST be plain text starting with "TITLE:" on the first line:
+    TITLE: short descriptive name
+    DESCRIPTION: one or two sentences
+    SUBSYSTEM: Elixir module name (e.g. Ichor.Subsystems.EntropyHarvester)
+    SIGNAL_INTERFACE: which signals control it
+    TOPIC: unique PubSub topic (e.g. subsystem:entropy_harvester)
+    VERSION: 0.1.0
+    FEATURES: comma-separated list
+    USE_CASES: comma-separated list
+    ARCHITECTURE: brief description of internal structure
+    DEPENDENCIES: comma-separated Ichor modules required
+    SIGNALS_EMITTED: comma-separated signal atoms
+    SIGNALS_SUBSCRIBED: comma-separated signal atoms or categories
+
+    No markdown. No headers. No extra text before TITLE.
+
+    Also write the brief to subsystems/briefs/#{run_id}.md (mkdir -p subsystems/briefs first).
+
+    ============================================================
+    DEADLINE & FALLBACK
+    ============================================================
+    If after 7 minutes you have ANY researcher proposals but no planner brief:
+    - Synthesize the brief yourself from the proposals you have
+    - Send it to operator via send_message
+    - Write it to disk
+    If after 8 minutes you have NOTHING: write a note to subsystems/briefs/#{run_id}.md explaining the failure.
     """
   end
 
   defp lead_prompt(run_id, roster) do
     """
-    You are the MES Lead for manufacturing run #{run_id}.
+    You are the MES Lead (quality reviewer) for manufacturing run #{run_id}.
     Your session_id is: mes-#{run_id}-lead
 
     #{roster}
 
-    YOUR FIRST TWO ACTIONS RIGHT NOW:
-    1. send_message to mes-#{run_id}-researcher-1 asking them to research ONE of: signal correlation, self-healing, entropy management, adaptive load balancing, or temporal reasoning
-    2. send_message to mes-#{run_id}-researcher-2 asking them to research a DIFFERENT direction from the list above
+    CRITICAL RULES:
+    - You communicate ONLY by calling send_message and check_inbox MCP tools.
+    - NEVER write text to describe what you would send. ALWAYS call the tool.
 
-    YOUR THIRD ACTION: call check_inbox with session_id "mes-#{run_id}-lead". This is a pull-based inbox -- nothing arrives unless you call check_inbox. If empty, wait 30 seconds, call check_inbox again. Repeat this loop.
+    YOUR JOB: You are a quality reviewer. The coordinator runs the pipeline.
 
-    WHEN YOU RECEIVE RESEARCHER IDEAS: forward them to mes-#{run_id}-planner with send_message. Then keep polling check_inbox for the planner's brief and forward it to mes-#{run_id}-coordinator.
+    STEP 1: Call check_inbox with session_id "mes-#{run_id}-lead" RIGHT NOW.
+    If empty, wait 20 seconds, call check_inbox again. REPEAT.
 
-    CONSTRAINTS:
-    - Subsystem must be controllable through Ichor.Signals. No external SaaS.
-    - Creative, innovative, serious engineering for a sovereign AI control plane.
-    - Do NOT go idle. KEEP POLLING check_inbox.
+    STEP 2: When you receive the brief from the coordinator for review:
+    - Check it has all required fields (TITLE, DESCRIPTION, SUBSYSTEM, SIGNAL_INTERFACE, TOPIC, VERSION, FEATURES, USE_CASES, ARCHITECTURE, DEPENDENCIES, SIGNALS_EMITTED, SIGNALS_SUBSCRIBED)
+    - Check it proposes something creative and technically sound
+    - Call send_message back to mes-#{run_id}-coordinator with either "APPROVED" or specific feedback
+
+    STEP 3: If any agent messages you asking for help, forward the message to the coordinator via send_message.
+
+    Do NOT go idle. KEEP POLLING check_inbox.
     """
   end
 
@@ -361,29 +459,39 @@ defmodule Ichor.Mes.TeamSpawner do
 
     #{roster}
 
-    YOUR FIRST ACTION RIGHT NOW: call the check_inbox MCP tool with session_id "mes-#{run_id}-planner". If the inbox is empty, wait 20 seconds, then call check_inbox again. Keep repeating this loop until you receive messages. This is a pull-based inbox -- nothing arrives unless you call check_inbox.
+    CRITICAL RULES:
+    - You communicate ONLY by calling send_message and check_inbox MCP tools.
+    - NEVER write text to describe what you would send. ALWAYS call the tool.
+    - Do NOT read the codebase. Do NOT explore files. ONLY poll check_inbox and synthesize.
 
-    WHEN YOU RECEIVE RESEARCHER IDEAS: synthesize them into a project brief and send_message to mes-#{run_id}-coordinator with this EXACT format (all fields required):
+    STEP 1: Call check_inbox with session_id "mes-#{run_id}-planner" RIGHT NOW.
+    If empty, wait 20 seconds, call check_inbox again. REPEAT until you receive researcher ideas from the coordinator.
+
+    STEP 2: When you receive researcher proposals, synthesize them into a project brief.
+    Then IMMEDIATELY call send_message with:
+      from_session_id: "mes-#{run_id}-planner"
+      to_session_id: "mes-#{run_id}-coordinator"
+      content: the brief in this EXACT format (all fields required, one per line):
 
     TITLE: one short descriptive name
     DESCRIPTION: one or two sentences
     SUBSYSTEM: Elixir module name (e.g. Ichor.Subsystems.EntropyHarvester)
-    SIGNAL_INTERFACE: which signals control it (e.g. "Subscribes to :all, emits :correlator_pattern_found")
-    TOPIC: unique PubSub topic (e.g. subsystem:entropy_harvester) -- this is the subsystem's address
+    SIGNAL_INTERFACE: which signals control it
+    TOPIC: unique PubSub topic (e.g. subsystem:entropy_harvester)
     VERSION: 0.1.0
-    FEATURES: comma-separated list of capability descriptions
-    USE_CASES: comma-separated list of concrete scenarios
-    ARCHITECTURE: brief description of internal structure (processes, ETS tables, supervision)
-    DEPENDENCIES: comma-separated Ichor modules required (e.g. Ichor.Signals, :ets)
-    SIGNALS_EMITTED: comma-separated signal atoms this subsystem emits
-    SIGNALS_SUBSCRIBED: comma-separated signal atoms or categories it listens to (or :all)
+    FEATURES: comma-separated list
+    USE_CASES: comma-separated list
+    ARCHITECTURE: brief description of internal structure
+    DEPENDENCIES: comma-separated Ichor modules required
+    SIGNALS_EMITTED: comma-separated signal atoms
+    SIGNALS_SUBSCRIBED: comma-separated signal atoms or categories
+
+    You MUST call send_message to deliver this. Do NOT just write the brief as text output.
 
     RULES:
-    - Do NOT read the codebase. Do NOT explore files. ONLY poll check_inbox and synthesize.
     - Subsystem must implement Ichor.Mes.Subsystem behaviour (info/0, start/0, handle_signal/1, stop/0)
-    - info/0 returns an Ichor.Mes.Subsystem.Info struct with ALL the fields above
     - No external SaaS libraries. Must be controllable through Signals.
-    - Max 3 turns after receiving ideas.
+    - Max 3 turns after receiving ideas. Send the brief via send_message, then stop.
     """
   end
 
@@ -394,14 +502,67 @@ defmodule Ichor.Mes.TeamSpawner do
 
     #{roster}
 
-    YOUR FIRST ACTION RIGHT NOW: call check_inbox with session_id "mes-#{run_id}-researcher-#{n}" to get your assignment. This is a pull-based inbox -- nothing arrives unless you call check_inbox. If empty, wait 15 seconds, call again.
+    CRITICAL RULES:
+    - You communicate ONLY by calling send_message and check_inbox MCP tools.
+    - NEVER write text to describe what you would send. ALWAYS call the tool.
+    - Do NOT read the codebase. Do NOT explore files.
 
-    AFTER RECEIVING ASSIGNMENT: do max 3 web searches on your assigned topic, then send_message your proposal to mes-#{run_id}-planner with: subsystem name, single purpose, signal interface, key algorithm. Then stop.
+    STEP 1: Call check_inbox with session_id "mes-#{run_id}-researcher-#{n}" RIGHT NOW.
+    If empty, wait 15 seconds, call check_inbox again. REPEAT until you receive your assignment.
+
+    STEP 2: Do up to 3 web searches on your assigned topic.
+
+    STEP 3 (THIS IS THE MOST IMPORTANT STEP -- THE WHOLE TEAM DEPENDS ON THIS):
+    Call send_message with:
+      from_session_id: "mes-#{run_id}-researcher-#{n}"
+      to_session_id: "mes-#{run_id}-coordinator"
+      content: your proposal including subsystem name, single purpose, signal interface, key algorithm
+
+    YOU MUST CALL send_message. If you do not, your research is LOST and the entire team stalls forever. The coordinator is waiting for your message. There is no other way to deliver your work.
+
+    After calling send_message, you are done. Stop.
 
     CONSTRAINTS:
     - Subsystem must be controllable through Ichor.Signals
     - No external SaaS dependencies. Single purpose. Creative and innovative.
-    - MAX 3 turns total. Do NOT read the codebase or explore files.
+    - MAX 5 tool calls total: 1 check_inbox + 3 web searches + 1 send_message.
+    """
+  end
+
+  defp corrective_prompt(run_id, session, reason) do
+    roster = team_roster(session)
+
+    """
+    You are a Corrective Agent for MES manufacturing run #{run_id}.
+    Your session_id is: #{session}-corrective
+
+    #{roster}
+
+    CONTEXT: The quality gate rejected the brief submitted by this run's coordinator.
+    FAILURE REASON: #{reason || "unspecified — check your inbox for details"}
+
+    YOUR TASK (MAX 5 tool calls total):
+    1. Call check_inbox with session_id "#{session}-corrective" for additional context.
+    2. Synthesize a corrected subsystem brief that addresses the failure reason.
+    3. Call send_message to operator with the corrected brief in this EXACT format:
+
+    TITLE: short descriptive name
+    DESCRIPTION: one or two sentences
+    SUBSYSTEM: Elixir module name (e.g. Ichor.Subsystems.Foo)
+    SIGNAL_INTERFACE: which signals control it
+    TOPIC: unique PubSub topic
+    VERSION: 0.1.0
+    FEATURES: comma-separated list
+    USE_CASES: comma-separated list
+    ARCHITECTURE: brief description of internal structure
+    DEPENDENCIES: comma-separated Ichor modules required
+    SIGNALS_EMITTED: comma-separated signal atoms
+    SIGNALS_SUBSCRIBED: comma-separated signal atoms or categories
+
+    No markdown. No headers. No extra text before TITLE.
+    Also write the brief to subsystems/briefs/#{run_id}.md (overwrite).
+
+    After calling send_message, you are done. Stop.
     """
   end
 end

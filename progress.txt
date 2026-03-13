@@ -1,15 +1,22 @@
-# ICHOR IV Progress (2026-03-11)
+# ICHOR IV Progress
 
-## Signals Convention Migration -- COMPLETE
+## MES Registry & Supervision Fix (2026-03-13) -- IN PROGRESS
+- [x] Diagnosed MES agents not registering (5 tmux windows, 0 BEAM processes)
+- [x] Created Mes.AgentSupervisor (DynamicSupervisor, independent of RunProcess)
+- [x] Created Mes.MesAgentProcess (GenServer, tmux-liveness-driven lifecycle)
+- [x] Fixed RunProcess.terminate (no longer kills team/tmux)
+- [x] Fixed RunProcess.handle_call(:deadline_passed?) for old struct compat
+- [x] Fixed Janitor (tmux liveness check before cleanup)
+- [x] Fixed LoadAgents.filter_stale (ghost detection for zero-signal agents)
+- [x] Updated TeamSpawner to register under Mes.AgentSupervisor
+- [x] Compiled clean (243 files, 0 warnings)
+- [ ] Add missing signals to Catalog (:mes_agent_stopped, :mes_agent_tmux_gone)
+- [ ] Consolidate to single Ichor.Registry (user directive)
+- [ ] Verify MES agents appear in dashboard
+
+## Signals Convention Migration (2026-03-11) -- COMPLETE
 - [x] Migrated Ichor.Signal -> Ichor.Signals namespace across 42 files
-- [x] Signal.Payload -> Signals.Message (richer envelope: kind, domain, correlation_id, causation_id, meta)
-- [x] Created Signals.Bus (sole PubSub transport), Signals.Topics (centralized topic builder)
-- [x] Signal.AshNotifier -> Signals.FromAsh, old files to tmp/trash/
 - [x] mix compile --warnings-as-errors CLEAN, mix credo --strict 0 issues
 
-## Credo Strict Cleanup -- COMPLETE (commit bbbfad2)
+## Credo Strict Cleanup (2026-03-11) -- COMPLETE (commit bbbfad2)
 - 200/200 issues fixed across 39 files
-- Patterns: multi-head defp, field/3 helper, with chains, clause grouping
-
-## Signal Nervous System -- COMPLETE (commit 74f9e86)
-- 52+ PubSub.broadcast calls migrated to Signal.emit across 27+ files

@@ -177,14 +177,23 @@ defmodule Ichor.Archon.Tools.Mes do
       )
 
       run(fn _input, _context ->
-        active_runs = RunProcess.list_all()
+        all_runs = RunProcess.list_all()
+        active_runs = RunProcess.list_active()
 
         run_details =
-          Enum.map(active_runs, fn {run_id, pid} ->
+          Enum.map(all_runs, fn {run_id, pid} ->
+            deadline_passed =
+              try do
+                GenServer.call(pid, :deadline_passed?, 1_000)
+              catch
+                :exit, _ -> true
+              end
+
             %{
               "run_id" => run_id,
               "team" => "mes-#{run_id}",
-              "alive" => Process.alive?(pid)
+              "alive" => Process.alive?(pid),
+              "past_deadline" => deadline_passed
             }
           end)
 
@@ -198,6 +207,7 @@ defmodule Ichor.Archon.Tools.Mes do
         {:ok,
          %{
            "active_runs" => length(active_runs),
+           "total_runs" => length(all_runs),
            "runs" => run_details,
            "scheduler" => scheduler_status
          }}

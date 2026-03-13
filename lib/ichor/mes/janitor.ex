@@ -71,18 +71,29 @@ defmodule Ichor.Mes.Janitor do
   # ── Private ─────────────────────────────────────────────────────────
 
   defp safe_cleanup_run(run_id) do
-    team_name = "mes-#{run_id}"
     session = "mes-#{run_id}"
 
-    FleetSupervisor.disband_team(team_name)
-    TeamSpawner.kill_session(session)
-    Signals.emit(:mes_janitor_cleaned, %{run_id: run_id, trigger: "monitor"})
+    # Only clean up if tmux session is actually dead.
+    # MES agents are under Mes.AgentSupervisor and monitor their own tmux
+    # windows -- they self-terminate when their window dies. We only need
+    # to clean up prompt files and any orphaned Fleet team registrations.
+    if not tmux_session_alive?(session) do
+      FleetSupervisor.disband_team("mes-#{run_id}")
+      TeamSpawner.kill_session(session)
+      Signals.emit(:mes_janitor_cleaned, %{run_id: run_id, trigger: "monitor"})
+    else
+      Signals.emit(:mes_janitor_skipped, %{run_id: run_id, reason: "tmux_alive"})
+    end
   rescue
     e ->
       Signals.emit(:mes_janitor_error, %{
         run_id: run_id,
         reason: Exception.message(e)
       })
+  end
+
+  defp tmux_session_alive?(session) do
+    Ichor.Gateway.Channels.Tmux.available?(session)
   end
 
   defp safe_sweep do

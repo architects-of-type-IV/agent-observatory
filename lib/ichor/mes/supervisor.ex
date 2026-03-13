@@ -33,6 +33,8 @@ defmodule Ichor.Mes.Supervisor do
   def init(_opts) do
     children = [
       {Registry, keys: :unique, name: Ichor.Mes.Registry},
+      # MES agent processes -- independent of RunProcess lifecycle, tied to tmux liveness
+      {Ichor.Mes.AgentSupervisor, []},
       {DynamicSupervisor, name: Ichor.Mes.RunSupervisor, strategy: :one_for_one},
       {Ichor.Mes.Janitor, []},
       {Ichor.Mes.ProjectIngestor, []},

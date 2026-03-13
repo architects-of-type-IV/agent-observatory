@@ -17,7 +17,6 @@ defmodule Ichor.Fleet.Preparations.LoadAgents do
   alias Ichor.Gateway.TmuxDiscovery
 
   @idle_threshold_seconds 120
-  @stale_seconds 600
 
   @impl true
   def prepare(query, _opts, _context) do
@@ -346,7 +345,7 @@ defmodule Ichor.Fleet.Preparations.LoadAgents do
     Enum.reject(agents, &stale?(&1, tmux_set, now))
   end
 
-  defp stale?(agent, tmux_set, now) do
+  defp stale?(agent, tmux_set, _now) do
     cond do
       agent.status == :ended ->
         true
@@ -357,13 +356,21 @@ defmodule Ichor.Fleet.Preparations.LoadAgents do
       agent.tmux_session != nil and not MapSet.member?(tmux_set, agent.tmux_session) ->
         true
 
-      agent.last_event_at != nil and
-          DateTime.diff(now, agent.last_event_at, :second) > @stale_seconds ->
+      # Agents with no liveness signals (no BEAM process, no tmux, no os_pid, no events)
+      # are ghosts -- typically stale team members whose RunProcess terminated.
+      not has_liveness_signal?(agent, tmux_set) ->
         true
 
       true ->
         false
     end
+  end
+
+  defp has_liveness_signal?(agent, tmux_set) do
+    AgentProcess.alive?(agent.agent_id) or
+      (agent.tmux_session != nil and MapSet.member?(tmux_set, agent.tmux_session)) or
+      (agent.os_pid != nil and pid_alive?(agent.os_pid)) or
+      agent.event_count > 0
   end
 
   defp pid_alive?(os_pid) do
