@@ -26,7 +26,8 @@ defmodule Ichor.Activity.Preparations.LoadMessages do
   defp send_message_event?(%{
          hook_event_type: :PreToolUse,
          tool_name: "mcp__ichor__send_message"
-       }), do: true
+       }),
+       do: true
 
   defp send_message_event?(_), do: false
 
@@ -36,12 +37,16 @@ defmodule Ichor.Activity.Preparations.LoadMessages do
     # MCP tools nest args under "input" key
     args = input["input"] || input
 
+    # Use from_session_id from args (the actual sender) over the hook event session_id (UUID)
+    from = args["from_session_id"] || args["from"] || e.session_id
+    to = args["to_session_id"] || args["recipient"] || args["to"]
+
     struct!(Ichor.Activity.Message, %{
       id: e.id,
-      sender_session: e.session_id,
+      sender_session: from,
       sender_app: e.source_app,
       type: args["type"] || "message",
-      recipient: args["recipient"] || args["to_session_id"],
+      recipient: to,
       content: args["content"] || args["summary"] || "",
       summary: args["summary"],
       timestamp: e.inserted_at
