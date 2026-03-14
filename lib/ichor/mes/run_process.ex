@@ -141,6 +141,14 @@ defmodule Ichor.Mes.RunProcess do
     {:noreply, %{state | deadline_passed: true}}
   end
 
+  def handle_info(
+        %Message{name: :mes_project_created, data: %{run_id: run_id}},
+        %{run_id: run_id} = state
+      ) do
+    TeamSpawner.kill_session(state.session)
+    {:stop, :normal, state}
+  end
+
   def handle_info(%Message{}, state), do: {:noreply, state}
 
   @impl true
