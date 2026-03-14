@@ -246,7 +246,14 @@ defmodule IchorWeb.DashboardState do
 
     # Template-layer data
     paused_sessions = safe_paused_sessions()
-    mailbox_messages = load_messages(messages, 50)
+    operator_messages = Ichor.Operator.recent_messages(50)
+    hook_messages = load_messages(messages, 50)
+
+    mailbox_messages =
+      (operator_messages ++ hook_messages)
+      |> Enum.uniq_by(& &1.id)
+      |> Enum.sort_by(& &1.timestamp, {:desc, DateTime})
+      |> Enum.take(50)
 
     # Conditional: only compute expensive derivations for active view
     {analytics, timeline} = maybe_analytics(assigns)

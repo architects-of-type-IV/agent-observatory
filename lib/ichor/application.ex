@@ -9,6 +9,7 @@ defmodule Ichor.Application do
   def start(_type, _args) do
     ensure_tmux_server()
     Ichor.AgentSpawner.init_counter()
+    Ichor.Operator.start_message_log()
 
     children = [
       # Infrastructure (must start first -- everything depends on these)

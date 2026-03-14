@@ -19,6 +19,29 @@ defmodule Ichor.Operator do
   @from "operator"
   @type_iv_registry Ichor.Registry
 
+  # In-memory message log for comms panel. Capped at 200 entries.
+  # TODO: replace with persistent storage when needed.
+  @message_log_name :ichor_message_log
+  @max_messages 200
+
+  def start_message_log do
+    :ets.new(@message_log_name, [:named_table, :public, :ordered_set])
+    :ok
+  rescue
+    ArgumentError -> :ok
+  end
+
+  @doc "Read recent messages for the comms panel."
+  @spec recent_messages(pos_integer()) :: [map()]
+  def recent_messages(limit \\ 50) do
+    :ets.tab2list(@message_log_name)
+    |> Enum.sort_by(fn {ts, _} -> ts end, {:desc, DateTime})
+    |> Enum.take(limit)
+    |> Enum.map(fn {_ts, msg} -> msg end)
+  rescue
+    ArgumentError -> []
+  end
+
   @doc """
   Spawn a new agent in a tmux session with instruction overlay.
 
@@ -57,26 +80,39 @@ defmodule Ichor.Operator do
   # ── Delivery ──────────────────────────────────────────────────────────
 
   defp deliver_to_agent(id, payload) do
-    if AgentProcess.alive?(id) do
-      AgentProcess.send_message(id, payload)
-      {:ok, 1}
-    else
-      # Fallback: direct tmux using Registry metadata
-      case Registry.lookup(@type_iv_registry, {:agent, id}) do
-        [{_pid, %{tmux_target: target}}] when is_binary(target) ->
-          Tmux.deliver(target, payload)
-          {:ok, 1}
+    result =
+      if AgentProcess.alive?(id) do
+        AgentProcess.send_message(id, payload)
+        {:ok, 1}
+      else
+        # Fallback: direct tmux using Registry metadata
+        case Registry.lookup(@type_iv_registry, {:agent, id}) do
+          [{_pid, %{tmux_target: target}}] when is_binary(target) ->
+            Tmux.deliver(target, payload)
+            {:ok, 1}
 
-        _ ->
-          {:ok, 0}
+          _ ->
+            {:ok, 0}
+        end
       end
+
+    case result do
+      {:ok, n} when n > 0 -> record_message(@from, id, payload)
+      _ -> :ok
     end
+
+    result
   end
 
   defp deliver_to_team(name, payload) do
     if TeamSupervisor.exists?(name) do
       ids = TeamSupervisor.member_ids(name)
-      Enum.each(ids, &AgentProcess.send_message(&1, payload))
+
+      Enum.each(ids, fn id ->
+        AgentProcess.send_message(id, payload)
+        record_message(@from, id, payload)
+      end)
+
       {:ok, length(ids)}
     else
       {:ok, 0}
@@ -85,8 +121,41 @@ defmodule Ichor.Operator do
 
   defp deliver_to_fleet(payload) do
     agents = AgentProcess.list_all()
-    Enum.each(agents, fn {id, _meta} -> AgentProcess.send_message(id, payload) end)
+
+    Enum.each(agents, fn {id, _meta} ->
+      AgentProcess.send_message(id, payload)
+      record_message(@from, id, payload)
+    end)
+
     {:ok, length(agents)}
+  end
+
+  # ── Message Log ───────────────────────────────────────────────────────
+
+  defp record_message(from, to, payload) do
+    now = DateTime.utc_now()
+
+    msg = %{
+      id: :crypto.strong_rand_bytes(8) |> Base.encode16(case: :lower),
+      from: from,
+      to: to,
+      content: payload[:content] || payload["content"] || "",
+      type: payload[:type] || payload["type"] || :text,
+      timestamp: now,
+      read: false
+    }
+
+    try do
+      :ets.insert(@message_log_name, {now, msg})
+
+      if :ets.info(@message_log_name, :size) > @max_messages do
+        :ets.delete(@message_log_name, :ets.first(@message_log_name))
+      end
+    rescue
+      ArgumentError -> :ok
+    end
+
+    Ichor.Signals.emit(:fleet_changed, %{})
   end
 
   # ── Target Normalization ──────────────────────────────────────────────

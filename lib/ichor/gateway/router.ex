@@ -67,17 +67,16 @@ defmodule Ichor.Gateway.Router do
   Ensures an AgentProcess exists, handles channel side effects, and broadcasts.
   """
   def ingest(event) do
-    ensure_agent_process(event.session_id, event)
+    agent_id = resolve_or_create_agent(event.session_id, event)
 
     if event.hook_event_type in [:SessionEnd, "SessionEnd"] do
-      # Update Ichor.Registry status to :ended before terminating the process
-      AgentProcess.update_fields(event.session_id, %{status: :ended})
-      terminate_agent_process(event.session_id)
+      AgentProcess.update_fields(agent_id, %{status: :ended})
+      terminate_agent_process(agent_id)
     end
 
     handle_channel_events(event)
 
-    Ichor.Signals.emit(:agent_event, event.session_id, %{event: event})
+    Ichor.Signals.emit(:agent_event, agent_id, %{event: event})
 
     :ok
   end
@@ -155,28 +154,60 @@ defmodule Ichor.Gateway.Router do
     _ -> :ok
   end
 
-  @spec ensure_agent_process(String.t(), map()) :: :ok
-  defp ensure_agent_process(session_id, event) do
-    unless AgentProcess.alive?(session_id) do
-      opts = [
-        id: session_id,
-        role: :worker,
-        metadata: %{
-          cwd: event.cwd,
-          model: event.model_name,
-          os_pid: event.os_pid,
-          name: session_id
-        }
-      ]
+  # Resolve event to the correct AgentProcess. If the UUID session_id already
+  # has a process, use it. If not, check if an existing agent owns the same
+  # tmux session (e.g. MES agent registered as "mes-XXX-coordinator" but
+  # Claude fires events with UUID session_id and tmux_session "mes-XXX").
+  # Returns the agent_id to use for signal emission.
+  @spec resolve_or_create_agent(String.t(), map()) :: String.t()
+  defp resolve_or_create_agent(session_id, event) do
+    cond do
+      AgentProcess.alive?(session_id) ->
+        session_id
 
-      case FleetSupervisor.spawn_agent(opts) do
-        {:ok, _pid} -> :ok
-        {:error, {:already_started, _}} -> :ok
-        {:error, _reason} -> :ok
-      end
+      match = find_agent_by_tmux(event.tmux_session) ->
+        match
+
+      true ->
+        tmux_session = if event.tmux_session != "", do: event.tmux_session, else: nil
+
+        opts = [
+          id: session_id,
+          role: :worker,
+          backend: if(tmux_session, do: %{type: :tmux, session: tmux_session}, else: nil),
+          metadata: %{
+            cwd: event.cwd,
+            model: event.model_name,
+            os_pid: event.os_pid,
+            name: session_id
+          }
+        ]
+
+        case FleetSupervisor.spawn_agent(opts) do
+          {:ok, _pid} -> session_id
+          {:error, {:already_started, _}} -> session_id
+          {:error, _reason} -> session_id
+        end
     end
   rescue
-    _ -> :ok
+    _ -> session_id
+  end
+
+  # Find an existing agent whose tmux session or target matches the event's tmux_session.
+  # "mes-XXX" matches "mes-XXX:coordinator" (prefix match on tmux_target).
+  defp find_agent_by_tmux(nil), do: nil
+  defp find_agent_by_tmux(""), do: nil
+
+  defp find_agent_by_tmux(tmux_session) do
+    AgentProcess.list_all()
+    |> Enum.find_value(fn {id, meta} ->
+      target = meta[:tmux_target] || ""
+      session = meta[:tmux_session] || ""
+
+      if session == tmux_session or String.starts_with?(target, tmux_session <> ":") do
+        id
+      end
+    end)
   end
 
   # ── Pipeline Stages ──────────────────────────────────────────────────
