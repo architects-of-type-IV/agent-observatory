@@ -342,18 +342,16 @@ defmodule Ichor.Fleet.AgentProcess do
     end
   end
 
+  # Every message goes to unread (for check_inbox).
+  # If backend exists and agent is active, also push to tmux/webhook.
   @spec route_message(map(), t()) :: t()
   defp route_message(msg, %{status: status} = state) when status != :active do
     %{state | unread: [msg | state.unread]}
   end
 
-  defp route_message(msg, %{backend: nil} = state) do
-    %{state | unread: [msg | state.unread]}
-  end
-
   defp route_message(msg, state) do
-    Delivery.deliver(state.backend, msg)
-    state
+    if state.backend, do: Delivery.deliver(state.backend, msg)
+    %{state | unread: [msg | state.unread]}
   end
 
   @spec update_registry(String.t(), map()) :: :error | {term(), term()}
