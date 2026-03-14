@@ -1,5 +1,13 @@
 # ICHOR IV Progress
 
+## MES Page UI Redesign (2026-03-15) -- COMPLETE
+- [x] Rewrote mes_components.ex: stacked cards -> compact feed + split detail panel
+- [x] Feed: grid columns (Module, Project, Topic, Version, Status), click-to-select
+- [x] Detail panel: full spec (features, use cases, signals, architecture, dependencies)
+- [x] Added selected_mes_project assign + mes_select_project event handler
+- [x] Updated dashboard_live.ex, dashboard_live.html.heex, dashboard_mes_handlers.ex
+- [x] mix compile --warnings-as-errors CLEAN
+
 ## MES Researcher Prompt Redesign (2026-03-14) -- COMPLETE
 - [x] Split researcher_prompt/3 into researcher_1_prompt/2 (driver) and researcher_2_prompt/2 (critic)
 - [x] Both prompts include full app context, dead zones, fresh territory, Subsystem behaviour

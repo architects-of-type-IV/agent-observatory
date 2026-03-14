@@ -6,10 +6,32 @@ defmodule IchorWeb.DashboardMesHandlers do
   import Phoenix.Component, only: [assign: 3]
   import Phoenix.LiveView, only: [put_flash: 3]
 
-  alias Ichor.Mes.{Project, SubsystemLoader}
+  alias Ichor.Mes.{Project, Scheduler, SubsystemLoader}
   alias Ichor.Signals
 
   @spec dispatch(String.t(), map(), Phoenix.LiveView.Socket.t()) :: Phoenix.LiveView.Socket.t()
+  def dispatch("toggle_mes_scheduler", _params, socket) do
+    if Scheduler.paused?() do
+      Scheduler.resume()
+    else
+      Scheduler.pause()
+    end
+
+    status =
+      try do
+        Scheduler.status()
+      catch
+        :exit, _ -> %{tick: 0, active_runs: 0, next_tick_in: 60_000, paused: false}
+      end
+
+    assign(socket, :mes_scheduler_status, status)
+  end
+
+  def dispatch("mes_select_project", %{"id" => id}, socket) do
+    project = Enum.find(socket.assigns.mes_projects, &(&1.id == id))
+    assign(socket, :selected_mes_project, project)
+  end
+
   def dispatch("mes_pick_up", %{"id" => id}, socket) do
     project = Enum.find(socket.assigns.mes_projects, &(&1.id == id))
 
