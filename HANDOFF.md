@@ -1,35 +1,31 @@
 # ICHOR IV - Handoff
 
-## Current Status: Task 6 (Delete Gateway.AgentRegistry) COMPLETE (2026-03-13)
+## Current Status: MES Researcher Prompt Redesign COMPLETE (2026-03-14)
 
 ### What Was Done This Session
-**Task 6 - Delete Gateway.AgentRegistry ETS GenServer and submodules:**
+**Redesigned MES researcher prompts** in `lib/ichor/mes/team_spawner.ex`:
 
-Files moved to `tmp/trash/`:
-1. `lib/ichor/gateway/agent_registry.ex` -- ETS GenServer (main module)
-2. `lib/ichor/gateway/agent_registry/event_handler.ex` -- submodule
-3. `lib/ichor/gateway/agent_registry/identity_merge.ex` -- submodule
-4. `lib/ichor/gateway/agent_registry/team_sync.ex` -- submodule
-5. `lib/ichor/gateway/agent_registry/sweep.ex` -- submodule
+Replaced single `researcher_prompt/3` with two specialized functions:
+- `researcher_1_prompt/2` (DRIVER) -- generates 3 proposals across different domains, sends to researcher-2 for critique, iterates based on feedback, delivers final to coordinator
+- `researcher_2_prompt/2` (CRITIC) -- reviews proposals, does web research to strengthen best one, sends structured PICK/DEAD/STRENGTHEN/AVOID feedback, approves final revision
 
-File kept (pure utilities, still used):
-- `lib/ichor/gateway/agent_registry/agent_entry.ex` -- `short_id/1`, `uuid?/1`, `role_from_string/1`
+Both prompts include: full Ichor app context, dead zones (banned topics: signal correlation, anomaly detection, entropy, self-healer, load balancing), fresh territory suggestions, and Subsystem behaviour contract.
 
-File updated:
-- `lib/ichor/gateway_supervisor.ex` -- removed `{Ichor.Gateway.AgentRegistry, []}` from children list; changed strategy from `:rest_for_one` to `:one_for_one`; updated `@moduledoc`
+Also updated:
+- **Coordinator Phase 1**: collaboration-framed start signals instead of hardcoded topic assignments
+- **Coordinator Phase 2**: waits for ONE message from researcher-1 only
+- **Planner prompt**: expects single developed proposal, max 2 turns
 
-### Architecture Now
-- **Ichor.Registry** -- SOLE source of truth for all agent processes
-- **AgentProcess API** -- `list_all/0`, `lookup/1`, `alive?/1`, `update_fields/2`
-- **Gateway.AgentRegistry** -- DELETED (ETS table gone)
-- **AgentEntry** -- kept at `Ichor.Gateway.AgentRegistry.AgentEntry` (pure utils)
-- Many files still alias `AgentEntry` via the old path -- this is fine (module stays)
+### Message Flow
+```
+Coordinator --START--> R1 --[3 proposals]--> R2
+R2 --[PICK/STRENGTHEN/AVOID]--> R1
+R1 --[revised]--> R2 --[READY]--> R1
+R1 --[final]--> Coordinator --> Planner --> Lead --> Operator
+```
 
 ### Build Status
-- `mix compile --warnings-as-errors` -- CLEAN (1 file compiled, 0 warnings)
-- `grep -r "AgentRegistry\." lib/ --include="*.ex" | grep -v AgentEntry` -- EMPTY
+- `mix compile --warnings-as-errors` -- CLEAN
 
 ### Next Step
-Task 6 is the last planned registry task. The ETS AgentRegistry is fully removed.
-Consider: any future cleanup of the `AgentEntry` module path (renaming to `Ichor.Agent.Entry`
-or similar) would require updating ~15 alias sites, but this is cosmetic and low priority.
+- Test with a live MES run to verify the collaboration loop

@@ -37,8 +37,16 @@ defmodule Ichor.Mes.TeamSpawner do
       },
       %{name: "lead", capability: "lead", prompt: lead_prompt(run_id, roster)},
       %{name: "planner", capability: "builder", prompt: planner_prompt(run_id, roster)},
-      %{name: "researcher-1", capability: "scout", prompt: researcher_prompt(run_id, 1, roster)},
-      %{name: "researcher-2", capability: "scout", prompt: researcher_prompt(run_id, 2, roster)}
+      %{
+        name: "researcher-1",
+        capability: "scout",
+        prompt: researcher_1_prompt(run_id, roster)
+      },
+      %{
+        name: "researcher-2",
+        capability: "scout",
+        prompt: researcher_2_prompt(run_id, roster)
+      }
     ]
 
     with :ok <- write_agent_scripts(run_id, agents),
@@ -379,28 +387,30 @@ defmodule Ichor.Mes.TeamSpawner do
     Call send_message 4 times in sequence:
 
     1. from: "mes-#{run_id}-coordinator", to: "mes-#{run_id}-researcher-1"
-       content: "You are assigned: signal correlation OR entropy management OR temporal reasoning (pick one). Do up to 3 web searches, then call send_message to mes-#{run_id}-coordinator with your proposal. Include: subsystem name, purpose, signal interface, key algorithm. You MUST call send_message when done."
+       content: "START NOW. You are driving a peer research loop with researcher-2. Generate 3 creative subsystem proposals for Ichor. Send them to mes-#{run_id}-researcher-2 for critique. After one feedback round, send your best revised proposal to mes-#{run_id}-coordinator. You have 8 minutes."
 
     2. from: "mes-#{run_id}-coordinator", to: "mes-#{run_id}-researcher-2"
-       content: "You are assigned: self-healing OR adaptive load balancing OR anomaly detection (pick one, different from researcher-1). Do up to 3 web searches, then call send_message to mes-#{run_id}-coordinator with your proposal. Include: subsystem name, purpose, signal interface, key algorithm. You MUST call send_message when done."
+       content: "You are the critic. Researcher-1 (mes-#{run_id}-researcher-1) will send you 3 proposals. Pick the most novel one, do a web search to strengthen it, send structured feedback to researcher-1. When researcher-1 sends a revised proposal, reply READY: [proposal] back to researcher-1. You have 8 minutes."
 
     3. from: "mes-#{run_id}-coordinator", to: "mes-#{run_id}-planner"
-       content: "Stand by. I will forward researcher proposals to you shortly. When you receive them, synthesize into a brief and send_message it back to mes-#{run_id}-coordinator."
+       content: "Stand by. I will forward a single developed proposal from the research team shortly. Expand it into a full brief and send_message it back to mes-#{run_id}-coordinator."
 
     4. from: "mes-#{run_id}-coordinator", to: "mes-#{run_id}-lead"
        content: "Stand by as quality reviewer. I will send you the final brief for review before delivery."
 
     ============================================================
-    PHASE 2: COLLECT (poll inbox, forward to planner)
+    PHASE 2: COLLECT (poll inbox, wait for researcher-1's final proposal)
     ============================================================
 
     After dispatching, call check_inbox with session_id "mes-#{run_id}-coordinator".
     If empty, wait 20 seconds, call check_inbox again. REPEAT.
 
-    When you receive a researcher proposal:
+    You only need ONE message from researcher-1 (the final proposal after peer review).
+    Do not wait for researcher-2 to send anything directly to you.
+
+    When you receive the final research proposal from researcher-1:
     - Forward it to the planner: send_message from "mes-#{run_id}-coordinator" to "mes-#{run_id}-planner"
-    - Keep polling for the second researcher
-    - After forwarding both (or after 5 minutes if only one arrived), send_message to planner: "Synthesize now with what you have. Send the brief back to me."
+    - Tell the planner: "Synthesize now. This is the final proposal. Send the brief back to me."
 
     ============================================================
     PHASE 3: DELIVER (send brief to operator)
@@ -479,9 +489,10 @@ defmodule Ichor.Mes.TeamSpawner do
     - Do NOT read the codebase. Do NOT explore files. ONLY poll check_inbox and synthesize.
 
     STEP 1: Call check_inbox with session_id "mes-#{run_id}-planner" RIGHT NOW.
-    If empty, wait 20 seconds, call check_inbox again. REPEAT until you receive researcher ideas from the coordinator.
+    If empty, wait 20 seconds, call check_inbox again. REPEAT until you receive a developed research proposal from the coordinator.
+    The coordinator will forward a single, well-developed proposal from the research team.
 
-    STEP 2: When you receive researcher proposals, synthesize them into a project brief.
+    STEP 2: When you receive the proposal, expand it into a full project brief.
     Then IMMEDIATELY call send_message with:
       from_session_id: "mes-#{run_id}-planner"
       to_session_id: "mes-#{run_id}-coordinator"
@@ -505,14 +516,15 @@ defmodule Ichor.Mes.TeamSpawner do
     RULES:
     - Subsystem must implement Ichor.Mes.Subsystem behaviour (info/0, start/0, handle_signal/1, stop/0)
     - No external SaaS libraries. Must be controllable through Signals.
-    - Max 3 turns after receiving ideas. Send the brief via send_message, then stop.
+    - Max 2 turns after receiving the proposal. Send the brief via send_message, then stop.
     """
   end
 
-  defp researcher_prompt(run_id, n, roster) do
+  defp researcher_1_prompt(run_id, roster) do
     """
-    You are MES Researcher #{n} for manufacturing run #{run_id}.
-    Your session_id is: mes-#{run_id}-researcher-#{n}
+    You are MES Researcher-1 (DRIVER) for manufacturing run #{run_id}.
+    Your session_id is: mes-#{run_id}-researcher-1
+    You drive a two-researcher collaboration loop with Researcher-2.
 
     #{roster}
 
@@ -521,25 +533,250 @@ defmodule Ichor.Mes.TeamSpawner do
     - NEVER write text to describe what you would send. ALWAYS call the tool.
     - Do NOT read the codebase. Do NOT explore files.
 
-    STEP 1: Call check_inbox with session_id "mes-#{run_id}-researcher-#{n}" RIGHT NOW.
-    If empty, wait 15 seconds, call check_inbox again. REPEAT until you receive your assignment.
+    ============================================================
+    WHAT IS ICHOR OBSERVATORY
+    ============================================================
+    Ichor Observatory is a HYPERVISOR FOR MACHINE COGNITION — a real-time
+    control plane for AI agent meshes. It manages, traces, and intervenes
+    in autonomous AI agents at scale.
 
-    STEP 2: Do up to 3 web searches on your assigned topic.
+    Architecture layers:
+    - Fleet: supervised agent processes (AgentProcess GenServers, TeamSupervisor, FleetSupervisor)
+    - Signals: PubSub nervous system. Ichor.Signals.emit/2,3 and Ichor.Signals.subscribe/1,2
+    - Subsystems: plugin modules implementing Ichor.Mes.Subsystem behaviour
+    - Gateway/Operator: inter-agent message routing
+    - Workshop: SQLite-backed persistent memory for agents
+    - Archon: LangChain-based AI assistant with tool access to fleet
 
-    STEP 3 (THIS IS THE MOST IMPORTANT STEP -- THE WHOLE TEAM DEPENDS ON THIS):
-    Call send_message with:
-      from_session_id: "mes-#{run_id}-researcher-#{n}"
-      to_session_id: "mes-#{run_id}-coordinator"
-      content: your proposal including subsystem name, single purpose, signal interface, key algorithm
+    Signal categories: fleet, system, events, gateway, agent, hitl,
+    mesh, team, monitoring, messages, memory, mes.
 
-    YOU MUST CALL send_message. If you do not, your research is LOST and the entire team stalls forever. The coordinator is waiting for your message. There is no other way to deliver your work.
+    Subsystem behaviour contract (what you are proposing to BUILD):
+      info/0    — returns manifest: name, module, topic, signals_emitted, signals_subscribed, features
+      start/0   — start GenServer, subscribe to PubSub topic
+      handle_signal/1 — react to incoming signals
+      stop/0    — unsubscribe, cleanup
 
-    After calling send_message, you are done. Stop.
+    ============================================================
+    DEAD ZONES — DO NOT PROPOSE ANY VARIANT OF THESE
+    ============================================================
+    The following have been proposed 15+ times and are BANNED:
+    - Signal correlation engine / cross-signal correlation / causal correlation
+    - Anomaly detection (EWMA, CUSUM, z-score, control charts)
+    - Entropy monitoring / entropy harvesting / entropy scoring
+    - Self-healer / swarm self-healer (ALREADY BUILT)
+    - Adaptive load balancing / task distribution by load
 
-    CONSTRAINTS:
-    - Subsystem must be controllable through Ichor.Signals
-    - No external SaaS dependencies. Single purpose. Creative and innovative.
-    - MAX 5 tool calls total: 1 check_inbox + 3 web searches + 1 send_message.
+    ============================================================
+    FRESH TERRITORY — EXPLORE THESE DOMAINS (not limited to)
+    ============================================================
+    The Ichor knowledge library has 446 entries across:
+    agents, integration, workflow, memory, vectors, graphs, performance,
+    data-processing, reliability, retrieval, concurrency.
+
+    Ichor currently lacks subsystems in these areas (all valid targets):
+    - Workflow execution: DAG-based, OTP-supervised, durable step records
+    - Semantic routing: route tasks to agents by capability embeddings
+    - Cost/budget accounting: track resource consumption per agent/team
+    - Knowledge graph integration: semantic memory via graph traversal
+    - Replay/time-travel debugging: record and replay agent sequences
+    - Agent versioning: snapshot and rollback agent state/configuration
+    - Cross-session learning: accumulate findings across manufacturing runs
+    - Human-in-the-loop gating: structured pause/resume workflows
+    - Protocol adapters: bridge external webhooks/queues/streams to Signals
+    - Capability marketplace: dynamic plugin registry with negotiation
+    - Behavioral profiling: fingerprint normal behavior, flag deviations
+    - Latency budgeting: adaptive throttling to meet SLA targets
+    - Synthetic load testing: inject synthetic signal traffic for resilience
+    - Execution ledger: durable queryable history of agent runs
+
+    These are suggestions. You are free to propose anything creative that
+    evolves the hypervisor. The only constraint: it must integrate through
+    Ichor.Signals and implement the Subsystem behaviour.
+
+    ============================================================
+    YOUR PROCEDURE
+    ============================================================
+
+    PHASE 1 — START SIGNAL
+    Call check_inbox with session_id "mes-#{run_id}-researcher-1".
+    Wait for the coordinator's START message. If empty, wait 15 seconds,
+    try again. Max 3 polls. If nothing after 3 polls, proceed anyway.
+
+    PHASE 2 — EXPLORE 3 DIFFERENT DIRECTIONS (3 WebSearch calls)
+    Do exactly 3 web searches, each in a DIFFERENT domain.
+    Do NOT search for signal correlation, anomaly detection, or entropy.
+    Each search should explore a specific technical approach (e.g.,
+    "elixir durable workflow DAG OTP", "vector similarity routing agents",
+    "event sourcing replay debugging elixir").
+
+    PHASE 3 — DRAFT 3 PROPOSALS, SEND TO RESEARCHER-2
+    Write 3 proposals, each from a different domain. Each needs:
+    - Name: Ichor.Subsystems.[ModuleName]
+    - Purpose: one sentence
+    - Signal integration: what signals it subscribes to / emits
+    - Core algorithm/approach: 2-3 sentences
+    - Why it evolves the hypervisor
+
+    Call send_message:
+      from: "mes-#{run_id}-researcher-1"
+      to: "mes-#{run_id}-researcher-2"
+      content: [your 3 proposals]
+
+    PHASE 4 — RECEIVE FEEDBACK
+    Call check_inbox with session_id "mes-#{run_id}-researcher-1".
+    Wait for researcher-2's feedback. If empty, wait 30 seconds, try
+    again. Max 4 polls. If no feedback after 4 minutes, skip to Phase 6
+    with your best original proposal.
+
+    PHASE 5 — TARGETED RESEARCH (1 WebSearch)
+    Based on researcher-2's feedback, do 1 focused web search to
+    strengthen the chosen proposal.
+
+    PHASE 6 — REVISED PROPOSAL, SEND TO RESEARCHER-2
+    Send your refined single best proposal to researcher-2:
+      from: "mes-#{run_id}-researcher-1"
+      to: "mes-#{run_id}-researcher-2"
+      content: [your revised proposal]
+
+    PHASE 7 — RECEIVE APPROVAL
+    Call check_inbox with session_id "mes-#{run_id}-researcher-1".
+    Wait for researcher-2's READY response. Max 3 polls (30s gap).
+    If no response after 3 minutes, proceed with Phase 6 proposal.
+
+    PHASE 8 — DELIVER TO COORDINATOR (THIS IS THE MOST IMPORTANT STEP)
+    Call send_message:
+      from: "mes-#{run_id}-researcher-1"
+      to: "mes-#{run_id}-coordinator"
+      content: your final proposal (incorporate refinements from READY
+      message if received)
+
+    YOU MUST CALL send_message in Phase 8. If you do not, your research
+    is LOST and the entire team stalls forever.
+
+    After Phase 8, you are done. Stop.
+
+    TOOL BUDGET: Max 15 tool calls.
+    TIME: approximately 8 minutes before the run expires.
+    """
+  end
+
+  defp researcher_2_prompt(run_id, roster) do
+    """
+    You are MES Researcher-2 (CRITIC) for manufacturing run #{run_id}.
+    Your session_id is: mes-#{run_id}-researcher-2
+    You are the critic and validator in a two-researcher collaboration loop.
+
+    #{roster}
+
+    CRITICAL RULES:
+    - You communicate ONLY by calling send_message and check_inbox MCP tools.
+    - NEVER write text to describe what you would send. ALWAYS call the tool.
+    - Do NOT read the codebase. Do NOT explore files.
+
+    ============================================================
+    WHAT IS ICHOR OBSERVATORY
+    ============================================================
+    Ichor Observatory is a HYPERVISOR FOR MACHINE COGNITION — a real-time
+    control plane for AI agent meshes. It manages, traces, and intervenes
+    in autonomous AI agents at scale.
+
+    Architecture layers:
+    - Fleet: supervised agent processes (AgentProcess GenServers, TeamSupervisor, FleetSupervisor)
+    - Signals: PubSub nervous system. Ichor.Signals.emit/2,3 and Ichor.Signals.subscribe/1,2
+    - Subsystems: plugin modules implementing Ichor.Mes.Subsystem behaviour
+    - Gateway/Operator: inter-agent message routing
+    - Workshop: SQLite-backed persistent memory for agents
+    - Archon: LangChain-based AI assistant with tool access to fleet
+
+    Signal categories: fleet, system, events, gateway, agent, hitl,
+    mesh, team, monitoring, messages, memory, mes.
+
+    Subsystem behaviour contract (what is being proposed to BUILD):
+      info/0    — returns manifest: name, module, topic, signals_emitted, signals_subscribed, features
+      start/0   — start GenServer, subscribe to PubSub topic
+      handle_signal/1 — react to incoming signals
+      stop/0    — unsubscribe, cleanup
+
+    ============================================================
+    DEAD ZONES — REJECT ANY PROPOSAL IN THESE AREAS
+    ============================================================
+    If researcher-1 proposes any variant of these, tell them to pick another:
+    - Signal correlation engine / cross-signal correlation / causal correlation
+    - Anomaly detection (EWMA, CUSUM, z-score, control charts)
+    - Entropy monitoring / entropy harvesting / entropy scoring
+    - Self-healer / swarm self-healer (ALREADY BUILT)
+    - Adaptive load balancing
+
+    ============================================================
+    FRESH TERRITORY
+    ============================================================
+    The Ichor knowledge library has 446 entries across:
+    agents, integration, workflow, memory, vectors, graphs, performance,
+    data-processing, reliability, retrieval, concurrency.
+
+    Strong directions Ichor currently lacks:
+    - Workflow execution (DAG-based, OTP-supervised, durable step records)
+    - Semantic routing (capability embeddings for task-to-agent matching)
+    - Cost/budget accounting (per-agent resource consumption tracking)
+    - Knowledge graph integration (semantic memory via graph traversal)
+    - Replay/time-travel debugging (record and replay agent sequences)
+    - Protocol adapters (bridge external webhooks/queues to Signals)
+    - Behavioral profiling (fingerprint normal behavior, flag deviations)
+    - Execution ledger (durable queryable history of agent runs)
+
+    These are suggestions. Any creative proposal that evolves the
+    hypervisor through Signals integration is valid.
+
+    ============================================================
+    YOUR PROCEDURE
+    ============================================================
+
+    PHASE 1 — WAIT FOR RESEARCHER-1'S PROPOSALS
+    Call check_inbox with session_id "mes-#{run_id}-researcher-2".
+    If empty, wait 30 seconds, try again. Keep polling until you receive
+    3 proposals from researcher-1. Max wait: 5 minutes.
+
+    PHASE 2 — EVALUATE (no tool call needed)
+    Review researcher-1's 3 proposals:
+    - Reject any that fall in the Dead Zones
+    - Pick the most novel and technically interesting one
+    - Identify the specific technical angle to strengthen
+
+    PHASE 3 — WEB RESEARCH (1 WebSearch)
+    Do 1 web search to find concrete technical depth for the chosen
+    proposal. Example: if the proposal is "semantic routing by capability
+    embedding", search "elixir vector similarity nearest neighbor
+    agent capability routing".
+
+    PHASE 4 — SEND FEEDBACK TO RESEARCHER-1 (THIS IS CRITICAL)
+    Call send_message:
+      from: "mes-#{run_id}-researcher-2"
+      to: "mes-#{run_id}-researcher-1"
+      content: structured feedback in this format:
+        PICK: [proposal name] — [one sentence on why it is the best]
+        DEAD: [any proposals in banned zones — researcher-1 must drop these]
+        STRENGTHEN: [specific technical finding from your web search]
+        AVOID: [specific pitfall or design smell to steer clear of]
+
+    YOU MUST CALL send_message. Researcher-1 is waiting for your feedback.
+    Without it, the entire collaboration loop stalls.
+
+    PHASE 5 — WAIT FOR RESEARCHER-1'S REVISION
+    Call check_inbox with session_id "mes-#{run_id}-researcher-2".
+    If empty, wait 30 seconds, try again. Max 4 polls.
+    If nothing after 3 minutes, send READY with the best original proposal.
+
+    PHASE 6 — APPROVE AND HAND BACK
+    Call send_message:
+      from: "mes-#{run_id}-researcher-2"
+      to: "mes-#{run_id}-researcher-1"
+      content: READY: [the complete refined proposal text]
+
+    After Phase 6, you are done. Stop.
+
+    TOOL BUDGET: Max 12 tool calls.
+    TIME: approximately 8 minutes before the run expires.
     """
   end
 

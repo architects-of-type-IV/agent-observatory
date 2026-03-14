@@ -1,5 +1,13 @@
 # ICHOR IV Progress
 
+## MES Researcher Prompt Redesign (2026-03-14) -- COMPLETE
+- [x] Split researcher_prompt/3 into researcher_1_prompt/2 (driver) and researcher_2_prompt/2 (critic)
+- [x] Both prompts include full app context, dead zones, fresh territory, Subsystem behaviour
+- [x] Coordinator Phase 1: collaboration-framed start signals (no hardcoded topics)
+- [x] Coordinator Phase 2: waits for ONE message from researcher-1 only
+- [x] Planner prompt: expects single developed proposal, max 2 turns
+- [x] mix compile --warnings-as-errors CLEAN
+
 ## Task 6: Delete Gateway.AgentRegistry ETS GenServer (2026-03-13) -- COMPLETE
 - [x] Moved agent_registry.ex to tmp/trash (ETS GenServer deleted)
 - [x] Moved 4 submodules to tmp/trash (event_handler, identity_merge, team_sync, sweep)

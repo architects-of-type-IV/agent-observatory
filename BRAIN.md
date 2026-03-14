@@ -21,6 +21,13 @@
 - **Signals.Catalog**: new signals must be added BEFORE any process can emit them. `lookup!/1` raises on unknown. `:mes_agent_stopped` and `:mes_agent_tmux_gone` now added.
 - **Elixir Registry auto-cleanup**: when a process dies, its entry is automatically removed. Good for live state, bad for historical display. EventBuffer covers history.
 
+## MES Researcher Collaboration Loop (2026-03-14)
+- Two researchers now collaborate: R1 (driver) proposes 3 ideas, R2 (critic) picks best + strengthens
+- Both get full app context, dead zones (banned: signal correlation/anomaly/entropy/self-heal/load-balance), and fresh territory suggestions
+- Tool budgets: R1=15, R2=12 (generous for polling latency)
+- Coordinator waits for ONE final proposal from R1 only
+- Knowledge library (446 entries) referenced as inspiration source
+
 ## Agent Identity (CRITICAL)
 - tmux session name IS canonical session_id
 - Agent name is NEVER Path.basename(cwd)
