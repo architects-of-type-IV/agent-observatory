@@ -53,9 +53,10 @@ defmodule Ichor.Mes.ProjectIngestor do
 
   # ── Private: Extraction ────────────────────────────────────────────
 
-  defp extract_mes_payload(%{msg_map: %{to_session_id: "operator", content: content}} = data)
+  # Normalized messages use :to and :from (atom keys), not :to_session_id
+  defp extract_mes_payload(%{msg_map: %{to: "operator", content: content} = msg})
        when is_binary(content) do
-    from = get_in(data, [:msg_map, :from_session_id]) || ""
+    from = msg[:from] || ""
 
     if String.starts_with?(from, "mes-") do
       extract_from_content(content, from)
