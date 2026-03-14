@@ -47,6 +47,7 @@ defmodule Ichor.Gateway.TmuxDiscovery do
     all_agents = AgentProcess.list_all()
 
     ensure_beam_processes(tmux_sessions)
+    reap_dead_agents(tmux_sessions, all_agents)
     enrich_tmux_channels(tmux_sessions, tmux_panes, all_agents)
 
     Ichor.Signals.emit(:fleet_changed, %{})
@@ -60,6 +61,21 @@ defmodule Ichor.Gateway.TmuxDiscovery do
         not AgentProcess.alive?(session_name) do
       cwd = detect_cwd(session_name)
       create_agent_process(session_name, cwd)
+    end
+  end
+
+  # Kill AgentProcesses whose tmux session no longer exists.
+  # Only reaps agents that were tmux-backed (have a tmux_session in metadata).
+  defp reap_dead_agents(tmux_sessions, all_agents) do
+    live_sessions = MapSet.new(tmux_sessions)
+
+    for {id, meta} <- all_agents,
+        tmux_session = meta[:tmux_session],
+        is_binary(tmux_session),
+        tmux_session != "",
+        not MapSet.member?(live_sessions, tmux_session) do
+      Logger.info("[TmuxDiscovery] Reaping #{id} -- tmux session #{tmux_session} is gone")
+      FleetSupervisor.terminate_agent(id)
     end
   end
 
