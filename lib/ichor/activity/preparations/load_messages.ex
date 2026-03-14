@@ -33,11 +33,8 @@ defmodule Ichor.Activity.Preparations.LoadMessages do
 
   defp event_to_message(e) do
     input = (e.payload || %{})["tool_input"] || %{}
+    args = parse_args(input)
 
-    # MCP tools nest args under "input" key
-    args = input["input"] || input
-
-    # Use from_session_id from args (the actual sender) over the hook event session_id (UUID)
     from = args["from_session_id"] || args["from"] || e.session_id
     to = args["to_session_id"] || args["recipient"] || args["to"]
 
@@ -51,5 +48,19 @@ defmodule Ichor.Activity.Preparations.LoadMessages do
       summary: args["summary"],
       timestamp: e.inserted_at
     })
+  end
+
+  # MCP tools nest args under "input" key; sometimes as a JSON string
+  defp parse_args(%{"input" => inner}) when is_map(inner), do: inner
+  defp parse_args(%{"input" => json}) when is_binary(json), do: safe_decode(json)
+  defp parse_args(map) when is_map(map), do: map
+  defp parse_args(json) when is_binary(json), do: safe_decode(json)
+  defp parse_args(_), do: %{}
+
+  defp safe_decode(json) do
+    case Jason.decode(json) do
+      {:ok, map} when is_map(map) -> map
+      _ -> %{"content" => json}
+    end
   end
 end
