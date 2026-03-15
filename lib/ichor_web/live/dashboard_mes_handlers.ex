@@ -8,6 +8,7 @@ defmodule IchorWeb.DashboardMesHandlers do
 
   alias Ichor.Mes.{Project, Scheduler, SubsystemLoader}
   alias Ichor.Signals
+  alias IchorWeb.DashboardMesResearchHandlers
 
   @spec dispatch(String.t(), map(), Phoenix.LiveView.Socket.t()) :: Phoenix.LiveView.Socket.t()
   def dispatch("toggle_mes_scheduler", _params, socket) do
@@ -45,6 +46,20 @@ defmodule IchorWeb.DashboardMesHandlers do
     end
   end
 
+  def dispatch("mes_switch_tab", %{"tab" => tab}, socket) do
+    tab_atom = String.to_existing_atom(tab)
+    socket = assign(socket, :mes_tab, tab_atom)
+    maybe_load_research(tab_atom, socket)
+  end
+
+  def dispatch("mes_research_" <> _ = event, params, socket) do
+    DashboardMesResearchHandlers.dispatch(event, params, socket)
+  end
+
+  def dispatch("mes_select_research_" <> _ = event, params, socket) do
+    DashboardMesResearchHandlers.dispatch(event, params, socket)
+  end
+
   def dispatch("mes_load_subsystem", %{"id" => id}, socket) do
     project = Enum.find(socket.assigns.mes_projects, &(&1.id == id))
 
@@ -64,4 +79,12 @@ defmodule IchorWeb.DashboardMesHandlers do
         |> put_flash(:error, reason)
     end
   end
+
+  # ── Private ─────────────────────────────────────────────────────────
+
+  defp maybe_load_research(:research, socket) do
+    DashboardMesResearchHandlers.load_research_data(socket)
+  end
+
+  defp maybe_load_research(_tab, socket), do: socket
 end

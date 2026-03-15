@@ -174,7 +174,12 @@ defmodule IchorWeb.DashboardState do
       stream_paused: false,
       # MES
       mes_projects: [],
-      mes_scheduler_status: %{tick: 0, active_runs: 0, next_tick_in: 60_000}
+      mes_scheduler_status: %{tick: 0, active_runs: 0, next_tick_in: 60_000, paused: false},
+      mes_tab: :factory,
+      mes_research_results: [],
+      mes_research_episodes: [],
+      mes_research_entities: [],
+      selected_research_item: nil
     }
   end
 

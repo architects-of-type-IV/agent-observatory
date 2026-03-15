@@ -151,12 +151,13 @@ defmodule IchorWeb.DashboardInfoHandlers do
     {:noreply, assign(socket, :mes_projects, Project.list_all!())}
   end
 
-  def dispatch(%Message{name: :mes_cycle_started}, socket) do
+  def dispatch(%Message{name: name}, socket)
+      when name in [:mes_scheduler_paused, :mes_scheduler_resumed, :mes_cycle_started] do
     status =
       try do
         Scheduler.status()
       catch
-        :exit, _ -> %{tick: 0, active_runs: 0, next_tick_in: 60_000}
+        :exit, _ -> %{tick: 0, active_runs: 0, next_tick_in: 60_000, paused: false}
       end
 
     {:noreply, assign(socket, :mes_scheduler_status, status)}
@@ -166,8 +167,18 @@ defmodule IchorWeb.DashboardInfoHandlers do
     {:noreply, assign(socket, :mes_projects, Project.list_all!())}
   end
 
+  def dispatch(%Message{name: :mes_research_ingested}, socket) do
+    case socket.assigns do
+      %{mes_tab: :research} ->
+        {:noreply, IchorWeb.DashboardMesResearchHandlers.load_research_data(socket)}
+
+      _ ->
+        {:noreply, socket}
+    end
+  end
+
   def dispatch(%Message{name: name}, socket)
-      when name in [:mes_cycle_timeout, :mes_project_picked_up],
+      when name in [:mes_cycle_timeout, :mes_project_picked_up, :mes_research_ingest_failed],
       do: {:noreply, socket}
 
   # Catch-all: ignore unknown signals (new signals added to catalog won't crash)

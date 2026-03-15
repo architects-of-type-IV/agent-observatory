@@ -1,5 +1,10 @@
 # ICHOR IV Progress
 
+## Genesis Nodes Design (2026-03-15) -- COMPLETE
+- [x] Design doc: docs/plans/2026-03-15-genesis-nodes-design.md
+- [x] Tasks 140-152 in tasks.jsonl (domain, MCP, UI, DAG generator)
+- [ ] Implementation pending
+
 ## MES Page UI Redesign (2026-03-15) -- COMPLETE
 - [x] Rewrote mes_components.ex: stacked cards -> compact feed + split detail panel
 - [x] Feed: grid columns (Module, Project, Topic, Version, Status), click-to-select

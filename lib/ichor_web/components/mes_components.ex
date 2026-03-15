@@ -6,25 +6,64 @@ defmodule IchorWeb.Components.MesComponents do
 
   use Phoenix.Component
 
+  alias IchorWeb.Components.MesResearchComponents
+
   attr :projects, :list, required: true
   attr :scheduler_status, :map, required: true
   attr :selected, :any, default: nil
+  attr :mes_tab, :atom, default: :factory
+  attr :research_results, :list, default: []
+  attr :research_episodes, :list, default: []
+  attr :research_entities, :list, default: []
+  attr :selected_research_item, :any, default: nil
 
   def mes_view(assigns) do
     ~H"""
     <div class="h-full flex flex-col overflow-hidden">
       <%!-- Header --%>
       <div class="flex items-center justify-between px-3 py-2 border-b border-border shrink-0">
-        <div>
-          <h1 class="text-sm font-bold text-high tracking-tight">
-            Manufacturing Execution System
-          </h1>
-          <p class="text-[10px] text-low uppercase tracking-wider font-semibold mt-0.5">
-            Subsystem Production Line
-          </p>
+        <div class="flex items-center gap-4">
+          <div>
+            <h1 class="text-sm font-bold text-high tracking-tight">
+              Manufacturing Execution System
+            </h1>
+            <p class="text-[10px] text-low uppercase tracking-wider font-semibold mt-0.5">
+              Subsystem Production Line
+            </p>
+          </div>
+
+          <%!-- Tab switcher --%>
+          <div class="flex items-center gap-0.5 rounded bg-surface border border-subtle p-0.5">
+            <button
+              phx-click="mes_switch_tab"
+              phx-value-tab="factory"
+              class={[
+                "px-2.5 py-1 text-[10px] font-semibold rounded transition-colors",
+                if(@mes_tab == :factory,
+                  do: "bg-brand/15 text-brand",
+                  else: "text-muted hover:text-default"
+                )
+              ]}
+            >
+              Factory
+            </button>
+            <button
+              phx-click="mes_switch_tab"
+              phx-value-tab="research"
+              class={[
+                "px-2.5 py-1 text-[10px] font-semibold rounded transition-colors",
+                if(@mes_tab == :research,
+                  do: "bg-brand/15 text-brand",
+                  else: "text-muted hover:text-default"
+                )
+              ]}
+            >
+              Research
+            </button>
+          </div>
         </div>
 
-        <div class="flex items-center gap-2">
+        <div :if={@mes_tab == :factory} class="flex items-center gap-2">
           <div class="flex items-center gap-2 px-2.5 py-1 rounded bg-surface border border-subtle text-[11px] text-default">
             <span
               :if={!Map.get(@scheduler_status, :paused, false)}
@@ -59,8 +98,8 @@ defmodule IchorWeb.Components.MesComponents do
         </div>
       </div>
 
-      <%!-- Content --%>
-      <div class="flex flex-1 overflow-hidden">
+      <%!-- Content: Factory tab --%>
+      <div :if={@mes_tab == :factory} class="flex flex-1 overflow-hidden">
         <%!-- Left: Compact feed --%>
         <div class="flex-1 flex flex-col overflow-hidden">
           <div :if={@projects == []} class="flex-1 flex items-center justify-center">
@@ -132,6 +171,15 @@ defmodule IchorWeb.Components.MesComponents do
           <.project_detail project={@selected} />
         </div>
       </div>
+
+      <%!-- Content: Research tab --%>
+      <MesResearchComponents.research_tab
+        :if={@mes_tab == :research}
+        entities={@research_entities}
+        episodes={@research_episodes}
+        results={@research_results}
+        selected={@selected_research_item}
+      />
     </div>
     """
   end

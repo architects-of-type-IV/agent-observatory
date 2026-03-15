@@ -8,7 +8,8 @@ defmodule Ichor.Mes.Supervisor do
         +-- DynamicSupervisor (Ichor.Mes.RunSupervisor)  # one child per run
         +-- Mes.Janitor                             # monitors RunProcesses, cleans orphans
         +-- Mes.ProjectIngestor                     # ingests project briefs
-        +-- Mes.Scheduler                           # ticks every 60s, spawns teams
+        +-- Mes.ResearchIngestor                    # ingests briefs into knowledge graph
+      +-- Mes.Scheduler                           # ticks every 60s, spawns teams
 
   MES agents now live under Fleet.TeamSupervisor (via FleetSupervisor), sharing
   the unified supervision tree with all other agents.
@@ -38,6 +39,7 @@ defmodule Ichor.Mes.Supervisor do
       {DynamicSupervisor, name: Ichor.Mes.RunSupervisor, strategy: :one_for_one},
       {Ichor.Mes.Janitor, []},
       {Ichor.Mes.ProjectIngestor, []},
+      {Ichor.Mes.ResearchIngestor, []},
       {Ichor.Mes.Scheduler, []}
     ]
 

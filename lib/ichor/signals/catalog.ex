@@ -215,8 +215,18 @@ defmodule Ichor.Signals.Catalog do
     # ── MES ───────────────────────────────────────────────────────
     mes_scheduler_init: %{
       category: :mes,
-      keys: [],
+      keys: [:paused],
       doc: "MES Scheduler initialized and old runs cleaned"
+    },
+    mes_scheduler_paused: %{
+      category: :mes,
+      keys: [:tick],
+      doc: "MES Scheduler paused — no new teams will spawn"
+    },
+    mes_scheduler_resumed: %{
+      category: :mes,
+      keys: [:tick],
+      doc: "MES Scheduler resumed — team spawning re-enabled"
     },
     mes_tick: %{
       category: :mes,
@@ -372,6 +382,16 @@ defmodule Ichor.Signals.Catalog do
       category: :mes,
       keys: [:agent_id, :tmux_target],
       doc: "MES agent's tmux window no longer exists"
+    },
+    mes_research_ingested: %{
+      category: :mes,
+      keys: [:run_id, :project_id, :episode_id],
+      doc: "Research brief ingested into the knowledge graph"
+    },
+    mes_research_ingest_failed: %{
+      category: :mes,
+      keys: [:run_id, :reason],
+      doc: "Research brief ingest to knowledge graph failed"
     }
   }
 
