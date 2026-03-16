@@ -9,11 +9,11 @@
 - [x] Task 145: MES Project genesis_node_id FK (via Node.belongs_to :mes_project)
 - [x] Task 146: MCP tools -- GenesisNodes (5), GenesisArtifacts (7), GenesisGates (3)
 - [x] Task 147: MCP tools -- GenesisRoadmap (5)
-- [ ] Task 148: Component split -- extract MES sub-components
-- [ ] Task 149: UI -- Genesis panel component
-- [ ] Task 150: UI -- Gate check component + handler
-- [ ] Task 151: Mode dispatch -- team spawning + prompts
-- [ ] Task 152: DAG generator -- Subtask to tasks.jsonl
+- [x] Task 148: Component split -- 4 sub-modules (feed 83L, detail 159L, status 88L, orchestrator 144L)
+- [x] Task 149: Genesis panel -- Mode A/B/C buttons, artifact summary, wired into detail panel
+- [x] Task 150: Gate check -- component (72L) + handler, readiness metrics + verdicts
+- [x] Task 151: Mode dispatch -- ModeSpawner (145L) + ModeRunner (120L) + ModePrompts (246L)
+- [x] Task 152: DAG generator -- DagGenerator (114L) converts hierarchy to tasks.jsonl
 
 ## MES Factory Improvements (2026-03-16) -- COMPLETE
 - [x] ResearchContext module (dynamic gaps, subsystems, dead zones, pain points)

@@ -179,7 +179,9 @@ defmodule IchorWeb.DashboardState do
       mes_research_results: [],
       mes_research_episodes: [],
       mes_research_entities: [],
-      selected_research_item: nil
+      selected_research_item: nil,
+      genesis_node: nil,
+      gate_report: nil
     }
   end
 
