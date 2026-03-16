@@ -1,32 +1,31 @@
 # ICHOR IV Progress
 
-## Genesis Domain Build-Out (2026-03-16) -- IN PROGRESS
-- [x] Task 140: Genesis domain + Node resource (discover/define/build/complete lifecycle)
-- [ ] Task 141: ADR resource (belongs_to Node)
-- [ ] Task 142: Feature + UseCase resources (belong_to Node)
-- [ ] Task 143: Checkpoint + Conversation resources (belong_to Node)
-- [ ] Task 144: Phase/Section/Task/Subtask hierarchy (belongs_to Node)
+## Genesis Domain + MCP Tools (2026-03-16) -- COMPLETE
+- [x] Task 140: Genesis domain + Node resource
+- [x] Task 141: ADR resource (belongs_to Node)
+- [x] Task 142: Feature + UseCase resources (belong_to Node)
+- [x] Task 143: Checkpoint + Conversation resources (belong_to Node)
+- [x] Task 144: Phase/Section/Task/Subtask hierarchy
+- [x] Task 145: MES Project genesis_node_id FK (via Node.belongs_to :mes_project)
+- [x] Task 146: MCP tools -- GenesisNodes (5), GenesisArtifacts (7), GenesisGates (3)
+- [x] Task 147: MCP tools -- GenesisRoadmap (5)
+- [ ] Task 148: Component split -- extract MES sub-components
+- [ ] Task 149: UI -- Genesis panel component
+- [ ] Task 150: UI -- Gate check component + handler
+- [ ] Task 151: Mode dispatch -- team spawning + prompts
+- [ ] Task 152: DAG generator -- Subtask to tasks.jsonl
 
 ## MES Factory Improvements (2026-03-16) -- COMPLETE
 - [x] ResearchContext module (dynamic gaps, subsystems, dead zones, pain points)
 - [x] SessionEviction module (stale session purge from dashboard)
-- [x] DashboardInfoHandlers :agent_stopped handler
-- [x] NudgeEscalator nil session_id crash fix
-- [x] Scheduler pause/resume with persistent file flag
-- [x] Subsystem behaviour example -> WebhookNotifier
-- [x] No-SaaS cleanup (removed all Slack/Telegram/PagerDuty references)
-- [x] Cleaned duplicate MES projects from DB
-- [x] Prompt redesign: boundary map, pain points, scope guidance
-- [x] Results: 3 runs produced WebhookEgress, Webhook Relay, SignalScheduler
+- [x] Prompt redesign: boundary map, pain points, scope guidance, Factorio model
+- [x] No-SaaS cleanup (removed all external service references)
+- [x] Results: WebhookEgress, Webhook Relay, SignalScheduler proposals
 
-## Genesis Nodes Design (2026-03-15) -- COMPLETE
-- [x] Design doc: docs/plans/2026-03-15-genesis-nodes-design.md
-- [x] Tasks 140-152 in tasks.jsonl
-
-## MES Page UI Redesign (2026-03-15) -- COMPLETE
-## MES Researcher Prompt Redesign (2026-03-14) -- COMPLETE
-## Task 6: Delete Gateway.AgentRegistry ETS (2026-03-13) -- COMPLETE
-## Task 5: ETS Consumer Migration (2026-03-13) -- COMPLETE
-## MES Registry & Supervision Fix (2026-03-13) -- COMPLETE
-## Signals Convention Migration (2026-03-11) -- COMPLETE
-## Credo Strict Cleanup (2026-03-11) -- COMPLETE
+## Previous Sessions (summaries)
+- Genesis Nodes Design (2026-03-15) -- COMPLETE
+- MES Page UI Redesign (2026-03-15) -- COMPLETE
+- MES Researcher Prompt Redesign (2026-03-14) -- COMPLETE
+- Registry Consolidation + ETS Migration (2026-03-13) -- COMPLETE
+- Signals Convention Migration (2026-03-11) -- COMPLETE
+- Credo Strict Cleanup (2026-03-11) -- COMPLETE
