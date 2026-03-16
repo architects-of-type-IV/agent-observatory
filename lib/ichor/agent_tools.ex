@@ -6,7 +6,18 @@ defmodule Ichor.AgentTools do
   """
   use Ash.Domain, extensions: [AshAi]
 
-  alias Ichor.AgentTools.{Agents, Archival, Inbox, Memory, Recall, Spawn, Tasks}
+  alias Ichor.AgentTools.{
+    Agents,
+    Archival,
+    GenesisArtifacts,
+    GenesisGates,
+    GenesisNodes,
+    Inbox,
+    Memory,
+    Recall,
+    Spawn,
+    Tasks
+  }
 
   resources do
     resource(Inbox)
@@ -16,6 +27,9 @@ defmodule Ichor.AgentTools do
     resource(Archival)
     resource(Agents)
     resource(Spawn)
+    resource(GenesisNodes)
+    resource(GenesisArtifacts)
+    resource(GenesisGates)
   end
 
   tools do
@@ -43,5 +57,23 @@ defmodule Ichor.AgentTools do
     # Fleet spawning
     tool(:spawn_agent, Spawn, :spawn_agent)
     tool(:stop_agent, Spawn, :stop_agent)
+    # Genesis nodes
+    tool(:create_genesis_node, GenesisNodes, :create_genesis_node)
+    tool(:advance_node, GenesisNodes, :advance_node)
+    tool(:list_genesis_nodes, GenesisNodes, :list_genesis_nodes)
+    tool(:get_genesis_node, GenesisNodes, :get_genesis_node)
+    tool(:gate_check, GenesisNodes, :gate_check)
+    # Genesis artifacts
+    tool(:create_adr, GenesisArtifacts, :create_adr)
+    tool(:update_adr, GenesisArtifacts, :update_adr)
+    tool(:list_adrs, GenesisArtifacts, :list_adrs)
+    tool(:create_feature, GenesisArtifacts, :create_feature)
+    tool(:list_features, GenesisArtifacts, :list_features)
+    tool(:create_use_case, GenesisArtifacts, :create_use_case)
+    tool(:list_use_cases, GenesisArtifacts, :list_use_cases)
+    # Genesis gates
+    tool(:create_checkpoint, GenesisGates, :create_checkpoint)
+    tool(:create_conversation, GenesisGates, :create_conversation)
+    tool(:list_conversations, GenesisGates, :list_conversations)
   end
 end

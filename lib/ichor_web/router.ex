@@ -59,7 +59,22 @@ defmodule IchorWeb.Router do
       :get_tasks,
       :update_task_status,
       :spawn_agent,
-      :stop_agent
+      :stop_agent,
+      :create_genesis_node,
+      :advance_node,
+      :list_genesis_nodes,
+      :get_genesis_node,
+      :gate_check,
+      :create_adr,
+      :update_adr,
+      :list_adrs,
+      :create_feature,
+      :list_features,
+      :create_use_case,
+      :list_use_cases,
+      :create_checkpoint,
+      :create_conversation,
+      :list_conversations
     ],
     otp_app: :ichor
 
