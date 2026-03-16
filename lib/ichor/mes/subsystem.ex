@@ -35,8 +35,8 @@ defmodule Ichor.Mes.Subsystem do
               "Retry with exponential backoff on failure"
             ],
             use_cases: [
-              "Post to Slack when a MES run finishes",
-              "Notify PagerDuty when an agent crashes",
+              "POST to local endpoint when a MES run finishes",
+              "Notify self-hosted monitor when an agent crashes",
               "Send fleet events to an external logging service"
             ]
           }

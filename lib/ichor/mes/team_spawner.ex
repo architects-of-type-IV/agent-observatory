@@ -597,8 +597,8 @@ defmodule Ichor.Mes.TeamSpawner do
 
     Subsystems are NOT limited to data processing. They can do
     ANYTHING that is useful when triggered by a signal:
-    - Send emails, SMS, push notifications
-    - Post to Slack, Discord, webhooks
+    - Send local notifications, write to log files
+    - POST to self-hosted webhooks, local HTTP endpoints
     - Write files, generate reports, export CSVs
     - Trigger deploys, restart services, run shell commands
     - Play sounds, flash lights, update status pages
@@ -726,7 +726,7 @@ defmodule Ichor.Mes.TeamSpawner do
     PubSub. Under 200 lines. One GenServer. One concern.
 
     Subsystems are NOT limited to data processing. They can:
-    - Send emails, SMS, Slack messages, webhooks
+    - Send local notifications, write to log files
     - Write files, generate reports, run shell commands
     - Bridge to external APIs, queues, or databases
     - Schedule future signals, play sounds, update status pages

@@ -19,8 +19,8 @@ defmodule Ichor.Mes.ResearchContext do
   ]
 
   @gap_definitions [
-    {"No outbound push (no webhooks, email, Slack, SMS out)",
-     ~w(Webhook Notifier Email Slack SMS Push Telegram)},
+    {"No outbound push (no webhooks, file writes, or local notifications)",
+     ~w(Webhook Notifier Egress Relay Push)},
     {"No external signal subscription (no SSE/WebSocket out)",
      ~w(SSE WebSocket EventSource Stream SignalBridge)},
     {"No scheduled signals (no cron-like emitter)", ~w(Cron Scheduler Timer Periodic Clock)},
@@ -44,10 +44,10 @@ defmodule Ichor.Mes.ResearchContext do
   @dead_zone_threshold 2
 
   @pain_points [
-    ~s("I want a Telegram/email/Slack message when a MES run finishes"),
-    ~s("I want a daily summary of what the fleet did"),
-    ~s("I want to send a webhook when an agent crashes"),
-    ~s("I want signals forwarded to an external logging service"),
+    ~s("I want a local notification when a MES run finishes"),
+    ~s("I want a daily summary of what the fleet did, written to disk"),
+    ~s("I want a webhook to a self-hosted endpoint when an agent crashes"),
+    ~s("I want signals forwarded to a local logging service"),
     ~s("I want a cron-like scheduler that emits signals on a schedule"),
     ~s("I want to replay a signal to test a subsystem"),
     ~s("I want dead tmux sessions auto-cleaned after N minutes"),
