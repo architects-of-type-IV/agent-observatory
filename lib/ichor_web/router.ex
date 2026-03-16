@@ -74,7 +74,12 @@ defmodule IchorWeb.Router do
       :list_use_cases,
       :create_checkpoint,
       :create_conversation,
-      :list_conversations
+      :list_conversations,
+      :create_phase,
+      :create_section,
+      :create_task,
+      :create_subtask,
+      :list_phases
     ],
     otp_app: :ichor
 

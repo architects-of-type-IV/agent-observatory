@@ -30,6 +30,7 @@ defmodule Ichor.AgentTools do
     resource(GenesisNodes)
     resource(GenesisArtifacts)
     resource(GenesisGates)
+    resource(Ichor.AgentTools.GenesisRoadmap)
   end
 
   tools do
@@ -75,5 +76,11 @@ defmodule Ichor.AgentTools do
     tool(:create_checkpoint, GenesisGates, :create_checkpoint)
     tool(:create_conversation, GenesisGates, :create_conversation)
     tool(:list_conversations, GenesisGates, :list_conversations)
+    # Genesis roadmap (Mode C)
+    tool(:create_phase, Ichor.AgentTools.GenesisRoadmap, :create_phase)
+    tool(:create_section, Ichor.AgentTools.GenesisRoadmap, :create_section)
+    tool(:create_task, Ichor.AgentTools.GenesisRoadmap, :create_task)
+    tool(:create_subtask, Ichor.AgentTools.GenesisRoadmap, :create_subtask)
+    tool(:list_phases, Ichor.AgentTools.GenesisRoadmap, :list_phases)
   end
 end
