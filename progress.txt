@@ -14,6 +14,7 @@
 - [x] Task 150: Gate check -- component (72L) + handler, readiness metrics + verdicts
 - [x] Task 151: Mode dispatch -- ModeSpawner (145L) + ModeRunner (120L) + ModePrompts (246L)
 - [x] Task 152: DAG generator -- DagGenerator (114L) converts hierarchy to tasks.jsonl
+- [x] Simplify pass: N+1 fix, TmuxHelpers extraction, atom keys, static Tailwind, single-query patterns
 
 ## MES Factory Improvements (2026-03-16) -- COMPLETE
 - [x] ResearchContext module (dynamic gaps, subsystems, dead zones, pain points)

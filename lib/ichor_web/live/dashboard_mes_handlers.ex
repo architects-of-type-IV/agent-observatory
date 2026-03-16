@@ -6,7 +6,7 @@ defmodule IchorWeb.DashboardMesHandlers do
   import Phoenix.Component, only: [assign: 3]
   import Phoenix.LiveView, only: [put_flash: 3]
 
-  alias Ichor.Genesis.ModeSpawner
+  alias Ichor.Genesis.{DagGenerator, ModeSpawner}
   alias Ichor.Genesis.Node, as: GenesisNode
   alias Ichor.Mes.{Project, Scheduler, SubsystemLoader}
   alias Ichor.Signals
@@ -41,7 +41,7 @@ defmodule IchorWeb.DashboardMesHandlers do
     with {:ok, node_id} <- ModeSpawner.ensure_genesis_node(genesis_node_id, project),
          {:ok, session} <- ModeSpawner.spawn_mode(mode, project_id, node_id) do
       socket
-      |> assign(:genesis_node, load_genesis_node(project))
+      |> assign(:genesis_node, load_genesis_node_by_id(node_id))
       |> put_flash(:info, "Mode #{String.upcase(mode)} team spawned: #{session}")
     else
       {:error, reason} ->
@@ -55,12 +55,12 @@ defmodule IchorWeb.DashboardMesHandlers do
   end
 
   def dispatch("mes_generate_dag", %{"node-id" => node_id}, socket) do
-    case Ichor.Genesis.DagGenerator.generate(node_id) do
+    case DagGenerator.generate(node_id) do
       {:ok, []} ->
         put_flash(socket, :info, "No subtasks found -- run Mode C first")
 
       {:ok, tasks} ->
-        jsonl = Ichor.Genesis.DagGenerator.to_jsonl_string(tasks)
+        jsonl = DagGenerator.to_jsonl_string(tasks)
         dag_path = Path.join(File.cwd!(), "tasks.jsonl")
         File.write!(dag_path, jsonl <> "\n")
         put_flash(socket, :info, "DAG generated: #{length(tasks)} tasks written to tasks.jsonl")
@@ -124,6 +124,13 @@ defmodule IchorWeb.DashboardMesHandlers do
 
   @genesis_loads [:adrs, :features, :use_cases, :checkpoints, :conversations, :phases]
 
+  defp load_genesis_node_by_id(node_id) do
+    case GenesisNode.get(node_id, load: @genesis_loads) do
+      {:ok, node} -> node
+      _ -> nil
+    end
+  end
+
   defp load_genesis_node(nil), do: nil
 
   defp load_genesis_node(project) do
@@ -134,30 +141,32 @@ defmodule IchorWeb.DashboardMesHandlers do
   end
 
   defp run_gate_check(node_id) do
-    with {:ok, node} <- GenesisNode.get(node_id),
-         {:ok, loaded} <- Ash.load(node, @genesis_loads) do
-      adrs = length(loaded.adrs)
-      accepted_adrs = Enum.count(loaded.adrs, &(&1.status == :accepted))
-      features = length(loaded.features)
-      use_cases = length(loaded.use_cases)
-      phases = length(loaded.phases)
-
-      %{
-        "node_id" => loaded.id,
-        "current_status" => to_string(loaded.status),
-        "adrs" => adrs,
-        "accepted_adrs" => accepted_adrs,
-        "features" => features,
-        "use_cases" => use_cases,
-        "checkpoints" => length(loaded.checkpoints),
-        "phases" => phases,
-        "ready_for_define" => adrs > 0 and accepted_adrs > 0,
-        "ready_for_build" => features > 0 and use_cases > 0,
-        "ready_for_complete" => phases > 0
-      }
-    else
+    case GenesisNode.get(node_id, load: @genesis_loads) do
+      {:ok, loaded} -> build_gate_report(loaded)
       _ -> nil
     end
+  end
+
+  defp build_gate_report(loaded) do
+    adrs = length(loaded.adrs)
+    accepted_adrs = Enum.count(loaded.adrs, &(&1.status == :accepted))
+    features = length(loaded.features)
+    use_cases = length(loaded.use_cases)
+    phases = length(loaded.phases)
+
+    %{
+      node_id: loaded.id,
+      current_status: to_string(loaded.status),
+      adrs: adrs,
+      accepted_adrs: accepted_adrs,
+      features: features,
+      use_cases: use_cases,
+      checkpoints: length(loaded.checkpoints),
+      phases: phases,
+      ready_for_define: adrs > 0 and accepted_adrs > 0,
+      ready_for_build: features > 0 and use_cases > 0,
+      ready_for_complete: phases > 0
+    }
   end
 
   defp maybe_load_research(:research, socket) do

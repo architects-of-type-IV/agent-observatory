@@ -131,13 +131,15 @@ defmodule IchorWeb.Components.MesDetailComponents do
   attr :mono, :boolean, default: false
 
   def tag_list(assigns) do
+    assigns = assign(assigns, :tag_classes, tag_classes(assigns.color))
+
     ~H"""
     <div class="flex flex-wrap gap-1">
       <span
         :for={item <- @items}
         class={[
           "text-[9px] px-1.5 py-0.5 rounded",
-          "bg-#{@color}/10 text-#{@color} border border-#{@color}/15",
+          @tag_classes,
           @mono && "font-mono"
         ]}
       >
@@ -146,6 +148,16 @@ defmodule IchorWeb.Components.MesDetailComponents do
     </div>
     """
   end
+
+  # Static class strings for Tailwind scanner
+  defp tag_classes("interactive"),
+    do: "bg-interactive/10 text-interactive border border-interactive/15"
+
+  defp tag_classes("cyan"), do: "bg-cyan/10 text-cyan border border-cyan/15"
+  defp tag_classes("brand"), do: "bg-brand/10 text-brand border border-brand/15"
+  defp tag_classes("violet"), do: "bg-violet/10 text-violet border border-violet/15"
+  defp tag_classes("success"), do: "bg-success/10 text-success border border-success/15"
+  defp tag_classes(color), do: "bg-#{color}/10 text-#{color} border border-#{color}/15"
 
   attr :text, :string, required: true
 

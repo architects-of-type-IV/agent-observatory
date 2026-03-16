@@ -7,15 +7,17 @@ defmodule Ichor.Genesis.DagGenerator do
   Dotted IDs: "{phase_num}.{section_num}.{task_num}.{subtask_num}"
   """
 
-  alias Ichor.Genesis.{Phase, Section}
-  alias Ichor.Genesis.Task, as: GTask
+  alias Ichor.Genesis.Phase
+
+  @hierarchy_load [sections: [tasks: :subtasks]]
 
   @spec generate(String.t()) :: {:ok, [map()]} | {:error, term()}
   def generate(node_id) do
-    with {:ok, phases} <- Phase.by_node(node_id) do
+    with {:ok, phases} <- Phase.by_node(node_id),
+         {:ok, loaded} <- Ash.load(phases, @hierarchy_load) do
       tasks =
-        phases
-        |> load_hierarchy()
+        loaded
+        |> flatten_hierarchy()
         |> build_uuid_to_dotted_map()
         |> convert_to_jsonl()
 
@@ -25,39 +27,24 @@ defmodule Ichor.Genesis.DagGenerator do
 
   @spec to_jsonl_string([map()]) :: String.t()
   def to_jsonl_string(tasks) do
-    tasks
-    |> Enum.map(&Jason.encode!/1)
-    |> Enum.join("\n")
+    Enum.map_join(tasks, "\n", &Jason.encode!/1)
   end
 
   # ── Private ──────────────────────────────────────────────────────
 
-  defp load_hierarchy(phases) do
-    Enum.flat_map(phases, fn phase ->
-      sections = Section.by_phase!(phase.id)
-
-      Enum.flat_map(sections, fn section ->
-        tasks = GTask.by_section!(section.id)
-
-        Enum.flat_map(tasks, fn task ->
-          loaded = Ash.load!(task, [:subtasks])
-
-          subtasks =
-            loaded.subtasks
-            |> Enum.sort_by(& &1.number)
-
-          Enum.map(subtasks, fn subtask ->
-            %{
-              phase: phase,
-              section: section,
-              task: task,
-              subtask: subtask,
-              dotted_id: "#{phase.number}.#{section.number}.#{task.number}.#{subtask.number}"
-            }
-          end)
-        end)
-      end)
-    end)
+  defp flatten_hierarchy(phases) do
+    for phase <- phases,
+        section <- Enum.sort_by(phase.sections, & &1.number),
+        task <- Enum.sort_by(section.tasks, & &1.number),
+        subtask <- Enum.sort_by(task.subtasks, & &1.number) do
+      %{
+        phase: phase,
+        section: section,
+        task: task,
+        subtask: subtask,
+        dotted_id: "#{phase.number}.#{section.number}.#{task.number}.#{subtask.number}"
+      }
+    end
   end
 
   defp build_uuid_to_dotted_map(entries) do

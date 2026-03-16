@@ -12,7 +12,7 @@
 - **Facility** = city block (self-contained composition with standardized signal I/O)
 - **Facility teams DEFERRED** -- need 3-5 loaded subsystems + signal catalog first
 
-## Genesis Domain (2026-03-16, COMPLETE)
+## Genesis Domain (2026-03-16, tasks 140-152 COMPLETE)
 - 10 Ash resources: Node, Adr, Feature, UseCase, Checkpoint, Conversation, Phase, Section, Task, Subtask
 - All use proper Ash relationships (belongs_to/has_many), NOT raw UUID attributes
 - Hierarchy: Node -> {ADRs, Features, UseCases, Checkpoints, Conversations, Phases -> Sections -> Tasks -> Subtasks}
@@ -20,6 +20,10 @@
 - MCP tools return plain maps (not Ash structs) for serialization
 - Ash codegen has snapshot issues with this project -- manual migrations work reliably
 - Pipeline: MES brief -> Mode A (ADRs) -> Mode B (FRDs/UCs) -> Mode C (roadmap) -> DAG
+- **UI**: Genesis panel in MES detail, gate check, Mode A/B/C buttons
+- **Mode dispatch**: ModeSpawner + ModeRunner + ModePrompts (3 agents per mode, tmux sessions)
+- **DAG generator**: nested Ash preload, flat traversal, dotted IDs with blocked_by remapping
+- **TmuxHelpers**: shared module for tmux/fleet helpers (used by ModeRunner, available for TeamSpawner/AgentSpawner)
 
 ## Critical Constraints
 - **No external SaaS** -- ADR-001. Self-hosted only.

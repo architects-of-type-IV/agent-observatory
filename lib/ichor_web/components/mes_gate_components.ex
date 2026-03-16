@@ -15,23 +15,23 @@ defmodule IchorWeb.Components.MesGateComponents do
           Gate Readiness Report
         </h4>
         <span class="text-[9px] font-mono text-muted uppercase">
-          {Map.get(@report, "current_status", "unknown")}
+          {@report.current_status}
         </span>
       </div>
 
       <div class="grid grid-cols-2 gap-1.5 mb-3">
-        <.gate_metric label="ADRs" value={@report["adrs"]} />
-        <.gate_metric label="Accepted ADRs" value={@report["accepted_adrs"]} />
-        <.gate_metric label="Features" value={@report["features"]} />
-        <.gate_metric label="Use Cases" value={@report["use_cases"]} />
-        <.gate_metric label="Checkpoints" value={@report["checkpoints"]} />
-        <.gate_metric label="Phases" value={@report["phases"]} />
+        <.gate_metric label="ADRs" value={@report.adrs} />
+        <.gate_metric label="Accepted ADRs" value={@report.accepted_adrs} />
+        <.gate_metric label="Features" value={@report.features} />
+        <.gate_metric label="Use Cases" value={@report.use_cases} />
+        <.gate_metric label="Checkpoints" value={@report.checkpoints} />
+        <.gate_metric label="Phases" value={@report.phases} />
       </div>
 
       <div class="flex flex-col gap-1">
-        <.gate_verdict label="Ready for Define" ready={@report["ready_for_define"]} />
-        <.gate_verdict label="Ready for Build" ready={@report["ready_for_build"]} />
-        <.gate_verdict label="Ready for Complete" ready={@report["ready_for_complete"]} />
+        <.gate_verdict label="Ready for Define" ready={@report.ready_for_define} />
+        <.gate_verdict label="Ready for Build" ready={@report.ready_for_build} />
+        <.gate_verdict label="Ready for Complete" ready={@report.ready_for_complete} />
       </div>
     </div>
     """
