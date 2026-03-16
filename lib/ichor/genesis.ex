@@ -16,5 +16,14 @@ defmodule Ichor.Genesis do
 
   resources do
     resource(Ichor.Genesis.Node)
+    resource(Ichor.Genesis.Adr)
+    resource(Ichor.Genesis.Feature)
+    resource(Ichor.Genesis.UseCase)
+    resource(Ichor.Genesis.Checkpoint)
+    resource(Ichor.Genesis.Conversation)
+    resource(Ichor.Genesis.Phase)
+    resource(Ichor.Genesis.Section)
+    resource(Ichor.Genesis.Task)
+    resource(Ichor.Genesis.Subtask)
   end
 end
