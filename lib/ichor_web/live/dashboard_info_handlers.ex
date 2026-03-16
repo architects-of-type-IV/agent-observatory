@@ -58,6 +58,9 @@ defmodule IchorWeb.DashboardInfoHandlers do
   def dispatch(%Message{name: :agent_spawned}, socket),
     do: {:noreply, schedule_recompute(socket)}
 
+  def dispatch(%Message{name: :agent_stopped}, socket),
+    do: {:noreply, schedule_recompute(socket)}
+
   def dispatch(%Message{name: :registry_changed}, socket),
     do: {:noreply, schedule_recompute(socket)}
 

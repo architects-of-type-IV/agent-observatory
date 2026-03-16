@@ -58,6 +58,8 @@ defmodule IchorWeb.DashboardMesResearchHandlers do
       {:ok, data} when is_list(data) -> data
       _ -> []
     end
+  rescue
+    _ -> []
   end
 
   defp find_item(items, id) do

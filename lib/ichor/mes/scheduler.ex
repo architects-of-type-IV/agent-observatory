@@ -5,6 +5,9 @@ defmodule Ichor.Mes.Scheduler do
 
   Active run count is derived from Ichor.Registry (no local state tracking).
   RunProcess owns its own kill timer. Cleanup is handled by Mes.Janitor.
+
+  Supports pause/resume via `pause/0` and `resume/0`. Paused state persists
+  across restarts via a file flag at `~/.ichor/mes/paused`.
   """
 
   use GenServer
@@ -14,6 +17,7 @@ defmodule Ichor.Mes.Scheduler do
 
   @tick_interval :timer.minutes(1)
   @max_concurrent 1
+  @pause_flag Path.expand("~/.ichor/mes/paused")
 
   # ── Public API ──────────────────────────────────────────────────────
 
@@ -23,16 +27,32 @@ defmodule Ichor.Mes.Scheduler do
   @spec status() :: map()
   def status, do: GenServer.call(__MODULE__, :status)
 
+  @spec pause() :: :ok
+  def pause, do: GenServer.call(__MODULE__, :pause)
+
+  @spec resume() :: :ok
+  def resume, do: GenServer.call(__MODULE__, :resume)
+
+  @spec paused?() :: boolean()
+  def paused?, do: GenServer.call(__MODULE__, :paused?)
+
   # ── GenServer Callbacks ─────────────────────────────────────────────
 
   @impl true
   def init(_opts) do
-    Signals.emit(:mes_scheduler_init, %{})
+    paused = File.exists?(@pause_flag)
+    Signals.emit(:mes_scheduler_init, %{paused: paused})
     schedule_tick()
-    {:ok, %{tick: 0}}
+    {:ok, %{tick: 0, paused: paused}}
   end
 
   @impl true
+  def handle_info(:tick, %{paused: true} = state) do
+    Signals.emit(:mes_tick, %{tick: state.tick, active_runs: 0, paused: true})
+    schedule_tick()
+    {:noreply, %{state | tick: state.tick + 1}}
+  end
+
   def handle_info(:tick, state) do
     all = RunProcess.list_all()
     total = length(all)
@@ -59,6 +79,23 @@ defmodule Ichor.Mes.Scheduler do
   end
 
   @impl true
+  def handle_call(:pause, _from, state) do
+    File.mkdir_p!(Path.dirname(@pause_flag))
+    File.write!(@pause_flag, "")
+    Signals.emit(:mes_scheduler_paused, %{tick: state.tick})
+    {:reply, :ok, %{state | paused: true}}
+  end
+
+  def handle_call(:resume, _from, state) do
+    File.rm(@pause_flag)
+    Signals.emit(:mes_scheduler_resumed, %{tick: state.tick})
+    {:reply, :ok, %{state | paused: false}}
+  end
+
+  def handle_call(:paused?, _from, state) do
+    {:reply, state.paused, state}
+  end
+
   def handle_call(:status, _from, state) do
     all = RunProcess.list_all()
 
@@ -76,7 +113,8 @@ defmodule Ichor.Mes.Scheduler do
        tick: state.tick,
        active_runs: active_count,
        total_runs: length(all),
-       next_tick_in: @tick_interval
+       next_tick_in: @tick_interval,
+       paused: state.paused
      }, state}
   end
 

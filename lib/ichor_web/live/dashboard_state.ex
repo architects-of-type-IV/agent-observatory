@@ -193,6 +193,11 @@ defmodule IchorWeb.DashboardState do
   defp do_recompute(socket) do
     assigns = socket.assigns
 
+    # Evict events from stale sessions (no activity in TTL)
+    events = Ichor.Fleet.SessionEviction.evict_stale(assigns.events, assigns.now)
+    socket = assign(socket, :events, events)
+    assigns = socket.assigns
+
     # Ash domain queries
     teams = Team.alive!()
     all_teams = Team.all!()

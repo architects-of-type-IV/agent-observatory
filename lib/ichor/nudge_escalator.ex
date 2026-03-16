@@ -87,7 +87,8 @@ defmodule Ichor.NudgeEscalator do
       agents
       |> Enum.reject(fn agent -> agent[:role] == :operator end)
       |> Enum.filter(fn agent ->
-        agent[:status] == :active &&
+        (agent[:session_id] || agent[:agent_id]) != nil &&
+          agent[:status] == :active &&
           agent[:last_event_at] &&
           DateTime.diff(now, agent[:last_event_at], :second) > stale_threshold
       end)

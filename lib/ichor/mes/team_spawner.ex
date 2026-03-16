@@ -15,7 +15,7 @@ defmodule Ichor.Mes.TeamSpawner do
   """
 
   alias Ichor.Fleet.{FleetSupervisor, TeamSupervisor}
-  alias Ichor.Mes.RunProcess
+  alias Ichor.Mes.{ResearchContext, RunProcess}
   alias Ichor.Signals
 
   @prompt_dir Path.expand("~/.ichor/mes")
@@ -540,59 +540,77 @@ defmodule Ichor.Mes.TeamSpawner do
     control plane for AI agent meshes. It manages, traces, and intervenes
     in autonomous AI agents at scale.
 
-    Architecture layers:
-    - Fleet: supervised agent processes (AgentProcess GenServers, TeamSupervisor, FleetSupervisor)
-    - Signals: PubSub nervous system. Ichor.Signals.emit/2,3 and Ichor.Signals.subscribe/1,2
-    - Subsystems: plugin modules implementing Ichor.Mes.Subsystem behaviour
-    - Gateway/Operator: inter-agent message routing
-    - Workshop: SQLite-backed persistent memory for agents
-    - Archon: LangChain-based AI assistant with tool access to fleet
+    ============================================================
+    SYSTEM BOUNDARY MAP (what exists and what does NOT)
+    ============================================================
+    WHAT THE SYSTEM HAS:
+    - PubSub signal bus: ~75 signals across 13 categories (fleet, system,
+      events, gateway, agent, hitl, mesh, team, monitoring, messages,
+      memory, mes). Any BEAM process can subscribe and emit.
+    - Fleet: supervised agent processes with tmux backends
+    - Gateway: HTTP endpoints that accept events (POST /api/events,
+      POST /gateway/messages, POST /gateway/rpc)
+    - MCP server: 7 tools for agent communication (send_message,
+      check_inbox, get_tasks, etc.)
+    - SQLite persistence: Workshop (agent memory), Activity (events/tasks)
+    - LiveView dashboard: real-time UI on port 4005
 
-    Signal categories: fleet, system, events, gateway, agent, hitl,
-    mesh, team, monitoring, messages, memory, mes.
+    OPEN GAPS (what the system cannot do yet):
+    #{ResearchContext.open_gaps()}
 
-    Subsystem behaviour contract (what you are proposing to BUILD):
+    YOUR JOB: Find a gap and fill it. Build the bridge between what
+    the system CAN observe internally and what it CANNOT do externally.
+
+    Subsystem behaviour contract:
       info/0    — returns manifest: name, module, topic, signals_emitted, signals_subscribed, features
       start/0   — start GenServer, subscribe to PubSub topic
       handle_signal/1 — react to incoming signals
       stop/0    — unsubscribe, cleanup
 
     ============================================================
+    EXISTING SUBSYSTEMS (do NOT duplicate)
+    ============================================================
+    #{ResearchContext.existing_subsystems()}
+
+    ============================================================
     DEAD ZONES — DO NOT PROPOSE ANY VARIANT OF THESE
     ============================================================
-    The following have been proposed 15+ times and are BANNED:
-    - Signal correlation engine / cross-signal correlation / causal correlation
-    - Anomaly detection (EWMA, CUSUM, z-score, control charts)
-    - Entropy monitoring / entropy harvesting / entropy scoring
-    - Self-healer / swarm self-healer (ALREADY BUILT)
-    - Adaptive load balancing / task distribution by load
+    #{ResearchContext.dead_zones()}
 
     ============================================================
-    FRESH TERRITORY — EXPLORE THESE DOMAINS (not limited to)
+    REAL PROBLEMS THE OPERATOR WANTS SOLVED
     ============================================================
-    The Ichor knowledge library has 446 entries across:
-    agents, integration, workflow, memory, vectors, graphs, performance,
-    data-processing, reliability, retrieval, concurrency.
+    These are actual pain points. Propose something that solves one:
+    #{ResearchContext.pain_points()}
+    These are examples, not requirements. Solve any real problem.
 
-    Ichor currently lacks subsystems in these areas (all valid targets):
-    - Workflow execution: DAG-based, OTP-supervised, durable step records
-    - Semantic routing: route tasks to agents by capability embeddings
-    - Cost/budget accounting: track resource consumption per agent/team
-    - Knowledge graph integration: semantic memory via graph traversal
-    - Replay/time-travel debugging: record and replay agent sequences
-    - Agent versioning: snapshot and rollback agent state/configuration
-    - Cross-session learning: accumulate findings across manufacturing runs
-    - Human-in-the-loop gating: structured pause/resume workflows
-    - Protocol adapters: bridge external webhooks/queues/streams to Signals
-    - Capability marketplace: dynamic plugin registry with negotiation
-    - Behavioral profiling: fingerprint normal behavior, flag deviations
-    - Latency budgeting: adaptive throttling to meet SLA targets
-    - Synthetic load testing: inject synthetic signal traffic for resilience
-    - Execution ledger: durable queryable history of agent runs
+    ============================================================
+    WHAT MAKES A GOOD SUBSYSTEM
+    ============================================================
+    A subsystem is a SMALL, CONCRETE platform utility. Think of it
+    as a pipe fitting: it receives signals in, does one thing well,
+    and emits signals out. Loosely coupled. Composable with other
+    subsystems through PubSub.
 
-    These are suggestions. You are free to propose anything creative that
-    evolves the hypervisor. The only constraint: it must integrate through
-    Ichor.Signals and implement the Subsystem behaviour.
+    SCOPE: Under 200 lines of Elixir. One GenServer. One concern.
+    If you cannot explain what it does in one sentence, it is too big.
+
+    Subsystems are NOT limited to data processing. They can do
+    ANYTHING that is useful when triggered by a signal:
+    - Send emails, SMS, push notifications
+    - Post to Slack, Discord, webhooks
+    - Write files, generate reports, export CSVs
+    - Trigger deploys, restart services, run shell commands
+    - Play sounds, flash lights, update status pages
+    - Schedule future signals (cron-like)
+    - Bridge to external APIs, queues, or databases
+
+    Also valid: format converters, filters, routers, accumulators,
+    deduplicators, schedulers, samplers, buffers, enrichers.
+
+    Do NOT propose grand architectures, AI/ML systems, or anything
+    that requires multiple GenServers. A subsystem that cannot ship
+    in a single coding session is a failed proposal.
 
     ============================================================
     YOUR PROCEDURE
@@ -607,8 +625,8 @@ defmodule Ichor.Mes.TeamSpawner do
     Do exactly 3 web searches, each in a DIFFERENT domain.
     Do NOT search for signal correlation, anomaly detection, or entropy.
     Each search should explore a specific technical approach (e.g.,
-    "elixir durable workflow DAG OTP", "vector similarity routing agents",
-    "event sourcing replay debugging elixir").
+    "elixir pubsub signal router pattern", "event stream deduplication",
+    "message enrichment pipeline OTP").
 
     PHASE 3 — DRAFT 3 PROPOSALS, SEND TO RESEARCHER-2
     Write 3 proposals, each from a different domain. Each needs:
@@ -675,58 +693,50 @@ defmodule Ichor.Mes.TeamSpawner do
     - Do NOT read the codebase. Do NOT explore files.
 
     ============================================================
-    WHAT IS ICHOR OBSERVATORY
+    SYSTEM BOUNDARY MAP
     ============================================================
-    Ichor Observatory is a HYPERVISOR FOR MACHINE COGNITION — a real-time
-    control plane for AI agent meshes. It manages, traces, and intervenes
-    in autonomous AI agents at scale.
+    HAS: PubSub signal bus (~75 signals, 13 categories), Fleet
+    (supervised agents), Gateway (HTTP ingest), MCP (agent tools),
+    SQLite persistence, LiveView dashboard.
 
-    Architecture layers:
-    - Fleet: supervised agent processes (AgentProcess GenServers, TeamSupervisor, FleetSupervisor)
-    - Signals: PubSub nervous system. Ichor.Signals.emit/2,3 and Ichor.Signals.subscribe/1,2
-    - Subsystems: plugin modules implementing Ichor.Mes.Subsystem behaviour
-    - Gateway/Operator: inter-agent message routing
-    - Workshop: SQLite-backed persistent memory for agents
-    - Archon: LangChain-based AI assistant with tool access to fleet
+    OPEN GAPS:
+    #{ResearchContext.open_gaps()}
 
-    Signal categories: fleet, system, events, gateway, agent, hitl,
-    mesh, team, monitoring, messages, memory, mes.
+    Evaluate proposals by: does it fill an actual gap?
 
-    Subsystem behaviour contract (what is being proposed to BUILD):
-      info/0    — returns manifest: name, module, topic, signals_emitted, signals_subscribed, features
-      start/0   — start GenServer, subscribe to PubSub topic
-      handle_signal/1 — react to incoming signals
-      stop/0    — unsubscribe, cleanup
+    EXISTING SUBSYSTEMS (do NOT duplicate):
+    #{ResearchContext.existing_subsystems()}
 
     ============================================================
     DEAD ZONES — REJECT ANY PROPOSAL IN THESE AREAS
     ============================================================
     If researcher-1 proposes any variant of these, tell them to pick another:
-    - Signal correlation engine / cross-signal correlation / causal correlation
-    - Anomaly detection (EWMA, CUSUM, z-score, control charts)
-    - Entropy monitoring / entropy harvesting / entropy scoring
-    - Self-healer / swarm self-healer (ALREADY BUILT)
-    - Adaptive load balancing
+    #{ResearchContext.dead_zones()}
 
     ============================================================
-    FRESH TERRITORY
+    REAL PROBLEMS TO SOLVE (pick one)
     ============================================================
-    The Ichor knowledge library has 446 entries across:
-    agents, integration, workflow, memory, vectors, graphs, performance,
-    data-processing, reliability, retrieval, concurrency.
+    #{ResearchContext.pain_points()}
 
-    Strong directions Ichor currently lacks:
-    - Workflow execution (DAG-based, OTP-supervised, durable step records)
-    - Semantic routing (capability embeddings for task-to-agent matching)
-    - Cost/budget accounting (per-agent resource consumption tracking)
-    - Knowledge graph integration (semantic memory via graph traversal)
-    - Replay/time-travel debugging (record and replay agent sequences)
-    - Protocol adapters (bridge external webhooks/queues to Signals)
-    - Behavioral profiling (fingerprint normal behavior, flag deviations)
-    - Execution ledger (durable queryable history of agent runs)
+    ============================================================
+    WHAT MAKES A GOOD SUBSYSTEM
+    ============================================================
+    A subsystem is a SMALL, CONCRETE platform utility. Think pipe
+    fitting: signals in, one job, signals out. Composable through
+    PubSub. Under 200 lines. One GenServer. One concern.
 
-    These are suggestions. Any creative proposal that evolves the
-    hypervisor through Signals integration is valid.
+    Subsystems are NOT limited to data processing. They can:
+    - Send emails, SMS, Slack messages, webhooks
+    - Write files, generate reports, run shell commands
+    - Bridge to external APIs, queues, or databases
+    - Schedule future signals, play sounds, update status pages
+
+    Also valid: filters, routers, accumulators, deduplicators,
+    schedulers, samplers, buffers, enrichers.
+
+    REJECT proposals that are grand architectures, require multiple
+    GenServers, or cannot ship in a single coding session.
+    REJECT anything that sounds like monitoring or detection.
 
     ============================================================
     YOUR PROCEDURE

@@ -226,6 +226,7 @@ defmodule Ichor.Mes.Project do
   code_interface do
     define(:create)
     define(:update)
+    define(:get, action: :read, get_by: [:id])
     define(:pick_up, args: [:session_id])
     define(:mark_compiled, args: [:path])
     define(:mark_loaded)

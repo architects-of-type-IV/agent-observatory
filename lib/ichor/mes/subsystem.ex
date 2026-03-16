@@ -16,28 +16,28 @@ defmodule Ichor.Mes.Subsystem do
 
   ## Example
 
-      defmodule Ichor.Subsystems.Correlator do
+      defmodule Ichor.Subsystems.WebhookNotifier do
         @behaviour Ichor.Mes.Subsystem
 
         @impl true
         def info do
           %Ichor.Mes.Subsystem.Info{
-            name: "Correlator",
+            name: "WebhookNotifier",
             module: __MODULE__,
-            description: "Real-time causal signal correlation engine",
-            topic: "subsystem:correlator",
+            description: "Posts JSON to a configured URL when matching signals fire",
+            topic: "subsystem:webhook_notifier",
             version: "0.1.0",
-            signals_emitted: [:correlator_pattern_found, :correlator_pattern_lost],
-            signals_subscribed: [:all],
+            signals_emitted: [:webhook_sent, :webhook_failed],
+            signals_subscribed: [:fleet, :mes],
             features: [
-              "Sliding-window temporal co-occurrence matrix",
-              "Granger-causality scoring between signal pairs",
-              "Synthetic meta-signal emission on pattern detection"
+              "Configurable webhook URL and signal filter",
+              "JSON payload with signal name, data, and timestamp",
+              "Retry with exponential backoff on failure"
             ],
             use_cases: [
-              "Detect that agent_crashed follows entropy_spike within 200ms",
-              "Surface hidden dependencies between fleet events",
-              "Alert when a known correlation disappears"
+              "Post to Slack when a MES run finishes",
+              "Notify PagerDuty when an agent crashes",
+              "Send fleet events to an external logging service"
             ]
           }
         end
@@ -45,7 +45,7 @@ defmodule Ichor.Mes.Subsystem do
         @impl true
         def start, do: # start GenServer, subscribe to topic
         @impl true
-        def handle_signal(message), do: # process incoming signal
+        def handle_signal(message), do: # POST JSON to webhook URL
         @impl true
         def stop, do: # cleanup
       end
