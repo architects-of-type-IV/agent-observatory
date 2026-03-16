@@ -1,62 +1,50 @@
-# ICHOR IV (formerly Observatory) - Brain
+# ICHOR IV - Brain
 
 ## Identity
-- **ICHOR IV**: sovereign control plane for autonomous agents, part of Kardashev Type IV suite
+- **ICHOR IV**: sovereign control plane for autonomous agents, Kardashev Type IV suite
 - **Architect**: the user -- has authority over everything
 - **Archon**: the Architect's agent interface. NOT a rename of Operator.
-- **Operator**: current thin messaging relay. Will eventually be replaced by Archon.
+- **Operator**: current thin messaging relay
 
-## Registry Architecture (2026-03-13, COMPLETE for process registries)
-- User directive: **ONE registry for the entire ICHOR** -- `Ichor.Registry`
-- **DONE**: Consolidated Fleet.ProcessRegistry + Fleet.TeamRegistry + Mes.Registry into `Ichor.Registry`
-- Compound keys: `{:agent, id}`, `{:team, name}`, `{:run, id}`
-- **Remaining**: Gateway.AgentRegistry (50 refs, ETS-based display cache) -- separate effort
-- **Remaining**: `:pg` groups for cluster-wide discovery -- stays as-is (different purpose)
+## MES Factory Model (Factorio, 2026-03-16)
+- **Core metaphor**: processes building processes
+- **Signal bus** = COMMUNICATION bus (not conveyor belt). Broadcast medium.
+- **Subsystem** = assembler (single pipe fitting, one GenServer, <200 lines)
+- **Facility** = city block (self-contained composition of subsystems with standardized signal I/O)
+- **Evolution path**: spaghetti -> main bus -> city blocks (facilities)
+- **Facility teams deferred** -- need 3-5 loaded subsystems + signal catalog + dependency tracking first
 
-## MES Supervision Tree (2026-03-13, COMPLETE)
-- **MES agents MUST be independent of RunProcess lifecycle** -- tmux is source of truth
-- `Mes.AgentSupervisor` (DynamicSupervisor) owns MES agents, NOT Fleet.TeamSupervisor
-- `MesAgentProcess` GenServer: monitors own tmux window (15s interval), self-terminates when dead
-- RunProcess is spawner only -- terminate does NOT kill team or tmux
-- **Signals.Catalog**: new signals must be added BEFORE any process can emit them. `lookup!/1` raises on unknown. `:mes_agent_stopped` and `:mes_agent_tmux_gone` now added.
-- **Elixir Registry auto-cleanup**: when a process dies, its entry is automatically removed. Good for live state, bad for historical display. EventBuffer covers history.
+## MES Prompt Design (2026-03-16)
+- ResearchContext: dynamic gaps, subsystems, dead zones queried at spawn time
+- Boundary map: what system HAS vs what it DOES NOT HAVE (gaps = opportunities)
+- Pain points single-sourced in ResearchContext, not duplicated across prompts
+- Results: WebhookEgress, Webhook Relay, SignalScheduler (all gap-filling utilities)
 
-## MES Researcher Collaboration Loop (2026-03-14)
-- Two researchers now collaborate: R1 (driver) proposes 3 ideas, R2 (critic) picks best + strengthens
-- Both get full app context, dead zones (banned: signal correlation/anomaly/entropy/self-heal/load-balance), and fresh territory suggestions
-- Tool budgets: R1=15, R2=12 (generous for polling latency)
-- Coordinator waits for ONE final proposal from R1 only
-- Knowledge library (446 entries) referenced as inspiration source
+## Critical Constraints
+- **No external SaaS** -- ADR-001. No Slack, Telegram, PagerDuty. Self-hosted only.
+- **External apps DOWN** -- Memories (port 4000) and Genesis app broken (hardware)
+- **Module limit**: 200 lines, single responsibility
+- **Style**: pattern matching, no if/else/cond, @doc/@spec on public functions
+- **Domain entrypoints**: Ash code_interface on resource is canonical
 
-## Agent Identity (CRITICAL)
-- tmux session name IS canonical session_id
-- Agent name is NEVER Path.basename(cwd)
-- `AgentEntry.short_id/1` = single display abbreviation source
-- "BEAM is god" -- every non-infrastructure tmux session has AgentProcess
+## Registry Architecture (2026-03-13)
+- Single Ichor.Registry with compound keys: {:agent, id}, {:team, name}, {:run, id}
+- Gateway.AgentRegistry ETS DELETED (Task 6)
 
-## Credo Cleanup Lessons (2026-03-11)
-- `replace_all: true` corrupts alias declarations when old_string matches inside them
-- `__MODULE__.function()` is valid for self-referencing Ash resources in `run` blocks
-- Framework modules (Phoenix.HTML.Form, Ash.Error.Unknown) also trigger AliasUsage
-- Nesting: extract into `defp` helpers. `with` chains flatten nested `case`.
+## Ash/SQLite Patterns
+- Manual migrations work when ash.codegen has snapshot issues
+- Single Ichor.Repo (SQLite3) for all domains
+- Domains: Fleet, Activity, Workshop, Archon, AgentTools, Events, Costs, Mes, Genesis
 
-## Signals Convention (2026-03-11, COMPLETE)
-- **Ichor.Signals** Ash Domain + API. `emit/2` (static), `emit/3` (dynamic/scoped)
-- **Signals.Catalog**: compile-time, 45+ signals, 10 categories. `lookup!/1` raises on unknown.
-- **Signals.Bus**: sole PubSub transport. **Signals.Topics**: centralized topic builder.
-
-## Dashboard Data Flow
-- Mount seed: `EventBuffer.latest_per_session/0` (1 event/session)
-- Never bulk-load ETS. Stream + minimal seed.
-- Debounced recompute: 100ms coalesce
-
-## DashboardLive Dispatch Pattern
-- Handler modules expose `dispatch/3`, LiveView uses `when e in @events` guards
-- Three recompute tiers: full (data), view-only (display), none (UI toggles)
+## Dashboard
+- SessionEviction: purges stale sessions from @events (10min TTL, agent-agnostic)
+- :agent_stopped handler triggers recompute for sidebar refresh
+- DashboardState.recompute calls eviction before session derivation
 
 ## User Preferences (ENFORCED)
 - "We dont filter. We fix implementation"
 - "BEAM is god"
-- "1 registry only. For the entire ICHOR."
-- "Needs to be perfect from the beginning. Can not be hard."
+- "Always go for pragmatism"
+- "Never think of solutions yourself. LLMs can judge and discuss."
+- "Architect solutions with agents before coding"
 - Minimal JS. No emoji. Execute directly.

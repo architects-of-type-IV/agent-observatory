@@ -1,63 +1,32 @@
 # ICHOR IV Progress
 
+## Genesis Domain Build-Out (2026-03-16) -- IN PROGRESS
+- [x] Task 140: Genesis domain + Node resource (discover/define/build/complete lifecycle)
+- [ ] Task 141: ADR resource (belongs_to Node)
+- [ ] Task 142: Feature + UseCase resources (belong_to Node)
+- [ ] Task 143: Checkpoint + Conversation resources (belong_to Node)
+- [ ] Task 144: Phase/Section/Task/Subtask hierarchy (belongs_to Node)
+
+## MES Factory Improvements (2026-03-16) -- COMPLETE
+- [x] ResearchContext module (dynamic gaps, subsystems, dead zones, pain points)
+- [x] SessionEviction module (stale session purge from dashboard)
+- [x] DashboardInfoHandlers :agent_stopped handler
+- [x] NudgeEscalator nil session_id crash fix
+- [x] Scheduler pause/resume with persistent file flag
+- [x] Subsystem behaviour example -> WebhookNotifier
+- [x] No-SaaS cleanup (removed all Slack/Telegram/PagerDuty references)
+- [x] Cleaned duplicate MES projects from DB
+- [x] Prompt redesign: boundary map, pain points, scope guidance
+- [x] Results: 3 runs produced WebhookEgress, Webhook Relay, SignalScheduler
+
 ## Genesis Nodes Design (2026-03-15) -- COMPLETE
 - [x] Design doc: docs/plans/2026-03-15-genesis-nodes-design.md
-- [x] Tasks 140-152 in tasks.jsonl (domain, MCP, UI, DAG generator)
-- [ ] Implementation pending
+- [x] Tasks 140-152 in tasks.jsonl
 
 ## MES Page UI Redesign (2026-03-15) -- COMPLETE
-- [x] Rewrote mes_components.ex: stacked cards -> compact feed + split detail panel
-- [x] Feed: grid columns (Module, Project, Topic, Version, Status), click-to-select
-- [x] Detail panel: full spec (features, use cases, signals, architecture, dependencies)
-- [x] Added selected_mes_project assign + mes_select_project event handler
-- [x] Updated dashboard_live.ex, dashboard_live.html.heex, dashboard_mes_handlers.ex
-- [x] mix compile --warnings-as-errors CLEAN
-
 ## MES Researcher Prompt Redesign (2026-03-14) -- COMPLETE
-- [x] Split researcher_prompt/3 into researcher_1_prompt/2 (driver) and researcher_2_prompt/2 (critic)
-- [x] Both prompts include full app context, dead zones, fresh territory, Subsystem behaviour
-- [x] Coordinator Phase 1: collaboration-framed start signals (no hardcoded topics)
-- [x] Coordinator Phase 2: waits for ONE message from researcher-1 only
-- [x] Planner prompt: expects single developed proposal, max 2 turns
-- [x] mix compile --warnings-as-errors CLEAN
-
-## Task 6: Delete Gateway.AgentRegistry ETS GenServer (2026-03-13) -- COMPLETE
-- [x] Moved agent_registry.ex to tmp/trash (ETS GenServer deleted)
-- [x] Moved 4 submodules to tmp/trash (event_handler, identity_merge, team_sync, sweep)
-- [x] Kept agent_entry.ex (pure utilities: short_id, uuid?, role_from_string)
-- [x] gateway_supervisor.ex: removed AgentRegistry child, changed strategy to :one_for_one
-- [x] mix compile --warnings-as-errors CLEAN
-- [x] grep verifies zero AgentRegistry. calls remain (excluding AgentEntry aliases)
-
+## Task 6: Delete Gateway.AgentRegistry ETS (2026-03-13) -- COMPLETE
 ## Task 5: ETS Consumer Migration (2026-03-13) -- COMPLETE
-- [x] Migrated 23 files from Gateway.AgentRegistry ETS calls to AgentProcess API
-- [x] Router.resolve_channel moved inline as private resolve_recipients/1
-- [x] Router.mark_ended -> AgentProcess.update_fields(id, %{status: :ended})
-- [x] Agent terminate() no longer needs explicit remove (Ichor.Registry auto-deregisters)
-- [x] Heartbeat purge_stale -> no-op (process death = auto-cleanup)
-- [x] LoadAgents/LoadTeams read from AgentProcess.list_all() with {id, meta} tuples
-- [x] dedup_by_status inlined in dashboard_state.ex (no longer calls AgentRegistry)
-- [x] AgentEntry pure utilities (short_id, uuid?, role_from_string) kept -- no ETS dependency
-- [x] mix compile --warnings-as-errors CLEAN
-- [x] grep verifies zero ETS calls remain in consumer files
-
-## MES Registry & Supervision Fix (2026-03-13) -- REGISTRY DONE
-- [x] Diagnosed MES agents not registering (5 tmux windows, 0 BEAM processes)
-- [x] Created Mes.AgentSupervisor (DynamicSupervisor, independent of RunProcess)
-- [x] Created Mes.MesAgentProcess (GenServer, tmux-liveness-driven lifecycle)
-- [x] Fixed RunProcess.terminate (no longer kills team/tmux)
-- [x] Fixed RunProcess.handle_call(:deadline_passed?) for old struct compat
-- [x] Fixed Janitor (tmux liveness check before cleanup)
-- [x] Fixed LoadAgents.filter_stale (ghost detection for zero-signal agents)
-- [x] Updated TeamSpawner to register under Mes.AgentSupervisor
-- [x] Compiled clean (243 files, 0 warnings)
-- [x] Added missing signals to Catalog (:mes_agent_stopped, :mes_agent_tmux_gone)
-- [x] Consolidated to single Ichor.Registry (3 registries -> 1 with compound keys)
-- [x] /simplify fixes (duplicate helpers, scheduler N+1)
-
+## MES Registry & Supervision Fix (2026-03-13) -- COMPLETE
 ## Signals Convention Migration (2026-03-11) -- COMPLETE
-- [x] Migrated Ichor.Signal -> Ichor.Signals namespace across 42 files
-- [x] mix compile --warnings-as-errors CLEAN, mix credo --strict 0 issues
-
-## Credo Strict Cleanup (2026-03-11) -- COMPLETE (commit bbbfad2)
-- 200/200 issues fixed across 39 files
+## Credo Strict Cleanup (2026-03-11) -- COMPLETE
