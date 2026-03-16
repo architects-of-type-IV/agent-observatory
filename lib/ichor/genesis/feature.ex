@@ -40,12 +40,14 @@ defmodule Ichor.Genesis.Feature do
       description("ADR codes this feature implements")
     end
 
-    attribute :node_id, :uuid do
-      allow_nil?(false)
-      public?(true)
-    end
-
     timestamps()
+  end
+
+  relationships do
+    belongs_to :node, Ichor.Genesis.Node do
+      allow_nil?(false)
+      attribute_public?(true)
+    end
   end
 
   actions do

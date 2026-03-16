@@ -68,12 +68,14 @@ defmodule Ichor.Genesis.Subtask do
       description("Agent session assigned to this subtask")
     end
 
-    attribute :task_id, :uuid do
-      allow_nil?(false)
-      public?(true)
-    end
-
     timestamps()
+  end
+
+  relationships do
+    belongs_to :task, Ichor.Genesis.Task do
+      allow_nil?(false)
+      attribute_public?(true)
+    end
   end
 
   actions do

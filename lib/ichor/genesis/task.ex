@@ -46,12 +46,16 @@ defmodule Ichor.Genesis.Task do
       constraints(one_of: [:pending, :in_progress, :completed, :blocked])
     end
 
-    attribute :section_id, :uuid do
+    timestamps()
+  end
+
+  relationships do
+    belongs_to :section, Ichor.Genesis.Section do
       allow_nil?(false)
-      public?(true)
+      attribute_public?(true)
     end
 
-    timestamps()
+    has_many :subtasks, Ichor.Genesis.Subtask
   end
 
   actions do

@@ -46,12 +46,16 @@ defmodule Ichor.Genesis.Phase do
       description("FRD/ADR codes that govern this phase")
     end
 
-    attribute :node_id, :uuid do
+    timestamps()
+  end
+
+  relationships do
+    belongs_to :node, Ichor.Genesis.Node do
       allow_nil?(false)
-      public?(true)
+      attribute_public?(true)
     end
 
-    timestamps()
+    has_many :sections, Ichor.Genesis.Section
   end
 
   actions do

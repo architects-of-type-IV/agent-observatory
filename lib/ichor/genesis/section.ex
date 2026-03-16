@@ -32,12 +32,16 @@ defmodule Ichor.Genesis.Section do
       public?(true)
     end
 
-    attribute :phase_id, :uuid do
+    timestamps()
+  end
+
+  relationships do
+    belongs_to :phase, Ichor.Genesis.Phase do
       allow_nil?(false)
-      public?(true)
+      attribute_public?(true)
     end
 
-    timestamps()
+    has_many :tasks, Ichor.Genesis.Task
   end
 
   actions do

@@ -52,12 +52,21 @@ defmodule Ichor.Genesis.Node do
       constraints(one_of: [:discover, :define, :build, :complete])
     end
 
-    attribute :mes_project_id, :uuid do
-      public?(true)
-      description("Link back to the MES Project that spawned this node")
+    timestamps()
+  end
+
+  relationships do
+    belongs_to :mes_project, Ichor.Mes.Project do
+      attribute_public?(true)
+      allow_nil?(true)
     end
 
-    timestamps()
+    has_many :adrs, Ichor.Genesis.Adr
+    has_many :features, Ichor.Genesis.Feature
+    has_many :use_cases, Ichor.Genesis.UseCase
+    has_many :checkpoints, Ichor.Genesis.Checkpoint
+    has_many :conversations, Ichor.Genesis.Conversation
+    has_many :phases, Ichor.Genesis.Phase
   end
 
   actions do

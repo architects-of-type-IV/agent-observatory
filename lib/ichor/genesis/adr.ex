@@ -56,12 +56,14 @@ defmodule Ichor.Genesis.Adr do
       default([])
     end
 
-    attribute :node_id, :uuid do
-      allow_nil?(false)
-      public?(true)
-    end
-
     timestamps()
+  end
+
+  relationships do
+    belongs_to :node, Ichor.Genesis.Node do
+      allow_nil?(false)
+      attribute_public?(true)
+    end
   end
 
   actions do
