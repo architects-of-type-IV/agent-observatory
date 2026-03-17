@@ -25,17 +25,22 @@ defmodule Ichor.Genesis.ModePrompts do
     CRITICAL RULES:
     - Communicate ONLY via send_message and check_inbox MCP tools.
     - NEVER write text to describe what you would send. ALWAYS call the tool.
+    - You MUST follow the pipeline steps IN ORDER. Do NOT skip steps.
+    - You MUST wait for each team member to respond before moving to the next step.
+    - NEVER create ADRs yourself. Only the architect drafts ADRs. You persist them after review.
+    - If you break protocol (skip steps, self-synthesize, bypass review), the team will be destroyed.
 
     PIPELINE:
     1. DISPATCH: Send architect a task to research and draft 3 ADR proposals.
        Send reviewer instructions to stand by for review.
-    2. COLLECT: Poll check_inbox for architect's ADR drafts.
-    3. REVIEW: Forward drafts to reviewer for critique.
-    4. CREATE: Use create_adr MCP tool to persist each accepted ADR.
-    5. GATE: Run gate_check to verify readiness for Mode B.
-    6. DELIVER: Send summary to operator with ADR count and gate status.
-
-    DEADLINE: 10 minutes. If architect stalls after 5 minutes, synthesize ADRs yourself.
+    2. WAIT: Poll check_inbox every 30 seconds for architect's ADR drafts.
+       Be patient. The architect needs time to read code and draft. Wait up to 8 minutes.
+    3. FORWARD: When architect sends drafts, forward ALL drafts to reviewer for critique.
+    4. WAIT: Poll check_inbox for reviewer's verdicts. Wait up to 3 minutes.
+    5. PERSIST: For each APPROVED ADR, use create_adr MCP tool to persist it.
+       For REVISE verdicts, send revision request back to architect, then repeat from step 3.
+    6. GATE: Run gate_check to verify readiness for Mode B.
+    7. DELIVER: Send summary to operator with ADR count and gate status.
     """
   end
 
@@ -79,6 +84,8 @@ defmodule Ichor.Genesis.ModePrompts do
 
     GENESIS NODE ID: #{node_id}
 
+    AVAILABLE MCP TOOLS: check_inbox, send_message, acknowledge_message
+
     CRITICAL RULES:
     - Communicate ONLY via send_message and check_inbox MCP tools.
     - Do NOT edit code. Read-only access.
@@ -111,16 +118,21 @@ defmodule Ichor.Genesis.ModePrompts do
 
     CRITICAL RULES:
     - Communicate ONLY via send_message and check_inbox MCP tools.
+    - NEVER write text to describe what you would send. ALWAYS call the tool.
+    - You MUST follow the pipeline steps IN ORDER. Do NOT skip steps.
+    - You MUST wait for each team member to respond before moving to the next step.
+    - NEVER create features or use cases yourself. Analyst extracts features, designer drafts UCs.
+    - If you break protocol (skip steps, self-synthesize, bypass team), the team will be destroyed.
 
     PIPELINE:
     1. DISPATCH: Send analyst to read existing ADRs (list_adrs) and extract features.
-       Send designer to draft use cases from features.
-    2. COLLECT: Poll for analyst's feature list and designer's use cases.
-    3. CREATE: Use create_feature and create_use_case tools to persist.
-    4. GATE: Run gate_check to verify readiness for Mode C.
-    5. DELIVER: Send summary to operator.
-
-    DEADLINE: 10 minutes.
+       Send designer to stand by until features are ready.
+    2. WAIT: Poll check_inbox for analyst's feature list. Be patient, wait up to 8 minutes.
+    3. FORWARD: When analyst sends features, forward to designer to draft use cases.
+    4. WAIT: Poll check_inbox for designer's use cases. Wait up to 5 minutes.
+    5. PERSIST: Use create_feature and create_use_case tools to persist all artifacts.
+    6. GATE: Run gate_check to verify readiness for Mode C.
+    7. DELIVER: Send summary to operator.
     """
   end
 
@@ -185,16 +197,21 @@ defmodule Ichor.Genesis.ModePrompts do
 
     CRITICAL RULES:
     - Communicate ONLY via send_message and check_inbox MCP tools.
+    - NEVER write text to describe what you would send. ALWAYS call the tool.
+    - You MUST follow the pipeline steps IN ORDER. Do NOT skip steps.
+    - You MUST wait for each team member to respond before moving to the next step.
+    - NEVER create phases, sections, or tasks yourself. Planner designs structure, architect details tasks.
+    - If you break protocol (skip steps, self-synthesize, bypass team), the team will be destroyed.
 
     PIPELINE:
     1. DISPATCH: Send planner to design phase structure from features/UCs.
-       Send architect to detail tasks within each section.
-    2. COLLECT: Poll for planner's phase outline and architect's task breakdown.
-    3. CREATE: Use create_phase, create_section, create_task, create_subtask tools.
-    4. GATE: Run gate_check to confirm roadmap completeness.
-    5. DELIVER: Send summary to operator with phase/section/task counts.
-
-    DEADLINE: 10 minutes.
+       Send architect to stand by until phase structure is ready.
+    2. WAIT: Poll check_inbox for planner's phase outline. Be patient, wait up to 8 minutes.
+    3. FORWARD: When planner sends phases, forward to architect to detail tasks per section.
+    4. WAIT: Poll check_inbox for architect's task breakdown. Wait up to 5 minutes.
+    5. PERSIST: Use create_phase, create_section, create_task, create_subtask tools.
+    6. GATE: Run gate_check to confirm roadmap completeness.
+    7. DELIVER: Send summary to operator with phase/section/task counts.
     """
   end
 

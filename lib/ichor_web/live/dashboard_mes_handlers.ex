@@ -83,10 +83,43 @@ defmodule IchorWeb.DashboardMesHandlers do
     end
   end
 
+  @mes_tabs %{"factory" => :factory, "research" => :research, "genesis" => :genesis}
+  @genesis_sub_tabs %{
+    "decisions" => :decisions,
+    "requirements" => :requirements,
+    "checkpoints" => :checkpoints,
+    "roadmap" => :roadmap
+  }
+  @artifact_types %{
+    "adr" => :adr,
+    "requirement" => :requirement,
+    "checkpoint" => :checkpoint,
+    "phase" => :phase
+  }
+
   def dispatch("mes_switch_tab", %{"tab" => tab}, socket) do
-    tab_atom = String.to_existing_atom(tab)
-    socket = assign(socket, :mes_tab, tab_atom)
-    maybe_load_research(tab_atom, socket)
+    tab_atom = Map.get(@mes_tabs, tab, :factory)
+
+    socket
+    |> assign(:mes_tab, tab_atom)
+    |> maybe_load_research(tab_atom)
+    |> maybe_load_genesis(tab_atom)
+  end
+
+  def dispatch("genesis_select_node", %{"id" => id}, socket) do
+    socket
+    |> assign(:genesis_node, load_genesis_node_by_id(id))
+    |> assign(:genesis_selected, nil)
+  end
+
+  def dispatch("genesis_switch_tab", %{"tab" => tab}, socket) do
+    socket
+    |> assign(:genesis_sub_tab, Map.get(@genesis_sub_tabs, tab, :decisions))
+    |> assign(:genesis_selected, nil)
+  end
+
+  def dispatch("genesis_select_artifact", %{"type" => type, "id" => id}, socket) do
+    assign(socket, :genesis_selected, {Map.get(@artifact_types, type, :adr), id})
   end
 
   def dispatch("mes_research_" <> _ = event, params, socket) do
@@ -169,9 +202,16 @@ defmodule IchorWeb.DashboardMesHandlers do
     }
   end
 
-  defp maybe_load_research(:research, socket) do
+  defp maybe_load_research(socket, :research) do
     DashboardMesResearchHandlers.load_research_data(socket)
   end
 
-  defp maybe_load_research(_tab, socket), do: socket
+  defp maybe_load_research(socket, _tab), do: socket
+
+  defp maybe_load_genesis(socket, :genesis) do
+    nodes = GenesisNode.list_all!()
+    assign(socket, :genesis_nodes, nodes)
+  end
+
+  defp maybe_load_genesis(socket, _tab), do: socket
 end

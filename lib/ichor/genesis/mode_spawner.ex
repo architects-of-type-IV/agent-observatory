@@ -11,7 +11,7 @@ defmodule Ichor.Genesis.ModeSpawner do
   Delegates prompt generation to ModePrompts.
   """
 
-  alias Ichor.Genesis.{ModePrompts, ModeRunner}
+  alias Ichor.Genesis.{ModePrompts, ModeRunner, RunProcess}
   alias Ichor.Genesis.Node, as: GenesisNode
   alias Ichor.Signals
 
@@ -28,6 +28,7 @@ defmodule Ichor.Genesis.ModeSpawner do
          :ok <- ModeRunner.create_session_with_agent(session, cwd, run_id, mode, hd(agents)),
          :ok <- ModeRunner.create_remaining_windows(session, cwd, run_id, mode, tl(agents)) do
       Enum.each(agents, &ModeRunner.register_agent(session, &1, session, run_id, cwd))
+      start_run_process(run_id, mode, session, genesis_node_id)
 
       Signals.emit(:genesis_team_ready, %{
         session: session,
@@ -129,6 +130,13 @@ defmodule Ichor.Genesis.ModeSpawner do
   end
 
   # ── Helpers ──────────────────────────────────────────────────────
+
+  defp start_run_process(run_id, mode, session, node_id) do
+    DynamicSupervisor.start_child(
+      Ichor.Genesis.RunSupervisor,
+      {RunProcess, run_id: run_id, mode: mode, session: session, node_id: node_id}
+    )
+  end
 
   defp short_id, do: :crypto.strong_rand_bytes(4) |> Base.encode16(case: :lower)
 

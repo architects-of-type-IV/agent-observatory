@@ -87,7 +87,25 @@ defmodule Ichor.Genesis.ModeRunner do
     TeamSupervisor.spawn_member(team_name, process_opts)
   end
 
+  @spec kill_session(String.t(), String.t(), String.t()) :: :ok
+  def kill_session(session, run_id, mode) do
+    Ichor.Signals.emit(:genesis_team_killed, %{session: session})
+    kill_args = TmuxHelpers.tmux_args() ++ ["kill-session", "-t", session]
+    System.cmd("tmux", kill_args, stderr_to_stdout: true)
+    cleanup_prompt_files(run_id, mode)
+    :ok
+  end
+
   # ── Private ──────────────────────────────────────────────────────
+
+  defp cleanup_prompt_files(run_id, mode) do
+    dir = prompt_dir(run_id, mode)
+
+    case File.rm_rf(dir) do
+      {:ok, _} -> :ok
+      {:error, reason, _} -> {:error, reason}
+    end
+  end
 
   defp prompt_dir(run_id, mode), do: Path.join([@prompt_dir, "#{mode}-#{run_id}"])
 end

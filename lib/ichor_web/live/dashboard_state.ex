@@ -180,8 +180,11 @@ defmodule IchorWeb.DashboardState do
       mes_research_episodes: [],
       mes_research_entities: [],
       selected_research_item: nil,
+      genesis_nodes: [],
       genesis_node: nil,
-      gate_report: nil
+      gate_report: nil,
+      genesis_sub_tab: :decisions,
+      genesis_selected: nil
     }
   end
 

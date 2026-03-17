@@ -47,6 +47,9 @@ defmodule Ichor.Application do
       # MES subsystem (Registry + DynamicSupervisor + ProjectIngestor + Scheduler)
       Ichor.Mes.Supervisor,
 
+      # Genesis pipeline (DynamicSupervisor for mode RunProcesses)
+      Ichor.Genesis.Supervisor,
+
       # Memories bridge (signals -> knowledge graph)
       Ichor.MemoriesBridge,
 

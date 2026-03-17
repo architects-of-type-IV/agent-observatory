@@ -17,7 +17,7 @@ defmodule Ichor.Mes.Scheduler do
 
   @tick_interval :timer.minutes(1)
   @max_concurrent 1
-  @pause_flag Path.expand("~/.ichor/mes/paused")
+  @pause_flag Path.join(File.cwd!(), "tmp/mes_paused")
 
   # ── Public API ──────────────────────────────────────────────────────
 

@@ -5,7 +5,6 @@ defmodule IchorWeb.Components.MesDetailComponents do
 
   use Phoenix.Component
 
-  alias IchorWeb.Components.MesGenesisComponents
   alias IchorWeb.Components.MesStatusComponents
 
   attr :project, :map, required: true
@@ -87,13 +86,6 @@ defmodule IchorWeb.Components.MesDetailComponents do
           {@project.build_log}
         </div>
       </.detail_section>
-
-      <%!-- Genesis Pipeline --%>
-      <MesGenesisComponents.genesis_panel
-        project={@project}
-        genesis_node={@genesis_node}
-        gate_report={@gate_report}
-      />
 
       <%!-- Footer metadata --%>
       <div class="mt-4 pt-3 border-t border-border/50 flex flex-wrap gap-x-4 gap-y-1 text-[10px] text-muted">

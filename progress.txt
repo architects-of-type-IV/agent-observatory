@@ -1,5 +1,25 @@
 # ICHOR IV Progress
 
+## Genesis Mode A E2E + MES UI Redesign (2026-03-17) -- IN PROGRESS
+- [x] Phase 1: MCP tools verified (create_adr, list_adrs, gate_check)
+- [x] Phase 1: Script generation verified
+- [x] Phase 1: Tmux + fleet registration verified
+- [x] Bug fix: Scout --allowedTools now includes MCP messaging tools
+- [x] Bug fix: Reviewer prompt now lists available MCP tools
+- [x] Phase 2: Mode A launched, 3 ADRs persisted, gate check passed
+- [x] Protocol fix: All coordinator prompts -- patience rules, no self-synthesis
+- [x] Genesis.RunProcess -- team lifecycle (auto-kill tmux, disband fleet)
+- [x] Genesis.Supervisor -- DynamicSupervisor for RunProcesses
+- [x] ModeRunner.kill_session -- tmux kill + prompt file cleanup
+- [x] MES scheduler pause flag moved to tmp/mes_paused (project-local)
+- [x] PulseMonitor reset to proposed status
+- [x] Playground exploration for MES UI layout
+- [x] Design decisions saved to memory
+- [x] Factory state machine vision documented
+- [ ] MES UI design rewrite (factory pipeline framing, spawn architect agents)
+- [ ] Re-test Mode A with fixed prompts
+- [ ] State machine mapping (project status vs pipeline reality)
+
 ## Genesis Domain + MCP Tools (2026-03-16) -- COMPLETE
 - [x] Task 140: Genesis domain + Node resource
 - [x] Task 141: ADR resource (belongs_to Node)
@@ -16,14 +36,8 @@
 - [x] Task 152: DAG generator -- DagGenerator (114L) converts hierarchy to tasks.jsonl
 - [x] Simplify pass: N+1 fix, TmuxHelpers extraction, atom keys, static Tailwind, single-query patterns
 
-## MES Factory Improvements (2026-03-16) -- COMPLETE
-- [x] ResearchContext module (dynamic gaps, subsystems, dead zones, pain points)
-- [x] SessionEviction module (stale session purge from dashboard)
-- [x] Prompt redesign: boundary map, pain points, scope guidance, Factorio model
-- [x] No-SaaS cleanup (removed all external service references)
-- [x] Results: WebhookEgress, Webhook Relay, SignalScheduler proposals
-
 ## Previous Sessions (summaries)
+- MES Factory Improvements (2026-03-16) -- COMPLETE
 - Genesis Nodes Design (2026-03-15) -- COMPLETE
 - MES Page UI Redesign (2026-03-15) -- COMPLETE
 - MES Researcher Prompt Redesign (2026-03-14) -- COMPLETE

@@ -6,6 +6,7 @@ defmodule IchorWeb.Components.MesComponents do
 
   use Phoenix.Component
 
+  alias IchorWeb.Components.GenesisTabComponents
   alias IchorWeb.Components.MesDetailComponents
   alias IchorWeb.Components.MesFeedComponents
   alias IchorWeb.Components.MesResearchComponents
@@ -18,8 +19,11 @@ defmodule IchorWeb.Components.MesComponents do
   attr :research_episodes, :list, default: []
   attr :research_entities, :list, default: []
   attr :selected_research_item, :any, default: nil
+  attr :genesis_nodes, :list, default: []
   attr :genesis_node, :any, default: nil
   attr :gate_report, :any, default: nil
+  attr :genesis_sub_tab, :atom, default: :decisions
+  attr :genesis_selected, :any, default: nil
 
   def mes_view(assigns) do
     ~H"""
@@ -51,6 +55,15 @@ defmodule IchorWeb.Components.MesComponents do
         episodes={@research_episodes}
         results={@research_results}
         selected={@selected_research_item}
+      />
+
+      <%!-- Content: Planning tab --%>
+      <GenesisTabComponents.genesis_tab
+        :if={@mes_tab == :genesis}
+        genesis_nodes={@genesis_nodes}
+        genesis_node={@genesis_node}
+        genesis_sub_tab={@genesis_sub_tab}
+        genesis_selected={@genesis_selected}
       />
     </div>
     """
@@ -86,7 +99,9 @@ defmodule IchorWeb.Components.MesComponents do
     ~H"""
     <div class="flex items-center gap-0.5 rounded bg-surface border border-subtle p-0.5">
       <button
-        :for={tab <- [:factory, :research]}
+        :for={
+          {tab, label} <- [{:factory, "Factory"}, {:research, "Research"}, {:genesis, "Planning"}]
+        }
         phx-click="mes_switch_tab"
         phx-value-tab={tab}
         class={[
@@ -94,7 +109,7 @@ defmodule IchorWeb.Components.MesComponents do
           tab_class(@mes_tab, tab)
         ]}
       >
-        {tab |> Atom.to_string() |> String.capitalize()}
+        {label}
       </button>
     </div>
     """

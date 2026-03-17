@@ -42,7 +42,20 @@ defmodule Ichor.Fleet.TmuxHelpers do
     do: args ++ ["--dangerously-skip-permissions"]
 
   def add_permission_args(args, "scout"),
-    do: args ++ ["--allowedTools", "Read", "Glob", "Grep", "WebSearch", "WebFetch", "Bash"]
+    do:
+      args ++
+        [
+          "--allowedTools",
+          "Read",
+          "Glob",
+          "Grep",
+          "WebSearch",
+          "WebFetch",
+          "Bash",
+          "mcp__ichor__check_inbox",
+          "mcp__ichor__send_message",
+          "mcp__ichor__acknowledge_message"
+        ]
 
   def add_permission_args(args, _), do: args
 end
