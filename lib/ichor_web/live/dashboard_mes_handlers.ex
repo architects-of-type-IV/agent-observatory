@@ -60,8 +60,8 @@ defmodule IchorWeb.DashboardMesHandlers do
       {:ok, tasks} ->
         jsonl = DagGenerator.to_jsonl_string(tasks)
         dag_path = Path.join(File.cwd!(), "tasks.jsonl")
-        File.write!(dag_path, jsonl <> "\n")
-        put_flash(socket, :info, "DAG generated: #{length(tasks)} tasks written to tasks.jsonl")
+        File.write!(dag_path, jsonl <> "\n", [:append])
+        put_flash(socket, :info, "DAG generated: #{length(tasks)} tasks appended to tasks.jsonl")
 
       {:error, reason} ->
         put_flash(socket, :error, "DAG generation failed: #{inspect(reason)}")

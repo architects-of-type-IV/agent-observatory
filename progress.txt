@@ -1,5 +1,14 @@
 # ICHOR IV Progress
 
+## DagGenerator /dag Compatibility + Dead Code Cleanup (2026-03-17) -- COMPLETE
+- [x] Dead code: moved genesis_tab_components.ex and mes_research_components.ex to tmp/trash/
+- [x] DagGenerator: added priority, acceptance_criteria, updated, notes, roadmap_ref fields
+- [x] DagGenerator: fixed created/updated to ISO 8601 with time (was date-only)
+- [x] DagGenerator: new build_acceptance_criteria/1 helper (3 pattern-matched clauses)
+- [x] Handler: File.write! -> File.write!(..., [:append]) to preserve existing tasks
+- [x] DAG generated: 20 PulseMonitor tasks in tasks.jsonl, /dag-compatible
+- [x] Build clean: mix compile --warnings-as-errors
+
 ## MES Unified Factory View + Mode A E2E (2026-03-17) -- COMPLETE
 - [x] Phase 1: MCP tools verified (create_adr, list_adrs, gate_check)
 - [x] Phase 1: Script generation verified

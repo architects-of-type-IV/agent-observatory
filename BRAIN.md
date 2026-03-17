@@ -27,7 +27,7 @@
 - MCP tools emit genesis_artifact_created signal on create (drives live UI updates)
 - Pipeline: MES brief -> Mode A (ADRs) -> Mode B (FRDs/UCs) -> Mode C (roadmap) -> DAG
 - **Mode dispatch**: ModeSpawner + ModeRunner + ModePrompts (3 agents per mode, tmux sessions)
-- **DAG generator**: nested Ash preload, flat traversal, dotted IDs with blocked_by remapping
+- **DAG generator**: nested Ash preload, flat traversal, dotted IDs with blocked_by remapping, /dag-compatible output (priority, acceptance_criteria, ISO 8601 timestamps, notes, roadmap_ref)
 - **TmuxHelpers**: shared module for tmux/fleet helpers
 - **RunProcess**: Genesis.RunProcess monitors teams, auto-kills tmux + disbands fleet on completion
 - **Genesis.Supervisor**: DynamicSupervisor for RunProcesses, wired into application.ex
