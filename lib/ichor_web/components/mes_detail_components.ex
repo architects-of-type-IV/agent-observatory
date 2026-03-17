@@ -9,15 +9,45 @@ defmodule IchorWeb.Components.MesDetailComponents do
   attr :project, :map, required: true
 
   def metadata_sidebar(assigns) do
+    features = assigns.project.features || []
+    use_cases = assigns.project.use_cases || []
+
+    assigns = assign(assigns, features: features, use_cases: use_cases)
+
     ~H"""
-    <div class="w-[200px] shrink-0 border-l border-border overflow-y-auto bg-zinc-900/30 p-3">
-      <.meta_section label="Pipeline">
-        <.meta_row key="ADRs" value={artifact_count(@project, :adrs)} />
-        <.meta_row key="FRDs" value={artifact_count(@project, :features)} />
-        <.meta_row key="Use Cases" value={artifact_count(@project, :use_cases)} />
-        <.meta_row key="Phases" value={artifact_count(@project, :phases)} />
+    <div class="w-[220px] shrink-0 border-l border-border overflow-y-auto bg-zinc-900/30 p-3">
+      <%!-- Project Brief --%>
+      <div class="mb-4 pb-3 border-b border-border/50">
+        <h3 class="text-[10px] font-bold text-zinc-300 leading-tight mb-1">{@project.title}</h3>
+        <p class="text-[9px] font-mono text-brand mb-2">{@project.subsystem}</p>
+        <p class="text-[9px] text-zinc-400 leading-relaxed">{@project.description}</p>
+      </div>
+
+      <%!-- Features (what it does) --%>
+      <.meta_section :if={@features != []} label="Features">
+        <ul class="space-y-0.5">
+          <li
+            :for={f <- @features}
+            class="text-[9px] text-zinc-400 leading-snug pl-2 border-l border-zinc-700"
+          >
+            {f}
+          </li>
+        </ul>
       </.meta_section>
 
+      <%!-- Use Cases (what it solves) --%>
+      <.meta_section :if={@use_cases != []} label="Use Cases">
+        <ul class="space-y-0.5">
+          <li
+            :for={uc <- @use_cases}
+            class="text-[9px] text-zinc-400 leading-snug pl-2 border-l border-brand/30"
+          >
+            {uc}
+          </li>
+        </ul>
+      </.meta_section>
+
+      <%!-- Signals --%>
       <.meta_section :if={(@project.signals_emitted || []) != []} label="Signals Emitted">
         <.tag_list items={@project.signals_emitted} />
       </.meta_section>
@@ -26,25 +56,22 @@ defmodule IchorWeb.Components.MesDetailComponents do
         <.tag_list items={@project.signals_subscribed} />
       </.meta_section>
 
-      <.meta_section :if={@project.topic} label="PubSub Topic">
-        <span class="font-mono text-[9px] text-default">{@project.topic}</span>
-      </.meta_section>
-
+      <%!-- Architecture --%>
       <.meta_section :if={@project.architecture} label="Architecture">
         <.mono_block text={@project.architecture} />
       </.meta_section>
 
+      <%!-- Dependencies --%>
       <.meta_section :if={(@project.dependencies || []) != []} label="Dependencies">
         <.tag_list items={@project.dependencies} />
       </.meta_section>
 
+      <%!-- Footer --%>
       <div class="mt-4 pt-3 border-t border-border/50 space-y-1 text-[9px] text-muted">
         <div :if={@project.version}>
           v<span class="font-mono text-default">{@project.version}</span>
         </div>
-        <div :if={@project.team_name}>
-          Team: <span class="text-default">{@project.team_name}</span>
-        </div>
+        <div :if={@project.topic}><span class="font-mono text-default">{@project.topic}</span></div>
         <div :if={@project.signal_interface}>
           Interface: <span class="text-default">{@project.signal_interface}</span>
         </div>
@@ -65,18 +92,6 @@ defmodule IchorWeb.Components.MesDetailComponents do
     """
   end
 
-  attr :key, :string, required: true
-  attr :value, :any, required: true
-
-  defp meta_row(assigns) do
-    ~H"""
-    <div class="flex items-center justify-between text-[9px] mb-0.5">
-      <span class="text-zinc-500">{@key}</span>
-      <span class="text-zinc-300 font-mono">{@value}</span>
-    </div>
-    """
-  end
-
   attr :items, :list, required: true
 
   def tag_list(assigns) do
@@ -92,18 +107,6 @@ defmodule IchorWeb.Components.MesDetailComponents do
     """
   end
 
-  attr :label, :string, required: true
-  slot :inner_block, required: true
-
-  def detail_section(assigns) do
-    ~H"""
-    <div class="mb-3">
-      <h4 class="text-[9px] font-semibold text-low uppercase tracking-wider mb-1.5">{@label}</h4>
-      {render_slot(@inner_block)}
-    </div>
-    """
-  end
-
   attr :text, :string, required: true
 
   def mono_block(assigns) do
@@ -112,13 +115,5 @@ defmodule IchorWeb.Components.MesDetailComponents do
       {@text}
     </div>
     """
-  end
-
-  defp artifact_count(project, key) do
-    case Map.get(project, key) do
-      nil -> 0
-      list when is_list(list) -> length(list)
-      _ -> 0
-    end
   end
 end

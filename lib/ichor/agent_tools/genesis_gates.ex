@@ -6,6 +6,15 @@ defmodule Ichor.AgentTools.GenesisGates do
 
   alias Ichor.Genesis.{Checkpoint, Conversation}
 
+  @valid_modes %{
+    "discover" => :discover,
+    "define" => :define,
+    "build" => :build,
+    "gate_a" => :gate_a,
+    "gate_b" => :gate_b,
+    "gate_c" => :gate_c
+  }
+
   actions do
     action :create_checkpoint, :map do
       description("Create a gate checkpoint recording readiness assessment.")
@@ -18,7 +27,7 @@ defmodule Ichor.AgentTools.GenesisGates do
 
       run(fn input, _context ->
         args = input.arguments
-        mode = String.to_existing_atom(args.mode)
+        mode = Map.fetch!(@valid_modes, args.mode)
 
         Checkpoint.create(%{
           title: args.title,
@@ -41,7 +50,7 @@ defmodule Ichor.AgentTools.GenesisGates do
 
       run(fn input, _context ->
         args = input.arguments
-        mode = String.to_existing_atom(args.mode)
+        mode = Map.fetch!(@valid_modes, args.mode)
 
         Conversation.create(%{
           title: args.title,

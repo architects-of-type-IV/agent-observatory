@@ -146,16 +146,8 @@ defmodule IchorWeb.DashboardInfoHandlers do
   end
 
   def dispatch(%Message{name: name}, socket)
-      when name in [:mes_scheduler_paused, :mes_scheduler_resumed, :mes_cycle_started] do
-    status =
-      try do
-        Scheduler.status()
-      catch
-        :exit, _ -> %{tick: 0, active_runs: 0, next_tick_in: 60_000, paused: false}
-      end
-
-    {:noreply, assign(socket, :mes_scheduler_status, status)}
-  end
+      when name in [:mes_scheduler_paused, :mes_scheduler_resumed, :mes_cycle_started],
+      do: {:noreply, assign(socket, :mes_scheduler_status, fetch_scheduler_status())}
 
   def dispatch(%Message{name: :mes_subsystem_loaded}, socket) do
     {:noreply, assign(socket, :mes_projects, Project.list_all!())}
@@ -187,7 +179,24 @@ defmodule IchorWeb.DashboardInfoHandlers do
 
   # ── Private ─────────────────────────────────────────────────────────
 
-  @genesis_loads [:adrs, :features, :use_cases, :checkpoints, :conversations, :phases]
+  @genesis_loads [
+    :adrs,
+    :features,
+    :use_cases,
+    :checkpoints,
+    :conversations,
+    phases: [sections: [tasks: [:subtasks]]]
+  ]
+
+  @scheduler_fallback %{tick: 0, active_runs: 0, next_tick_in: 60_000, paused: false}
+
+  defp fetch_scheduler_status do
+    try do
+      Scheduler.status()
+    catch
+      :exit, _ -> @scheduler_fallback
+    end
+  end
 
   defp reload_genesis_node(%{assigns: %{selected_mes_project: nil}} = socket), do: socket
 

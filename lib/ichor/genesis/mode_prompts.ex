@@ -6,7 +6,7 @@ defmodule Ichor.Genesis.ModePrompts do
 
   @mcp_tools_discover "create_genesis_node, create_adr, update_adr, list_adrs, create_checkpoint, create_conversation, gate_check"
   @mcp_tools_define "create_feature, create_use_case, list_features, list_use_cases, create_checkpoint, create_conversation, gate_check"
-  @mcp_tools_build "create_phase, create_section, create_task, create_subtask, create_checkpoint, create_conversation, gate_check"
+  @mcp_tools_build "list_features, list_use_cases, create_phase, create_section, create_task, create_subtask, create_checkpoint, create_conversation, gate_check"
 
   # ── Mode A: Discover (ADRs) ─────────────────────────────────────
 
@@ -262,12 +262,18 @@ defmodule Ichor.Genesis.ModePrompts do
 
     AVAILABLE MCP TOOLS: #{@mcp_tools_build}
 
+    CRITICAL RULES:
+    - Communicate ONLY via send_message and check_inbox MCP tools.
+    - NEVER write text to describe what you would send. ALWAYS call the send_message tool.
+    - You do NOT persist phases. Send your phase design to the coordinator via send_message.
+
     YOUR JOB:
     1. Poll check_inbox for coordinator's assignment.
     2. Read features and use cases (list_features, list_use_cases).
     3. Design 3-5 implementation phases, each with 2-4 sections.
-    4. Use create_phase and create_section to persist the structure.
-    5. Send phase outline to coordinator.
+    4. Send phase outline to coordinator via send_message.
+       You MUST call send_message -- printing text to your terminal does NOT deliver it.
+    5. Poll check_inbox for coordinator's feedback. Iterate if requested.
 
     TOOL BUDGET: Max 20 tool calls.
     """
@@ -288,14 +294,17 @@ defmodule Ichor.Genesis.ModePrompts do
     AVAILABLE MCP TOOLS: #{@mcp_tools_build}
 
     CRITICAL RULES:
-    - ADRs must be about the SUBSYSTEM described in the brief, NOT about the existing ICHOR infrastructure.
+    - Communicate ONLY via send_message and check_inbox MCP tools.
+    - NEVER write text to describe what you would send. ALWAYS call the send_message tool.
+    - Tasks must be about the SUBSYSTEM described in the brief, NOT about the existing ICHOR infrastructure.
+    - You do NOT persist tasks. Send your task breakdown to the coordinator via send_message.
 
     YOUR JOB:
     1. Poll check_inbox for coordinator's section assignments.
-    2. For each section, create concrete implementation tasks.
-    3. Break complex tasks into subtasks with blocked_by dependencies.
-    4. Use create_task and create_subtask to persist.
-    5. Send task summary to coordinator.
+    2. For each section, design concrete implementation tasks with subtasks.
+    3. Send task breakdown to coordinator via send_message.
+       You MUST call send_message -- printing text to your terminal does NOT deliver it.
+    4. Poll check_inbox for coordinator's feedback. Iterate if requested.
 
     TOOL BUDGET: Max 25 tool calls.
     """

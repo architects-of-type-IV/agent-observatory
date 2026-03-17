@@ -25,15 +25,22 @@ defmodule IchorWeb.Components.MesComponents do
     <div class="h-full flex flex-col overflow-hidden">
       <.header scheduler_status={@scheduler_status} />
       <div class="flex flex-1 overflow-hidden">
-        <%!-- Feed (left, ~200px) --%>
+        <%!-- Feed (left) --%>
         <div class="flex-1 flex flex-col overflow-hidden">
-          <MesFeedComponents.feed projects={@projects} selected={@selected} />
+          <MesFeedComponents.feed
+            projects={@projects}
+            selected={@selected}
+            compact={@selected != nil}
+          />
         </div>
 
         <%!-- Main content (center, when project selected) --%>
         <div :if={@selected} class="flex-1 flex flex-col overflow-hidden border-l border-border">
-          <MesFactoryComponents.action_bar project={@selected} genesis_node={@genesis_node} />
-          <MesFactoryComponents.project_brief project={@selected} />
+          <MesFactoryComponents.action_bar
+            project={@selected}
+            genesis_node={@genesis_node}
+            reader_open={@genesis_selected != nil}
+          />
 
           <%!-- Gate report (if present) --%>
           <MesGateComponents.gate_report :if={@gate_report} report={@gate_report} />
@@ -43,6 +50,7 @@ defmodule IchorWeb.Components.MesComponents do
             <MesFactoryComponents.tab_bar active={@genesis_sub_tab} genesis_node={@genesis_node} />
             <div class="flex-1 flex overflow-hidden">
               <MesFactoryComponents.artifact_list
+                :if={!@genesis_selected}
                 genesis_node={@genesis_node}
                 sub_tab={@genesis_sub_tab}
                 selected={@genesis_selected}
@@ -53,12 +61,6 @@ defmodule IchorWeb.Components.MesComponents do
                 selected={@genesis_selected}
                 sub_tab={@genesis_sub_tab}
               />
-              <div
-                :if={!@genesis_selected && @genesis_node}
-                class="flex-1 flex items-center justify-center"
-              >
-                <p class="text-muted text-sm">Select an artifact to view its content.</p>
-              </div>
             </div>
           </div>
 

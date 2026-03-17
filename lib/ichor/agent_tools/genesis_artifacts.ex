@@ -192,8 +192,16 @@ defmodule Ichor.AgentTools.GenesisArtifacts do
   defp stringify(val) when is_list(val), do: Enum.join(val, ", ")
   defp stringify(val), do: val
 
+  @valid_statuses %{
+    "pending" => :pending,
+    "proposed" => :proposed,
+    "accepted" => :accepted,
+    "rejected" => :rejected,
+    "draft" => :draft
+  }
+
   defp parse_atom(nil, default), do: default
-  defp parse_atom(str, _default) when is_binary(str), do: String.to_existing_atom(str)
+  defp parse_atom(str, default) when is_binary(str), do: Map.get(@valid_statuses, str, default)
   defp parse_atom(atom, _default) when is_atom(atom), do: atom
 
   defp split_csv(nil), do: []

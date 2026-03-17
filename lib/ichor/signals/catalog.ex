@@ -429,6 +429,11 @@ defmodule Ichor.Signals.Catalog do
       category: :genesis,
       keys: [:run_id, :mode],
       doc: "RunProcess GenServer terminated"
+    },
+    genesis_artifact_created: %{
+      category: :genesis,
+      keys: [:id, :node_id, :type],
+      doc: "Genesis artifact created via MCP tool (ADR, Feature, UseCase, Checkpoint, etc.)"
     }
   }
 

@@ -14,15 +14,15 @@ defmodule IchorWeb.DashboardMesHandlers do
   @spec dispatch(String.t(), map(), Phoenix.LiveView.Socket.t()) :: Phoenix.LiveView.Socket.t()
   def dispatch("toggle_mes_scheduler", _params, socket) do
     toggle_scheduler(Scheduler.paused?())
+    assign(socket, :mes_scheduler_status, fetch_scheduler_status())
+  end
 
-    status =
-      try do
-        Scheduler.status()
-      catch
-        :exit, _ -> %{tick: 0, active_runs: 0, next_tick_in: 60_000, paused: false}
-      end
-
-    assign(socket, :mes_scheduler_status, status)
+  def dispatch("mes_deselect_project", _params, socket) do
+    socket
+    |> assign(:selected_mes_project, nil)
+    |> assign(:genesis_node, nil)
+    |> assign(:genesis_selected, nil)
+    |> assign(:gate_report, nil)
   end
 
   def dispatch("mes_select_project", %{"id" => id}, socket) do
@@ -35,7 +35,12 @@ defmodule IchorWeb.DashboardMesHandlers do
 
   def dispatch("mes_start_mode", %{"mode" => mode, "project-id" => project_id}, socket) do
     project = Enum.find(socket.assigns.mes_projects, &(&1.id == project_id))
-    genesis_node_id = get_in(socket.assigns, [:genesis_node, :id])
+
+    genesis_node_id =
+      case socket.assigns.genesis_node do
+        nil -> nil
+        node -> node.id
+      end
 
     with {:ok, node_id} <- ModeSpawner.ensure_genesis_node(genesis_node_id, project),
          {:ok, session} <- ModeSpawner.spawn_mode(mode, project_id, node_id) do
@@ -136,7 +141,24 @@ defmodule IchorWeb.DashboardMesHandlers do
   defp toggle_scheduler(true), do: Scheduler.resume()
   defp toggle_scheduler(false), do: Scheduler.pause()
 
-  @genesis_loads [:adrs, :features, :use_cases, :checkpoints, :conversations, :phases]
+  @scheduler_fallback %{tick: 0, active_runs: 0, next_tick_in: 60_000, paused: false}
+
+  defp fetch_scheduler_status do
+    try do
+      Scheduler.status()
+    catch
+      :exit, _ -> @scheduler_fallback
+    end
+  end
+
+  @genesis_loads [
+    :adrs,
+    :features,
+    :use_cases,
+    :checkpoints,
+    :conversations,
+    phases: [sections: [tasks: [:subtasks]]]
+  ]
 
   defp load_genesis_node_by_id(node_id) do
     case GenesisNode.get(node_id, load: @genesis_loads) do

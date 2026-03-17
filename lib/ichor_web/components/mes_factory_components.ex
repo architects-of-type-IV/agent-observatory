@@ -10,6 +10,7 @@ defmodule IchorWeb.Components.MesFactoryComponents do
 
   attr :project, :map, required: true
   attr :genesis_node, :any, required: true
+  attr :reader_open, :boolean, default: false
 
   def action_bar(assigns) do
     {stage, label} = PipelineStage.derive(assigns.genesis_node)
@@ -26,34 +27,43 @@ defmodule IchorWeb.Components.MesFactoryComponents do
       )
 
     ~H"""
-    <div class="flex items-center justify-between px-4 py-2.5 border-b border-border flex-shrink-0 bg-surface/30">
-      <div class="flex items-center gap-2.5">
-        <span class="text-sm font-bold text-high">{@project.title}</span>
+    <div class="px-3 py-2 border-b border-border flex-shrink-0 bg-surface/30">
+      <div class="flex items-center gap-2 min-w-0">
+        <h2 class="text-[13px] font-bold text-high truncate min-w-0 flex-1">{@project.title}</h2>
+        <button
+          phx-click="mes_deselect_project"
+          class="px-2 py-0.5 text-[9px] font-semibold text-muted bg-surface border border-subtle rounded hover:text-default transition-colors shrink-0"
+        >
+          Back to list
+        </button>
+      </div>
+      <%!-- Row 2: Stage badge (left) + station pill (right) --%>
+      <div class="flex items-center justify-between mt-1.5">
         <span class={[
-          "text-[8px] px-2 py-0.5 rounded font-bold uppercase tracking-wider",
+          "text-[7px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider",
           @text_class,
           @bg_class
         ]}>
           {@stage_label}
         </span>
-      </div>
-      <div class="flex items-center gap-1">
-        <.mode_btn label="Mode A" state={@stations.a} mode="a" project_id={@project.id} />
-        <.mode_btn label="Mode B" state={@stations.b} mode="b" project_id={@project.id} />
-        <.mode_btn label="Mode C" state={@stations.c} mode="c" project_id={@project.id} />
-        <span class="w-px h-4 bg-border mx-1" />
-        <.station_btn
-          label="Gate"
-          state={@stations.gate}
-          event="mes_gate_check"
-          node_id={@genesis_node && @genesis_node.id}
-        />
-        <.station_btn
-          label="DAG"
-          state={@stations.dag}
-          event="mes_generate_dag"
-          node_id={@genesis_node && @genesis_node.id}
-        />
+        <div class="flex items-center rounded-md overflow-hidden border border-zinc-700/60">
+          <.mode_btn label="A" state={@stations.a} mode="a" project_id={@project.id} />
+          <.mode_btn label="B" state={@stations.b} mode="b" project_id={@project.id} />
+          <.mode_btn label="C" state={@stations.c} mode="c" project_id={@project.id} />
+          <span class="w-px h-4 bg-zinc-700" />
+          <.station_btn
+            label="Gate"
+            state={@stations.gate}
+            event="mes_gate_check"
+            node_id={@genesis_node && @genesis_node.id}
+          />
+          <.station_btn
+            label="DAG"
+            state={@stations.dag}
+            event="mes_generate_dag"
+            node_id={@genesis_node && @genesis_node.id}
+          />
+        </div>
       </div>
     </div>
     """
@@ -65,21 +75,34 @@ defmodule IchorWeb.Components.MesFactoryComponents do
   attr :mode, :string, required: true
   attr :project_id, :string, required: true
 
+  @pill_active "px-2.5 py-1 text-[8px] font-bold bg-brand/15 text-brand hover:bg-brand/25 transition-colors cursor-pointer"
+  @pill_completed "px-2.5 py-1 text-[8px] font-bold bg-success/10 text-success/70"
+  @pill_future "px-2.5 py-1 text-[8px] font-bold text-zinc-600"
+
   defp mode_btn(%{state: :active} = assigns) do
+    assigns = assign(assigns, :cls, @pill_active)
+
     ~H"""
     <button
       phx-click="mes_start_mode"
       phx-value-mode={@mode}
       phx-value-project-id={@project_id}
-      class="px-2.5 py-1 text-[9px] font-bold rounded bg-brand/10 text-brand border border-brand/20 hover:bg-brand/20 transition-colors"
+      class={@cls}
     >
       {@label}
     </button>
     """
   end
 
-  defp mode_btn(%{state: :completed} = assigns), do: ~H|<.muted_btn label={@label} completed />|
-  defp mode_btn(assigns), do: ~H|<.muted_btn label={@label} />|
+  defp mode_btn(%{state: :completed} = assigns) do
+    assigns = assign(assigns, :cls, @pill_completed)
+    ~H"<span class={@cls}>{@label}</span>"
+  end
+
+  defp mode_btn(assigns) do
+    assigns = assign(assigns, :cls, @pill_future)
+    ~H"<span class={@cls}>{@label}</span>"
+  end
 
   # Station buttons (Gate, DAG) emit their event with node-id
   attr :label, :string, required: true
@@ -88,39 +111,23 @@ defmodule IchorWeb.Components.MesFactoryComponents do
   attr :node_id, :any, default: nil
 
   defp station_btn(%{state: :active} = assigns) do
+    assigns = assign(assigns, :cls, @pill_active)
+
     ~H"""
-    <button
-      phx-click={@event}
-      phx-value-node-id={@node_id}
-      class="px-2.5 py-1 text-[9px] font-bold rounded bg-brand/10 text-brand border border-brand/20 hover:bg-brand/20 transition-colors"
-    >
+    <button phx-click={@event} phx-value-node-id={@node_id} class={@cls}>
       {@label}
     </button>
     """
   end
 
-  defp station_btn(%{state: :completed} = assigns),
-    do: ~H|<.muted_btn label={@label} completed />|
-
-  defp station_btn(assigns), do: ~H|<.muted_btn label={@label} />|
-
-  attr :label, :string, required: true
-  attr :completed, :boolean, default: false
-
-  defp muted_btn(%{completed: true} = assigns) do
-    ~H"""
-    <span class="px-2.5 py-1 text-[9px] font-bold rounded bg-success/10 text-success border border-success/20 opacity-70">
-      {@label}
-    </span>
-    """
+  defp station_btn(%{state: :completed} = assigns) do
+    assigns = assign(assigns, :cls, @pill_completed)
+    ~H"<span class={@cls}>{@label}</span>"
   end
 
-  defp muted_btn(assigns) do
-    ~H"""
-    <span class="px-2.5 py-1 text-[9px] font-bold rounded bg-transparent text-zinc-600 border border-zinc-800 opacity-40">
-      {@label}
-    </span>
-    """
+  defp station_btn(assigns) do
+    assigns = assign(assigns, :cls, @pill_future)
+    ~H"<span class={@cls}>{@label}</span>"
   end
 
   # ── Project Brief ────────────────────────────────────────────────────
@@ -241,14 +248,10 @@ defmodule IchorWeb.Components.MesFactoryComponents do
 
   def artifact_list(assigns) do
     items = build_items(assigns.genesis_node, assigns.sub_tab)
-    narrow = not is_nil(assigns.selected)
-    assigns = assign(assigns, items: items, narrow: narrow)
+    assigns = assign(assigns, :items, items)
 
     ~H"""
-    <div class={[
-      "overflow-y-auto border-r border-border transition-all duration-200",
-      if(@narrow, do: "w-64", else: "w-80")
-    ]}>
+    <div class="w-full overflow-y-auto">
       <div :if={@items == []} class="px-4 py-10 text-center text-[11px] text-muted">
         No artifacts yet.
       </div>

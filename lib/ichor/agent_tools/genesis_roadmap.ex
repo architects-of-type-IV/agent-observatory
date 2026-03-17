@@ -187,6 +187,14 @@ defmodule Ichor.AgentTools.GenesisRoadmap do
   end
 
   defp to_map({:ok, record}, fields) do
+    Ichor.Signals.emit(:genesis_artifact_created, %{
+      id: record.id,
+      node_id:
+        Map.get(record, :node_id) || Map.get(record, :phase_id) || Map.get(record, :section_id) ||
+          Map.get(record, :task_id),
+      type: record.__struct__ |> Module.split() |> List.last() |> String.downcase()
+    })
+
     {:ok,
      Map.take(record, [:id | fields])
      |> Map.new(fn {k, v} -> {to_string(k), stringify(v)} end)

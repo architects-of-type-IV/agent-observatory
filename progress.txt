@@ -1,6 +1,6 @@
 # ICHOR IV Progress
 
-## Genesis Mode A E2E + MES UI Redesign (2026-03-17) -- IN PROGRESS
+## MES Unified Factory View + Mode A E2E (2026-03-17) -- COMPLETE
 - [x] Phase 1: MCP tools verified (create_adr, list_adrs, gate_check)
 - [x] Phase 1: Script generation verified
 - [x] Phase 1: Tmux + fleet registration verified
