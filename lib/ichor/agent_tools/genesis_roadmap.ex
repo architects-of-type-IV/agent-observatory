@@ -1,7 +1,5 @@
 defmodule Ichor.AgentTools.GenesisRoadmap do
-  @moduledoc """
-  MCP tools for Mode C roadmap hierarchy: Phase, Section, Task, Subtask.
-  """
+  @moduledoc "MCP tools for Mode C roadmap hierarchy: Phase, Section, Task, Subtask."
   use Ash.Resource, domain: Ichor.AgentTools
 
   alias Ichor.Genesis.{Phase, Section, Task, Subtask}
@@ -140,18 +138,14 @@ defmodule Ichor.AgentTools.GenesisRoadmap do
       argument(:node_id, :string, allow_nil?: false, description: "Genesis Node UUID")
 
       run(fn input, _context ->
-        case Phase.by_node(input.arguments.node_id) do
-          {:ok, phases} ->
-            loaded =
-              Enum.map(phases, fn phase ->
-                {:ok, p} = Ash.load(phase, sections: [tasks: [:subtasks]])
-                summarize_phase(p)
-              end)
+        with {:ok, phases} <- Phase.by_node(input.arguments.node_id) do
+          summaries =
+            Enum.map(phases, fn phase ->
+              {:ok, p} = Ash.load(phase, sections: [tasks: [:subtasks]])
+              summarize_phase(p)
+            end)
 
-            {:ok, loaded}
-
-          error ->
-            error
+          {:ok, summaries}
         end
       end)
     end

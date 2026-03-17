@@ -94,7 +94,7 @@ defmodule IchorWeb.Components.MesDetailComponents do
 
   attr :items, :list, required: true
 
-  def tag_list(assigns) do
+  defp tag_list(assigns) do
     ~H"""
     <div class="flex flex-wrap gap-1">
       <span
@@ -109,7 +109,7 @@ defmodule IchorWeb.Components.MesDetailComponents do
 
   attr :text, :string, required: true
 
-  def mono_block(assigns) do
+  defp mono_block(assigns) do
     ~H"""
     <div class="text-[9px] font-mono text-zinc-400 p-2 rounded bg-zinc-900 border border-zinc-800 whitespace-pre-wrap leading-relaxed">
       {@text}

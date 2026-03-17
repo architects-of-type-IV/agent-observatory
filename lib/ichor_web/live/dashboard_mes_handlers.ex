@@ -1,7 +1,5 @@
 defmodule IchorWeb.DashboardMesHandlers do
-  @moduledoc """
-  Handle events for the MES (Manufacturing Execution System) view.
-  """
+  @moduledoc "Event handlers for the MES factory view."
 
   import Phoenix.Component, only: [assign: 3]
   import Phoenix.LiveView, only: [put_flash: 3]
@@ -36,11 +34,7 @@ defmodule IchorWeb.DashboardMesHandlers do
   def dispatch("mes_start_mode", %{"mode" => mode, "project-id" => project_id}, socket) do
     project = Enum.find(socket.assigns.mes_projects, &(&1.id == project_id))
 
-    genesis_node_id =
-      case socket.assigns.genesis_node do
-        nil -> nil
-        node -> node.id
-      end
+    genesis_node_id = socket.assigns.genesis_node && socket.assigns.genesis_node.id
 
     with {:ok, node_id} <- ModeSpawner.ensure_genesis_node(genesis_node_id, project),
          {:ok, session} <- ModeSpawner.spawn_mode(mode, project_id, node_id) do
@@ -136,14 +130,12 @@ defmodule IchorWeb.DashboardMesHandlers do
     end
   end
 
-  # ── Private ─────────────────────────────────────────────────────────
-
   defp toggle_scheduler(true), do: Scheduler.resume()
   defp toggle_scheduler(false), do: Scheduler.pause()
 
   @scheduler_fallback %{tick: 0, active_runs: 0, next_tick_in: 60_000, paused: false}
 
-  defp fetch_scheduler_status do
+  def fetch_scheduler_status do
     try do
       Scheduler.status()
     catch
@@ -185,7 +177,7 @@ defmodule IchorWeb.DashboardMesHandlers do
 
   defp build_gate_report(loaded) do
     adrs = length(loaded.adrs)
-    accepted_adrs = Enum.count(loaded.adrs, &(&1.status == :accepted))
+    accepted = Enum.count(loaded.adrs, &(&1.status == :accepted))
     features = length(loaded.features)
     use_cases = length(loaded.use_cases)
     phases = length(loaded.phases)
@@ -194,12 +186,12 @@ defmodule IchorWeb.DashboardMesHandlers do
       node_id: loaded.id,
       current_status: to_string(loaded.status),
       adrs: adrs,
-      accepted_adrs: accepted_adrs,
+      accepted_adrs: accepted,
       features: features,
       use_cases: use_cases,
       checkpoints: length(loaded.checkpoints),
       phases: phases,
-      ready_for_define: adrs > 0 and accepted_adrs > 0,
+      ready_for_define: adrs > 0 and accepted > 0,
       ready_for_build: features > 0 and use_cases > 0,
       ready_for_complete: phases > 0
     }

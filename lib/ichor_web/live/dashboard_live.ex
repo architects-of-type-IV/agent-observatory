@@ -15,7 +15,7 @@ defmodule IchorWeb.DashboardLive do
 
   import IchorWeb.DashboardMessagingHandlers, only: [subscribe_to_mailboxes: 1]
 
-  alias Ichor.Mes.{Project, Scheduler}
+  alias Ichor.Mes.Project
   alias Ichor.Signals.{Buffer, Catalog}
 
   alias IchorWeb.{
@@ -118,16 +118,9 @@ defmodule IchorWeb.DashboardLive do
   end
 
   defp apply_nav_view(:mes, socket) do
-    status =
-      try do
-        Scheduler.status()
-      catch
-        :exit, _ -> %{tick: 0, active_runs: 0, next_tick_in: 60_000, paused: false}
-      end
-
     assign(socket,
       mes_projects: Project.list_all!(),
-      mes_scheduler_status: status,
+      mes_scheduler_status: DashboardMesHandlers.fetch_scheduler_status(),
       selected_mes_project: nil,
       genesis_node: nil,
       gate_report: nil

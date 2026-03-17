@@ -82,60 +82,25 @@ defmodule IchorWeb.Components.MesReaderComponents do
   defp find_selected(_node, nil), do: nil
   defp find_selected(nil, _selected), do: nil
 
-  defp find_selected(node, {:adr, id}) do
-    node
-    |> safe_list(:adrs)
-    |> Enum.find(&(&1.id == id))
-    |> build_adr_item()
+  defp find_selected(node, {type, id}) do
+    key = artifact_key(type)
+    record = node |> safe_list(key) |> Enum.find(&(&1.id == id))
+    build_item(type, record)
   end
 
-  defp find_selected(node, {:feature, id}) do
-    node
-    |> safe_list(:features)
-    |> Enum.find(&(&1.id == id))
-    |> build_feature_item()
-  end
-
-  defp find_selected(node, {:use_case, id}) do
-    node
-    |> safe_list(:use_cases)
-    |> Enum.find(&(&1.id == id))
-    |> build_use_case_item()
-  end
-
-  defp find_selected(node, {:checkpoint, id}) do
-    node
-    |> safe_list(:checkpoints)
-    |> Enum.find(&(&1.id == id))
-    |> build_checkpoint_item()
-  end
-
-  defp find_selected(node, {:conversation, id}) do
-    node
-    |> safe_list(:conversations)
-    |> Enum.find(&(&1.id == id))
-    |> build_conversation_item()
-  end
-
-  defp find_selected(node, {:phase, id}) do
-    node
-    |> safe_list(:phases)
-    |> Enum.find(&(&1.id == id))
-    |> build_phase_item()
-  end
-
-  defp find_selected(_node, _selected), do: nil
+  defp artifact_key(:adr), do: :adrs
+  defp artifact_key(:feature), do: :features
+  defp artifact_key(:use_case), do: :use_cases
+  defp artifact_key(:checkpoint), do: :checkpoints
+  defp artifact_key(:conversation), do: :conversations
+  defp artifact_key(:phase), do: :phases
 
   # ── Item Builders ─────────────────────────────────────────────────────
 
-  defp build_adr_item(nil), do: nil
+  defp build_item(_type, nil), do: nil
 
-  defp build_adr_item(adr) do
-    refs =
-      adr
-      |> Map.get(:related_adr_codes, [])
-      |> safe_codes()
-      |> Enum.map(&%{type: :adr, id: &1, label: &1})
+  defp build_item(:adr, adr) do
+    refs = adr |> Map.get(:related_adr_codes, []) |> safe_codes() |> Enum.map(&ref(:adr, &1))
 
     %{
       code: adr.code,
@@ -146,14 +111,8 @@ defmodule IchorWeb.Components.MesReaderComponents do
     }
   end
 
-  defp build_feature_item(nil), do: nil
-
-  defp build_feature_item(feature) do
-    refs =
-      feature
-      |> Map.get(:adr_codes, [])
-      |> safe_codes()
-      |> Enum.map(&%{type: :adr, id: &1, label: &1})
+  defp build_item(:feature, feature) do
+    refs = feature |> Map.get(:adr_codes, []) |> safe_codes() |> Enum.map(&ref(:adr, &1))
 
     %{
       code: feature.code,
@@ -164,13 +123,11 @@ defmodule IchorWeb.Components.MesReaderComponents do
     }
   end
 
-  defp build_use_case_item(nil), do: nil
-
-  defp build_use_case_item(use_case) do
+  defp build_item(:use_case, use_case) do
     refs =
       case Map.get(use_case, :feature_code) do
         nil -> []
-        code -> [%{type: :feature, id: code, label: code}]
+        code -> [ref(:feature, code)]
       end
 
     %{
@@ -182,38 +139,18 @@ defmodule IchorWeb.Components.MesReaderComponents do
     }
   end
 
-  defp build_checkpoint_item(nil), do: nil
-
-  defp build_checkpoint_item(checkpoint) do
+  defp build_item(type, record) when type in [:checkpoint, :conversation] do
     %{
       code: "",
-      title: checkpoint.title,
-      badge: to_string(checkpoint.mode),
-      content: Map.get(checkpoint, :content, ""),
+      title: record.title,
+      badge: to_string(record.mode),
+      content: Map.get(record, :content, ""),
       refs: []
     }
   end
 
-  defp build_conversation_item(nil), do: nil
-
-  defp build_conversation_item(conversation) do
-    %{
-      code: "",
-      title: conversation.title,
-      badge: to_string(conversation.mode),
-      content: Map.get(conversation, :content, ""),
-      refs: []
-    }
-  end
-
-  defp build_phase_item(nil), do: nil
-
-  defp build_phase_item(phase) do
-    refs =
-      phase
-      |> Map.get(:governed_by, [])
-      |> parse_governed_by()
-      |> Enum.map(&%{type: :adr, id: &1, label: &1})
+  defp build_item(:phase, phase) do
+    refs = phase |> Map.get(:governed_by, []) |> parse_governed_by() |> Enum.map(&ref(:adr, &1))
 
     %{
       code: "P#{phase.number}",
@@ -224,6 +161,8 @@ defmodule IchorWeb.Components.MesReaderComponents do
       refs: refs
     }
   end
+
+  defp ref(type, code), do: %{type: type, id: code, label: code}
 
   # ── Helpers ───────────────────────────────────────────────────────────
 

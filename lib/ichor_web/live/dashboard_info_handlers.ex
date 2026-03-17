@@ -1,10 +1,8 @@
 defmodule IchorWeb.DashboardInfoHandlers do
   @moduledoc """
   Signal and process message handlers for the dashboard LiveView.
+  Debounces recompute to coalesce rapid-fire events within a 100ms window.
   Each dispatch/2 clause returns {:noreply, socket}.
-
-  Uses debounced recompute to coalesce rapid-fire events (e.g. multiple agents
-  sending events within the same 100ms window) into a single recompute cycle.
   """
 
   import Phoenix.Component, only: [assign: 3]
@@ -15,10 +13,9 @@ defmodule IchorWeb.DashboardInfoHandlers do
   import IchorWeb.DashboardGatewayHandlers, only: [handle_gateway_info: 2]
 
   alias Ichor.Gateway.HITLRelay
-
-  alias Ichor.Mes.{Project, Scheduler}
+  alias Ichor.Mes.Project
   alias Ichor.Signals.Message
-  alias IchorWeb.DashboardArchonHandlers
+  alias IchorWeb.{DashboardArchonHandlers, DashboardMesHandlers}
 
   @max_events 500
   @recompute_debounce_ms 100
@@ -105,30 +102,9 @@ defmodule IchorWeb.DashboardInfoHandlers do
   def dispatch(%Message{name: :gate_passed}, socket), do: {:noreply, socket}
   def dispatch(%Message{name: :gate_failed}, socket), do: {:noreply, socket}
 
-  # ── Signal-native: gateway signals ─────────────────────────────────────
+  @gateway_signals ~w(decision_log schema_violation node_state_update dead_letter capability_update topology_snapshot entropy_alert dag_delta)a
 
-  def dispatch(%Message{name: :decision_log} = sig, socket),
-    do: {:noreply, handle_gateway_info(sig, socket)}
-
-  def dispatch(%Message{name: :schema_violation} = sig, socket),
-    do: {:noreply, handle_gateway_info(sig, socket)}
-
-  def dispatch(%Message{name: :node_state_update} = sig, socket),
-    do: {:noreply, handle_gateway_info(sig, socket)}
-
-  def dispatch(%Message{name: :dead_letter} = sig, socket),
-    do: {:noreply, handle_gateway_info(sig, socket)}
-
-  def dispatch(%Message{name: :capability_update} = sig, socket),
-    do: {:noreply, handle_gateway_info(sig, socket)}
-
-  def dispatch(%Message{name: :topology_snapshot} = sig, socket),
-    do: {:noreply, handle_gateway_info(sig, socket)}
-
-  def dispatch(%Message{name: :entropy_alert} = sig, socket),
-    do: {:noreply, handle_gateway_info(sig, socket)}
-
-  def dispatch(%Message{name: :dag_delta} = sig, socket),
+  def dispatch(%Message{name: name} = sig, socket) when name in @gateway_signals,
     do: {:noreply, handle_gateway_info(sig, socket)}
 
   # ── Non-signal messages ────────────────────────────────────────────────
@@ -147,7 +123,9 @@ defmodule IchorWeb.DashboardInfoHandlers do
 
   def dispatch(%Message{name: name}, socket)
       when name in [:mes_scheduler_paused, :mes_scheduler_resumed, :mes_cycle_started],
-      do: {:noreply, assign(socket, :mes_scheduler_status, fetch_scheduler_status())}
+      do:
+        {:noreply,
+         assign(socket, :mes_scheduler_status, DashboardMesHandlers.fetch_scheduler_status())}
 
   def dispatch(%Message{name: :mes_subsystem_loaded}, socket) do
     {:noreply, assign(socket, :mes_projects, Project.list_all!())}
@@ -187,16 +165,6 @@ defmodule IchorWeb.DashboardInfoHandlers do
     :conversations,
     phases: [sections: [tasks: [:subtasks]]]
   ]
-
-  @scheduler_fallback %{tick: 0, active_runs: 0, next_tick_in: 60_000, paused: false}
-
-  defp fetch_scheduler_status do
-    try do
-      Scheduler.status()
-    catch
-      :exit, _ -> @scheduler_fallback
-    end
-  end
 
   defp reload_genesis_node(%{assigns: %{selected_mes_project: nil}} = socket), do: socket
 

@@ -59,9 +59,8 @@ defmodule Ichor.AgentTools.GenesisArtifacts do
       argument(:node_id, :string, allow_nil?: false, description: "Genesis Node UUID")
 
       run(fn input, _context ->
-        case Adr.by_node(input.arguments.node_id) do
-          {:ok, adrs} -> {:ok, Enum.map(adrs, &summarize_adr/1)}
-          error -> error
+        with {:ok, adrs} <- Adr.by_node(input.arguments.node_id) do
+          {:ok, Enum.map(adrs, &summarize_adr/1)}
         end
       end)
     end
@@ -96,12 +95,8 @@ defmodule Ichor.AgentTools.GenesisArtifacts do
       argument(:node_id, :string, allow_nil?: false, description: "Genesis Node UUID")
 
       run(fn input, _context ->
-        case Feature.by_node(input.arguments.node_id) do
-          {:ok, features} ->
-            {:ok, Enum.map(features, &summarize(&1, [:code, :title, :adr_codes]))}
-
-          error ->
-            error
+        with {:ok, features} <- Feature.by_node(input.arguments.node_id) do
+          {:ok, Enum.map(features, &summarize(&1, [:code, :title, :adr_codes]))}
         end
       end)
     end
@@ -139,13 +134,14 @@ defmodule Ichor.AgentTools.GenesisArtifacts do
       argument(:node_id, :string, allow_nil?: false, description: "Genesis Node UUID")
 
       run(fn input, _context ->
-        case UseCase.by_node(input.arguments.node_id) do
-          {:ok, ucs} -> {:ok, Enum.map(ucs, &summarize(&1, [:code, :title, :feature_code]))}
-          error -> error
+        with {:ok, ucs} <- UseCase.by_node(input.arguments.node_id) do
+          {:ok, Enum.map(ucs, &summarize(&1, [:code, :title, :feature_code]))}
         end
       end)
     end
   end
+
+  @artifact_fields ~w(id code title status content mode summary feature_code adr_codes node_id)a
 
   defp to_map({:ok, record}) do
     Ichor.Signals.emit(:genesis_artifact_created, %{
@@ -154,39 +150,24 @@ defmodule Ichor.AgentTools.GenesisArtifacts do
       type: record.__struct__ |> Module.split() |> List.last() |> String.downcase()
     })
 
-    {:ok,
-     Map.take(record, [
-       :id,
-       :code,
-       :title,
-       :status,
-       :content,
-       :mode,
-       :summary,
-       :feature_code,
-       :adr_codes,
-       :node_id
-     ])
-     |> stringify_map()}
+    result =
+      record
+      |> Map.take(@artifact_fields)
+      |> Map.new(fn {k, v} -> {to_string(k), stringify(v)} end)
+      |> Map.reject(fn {_k, v} -> is_nil(v) end)
+
+    {:ok, result}
   end
 
   defp to_map(error), do: error
 
-  defp stringify_map(map) do
-    Map.new(map, fn {k, v} -> {to_string(k), stringify(v)} end)
-    |> Map.reject(fn {_k, v} -> is_nil(v) end)
-  end
-
-  defp summarize_adr(adr) do
-    %{"id" => adr.id, "code" => adr.code, "title" => adr.title, "status" => to_string(adr.status)}
-  end
-
   defp summarize(record, fields) do
     Map.new([:id | fields], fn field ->
-      val = Map.get(record, field)
-      {to_string(field), stringify(val)}
+      {to_string(field), stringify(Map.get(record, field))}
     end)
   end
+
+  defp summarize_adr(adr), do: summarize(adr, [:code, :title, :status])
 
   defp stringify(val) when is_atom(val), do: to_string(val)
   defp stringify(val) when is_list(val), do: Enum.join(val, ", ")

@@ -49,7 +49,7 @@ defmodule IchorWeb.Components.MesComponents do
           <div :if={@genesis_node} class="flex-1 flex flex-col overflow-hidden">
             <MesFactoryComponents.tab_bar active={@genesis_sub_tab} genesis_node={@genesis_node} />
             <div class="flex-1 flex overflow-hidden">
-              <MesFactoryComponents.artifact_list
+              <MesArtifactComponents.artifact_list
                 :if={!@genesis_selected}
                 genesis_node={@genesis_node}
                 sub_tab={@genesis_sub_tab}

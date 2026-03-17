@@ -1,7 +1,5 @@
 defmodule IchorWeb.Components.MesFactoryComponents do
-  @moduledoc """
-  Factory view components: action bar, description, artifact tabs, and artifact list.
-  """
+  @moduledoc "Factory view components: action bar, tab bar, and station controls."
 
   use Phoenix.Component
   alias Ichor.Genesis.PipelineStage
@@ -37,7 +35,6 @@ defmodule IchorWeb.Components.MesFactoryComponents do
           Back to list
         </button>
       </div>
-      <%!-- Row 2: Stage badge (left) + station pill (right) --%>
       <div class="flex items-center justify-between mt-1.5">
         <span class={[
           "text-[7px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider",
@@ -69,7 +66,6 @@ defmodule IchorWeb.Components.MesFactoryComponents do
     """
   end
 
-  # Mode buttons emit mes_start_mode with project-id
   attr :label, :string, required: true
   attr :state, :atom, required: true
   attr :mode, :string, required: true
@@ -104,7 +100,6 @@ defmodule IchorWeb.Components.MesFactoryComponents do
     ~H"<span class={@cls}>{@label}</span>"
   end
 
-  # Station buttons (Gate, DAG) emit their event with node-id
   attr :label, :string, required: true
   attr :state, :atom, required: true
   attr :event, :string, required: true
@@ -130,49 +125,6 @@ defmodule IchorWeb.Components.MesFactoryComponents do
     ~H"<span class={@cls}>{@label}</span>"
   end
 
-  # ── Project Brief ────────────────────────────────────────────────────
-
-  attr :project, :map, required: true
-
-  def project_brief(assigns) do
-    features = assigns.project.features || []
-    use_cases = assigns.project.use_cases || []
-
-    assigns =
-      assign(assigns,
-        features: features,
-        use_cases: use_cases,
-        has_details: features != [] or use_cases != []
-      )
-
-    ~H"""
-    <div class="px-4 py-3 border-b border-border flex-shrink-0 space-y-1.5">
-      <p class="text-[11px] text-muted leading-relaxed">{@project.description}</p>
-      <div :if={@has_details} class="flex flex-wrap gap-x-4 gap-y-1 text-[9px]">
-        <div :if={@features != []} class="flex items-baseline gap-1">
-          <span class="text-zinc-500 font-semibold uppercase tracking-wider">Features</span>
-          <span
-            :for={f <- @features}
-            class="px-1.5 py-0.5 rounded bg-interactive/10 text-interactive font-mono"
-          >
-            {f}
-          </span>
-        </div>
-        <div :if={@use_cases != []} class="flex items-baseline gap-1">
-          <span class="text-zinc-500 font-semibold uppercase tracking-wider">Use Cases</span>
-          <span :for={uc <- @use_cases} class="px-1.5 py-0.5 rounded bg-brand/10 text-brand font-mono">
-            {uc}
-          </span>
-        </div>
-      </div>
-      <div :if={@project.signal_interface} class="text-[9px] text-zinc-500">
-        <span class="font-semibold uppercase tracking-wider">Interface</span>
-        <span class="text-zinc-400 ml-1">{@project.signal_interface}</span>
-      </div>
-    </div>
-    """
-  end
-
   # ── Tab Bar ──────────────────────────────────────────────────────────
 
   attr :active, :atom, required: true
@@ -180,18 +132,13 @@ defmodule IchorWeb.Components.MesFactoryComponents do
 
   def tab_bar(assigns) do
     node = assigns.genesis_node
-    adrs = safe_list(node, :adrs)
-    features = safe_list(node, :features)
-    use_cases = safe_list(node, :use_cases)
-    checkpoints = safe_list(node, :checkpoints)
-    conversations = safe_list(node, :conversations)
-    phases = safe_list(node, :phases)
 
     counts = %{
-      decisions: length(adrs),
-      requirements: length(features) + length(use_cases),
-      checkpoints: length(checkpoints) + length(conversations),
-      roadmap: length(phases)
+      decisions: length(safe_list(node, :adrs)),
+      requirements: length(safe_list(node, :features)) + length(safe_list(node, :use_cases)),
+      checkpoints:
+        length(safe_list(node, :checkpoints)) + length(safe_list(node, :conversations)),
+      roadmap: length(safe_list(node, :phases))
     }
 
     assigns = assign(assigns, counts: counts)
@@ -216,172 +163,30 @@ defmodule IchorWeb.Components.MesFactoryComponents do
   attr :count, :integer, required: true
   attr :active, :atom, required: true
 
-  defp tab_btn(%{key: key, active: key} = assigns) do
-    ~H"""
-    <button
-      phx-click="genesis_switch_tab"
-      phx-value-tab={@key}
-      class="px-5 py-2.5 text-[9px] font-bold uppercase tracking-wider text-brand border-b-2 border-brand bg-brand/[0.04] transition-colors"
-    >
-      {@label}<span class="ml-1 text-[8px] opacity-60">{@count}</span>
-    </button>
-    """
-  end
-
   defp tab_btn(assigns) do
+    active = assigns.key == assigns.active
+
+    assigns = assign(assigns, :active, active)
+
     ~H"""
     <button
       phx-click="genesis_switch_tab"
       phx-value-tab={@key}
-      class="px-5 py-2.5 text-[9px] font-bold uppercase tracking-wider text-muted border-b-2 border-transparent hover:text-default hover:bg-white/[0.02] transition-colors"
+      class={[
+        "px-5 py-2.5 text-[9px] font-bold uppercase tracking-wider border-b-2 transition-colors",
+        if(@active,
+          do: "text-brand border-brand bg-brand/[0.04]",
+          else: "text-muted border-transparent hover:text-default hover:bg-white/[0.02]"
+        )
+      ]}
     >
-      {@label}<span class="ml-1 text-[8px] opacity-50">{@count}</span>
+      {@label}
+      <span class={["ml-1 text-[8px]", if(@active, do: "opacity-60", else: "opacity-50")]}>
+        {@count}
+      </span>
     </button>
     """
   end
-
-  # ── Artifact List ────────────────────────────────────────────────────
-
-  attr :genesis_node, :any, required: true
-  attr :sub_tab, :atom, required: true
-  attr :selected, :any, default: nil
-
-  def artifact_list(assigns) do
-    items = build_items(assigns.genesis_node, assigns.sub_tab)
-    assigns = assign(assigns, :items, items)
-
-    ~H"""
-    <div class="w-full overflow-y-auto">
-      <div :if={@items == []} class="px-4 py-10 text-center text-[11px] text-muted">
-        No artifacts yet.
-      </div>
-      <button
-        :for={item <- @items}
-        phx-click="genesis_select_artifact"
-        phx-value-type={item.type}
-        phx-value-id={item.id}
-        class={[
-          "flex items-center gap-2.5 px-3.5 py-2.5 border-b border-subtle w-full text-left text-default transition-colors",
-          "hover:bg-white/[0.03]",
-          if(selected?(@selected, item.type, item.id), do: "bg-brand/10", else: "bg-transparent")
-        ]}
-      >
-        <span
-          :if={item.code != ""}
-          class={["font-mono text-[9px] flex-shrink-0 min-w-[50px]", item.code_class]}
-        >
-          {item.code}
-        </span>
-        <span class="text-[11px] font-semibold flex-1 truncate">{item.label}</span>
-        <span
-          :if={item.badge != ""}
-          class="text-[8px] px-1.5 py-0.5 rounded font-bold uppercase flex-shrink-0 bg-brand/10 text-brand"
-        >
-          {item.badge}
-        </span>
-      </button>
-    </div>
-    """
-  end
-
-  defp selected?({type, id}, type, id), do: true
-  defp selected?(_, _, _), do: false
-
-  defp build_items(node, :decisions) do
-    node
-    |> safe_list(:adrs)
-    |> Enum.map(fn adr ->
-      %{
-        type: :adr,
-        id: adr.id,
-        code: adr.code,
-        code_class: "text-brand",
-        label: adr.title,
-        badge: to_string(adr.status)
-      }
-    end)
-  end
-
-  defp build_items(node, :requirements) do
-    features =
-      node
-      |> safe_list(:features)
-      |> Enum.map(fn f ->
-        %{
-          type: :feature,
-          id: f.id,
-          code: f.code,
-          code_class: "text-interactive",
-          label: f.title,
-          badge: ""
-        }
-      end)
-
-    use_cases =
-      node
-      |> safe_list(:use_cases)
-      |> Enum.map(fn uc ->
-        %{
-          type: :use_case,
-          id: uc.id,
-          code: uc.code,
-          code_class: "text-interactive",
-          label: uc.title,
-          badge: ""
-        }
-      end)
-
-    features ++ use_cases
-  end
-
-  defp build_items(node, :checkpoints) do
-    checkpoints =
-      node
-      |> safe_list(:checkpoints)
-      |> Enum.map(fn cp ->
-        %{
-          type: :checkpoint,
-          id: cp.id,
-          code: "",
-          code_class: "",
-          label: cp.title,
-          badge: to_string(cp.mode)
-        }
-      end)
-
-    conversations =
-      node
-      |> safe_list(:conversations)
-      |> Enum.map(fn conv ->
-        %{
-          type: :conversation,
-          id: conv.id,
-          code: "",
-          code_class: "",
-          label: conv.title,
-          badge: to_string(conv.mode)
-        }
-      end)
-
-    checkpoints ++ conversations
-  end
-
-  defp build_items(node, :roadmap) do
-    node
-    |> safe_list(:phases)
-    |> Enum.map(fn phase ->
-      %{
-        type: :phase,
-        id: phase.id,
-        code: "P#{phase.number}",
-        code_class: "text-success",
-        label: phase.title,
-        badge: ""
-      }
-    end)
-  end
-
-  defp build_items(_node, _tab), do: []
 
   defp safe_list(nil, _key), do: []
 
