@@ -32,28 +32,24 @@
 - **RunProcess**: Genesis.RunProcess monitors teams, auto-kills tmux + disbands fleet on completion
 - **Genesis.Supervisor**: DynamicSupervisor for RunProcesses, wired into application.ex
 
-## Mode A Verified (2026-03-17, 4 runs)
-- Run 1: Missing signals in catalog -> added + auto-derive
-- Run 2: Architect self-persisted instead of send_message -> prompt enforcement
-- Run 3: ADRs about ICHOR not PulseMonitor -> project brief injection
-- Run 4 (PASS): 3 ADRs accepted, 3 conversations, 1 gate_a checkpoint, auto-cleanup
-- Tmux paste timing issue: 150ms delay between paste-buffer and Enter fixes race condition
-
-## MES Unified Factory View (2026-03-17, IMPLEMENTED)
-- Single unified view -- no separate tabs
-- Factory pipeline visualization via station buttons
-- Action bar: title, stage badge, Mode A/B/C + Gate + DAG stations
-- Artifact tabs: Decisions, Requirements, Checkpoints, Roadmap
-- Reader sidebar on artifact click with cross-references and markdown
-- Metadata sidebar: signals, arch, deps (right side)
-- Project brief: should be in the sidebar, not squeezed into header
-- Live updates via genesis_artifact_created signal -> reload genesis node
-- Components should use defdelegate for reusability
+## Ichor.Dag Domain (2026-03-18, PLANNED -- 19 tasks, IDs 200-218)
+- Sovereign DAG execution domain -- replaces /dag CLI skill + SwarmMonitor logic
+- **SQLite is runtime truth**, tasks.jsonl syncs via write-through (serialized through RunProcess)
+- Two Ash resources: Dag.Run (execution session), Dag.Job (claimable work unit)
+- Pure functions: Graph (waves, critical path -- from SwarmMonitor), Validator (cycles, overlaps -- from phase-to-dag)
+- I/O: Loader (tasks.jsonl + Genesis -> DB), Exporter (DB -> tasks.jsonl + write-through)
+- Lifecycle: HealthChecker (pure Elixir, replaces health-check.sh), RunProcess, RunSupervisor
+- MCP tools: 7 actions in AgentTools.DagExecution (next_jobs, claim_job, complete_job, fail_job, get_run_status, load_jsonl, export_jsonl)
+- PipelineStage :building derived from active Dag.Run (NOT from Genesis Checkpoint -- clean domain boundary)
+- Job.claim re-checks blocked_by transactionally; Job.available uses two-query prepare (SQLite JSON limitation)
+- Naming: Job (not WorkItem), external_id (not item_id), allowed_files, phase_label, :reset (not heal), tmux_session, :imported (not :external)
+- Agent prompt: SPECS/dag/AGENT_PROMPT.md -- shape-first, boundary-aware Elixir+Ash expert
 
 ## Signal System (2026-03-17)
 - Auto-derive: unknown signals infer category from name prefix (no manual catalog entry needed)
 - Subscribe no longer raises on unknown signals
 - Ash.read(filter:) is INVALID in this Ash version -- use code_interface read actions with filter expressions
+- New :dag category signals planned (8 signals, must be explicit in catalog, not derived)
 
 ## Critical Constraints
 - **No external SaaS** -- ADR-001. Self-hosted only.
@@ -63,6 +59,7 @@
 - **Style**: pattern matching, no if/else/cond, case on true/false OK
 - **Ash relationships**: always use belongs_to/has_many, never raw UUID attributes
 - **Ash queries**: use code_interface actions, NOT Ash.read with filter option
+- **Ash codegen**: snapshots broken, use manual migrations
 - **Components**: use defdelegate, promote reusability
 
 ## User Preferences (ENFORCED)
@@ -75,3 +72,6 @@
 - Minimal JS. No emoji. Execute directly.
 - MES is an automated factory -- everything should flow through the pipeline
 - Components should use defdelegate and promote reusability
+- "The /dag skill is absolutely perfect. Our app needs to be as perfect."
+- Use multiple agents for research and review -- less hallucination, more attention to detail
+- Function shape matters -- generic names are good when module + arity + pattern make intent clear

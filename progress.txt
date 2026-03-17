@@ -1,5 +1,16 @@
 # ICHOR IV Progress
 
+## Ichor.Dag Domain Design (2026-03-18) -- PLANNED
+- [x] DagGenerator /dag compatibility (priority, acceptance_criteria, ISO 8601, notes, roadmap_ref)
+- [x] Dead code cleanup (genesis_tab_components, mes_research_components)
+- [x] Handler fix: File.write! -> [:append] mode
+- [x] Explored /dag skill, phase-to-dag, SwarmMonitor for functionality to absorb
+- [x] 4 reviewer agents: naming reviewer, code reviewer, codex, ash expert
+- [x] Plan approved: ~/.claude/plans/tender-giggling-nebula.md
+- [x] Agent prompt saved: SPECS/dag/AGENT_PROMPT.md
+- [x] 19 tasks written to tasks.jsonl (IDs 200-218, 8 phases)
+- [ ] NEXT: Implement Phase 1 -- Core Ash Resources (tasks 200-204)
+
 ## DagGenerator /dag Compatibility + Dead Code Cleanup (2026-03-17) -- COMPLETE
 - [x] Dead code: moved genesis_tab_components.ex and mes_research_components.ex to tmp/trash/
 - [x] DagGenerator: added priority, acceptance_criteria, updated, notes, roadmap_ref fields
