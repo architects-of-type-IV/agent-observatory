@@ -392,6 +392,43 @@ defmodule Ichor.Signals.Catalog do
       category: :mes,
       keys: [:run_id, :reason],
       doc: "Research brief ingest to knowledge graph failed"
+    },
+
+    # ── Genesis ────────────────────────────────────────────────────
+    genesis_team_ready: %{
+      category: :genesis,
+      keys: [:session, :mode, :project_id, :genesis_node_id, :agent_count],
+      doc: "Genesis mode team spawned and ready in tmux"
+    },
+    genesis_team_spawn_failed: %{
+      category: :genesis,
+      keys: [:session, :reason],
+      doc: "Genesis mode team failed to spawn"
+    },
+    genesis_team_killed: %{
+      category: :genesis,
+      keys: [:session],
+      doc: "Genesis tmux session killed during cleanup"
+    },
+    genesis_run_init: %{
+      category: :genesis,
+      keys: [:run_id, :mode, :session],
+      doc: "RunProcess started monitoring a genesis mode run"
+    },
+    genesis_tmux_gone: %{
+      category: :genesis,
+      keys: [:run_id, :session],
+      doc: "Genesis tmux session no longer exists (liveness check)"
+    },
+    genesis_run_complete: %{
+      category: :genesis,
+      keys: [:run_id, :mode, :session, :delivered_by],
+      doc: "Genesis mode run completed (coordinator delivered to operator)"
+    },
+    genesis_run_terminated: %{
+      category: :genesis,
+      keys: [:run_id, :mode],
+      doc: "RunProcess GenServer terminated"
     }
   }
 
@@ -408,8 +445,22 @@ defmodule Ichor.Signals.Catalog do
 
   @spec lookup!(atom()) :: signal_def()
   def lookup!(name) do
-    Map.get(@catalog, name) ||
-      raise ArgumentError, "unknown signal: #{inspect(name)}. Add it to Signals.Catalog."
+    Map.get(@catalog, name) || derive(name)
+  end
+
+  @doc "Derive a signal definition from its name prefix. Allows signals to work without catalog entries."
+  @spec derive(atom()) :: signal_def()
+  def derive(name) do
+    category =
+      name
+      |> Atom.to_string()
+      |> String.split("_", parts: 2)
+      |> hd()
+      |> String.to_existing_atom()
+
+    %{category: category, keys: [], dynamic: false, doc: "auto-derived"}
+  rescue
+    ArgumentError -> %{category: :uncategorized, keys: [], dynamic: false, doc: "auto-derived"}
   end
 
   @spec valid_category?(atom()) :: boolean()

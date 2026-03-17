@@ -1,12 +1,14 @@
-# MES Unified View Design
+# MES Unified Factory View Design
 
-**Date:** 2026-03-17
+**Date:** 2026-03-17 | **Status:** IMPLEMENTED
 
-## Context
+## Core Concept
 
-The MES page is the Architect's workspace for managing subsystem projects through the Genesis planning pipeline. The Architect reviews agent-produced artifacts, decides when the pipeline is ready to advance, and triggers mode transitions.
+MES is the facility -- an automated factory where each project is a product moving through the production line from ideation to running code. The view shows pipeline position (derived from artifacts), all stations (action buttons), and the artifacts produced at each stage.
 
-Current state: three disconnected tabs (Factory, Research, Planning). Need: one unified view where the Architect can see a project's full state -- proposal info, planning artifacts, and pipeline progress -- and take action.
+Pipeline: Ideation -> Mode A (ADRs) -> Gate A -> Mode B (FRDs/UCs) -> Gate B -> Mode C (Roadmap) -> Gate C -> DAG -> Running
+
+**Pipeline stage is derived, not stored.** A pure function (`Ichor.Genesis.PipelineStage.derive/1`) examines the genesis node's loaded associations to determine the current stage. No schema change needed.
 
 ## Layout
 
@@ -117,15 +119,20 @@ Compact, non-interactive reference info:
 ### LiveView Updates
 Subscribe to genesis signals. When agents create artifacts (ADRs, checkpoints), reload the genesis node so the list updates live.
 
-## What Gets Removed
-- Factory/Research/Planning tab switcher -- single view
-- Research tab -- defer (can be re-added as a sidebar section or separate page later)
-- Genesis panel from detail sidebar -- replaced by the unified view
-- Old GenesisTabComponents -- replaced by new integrated components
+## Implementation (2026-03-17)
 
-## What Stays
-- Feed component (left project list)
-- MES handlers (extend, don't rewrite)
-- All Genesis Ash resources and MCP tools
-- Earmark markdown rendering
-- genesis-prose CSS
+### New Files
+- `lib/ichor/genesis/pipeline_stage.ex` -- Pure pipeline stage derivation + station states + color mapping
+- `lib/ichor_web/components/mes_factory_components.ex` -- Action bar, description, tab bar, artifact list
+- `lib/ichor_web/components/mes_artifact_components.ex` -- Reader sidebar with cross-refs and markdown
+
+### Modified Files
+- `lib/ichor_web/components/mes_components.ex` -- Rewritten: unified layout, no tabs
+- `lib/ichor_web/components/mes_detail_components.ex` -- Converted to metadata sidebar
+- `lib/ichor_web/live/dashboard_mes_handlers.ex` -- Removed tab/node-list handlers, added close_reader
+- `lib/ichor_web/live/dashboard_state.ex` -- Removed tab/research assigns
+- `lib/ichor_web/live/dashboard_live.html.heex` -- Simplified MES view props
+
+### Dead Code (no longer imported)
+- `genesis_tab_components.ex` -- replaced by factory + artifact components
+- `mes_research_components.ex` -- research tab removed from unified view

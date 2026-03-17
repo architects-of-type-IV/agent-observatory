@@ -10,7 +10,6 @@ defmodule IchorWeb.DashboardMesHandlers do
   alias Ichor.Genesis.Node, as: GenesisNode
   alias Ichor.Mes.{Project, Scheduler, SubsystemLoader}
   alias Ichor.Signals
-  alias IchorWeb.DashboardMesResearchHandlers
 
   @spec dispatch(String.t(), map(), Phoenix.LiveView.Socket.t()) :: Phoenix.LiveView.Socket.t()
   def dispatch("toggle_mes_scheduler", _params, socket) do
@@ -83,7 +82,6 @@ defmodule IchorWeb.DashboardMesHandlers do
     end
   end
 
-  @mes_tabs %{"factory" => :factory, "research" => :research, "genesis" => :genesis}
   @genesis_sub_tabs %{
     "decisions" => :decisions,
     "requirements" => :requirements,
@@ -92,25 +90,12 @@ defmodule IchorWeb.DashboardMesHandlers do
   }
   @artifact_types %{
     "adr" => :adr,
-    "requirement" => :requirement,
+    "feature" => :feature,
+    "use_case" => :use_case,
     "checkpoint" => :checkpoint,
+    "conversation" => :conversation,
     "phase" => :phase
   }
-
-  def dispatch("mes_switch_tab", %{"tab" => tab}, socket) do
-    tab_atom = Map.get(@mes_tabs, tab, :factory)
-
-    socket
-    |> assign(:mes_tab, tab_atom)
-    |> maybe_load_research(tab_atom)
-    |> maybe_load_genesis(tab_atom)
-  end
-
-  def dispatch("genesis_select_node", %{"id" => id}, socket) do
-    socket
-    |> assign(:genesis_node, load_genesis_node_by_id(id))
-    |> assign(:genesis_selected, nil)
-  end
 
   def dispatch("genesis_switch_tab", %{"tab" => tab}, socket) do
     socket
@@ -122,12 +107,8 @@ defmodule IchorWeb.DashboardMesHandlers do
     assign(socket, :genesis_selected, {Map.get(@artifact_types, type, :adr), id})
   end
 
-  def dispatch("mes_research_" <> _ = event, params, socket) do
-    DashboardMesResearchHandlers.dispatch(event, params, socket)
-  end
-
-  def dispatch("mes_select_research_" <> _ = event, params, socket) do
-    DashboardMesResearchHandlers.dispatch(event, params, socket)
+  def dispatch("genesis_close_reader", _params, socket) do
+    assign(socket, :genesis_selected, nil)
   end
 
   def dispatch("mes_load_subsystem", %{"id" => id}, socket) do
@@ -167,7 +148,7 @@ defmodule IchorWeb.DashboardMesHandlers do
   defp load_genesis_node(nil), do: nil
 
   defp load_genesis_node(project) do
-    case Ash.read(GenesisNode, filter: [mes_project_id: project.id], load: @genesis_loads) do
+    case GenesisNode.by_project(project.id, load: @genesis_loads) do
       {:ok, [node | _]} -> node
       _ -> nil
     end
@@ -201,17 +182,4 @@ defmodule IchorWeb.DashboardMesHandlers do
       ready_for_complete: phases > 0
     }
   end
-
-  defp maybe_load_research(socket, :research) do
-    DashboardMesResearchHandlers.load_research_data(socket)
-  end
-
-  defp maybe_load_research(socket, _tab), do: socket
-
-  defp maybe_load_genesis(socket, :genesis) do
-    nodes = GenesisNode.list_all!()
-    assign(socket, :genesis_nodes, nodes)
-  end
-
-  defp maybe_load_genesis(socket, _tab), do: socket
 end

@@ -68,6 +68,12 @@ defmodule Ichor.AgentTools.GenesisGates do
   end
 
   defp to_map({:ok, record}) do
+    Ichor.Signals.emit(:genesis_artifact_created, %{
+      id: record.id,
+      node_id: record.node_id,
+      type: record.__struct__ |> Module.split() |> List.last() |> String.downcase()
+    })
+
     {:ok,
      Map.take(record, [:id, :title, :mode, :content, :summary, :node_id])
      |> Map.new(fn {k, v} -> {to_string(k), stringify(v)} end)

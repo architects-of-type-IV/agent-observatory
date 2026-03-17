@@ -38,6 +38,7 @@ defmodule Ichor.Gateway.Channels.Tmux do
 
     with {:ok, _} <- try_tmux(["set-buffer", "-b", buf_name, message]),
          {:ok, _} <- try_tmux(["paste-buffer", "-b", buf_name, "-d", "-t", session_name]),
+         _ = Process.sleep(150),
          {:ok, _} <- try_tmux(["send-keys", "-t", session_name, "Enter"]) do
       :ok
     else
@@ -49,15 +50,12 @@ defmodule Ichor.Gateway.Channels.Tmux do
   end
 
   @impl true
-  def available?(target) when is_binary(target) do
-    # Pane IDs start with %, session names don't
-    if String.starts_with?(target, "%") do
-      # For pane targets, check if the pane exists via list-panes
-      match?({:ok, _}, try_tmux(["display-message", "-t", target, "-p", ""]))
-    else
-      match?({:ok, _}, try_tmux(["has-session", "-t", target]))
-    end
-  end
+  # Pane IDs start with %, session names don't
+  def available?("%" <> _ = target),
+    do: match?({:ok, _}, try_tmux(["display-message", "-t", target, "-p", ""]))
+
+  def available?(target) when is_binary(target),
+    do: match?({:ok, _}, try_tmux(["has-session", "-t", target]))
 
   @doc """
   Capture the current pane output from a tmux session.

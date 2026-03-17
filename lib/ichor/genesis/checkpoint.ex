@@ -26,8 +26,11 @@ defmodule Ichor.Genesis.Checkpoint do
     attribute :mode, :atom do
       allow_nil?(false)
       public?(true)
-      constraints(one_of: [:discover, :define, :build])
-      description("Mode this checkpoint assesses readiness for")
+      constraints(one_of: [:discover, :define, :build, :gate_a, :gate_b, :gate_c])
+
+      description(
+        "Mode this checkpoint assesses: discover/define/build for work, gate_a/b/c for gate assessments"
+      )
     end
 
     attribute :content, :string do

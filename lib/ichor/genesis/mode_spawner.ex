@@ -13,6 +13,7 @@ defmodule Ichor.Genesis.ModeSpawner do
 
   alias Ichor.Genesis.{ModePrompts, ModeRunner, RunProcess}
   alias Ichor.Genesis.Node, as: GenesisNode
+  alias Ichor.Mes.Project, as: MesProject
   alias Ichor.Signals
 
   @spec spawn_mode(String.t(), String.t(), String.t() | nil) ::
@@ -21,8 +22,9 @@ defmodule Ichor.Genesis.ModeSpawner do
     run_id = short_id()
     session = "genesis-#{mode}-#{run_id}"
     cwd = File.cwd!()
+    brief = load_project_brief(project_id)
 
-    agents = agents_for_mode(mode, run_id, session, genesis_node_id)
+    agents = agents_for_mode(mode, run_id, session, genesis_node_id, brief)
 
     with :ok <- ModeRunner.write_agent_scripts(run_id, mode, agents),
          :ok <- ModeRunner.create_session_with_agent(session, cwd, run_id, mode, hd(agents)),
@@ -48,6 +50,22 @@ defmodule Ichor.Genesis.ModeSpawner do
 
   @spec ensure_genesis_node(String.t() | nil, map()) :: {:ok, String.t()} | {:error, term()}
   def ensure_genesis_node(nil, project) do
+    case find_existing_node(project.id) do
+      {:ok, node_id} -> {:ok, node_id}
+      :not_found -> create_genesis_node(project)
+    end
+  end
+
+  def ensure_genesis_node(node_id, _project), do: {:ok, node_id}
+
+  defp find_existing_node(project_id) do
+    case GenesisNode.by_project(project_id) do
+      {:ok, [node | _]} -> {:ok, node.id}
+      _ -> :not_found
+    end
+  end
+
+  defp create_genesis_node(project) do
     case GenesisNode.create(%{
            title: project.title,
            description: project.description,
@@ -59,72 +77,70 @@ defmodule Ichor.Genesis.ModeSpawner do
     end
   end
 
-  def ensure_genesis_node(node_id, _project), do: {:ok, node_id}
-
   # ── Agents per Mode ──────────────────────────────────────────────
 
-  defp agents_for_mode("a", run_id, session, node_id) do
+  defp agents_for_mode("a", run_id, session, node_id, brief) do
     roster = team_roster(session, ~w(coordinator architect reviewer))
 
     [
       %{
         name: "coordinator",
         capability: "coordinator",
-        prompt: ModePrompts.mode_a_coordinator(run_id, roster, node_id)
+        prompt: ModePrompts.mode_a_coordinator(run_id, roster, node_id, brief)
       },
       %{
         name: "architect",
         capability: "builder",
-        prompt: ModePrompts.mode_a_architect(run_id, roster, node_id)
+        prompt: ModePrompts.mode_a_architect(run_id, roster, node_id, brief)
       },
       %{
         name: "reviewer",
         capability: "scout",
-        prompt: ModePrompts.mode_a_reviewer(run_id, roster, node_id)
+        prompt: ModePrompts.mode_a_reviewer(run_id, roster, node_id, brief)
       }
     ]
   end
 
-  defp agents_for_mode("b", run_id, session, node_id) do
+  defp agents_for_mode("b", run_id, session, node_id, brief) do
     roster = team_roster(session, ~w(coordinator analyst designer))
 
     [
       %{
         name: "coordinator",
         capability: "coordinator",
-        prompt: ModePrompts.mode_b_coordinator(run_id, roster, node_id)
+        prompt: ModePrompts.mode_b_coordinator(run_id, roster, node_id, brief)
       },
       %{
         name: "analyst",
         capability: "builder",
-        prompt: ModePrompts.mode_b_analyst(run_id, roster, node_id)
+        prompt: ModePrompts.mode_b_analyst(run_id, roster, node_id, brief)
       },
       %{
         name: "designer",
         capability: "builder",
-        prompt: ModePrompts.mode_b_designer(run_id, roster, node_id)
+        prompt: ModePrompts.mode_b_designer(run_id, roster, node_id, brief)
       }
     ]
   end
 
-  defp agents_for_mode("c", run_id, session, node_id) do
+  defp agents_for_mode("c", run_id, session, node_id, brief) do
     roster = team_roster(session, ~w(coordinator planner architect))
 
     [
       %{
         name: "coordinator",
         capability: "coordinator",
-        prompt: ModePrompts.mode_c_coordinator(run_id, roster, node_id)
+        prompt: ModePrompts.mode_c_coordinator(run_id, roster, node_id, brief)
       },
       %{
         name: "planner",
         capability: "builder",
-        prompt: ModePrompts.mode_c_planner(run_id, roster, node_id)
+        prompt: ModePrompts.mode_c_planner(run_id, roster, node_id, brief)
       },
       %{
         name: "architect",
         capability: "builder",
-        prompt: ModePrompts.mode_c_architect(run_id, roster, node_id)
+        prompt: ModePrompts.mode_c_architect(run_id, roster, node_id, brief)
       }
     ]
   end
@@ -136,6 +152,27 @@ defmodule Ichor.Genesis.ModeSpawner do
       Ichor.Genesis.RunSupervisor,
       {RunProcess, run_id: run_id, mode: mode, session: session, node_id: node_id}
     )
+  end
+
+  defp load_project_brief(project_id) do
+    case MesProject.get(project_id) do
+      {:ok, project} ->
+        """
+        PROJECT BRIEF: #{project.title}
+        Subsystem: #{project.subsystem}
+        Description: #{project.description}
+        Features: #{Enum.join(project.features || [], ", ")}
+        Use Cases: #{Enum.join(project.use_cases || [], ", ")}
+        Signal Interface: #{project.signal_interface}
+        Signals Emitted: #{Enum.join(project.signals_emitted || [], ", ")}
+        Signals Subscribed: #{Enum.join(project.signals_subscribed || [], ", ")}
+        Architecture: #{project.architecture}
+        Dependencies: #{Enum.join(project.dependencies || [], ", ")}
+        """
+
+      _ ->
+        "PROJECT BRIEF: (not available)"
+    end
   end
 
   defp short_id, do: :crypto.strong_rand_bytes(4) |> Base.encode16(case: :lower)

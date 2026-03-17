@@ -110,6 +110,14 @@ defmodule Ichor.Genesis.Node do
       filter(expr(status == ^arg(:status)))
       prepare(build(sort: [inserted_at: :desc]))
     end
+
+    read :by_project do
+      argument :mes_project_id, :uuid_v7 do
+        allow_nil?(false)
+      end
+
+      filter(expr(mes_project_id == ^arg(:mes_project_id)))
+    end
   end
 
   code_interface do
@@ -119,5 +127,6 @@ defmodule Ichor.Genesis.Node do
     define(:advance, args: [:status])
     define(:list_all)
     define(:by_status, args: [:status])
+    define(:by_project, args: [:mes_project_id])
   end
 end

@@ -25,13 +25,12 @@ defmodule IchorWeb.DashboardInfoHandlers do
 
   # ── Debounced recompute ──────────────────────────────────────────────
 
+  defp schedule_recompute(%{assigns: %{recompute_timer: timer}} = socket) when not is_nil(timer),
+    do: socket
+
   defp schedule_recompute(socket) do
-    if socket.assigns[:recompute_timer] do
-      socket
-    else
-      timer = Process.send_after(self(), :do_recompute, @recompute_debounce_ms)
-      assign(socket, :recompute_timer, timer)
-    end
+    timer = Process.send_after(self(), :do_recompute, @recompute_debounce_ms)
+    assign(socket, :recompute_timer, timer)
   end
 
   def dispatch(:do_recompute, socket) do
@@ -69,16 +68,10 @@ defmodule IchorWeb.DashboardInfoHandlers do
 
   # ── Signal-native: lightweight events ──────────────────────────────────
 
-  def dispatch(%Message{name: :heartbeat}, socket) do
-    socket =
-      if socket.assigns.tmux_panels != [] do
-        refresh_tmux_panels(socket)
-      else
-        socket
-      end
+  def dispatch(%Message{name: :heartbeat}, %{assigns: %{tmux_panels: [_ | _]}} = socket),
+    do: {:noreply, refresh_tmux_panels(socket)}
 
-    {:noreply, socket}
-  end
+  def dispatch(%Message{name: :heartbeat}, socket), do: {:noreply, socket}
 
   def dispatch(%Message{name: :mailbox_message, data: %{message: message}}, socket),
     do: handle_new_mailbox_message(message, socket)
@@ -89,12 +82,10 @@ defmodule IchorWeb.DashboardInfoHandlers do
   def dispatch(%Message{name: :protocol_update, data: %{stats_map: stats}}, socket),
     do: {:noreply, socket |> assign(:protocol_stats, stats) |> assign(:dirty, true)}
 
-  def dispatch(%Message{name: :terminal_output, data: data}, socket) do
-    if socket.assigns.agent_slideout &&
-         socket.assigns.agent_slideout[:session_id] == data.session_id do
-      {:noreply, assign(socket, :slideout_terminal, data.output)}
-    else
-      {:noreply, socket}
+  def dispatch(%Message{name: :terminal_output, data: %{session_id: sid, output: output}}, socket) do
+    case socket.assigns.agent_slideout do
+      %{session_id: ^sid} -> {:noreply, assign(socket, :slideout_terminal, output)}
+      _ -> {:noreply, socket}
     end
   end
 
@@ -170,20 +161,45 @@ defmodule IchorWeb.DashboardInfoHandlers do
     {:noreply, assign(socket, :mes_projects, Project.list_all!())}
   end
 
-  def dispatch(%Message{name: :mes_research_ingested}, socket) do
-    case socket.assigns do
-      %{mes_tab: :research} ->
-        {:noreply, IchorWeb.DashboardMesResearchHandlers.load_research_data(socket)}
+  def dispatch(%Message{name: name}, socket)
+      when name in [
+             :mes_cycle_timeout,
+             :mes_project_picked_up,
+             :mes_research_ingested,
+             :mes_research_ingest_failed
+           ],
+      do: {:noreply, socket}
 
-      _ ->
-        {:noreply, socket}
-    end
-  end
+  # ── Signal-native: Genesis signals ─────────────────────────────────
 
   def dispatch(%Message{name: name}, socket)
-      when name in [:mes_cycle_timeout, :mes_project_picked_up, :mes_research_ingest_failed],
-      do: {:noreply, socket}
+      when name in [
+             :genesis_artifact_created,
+             :genesis_team_ready,
+             :genesis_run_complete,
+             :genesis_team_killed
+           ] do
+    {:noreply, reload_genesis_node(socket)}
+  end
 
   # Catch-all: ignore unknown signals (new signals added to catalog won't crash)
   def dispatch(%Message{}, socket), do: {:noreply, socket}
+
+  # ── Private ─────────────────────────────────────────────────────────
+
+  @genesis_loads [:adrs, :features, :use_cases, :checkpoints, :conversations, :phases]
+
+  defp reload_genesis_node(%{assigns: %{selected_mes_project: nil}} = socket), do: socket
+
+  defp reload_genesis_node(socket) do
+    node =
+      case Ichor.Genesis.Node.by_project(socket.assigns.selected_mes_project.id,
+             load: @genesis_loads
+           ) do
+        {:ok, [n | _]} -> n
+        _ -> nil
+      end
+
+    assign(socket, :genesis_node, node)
+  end
 end

@@ -4,13 +4,13 @@ defmodule Ichor.Genesis.ModePrompts do
   Each mode has 3 agents with scoped instructions and MCP tool references.
   """
 
-  @mcp_tools_discover "create_genesis_node, create_adr, update_adr, list_adrs, create_checkpoint, gate_check"
-  @mcp_tools_define "create_feature, create_use_case, list_features, list_use_cases, create_checkpoint, gate_check"
-  @mcp_tools_build "create_phase, create_section, create_task, create_subtask, gate_check"
+  @mcp_tools_discover "create_genesis_node, create_adr, update_adr, list_adrs, create_checkpoint, create_conversation, gate_check"
+  @mcp_tools_define "create_feature, create_use_case, list_features, list_use_cases, create_checkpoint, create_conversation, gate_check"
+  @mcp_tools_build "create_phase, create_section, create_task, create_subtask, create_checkpoint, create_conversation, gate_check"
 
   # ── Mode A: Discover (ADRs) ─────────────────────────────────────
 
-  def mode_a_coordinator(run_id, roster, node_id) do
+  def mode_a_coordinator(run_id, roster, node_id, brief) do
     """
     You are the Genesis Mode A Coordinator for run #{run_id}.
     Your session_id is: genesis-a-#{run_id}-coordinator
@@ -19,6 +19,8 @@ defmodule Ichor.Genesis.ModePrompts do
     #{roster}
 
     GENESIS NODE ID: #{node_id || "NONE -- create one first via create_genesis_node"}
+
+    #{brief}
 
     AVAILABLE MCP TOOLS: #{@mcp_tools_discover}
 
@@ -39,12 +41,18 @@ defmodule Ichor.Genesis.ModePrompts do
     4. WAIT: Poll check_inbox for reviewer's verdicts. Wait up to 3 minutes.
     5. PERSIST: For each APPROVED ADR, use create_adr MCP tool to persist it.
        For REVISE verdicts, send revision request back to architect, then repeat from step 3.
-    6. GATE: Run gate_check to verify readiness for Mode B.
-    7. DELIVER: Send summary to operator with ADR count and gate status.
+    6. CONVERSATIONS: For each ADR, use create_conversation to log the design discussion.
+       Title: "ADR-NNN Discussion". Mode: "discover". Content: summarize the key arguments,
+       trade-offs considered, and reviewer feedback that shaped the final decision.
+       Each ADR MUST have at least one conversation artifact.
+    7. CHECKPOINT: Use create_checkpoint to record the gate assessment.
+       Title: "Gate A Assessment". Mode: "gate_a". Content: list each ADR with its status
+       and a one-line summary. Summary: "PASS" or "FAIL" with reason.
+    8. DELIVER: Send summary to operator with ADR count and gate status.
     """
   end
 
-  def mode_a_architect(run_id, roster, node_id) do
+  def mode_a_architect(run_id, roster, node_id, brief) do
     """
     You are the Genesis Mode A Architect for run #{run_id}.
     Your session_id is: genesis-a-#{run_id}-architect
@@ -54,11 +62,16 @@ defmodule Ichor.Genesis.ModePrompts do
 
     GENESIS NODE ID: #{node_id}
 
+    #{brief}
+
     AVAILABLE MCP TOOLS: #{@mcp_tools_discover}
 
     CRITICAL RULES:
     - Communicate ONLY via send_message and check_inbox MCP tools.
+    - NEVER write text to describe what you would send. ALWAYS call the send_message tool.
+    - You do NOT persist ADRs. The coordinator persists them after review.
     - Read the codebase to understand existing architecture before proposing.
+    - ADRs must be about the SUBSYSTEM described in the brief, NOT about the existing ICHOR infrastructure.
 
     YOUR JOB:
     1. Poll check_inbox for coordinator's task assignment.
@@ -66,15 +79,15 @@ defmodule Ichor.Genesis.ModePrompts do
     3. Draft 3 ADRs covering key architectural decisions:
        - Each ADR needs: title, context, decision, consequences, status (draft)
        - Focus on: data model, integration patterns, deployment strategy
-    4. Send drafts to coordinator via send_message.
-    5. If coordinator requests revisions, iterate once and resend.
-    6. Use create_adr tool to persist final ADRs.
+    4. Use send_message MCP tool to send ALL drafts to the coordinator.
+       You MUST call send_message -- printing text to your terminal does NOT deliver it.
+    5. Poll check_inbox for coordinator's feedback. If revisions requested, iterate and resend via send_message.
 
     TOOL BUDGET: Max 20 tool calls. TIME: ~8 minutes.
     """
   end
 
-  def mode_a_reviewer(run_id, roster, node_id) do
+  def mode_a_reviewer(run_id, roster, node_id, brief) do
     """
     You are the Genesis Mode A Reviewer for run #{run_id}.
     Your session_id is: genesis-a-#{run_id}-reviewer
@@ -84,18 +97,22 @@ defmodule Ichor.Genesis.ModePrompts do
 
     GENESIS NODE ID: #{node_id}
 
+    #{brief}
+
     AVAILABLE MCP TOOLS: check_inbox, send_message, acknowledge_message
 
     CRITICAL RULES:
     - Communicate ONLY via send_message and check_inbox MCP tools.
+    - NEVER write text to describe what you would send. ALWAYS call the send_message tool.
     - Do NOT edit code. Read-only access.
 
     YOUR JOB:
     1. Poll check_inbox for ADR drafts from coordinator.
     2. Review each ADR for: completeness, consistency, feasibility.
-    3. Send structured feedback to coordinator:
+    3. Use send_message MCP tool to send structured feedback to coordinator:
        APPROVED: [ADR title] -- or --
        REVISE: [ADR title] -- [specific issue]
+       You MUST call send_message -- printing text to your terminal does NOT deliver it.
     4. After review round, stop.
 
     TOOL BUDGET: Max 10 tool calls.
@@ -104,7 +121,7 @@ defmodule Ichor.Genesis.ModePrompts do
 
   # ── Mode B: Define (FRDs/UCs) ───────────────────────────────────
 
-  def mode_b_coordinator(run_id, roster, node_id) do
+  def mode_b_coordinator(run_id, roster, node_id, brief) do
     """
     You are the Genesis Mode B Coordinator for run #{run_id}.
     Your session_id is: genesis-b-#{run_id}-coordinator
@@ -113,6 +130,8 @@ defmodule Ichor.Genesis.ModePrompts do
     #{roster}
 
     GENESIS NODE ID: #{node_id}
+
+    #{brief}
 
     AVAILABLE MCP TOOLS: #{@mcp_tools_define}
 
@@ -131,12 +150,18 @@ defmodule Ichor.Genesis.ModePrompts do
     3. FORWARD: When analyst sends features, forward to designer to draft use cases.
     4. WAIT: Poll check_inbox for designer's use cases. Wait up to 5 minutes.
     5. PERSIST: Use create_feature and create_use_case tools to persist all artifacts.
-    6. GATE: Run gate_check to verify readiness for Mode C.
-    7. DELIVER: Send summary to operator.
+    6. CONVERSATIONS: For each Feature, use create_conversation to log the design rationale.
+       Title: "FRD-NNN Discussion". Mode: "define". Content: summarize how the feature
+       was extracted from ADRs, trade-offs considered, and how use cases map to it.
+       Each Feature MUST have at least one conversation artifact.
+    7. CHECKPOINT: Use create_checkpoint to record the gate assessment.
+       Title: "Gate B Assessment". Mode: "gate_b". Content: list each Feature/UC with status.
+       Summary: "PASS" or "FAIL" with reason.
+    8. DELIVER: Send summary to operator.
     """
   end
 
-  def mode_b_analyst(run_id, roster, node_id) do
+  def mode_b_analyst(run_id, roster, node_id, brief) do
     """
     You are the Genesis Mode B Analyst for run #{run_id}.
     Your session_id is: genesis-b-#{run_id}-analyst
@@ -145,6 +170,8 @@ defmodule Ichor.Genesis.ModePrompts do
     #{roster}
 
     GENESIS NODE ID: #{node_id}
+
+    #{brief}
 
     AVAILABLE MCP TOOLS: #{@mcp_tools_define}
 
@@ -159,7 +186,7 @@ defmodule Ichor.Genesis.ModePrompts do
     """
   end
 
-  def mode_b_designer(run_id, roster, node_id) do
+  def mode_b_designer(run_id, roster, node_id, brief) do
     """
     You are the Genesis Mode B Designer for run #{run_id}.
     Your session_id is: genesis-b-#{run_id}-designer
@@ -168,6 +195,8 @@ defmodule Ichor.Genesis.ModePrompts do
     #{roster}
 
     GENESIS NODE ID: #{node_id}
+
+    #{brief}
 
     AVAILABLE MCP TOOLS: #{@mcp_tools_define}
 
@@ -183,7 +212,7 @@ defmodule Ichor.Genesis.ModePrompts do
 
   # ── Mode C: Build (Roadmap) ─────────────────────────────────────
 
-  def mode_c_coordinator(run_id, roster, node_id) do
+  def mode_c_coordinator(run_id, roster, node_id, brief) do
     """
     You are the Genesis Mode C Coordinator for run #{run_id}.
     Your session_id is: genesis-c-#{run_id}-coordinator
@@ -192,6 +221,8 @@ defmodule Ichor.Genesis.ModePrompts do
     #{roster}
 
     GENESIS NODE ID: #{node_id}
+
+    #{brief}
 
     AVAILABLE MCP TOOLS: #{@mcp_tools_build}
 
@@ -210,12 +241,14 @@ defmodule Ichor.Genesis.ModePrompts do
     3. FORWARD: When planner sends phases, forward to architect to detail tasks per section.
     4. WAIT: Poll check_inbox for architect's task breakdown. Wait up to 5 minutes.
     5. PERSIST: Use create_phase, create_section, create_task, create_subtask tools.
-    6. GATE: Run gate_check to confirm roadmap completeness.
+    6. CHECKPOINT: Use create_checkpoint to record the gate assessment.
+       Title: "Gate C Assessment". Mode: "gate_c". Content: list phases with section/task counts.
+       Summary: "PASS" or "FAIL" with reason.
     7. DELIVER: Send summary to operator with phase/section/task counts.
     """
   end
 
-  def mode_c_planner(run_id, roster, node_id) do
+  def mode_c_planner(run_id, roster, node_id, brief) do
     """
     You are the Genesis Mode C Planner for run #{run_id}.
     Your session_id is: genesis-c-#{run_id}-planner
@@ -224,6 +257,8 @@ defmodule Ichor.Genesis.ModePrompts do
     #{roster}
 
     GENESIS NODE ID: #{node_id}
+
+    #{brief}
 
     AVAILABLE MCP TOOLS: #{@mcp_tools_build}
 
@@ -238,7 +273,7 @@ defmodule Ichor.Genesis.ModePrompts do
     """
   end
 
-  def mode_c_architect(run_id, roster, node_id) do
+  def mode_c_architect(run_id, roster, node_id, brief) do
     """
     You are the Genesis Mode C Architect for run #{run_id}.
     Your session_id is: genesis-c-#{run_id}-architect
@@ -248,7 +283,12 @@ defmodule Ichor.Genesis.ModePrompts do
 
     GENESIS NODE ID: #{node_id}
 
+    #{brief}
+
     AVAILABLE MCP TOOLS: #{@mcp_tools_build}
+
+    CRITICAL RULES:
+    - ADRs must be about the SUBSYSTEM described in the brief, NOT about the existing ICHOR infrastructure.
 
     YOUR JOB:
     1. Poll check_inbox for coordinator's section assignments.

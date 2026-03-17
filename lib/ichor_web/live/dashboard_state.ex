@@ -175,16 +175,11 @@ defmodule IchorWeb.DashboardState do
       # MES
       mes_projects: [],
       mes_scheduler_status: %{tick: 0, active_runs: 0, next_tick_in: 60_000, paused: false},
-      mes_tab: :factory,
-      mes_research_results: [],
-      mes_research_episodes: [],
-      mes_research_entities: [],
-      selected_research_item: nil,
-      genesis_nodes: [],
       genesis_node: nil,
       gate_report: nil,
       genesis_sub_tab: :decisions,
-      genesis_selected: nil
+      genesis_selected: nil,
+      selected_mes_project: nil
     }
   end
 
@@ -328,13 +323,9 @@ defmodule IchorWeb.DashboardState do
     |> assign(:active_tasks, active_tasks)
   end
 
-  defp resolve_selected_team(current, teams) do
-    cond do
-      current -> current
-      length(teams) == 1 -> hd(teams).name
-      true -> nil
-    end
-  end
+  defp resolve_selected_team(current, _teams) when not is_nil(current), do: current
+  defp resolve_selected_team(nil, [team]), do: team.name
+  defp resolve_selected_team(nil, _teams), do: nil
 
   defp safe_paused_sessions do
     HITLRelay.paused_sessions() |> MapSet.new()
@@ -351,12 +342,12 @@ defmodule IchorWeb.DashboardState do
   defp build_agent_lookup(agents) do
     agents
     |> Enum.flat_map(fn a ->
-      agent_map = Map.from_struct(a)
-
       agent_map =
-        Map.merge(agent_map, %{
+        a
+        |> Map.from_struct()
+        |> Map.merge(%{
           team: a.team_name,
-          project: if(a.cwd, do: Path.basename(a.cwd), else: nil),
+          project: a.cwd && Path.basename(a.cwd),
           tmux_session: get_in(a.channels || %{}, [:tmux]) || a.tmux_session
         })
 
@@ -371,9 +362,8 @@ defmodule IchorWeb.DashboardState do
   defp dedup_by_status(pairs) do
     Enum.reduce(pairs, %{}, fn {k, entry}, acc ->
       case Map.get(acc, k) do
-        nil -> Map.put(acc, k, entry)
         %{status: :active} -> acc
-        _existing -> Map.put(acc, k, entry)
+        _ -> Map.put(acc, k, entry)
       end
     end)
   end

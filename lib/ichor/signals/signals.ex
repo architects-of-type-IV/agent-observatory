@@ -54,16 +54,9 @@ defmodule Ichor.Signals do
 
   @spec subscribe(atom()) :: :ok | {:error, term()}
   def subscribe(name) when is_atom(name) do
-    cond do
-      Catalog.valid_category?(name) ->
-        Bus.subscribe(Topics.category(name))
-
-      Catalog.lookup(name) ->
-        info = Catalog.lookup!(name)
-        Bus.subscribe(Topics.signal(info.category, name))
-
-      true ->
-        raise ArgumentError, "unknown signal or category: #{inspect(name)}"
+    case Catalog.valid_category?(name) do
+      true -> Bus.subscribe(Topics.category(name))
+      false -> Bus.subscribe(Topics.signal(Catalog.lookup!(name).category, name))
     end
   end
 
@@ -78,16 +71,10 @@ defmodule Ichor.Signals do
 
   @spec unsubscribe(atom()) :: :ok
   def unsubscribe(name) when is_atom(name) do
-    cond do
-      Catalog.valid_category?(name) ->
-        Bus.unsubscribe(Topics.category(name))
-
-      Catalog.lookup(name) ->
-        info = Catalog.lookup!(name)
-        Bus.unsubscribe(Topics.signal(info.category, name))
-
-      true ->
-        :ok
+    case {Catalog.valid_category?(name), Catalog.lookup(name)} do
+      {true, _} -> Bus.unsubscribe(Topics.category(name))
+      {_, %{category: cat}} -> Bus.unsubscribe(Topics.signal(cat, name))
+      _ -> :ok
     end
   end
 

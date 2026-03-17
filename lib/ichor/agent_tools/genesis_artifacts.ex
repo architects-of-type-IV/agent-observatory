@@ -147,22 +147,28 @@ defmodule Ichor.AgentTools.GenesisArtifacts do
     end
   end
 
-  defp to_map({:ok, record}),
-    do:
-      {:ok,
-       Map.take(record, [
-         :id,
-         :code,
-         :title,
-         :status,
-         :content,
-         :mode,
-         :summary,
-         :feature_code,
-         :adr_codes,
-         :node_id
-       ])
-       |> stringify_map()}
+  defp to_map({:ok, record}) do
+    Ichor.Signals.emit(:genesis_artifact_created, %{
+      id: record.id,
+      node_id: record.node_id,
+      type: record.__struct__ |> Module.split() |> List.last() |> String.downcase()
+    })
+
+    {:ok,
+     Map.take(record, [
+       :id,
+       :code,
+       :title,
+       :status,
+       :content,
+       :mode,
+       :summary,
+       :feature_code,
+       :adr_codes,
+       :node_id
+     ])
+     |> stringify_map()}
+  end
 
   defp to_map(error), do: error
 

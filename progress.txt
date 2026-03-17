@@ -16,9 +16,25 @@
 - [x] Playground exploration for MES UI layout
 - [x] Design decisions saved to memory
 - [x] Factory state machine vision documented
-- [ ] MES UI design rewrite (factory pipeline framing, spawn architect agents)
-- [ ] Re-test Mode A with fixed prompts
-- [ ] State machine mapping (project status vs pipeline reality)
+- [x] MES UI design rewrite (factory pipeline framing, brainstorming approved)
+- [x] Pipeline stage derivation module (derive from artifacts, no schema change)
+- [x] MES unified factory view implemented (3 agents: backend, components, wiring)
+- [x] Action bar with station buttons (Mode A/B/C + Gate + DAG, contextual states)
+- [x] Artifact tabs + reader sidebar with cross-references + Earmark rendering
+- [x] Metadata sidebar (compact, signals/arch/deps)
+- [x] Handlers cleaned (removed tab/research/node-list, added close_reader, fixed artifact types)
+- [x] Dead code: GenesisTabComponents, MesResearchComponents (no longer imported)
+- [x] Re-test Mode A with fixed prompts -- protocol verified working
+- [x] Coordinator waits for architect, forwards to reviewer, no self-synthesis
+- [x] Reviewer provides substantive feedback (approve/revise per ADR)
+- [x] MCP tools working end-to-end (create_adr, check_inbox, send_message)
+- [x] Fix: genesis signals registered in catalog + auto-derive for new signals
+- [x] Fix: ensure_genesis_node now checks for existing node before creating
+- [x] Fix: tmux message delivery 150ms delay between paste and Enter
+- [x] Fix: @mes_events list updated, stale mes_tab references removed
+- [x] Fix: nil guards on metadata sidebar, Ash.NotLoaded guard on pipeline stage
+- [x] Mode A completed: 3 ADRs accepted, tmux auto-killed, fleet disbanded
+- [x] Full pipeline verified: draft -> review -> revise -> accept -> deliver -> cleanup
 
 ## Genesis Domain + MCP Tools (2026-03-16) -- COMPLETE
 - [x] Task 140: Genesis domain + Node resource
