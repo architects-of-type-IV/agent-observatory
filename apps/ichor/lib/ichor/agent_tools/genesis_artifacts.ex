@@ -6,6 +6,15 @@ defmodule Ichor.AgentTools.GenesisArtifacts do
   use Ash.Resource, domain: Ichor.AgentTools
 
   alias Ichor.Genesis.{Adr, Feature, UseCase}
+  alias Ichor.Tools.GenesisFormatter
+
+  @valid_statuses %{
+    "pending" => :pending,
+    "proposed" => :proposed,
+    "accepted" => :accepted,
+    "rejected" => :rejected,
+    "draft" => :draft
+  }
 
   actions do
     action :create_adr, :map do
@@ -23,7 +32,7 @@ defmodule Ichor.AgentTools.GenesisArtifacts do
 
       run(fn input, _context ->
         args = input.arguments
-        status = parse_atom(args[:status], :pending)
+        status = GenesisFormatter.parse_enum(args[:status], :pending, @valid_statuses)
 
         Adr.create(%{
           code: args.code,
@@ -46,8 +55,15 @@ defmodule Ichor.AgentTools.GenesisArtifacts do
       run(fn input, _context ->
         with {:ok, adr} <- Adr.get(input.arguments.adr_id) do
           attrs = %{}
-          attrs = put_if(attrs, :status, parse_atom(input.arguments[:status], nil))
-          attrs = put_if(attrs, :content, input.arguments[:content])
+
+          attrs =
+            GenesisFormatter.put_if(
+              attrs,
+              :status,
+              GenesisFormatter.parse_enum(input.arguments[:status], nil, @valid_statuses)
+            )
+
+          attrs = GenesisFormatter.put_if(attrs, :content, input.arguments[:content])
           Adr.update(adr, attrs) |> to_map()
         end
       end)
@@ -76,7 +92,7 @@ defmodule Ichor.AgentTools.GenesisArtifacts do
 
       run(fn input, _context ->
         args = input.arguments
-        adr_codes = split_csv(args[:adr_codes])
+        adr_codes = GenesisFormatter.split_csv(args[:adr_codes])
 
         Feature.create(%{
           code: args.code,
@@ -96,7 +112,7 @@ defmodule Ichor.AgentTools.GenesisArtifacts do
 
       run(fn input, _context ->
         with {:ok, features} <- Feature.by_node(input.arguments.node_id) do
-          {:ok, Enum.map(features, &summarize(&1, [:code, :title, :adr_codes]))}
+          {:ok, Enum.map(features, &GenesisFormatter.summarize(&1, [:code, :title, :adr_codes]))}
         end
       end)
     end
@@ -135,7 +151,7 @@ defmodule Ichor.AgentTools.GenesisArtifacts do
 
       run(fn input, _context ->
         with {:ok, ucs} <- UseCase.by_node(input.arguments.node_id) do
-          {:ok, Enum.map(ucs, &summarize(&1, [:code, :title, :feature_code]))}
+          {:ok, Enum.map(ucs, &GenesisFormatter.summarize(&1, [:code, :title, :feature_code]))}
         end
       end)
     end
@@ -143,53 +159,7 @@ defmodule Ichor.AgentTools.GenesisArtifacts do
 
   @artifact_fields ~w(id code title status content mode summary feature_code adr_codes node_id)a
 
-  defp to_map({:ok, record}) do
-    Ichor.Signals.emit(:genesis_artifact_created, %{
-      id: record.id,
-      node_id: record.node_id,
-      type: record.__struct__ |> Module.split() |> List.last() |> String.downcase()
-    })
+  defp to_map(result), do: GenesisFormatter.to_map(result, @artifact_fields)
 
-    result =
-      record
-      |> Map.take(@artifact_fields)
-      |> Map.new(fn {k, v} -> {to_string(k), stringify(v)} end)
-      |> Map.reject(fn {_k, v} -> is_nil(v) end)
-
-    {:ok, result}
-  end
-
-  defp to_map(error), do: error
-
-  defp summarize(record, fields) do
-    Map.new([:id | fields], fn field ->
-      {to_string(field), stringify(Map.get(record, field))}
-    end)
-  end
-
-  defp summarize_adr(adr), do: summarize(adr, [:code, :title, :status])
-
-  defp stringify(val) when is_atom(val), do: to_string(val)
-  defp stringify(val) when is_list(val), do: Enum.join(val, ", ")
-  defp stringify(val), do: val
-
-  @valid_statuses %{
-    "pending" => :pending,
-    "proposed" => :proposed,
-    "accepted" => :accepted,
-    "rejected" => :rejected,
-    "draft" => :draft
-  }
-
-  defp parse_atom(nil, default), do: default
-  defp parse_atom(str, default) when is_binary(str), do: Map.get(@valid_statuses, str, default)
-  defp parse_atom(atom, _default) when is_atom(atom), do: atom
-
-  defp split_csv(nil), do: []
-
-  defp split_csv(str),
-    do: str |> String.split(",") |> Enum.map(&String.trim/1) |> Enum.reject(&(&1 == ""))
-
-  defp put_if(map, _key, nil), do: map
-  defp put_if(map, key, val), do: Map.put(map, key, val)
+  defp summarize_adr(adr), do: GenesisFormatter.summarize(adr, [:code, :title, :status])
 end

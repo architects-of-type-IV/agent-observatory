@@ -6,7 +6,7 @@ defmodule Ichor.AgentTools.Inbox do
   use Ash.Resource, domain: Ichor.AgentTools
 
   alias Ichor.Fleet.Agent, as: FleetAgent
-  alias Ichor.Gateway.Router
+  alias Ichor.Tools.Messaging
 
   actions do
     action :check_inbox, {:array, :map} do
@@ -70,27 +70,19 @@ defmodule Ichor.AgentTools.Inbox do
         to = input.arguments.to_session_id
         content = input.arguments.content
 
-        case FleetAgent.send_message(to, content, %{from: from}) do
-          {:ok, _result} ->
-            {:ok, %{"status" => "sent", "to" => to, "delivered" => 1, "via" => "fleet"}}
+        case Messaging.send_as_agent(from, to, content) do
+          {:ok, result} ->
+            {:ok,
+             %{
+               "status" => result.status,
+               "to" => result.to,
+               "delivered" => result.delivered,
+               "via" => result[:via],
+               "error" => result[:error]
+             }}
 
-          {:error, _reason} ->
-            case Router.broadcast("agent:#{to}", %{content: content, from: from}) do
-              {:ok, delivered} when delivered > 0 ->
-                {:ok, %{"status" => "sent", "to" => to, "delivered" => delivered}}
-
-              {:ok, 0} ->
-                {:ok,
-                 %{
-                   "status" => "no_recipients",
-                   "to" => to,
-                   "delivered" => 0,
-                   "error" => "No delivery channel found for #{to}. Agent may not be registered."
-                 }}
-
-              {:error, reason} ->
-                {:error, "Failed to send message: #{inspect(reason)}"}
-            end
+          {:error, reason} ->
+            {:error, reason}
         end
       end)
     end

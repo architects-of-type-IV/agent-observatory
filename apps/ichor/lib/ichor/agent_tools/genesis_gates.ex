@@ -5,6 +5,7 @@ defmodule Ichor.AgentTools.GenesisGates do
   use Ash.Resource, domain: Ichor.AgentTools
 
   alias Ichor.Genesis.{Checkpoint, Conversation}
+  alias Ichor.Tools.GenesisFormatter
 
   @valid_modes %{
     "discover" => :discover,
@@ -69,34 +70,13 @@ defmodule Ichor.AgentTools.GenesisGates do
 
       run(fn input, _context ->
         case Conversation.by_node(input.arguments.node_id) do
-          {:ok, convs} -> {:ok, Enum.map(convs, &summarize(&1, [:title, :mode]))}
+          {:ok, convs} -> {:ok, Enum.map(convs, &GenesisFormatter.summarize(&1, [:title, :mode]))}
           error -> error
         end
       end)
     end
   end
 
-  defp to_map({:ok, record}) do
-    Ichor.Signals.emit(:genesis_artifact_created, %{
-      id: record.id,
-      node_id: record.node_id,
-      type: record.__struct__ |> Module.split() |> List.last() |> String.downcase()
-    })
-
-    {:ok,
-     Map.take(record, [:id, :title, :mode, :content, :summary, :node_id])
-     |> Map.new(fn {k, v} -> {to_string(k), stringify(v)} end)
-     |> Map.reject(fn {_k, v} -> is_nil(v) end)}
-  end
-
-  defp to_map(error), do: error
-
-  defp summarize(record, fields) do
-    Map.new([:id | fields], fn field ->
-      {to_string(field), stringify(Map.get(record, field))}
-    end)
-  end
-
-  defp stringify(val) when is_atom(val), do: to_string(val)
-  defp stringify(val), do: val
+  defp to_map(result),
+    do: GenesisFormatter.to_map(result, [:title, :mode, :content, :summary, :node_id])
 end

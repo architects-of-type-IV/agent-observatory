@@ -3,6 +3,7 @@ defmodule Ichor.AgentTools.GenesisRoadmap do
   use Ash.Resource, domain: Ichor.AgentTools
 
   alias Ichor.Genesis.{Phase, Section, Subtask, Task}
+  alias Ichor.Tools.GenesisFormatter
 
   actions do
     action :create_phase, :map do
@@ -24,8 +25,8 @@ defmodule Ichor.AgentTools.GenesisRoadmap do
         Phase.create(%{
           number: args.number,
           title: args.title,
-          goals: split_csv(args[:goals]),
-          governed_by: split_csv(args[:governed_by]),
+          goals: GenesisFormatter.split_csv(args[:goals]),
+          governed_by: GenesisFormatter.split_csv(args[:governed_by]),
           node_id: args.node_id
         })
         |> to_map([:number, :title, :status, :goals, :governed_by, :node_id])
@@ -73,7 +74,7 @@ defmodule Ichor.AgentTools.GenesisRoadmap do
         Task.create(%{
           number: args.number,
           title: args.title,
-          governed_by: split_csv(args[:governed_by]),
+          governed_by: GenesisFormatter.split_csv(args[:governed_by]),
           parent_uc: args[:parent_uc],
           section_id: args.section_id
         })
@@ -110,9 +111,9 @@ defmodule Ichor.AgentTools.GenesisRoadmap do
           number: args.number,
           title: args.title,
           goal: args[:goal],
-          allowed_files: split_csv(args[:allowed_files]),
-          blocked_by: split_csv(args[:blocked_by]),
-          steps: split_csv(args[:steps]),
+          allowed_files: GenesisFormatter.split_csv(args[:allowed_files]),
+          blocked_by: GenesisFormatter.split_csv(args[:blocked_by]),
+          steps: GenesisFormatter.split_csv(args[:steps]),
           done_when: args[:done_when],
           task_id: args.task_id
         })
@@ -180,29 +181,5 @@ defmodule Ichor.AgentTools.GenesisRoadmap do
     }
   end
 
-  defp to_map({:ok, record}, fields) do
-    Ichor.Signals.emit(:genesis_artifact_created, %{
-      id: record.id,
-      node_id:
-        Map.get(record, :node_id) || Map.get(record, :phase_id) || Map.get(record, :section_id) ||
-          Map.get(record, :task_id),
-      type: record.__struct__ |> Module.split() |> List.last() |> String.downcase()
-    })
-
-    {:ok,
-     Map.take(record, [:id | fields])
-     |> Map.new(fn {k, v} -> {to_string(k), stringify(v)} end)
-     |> Map.reject(fn {_k, v} -> is_nil(v) end)}
-  end
-
-  defp to_map(error, _fields), do: error
-
-  defp stringify(val) when is_atom(val), do: to_string(val)
-  defp stringify(val) when is_list(val), do: Enum.join(val, ", ")
-  defp stringify(val), do: val
-
-  defp split_csv(nil), do: []
-
-  defp split_csv(str),
-    do: str |> String.split(",") |> Enum.map(&String.trim/1) |> Enum.reject(&(&1 == ""))
+  defp to_map(result, fields), do: GenesisFormatter.to_map(result, fields)
 end

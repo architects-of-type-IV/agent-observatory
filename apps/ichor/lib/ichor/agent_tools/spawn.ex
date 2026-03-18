@@ -6,6 +6,7 @@ defmodule Ichor.AgentTools.Spawn do
   """
   use Ash.Resource, domain: Ichor.AgentTools
   import Ichor.MapHelpers, only: [maybe_put: 3]
+  alias Ichor.Tools.AgentControl
 
   actions do
     action :spawn_agent, :map do
@@ -74,7 +75,7 @@ defmodule Ichor.AgentTools.Spawn do
           |> maybe_put(:extra_instructions, args[:extra_instructions])
           |> Map.put(:task, %{"subject" => "Agent task", "description" => args.prompt})
 
-        case Ichor.AgentSpawner.spawn_agent(opts) do
+        case AgentControl.spawn(opts) do
           {:ok, result} ->
             {:ok,
              %{
@@ -114,12 +115,12 @@ defmodule Ichor.AgentTools.Spawn do
       run(fn input, _context ->
         agent_id = input.arguments.agent_id
 
-        case Ichor.AgentSpawner.stop_agent(agent_id) do
-          :ok ->
+        case AgentControl.stop(agent_id) do
+          {:ok, %{stopped: true}} ->
             {:ok, %{"status" => "stopped", "agent_id" => agent_id}}
 
-          {:error, reason} ->
-            {:error, "Stop failed: #{inspect(reason)}"}
+          {:ok, %{reason: reason}} ->
+            {:error, "Stop failed: #{reason}"}
         end
       end)
     end
