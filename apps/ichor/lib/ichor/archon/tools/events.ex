@@ -7,8 +7,8 @@ defmodule Ichor.Archon.Tools.Events do
 
   alias Ichor.EventBuffer
   alias Ichor.Fleet.Lookup
+  alias Ichor.Fleet.RuntimeQuery
   alias Ichor.Fleet.Team, as: FleetTeam
-  alias Ichor.TaskManager
 
   actions do
     action :agent_events, {:array, :map} do
@@ -61,15 +61,7 @@ defmodule Ichor.Archon.Tools.Events do
           end
 
         tasks =
-          Enum.flat_map(teams, fn team ->
-            case TaskManager.list_tasks(team.name) do
-              {:ok, task_list} ->
-                Enum.map(task_list, fn t -> Map.put(t, "team", team.name) end)
-
-              _ ->
-                []
-            end
-          end)
+          RuntimeQuery.list_tasks_for_teams(teams)
 
         {:ok, tasks}
       end)

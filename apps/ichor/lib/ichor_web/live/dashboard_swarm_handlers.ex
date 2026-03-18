@@ -5,7 +5,7 @@ defmodule IchorWeb.DashboardSwarmHandlers do
   """
   import Phoenix.Component, only: [assign: 3]
 
-  alias Ichor.Gateway.AgentRegistry.AgentEntry
+  alias Ichor.Fleet.RuntimeQuery
   alias Ichor.SwarmMonitor
 
   def dispatch("select_project", p, s), do: handle_select_project(p, s)
@@ -82,41 +82,17 @@ defmodule IchorWeb.DashboardSwarmHandlers do
       |> assign(:selected_command_agent, nil)
       |> assign(:selected_command_task, nil)
     else
-      selected = find_agent_entry(id, socket.assigns.teams, socket.assigns.events)
-      task = find_active_task(selected[:name], socket.assigns[:swarm_state] || %{tasks: []})
+      selected = RuntimeQuery.find_agent_entry(id, socket.assigns.teams, socket.assigns.events)
+
+      task =
+        RuntimeQuery.find_active_task(
+          selected[:name],
+          socket.assigns[:swarm_state] || %{tasks: []}
+        )
 
       socket
       |> assign(:selected_command_agent, selected)
       |> assign(:selected_command_task, task)
-    end
-  end
-
-  defp find_agent_entry(id, teams, events) do
-    team_agent =
-      teams
-      |> Enum.flat_map(& &1.members)
-      |> Enum.find(fn m -> m[:agent_id] == id || m[:name] == id end)
-
-    team_agent || %{agent_id: id, name: find_session_name(events, id), session_id: id}
-  end
-
-  defp find_active_task(nil, _swarm), do: nil
-
-  defp find_active_task(agent_name, swarm) do
-    Enum.find(swarm.tasks, fn t -> t.status == "in_progress" && t.owner == agent_name end)
-  end
-
-  defp find_session_name(events, session_id) do
-    events
-    |> Enum.find(fn e -> e.session_id == session_id end)
-    |> case do
-      nil ->
-        AgentEntry.short_id(session_id)
-
-      event ->
-        if event.tmux_session,
-          do: event.tmux_session,
-          else: AgentEntry.short_id(session_id)
     end
   end
 

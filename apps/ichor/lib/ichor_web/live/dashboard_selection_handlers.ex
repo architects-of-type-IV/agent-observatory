@@ -5,6 +5,7 @@ defmodule IchorWeb.DashboardSelectionHandlers do
   """
 
   import Phoenix.Component, only: [assign: 3]
+  alias Ichor.Fleet.RuntimeQuery
 
   def dispatch("select_event", %{"id" => id}, socket) do
     cur = socket.assigns.selected_event
@@ -25,7 +26,12 @@ defmodule IchorWeb.DashboardSelectionHandlers do
 
   def dispatch("select_agent", %{"id" => id}, socket) do
     cur = socket.assigns.selected_agent
-    sel = if cur && cur[:agent_id] == id, do: nil, else: find_agent(socket.assigns.teams, id)
+
+    sel =
+      if cur && cur[:agent_id] == id,
+        do: nil,
+        else: RuntimeQuery.find_team_member(socket.assigns.teams, id)
+
     socket |> clear_selections() |> assign(:selected_agent, sel)
   end
 
@@ -42,9 +48,5 @@ defmodule IchorWeb.DashboardSelectionHandlers do
     |> assign(:selected_event, nil)
     |> assign(:selected_task, nil)
     |> assign(:selected_agent, nil)
-  end
-
-  defp find_agent(teams, agent_id) do
-    teams |> Enum.flat_map(& &1.members) |> Enum.find(&(&1[:agent_id] == agent_id))
   end
 end
