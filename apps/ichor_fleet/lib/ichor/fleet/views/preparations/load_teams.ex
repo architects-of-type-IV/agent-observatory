@@ -6,17 +6,13 @@ defmodule Ichor.Fleet.Views.Preparations.LoadTeams do
   use Ash.Resource.Preparation
 
   alias Ash.DataLayer.Simple
-  alias Ichor.EventBuffer
-  alias Ichor.Fleet.AgentProcess
   alias Ichor.Fleet.Team
-  alias Ichor.Fleet.TeamSupervisor
-  alias Ichor.Fleet.Analysis.AgentHealth
 
   @dead_team_threshold_sec 300
 
   @impl true
   def prepare(query, _opts, _context) do
-    events = EventBuffer.list_events()
+    events = runtime_hooks().list_events()
     now = DateTime.utc_now()
 
     registry_by_id = build_registry_lookup()
@@ -80,14 +76,14 @@ defmodule Ichor.Fleet.Views.Preparations.LoadTeams do
   end
 
   defp merge_with_beam_teams(existing_teams) do
-    beam_teams = TeamSupervisor.list_all()
+    beam_teams = runtime_hooks().list_teams()
     existing_names = MapSet.new(existing_teams, & &1.name)
 
     new_teams =
       beam_teams
       |> Enum.reject(fn {name, _meta} -> MapSet.member?(existing_names, name) end)
       |> Enum.map(fn {name, meta} ->
-        member_ids = TeamSupervisor.member_ids(name)
+        member_ids = runtime_hooks().team_member_ids(name)
         members = Enum.map(member_ids, &build_beam_member/1)
 
         %{
@@ -106,7 +102,7 @@ defmodule Ichor.Fleet.Views.Preparations.LoadTeams do
   end
 
   defp build_beam_member(id) do
-    case AgentProcess.lookup(id) do
+    case runtime_hooks().lookup_agent(id) do
       {_pid, agent_meta} ->
         %{
           name: id,
@@ -135,7 +131,7 @@ defmodule Ichor.Fleet.Views.Preparations.LoadTeams do
           |> List.first()
 
         status = derive_member_status(reg, latest, now)
-        health_data = AgentHealth.compute_agent_health(member_events, now)
+        health_data = runtime_hooks().compute_agent_health(member_events, now)
         model = extract_model(member_events) || m[:model]
         cwd = extract_cwd(member_events) || m[:cwd]
         first_event = Enum.min_by(member_events, & &1.inserted_at, DateTime, fn -> nil end)
@@ -174,7 +170,7 @@ defmodule Ichor.Fleet.Views.Preparations.LoadTeams do
     |> Enum.map(fn team ->
       dead? =
         case team.source do
-          :beam -> not TeamSupervisor.exists?(team.name)
+          :beam -> not runtime_hooks().team_exists?(team.name)
           _ -> team_dead?(team, now)
         end
 
@@ -243,7 +239,7 @@ defmodule Ichor.Fleet.Views.Preparations.LoadTeams do
   end
 
   defp build_registry_lookup do
-    AgentProcess.list_all()
+    runtime_hooks().list_agents()
     |> Enum.flat_map(fn {id, meta} ->
       [id, meta[:session_id], meta[:short_name]]
       |> Enum.reject(&is_nil/1)
@@ -257,5 +253,9 @@ defmodule Ichor.Fleet.Views.Preparations.LoadTeams do
         _existing -> Map.put(acc, k, entry)
       end
     end)
+  end
+
+  defp runtime_hooks do
+    Application.get_env(:ichor_fleet, :runtime_hooks_module, Module.concat([Ichor, Fleet, RuntimeHooks]))
   end
 end

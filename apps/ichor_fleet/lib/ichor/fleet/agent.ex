@@ -9,12 +9,6 @@ defmodule Ichor.Fleet.Agent do
 
   use Ash.Resource, domain: Ichor.Fleet
 
-  import Ichor.MapHelpers, only: [maybe_put: 3]
-
-  alias Ichor.AgentSpawner
-  alias Ichor.Fleet.AgentProcess
-  alias Ichor.Fleet.Runtime
-
   attributes do
     attribute(:agent_id, :string, primary_key?: true, allow_nil?: false, public?: true)
     attribute(:name, :string, public?: true)
@@ -107,7 +101,7 @@ defmodule Ichor.Fleet.Agent do
       argument(:agent_id, :string, allow_nil?: false)
 
       run(fn input, _context ->
-        case AgentProcess.pause(input.arguments.agent_id) do
+        case runtime_hooks().pause_agent(input.arguments.agent_id) do
           :ok -> {:ok, %{agent_id: input.arguments.agent_id, status: :paused}}
           error -> {:error, "Failed to pause: #{inspect(error)}"}
         end
@@ -119,7 +113,7 @@ defmodule Ichor.Fleet.Agent do
       argument(:agent_id, :string, allow_nil?: false)
 
       run(fn input, _context ->
-        case AgentProcess.resume(input.arguments.agent_id) do
+        case runtime_hooks().resume_agent(input.arguments.agent_id) do
           :ok -> {:ok, %{agent_id: input.arguments.agent_id, status: :active}}
           error -> {:error, "Failed to resume: #{inspect(error)}"}
         end
@@ -133,12 +127,12 @@ defmodule Ichor.Fleet.Agent do
       run(fn input, _context ->
         agent_id = input.arguments.agent_id
 
-        case AgentProcess.lookup(agent_id) do
+        case runtime_hooks().lookup_agent(agent_id) do
           {_pid, meta} ->
             result =
               case meta[:team] do
-                nil -> Runtime.terminate_standalone_agent(agent_id)
-                team -> Runtime.terminate_team_member(team, agent_id)
+                nil -> runtime_hooks().terminate_standalone_agent(agent_id)
+                team -> runtime_hooks().terminate_team_member(team, agent_id)
               end
 
             case result do
@@ -184,7 +178,7 @@ defmodule Ichor.Fleet.Agent do
           |> maybe_put(:team_name, args[:team_name])
           |> maybe_put(:extra_instructions, args[:extra_instructions])
 
-        case AgentSpawner.spawn_agent(opts) do
+        case runtime_hooks().launch_agent(opts) do
           {:ok, result} ->
             {:ok, result}
 
@@ -212,7 +206,7 @@ defmodule Ichor.Fleet.Agent do
       run(fn input, _context ->
         args = input.arguments
 
-        AgentProcess.send_message(args.agent_id, %{
+        runtime_hooks().send_agent_message(args.agent_id, %{
           content: args.content,
           from: args.from,
           type: :message
@@ -230,8 +224,8 @@ defmodule Ichor.Fleet.Agent do
         agent_id = input.arguments.agent_id
 
         messages =
-          if AgentProcess.alive?(agent_id) do
-            AgentProcess.get_unread(agent_id)
+          if runtime_hooks().agent_alive?(agent_id) do
+            runtime_hooks().agent_unread(agent_id)
             |> Enum.map(fn msg ->
               %{
                 "id" => msg[:id] || Ecto.UUID.generate(),
@@ -297,14 +291,21 @@ defmodule Ichor.Fleet.Agent do
 
   @spec spawn_in_fleet(String.t() | nil, keyword()) :: {:ok, pid()} | {:error, term()}
   defp spawn_in_fleet(nil, opts) do
-    Runtime.spawn_standalone_agent(opts)
+    runtime_hooks().spawn_standalone_agent(opts)
   end
 
   defp spawn_in_fleet(team_name, opts) do
-    unless Runtime.team_exists?(team_name) do
-      Runtime.create_team(name: team_name)
+    unless runtime_hooks().team_exists?(team_name) do
+      runtime_hooks().create_team(name: team_name)
     end
 
-    Runtime.spawn_team_member(team_name, opts)
+    runtime_hooks().spawn_team_member(team_name, opts)
+  end
+
+  defp maybe_put(map, _key, nil), do: map
+  defp maybe_put(map, key, value), do: Map.put(map, key, value)
+
+  defp runtime_hooks do
+    Application.get_env(:ichor_fleet, :runtime_hooks_module, Module.concat([Ichor, Fleet, RuntimeHooks]))
   end
 end

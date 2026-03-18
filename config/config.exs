@@ -11,7 +11,6 @@ config :ichor,
   generators: [timestamp_type: :utc_datetime],
   ash_domains: [
     Ichor.AgentTools,
-    Ichor.Costs,
     Ichor.Archon,
     Ichor.Archon.Tools,
     Ichor.Signals.Domain
