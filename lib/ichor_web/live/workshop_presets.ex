@@ -5,51 +5,49 @@ defmodule IchorWeb.WorkshopPresets do
 
   import Phoenix.Component, only: [assign: 3]
 
-  @dag_lead %{
-    id: 1,
-    name: "lead",
-    capability: "lead",
-    model: "opus",
-    permission: "default",
-    persona: "DAG pipeline lead. Manages spawning, conflict resolution, verification, and GC.",
-    file_scope: "",
-    quality_gates: "mix compile --warnings-as-errors",
-    x: 220,
-    y: 20
-  }
-
-  @dag_workers (for {i, x} <- [{2, 40}, {3, 270}, {4, 500}] do
-                  %{
-                    id: i,
-                    name: "worker-#{i - 1}",
-                    capability: "builder",
-                    model: "sonnet",
-                    permission: "default",
-                    persona: "",
-                    file_scope: "",
-                    quality_gates: "mix compile --warnings-as-errors\nmix test",
-                    x: x,
-                    y: 200
-                  }
-                end)
-
   @presets %{
     "dag" => %{
-      team_name: "dag-pipeline",
+      team_name: "dag-execution",
       strategy: "one_for_one",
       model: "sonnet",
-      agents: [@dag_lead | @dag_workers],
-      next_id: 5,
-      links: [%{from: 1, to: 2}, %{from: 1, to: 3}, %{from: 1, to: 4}],
-      rules:
-        for(
-          {w, l} <- [{2, 1}, {3, 1}, {4, 1}, {1, 2}, {1, 3}, {1, 4}],
-          do: %{from: w, to: l, policy: "allow", via: nil}
-        ) ++
-          for(
-            {a, b} <- [{2, 3}, {3, 2}, {2, 4}, {4, 2}, {3, 4}, {4, 3}],
-            do: %{from: a, to: b, policy: "deny", via: nil}
-          )
+      agents: [
+        %{
+          id: 1,
+          name: "coordinator",
+          capability: "coordinator",
+          model: "opus",
+          permission: "default",
+          persona:
+            "Strategic DAG orchestrator. Assesses job graph, groups jobs by file scope, " <>
+              "dispatches waves to lead. Owns operator communication. " <>
+              "Handles failure strategy (retry/skip/abort).",
+          file_scope: "",
+          quality_gates: "",
+          x: 220,
+          y: 20
+        },
+        %{
+          id: 2,
+          name: "lead",
+          capability: "lead",
+          model: "sonnet",
+          permission: "default",
+          persona:
+            "Tactical DAG executor. Claims jobs per coordinator dispatch, pre-reads target files, " <>
+              "builds context-rich worker prompts, spawns workers via spawn_agent MCP, " <>
+              "verifies done_when, reports to coordinator. Max 5 concurrent workers.",
+          file_scope: "",
+          quality_gates: "mix compile --warnings-as-errors",
+          x: 220,
+          y: 200
+        }
+      ],
+      next_id: 3,
+      links: [%{from: 1, to: 2}],
+      rules: [
+        %{from: 1, to: 2, policy: "allow", via: nil},
+        %{from: 2, to: 1, policy: "allow", via: nil}
+      ]
     },
     "solo" => %{
       team_name: "solo",
