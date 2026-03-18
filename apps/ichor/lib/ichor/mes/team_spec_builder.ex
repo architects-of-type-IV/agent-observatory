@@ -6,67 +6,31 @@ defmodule Ichor.Mes.TeamSpecBuilder do
   alias Ichor.Fleet.Lifecycle.AgentSpec
   alias Ichor.Fleet.Lifecycle.TeamSpec
   alias Ichor.Mes.TeamPrompts
+  alias Ichor.Workshop.BlueprintState
+  alias Ichor.Workshop.Presets, as: WorkshopPresets
+  alias Ichor.Workshop.TeamBlueprint
+  alias Ichor.Workshop.TeamSpecBuilder, as: WorkshopTeamSpecBuilder
 
   @spec build_team_spec(String.t(), String.t()) :: TeamSpec.t()
   def build_team_spec(run_id, team_name) do
-    cwd = project_root()
     session = session_name(run_id)
     roster = TeamPrompts.roster(session)
+    state = blueprint_state(team_name)
 
-    TeamSpec.new(%{
-      team_name: team_name,
+    WorkshopTeamSpecBuilder.build_from_state(
+      state,
       session: session,
-      cwd: cwd,
-      agents: [
-        build_agent_spec(
-          "coordinator",
-          "coordinator",
-          TeamPrompts.coordinator(run_id, roster),
-          cwd,
-          session,
-          team_name,
-          run_id
-        ),
-        build_agent_spec(
-          "lead",
-          "lead",
-          TeamPrompts.lead(run_id, roster),
-          cwd,
-          session,
-          team_name,
-          run_id
-        ),
-        build_agent_spec(
-          "planner",
-          "builder",
-          TeamPrompts.planner(run_id, roster),
-          cwd,
-          session,
-          team_name,
-          run_id
-        ),
-        build_agent_spec(
-          "researcher-1",
-          "scout",
-          TeamPrompts.researcher_1(run_id, roster),
-          cwd,
-          session,
-          team_name,
-          run_id
-        ),
-        build_agent_spec(
-          "researcher-2",
-          "scout",
-          TeamPrompts.researcher_2(run_id, roster),
-          cwd,
-          session,
-          team_name,
-          run_id
-        )
-      ],
       prompt_dir: prompt_dir(run_id),
-      metadata: %{run_id: run_id}
-    })
+      team_metadata: %{run_id: run_id, source: :mes, blueprint: blueprint_name()},
+      prompt_builder: fn agent, _builder_state -> prompt_for_agent(agent, run_id, roster) end,
+      agent_metadata_builder: fn agent, builder_state ->
+        agent_metadata(agent, builder_state, run_id)
+      end,
+      window_name_builder: & &1.name,
+      agent_id_builder: fn agent, _window_name, built_session ->
+        "#{built_session}-#{agent.name}"
+      end
+    )
   end
 
   @spec build_corrective_team_spec(String.t(), String.t(), String.t() | nil, pos_integer()) ::
@@ -111,18 +75,44 @@ defmodule Ichor.Mes.TeamSpecBuilder do
 
   defp project_root, do: File.cwd!()
 
-  defp build_agent_spec(name, capability, prompt, cwd, session, team_name, run_id) do
-    AgentSpec.new(%{
-      name: name,
-      window_name: name,
-      agent_id: "#{session}-#{name}",
-      capability: capability,
-      model: "sonnet",
-      cwd: cwd,
-      team_name: team_name,
-      session: session,
-      prompt: prompt,
-      metadata: %{run_id: run_id}
-    })
+  defp blueprint_state(team_name) do
+    case TeamBlueprint.by_name(blueprint_name()) do
+      {:ok, blueprint} ->
+        BlueprintState.apply_blueprint(BlueprintState.defaults(), blueprint)
+        |> Map.put(:ws_team_name, team_name)
+        |> Map.put(:ws_cwd, project_root())
+
+      {:error, _} ->
+        WorkshopPresets.apply(BlueprintState.defaults(), blueprint_name())
+        |> Map.put(:ws_team_name, team_name)
+        |> Map.put(:ws_cwd, project_root())
+    end
+  end
+
+  defp blueprint_name do
+    Application.get_env(:ichor, :mes_workshop_blueprint_name, "mes")
+  end
+
+  defp prompt_for_agent(agent, run_id, roster) do
+    case agent.name do
+      "coordinator" -> TeamPrompts.coordinator(run_id, roster)
+      "lead" -> TeamPrompts.lead(run_id, roster)
+      "planner" -> TeamPrompts.planner(run_id, roster)
+      "researcher-1" -> TeamPrompts.researcher_1(run_id, roster)
+      "researcher-2" -> TeamPrompts.researcher_2(run_id, roster)
+      other -> "You are #{other} for MES run #{run_id}.\n\n#{roster}"
+    end
+  end
+
+  defp agent_metadata(agent, state, run_id) do
+    %{
+      run_id: run_id,
+      source: :mes,
+      blueprint: blueprint_name(),
+      team_name: state.ws_team_name,
+      permission: agent.permission,
+      file_scope: agent.file_scope,
+      quality_gates: agent.quality_gates
+    }
   end
 end

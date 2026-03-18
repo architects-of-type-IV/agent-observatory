@@ -18,7 +18,7 @@ defmodule Ichor.Mes.TeamSpecBuilderTest do
     assert spec.session == "mes-run-123"
     assert spec.team_name == "mes-run-123"
     assert spec.prompt_dir == Path.join(TeamSpecBuilder.prompt_root_dir(), "run-123")
-    assert spec.metadata == %{run_id: "run-123"}
+    assert spec.metadata == %{run_id: "run-123", source: :mes, blueprint: "mes"}
 
     assert Enum.map(spec.agents, & &1.name) == [
              "coordinator",
