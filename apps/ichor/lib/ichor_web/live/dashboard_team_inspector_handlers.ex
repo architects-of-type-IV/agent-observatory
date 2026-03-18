@@ -6,6 +6,8 @@ defmodule IchorWeb.DashboardTeamInspectorHandlers do
   import Phoenix.Component, only: [assign: 3]
   import Phoenix.LiveView, only: [push_event: 3]
 
+  alias Ichor.Fleet.RuntimeView
+
   def dispatch("inspect_team", p, s), do: handle_inspect_team(p, s)
   def dispatch("remove_from_inspector", p, s), do: handle_remove_from_inspector(p, s)
   def dispatch("close_all_inspector", _p, s), do: handle_close_all_inspector(s)
@@ -20,7 +22,7 @@ defmodule IchorWeb.DashboardTeamInspectorHandlers do
   def handle_inspect_team(%{"team" => team_name}, socket) do
     inspected = socket.assigns.inspected_teams
     teams = socket.assigns.teams
-    team = Enum.find(teams, fn t -> t.name == team_name end)
+    team = RuntimeView.find_team(teams, team_name)
 
     if team && team_name not in Enum.map(inspected, & &1.name) do
       assign(socket, :inspected_teams, inspected ++ [team])

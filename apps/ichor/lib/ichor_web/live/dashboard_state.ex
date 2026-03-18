@@ -19,6 +19,7 @@ defmodule IchorWeb.DashboardState do
   alias Ichor.Fleet.Agent
   alias Ichor.Fleet.Analysis.Queries, as: FQ
   alias Ichor.Fleet.Analysis.SessionEviction
+  alias Ichor.Fleet.RuntimeView
   alias Ichor.Fleet.Team
   alias Ichor.Gateway.Channels.Tmux
   alias Ichor.Gateway.HITLRelay
@@ -230,8 +231,8 @@ defmodule IchorWeb.DashboardState do
     event_notes = Notes.list_notes()
 
     # Auto-select team when only 1 exists
-    selected_team = resolve_selected_team(assigns.selected_team, teams)
-    sel_team = Enum.find(teams, fn t -> t.name == selected_team end)
+    selected_team = RuntimeView.resolve_selected_team(assigns.selected_team, teams)
+    sel_team = RuntimeView.find_team(teams, selected_team)
 
     active_tasks =
       cond do
@@ -241,8 +242,7 @@ defmodule IchorWeb.DashboardState do
       end
 
     # Inspector (Fleet.Queries) -- skip if no teams inspected
-    inspected_names = Enum.map(assigns.inspected_teams, & &1.name)
-    refreshed_inspected = Enum.filter(teams, fn t -> t.name in inspected_names end)
+    refreshed_inspected = RuntimeView.refresh_inspected_teams(teams, assigns.inspected_teams)
 
     inspector_events =
       if refreshed_inspected != [],
@@ -254,10 +254,10 @@ defmodule IchorWeb.DashboardState do
 
     # Tmux session list (for sidebar)
     tmux_session_names = safe_tmux_sessions()
-    teams = merge_tmux_display_teams(teams, agents, tmux_session_names)
+    teams = RuntimeView.merge_display_teams(teams, agents, tmux_session_names)
 
     # Unified agent index from Fleet.Agent
-    agent_index = build_agent_lookup(agents)
+    agent_index = RuntimeView.build_agent_lookup(agents)
 
     # Template-layer data
     paused_sessions = safe_paused_sessions()
@@ -307,8 +307,8 @@ defmodule IchorWeb.DashboardState do
     assigns = socket.assigns
     teams = assigns[:teams] || []
 
-    selected_team = resolve_selected_team(assigns.selected_team, teams)
-    sel_team = Enum.find(teams, fn t -> t.name == selected_team end)
+    selected_team = RuntimeView.resolve_selected_team(assigns.selected_team, teams)
+    sel_team = RuntimeView.find_team(teams, selected_team)
 
     active_tasks =
       cond do
@@ -328,10 +328,6 @@ defmodule IchorWeb.DashboardState do
     |> assign(:active_tasks, active_tasks)
   end
 
-  defp resolve_selected_team(current, _teams) when not is_nil(current), do: current
-  defp resolve_selected_team(nil, [team]), do: team.name
-  defp resolve_selected_team(nil, _teams), do: nil
-
   defp safe_paused_sessions do
     HITLRelay.paused_sessions() |> MapSet.new()
   rescue
@@ -342,93 +338,6 @@ defmodule IchorWeb.DashboardState do
     Tmux.list_sessions()
   rescue
     _ -> []
-  end
-
-  defp build_agent_lookup(agents) do
-    agents
-    |> Enum.flat_map(fn a ->
-      agent_map =
-        a
-        |> Map.from_struct()
-        |> Map.merge(%{
-          team: a.team_name,
-          project: a.cwd && Path.basename(a.cwd),
-          tmux_session: get_in(a.channels || %{}, [:tmux]) || a.tmux_session
-        })
-
-      [a.agent_id, a.session_id, a.short_name]
-      |> Enum.reject(&is_nil/1)
-      |> Enum.uniq()
-      |> Enum.map(&{&1, agent_map})
-    end)
-    |> dedup_by_status()
-  end
-
-  defp merge_tmux_display_teams(teams, agents, tmux_sessions) do
-    existing_names = MapSet.new(teams, & &1.name)
-
-    discovered =
-      tmux_sessions
-      |> Enum.reject(&TmuxDiscovery.infrastructure_session?/1)
-      |> Enum.reject(&MapSet.member?(existing_names, &1))
-      |> Enum.map(fn session_name ->
-        members =
-          agents
-          |> Enum.filter(&agent_in_tmux_session?(&1, session_name))
-          |> Enum.map(&agent_to_team_member/1)
-
-        %{
-          name: session_name,
-          lead_session: nil,
-          description: "Discovered from tmux session",
-          members: members,
-          tasks: [],
-          source: :beam,
-          created_at: nil,
-          dead?: false,
-          member_count: length(members),
-          health: inferred_team_health(members)
-        }
-      end)
-      |> Enum.reject(&(&1.members == []))
-
-    teams ++ discovered
-  end
-
-  defp agent_in_tmux_session?(agent, session_name) do
-    (get_in(agent.channels || %{}, [:tmux]) || agent.tmux_session) == session_name
-  end
-
-  defp agent_to_team_member(agent) do
-    %{
-      name: agent.short_name || agent.name || agent.agent_id,
-      agent_id: agent.agent_id,
-      agent_type: to_string(agent.role || :worker),
-      status: agent.status,
-      health: agent.health || :unknown,
-      model: agent.model,
-      cwd: agent.cwd
-    }
-  end
-
-  defp inferred_team_health(members) do
-    healths = Enum.map(members, &Map.get(&1, :health, :unknown))
-
-    cond do
-      :critical in healths -> :critical
-      :warning in healths -> :warning
-      :healthy in healths -> :healthy
-      true -> :unknown
-    end
-  end
-
-  defp dedup_by_status(pairs) do
-    Enum.reduce(pairs, %{}, fn {k, entry}, acc ->
-      case Map.get(acc, k) do
-        %{status: :active} -> acc
-        _ -> Map.put(acc, k, entry)
-      end
-    end)
   end
 
   # Reuse already-fetched messages instead of querying Activity.Message.recent!() again
