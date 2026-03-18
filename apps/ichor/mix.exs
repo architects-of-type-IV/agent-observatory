@@ -136,7 +136,12 @@ defmodule Ichor.MixProject do
       Ichor.Activity.Preparations.LoadErrors,
       Ichor.Events,
       Ichor.Events.Event,
-      Ichor.Events.Session
+      Ichor.Events.Session,
+      Ichor.Fleet,
+      Ichor.Fleet.Agent,
+      Ichor.Fleet.Team,
+      Ichor.Fleet.Views.Preparations.LoadAgents,
+      Ichor.Fleet.Views.Preparations.LoadTeams
     ]
   end
 end

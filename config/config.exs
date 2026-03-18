@@ -13,12 +13,16 @@ config :ichor,
   ash_domains: [
     Ichor.AgentTools,
     Ichor.Costs,
-    Ichor.Fleet,
     Ichor.Workshop,
     Ichor.Archon,
     Ichor.Archon.Tools,
     Ichor.Signals.Domain,
     Ichor.Mes
+  ]
+
+config :ichor_fleet,
+  ash_domains: [
+    Ichor.Fleet
   ]
 
 config :ichor_events,
