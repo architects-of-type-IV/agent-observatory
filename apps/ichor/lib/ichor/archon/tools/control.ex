@@ -7,9 +7,7 @@ defmodule Ichor.Archon.Tools.Control do
 
   alias Ash.Error.Unknown
 
-  alias Ichor.AgentSpawner
-  alias Ichor.Fleet.Lookup
-  alias Ichor.Gateway.HITLRelay
+  alias Ichor.Tools.AgentControl
 
   actions do
     action :spawn_agent, :map do
@@ -71,14 +69,14 @@ defmodule Ichor.Archon.Tools.Control do
           |> Enum.reject(fn {_k, v} -> is_nil(v) or v == "" end)
           |> Map.new()
 
-        case AgentSpawner.spawn_agent(opts) do
+        case AgentControl.spawn(opts) do
           {:ok, result} ->
             {:ok,
              %{
-               "session_id" => result[:agent_id] || result[:session_name],
-               "session_name" => result[:session_name],
-               "name" => result[:name],
-               "team" => result[:team_name]
+               "session_id" => result.session_id,
+               "session_name" => result.session_name,
+               "name" => result.name,
+               "team" => result.team
              }}
 
           {:error, reason} ->
@@ -100,14 +98,15 @@ defmodule Ichor.Archon.Tools.Control do
       run(fn input, _context ->
         query = input.arguments.agent_id
 
-        case Lookup.find_agent(query) do
-          nil ->
-            {:ok, %{"stopped" => false, "reason" => "agent not found: #{query}"}}
-
-          agent ->
-            session = agent.tmux_session || agent.agent_id
-            AgentSpawner.stop_agent(session)
-            {:ok, %{"stopped" => true, "session" => session, "name" => agent.name}}
+        case AgentControl.stop(query) do
+          {:ok, result} ->
+            {:ok,
+             %{
+               "stopped" => result.stopped,
+               "session" => result[:session],
+               "name" => result[:name],
+               "reason" => result[:reason]
+             }}
         end
       end)
     end
@@ -129,20 +128,16 @@ defmodule Ichor.Archon.Tools.Control do
         query = input.arguments.agent_id
         reason = Map.get(input.arguments, :reason) || "Paused by Archon"
 
-        case Lookup.find_agent(query) do
-          nil ->
-            {:ok, %{"paused" => false, "reason" => "agent not found: #{query}"}}
-
-          agent ->
-            sid = Lookup.agent_session_id(agent)
-
-            case HITLRelay.pause(sid, sid, "archon", reason) do
-              :ok ->
-                {:ok, %{"paused" => true, "session_id" => sid, "name" => agent.name}}
-
-              {:ok, :already_paused} ->
-                {:ok, %{"paused" => true, "already_paused" => true, "session_id" => sid}}
-            end
+        case AgentControl.pause(query, reason) do
+          {:ok, result} ->
+            {:ok,
+             %{
+               "paused" => result.paused,
+               "already_paused" => result[:already_paused],
+               "session_id" => result[:session_id],
+               "name" => result[:name],
+               "reason" => result[:reason]
+             }}
         end
       end)
     end
@@ -158,20 +153,15 @@ defmodule Ichor.Archon.Tools.Control do
       run(fn input, _context ->
         query = input.arguments.agent_id
 
-        case Lookup.find_agent(query) do
-          nil ->
-            {:ok, %{"resumed" => false, "reason" => "agent not found: #{query}"}}
-
-          agent ->
-            sid = Lookup.agent_session_id(agent)
-
-            case HITLRelay.unpause(sid, sid, "archon") do
-              {:ok, flushed} ->
-                {:ok, %{"resumed" => true, "flushed_messages" => flushed, "session_id" => sid}}
-
-              {:ok, :not_paused} ->
-                {:ok, %{"resumed" => false, "reason" => "agent was not paused"}}
-            end
+        case AgentControl.resume(query) do
+          {:ok, result} ->
+            {:ok,
+             %{
+               "resumed" => result.resumed,
+               "flushed_messages" => result[:flushed_messages],
+               "session_id" => result[:session_id],
+               "reason" => result[:reason]
+             }}
         end
       end)
     end
