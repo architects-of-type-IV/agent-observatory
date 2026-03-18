@@ -81,6 +81,13 @@ defmodule Ichor.Workshop.TeamBlueprint do
       filter(expr(id == ^arg(:id)))
       prepare(build(load: [:agent_blueprints, :spawn_links, :comm_rules]))
     end
+
+    read :by_name do
+      argument(:name, :string, allow_nil?: false)
+      get?(true)
+      filter(expr(name == ^arg(:name)))
+      prepare(build(load: [:agent_blueprints, :spawn_links, :comm_rules]))
+    end
   end
 
   code_interface do
@@ -89,6 +96,7 @@ defmodule Ichor.Workshop.TeamBlueprint do
     define(:update)
     define(:destroy)
     define(:by_id, args: [:id])
+    define(:by_name, args: [:name])
   end
 
   identities do

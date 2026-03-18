@@ -191,6 +191,86 @@ defmodule Ichor.Workshop.Presets do
         %{from: 3, to: 1, policy: "route", via: 2},
         %{from: 4, to: 1, policy: "deny", via: nil}
       ]
+    },
+    "mes" => %{
+      team_name: "mes-template",
+      strategy: "one_for_one",
+      model: "sonnet",
+      agents: [
+        %{
+          id: 1,
+          name: "coordinator",
+          capability: "coordinator",
+          model: "sonnet",
+          permission: "default",
+          persona: "Owns MES run orchestration and final operator delivery.",
+          file_scope: "",
+          quality_gates: "",
+          x: 220,
+          y: 20
+        },
+        %{
+          id: 2,
+          name: "lead",
+          capability: "lead",
+          model: "sonnet",
+          permission: "default",
+          persona: "Reviews briefs and acts as quality gate.",
+          file_scope: "",
+          quality_gates: "",
+          x: 220,
+          y: 160
+        },
+        %{
+          id: 3,
+          name: "planner",
+          capability: "builder",
+          model: "sonnet",
+          permission: "default",
+          persona: "Expands chosen proposals into implementation briefs.",
+          file_scope: "",
+          quality_gates: "",
+          x: 220,
+          y: 300
+        },
+        %{
+          id: 4,
+          name: "researcher-1",
+          capability: "scout",
+          model: "sonnet",
+          permission: "default",
+          persona: "Drives the peer research loop and synthesizes candidate ideas.",
+          file_scope: "",
+          quality_gates: "",
+          x: 40,
+          y: 180
+        },
+        %{
+          id: 5,
+          name: "researcher-2",
+          capability: "scout",
+          model: "sonnet",
+          permission: "default",
+          persona: "Challenges and strengthens researcher-1 proposals.",
+          file_scope: "",
+          quality_gates: "",
+          x: 400,
+          y: 180
+        }
+      ],
+      next_id: 6,
+      links: [%{from: 1, to: 2}, %{from: 1, to: 3}, %{from: 1, to: 4}, %{from: 1, to: 5}],
+      rules: [
+        %{from: 1, to: 2, policy: "allow", via: nil},
+        %{from: 1, to: 3, policy: "allow", via: nil},
+        %{from: 1, to: 4, policy: "allow", via: nil},
+        %{from: 1, to: 5, policy: "allow", via: nil},
+        %{from: 4, to: 5, policy: "allow", via: nil},
+        %{from: 5, to: 4, policy: "allow", via: nil},
+        %{from: 2, to: 1, policy: "allow", via: nil},
+        %{from: 3, to: 1, policy: "allow", via: nil},
+        %{from: 4, to: 1, policy: "allow", via: nil}
+      ]
     }
   }
 

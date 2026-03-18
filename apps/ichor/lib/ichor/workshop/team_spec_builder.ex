@@ -7,12 +7,20 @@ defmodule Ichor.Workshop.TeamSpecBuilder do
   alias Ichor.Fleet.Lifecycle.TeamSpec
   alias Ichor.Workshop.Presets
 
-  @spec build_from_state(map()) :: TeamSpec.t()
-  def build_from_state(state) do
+  @spec build_from_state(map(), keyword()) :: TeamSpec.t()
+  def build_from_state(state, opts \\ []) do
     team_name = state.ws_team_name
-    session = session_name(team_name)
+    session = Keyword.get(opts, :session, session_name(team_name))
     cwd = state.ws_cwd |> blank_to_cwd()
     ordered_agents = Presets.spawn_order(state.ws_agents, state.ws_spawn_links)
+    prompt_builder = Keyword.get(opts, :prompt_builder, &prompt_for_agent/2)
+    agent_metadata_builder = Keyword.get(opts, :agent_metadata_builder, &default_agent_metadata/2)
+    window_name_builder = Keyword.get(opts, :window_name_builder, &window_name/1)
+
+    agent_id_builder =
+      Keyword.get(opts, :agent_id_builder, fn _agent, built_window_name, built_session ->
+        "#{built_session}-#{built_window_name}"
+      end)
 
     TeamSpec.new(%{
       team_name: team_name,
@@ -20,31 +28,28 @@ defmodule Ichor.Workshop.TeamSpecBuilder do
       cwd: cwd,
       agents:
         Enum.map(ordered_agents, fn agent ->
+          built_window_name = window_name_builder.(agent)
+
           AgentSpec.new(%{
             name: agent.name,
-            window_name: window_name(agent),
-            agent_id: "#{session}-#{window_name(agent)}",
+            window_name: built_window_name,
+            agent_id: agent_id_builder.(agent, built_window_name, session),
             capability: agent.capability,
             model: agent.model,
             cwd: cwd,
             team_name: team_name,
             session: session,
-            prompt: prompt_for_agent(agent, state),
-            metadata: %{
-              source: :workshop,
-              team_name: team_name,
-              permission: agent.permission,
-              file_scope: agent.file_scope,
-              quality_gates: agent.quality_gates
-            }
+            prompt: prompt_builder.(agent, state),
+            metadata: agent_metadata_builder.(agent, state)
           })
         end),
-      prompt_dir: prompt_dir(team_name),
-      metadata: %{
-        source: :workshop,
-        strategy: state.ws_strategy,
-        blueprint_id: state[:ws_blueprint_id]
-      }
+      prompt_dir: Keyword.get(opts, :prompt_dir, prompt_dir(team_name)),
+      metadata:
+        Keyword.get(opts, :team_metadata, %{
+          source: :workshop,
+          strategy: state.ws_strategy,
+          blueprint_id: state[:ws_blueprint_id]
+        })
     })
   end
 
@@ -89,6 +94,16 @@ defmodule Ichor.Workshop.TeamSpecBuilder do
     ]
     |> Enum.reject(&(&1 in [nil, ""]))
     |> Enum.join("\n\n")
+  end
+
+  defp default_agent_metadata(agent, state) do
+    %{
+      source: :workshop,
+      team_name: state.ws_team_name,
+      permission: agent.permission,
+      file_scope: agent.file_scope,
+      quality_gates: agent.quality_gates
+    }
   end
 
   defp list_block(_title, []), do: nil
