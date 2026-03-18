@@ -15,7 +15,7 @@ defmodule Ichor.Dag.RunProcess do
 
   use GenServer, restart: :temporary
 
-  alias Ichor.Dag.{Exporter, HealthChecker, Job, Run}
+  alias Ichor.Dag.{Exporter, HealthChecker, Job, Run, RuntimeSignals}
   alias Ichor.Fleet.FleetSupervisor
   alias Ichor.Gateway.Channels.Tmux
   alias Ichor.Genesis.ModeRunner
@@ -79,11 +79,7 @@ defmodule Ichor.Dag.RunProcess do
   def handle_info(:check_health, state) do
     case HealthChecker.check(state.run_id) do
       {:ok, report} ->
-        Signals.emit(:dag_health_report, %{
-          run_id: state.run_id,
-          healthy: report.healthy,
-          issue_count: length(report.issues)
-        })
+        RuntimeSignals.emit_health_report(state.run_id, report.healthy, length(report.issues))
 
       _ ->
         :ok
@@ -100,7 +96,7 @@ defmodule Ichor.Dag.RunProcess do
         {:noreply, state}
 
       false ->
-        Signals.emit(:dag_tmux_gone, %{run_id: state.run_id, session: state.tmux_session})
+        RuntimeSignals.emit_tmux_gone(state.run_id, state.tmux_session)
         cleanup(state)
         {:stop, :normal, state}
     end
@@ -120,11 +116,7 @@ defmodule Ichor.Dag.RunProcess do
       true ->
         with {:ok, run} <- Run.get(state.run_id) do
           Run.complete(run)
-
-          Signals.emit(:dag_run_completed, %{
-            run_id: state.run_id,
-            label: run.label
-          })
+          RuntimeSignals.emit_run_completed(state.run_id, run.label)
         end
 
         cleanup(state)
