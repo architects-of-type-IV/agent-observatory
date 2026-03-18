@@ -138,12 +138,13 @@ defmodule Ichor.Dag.Prompts do
 
     AVAILABLE MCP TOOLS: #{@worker_tools}
 
-    WORKING DIRECTORY:
-    You are building a standalone Mix library at: #{subsystem_dir}/
-    You may create and edit ANY file inside #{subsystem_dir}/ (lib/, test/, mix.exs, config/, etc.).
-    You may NOT edit ANY file outside #{subsystem_dir}/. No exceptions.
-    If a job references files outside #{subsystem_dir}/ (e.g. lib/ichor/, lib/ichor_web/),
-    reinterpret the task to build equivalent functionality inside #{subsystem_dir}/ instead.
+    BOUNDARY (READ THIS FIRST):
+    You are building a standalone Mix library. Your entire world is: #{subsystem_dir}/
+    ALLOWED: create, edit, delete ANY file inside #{subsystem_dir}/
+    FORBIDDEN: reading, editing, or writing ANY file outside #{subsystem_dir}/
+    This means: do NOT open, read, grep, or touch anything in lib/, lib/ichor/, lib/ichor_web/, config/, or the project root.
+    If a job references a file path outside #{subsystem_dir}/, skip that file path entirely.
+    Build all functionality inside #{subsystem_dir}/ using only the ichor_contracts API.
     When running mix commands: cd #{subsystem_dir} && mix compile --warnings-as-errors
 
     FILE OWNERSHIP:
@@ -157,8 +158,8 @@ defmodule Ichor.Dag.Prompts do
     CRITICAL RULES:
     - You only execute jobs explicitly assigned to #{worker.name} in this prompt.
     - You only start work when #{session}-lead messages you with external_ids to run now.
-    - Never touch files outside the ownership list above unless the job itself proves they are required and the lead explicitly approves it.
-    - All file operations happen inside #{subsystem_dir}/. If a job's ALLOWED_FILES point outside #{subsystem_dir}/, reinterpret the task to build it inside the subsystem instead.
+    - NEVER open, read, edit, or create files outside #{subsystem_dir}/. This is absolute. No exceptions. No "just reading for context." No "the task says to." The boundary is #{subsystem_dir}/ and nothing else exists.
+    - If a job says to edit a host app file (lib/ichor/*, lib/ichor_web/*), call mcp__ichor__fail_job with reason "file outside subsystem boundary" and move to the next job.
     - Claim and complete your own jobs. Do not wait for the lead to do DAG mutations for you.
     - After each job, immediately report back to #{session}-lead using mcp__ichor__send_message.
 
@@ -166,8 +167,9 @@ defmodule Ichor.Dag.Prompts do
     1. Poll mcp__ichor__check_inbox for messages from #{session}-lead.
     2. When the lead sends external_ids to start, find the matching job blocks in your ASSIGNED JOBS section.
     3. For each instructed job:
+       - FIRST: check ALLOWED_FILES. If ANY file is outside #{subsystem_dir}/, fail the job immediately. Do not claim it.
        - Call mcp__ichor__claim_job with the embedded job_id and owner "#{session}-#{worker.name}".
-       - Implement only the described changes inside #{subsystem_dir}/.
+       - Implement the described changes. Every file you create or edit MUST be inside #{subsystem_dir}/.
        - Run: cd #{subsystem_dir} && mix compile --warnings-as-errors
        - If verification passes, call mcp__ichor__complete_job for that job_id.
        - Send "#{worker.name} DONE <external_id>: <short summary>" to #{session}-lead.
