@@ -204,6 +204,7 @@ defmodule IchorWeb.DashboardState do
     # Ash domain queries
     teams = Team.alive!()
     all_teams = Team.all!()
+    agents = Agent.all!()
     messages = Message.recent!()
     event_tasks = Task.current!() |> Enum.map(&task_to_map/1)
     errors = Error.recent!()
@@ -251,11 +252,12 @@ defmodule IchorWeb.DashboardState do
     # Topology (Fleet.Queries)
     {topo_nodes, topo_edges} = FQ.topology(all_sessions, teams, assigns.now)
 
-    # Unified agent index from Fleet.Agent
-    agent_index = build_agent_lookup(Agent.all!())
-
     # Tmux session list (for sidebar)
     tmux_session_names = safe_tmux_sessions()
+    teams = merge_tmux_display_teams(teams, agents, tmux_session_names)
+
+    # Unified agent index from Fleet.Agent
+    agent_index = build_agent_lookup(agents)
 
     # Template-layer data
     paused_sessions = safe_paused_sessions()
@@ -360,6 +362,64 @@ defmodule IchorWeb.DashboardState do
       |> Enum.map(&{&1, agent_map})
     end)
     |> dedup_by_status()
+  end
+
+  defp merge_tmux_display_teams(teams, agents, tmux_sessions) do
+    existing_names = MapSet.new(teams, & &1.name)
+
+    discovered =
+      tmux_sessions
+      |> Enum.reject(&TmuxDiscovery.infrastructure_session?/1)
+      |> Enum.reject(&MapSet.member?(existing_names, &1))
+      |> Enum.map(fn session_name ->
+        members =
+          agents
+          |> Enum.filter(&agent_in_tmux_session?(&1, session_name))
+          |> Enum.map(&agent_to_team_member/1)
+
+        %{
+          name: session_name,
+          lead_session: nil,
+          description: "Discovered from tmux session",
+          members: members,
+          tasks: [],
+          source: :beam,
+          created_at: nil,
+          dead?: false,
+          member_count: length(members),
+          health: inferred_team_health(members)
+        }
+      end)
+      |> Enum.reject(&(&1.members == []))
+
+    teams ++ discovered
+  end
+
+  defp agent_in_tmux_session?(agent, session_name) do
+    (get_in(agent.channels || %{}, [:tmux]) || agent.tmux_session) == session_name
+  end
+
+  defp agent_to_team_member(agent) do
+    %{
+      name: agent.short_name || agent.name || agent.agent_id,
+      agent_id: agent.agent_id,
+      agent_type: to_string(agent.role || :worker),
+      status: agent.status,
+      health: agent.health || :unknown,
+      model: agent.model,
+      cwd: agent.cwd
+    }
+  end
+
+  defp inferred_team_health(members) do
+    healths = Enum.map(members, &Map.get(&1, :health, :unknown))
+
+    cond do
+      :critical in healths -> :critical
+      :warning in healths -> :warning
+      :healthy in healths -> :healthy
+      true -> :unknown
+    end
   end
 
   defp dedup_by_status(pairs) do
