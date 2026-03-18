@@ -12,7 +12,8 @@ defmodule Ichor.MixProject do
       deps: deps(),
       compilers: [:phoenix_live_view] ++ Mix.compilers(),
       listeners: [Phoenix.CodeReloader],
-      dialyzer: [plt_add_apps: [:mix, :ex_unit]]
+      dialyzer: [plt_add_apps: [:mix, :ex_unit]],
+      xref: [exclude: genesis_xref_excludes()]
     ]
   end
 
@@ -106,6 +107,22 @@ defmodule Ichor.MixProject do
         "phx.digest"
       ],
       precommit: ["compile --warnings-as-errors", "deps.unlock --unused", "format", "test"]
+    ]
+  end
+
+  defp genesis_xref_excludes do
+    [
+      Ichor.Genesis,
+      Ichor.Genesis.Node,
+      Ichor.Genesis.Adr,
+      Ichor.Genesis.Feature,
+      Ichor.Genesis.UseCase,
+      Ichor.Genesis.Checkpoint,
+      Ichor.Genesis.Conversation,
+      Ichor.Genesis.Phase,
+      Ichor.Genesis.Section,
+      Ichor.Genesis.Task,
+      Ichor.Genesis.Subtask
     ]
   end
 end

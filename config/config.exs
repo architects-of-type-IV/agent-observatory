@@ -21,8 +21,12 @@ config :ichor,
     Ichor.Archon.Tools,
     Ichor.Signals.Domain,
     Ichor.Mes,
-    Ichor.Genesis,
     Ichor.Dag
+  ]
+
+config :ichor_genesis,
+  ash_domains: [
+    Ichor.Genesis
   ]
 
 config :ichor_signals,
