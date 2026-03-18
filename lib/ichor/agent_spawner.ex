@@ -149,6 +149,7 @@ defmodule Ichor.AgentSpawner do
       id: agent_id,
       role: role,
       team: opts[:team_name],
+      liveness_poll: true,
       backend: %{type: :tmux, session: tmux_target},
       capabilities: TmuxHelpers.capabilities_for(capability),
       metadata: %{cwd: cwd, model: opts[:model] || "sonnet", parent_id: opts[:parent_id]}
