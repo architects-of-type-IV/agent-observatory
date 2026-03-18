@@ -1,10 +1,7 @@
 defmodule Ichor.SwarmMonitor.StateBus do
   @moduledoc """
-  Signal publication for swarm state updates.
+  Compatibility wrapper for DAG runtime state publication.
   """
 
-  def broadcast(state) do
-    Ichor.Signals.emit(:swarm_state, %{state_map: state})
-    Ichor.Signals.emit(:dag_status, %{state_map: state})
-  end
+  defdelegate broadcast(state), to: Ichor.Dag.StateBus
 end

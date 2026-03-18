@@ -1,6 +1,6 @@
 defmodule Ichor.MonitorSupervisor do
   @moduledoc """
-  Supervises monitoring and observability services: swarm monitor, protocol tracker,
+  Supervises monitoring and observability services: DAG runtime, protocol tracker,
   agent monitor, nudge escalator, and quality gate. Independent observers, one_for_one.
   """
   use Supervisor
@@ -13,7 +13,7 @@ defmodule Ichor.MonitorSupervisor do
   def init(_opts) do
     children = [
       {Ichor.Heartbeat, []},
-      {Ichor.SwarmMonitor, []},
+      {Ichor.Dag.Runtime, []},
       {Ichor.ProtocolTracker, []},
       {Ichor.AgentMonitor, []},
       {Ichor.NudgeEscalator, []},
