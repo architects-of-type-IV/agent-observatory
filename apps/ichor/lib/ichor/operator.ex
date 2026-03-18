@@ -15,6 +15,7 @@ defmodule Ichor.Operator do
 
   alias Ichor.Fleet.{AgentProcess, TeamSupervisor}
   alias Ichor.Gateway.Channels.Tmux
+  alias Ichor.Gateway.Target
 
   @from "operator"
   @type_iv_registry Ichor.Registry
@@ -61,7 +62,7 @@ defmodule Ichor.Operator do
   via Registry metadata when no BEAM process exists.
   """
   def send(target, content, opts \\ []) when is_binary(target) and is_binary(content) do
-    channel = normalize_target(target)
+    channel = Target.normalize(target)
 
     payload = %{
       content: content,
@@ -73,7 +74,7 @@ defmodule Ichor.Operator do
     case channel do
       "team:" <> name -> deliver_to_team(name, payload)
       "fleet:all" -> deliver_to_fleet(payload)
-      _ -> deliver_to_agent(extract_id(channel), payload)
+      _ -> deliver_to_agent(Target.extract_id(channel), payload)
     end
   end
 
@@ -157,23 +158,4 @@ defmodule Ichor.Operator do
 
     Ichor.Signals.emit(:fleet_changed, %{})
   end
-
-  # ── Target Normalization ──────────────────────────────────────────────
-
-  defp extract_id("agent:" <> id), do: id
-  defp extract_id("session:" <> id), do: id
-  defp extract_id("member:" <> id), do: id
-  defp extract_id("role:" <> id), do: id
-  defp extract_id(raw), do: raw
-
-  defp normalize_target("agent:" <> _ = channel), do: channel
-  defp normalize_target("session:" <> _ = channel), do: channel
-  defp normalize_target("team:" <> _ = channel), do: channel
-  defp normalize_target("fleet:" <> _ = channel), do: channel
-  defp normalize_target("role:" <> _ = channel), do: channel
-  defp normalize_target("all"), do: "fleet:all"
-  defp normalize_target("all_teams"), do: "fleet:all"
-  defp normalize_target("lead:" <> _name), do: "role:lead"
-  defp normalize_target("member:" <> sid), do: "session:#{sid}"
-  defp normalize_target(id), do: "agent:#{id}"
 end
