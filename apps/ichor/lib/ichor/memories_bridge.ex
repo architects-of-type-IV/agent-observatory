@@ -33,6 +33,7 @@ defmodule Ichor.MemoriesBridge do
     :terminal_output,
     :protocol_update,
     :swarm_state,
+    :dag_status,
     :topology_snapshot,
     :registry_changed
   ]

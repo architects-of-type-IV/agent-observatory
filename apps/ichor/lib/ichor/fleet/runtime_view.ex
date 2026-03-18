@@ -9,6 +9,8 @@ defmodule Ichor.Fleet.RuntimeView do
   def resolve_selected_team(nil, [team]), do: team.name
   def resolve_selected_team(nil, _teams), do: nil
 
+  def find_team(_teams, nil), do: nil
+
   def find_team(teams, name) when is_binary(name) do
     Enum.find(teams, &(&1.name == name))
   end

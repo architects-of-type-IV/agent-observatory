@@ -12,6 +12,7 @@ defmodule Ichor.QualityGate do
   require Logger
 
   alias Ichor.Fleet.Comms
+  alias Ichor.Dag.Status
 
   @default_timeout 60_000
 
@@ -127,7 +128,7 @@ defmodule Ichor.QualityGate do
 
   defp find_done_when(task_id, event) do
     # Check SwarmMonitor for the task's done_when field
-    swarm_state = Ichor.Fleet.Overseer.get_state()
+    swarm_state = Status.state()
     tasks = swarm_state[:tasks] || []
 
     case Enum.find(tasks, fn t -> to_string(t["id"]) == to_string(task_id) end) do

@@ -4,7 +4,7 @@ defmodule Ichor.AgentTools.Tasks do
   """
   use Ash.Resource, domain: Ichor.AgentTools
 
-  alias Ichor.TaskManager
+  alias Ichor.Tasks.Board
 
   actions do
     action :get_tasks, {:array, :map} do
@@ -26,7 +26,7 @@ defmodule Ichor.AgentTools.Tasks do
 
         tasks =
           if team_name do
-            TaskManager.list_tasks(team_name)
+            Board.list_tasks(team_name)
           else
             []
           end
@@ -73,7 +73,7 @@ defmodule Ichor.AgentTools.Tasks do
         task_id = input.arguments.task_id
         status = input.arguments.status
 
-        case TaskManager.update_task(team, task_id, %{"status" => status}) do
+        case Board.update_task(team, task_id, %{"status" => status}) do
           {:ok, task} ->
             {:ok,
              %{

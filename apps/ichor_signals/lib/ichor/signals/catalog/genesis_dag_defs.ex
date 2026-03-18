@@ -88,6 +88,11 @@ defmodule Ichor.Signals.Catalog.GenesisDagDefs do
         keys: [:run_id, :healthy, :issue_count],
         doc: "Periodic health check result for a run"
       },
+      dag_status: %{
+        category: :dag,
+        keys: [:state_map],
+        doc: "Current DAG pipeline status snapshot for the active project set"
+      },
       dag_run_archived: %{
         category: :dag,
         keys: [:run_id, :label, :reason],

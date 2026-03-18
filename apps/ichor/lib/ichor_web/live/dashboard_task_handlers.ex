@@ -4,6 +4,8 @@ defmodule IchorWeb.DashboardTaskHandlers do
   Handles task creation, status updates, reassignment, and editing.
   """
 
+  alias Ichor.Tasks.Board
+
   def dispatch("create_task", p, s) do
     {:noreply, socket} = handle_create_task(p, s)
     Phoenix.Component.assign(socket, :show_create_task_modal, false)
@@ -41,12 +43,8 @@ defmodule IchorWeb.DashboardTaskHandlers do
       "blockedBy" => params["blockedBy"] || []
     }
 
-    case Ichor.TaskManager.create_task(team_name, attrs) do
-      {:ok, task} ->
-        # Broadcast task creation event
-        Ichor.Signals.emit(:task_created, team_name, %{task: task})
-        Ichor.Signals.emit(:tasks_updated, %{team_name: team_name})
-
+    case Board.create_task(team_name, attrs) do
+      {:ok, _task} ->
         socket =
           Phoenix.LiveView.push_event(socket, "toast", %{
             message: "Task created: #{subject}",
@@ -78,10 +76,8 @@ defmodule IchorWeb.DashboardTaskHandlers do
 
     changes = %{"status" => new_status}
 
-    case Ichor.TaskManager.update_task(team_name, task_id, changes) do
-      {:ok, updated_task} ->
-        broadcast_task_update(team_name, updated_task)
-
+    case Board.update_task(team_name, task_id, changes) do
+      {:ok, _updated_task} ->
         socket =
           Phoenix.LiveView.push_event(socket, "toast", %{
             message: "Task status updated to #{new_status}",
@@ -107,10 +103,8 @@ defmodule IchorWeb.DashboardTaskHandlers do
 
     changes = %{"owner" => new_owner}
 
-    case Ichor.TaskManager.update_task(team_name, task_id, changes) do
-      {:ok, updated_task} ->
-        broadcast_task_update(team_name, updated_task)
-
+    case Board.update_task(team_name, task_id, changes) do
+      {:ok, _updated_task} ->
         socket =
           Phoenix.LiveView.push_event(socket, "toast", %{
             message: "Task reassigned to #{new_owner}",
@@ -133,11 +127,8 @@ defmodule IchorWeb.DashboardTaskHandlers do
       "task_id" => task_id
     } = params
 
-    case Ichor.TaskManager.delete_task(team_name, task_id) do
+    case Board.delete_task(team_name, task_id) do
       :ok ->
-        Ichor.Signals.emit(:task_deleted, team_name, %{task_id: task_id})
-        Ichor.Signals.emit(:tasks_updated, %{team_name: team_name})
-
         socket =
           Phoenix.LiveView.push_event(socket, "toast", %{
             message: "Task deleted",
@@ -154,12 +145,6 @@ defmodule IchorWeb.DashboardTaskHandlers do
   # ═══════════════════════════════════════════════════════
   # Helpers
   # ═══════════════════════════════════════════════════════
-
-  defp broadcast_task_update(team_name, task) do
-    Ichor.Signals.emit(:task_updated, team_name, %{task: task})
-    Ichor.Signals.emit(:tasks_updated, %{team_name: team_name})
-  end
-
   @verb_prefixes [
     {"Add ", "Adding "},
     {"Fix ", "Fixing "},

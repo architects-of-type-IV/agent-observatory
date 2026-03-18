@@ -5,5 +5,6 @@ defmodule Ichor.SwarmMonitor.StateBus do
 
   def broadcast(state) do
     Ichor.Signals.emit(:swarm_state, %{state_map: state})
+    Ichor.Signals.emit(:dag_status, %{state_map: state})
   end
 end

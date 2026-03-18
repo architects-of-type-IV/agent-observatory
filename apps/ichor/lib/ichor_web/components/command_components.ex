@@ -141,11 +141,12 @@ defmodule IchorWeb.Components.CommandComponents do
     agents = agent_index |> Map.values() |> Enum.uniq_by(&agent_key/1)
     active_tasks = assigns[:active_tasks] || []
     protocol_stats = assigns[:protocol_stats] || %{}
+    dag_state = assigns[:dag_state] || assigns[:swarm_state] || %{}
 
     assigns
     |> assign(:stats, fleet_stats(agents))
-    |> assign(:pipeline, assigns.swarm_state.pipeline)
-    |> assign(:health, assigns.swarm_state.health)
+    |> assign(:pipeline, Map.get(dag_state, :pipeline, %{}))
+    |> assign(:health, Map.get(dag_state, :health, %{}))
     |> assign(:error_count, length(assigns[:errors] || []))
     |> assign(:msg_count, length(assigns[:messages] || []))
     |> assign(:task_count, length(active_tasks))

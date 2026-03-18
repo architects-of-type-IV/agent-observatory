@@ -18,7 +18,7 @@ defmodule IchorWeb.DashboardUIHandlers do
   end
 
   def dispatch("add_project", p, s) do
-    IchorWeb.DashboardSwarmHandlers.handle_add_project(p, s)
+    IchorWeb.DashboardDagHandlers.handle_add_project(p, s)
     |> Phoenix.Component.assign(:show_add_project, false)
   end
 

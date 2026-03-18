@@ -6,11 +6,11 @@ defmodule Ichor.SwarmMonitor.Actions do
   alias Ichor.Fleet.Lifecycle.Cleanup
   alias Ichor.SwarmMonitor.Analysis
   alias Ichor.SwarmMonitor.Projects
-  alias Ichor.SwarmMonitor.TaskState
+  alias Ichor.Tasks.Pipeline
 
   def heal_task(state, task_id) do
     with path when not is_nil(path) <- Projects.tasks_jsonl_path_for_task(state, task_id) do
-      TaskState.heal_task(path, task_id)
+      Pipeline.heal_task(path, task_id)
     else
       nil -> {:error, :no_active_project}
     end
@@ -18,7 +18,7 @@ defmodule Ichor.SwarmMonitor.Actions do
 
   def reassign_task(state, task_id, new_owner) do
     with path when not is_nil(path) <- Projects.tasks_jsonl_path_for_task(state, task_id) do
-      TaskState.reassign_task(path, task_id, new_owner)
+      Pipeline.reassign_task(path, task_id, new_owner)
     else
       nil -> {:error, :no_active_project}
     end
@@ -26,7 +26,7 @@ defmodule Ichor.SwarmMonitor.Actions do
 
   def claim_task(state, task_id, agent_name) do
     with path when not is_nil(path) <- Projects.tasks_jsonl_path_for_task(state, task_id) do
-      TaskState.claim_task(task_id, agent_name, path)
+      Pipeline.claim_task(task_id, agent_name, path)
     else
       nil -> {:error, :no_active_project}
     end
@@ -57,7 +57,7 @@ defmodule Ichor.SwarmMonitor.Actions do
   end
 
   defp count_reset(task, acc, path) do
-    case TaskState.update_task_status(path, task.id, "pending", "") do
+    case Pipeline.update_task_status(path, task.id, "pending", "") do
       :ok -> acc + 1
       _ -> acc
     end

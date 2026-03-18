@@ -27,7 +27,7 @@
         </div>
       </div>
       <IchorWeb.Components.CommandComponents.fleet_status_bar
-        swarm_state={@swarm_state}
+        dag_state={@dag_state}
         teams={@teams}
         events={@events}
         errors={@errors}
@@ -335,29 +335,29 @@
               Pipeline Board
             </h3>
             <div
-              :if={@swarm_state.pipeline.total > 0}
-              class="flex items-center rounded overflow-hidden"
-            >
+            :if={@dag_state.pipeline.total > 0}
+            class="flex items-center rounded overflow-hidden"
+          >
               <span class="text-[9px] font-semibold px-1.5 py-0.5 bg-success/15 text-success">
-                {@swarm_state.pipeline.completed} done
+                {@dag_state.pipeline.completed} done
               </span>
               <span class="text-[9px] font-semibold px-1.5 py-0.5 bg-info/15 text-info">
-                {@swarm_state.pipeline.in_progress} running
+                {@dag_state.pipeline.in_progress} running
               </span>
               <span class="text-[9px] font-semibold px-1.5 py-0.5 bg-raised text-default">
-                {@swarm_state.pipeline.pending} pending
+                {@dag_state.pipeline.pending} pending
               </span>
               <span
-                :if={@swarm_state.pipeline.blocked > 0}
+                :if={@dag_state.pipeline.blocked > 0}
                 class="text-[9px] font-semibold px-1.5 py-0.5 bg-brand/15 text-brand"
               >
-                {@swarm_state.pipeline.blocked} blocked
+                {@dag_state.pipeline.blocked} blocked
               </span>
               <span
-                :if={@swarm_state.pipeline.failed > 0}
+                :if={@dag_state.pipeline.failed > 0}
                 class="text-[9px] font-semibold px-1.5 py-0.5 bg-error/15 text-error"
               >
-                {@swarm_state.pipeline.failed} failed
+                {@dag_state.pipeline.failed} failed
               </span>
             </div>
           </div>
@@ -408,7 +408,7 @@
           <%!-- Pipeline content --%>
           <div class="flex-1 overflow-hidden">
             <IchorWeb.Components.PipelineComponents.pipeline_view
-              swarm_state={@swarm_state}
+              dag_state={@dag_state}
               selected_dag_task={@selected_dag_task}
               show_add_project={@show_add_project}
               now={@now}
@@ -459,7 +459,7 @@
         <%!-- Fleet Control View --%>
         <div :if={@nav_view == :fleet} class="h-full -m-2">
           <IchorWeb.Components.CommandComponents.command_view
-            swarm_state={@swarm_state}
+            dag_state={@dag_state}
             teams={@teams}
             events={@events}
             errors={@errors}

@@ -1,7 +1,7 @@
-<% tasks = @swarm_state.tasks
-active_project = @swarm_state.active_project
-projects = @swarm_state.watched_projects
-dag = @swarm_state.dag
+<% tasks = @dag_state.tasks
+active_project = @dag_state.active_project
+projects = @dag_state.watched_projects
+dag = @dag_state.dag
 
 # Group tasks by status for kanban columns
 kanban = %{
@@ -41,16 +41,18 @@ critical_path = MapSet.new(dag.critical_path) %>
         <div class="flex flex-wrap gap-1">
           <button
             :if={active_project && active_project != ""}
-            phx-click="trigger_gc"
+            phx-click="trigger_dag_gc"
             phx-value-team={active_project}
             class="ichor-btn ichor-btn-danger"
             data-confirm="Run garbage collection on this project?"
           >
             GC
           </button>
-          <button phx-click="run_health_check" class="ichor-btn ichor-btn-muted">Health</button>
+          <button phx-click="run_dag_health_check" class="ichor-btn ichor-btn-muted">
+            Health
+          </button>
           <button
-            phx-click="reset_all_stale"
+            phx-click="reset_dag_stale"
             class="ichor-btn bg-brand/15 text-brand hover:bg-brand/25"
             data-confirm="Reset all stale tasks to pending?"
           >
@@ -95,7 +97,7 @@ critical_path = MapSet.new(dag.critical_path) %>
       </div>
       <div class="flex flex-wrap gap-1">
         <button
-          phx-click="reassign_swarm_task"
+          phx-click="reassign_dag_task"
           phx-value-id={@selected_dag_task.id}
           phx-value-owner=""
           class="ichor-btn ichor-btn-muted"

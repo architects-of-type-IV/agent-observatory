@@ -112,7 +112,7 @@ selected = @selected_command_agent %>
           <div id="project-select-stable" phx-update="ignore">
             <select name="cwd" class="ichor-select">
               <option value="">Project...</option>
-              <%= for {key, path} <- @swarm_state.watched_projects do %>
+              <%= for {key, path} <- @dag_state.watched_projects do %>
                 <option value={path}>{key}</option>
               <% end %>
             </select>

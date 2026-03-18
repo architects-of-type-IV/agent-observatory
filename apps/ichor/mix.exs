@@ -10,7 +10,6 @@ defmodule Ichor.MixProject do
       start_permanent: Mix.env() == :prod,
       aliases: aliases(),
       deps: deps(),
-      compilers: [:phoenix_live_view] ++ Mix.compilers(),
       listeners: [Phoenix.CodeReloader],
       dialyzer: [plt_add_apps: [:mix, :ex_unit]],
       xref: [exclude: xref_excludes()]

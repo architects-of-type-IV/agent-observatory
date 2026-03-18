@@ -25,7 +25,7 @@ defmodule IchorWeb.DashboardState do
   alias Ichor.Gateway.HITLRelay
   alias Ichor.Gateway.TmuxDiscovery
   alias Ichor.Notes
-  alias Ichor.Fleet.Overseer
+  alias Ichor.Dag.Status
 
   def default_assigns(disk_teams) do
     %{
@@ -54,7 +54,8 @@ defmodule IchorWeb.DashboardState do
       slideout_activity: [],
       expanded_sessions: MapSet.new(),
       disk_teams: disk_teams,
-      swarm_state: Overseer.get_state(),
+      dag_state: Status.state(),
+      swarm_state: Status.state(),
       protocol_stats: %{},
       selected_dag_task: nil,
       selected_command_agent: nil,
