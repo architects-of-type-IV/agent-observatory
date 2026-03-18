@@ -393,6 +393,11 @@ defmodule Ichor.Signals.Catalog do
       keys: [:run_id, :reason],
       doc: "Research brief ingest to knowledge graph failed"
     },
+    mes_subsystem_compile_failed: %{
+      category: :mes,
+      keys: [:run_id, :project_id, :reason],
+      doc: "Subsystem compile/load failed after DAG completion"
+    },
 
     # ── Genesis ────────────────────────────────────────────────────
     genesis_team_ready: %{

@@ -1,5 +1,18 @@
 # ICHOR IV Progress
 
+## DAG Build on Standalone Mix Libraries (2026-03-18) -- COMPLETE
+- [x] SubsystemScaffold: creates subsystems/{name}/ with mix.exs + stubs
+- [x] SubsystemScaffold.Templates: pure template rendering (mix.exs, stubs, placeholder)
+- [x] CompletionHandler: signal-driven, reacts to :dag_run_completed -> SubsystemLoader
+- [x] Spawner: scaffold before spawn, delegate to WorkerGroups, pass subsystem_dir
+- [x] Prompts: WORKING DIRECTORY block for workers, subsystem_dir in coordinator/lead
+- [x] Catalog: added mes_subsystem_compile_failed signal
+- [x] Mes.Supervisor: added CompletionHandler to children
+- [x] Stale lib/ichor/subsystems/ moved to tmp/trash/
+- [x] Build clean: mix compile --warnings-as-errors + mix dialyzer
+- [ ] E2E test: press Build, verify workers build in subsystems/
+- [ ] Verify CompletionHandler triggers SubsystemLoader after completion
+
 ## Ichor.Dag Domain Implementation (2026-03-18) -- COMPLETE + ITERATED
 - [x] DagGenerator /dag compatibility
 - [x] Plan: 4 reviewer passes, 19 tasks, all implemented

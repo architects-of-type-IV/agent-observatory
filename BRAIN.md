@@ -18,6 +18,14 @@ Every team MUST follow this exact pattern. No exceptions. No shortcuts.
 **NEVER** use dynamic spawning via spawn_agent MCP at runtime.
 **NEVER** pass prompts via `-p` flag (shell arg limits).
 
+## Subsystem Architecture (2026-03-18, IMPLEMENTED)
+- MES projects are standalone Mix libraries in `subsystems/{name}/`
+- Stubs provide compile-time behaviour/struct definitions (4 files)
+- SubsystemLoader hot-loads only `Ichor.Subsystems.*` modules into BEAM
+- Signals provide full decoupling -- no compile-time dependency on host
+- Workers build inside subsystem dir, compile independently
+- CompletionHandler (Mes domain) reacts to `:dag_run_completed` -> SubsystemLoader
+
 ## Ichor.Dag Domain (2026-03-18, IMPLEMENTED)
 - Separate Ash domain from Genesis. Genesis = planning, Dag = execution.
 - Resources: Run (SQLite), Job (SQLite) with after_action signal hooks
@@ -36,6 +44,7 @@ Every team MUST follow this exact pattern. No exceptions. No shortcuts.
 - **Style**: pattern matching, no if/else, ash-elixir-expert.md mandatory
 - **Ash**: code_interface for all actions, relationships via belongs_to/has_many
 - **Ash codegen**: snapshots broken, use manual migrations
+- **No manual migrations**: all business logic through Ash Domain/Resources
 
 ## User Preferences (ENFORCED)
 - "Always go for pragmatism"
@@ -46,3 +55,4 @@ Every team MUST follow this exact pattern. No exceptions. No shortcuts.
 - "RESPECT ash-elixir-expert.md"
 - "Surgical precision. No exploration. Write code, verify, report."
 - "Use multiple agents for research and review"
+- "/dag skill is absolutely perfect. Our app needs to be as perfect."

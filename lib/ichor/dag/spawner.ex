@@ -7,8 +7,9 @@ defmodule Ichor.Dag.Spawner do
   touch the same files are assigned to the same worker for the lifetime of the run.
   """
 
-  alias Ichor.Dag.{Graph, Job, Loader, Prompts, RunSupervisor, Validator}
+  alias Ichor.Dag.{Graph, Job, Loader, Prompts, RunSupervisor, Validator, WorkerGroups}
   alias Ichor.Genesis.{ModeRunner, ModeSpawner}
+  alias Ichor.Mes.SubsystemScaffold
   alias Ichor.Signals
 
   @spec spawn(String.t(), String.t()) ::
@@ -18,12 +19,17 @@ defmodule Ichor.Dag.Spawner do
     cwd = File.cwd!()
     brief = ModeSpawner.load_project_brief(project_id)
 
-    with {:ok, run} <- Loader.from_genesis(node_id, tmux_session: session),
+    with {:ok, node} <- Ichor.Genesis.Node.get(node_id),
+         {app_name, module_name} = SubsystemScaffold.derive_names(node.title),
+         subsystem_dir = SubsystemScaffold.subsystem_path(app_name),
+         {:ok, _path} <- SubsystemScaffold.scaffold(app_name, module_name),
+         {:ok, run} <- Loader.from_genesis(node_id, tmux_session: session),
          {:ok, _report} <- validate(run.id),
          {:ok, jobs} <- Job.by_run(run.id) do
       worker_groups = build_worker_groups(jobs)
       roster = team_roster(session, worker_groups)
-      agents = build_agents(run, session, brief, jobs, worker_groups, roster)
+      prompt_ctx = %{subsystem_dir: subsystem_dir, module_name: module_name}
+      agents = build_agents(run, session, brief, jobs, worker_groups, roster, prompt_ctx)
 
       with :ok <- ModeRunner.write_agent_scripts(run.id, "dag", agents),
            :ok <- ModeRunner.create_session_with_agent(session, cwd, run.id, "dag", hd(agents)),
@@ -53,20 +59,21 @@ defmodule Ichor.Dag.Spawner do
     end
   end
 
-  defp build_agents(run, session, brief, jobs, worker_groups, roster) do
+  defp build_agents(run, session, brief, jobs, worker_groups, roster, prompt_ctx) do
+    shared = %{
+      run_id: run.id,
+      session: session,
+      roster: roster,
+      brief: brief,
+      subsystem_dir: prompt_ctx.subsystem_dir
+    }
+
     worker_agents =
       Enum.map(worker_groups, fn worker ->
         %{
           name: worker.name,
           capability: "builder",
-          prompt:
-            Prompts.worker(%{
-              run_id: run.id,
-              session: session,
-              roster: roster,
-              brief: brief,
-              worker: worker
-            })
+          prompt: Prompts.worker(Map.put(shared, :worker, worker))
         }
       end)
 
@@ -75,27 +82,12 @@ defmodule Ichor.Dag.Spawner do
         name: "coordinator",
         capability: "coordinator",
         prompt:
-          Prompts.coordinator(%{
-            run_id: run.id,
-            session: session,
-            roster: roster,
-            brief: brief,
-            jobs: jobs,
-            worker_groups: worker_groups
-          })
+          Prompts.coordinator(Map.merge(shared, %{jobs: jobs, worker_groups: worker_groups}))
       },
       %{
         name: "lead",
         capability: "lead",
-        prompt:
-          Prompts.lead(%{
-            run_id: run.id,
-            session: session,
-            roster: roster,
-            brief: brief,
-            jobs: jobs,
-            worker_groups: worker_groups
-          })
+        prompt: Prompts.lead(Map.merge(shared, %{jobs: jobs, worker_groups: worker_groups}))
       }
       | worker_agents
     ]
@@ -104,64 +96,18 @@ defmodule Ichor.Dag.Spawner do
   defp build_worker_groups(jobs) do
     jobs
     |> Enum.sort_by(&{&1.wave || 0, &1.external_id})
-    |> Enum.reduce([], &add_job_to_groups/2)
-    |> Enum.map(&finalize_group/1)
-    |> Enum.sort_by(&{&1.first_wave, &1.first_external_id})
-    |> Enum.with_index(1)
-    |> Enum.map(fn {group, index} ->
-      group
-      |> Map.put(:name, worker_name(index))
-      |> Map.put(:capability, "builder")
-    end)
+    |> WorkerGroups.group()
+    |> Enum.map(&enrich_group/1)
   end
 
-  defp add_job_to_groups(job, groups) do
-    files = normalized_files(job.allowed_files)
-
-    if MapSet.size(files) == 0 do
-      [%{files: files, jobs: [job]} | groups]
-    else
-      {matching, rest} = Enum.split_with(groups, &shares_files?(&1.files, files))
-
-      merged =
-        Enum.reduce(matching, %{files: files, jobs: [job]}, fn group, acc ->
-          %{
-            files: MapSet.union(acc.files, group.files),
-            jobs: acc.jobs ++ group.jobs
-          }
-        end)
-
-      [merged | rest]
-    end
-  end
-
-  defp finalize_group(group) do
-    jobs = Enum.sort_by(group.jobs, &{&1.wave || 0, &1.external_id})
-    first_job = hd(jobs)
-
+  defp enrich_group(group) do
     %{
-      jobs: jobs,
-      allowed_files: group.files |> MapSet.to_list() |> Enum.sort(),
-      waves: jobs |> Enum.map(&(&1.wave || 0)) |> Enum.uniq(),
-      first_wave: first_job.wave || 0,
-      first_external_id: first_job.external_id
+      name: group.name,
+      capability: "builder",
+      jobs: group.jobs,
+      allowed_files: Enum.sort(group.files),
+      waves: group.jobs |> Enum.map(&(&1.wave || 0)) |> Enum.uniq()
     }
-  end
-
-  defp shares_files?(group_files, job_files) do
-    not MapSet.disjoint?(group_files, job_files)
-  end
-
-  defp normalized_files(files) do
-    files
-    |> List.wrap()
-    |> Enum.map(&String.trim/1)
-    |> Enum.reject(&(&1 == ""))
-    |> MapSet.new()
-  end
-
-  defp worker_name(index) do
-    "worker-" <> String.pad_leading(Integer.to_string(index), 2, "0")
   end
 
   defp team_roster(session, worker_groups) do

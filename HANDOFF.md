@@ -1,62 +1,47 @@
 # ICHOR IV - Handoff
 
-## Current Status: Ichor.Dag Domain -- Upfront Team Spawning (2026-03-18)
+## Current Status: DAG Build Teams on Standalone Mix Libraries (2026-03-18)
 
 ### Session Summary
 
-Implemented full Ichor.Dag Ash domain (13 modules), then iteratively fixed spawning to match the proven MES TeamSpawner pattern. Three major rewrites: (1) AgentSpawner fixed to write .sh scripts like MES, (2) InstructionOverlay pollution removed, (3) ALL agents now spawned upfront -- no dynamic spawning.
+DAG Build teams now create standalone Mix library projects in `subsystems/{name}/` instead of editing files in the observatory host app. This eliminates build lock contention, LiveView crashes, and follows the proven MES subsystem architecture.
 
-### Architecture (FINAL)
+### Architecture
 
-**DAG team spawn follows MES TeamSpawner pattern exactly:**
-1. Analyze job graph -> group by shared allowed_files -> determine worker count
-2. Create ALL agent prompts (coordinator + lead + N workers) with full job specs
-3. Write prompt .txt + .sh scripts via ModeRunner
-4. tmux new-session (coordinator) + new-window (lead + workers) -- ALL at once
-5. Register ALL agents in fleet with liveness_poll
-6. Start RunProcess lifecycle monitor
+**Subsystem projects are standalone Mix libraries:**
+1. `Spawner` derives subsystem name from Genesis Node title
+2. `SubsystemScaffold` creates `subsystems/{name}/` with mix.exs, stubs, placeholder module
+3. Workers build inside the subsystem dir, compile independently (`cd subsystems/{name} && mix compile`)
+4. No build lock contention with the running dev server
+5. After DAG completion, `CompletionHandler` triggers `SubsystemLoader.compile_and_load`
+6. Subsystem hot-loaded into BEAM via `:code.load_abs`
 
-**NO dynamic spawning. Workers exist from the start.** Lead dispatches to existing workers via send_message. Workers claim/complete their own jobs via MCP tools.
+**Key modules created/modified:**
+- `Ichor.Mes.SubsystemScaffold` -- side-effect boundary, creates project dirs
+- `Ichor.Mes.SubsystemScaffold.Templates` -- pure template rendering for mix.exs, stubs
+- `Ichor.Mes.CompletionHandler` -- GenServer, reacts to `:dag_run_completed`, triggers SubsystemLoader
+- `Ichor.Dag.Spawner` -- now scaffolds before spawning, delegates to WorkerGroups
+- `Ichor.Dag.Prompts` -- WORKING DIRECTORY block tells workers where to build
 
-### Key Lessons Learned (Critical for Next Session)
+**Domain boundaries (per ash-elixir-expert.md):**
+- SubsystemScaffold + Templates in `Ichor.Mes` (scaffolds Mes subsystem projects)
+- CompletionHandler in `Ichor.Mes` (follows ProjectIngestor pattern: signal -> domain action)
+- Dag domain stays clean -- no Mes knowledge
+- Cross-domain: Dag emits signal -> Mes reacts via CompletionHandler
 
-1. **MES TeamSpawner is the gold standard.** Any new team spawning MUST follow this exact pattern: write prompt files -> .sh scripts -> tmux session/windows -> fleet registration. No exceptions.
-
-2. **Never write to .claude/ directory.** Claude auto-reads all .md files in .claude/. InstructionOverlay wrote ICHOR_OVERLAY.md there, which poisoned ALL agents including Mode A Genesis teams. Overlays now go to ~/.ichor/agents/ or ~/.ichor/overlays/.
-
-3. **No dynamic spawning via spawn_agent MCP tool.** It uses AgentSpawner which has a different (inferior) path than ModeRunner. Workers spawned dynamically don't appear in fleet, can't communicate via MCP. Spawn everything upfront.
-
-4. **Archon TeamWatchdog is signal-driven.** Reacts to :dag_tmux_gone, :team_disbanded, :agent_stopped. No timers. Archives orphaned runs, resets jobs, notifies operator inbox.
-
-5. **ash-elixir-expert.md is mandatory.** Every code change must be evaluated through shape-first, boundary-first lens. Pure functions separated from orchestration. Resources own entity rules. No exceptions.
-
-### Files Created This Session
-
-| File | Purpose |
-|------|---------|
-| `lib/ichor/dag.ex` | Ash Domain |
-| `lib/ichor/dag/run.ex` | Ash Resource: execution session |
-| `lib/ichor/dag/job.ex` | Ash Resource: claimable work unit |
-| `lib/ichor/dag/graph.ex` | Pure functions: waves, critical path, stats |
-| `lib/ichor/dag/validator.ex` | Pure preflight checks |
-| `lib/ichor/dag/loader.ex` | Ingest from tasks.jsonl or Genesis |
-| `lib/ichor/dag/exporter.ex` | Export + write-through sync |
-| `lib/ichor/dag/health_checker.ex` | Pure Elixir health check |
-| `lib/ichor/dag/run_process.ex` | GenServer lifecycle monitor |
-| `lib/ichor/dag/run_supervisor.ex` | DynamicSupervisor facade |
-| `lib/ichor/dag/supervisor.ex` | Wraps RunSupervisor |
-| `lib/ichor/dag/spawner.ex` | Creates ALL agents upfront |
-| `lib/ichor/dag/prompts.ex` | Coordinator + lead + worker prompts |
-| `lib/ichor/dag/worker_groups.ex` | Pure job-to-worker grouping |
-| `lib/ichor/agent_tools/dag_execution.ex` | 7 MCP tools |
-| `lib/ichor/archon/team_watchdog.ex` | Signal-driven lifecycle monitor |
-| `lib/ichor/archon/team_watchdog/reactions.ex` | Pure decision logic |
+### Previous Work (same session)
+- Full Ichor.Dag domain (14 modules) -- already committed
+- MES TeamSpawner pattern for all team spawning
+- Archon TeamWatchdog signal-driven lifecycle monitor
+- WorkerGroups deduplication (spawner now delegates)
+- Stale `lib/ichor/subsystems/` moved to `tmp/trash/`
 
 ### Build Status
 - `mix compile --warnings-as-errors` -- CLEAN
 - `mix dialyzer` -- CLEAN
 
 ### What's Next
-1. Press Build on PulseMonitor and monitor the upfront-spawned team
-2. SwarmMonitor migration (task 216) -- deferred
-3. Verify workers appear in fleet and comms flow
+1. Press Build on PulseMonitor -- verify workers build in `subsystems/pulse_monitor/`
+2. Verify no build lock contention with host dev server
+3. Verify CompletionHandler triggers SubsystemLoader after DAG completion
+4. SwarmMonitor migration (task 216) -- deferred

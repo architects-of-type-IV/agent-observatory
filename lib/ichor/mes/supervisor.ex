@@ -40,6 +40,7 @@ defmodule Ichor.Mes.Supervisor do
       {Ichor.Mes.Janitor, []},
       {Ichor.Mes.ProjectIngestor, []},
       {Ichor.Mes.ResearchIngestor, []},
+      {Ichor.Mes.CompletionHandler, []},
       {Ichor.Mes.Scheduler, []}
     ]
 

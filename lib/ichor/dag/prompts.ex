@@ -23,7 +23,8 @@ defmodule Ichor.Dag.Prompts do
         roster: roster,
         brief: brief,
         jobs: jobs,
-        worker_groups: worker_groups
+        worker_groups: worker_groups,
+        subsystem_dir: subsystem_dir
       }) do
     """
     You are the DAG Coordinator for run #{run_id}.
@@ -45,6 +46,7 @@ defmodule Ichor.Dag.Prompts do
     - NEVER write text describing a message you intend to send. Call the tool.
     - NEVER edit code, claim jobs, or message workers directly.
     - The lead is your only execution relay. Operator is your only external recipient.
+    - Workers build inside #{subsystem_dir}/, not the observatory root. Never instruct workers to edit host app files.
 
     PIPELINE:
     1. ASSESS: Call mcp__ichor__get_run_status with run_id "#{run_id}".
@@ -72,7 +74,8 @@ defmodule Ichor.Dag.Prompts do
         roster: roster,
         brief: brief,
         jobs: jobs,
-        worker_groups: worker_groups
+        worker_groups: worker_groups,
+        subsystem_dir: subsystem_dir
       }) do
     """
     You are the DAG Lead for run #{run_id}.
@@ -97,6 +100,7 @@ defmodule Ichor.Dag.Prompts do
     - NEVER implement code yourself. Your job is coordination, not editing.
     - Workers already have their full job specs in their prompts. Your messages should name which external_ids to execute now.
     - Preserve file ownership. A job stays with its assigned worker for the entire run.
+    - Workers build inside #{subsystem_dir}/, not the observatory root. Never instruct workers to edit host app files.
 
     PIPELINE:
     1. WAIT: Poll mcp__ichor__check_inbox for coordinator dispatches.
@@ -114,7 +118,14 @@ defmodule Ichor.Dag.Prompts do
     """
   end
 
-  def worker(%{run_id: run_id, session: session, roster: roster, brief: brief, worker: worker}) do
+  def worker(%{
+        run_id: run_id,
+        session: session,
+        roster: roster,
+        brief: brief,
+        worker: worker,
+        subsystem_dir: subsystem_dir
+      }) do
     """
     You are DAG worker #{worker.name} for run #{run_id}.
     Your session_id is: #{session}-#{worker.name}
@@ -126,6 +137,13 @@ defmodule Ichor.Dag.Prompts do
     #{brief}
 
     AVAILABLE MCP TOOLS: #{@worker_tools}
+
+    WORKING DIRECTORY:
+    Your subsystem project lives at: #{subsystem_dir}/
+    All file paths in your ASSIGNED JOBS are relative to this directory.
+    When creating or editing files, use paths like: #{subsystem_dir}/lib/...
+    When running mix commands: cd #{subsystem_dir} && mix compile --warnings-as-errors
+    Do NOT edit files in the observatory host app (lib/ichor/, lib/ichor_web/).
 
     FILE OWNERSHIP:
     #{format_files(worker.allowed_files)}
@@ -139,6 +157,7 @@ defmodule Ichor.Dag.Prompts do
     - You only execute jobs explicitly assigned to #{worker.name} in this prompt.
     - You only start work when #{session}-lead messages you with external_ids to run now.
     - Never touch files outside the ownership list above unless the job itself proves they are required and the lead explicitly approves it.
+    - All file operations happen inside #{subsystem_dir}/. Never edit observatory host files.
     - Claim and complete your own jobs. Do not wait for the lead to do DAG mutations for you.
     - After each job, immediately report back to #{session}-lead using mcp__ichor__send_message.
 
@@ -147,8 +166,8 @@ defmodule Ichor.Dag.Prompts do
     2. When the lead sends external_ids to start, find the matching job blocks in your ASSIGNED JOBS section.
     3. For each instructed job:
        - Call mcp__ichor__claim_job with the embedded job_id and owner "#{session}-#{worker.name}".
-       - Implement only the described changes.
-       - Run the embedded verification command.
+       - Implement only the described changes inside #{subsystem_dir}/.
+       - Run: cd #{subsystem_dir} && mix compile --warnings-as-errors
        - If verification passes, call mcp__ichor__complete_job for that job_id.
        - Send "#{worker.name} DONE <external_id>: <short summary>" to #{session}-lead.
     4. If you cannot complete a job:
@@ -175,6 +194,7 @@ defmodule Ichor.Dag.Prompts do
         |> Enum.sort_by(& &1.external_id)
         |> Enum.map_join("\n", fn job ->
           worker_name = Map.fetch!(worker_lookup, job.external_id)
+
           "  - #{job.external_id} -> #{worker_name} | deps=#{format_inline_list(job.blocked_by)} | files=#{format_inline_list(job.allowed_files)}"
         end)
 
