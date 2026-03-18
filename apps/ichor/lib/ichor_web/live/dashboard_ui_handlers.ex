@@ -3,6 +3,8 @@ defmodule IchorWeb.DashboardUIHandlers do
   UI interaction handlers for keyboard shortcuts, modal toggles, and detail panel management.
   """
 
+  alias IchorWeb.DashboardViewRouter
+
   def dispatch("toggle_shortcuts_help", p, s), do: handle_toggle_shortcuts_help(p, s)
   def dispatch("toggle_create_task_modal", p, s), do: handle_toggle_create_task_modal(p, s)
   def dispatch("toggle_event_detail", p, s), do: handle_toggle_event_detail(p, s)
@@ -126,11 +128,7 @@ defmodule IchorWeb.DashboardUIHandlers do
   defp maybe_restore(socket, _key, ""), do: socket
 
   defp maybe_restore(socket, :view_mode, value) when is_binary(value) do
-    socket
-    |> Phoenix.Component.assign(:view_mode, String.to_existing_atom(value))
-    |> Phoenix.LiveView.push_event("view_mode_changed", %{view_mode: value})
-  rescue
-    ArgumentError -> socket
+    DashboardViewRouter.assign_view(socket, value)
   end
 
   defp maybe_restore(socket, :sidebar_collapsed, "true"),
