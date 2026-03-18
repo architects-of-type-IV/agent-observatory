@@ -9,6 +9,7 @@ defmodule IchorWeb.Components.FleetHelpers do
   # Adds map-based and name-heuristic overloads for display contexts.
 
   alias Ichor.Gateway.AgentRegistry.AgentEntry
+  alias IchorWeb.Presentation
 
   def classify_role(%{role: r}) when is_atom(r), do: r
 
@@ -110,10 +111,7 @@ defmodule IchorWeb.Components.FleetHelpers do
     |> Map.put("operator", "operator")
   end
 
-  def resolve_label(id, map), do: Map.get(map, id, short_id(id))
-
-  defp short_id(nil), do: "?"
-  defp short_id(id), do: AgentEntry.short_id(id)
+  def resolve_label(id, map), do: Map.get(map, id, Presentation.short_id(id))
 
   def filter_by_team(messages, nil, _teams), do: messages
 
@@ -156,9 +154,7 @@ defmodule IchorWeb.Components.FleetHelpers do
 
   def filter_by_agents(messages, _, _), do: messages
 
-  def format_timestamp(nil), do: ""
-  def format_timestamp(%DateTime{} = dt), do: Calendar.strftime(dt, "%H:%M:%S")
-  def format_timestamp(_), do: ""
+  def format_timestamp(ts), do: Presentation.format_time(ts, "%H:%M:%S")
 
   # -- Project grouping --
 

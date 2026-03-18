@@ -4,18 +4,14 @@ defmodule IchorWeb.DashboardAgentHealthHelpers do
   Domain logic lives in Ichor.Fleet.Analysis.AgentHealth.
   """
 
+  alias IchorWeb.Presentation
+
   defdelegate compute_agent_health(member_events, now), to: Ichor.Fleet.Analysis.AgentHealth
   defdelegate calculate_failure_rate(events), to: Ichor.Fleet.Analysis.AgentHealth
 
-  def health_color(:healthy), do: "bg-success"
-  def health_color(:warning), do: "bg-brand"
-  def health_color(:critical), do: "bg-error"
-  def health_color(_), do: "bg-highlight"
+  def health_color(status), do: Presentation.health_bg_class(status)
 
-  def health_text_color(:healthy), do: "text-success"
-  def health_text_color(:warning), do: "text-brand"
-  def health_text_color(:critical), do: "text-error"
-  def health_text_color(_), do: "text-low"
+  def health_text_color(status), do: Presentation.health_text_class(status)
 
   def format_issue({:stuck, latest_event}) do
     "Agent stuck - no activity for >60s (last event: #{relative_time_simple(latest_event.inserted_at)})"

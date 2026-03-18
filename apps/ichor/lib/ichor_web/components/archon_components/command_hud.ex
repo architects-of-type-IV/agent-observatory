@@ -5,6 +5,7 @@ defmodule IchorWeb.Components.ArchonComponents.CommandHud do
 
   import IchorWeb.Components.ArchonComponents.Icons, only: [hud_icon: 1]
   import IchorWeb.Markdown, only: [render: 1]
+  import IchorWeb.Presentation
 
   attr :actions, :list, required: true
   attr :loading, :boolean, default: false
@@ -126,7 +127,7 @@ defmodule IchorWeb.Components.ArchonComponents.CommandHud do
         <div :for={a <- @agents} class="archon-output-card">
           <div class="flex items-center justify-between">
             <span class="archon-output-card-name">{a["name"]}</span>
-            <span class={"archon-output-badge #{status_color(a["status"])}"}>
+            <span class={"archon-output-badge #{archon_status_badge_class(a["status"])}"}>
               {to_string(a["status"] || "unknown")}
             </span>
           </div>
@@ -155,7 +156,7 @@ defmodule IchorWeb.Components.ArchonComponents.CommandHud do
         <div :for={t <- @teams} class="archon-output-card">
           <div class="flex items-center justify-between">
             <span class="archon-output-card-name">{t["name"]}</span>
-            <span class={"archon-output-badge #{health_color(t["health"])}"}>
+            <span class={"archon-output-badge #{archon_health_badge_class(t["health"])}"}>
               {to_string(t["health"] || "unknown")}
             </span>
           </div>
@@ -165,8 +166,8 @@ defmodule IchorWeb.Components.ArchonComponents.CommandHud do
           </div>
           <div :if={t["members"]} class="archon-output-member-list">
             <div :for={m <- t["members"]} class="archon-output-member">
-              <span class="archon-output-member-role">{safe_str(m["role"])}</span>
-              <span class="archon-output-member-status">{safe_str(m["status"])}</span>
+              <span class="archon-output-member-role">{safe_string(m["role"])}</span>
+              <span class="archon-output-member-status">{safe_string(m["status"])}</span>
             </div>
           </div>
         </div>
@@ -218,11 +219,11 @@ defmodule IchorWeb.Components.ArchonComponents.CommandHud do
       <div class="archon-output-message-list">
         <div :for={m <- @inbox} class="archon-output-message">
           <div class="flex items-center justify-between">
-            <span class="archon-output-card-name">{safe_str(m["from"] || "system")}</span>
-            <span class="archon-output-card-detail">{format_ts(m["timestamp"])}</span>
+            <span class="archon-output-card-name">{safe_string(m["from"] || "system")}</span>
+            <span class="archon-output-card-detail">{format_time(m["timestamp"], "%H:%M")}</span>
           </div>
           <div :if={m["to"]} class="archon-output-card-meta">
-            <span>to: {safe_str(m["to"])}</span>
+            <span>to: {safe_string(m["to"])}</span>
           </div>
           <div class="archon-output-message-content">{m["content"]}</div>
         </div>
@@ -296,7 +297,7 @@ defmodule IchorWeb.Components.ArchonComponents.CommandHud do
       <div class="archon-output-card" style="margin-top: 0.5rem">
         <div class="flex items-center justify-between mb-2">
           <span class="archon-output-card-name">{@agent["name"]}</span>
-          <span class={"archon-output-badge #{status_color(@agent["status"])}"}>
+          <span class={"archon-output-badge #{archon_status_badge_class(@agent["status"])}"}>
             {to_string(@agent["status"])}
           </span>
         </div>
@@ -463,7 +464,7 @@ defmodule IchorWeb.Components.ArchonComponents.CommandHud do
         <div :for={item <- @attention} class="archon-output-message">
           <div class="flex items-center justify-between">
             <span class="archon-output-card-name">{to_string(item[:signal] || item["signal"])}</span>
-            <span class={"archon-output-badge #{attention_color(item[:severity] || item["severity"])}"}>
+            <span class={"archon-output-badge #{archon_attention_badge_class(item[:severity] || item["severity"])}"}>
               {to_string(item[:severity] || item["severity"])}
             </span>
           </div>
@@ -476,44 +477,8 @@ defmodule IchorWeb.Components.ArchonComponents.CommandHud do
 
   # ── Helpers ──────────────────────────────────────────────────────────
 
-  defp status_color(status) when is_atom(status), do: status_color(to_string(status))
-  defp status_color("active"), do: "archon-badge-ok"
-  defp status_color("paused"), do: "archon-badge-warn"
-  defp status_color(_), do: "archon-badge-dim"
-
-  defp health_color("healthy"), do: "archon-badge-ok"
-  defp health_color("degraded"), do: "archon-badge-warn"
-  defp health_color("critical"), do: "archon-badge-fail"
-  defp health_color(_), do: "archon-badge-dim"
-
-  defp attention_color(:critical), do: "archon-badge-fail"
-  defp attention_color("critical"), do: "archon-badge-fail"
-  defp attention_color(:high), do: "archon-badge-warn"
-  defp attention_color("high"), do: "archon-badge-warn"
-  defp attention_color(_), do: "archon-badge-dim"
-
-  defp format_ts(nil), do: ""
-
-  defp format_ts(%DateTime{} = dt) do
-    Calendar.strftime(dt, "%H:%M")
-  end
-
-  defp format_ts(ts) when is_binary(ts) do
-    case DateTime.from_iso8601(ts) do
-      {:ok, dt, _} -> Calendar.strftime(dt, "%H:%M")
-      _ -> ts
-    end
-  end
-
-  defp format_ts(_), do: ""
-
   defp format_tool(%{tool_name: name}), do: to_string(name)
   defp format_tool(tool) when is_binary(tool), do: tool
   defp format_tool(tool) when is_atom(tool), do: to_string(tool)
   defp format_tool(tool), do: inspect(tool)
-
-  defp safe_str(nil), do: ""
-  defp safe_str(val) when is_binary(val), do: val
-  defp safe_str(val) when is_atom(val), do: to_string(val)
-  defp safe_str(val), do: inspect(val)
 end

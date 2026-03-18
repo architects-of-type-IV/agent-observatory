@@ -6,20 +6,13 @@ defmodule IchorWeb.Components.ProtocolComponents do
 
   use Phoenix.Component
   import IchorWeb.DashboardFormatHelpers
-
-  alias Ichor.Gateway.AgentRegistry.AgentEntry
+  import IchorWeb.Presentation
 
   embed_templates "protocol_components/*"
 
   # ═══════════════════════════════════════════════════════
   # Helpers
   # ═══════════════════════════════════════════════════════
-
-  defp short_id(nil), do: "?"
-  defp short_id("unknown"), do: "?"
-  defp short_id("system"), do: "system"
-  defp short_id("broadcast"), do: "all"
-  defp short_id(id), do: AgentEntry.short_id(id)
 
   defp trace_type_label(:send_message), do: "message"
   defp trace_type_label(:team_create), do: "team"
@@ -73,7 +66,7 @@ defmodule IchorWeb.Components.ProtocolComponents do
       nil ->
         case String.split(id, "@") do
           [agent, team] -> "#{agent}@#{team}"
-          _ -> AgentEntry.short_id(id)
+          _ -> short_id(id)
         end
 
       name ->
@@ -81,6 +74,5 @@ defmodule IchorWeb.Components.ProtocolComponents do
     end
   end
 
-  defp format_timestamp(%DateTime{} = dt), do: Calendar.strftime(dt, "%H:%M:%S")
-  defp format_timestamp(_), do: ""
+  defp format_timestamp(ts), do: format_time(ts, "%H:%M:%S")
 end

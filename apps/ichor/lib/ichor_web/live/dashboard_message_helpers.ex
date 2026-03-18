@@ -4,7 +4,7 @@ defmodule IchorWeb.DashboardMessageHelpers do
   Groups messages by conversation pairs for easier navigation.
   """
 
-  alias Ichor.Gateway.AgentRegistry.AgentEntry
+  alias IchorWeb.Presentation
 
   @doc """
   Group messages by conversation thread (sender <-> recipient pairs).
@@ -149,6 +149,5 @@ defmodule IchorWeb.DashboardMessageHelpers do
     Enum.join(participants, "<->")
   end
 
-  defp short_id(id) when is_binary(id), do: AgentEntry.short_id(id)
-  defp short_id(_), do: "?"
+  defp short_id(id), do: Presentation.short_id(id)
 end
