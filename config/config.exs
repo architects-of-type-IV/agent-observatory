@@ -19,11 +19,14 @@ config :ichor,
     Ichor.Workshop,
     Ichor.Archon,
     Ichor.Archon.Tools,
-    Ichor.Signals,
+    Ichor.Signals.Domain,
     Ichor.Mes,
     Ichor.Genesis,
     Ichor.Dag
   ]
+
+# Ichor Contracts -- signals runtime implementation
+config :ichor_contracts, :signals_impl, Ichor.Signals.Runtime
 
 # Configure the endpoint
 config :ichor, IchorWeb.Endpoint,

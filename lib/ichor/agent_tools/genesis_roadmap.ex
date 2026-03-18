@@ -2,7 +2,7 @@ defmodule Ichor.AgentTools.GenesisRoadmap do
   @moduledoc "MCP tools for Mode C roadmap hierarchy: Phase, Section, Task, Subtask."
   use Ash.Resource, domain: Ichor.AgentTools
 
-  alias Ichor.Genesis.{Phase, Section, Task, Subtask}
+  alias Ichor.Genesis.{Phase, Section, Subtask, Task}
 
   actions do
     action :create_phase, :map do

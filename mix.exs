@@ -76,7 +76,9 @@ defmodule Ichor.MixProject do
       {:earmark, "~> 1.4"},
       # Code quality
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
-      {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false}
+      {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
+      # Subsystem contracts
+      {:ichor_contracts, path: "subsystems/ichor_contracts"}
     ]
   end
 

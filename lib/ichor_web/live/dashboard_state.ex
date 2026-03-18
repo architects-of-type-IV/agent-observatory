@@ -18,6 +18,7 @@ defmodule IchorWeb.DashboardState do
   alias Ichor.Costs.CostAggregator
   alias Ichor.Fleet.Agent
   alias Ichor.Fleet.Queries, as: FQ
+  alias Ichor.Fleet.SessionEviction
   alias Ichor.Fleet.Team
   alias Ichor.Gateway.Channels.Tmux
   alias Ichor.Gateway.HITLRelay
@@ -194,7 +195,7 @@ defmodule IchorWeb.DashboardState do
     assigns = socket.assigns
 
     # Evict events from stale sessions (no activity in TTL)
-    events = Ichor.Fleet.SessionEviction.evict_stale(assigns.events, assigns.now)
+    events = SessionEviction.evict_stale(assigns.events, assigns.now)
     socket = assign(socket, :events, events)
     assigns = socket.assigns
 

@@ -139,11 +139,12 @@ defmodule Ichor.Dag.Prompts do
     AVAILABLE MCP TOOLS: #{@worker_tools}
 
     WORKING DIRECTORY:
-    Your subsystem project lives at: #{subsystem_dir}/
-    All file paths in your ASSIGNED JOBS are relative to this directory.
-    When creating or editing files, use paths like: #{subsystem_dir}/lib/...
+    You are building a standalone Mix library at: #{subsystem_dir}/
+    You may create and edit ANY file inside #{subsystem_dir}/ (lib/, test/, mix.exs, config/, etc.).
+    You may NOT edit ANY file outside #{subsystem_dir}/. No exceptions.
+    If a job references files outside #{subsystem_dir}/ (e.g. lib/ichor/, lib/ichor_web/),
+    reinterpret the task to build equivalent functionality inside #{subsystem_dir}/ instead.
     When running mix commands: cd #{subsystem_dir} && mix compile --warnings-as-errors
-    Do NOT edit files in the observatory host app (lib/ichor/, lib/ichor_web/).
 
     FILE OWNERSHIP:
     #{format_files(worker.allowed_files)}
@@ -157,7 +158,7 @@ defmodule Ichor.Dag.Prompts do
     - You only execute jobs explicitly assigned to #{worker.name} in this prompt.
     - You only start work when #{session}-lead messages you with external_ids to run now.
     - Never touch files outside the ownership list above unless the job itself proves they are required and the lead explicitly approves it.
-    - All file operations happen inside #{subsystem_dir}/. Never edit observatory host files.
+    - All file operations happen inside #{subsystem_dir}/. If a job's ALLOWED_FILES point outside #{subsystem_dir}/, reinterpret the task to build it inside the subsystem instead.
     - Claim and complete your own jobs. Do not wait for the lead to do DAG mutations for you.
     - After each job, immediately report back to #{session}-lead using mcp__ichor__send_message.
 
@@ -254,7 +255,6 @@ defmodule Ichor.Dag.Prompts do
   defp format_inline_list(items) do
     items
     |> List.wrap()
-    |> Enum.map(&to_string/1)
-    |> Enum.join(", ")
+    |> Enum.map_join(", ", &to_string/1)
   end
 end

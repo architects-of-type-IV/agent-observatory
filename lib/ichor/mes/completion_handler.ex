@@ -8,6 +8,8 @@ defmodule Ichor.Mes.CompletionHandler do
 
   require Logger
 
+  alias Ichor.Dag.Run
+  alias Ichor.Genesis.Node
   alias Ichor.Mes.{Project, SubsystemLoader}
   alias Ichor.Signals
 
@@ -31,7 +33,7 @@ defmodule Ichor.Mes.CompletionHandler do
   # ── Private ──────────────────────────────────────────────────────
 
   defp handle_completion(%{run_id: run_id}) do
-    with {:ok, run} <- Ichor.Dag.Run.get(run_id),
+    with {:ok, run} <- Run.get(run_id),
          {:ok, node} <- resolve_node(run.node_id),
          {:ok, project} <- resolve_project(node.mes_project_id) do
       compile_and_load(project, run_id)
@@ -54,7 +56,7 @@ defmodule Ichor.Mes.CompletionHandler do
   defp resolve_node(nil), do: {:error, :no_node}
 
   defp resolve_node(node_id) do
-    case Ichor.Genesis.Node.get(node_id) do
+    case Node.get(node_id) do
       {:ok, nil} -> {:error, :no_node}
       {:ok, node} -> {:ok, node}
       error -> error

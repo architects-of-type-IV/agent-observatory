@@ -78,62 +78,73 @@ defmodule Ichor.NudgeEscalator do
   defp check_and_escalate(state) do
     now = DateTime.utc_now()
     stale_threshold = config(:stale_threshold_sec, @default_stale_threshold)
-    nudge_interval = config(:nudge_interval_sec, @default_nudge_interval)
-    max_level = config(:max_level, @default_max_level)
 
-    agents = AgentProcess.list_all() |> Enum.map(fn {_id, meta} -> meta end)
+    stale_agents = find_stale_agents(now, stale_threshold)
+    escalations = process_escalations(stale_agents, state.escalations, now)
+    stale_ids = MapSet.new(stale_agents, &agent_session_id/1)
 
-    stale_agents =
-      agents
-      |> Enum.reject(fn agent -> agent[:role] == :operator end)
-      |> Enum.filter(fn agent ->
-        (agent[:session_id] || agent[:agent_id]) != nil &&
-          agent[:status] == :active &&
-          agent[:last_event_at] &&
-          DateTime.diff(now, agent[:last_event_at], :second) > stale_threshold
-      end)
-
-    escalations =
-      Enum.reduce(stale_agents, state.escalations, fn agent, acc ->
-        session_id = agent[:session_id] || agent[:agent_id]
-
-        entry =
-          Map.get(acc, session_id, %{
-            level: -1,
-            last_nudge_at: DateTime.add(now, -nudge_interval - 1, :second),
-            stale_since: now
-          })
-
-        since_last = DateTime.diff(now, entry.last_nudge_at, :second)
-
-        # Non-tmux agents (e.g., direct Claude Code sessions) cap at level 0 (warn only).
-        # Tmux nudges and HITL pauses are meaningless without a tmux session.
-        effective_max = if agent[:channels] && agent.channels[:tmux], do: max_level, else: 0
-
-        if since_last >= nudge_interval && entry.level < effective_max do
-          new_level = entry.level + 1
-          execute_escalation(session_id, agent, new_level)
-
-          Map.put(acc, session_id, %{
-            level: new_level,
-            last_nudge_at: now,
-            stale_since: entry.stale_since
-          })
-        else
-          acc
-        end
-      end)
-
-    # Clean up entries for sessions that are no longer stale
-    stale_ids = MapSet.new(stale_agents, fn a -> a[:session_id] || a[:agent_id] end)
-
-    escalations =
+    pruned =
       escalations
       |> Enum.filter(fn {sid, _} -> MapSet.member?(stale_ids, sid) end)
       |> Map.new()
 
-    %{state | escalations: escalations}
+    %{state | escalations: pruned}
   end
+
+  defp find_stale_agents(now, threshold) do
+    AgentProcess.list_all()
+    |> Enum.map(fn {_id, meta} -> meta end)
+    |> Enum.reject(&(&1[:role] == :operator))
+    |> Enum.filter(&stale?(&1, now, threshold))
+  end
+
+  defp stale?(agent, now, threshold) do
+    agent_session_id(agent) != nil and
+      agent[:status] == :active and
+      agent[:last_event_at] != nil and
+      DateTime.diff(now, agent[:last_event_at], :second) > threshold
+  end
+
+  defp agent_session_id(agent), do: agent[:session_id] || agent[:agent_id]
+
+  defp process_escalations(stale_agents, escalations, now) do
+    nudge_interval = config(:nudge_interval_sec, @default_nudge_interval)
+    max_level = config(:max_level, @default_max_level)
+
+    Enum.reduce(stale_agents, escalations, fn agent, acc ->
+      session_id = agent_session_id(agent)
+      entry = Map.get(acc, session_id, default_entry(now, nudge_interval))
+      maybe_escalate(acc, session_id, agent, entry, now, nudge_interval, max_level)
+    end)
+  end
+
+  defp default_entry(now, nudge_interval) do
+    %{level: -1, last_nudge_at: DateTime.add(now, -nudge_interval - 1, :second), stale_since: now}
+  end
+
+  defp maybe_escalate(acc, session_id, agent, entry, now, nudge_interval, max_level) do
+    since_last = DateTime.diff(now, entry.last_nudge_at, :second)
+    effective_max = effective_max_level(agent, max_level)
+
+    case since_last >= nudge_interval and entry.level < effective_max do
+      true ->
+        new_level = entry.level + 1
+        execute_escalation(session_id, agent, new_level)
+
+        Map.put(acc, session_id, %{
+          level: new_level,
+          last_nudge_at: now,
+          stale_since: entry.stale_since
+        })
+
+      false ->
+        acc
+    end
+  end
+
+  # Non-tmux agents cap at level 0 (warn only). Tmux nudges/HITL pauses need a tmux session.
+  defp effective_max_level(%{channels: %{tmux: tmux}}, max) when not is_nil(tmux), do: max
+  defp effective_max_level(_, _max), do: 0
 
   defp maybe_unpause(_session_id, %{level: level}) when level < 2, do: :ok
 

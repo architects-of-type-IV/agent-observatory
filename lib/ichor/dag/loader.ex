@@ -2,6 +2,8 @@ defmodule Ichor.Dag.Loader do
   @moduledoc "Loads tasks into Dag.Run + Dag.Job records from tasks.jsonl or Genesis hierarchy."
 
   alias Ichor.Dag.{Graph, Job, Run}
+  alias Ichor.Genesis.DagGenerator
+  alias Ichor.Genesis.Node, as: GenesisNode
   alias Ichor.Signals
 
   @spec from_file(String.t(), keyword()) :: {:ok, Run.t()} | {:error, term()}
@@ -20,7 +22,7 @@ defmodule Ichor.Dag.Loader do
     tmux_session = Keyword.get(opts, :tmux_session)
     archive_existing_runs_for_node(node_id)
 
-    with {:ok, task_maps} <- Ichor.Genesis.DagGenerator.generate(node_id) do
+    with {:ok, task_maps} <- DagGenerator.generate(node_id) do
       label = derive_label(node_id)
       raw_items = Enum.map(task_maps, &normalize_genesis_map/1)
       create_run_with_jobs(raw_items, label, :genesis, tmux_session, %{node_id: node_id})
@@ -126,7 +128,7 @@ defmodule Ichor.Dag.Loader do
   end
 
   defp derive_label(node_id) do
-    case Ichor.Genesis.Node.get(node_id) do
+    case GenesisNode.get(node_id) do
       {:ok, node} -> node.title
       _ -> "DAG Run"
     end

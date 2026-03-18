@@ -39,27 +39,18 @@ defmodule Ichor.Mes.SubsystemScaffold do
 
   defp create_project(path, app_name, module_name) do
     lib_dir = Path.join(path, "lib")
-    stub_dir = Path.join([path, "lib", "ichor"])
 
     with :ok <- File.mkdir_p(lib_dir),
-         :ok <- File.mkdir_p(Path.join(stub_dir, "mes/subsystem")),
          :ok <- write_file(path, "mix.exs", Templates.mix_exs(app_name, module_name)),
          :ok <- write_file(path, ".formatter.exs", Templates.formatter()),
          :ok <- write_file(path, ".gitignore", Templates.gitignore()),
+         :ok <- write_file(path, "README.md", Templates.readme(app_name, module_name)),
+         :ok <- write_file(path, "integration.md", Templates.integration(app_name, module_name)),
          :ok <-
            write_file(
              lib_dir,
              "#{app_name}.ex",
              Templates.module_placeholder(app_name, module_name)
-           ),
-         :ok <- write_file(stub_dir, "signals.ex", Templates.signals_stub()),
-         :ok <- write_file(stub_dir, "pub_sub.ex", Templates.pubsub_stub()),
-         :ok <- write_file(Path.join(stub_dir, "mes"), "subsystem.ex", Templates.subsystem_stub()),
-         :ok <-
-           write_file(
-             Path.join(stub_dir, "mes/subsystem"),
-             "info.ex",
-             Templates.info_stub()
            ) do
       {:ok, path}
     else

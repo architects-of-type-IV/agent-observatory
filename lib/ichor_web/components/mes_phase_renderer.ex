@@ -3,6 +3,8 @@ defmodule IchorWeb.Components.MesPhaseRenderer do
 
   use Phoenix.Component
 
+  alias Phoenix.HTML.Safe
+
   @doc "Render a phase's full hierarchy as an HTML string."
   @spec render(map()) :: String.t()
   def render(phase) do
@@ -18,7 +20,7 @@ defmodule IchorWeb.Components.MesPhaseRenderer do
 
     assigns
     |> phase_detail()
-    |> Phoenix.HTML.Safe.to_iodata()
+    |> Safe.to_iodata()
     |> IO.iodata_to_binary()
   end
 

@@ -9,6 +9,9 @@ defmodule Ichor.Dag.Job do
     domain: Ichor.Dag,
     data_layer: AshSqlite.DataLayer
 
+  alias Ichor.Dag.RunProcess
+  alias Ichor.Signals
+
   sqlite do
     repo(Ichor.Repo)
     table("dag_jobs")
@@ -170,7 +173,7 @@ defmodule Ichor.Dag.Job do
       validate(attribute_equals(:owner, nil))
 
       change(set_attribute(:status, :in_progress))
-      change(set_attribute(:claimed_at, &Ichor.Dag.Job.now/0))
+      change(set_attribute(:claimed_at, &__MODULE__.now/0))
       change(atomic_update(:owner, expr(^arg(:owner))))
 
       change(
@@ -184,7 +187,7 @@ defmodule Ichor.Dag.Job do
       require_atomic?(false)
       accept([:notes])
       change(set_attribute(:status, :completed))
-      change(set_attribute(:completed_at, &Ichor.Dag.Job.now/0))
+      change(set_attribute(:completed_at, &__MODULE__.now/0))
 
       change(
         after_action(fn _changeset, result, _context ->
@@ -248,8 +251,8 @@ defmodule Ichor.Dag.Job do
   @doc false
   def emit_and_sync(result, signal, keys) do
     payload = Map.take(result, keys) |> Map.new(fn {k, v} -> {k, v} end)
-    Ichor.Signals.emit(signal, payload)
-    Ichor.Dag.RunProcess.sync_job(result.run_id, result)
+    Signals.emit(signal, payload)
+    RunProcess.sync_job(result.run_id, result)
     {:ok, result}
   rescue
     # RunProcess may not be running (no tmux session for imported runs)

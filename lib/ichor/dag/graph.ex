@@ -15,13 +15,17 @@ defmodule Ichor.Dag.Graph do
 
   def to_graph_node(%{"id" => _} = m) do
     %{
-      id: m["id"] || "",
-      status: m["status"] || "pending",
-      blocked_by: m["blocked_by"] || [],
-      allowed_files: m["files"] || m["allowed_files"] || [],
-      owner: m["owner"] || "",
-      updated_at: m["updated"] || m["updated_at"] || m["created"] || ""
+      id: Map.get(m, "id", ""),
+      status: Map.get(m, "status", "pending"),
+      blocked_by: Map.get(m, "blocked_by", []),
+      allowed_files: first_present(m, ["files", "allowed_files"], []),
+      owner: Map.get(m, "owner", ""),
+      updated_at: first_present(m, ["updated", "updated_at", "created"], "")
     }
+  end
+
+  defp first_present(map, keys, default) do
+    Enum.find_value(keys, default, &map[&1])
   end
 
   @doc "Topological sort into execution waves. Wave 0 has no dependencies."

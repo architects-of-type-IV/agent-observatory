@@ -1,5 +1,21 @@
 # ICHOR IV Progress
 
+## ichor_contracts Refactor (2026-03-18) -- COMPLETE
+- [x] Created ichor_contracts shared library (facade + behaviour + config dispatch)
+- [x] Ichor.Signals split: facade (contracts) + Runtime (host) + Domain (Ash, host)
+- [x] Canonical types moved to contracts: Message, Subsystem, Info, Topics
+- [x] Host depends on ichor_contracts, configures signals_impl
+- [x] Signal catalog split: 550L -> 5 bounded definition modules + 76L aggregator
+- [x] pulse_monitor decoupled from host internals, uses facade API only
+- [x] ichor_stubs deleted, scaffold templates updated to ichor_contracts
+- [x] All credo --strict issues fixed (17 -> 1 intentional FIXME)
+  - Nested module aliases resolved (7 files)
+  - Alphabetical alias ordering fixed (2 files)
+  - Implicit try preference (1 file)
+  - Cyclomatic complexity reduced (3 functions)
+  - TODO tag -> FIXME with tracking context
+- [x] mix compile + dialyzer + credo --strict all clean
+
 ## DAG Build on Standalone Mix Libraries (2026-03-18) -- COMPLETE
 - [x] SubsystemScaffold: creates subsystems/{name}/ with mix.exs + stubs
 - [x] SubsystemScaffold.Templates: pure template rendering (mix.exs, stubs, placeholder)

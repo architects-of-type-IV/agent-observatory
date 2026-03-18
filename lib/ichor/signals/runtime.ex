@@ -1,36 +1,15 @@
-defmodule Ichor.Signals do
+defmodule Ichor.Signals.Runtime do
   @moduledoc """
-  Ash Domain: the ICHOR nervous system.
-
-  Centralized signal protocol layer. Owns transport, envelope, topic naming,
-  and publish/subscribe API. Business domains own business meaning.
-
-  ## Emit
-
-      Ichor.Signals.emit(:agent_started, %{session_id: sid, role: "worker"})
-      Ichor.Signals.emit(:agent_event, scope_id, %{event: event})
-
-  ## Subscribe
-
-      Ichor.Signals.subscribe(:fleet)
-      Ichor.Signals.subscribe(:agent_started)
-      Ichor.Signals.subscribe(:agent_event, session_id)
-
-  ## Receive
-
-      def handle_info(%Ichor.Signals.Message{name: :agent_started, data: data}, socket)
+  Host implementation of the Ichor.Signals contract.
+  Owns transport, envelope building, catalog validation, and PubSub broadcast.
+  Configured as the signals_impl in config.exs.
   """
 
-  use Ash.Domain
+  @behaviour Ichor.Signals.Behaviour
 
   alias Ichor.Signals.{Bus, Catalog, Message, Topics}
 
-  resources do
-    resource(Ichor.Signals.Event)
-  end
-
-  # ── Emit ──────────────────────────────────────────────────────────────
-
+  @impl true
   @spec emit(atom(), map()) :: :ok
   def emit(name, data \\ %{}) when is_atom(name) do
     info = Catalog.lookup!(name)
@@ -38,6 +17,7 @@ defmodule Ichor.Signals do
     broadcast_static(info, message)
   end
 
+  @impl true
   @spec emit(atom(), String.t(), map()) :: :ok
   def emit(name, scope_id, data) when is_atom(name) and is_binary(scope_id) do
     info = Catalog.lookup!(name)
@@ -50,8 +30,7 @@ defmodule Ichor.Signals do
     :ok
   end
 
-  # ── Subscribe ─────────────────────────────────────────────────────────
-
+  @impl true
   @spec subscribe(atom()) :: :ok | {:error, term()}
   def subscribe(name) when is_atom(name) do
     case Catalog.valid_category?(name) do
@@ -60,6 +39,7 @@ defmodule Ichor.Signals do
     end
   end
 
+  @impl true
   @spec subscribe(atom(), String.t()) :: :ok | {:error, term()}
   def subscribe(name, scope_id) when is_atom(name) and is_binary(scope_id) do
     info = Catalog.lookup!(name)
@@ -67,8 +47,7 @@ defmodule Ichor.Signals do
     Bus.subscribe(Topics.scoped(info.category, name, scope_id))
   end
 
-  # ── Unsubscribe ───────────────────────────────────────────────────────
-
+  @impl true
   @spec unsubscribe(atom()) :: :ok
   def unsubscribe(name) when is_atom(name) do
     case {Catalog.valid_category?(name), Catalog.lookup(name)} do
@@ -78,6 +57,7 @@ defmodule Ichor.Signals do
     end
   end
 
+  @impl true
   def unsubscribe(name, scope_id) when is_atom(name) and is_binary(scope_id) do
     case Catalog.lookup(name) do
       %{dynamic: true} = info ->
@@ -88,12 +68,13 @@ defmodule Ichor.Signals do
     end
   end
 
-  # ── Public helpers ────────────────────────────────────────────────────
-
-  @doc false
+  @impl true
+  @spec category_topic(atom()) :: String.t()
   def category_topic(category), do: Topics.category(category)
 
-  # ── Internal ──────────────────────────────────────────────────────────
+  @impl true
+  @spec categories() :: [atom()]
+  def categories, do: Catalog.categories()
 
   defp broadcast_static(info, message) do
     Bus.broadcast(Topics.category(info.category), message)

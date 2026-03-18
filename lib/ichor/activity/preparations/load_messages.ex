@@ -32,22 +32,23 @@ defmodule Ichor.Activity.Preparations.LoadMessages do
   defp send_message_event?(_), do: false
 
   defp event_to_message(e) do
-    input = (e.payload || %{})["tool_input"] || %{}
+    input = get_in(e, [:payload, "tool_input"]) || %{}
     args = parse_args(input)
-
-    from = args["from_session_id"] || args["from"] || e.session_id
-    to = args["to_session_id"] || args["recipient"] || args["to"]
 
     struct!(Ichor.Activity.Message, %{
       id: e.id,
-      sender_session: from,
+      sender_session: pick(args, ["from_session_id", "from"], e.session_id),
       sender_app: e.source_app,
-      type: args["type"] || "message",
-      recipient: to,
-      content: args["content"] || args["summary"] || "",
+      type: Map.get(args, "type", "message"),
+      recipient: pick(args, ["to_session_id", "recipient", "to"], nil),
+      content: pick(args, ["content", "summary"], ""),
       summary: args["summary"],
       timestamp: e.inserted_at
     })
+  end
+
+  defp pick(map, keys, default) do
+    Enum.find_value(keys, default, &map[&1])
   end
 
   # MCP tools nest args under "input" key; sometimes as a JSON string

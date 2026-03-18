@@ -4,6 +4,8 @@ defmodule Ichor.Genesis.PipelineStage do
   Queries Ichor.Dag.Run for :building stage detection (cross-domain read).
   """
 
+  alias Ichor.Dag.Run
+
   @type stage ::
           :ideation
           | :mode_a
@@ -127,7 +129,7 @@ defmodule Ichor.Genesis.PipelineStage do
   defp has_active_dag_run?(nil), do: false
 
   defp has_active_dag_run?(%{id: node_id}) when is_binary(node_id) do
-    case Ichor.Dag.Run.by_node(node_id) do
+    case Run.by_node(node_id) do
       {:ok, [_ | _]} -> true
       _ -> false
     end

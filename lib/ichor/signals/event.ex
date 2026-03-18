@@ -3,7 +3,7 @@ defmodule Ichor.Signals.Event do
   Ash Resource exposing signal operations as actions.
   Queryable by Archon and MCP tools.
   """
-  use Ash.Resource, domain: Ichor.Signals
+  use Ash.Resource, domain: Ichor.Signals.Domain
 
   alias Ichor.Signals.{Buffer, Catalog}
 

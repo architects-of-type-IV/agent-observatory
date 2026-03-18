@@ -20,7 +20,7 @@ defmodule Ichor.Operator do
   @type_iv_registry Ichor.Registry
 
   # In-memory message log for comms panel. Capped at 200 entries.
-  # TODO: replace with persistent storage when needed.
+  # FIXME(persistence): replace with Ash Resource when message volume warrants it.
   @message_log_name :ichor_message_log
   @max_messages 200
 

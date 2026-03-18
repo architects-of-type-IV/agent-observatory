@@ -10,6 +10,8 @@ defmodule Ichor.Dag.Job.Preparations.FilterAvailable do
 
   use Ash.Resource.Preparation
 
+  alias Ichor.Dag.Job
+
   @impl true
   def prepare(query, _opts, _context) do
     Ash.Query.after_action(query, fn _query, results ->
@@ -26,7 +28,7 @@ defmodule Ichor.Dag.Job.Preparations.FilterAvailable do
   end
 
   defp completed_external_ids(run_id) do
-    case Ichor.Dag.Job.by_run(run_id) do
+    case Job.by_run(run_id) do
       {:ok, jobs} ->
         jobs
         |> Enum.filter(&(&1.status == :completed))

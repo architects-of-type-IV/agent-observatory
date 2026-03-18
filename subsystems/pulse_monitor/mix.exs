@@ -7,13 +7,19 @@ defmodule Ichor.Subsystems.PulseMonitor.MixProject do
       version: "0.1.0",
       elixir: "~> 1.19",
       start_permanent: Mix.env() == :prod,
-      deps: []
+      deps: deps()
     ]
   end
 
   def application do
     [
       extra_applications: [:logger]
+    ]
+  end
+
+  defp deps do
+    [
+      {:ichor_contracts, path: "../ichor_contracts"}
     ]
   end
 end

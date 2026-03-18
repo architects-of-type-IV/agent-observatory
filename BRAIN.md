@@ -18,41 +18,45 @@ Every team MUST follow this exact pattern. No exceptions. No shortcuts.
 **NEVER** use dynamic spawning via spawn_agent MCP at runtime.
 **NEVER** pass prompts via `-p` flag (shell arg limits).
 
+## ichor_contracts Architecture (2026-03-18, IMPLEMENTED)
+- Facade + behaviour + config dispatch pattern for `Ichor.Signals`
+- `ichor_contracts` owns: Signals facade, Behaviour, Noop, Message, Topics, Subsystem, Info
+- Host owns: Signals.Runtime (impl), Signals.Domain (Ash), Catalog, Bus, Buffer
+- Config: `:ichor_contracts, :signals_impl, Ichor.Signals.Runtime`
+- Subsystems depend on `{:ichor_contracts, path: "../ichor_contracts"}` -- never on the host
+- No stubs, no naming conflicts -- contracts IS the canonical source of truth
+- codex (GPT-5.4) was the architecture sparring partner for this design
+
 ## Subsystem Architecture (2026-03-18, IMPLEMENTED)
 - MES projects are standalone Mix libraries in `subsystems/{name}/`
-- Stubs provide compile-time behaviour/struct definitions (4 files)
-- SubsystemLoader hot-loads only `Ichor.Subsystems.*` modules into BEAM
+- Scaffold creates: mix.exs, README.md, integration.md, placeholder module
+- Workers build inside subsystem dir ONLY -- reinterpret host-file tasks
 - Signals provide full decoupling -- no compile-time dependency on host
-- Workers build inside subsystem dir, compile independently
 - CompletionHandler (Mes domain) reacts to `:dag_run_completed` -> SubsystemLoader
 
 ## Ichor.Dag Domain (2026-03-18, IMPLEMENTED)
 - Separate Ash domain from Genesis. Genesis = planning, Dag = execution.
 - Resources: Run (SQLite), Job (SQLite) with after_action signal hooks
-- Pure modules: Graph (waves, critical path), Validator (cycles, overlaps), WorkerGroups (file-based grouping)
-- I/O: Loader (tasks.jsonl + Genesis -> DB), Exporter (DB -> tasks.jsonl write-through)
-- Lifecycle: HealthChecker, RunProcess (signal-driven), RunSupervisor, Supervisor
-- MCP tools: 7 actions in AgentTools.DagExecution
-- Spawner: ALL agents upfront (coordinator + lead + N workers per file group)
+- Pure modules: Graph, Validator, WorkerGroups
+- Spawner delegates to WorkerGroups, scaffolds subsystem before launch
 - Archon TeamWatchdog: signal-driven lifecycle monitor (no timers)
 
 ## Critical Constraints
 - **No external SaaS** -- self-hosted only
 - **External apps DOWN** -- Memories (4000) and Genesis app (hardware)
-- **MES scheduler PAUSED**
-- **Module limit**: 200 lines, single responsibility
+- **Module limit**: 200 lines guide, SRP is the real rule
 - **Style**: pattern matching, no if/else, ash-elixir-expert.md mandatory
-- **Ash**: code_interface for all actions, relationships via belongs_to/has_many
-- **Ash codegen**: snapshots broken, use manual migrations
-- **No manual migrations**: all business logic through Ash Domain/Resources
+- **Ash**: code_interface for all actions, Domain is canonical API
+- **No manual migrations**: all through Ash Domain/Resources
+- **One module per file**: nested modules are illegal
+- **credo --strict**: must be clean
 
 ## User Preferences (ENFORCED)
 - "Always go for pragmatism"
-- "Never think of solutions yourself. LLMs can judge and discuss."
 - "Architect solutions with agents before coding"
 - "MES teams work perfect. Follow that pattern."
-- "Archon is always watching. Signal-driven, not timers."
 - "RESPECT ash-elixir-expert.md"
-- "Surgical precision. No exploration. Write code, verify, report."
 - "Use multiple agents for research and review"
-- "/dag skill is absolutely perfect. Our app needs to be as perfect."
+- "Take ownership" = fix ALL issues, not just new ones
+- "Use codex actively as sparring partner"
+- "Nested modules are illegal. One module per file."

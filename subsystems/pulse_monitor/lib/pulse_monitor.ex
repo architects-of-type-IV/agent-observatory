@@ -166,7 +166,7 @@ defmodule Ichor.Subsystems.PulseMonitor do
   # ── Private ────────────────────────────────────────────────────────
 
   defp subscribe_all do
-    categories = Ichor.Signals.Catalog.categories()
+    categories = Ichor.Signals.categories()
     Enum.each(categories, &Ichor.Signals.subscribe/1)
     categories
   rescue
@@ -176,11 +176,8 @@ defmodule Ichor.Subsystems.PulseMonitor do
   end
 
   defp unsubscribe_all do
-    Ichor.Signals.Catalog.categories()
-    |> Enum.each(fn cat ->
-      topic = Ichor.Signals.Topics.category(cat)
-      Phoenix.PubSub.unsubscribe(Ichor.PubSub, topic)
-    end)
+    Ichor.Signals.categories()
+    |> Enum.each(&Ichor.Signals.unsubscribe/1)
   rescue
     _ -> :ok
   end

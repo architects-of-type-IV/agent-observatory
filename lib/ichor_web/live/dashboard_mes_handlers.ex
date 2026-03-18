@@ -149,11 +149,9 @@ defmodule IchorWeb.DashboardMesHandlers do
   @scheduler_fallback %{tick: 0, active_runs: 0, next_tick_in: 60_000, paused: false}
 
   def fetch_scheduler_status do
-    try do
-      Scheduler.status()
-    catch
-      :exit, _ -> @scheduler_fallback
-    end
+    Scheduler.status()
+  catch
+    :exit, _ -> @scheduler_fallback
   end
 
   @genesis_loads [
