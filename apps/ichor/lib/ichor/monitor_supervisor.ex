@@ -20,6 +20,7 @@ defmodule Ichor.MonitorSupervisor do
       {Ichor.QualityGate, []},
       {Ichor.PaneMonitor, []},
       {Ichor.Signals.Buffer, []},
+      {Ichor.Archon.SignalManager, []},
       {Ichor.Archon.TeamWatchdog, []}
     ]
 
