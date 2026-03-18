@@ -1,8 +1,10 @@
 defmodule Ichor.Archon.TeamWatchdog do
   @moduledoc """
-  Monitors team lifecycle across all team types (DAG, Genesis, MES).
-  Detects unexpected deaths, archives runs, resets jobs, notifies operator.
-  Pure decision logic in Reactions module; this GenServer is orchestration only.
+  Signal-driven team lifecycle monitor. No timers, no polling.
+  Reacts to fleet and run signals to detect unexpected deaths,
+  archive runs, reset jobs, and notify operator.
+
+  Pure decision logic in Reactions module; this GenServer dispatches only.
   """
 
   use GenServer
@@ -10,11 +12,9 @@ defmodule Ichor.Archon.TeamWatchdog do
   alias Ichor.Archon.TeamWatchdog.Reactions
   alias Ichor.Dag.{Job, Run}
   alias Ichor.Fleet.FleetSupervisor
-  alias Ichor.Gateway.Channels.Tmux
   alias Ichor.Signals
   alias Ichor.Signals.Message
 
-  @sweep_interval_ms :timer.minutes(2)
   @inbox_dir Path.expand("~/.claude/inbox")
 
   def start_link(opts), do: GenServer.start_link(__MODULE__, opts, name: __MODULE__)
@@ -25,7 +25,6 @@ defmodule Ichor.Archon.TeamWatchdog do
     Signals.subscribe(:dag)
     Signals.subscribe(:genesis)
     Signals.subscribe(:monitoring)
-    schedule_sweep()
     {:ok, %{completed_runs: MapSet.new()}}
   end
 
@@ -33,16 +32,6 @@ defmodule Ichor.Archon.TeamWatchdog do
   def handle_info(%Message{name: name, data: data}, state) do
     {actions, new_state} = Reactions.react(name, data, state)
     Enum.each(actions, &dispatch/1)
-    {:noreply, new_state}
-  end
-
-  def handle_info(:sweep, state) do
-    run_checks = check_active_runs()
-    {actions, new_state} = Reactions.react_sweep(run_checks, state)
-    Enum.each(actions, &dispatch/1)
-
-    Signals.emit(:watchdog_sweep, %{orphaned_count: length(actions)})
-    schedule_sweep()
     {:noreply, new_state}
   end
 
@@ -80,26 +69,6 @@ defmodule Ichor.Archon.TeamWatchdog do
   end
 
   defp dispatch({:notify_operator, message}) do
-    write_inbox_notification(message)
-  end
-
-  # ── Sweep ────────────────────────────────────────────────────────
-
-  defp check_active_runs do
-    case Run.active() do
-      {:ok, runs} ->
-        Enum.map(runs, fn run ->
-          {run.id, run.tmux_session, Tmux.available?(run.tmux_session)}
-        end)
-
-      _ ->
-        []
-    end
-  end
-
-  defp schedule_sweep, do: Process.send_after(self(), :sweep, @sweep_interval_ms)
-
-  defp write_inbox_notification(message) do
     File.mkdir_p!(@inbox_dir)
 
     notification = %{
