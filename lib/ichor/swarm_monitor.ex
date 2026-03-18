@@ -5,17 +5,16 @@ defmodule Ichor.SwarmMonitor do
   healing, reassigning, and garbage-collecting pipelines.
   """
   use GenServer
-  require Logger
 
   alias Ichor.Fleet.Lifecycle.Cleanup
+  alias Ichor.SwarmMonitor.Analysis
+  alias Ichor.SwarmMonitor.Health
   alias Ichor.Signals.Message
   alias Ichor.SwarmMonitor.Discovery
   alias Ichor.SwarmMonitor.TaskState
 
   @tasks_poll_interval 3_000
   @health_poll_interval 30_000
-  @health_check_script Path.expand("~/.claude/skills/swarm/scripts/health-check.sh")
-
   # ═══════════════════════════════════════════════════════
   # Client API
   # ═══════════════════════════════════════════════════════
@@ -145,10 +144,8 @@ defmodule Ichor.SwarmMonitor do
         now = DateTime.utc_now()
 
         reset_count =
-          state.tasks
-          |> Enum.filter(fn t ->
-            t.status == "in_progress" && stale?(t, now, threshold_min)
-          end)
+          Analysis.find_stale_tasks(state.tasks, now)
+          |> Enum.filter(fn task -> stale_with_threshold?(task, now, threshold_min) end)
           |> Enum.reduce(0, &count_reset(&1, &2, path))
 
         state = refresh_tasks(state)
@@ -264,211 +261,7 @@ defmodule Ichor.SwarmMonitor do
   # ═══════════════════════════════════════════════════════
 
   defp refresh_tasks(state) do
-    # Load tasks from ALL watched projects, not just active
-    all_tasks =
-      state.watched_projects
-      |> Enum.flat_map(fn {key, path} ->
-        tasks_path = Path.join(path, "tasks.jsonl")
-
-        parse_tasks_jsonl(tasks_path)
-        |> Enum.map(fn t -> %{t | project: key} end)
-      end)
-
-    case all_tasks do
-      [] ->
-        %{
-          state
-          | tasks: [],
-            pipeline: empty_pipeline(),
-            dag: empty_dag(),
-            stale_tasks: [],
-            file_conflicts: []
-        }
-
-      tasks ->
-        pipeline = compute_pipeline(tasks)
-        dag = compute_dag(tasks)
-        stale = find_stale_tasks(tasks, DateTime.utc_now())
-        conflicts = find_file_conflicts(tasks)
-
-        %{
-          state
-          | tasks: tasks,
-            pipeline: pipeline,
-            dag: dag,
-            stale_tasks: stale,
-            file_conflicts: conflicts
-        }
-    end
-  end
-
-  defp parse_tasks_jsonl(path) do
-    if File.exists?(path) do
-      path
-      |> File.stream!()
-      |> Enum.map(&decode_task_line/1)
-      |> Enum.reject(fn t -> is_nil(t) or t.status == "deleted" end)
-    else
-      []
-    end
-  end
-
-  defp decode_task_line(line) do
-    case Jason.decode(String.trim(line)) do
-      {:ok, task} -> normalize_task(task)
-      _ -> nil
-    end
-  end
-
-  defp normalize_task(t) do
-    %{
-      id: field(t, "id", ""),
-      status: field(t, "status", "pending"),
-      subject: field(t, "subject", ""),
-      description: field(t, "description", ""),
-      owner: field(t, "owner", ""),
-      priority: field(t, "priority", "medium"),
-      blocked_by: field(t, "blocked_by", []),
-      files: field(t, "files", []),
-      done_when: field(t, "done_when", ""),
-      updated: t["updated"] || t["created"] || "",
-      notes: field(t, "notes", ""),
-      tags: field(t, "tags", []),
-      project: ""
-    }
-  end
-
-  defp field(map, key, default), do: map[key] || default
-
-  defp compute_pipeline(tasks) do
-    %{
-      total: length(tasks),
-      pending: Enum.count(tasks, &(&1.status == "pending")),
-      in_progress: Enum.count(tasks, &(&1.status == "in_progress")),
-      completed: Enum.count(tasks, &(&1.status == "completed")),
-      failed: Enum.count(tasks, &(&1.status == "failed")),
-      blocked: Enum.count(tasks, &(&1.status == "blocked"))
-    }
-  end
-
-  # ═══════════════════════════════════════════════════════
-  # DAG computation
-  # ═══════════════════════════════════════════════════════
-
-  defp compute_dag(tasks) do
-    completed_ids =
-      tasks |> Enum.filter(&(&1.status == "completed")) |> Enum.map(& &1.id) |> MapSet.new()
-
-    task_map = Map.new(tasks, &{&1.id, &1})
-
-    # Build edges: {blocker_id, dependent_id}
-    edges =
-      Enum.flat_map(tasks, fn t ->
-        Enum.map(t.blocked_by, fn dep -> {dep, t.id} end)
-      end)
-
-    # Compute waves via topological sort
-    waves = compute_waves(tasks, task_map)
-
-    # Critical path: longest dependency chain
-    critical_path = compute_critical_path(tasks, task_map, completed_ids)
-
-    %{waves: waves, edges: edges, critical_path: critical_path}
-  end
-
-  defp compute_waves(tasks, task_map) do
-    # Wave 0: tasks with no dependencies
-    # Wave N: tasks whose all dependencies are in waves < N
-    ids = Enum.map(tasks, & &1.id) |> MapSet.new()
-    assigned = MapSet.new()
-    do_compute_waves(tasks, task_map, ids, assigned, [], 0)
-  end
-
-  defp do_compute_waves(tasks, task_map, all_ids, assigned, waves, wave_num) do
-    if MapSet.size(assigned) == MapSet.size(all_ids) or wave_num > 50 do
-      Enum.reverse(waves)
-    else
-      wave =
-        tasks
-        |> Enum.filter(&wave_ready?(&1, assigned, all_ids))
-        |> Enum.map(& &1.id)
-
-      case wave do
-        [] ->
-          remaining = collect_remaining_ids(tasks, assigned)
-          Enum.reverse([remaining | waves])
-
-        _ ->
-          new_assigned = Enum.reduce(wave, assigned, &MapSet.put(&2, &1))
-          do_compute_waves(tasks, task_map, all_ids, new_assigned, [wave | waves], wave_num + 1)
-      end
-    end
-  end
-
-  defp compute_critical_path(tasks, task_map, _completed_ids) do
-    # DFS to find longest dependency chain
-    memo = %{}
-
-    {_memo, lengths} =
-      Enum.reduce(tasks, {memo, %{}}, fn t, {m, l} ->
-        {depth, m} = longest_chain(t.id, task_map, m)
-        {m, Map.put(l, t.id, depth)}
-      end)
-
-    case Enum.max_by(lengths, fn {_id, depth} -> depth end, fn -> {nil, 0} end) do
-      {nil, _} -> []
-      {start_id, _} -> trace_critical_path(start_id, task_map)
-    end
-  end
-
-  defp longest_chain(id, task_map, memo) do
-    case Map.get(memo, id) do
-      nil -> compute_chain_depth(id, task_map, memo)
-      depth -> {depth, memo}
-    end
-  end
-
-  defp compute_chain_depth(id, task_map, memo) do
-    case Map.get(task_map, id) do
-      nil ->
-        {0, Map.put(memo, id, 0)}
-
-      task ->
-        {max_dep, memo} =
-          Enum.reduce(task.blocked_by, {0, memo}, fn dep_id, {max, m} ->
-            {depth, m} = longest_chain(dep_id, task_map, m)
-            {max(max, depth), m}
-          end)
-
-        depth = max_dep + 1
-        {depth, Map.put(memo, id, depth)}
-    end
-  end
-
-  defp trace_critical_path(id, task_map) do
-    case Map.get(task_map, id) do
-      nil -> []
-      task -> trace_from_task(id, task, task_map)
-    end
-  end
-
-  defp trace_from_task(id, %{blocked_by: []}, _task_map), do: [id]
-
-  defp trace_from_task(id, %{blocked_by: deps}, task_map) do
-    longest_dep =
-      deps
-      |> Enum.map(&dep_path_length(&1, task_map))
-      |> Enum.max_by(fn {_id, len} -> len end)
-      |> elem(0)
-
-    trace_critical_path(longest_dep, task_map) ++ [id]
-  end
-
-  defp dep_path_length(dep_id, task_map) do
-    case Map.get(task_map, dep_id) do
-      nil -> {dep_id, 0}
-      _ -> {dep_id, length(trace_critical_path(dep_id, task_map))}
-    end
+    Analysis.refresh_tasks(state)
   end
 
   # ═══════════════════════════════════════════════════════
@@ -476,71 +269,7 @@ defmodule Ichor.SwarmMonitor do
   # ═══════════════════════════════════════════════════════
 
   defp do_health_check(state) do
-    project_path = get_active_project_path(state)
-
-    if project_path && File.exists?(@health_check_script) do
-      case run_health_script(project_path) do
-        {:ok, health} -> %{state | health: health}
-        :error -> state
-      end
-    else
-      state
-    end
-  end
-
-  defp run_health_script(project_path) do
-    case System.cmd("bash", [@health_check_script, project_path, "10"],
-           stderr_to_stdout: true,
-           env: []
-         ) do
-      {output, 0} -> parse_health_output(output)
-      {_output, _code} -> :error
-    end
-  end
-
-  defp parse_health_output(output) do
-    case Jason.decode(output) do
-      {:ok, report} ->
-        {:ok,
-         %{
-           healthy: report["healthy"] || false,
-           issues: parse_issues(report),
-           agents: report["agents"] || %{},
-           timestamp: DateTime.utc_now()
-         }}
-
-      _ ->
-        Logger.warning("SwarmMonitor: Failed to parse health report")
-        :error
-    end
-  end
-
-  defp parse_issues(report) do
-    details = get_in(report, ["issues", "details"]) || []
-
-    Enum.map(details, fn issue ->
-      %{
-        type: issue["type"] || "unknown",
-        severity: issue["severity"] || "LOW",
-        task_id: issue["task_id"],
-        owner: issue["owner"],
-        description: issue["description"] || "",
-        details: issue
-      }
-    end)
-  end
-
-  defp wave_ready?(task, assigned, all_ids) do
-    not MapSet.member?(assigned, task.id) and
-      Enum.all?(task.blocked_by, fn dep ->
-        MapSet.member?(assigned, dep) or not MapSet.member?(all_ids, dep)
-      end)
-  end
-
-  defp collect_remaining_ids(tasks, assigned) do
-    tasks
-    |> Enum.reject(fn t -> MapSet.member?(assigned, t.id) end)
-    |> Enum.map(& &1.id)
+    Health.run(state, get_active_project_path(state))
   end
 
   defp count_reset(task, acc, path) do
@@ -550,19 +279,10 @@ defmodule Ichor.SwarmMonitor do
     end
   end
 
-  # ═══════════════════════════════════════════════════════
-  # Stale / conflict detection
-  # ═══════════════════════════════════════════════════════
-
-  defp find_stale_tasks(tasks, now) do
-    tasks
-    |> Enum.filter(fn t -> t.status == "in_progress" && stale?(t, now, 10) end)
-  end
-
-  defp stale?(task, now, threshold_min) do
+  defp stale_with_threshold?(task, now, threshold_min) do
     case parse_timestamp(task.updated) do
       nil -> true
-      ts -> DateTime.diff(now, ts, :minute) > threshold_min
+      timestamp -> DateTime.diff(now, timestamp, :minute) > threshold_min
     end
   end
 
@@ -572,30 +292,18 @@ defmodule Ichor.SwarmMonitor do
     str = String.replace(str, "Z", "")
 
     case DateTime.from_iso8601(str <> "Z") do
-      {:ok, dt, _} ->
-        dt
+      {:ok, datetime, _} ->
+        datetime
 
       _ ->
         case NaiveDateTime.from_iso8601(str) do
-          {:ok, ndt} -> DateTime.from_naive!(ndt, "Etc/UTC")
+          {:ok, naive_datetime} -> DateTime.from_naive!(naive_datetime, "Etc/UTC")
           _ -> nil
         end
     end
   end
 
   defp parse_timestamp(_), do: nil
-
-  defp find_file_conflicts(tasks) do
-    in_progress = Enum.filter(tasks, &(&1.status == "in_progress"))
-
-    for a <- in_progress,
-        b <- in_progress,
-        a.id < b.id,
-        shared = Enum.filter(a.files, fn f -> f in b.files end),
-        shared != [] do
-      {a.id, b.id, shared}
-    end
-  end
 
   # ═══════════════════════════════════════════════════════
   # Project discovery (delegated to SwarmMonitor.Discovery)
@@ -641,11 +349,6 @@ defmodule Ichor.SwarmMonitor do
 
   defp first_project_key(projects) when map_size(projects) == 0, do: nil
   defp first_project_key(projects), do: projects |> Map.keys() |> hd()
-
-  defp empty_pipeline,
-    do: %{total: 0, pending: 0, in_progress: 0, completed: 0, failed: 0, blocked: 0}
-
-  defp empty_dag, do: %{waves: [], edges: [], critical_path: []}
 
   defp broadcast(state) do
     Ichor.Signals.emit(:swarm_state, %{state_map: state})

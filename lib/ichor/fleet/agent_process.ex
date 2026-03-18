@@ -9,13 +9,11 @@ defmodule Ichor.Fleet.AgentProcess do
 
   use GenServer
 
-  alias Ichor.Fleet.AgentProcess.Delivery
-  alias Ichor.Gateway.Channels.Tmux
-
-  @max_message_buffer 200
+  alias Ichor.Fleet.AgentProcess.Lifecycle
+  alias Ichor.Fleet.AgentProcess.Mailbox
+  alias Ichor.Fleet.AgentProcess.Registry, as: AgentRegistry
   @type_iv_registry Ichor.Registry
   @pg_scope :ichor_agents
-  @liveness_interval :timer.seconds(15)
 
   @type status :: :initializing | :active | :paused | :terminating
 
@@ -188,13 +186,13 @@ defmodule Ichor.Fleet.AgentProcess do
     }
 
     meta = Keyword.get(opts, :metadata, %{})
-    update_registry(id, build_initial_registry_meta(id, state, meta))
+    AgentRegistry.update(id, AgentRegistry.build_initial_meta(id, state, meta))
 
     Ichor.Signals.subscribe(:agent_event, id)
     :pg.join(@pg_scope, {:agent, id}, self())
-    if Keyword.get(opts, :liveness_poll, false), do: schedule_liveness_check()
+    if Keyword.get(opts, :liveness_poll, false), do: Lifecycle.schedule_liveness_check()
 
-    broadcast_lifecycle({:agent_started, id, %{role: role, team: team}})
+    Lifecycle.broadcast({:agent_started, id, %{role: role, team: team}})
     {:ok, state}
   end
 
@@ -206,24 +204,20 @@ defmodule Ichor.Fleet.AgentProcess do
   end
 
   def handle_call(:pause, _from, state) do
-    update_registry(state.id, %{status: :paused})
-    broadcast_lifecycle({:agent_paused, state.id})
+    AgentRegistry.update(state.id, %{status: :paused})
+    Lifecycle.broadcast({:agent_paused, state.id})
     {:reply, :ok, %{state | status: :paused}}
   end
 
   def handle_call(:resume, _from, state) do
-    state.unread |> Enum.reverse() |> Enum.each(&Delivery.deliver(state.backend, &1))
-    update_registry(state.id, %{status: :active})
-    broadcast_lifecycle({:agent_resumed, state.id})
-    {:reply, :ok, %{state | status: :active}}
+    AgentRegistry.update(state.id, %{status: :active})
+    Lifecycle.broadcast({:agent_resumed, state.id})
+    {:reply, :ok, Mailbox.deliver_unread(state)}
   end
 
   @impl true
   def handle_cast({:message, message}, state) do
-    msg = Delivery.normalize(message, state.id)
-    messages = Enum.take([msg | state.messages], @max_message_buffer)
-    Delivery.broadcast(state.id, msg)
-    {:noreply, route_message(msg, %{state | messages: messages})}
+    {:noreply, Mailbox.apply_incoming_message(state, message)}
   end
 
   def handle_cast({:instructions, instructions}, state) do
@@ -235,16 +229,16 @@ defmodule Ichor.Fleet.AgentProcess do
   end
 
   def handle_cast({:update_fields, fields}, state) do
-    update_registry(state.id, fields)
+    AgentRegistry.update(state.id, fields)
     {:noreply, state}
   end
 
   @impl true
   def handle_info(:check_liveness, state) do
-    tmux_target = get_in(state.backend, [:session]) || ""
+    {alive?, tmux_target} = Lifecycle.tmux_alive?(state.backend)
 
-    if Tmux.available?(tmux_target) do
-      schedule_liveness_check()
+    if alive? do
+      Lifecycle.schedule_liveness_check()
       {:noreply, state}
     else
       Ichor.Signals.emit(:mes_agent_tmux_gone, %{agent_id: state.id, tmux: tmux_target})
@@ -253,14 +247,7 @@ defmodule Ichor.Fleet.AgentProcess do
   end
 
   def handle_info(%Ichor.Signals.Message{name: :agent_event, data: %{event: event}}, state) do
-    fields =
-      %{last_event_at: DateTime.utc_now(), status: :active}
-      |> maybe_merge(:model, Map.get(event, :model_name))
-      |> maybe_merge(:cwd, Map.get(event, :cwd))
-      |> maybe_merge(:os_pid, Map.get(event, :os_pid))
-      |> merge_current_tool(event)
-
-    update_registry(state.id, fields)
+    AgentRegistry.update(state.id, AgentRegistry.fields_from_event(event))
     Ichor.Signals.emit(:fleet_changed, %{agent_id: state.id})
     {:noreply, state}
   end
@@ -272,64 +259,17 @@ defmodule Ichor.Fleet.AgentProcess do
     # Tmux window already dead -- skip kill, just clean up BEAM-side registrations.
     # Ichor.Registry auto-deregisters when the process exits -- no explicit remove needed.
     Ichor.EventBuffer.tombstone_session(state.id)
-    broadcast_lifecycle({:agent_stopped, state.id, :tmux_gone})
+    Lifecycle.broadcast({:agent_stopped, state.id, :tmux_gone})
     :ok
   end
 
   def terminate(reason, state) do
-    kill_tmux_backend(state.backend)
+    Lifecycle.terminate_backend(state.backend)
     # Ichor.Registry auto-deregisters when the process exits -- no explicit remove needed.
     Ichor.EventBuffer.tombstone_session(state.id)
-    broadcast_lifecycle({:agent_stopped, state.id, reason})
+    Lifecycle.broadcast({:agent_stopped, state.id, reason})
     :ok
   end
-
-  # ── Internal ────────────────────────────────────────────────────────
-
-  defp build_initial_registry_meta(id, state, meta) do
-    tmux_target = extract_tmux_target(state.backend)
-    tmux_session = extract_session_name(tmux_target)
-    short_name = meta[:short_name] || meta[:name] || id
-
-    %{
-      role: state.role,
-      team: state.team,
-      status: :active,
-      model: meta[:model],
-      cwd: meta[:cwd],
-      current_tool: nil,
-      channels: meta[:channels] || %{tmux: tmux_target, mailbox: id, webhook: nil},
-      os_pid: meta[:os_pid],
-      last_event_at: meta[:last_event_at] || DateTime.utc_now(),
-      short_name: short_name,
-      name: meta[:name] || id,
-      host: meta[:host] || "local",
-      parent_id: meta[:parent_id],
-      backend_type: backend_type(state.backend),
-      tmux_session: tmux_session,
-      tmux_target: tmux_target
-    }
-  end
-
-  defp extract_tmux_target(%{type: :tmux, session: s}), do: s
-  defp extract_tmux_target(_), do: nil
-
-  defp schedule_liveness_check do
-    Process.send_after(self(), :check_liveness, @liveness_interval)
-  end
-
-  defp extract_session_name(nil), do: nil
-  defp extract_session_name(target), do: target |> String.split(":") |> hd()
-
-  defp kill_tmux_backend(%{type: :tmux, session: session}) when is_binary(session) do
-    if String.contains?(session, ":") do
-      Tmux.run_command(["kill-window", "-t", session])
-    else
-      Tmux.run_command(["kill-session", "-t", session])
-    end
-  end
-
-  defp kill_tmux_backend(_), do: :ok
 
   @spec via(String.t()) :: {:via, module(), tuple()}
   defp via(id), do: {:via, Registry, {@type_iv_registry, {:agent, id}, %{}}}
@@ -341,58 +281,4 @@ defmodule Ichor.Fleet.AgentProcess do
       [] -> nil
     end
   end
-
-  # Every message goes to unread (for check_inbox).
-  # If backend exists and agent is active, also push to tmux/webhook.
-  @spec route_message(map(), t()) :: t()
-  defp route_message(msg, %{status: status} = state) when status != :active do
-    %{state | unread: [msg | state.unread]}
-  end
-
-  defp route_message(msg, state) do
-    if state.backend, do: Delivery.deliver(state.backend, msg)
-    %{state | unread: [msg | state.unread]}
-  end
-
-  @spec update_registry(String.t(), map()) :: :error | {term(), term()}
-  defp update_registry(id, fields) do
-    Registry.update_value(@type_iv_registry, {:agent, id}, fn meta -> Map.merge(meta, fields) end)
-  end
-
-  @spec broadcast_lifecycle(tuple()) :: :ok
-  defp broadcast_lifecycle({:agent_started, id, %{role: role, team: team}}) do
-    Ichor.Signals.emit(:agent_started, %{session_id: id, role: role, team: team})
-  end
-
-  defp broadcast_lifecycle({:agent_paused, id}) do
-    Ichor.Signals.emit(:agent_paused, %{session_id: id})
-  end
-
-  defp broadcast_lifecycle({:agent_resumed, id}) do
-    Ichor.Signals.emit(:agent_resumed, %{session_id: id})
-  end
-
-  defp broadcast_lifecycle({:agent_stopped, id, reason}) do
-    Ichor.Signals.emit(:agent_stopped, %{session_id: id, reason: reason})
-  end
-
-  @spec backend_type(map() | nil) :: atom() | nil
-  defp backend_type(nil), do: nil
-  defp backend_type(%{type: t}), do: t
-  defp backend_type(_), do: :unknown
-
-  @spec maybe_merge(map(), atom(), any()) :: map()
-  defp maybe_merge(map, _key, nil), do: map
-  defp maybe_merge(map, key, value), do: Map.put(map, key, value)
-
-  @spec merge_current_tool(map(), map()) :: map()
-  defp merge_current_tool(fields, %{hook_event_type: type, tool_name: tool})
-       when type in [:PreToolUse, "PreToolUse"] and not is_nil(tool),
-       do: Map.put(fields, :current_tool, tool)
-
-  defp merge_current_tool(fields, %{hook_event_type: type})
-       when type in [:PostToolUse, :PostToolUseFailure, "PostToolUse", "PostToolUseFailure"],
-       do: Map.put(fields, :current_tool, nil)
-
-  defp merge_current_tool(fields, _event), do: fields
 end

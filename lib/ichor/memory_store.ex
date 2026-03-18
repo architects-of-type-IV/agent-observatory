@@ -28,21 +28,13 @@ defmodule Ichor.MemoryStore do
   ETS for hot reads, periodic flush to disk.
   """
   use GenServer
-  require Logger
 
-  @blocks_table :letta_blocks
-  @agents_table :letta_agents
-  @recall_table :letta_recall
-  @archival_table :letta_archival
-  @default_block_limit 2000
-  @recall_limit 200
-  # Cap archival entries kept in ETS per agent. Older entries stay on disk only.
-  # Prevents ETS memory bloat -- agents with large archives search disk on miss.
-  @archival_ets_limit 500
-  # Max agents. Beyond this, create_agent is rejected.
-  @max_agents 100
-  # Max blocks total (shared + per-agent).
-  @max_blocks 1000
+  alias Ichor.MemoryStore.Archival
+  alias Ichor.MemoryStore.Blocks
+  alias Ichor.MemoryStore.Broadcast
+  alias Ichor.MemoryStore.Persistence
+  alias Ichor.MemoryStore.Recall
+  alias Ichor.MemoryStore.Tables
 
   # ═══════════════════════════════════════════════════════
   # Client API -- Blocks
@@ -190,7 +182,7 @@ defmodule Ichor.MemoryStore do
   end
 
   @doc "Data directory path."
-  def data_dir, do: Path.expand("~/.ichor/memory")
+  def data_dir, do: Tables.data_dir()
 
   # ═══════════════════════════════════════════════════════
   # Server -- Init
@@ -198,11 +190,11 @@ defmodule Ichor.MemoryStore do
 
   @impl true
   def init(_opts) do
-    :ets.new(@blocks_table, [:named_table, :public, :set])
-    :ets.new(@agents_table, [:named_table, :public, :set])
-    :ets.new(@recall_table, [:named_table, :public, :set])
-    :ets.new(@archival_table, [:named_table, :public, :set])
-    load_from_disk()
+    :ets.new(Tables.blocks_table(), [:named_table, :public, :set])
+    :ets.new(Tables.agents_table(), [:named_table, :public, :set])
+    :ets.new(Tables.recall_table(), [:named_table, :public, :set])
+    :ets.new(Tables.archival_table(), [:named_table, :public, :set])
+    Persistence.load_from_disk()
     schedule_flush()
     {:ok, %{dirty_blocks: MapSet.new(), dirty_agents: MapSet.new()}}
   end
@@ -213,79 +205,36 @@ defmodule Ichor.MemoryStore do
 
   @impl true
   def handle_call({:create_block, attrs}, _from, state) do
-    if :ets.info(@blocks_table, :size) >= @max_blocks do
+    if Blocks.max_blocks_reached?() do
       {:reply, {:error, :max_blocks_reached}, state}
     else
-      block = build_block(attrs)
-      :ets.insert(@blocks_table, {block.id, block})
-
+      {:ok, block} = Blocks.create(attrs)
       {:reply, {:ok, block}, %{state | dirty_blocks: MapSet.put(state.dirty_blocks, block.id)}}
     end
   end
 
   def handle_call({:get_block, block_id}, _from, state) do
-    result =
-      case :ets.lookup(@blocks_table, block_id) do
-        [{^block_id, block}] -> {:ok, block}
-        [] -> {:error, :not_found}
-      end
-
-    {:reply, result, state}
+    {:reply, Blocks.get(block_id), state}
   end
 
   def handle_call({:update_block, block_id, changes}, _from, state) do
-    case :ets.lookup(@blocks_table, block_id) do
-      [{^block_id, block}] ->
-        updated =
-          block
-          |> maybe_put(changes, :value)
-          |> maybe_put(changes, :description)
-          |> maybe_put(changes, :limit)
-          |> Map.put(:updated_at, now_iso())
+    case Blocks.update(block_id, changes) do
+      {:ok, updated} ->
+        {:reply, {:ok, updated},
+         %{state | dirty_blocks: MapSet.put(state.dirty_blocks, block_id)}}
 
-        # Enforce character limit
-        if String.length(updated.value) > updated.limit do
-          {:reply, {:error, :exceeds_limit}, state}
-        else
-          :ets.insert(@blocks_table, {block_id, updated})
-          broadcast_block_change(block_id, updated.label)
-
-          {:reply, {:ok, updated},
-           %{state | dirty_blocks: MapSet.put(state.dirty_blocks, block_id)}}
-        end
-
-      [] ->
-        {:reply, {:error, :not_found}, state}
+      error ->
+        {:reply, error, state}
     end
   end
 
   def handle_call({:delete_block, block_id}, _from, state) do
-    :ets.delete(@blocks_table, block_id)
-
-    # Detach from all agents
-    :ets.tab2list(@agents_table)
-    |> Enum.each(fn {name, agent} ->
-      if block_id in (agent.block_ids || []) do
-        updated = %{agent | block_ids: List.delete(agent.block_ids, block_id)}
-        :ets.insert(@agents_table, {name, updated})
-      end
-    end)
-
+    :ok = Blocks.delete(block_id)
     {:reply, :ok, %{state | dirty_blocks: MapSet.put(state.dirty_blocks, block_id)}}
   end
 
   def handle_call({:list_blocks, opts}, _from, state) do
-    label_filter = Keyword.get(opts, :label)
-
-    blocks =
-      :ets.tab2list(@blocks_table)
-      |> Enum.map(fn {_id, block} -> block end)
-      |> then(fn blocks ->
-        if label_filter, do: Enum.filter(blocks, &(&1.label == label_filter)), else: blocks
-      end)
-      |> Enum.sort_by(& &1.created_at)
-
-    {:reply, {:ok, blocks}, state}
+    {:reply, {:ok, Blocks.list(opts)}, state}
   end
 
   # ═══════════════════════════════════════════════════════
@@ -294,32 +243,27 @@ defmodule Ichor.MemoryStore do
 
   def handle_call({:create_agent, name, memory_blocks, extra_block_ids}, _from, state) do
     cond do
-      :ets.info(@agents_table, :size) >= @max_agents ->
+      :ets.info(Tables.agents_table(), :size) >= Tables.max_agents() ->
         {:reply, {:error, :max_agents_reached}, state}
 
-      :ets.lookup(@agents_table, name) != [] ->
+      :ets.lookup(Tables.agents_table(), name) != [] ->
         {:reply, {:error, :already_exists}, state}
 
       true ->
-        # Create blocks from inline definitions
-        {created_ids, dirty} =
-          Enum.reduce(memory_blocks, {[], state.dirty_blocks}, fn mb, {ids, d} ->
-            block = build_block(mb)
-            :ets.insert(@blocks_table, {block.id, block})
-            {[block.id | ids], MapSet.put(d, block.id)}
-          end)
+        {created_ids, dirty} = Blocks.create_many(memory_blocks)
+        dirty = MapSet.union(state.dirty_blocks, dirty)
 
         all_block_ids = Enum.reverse(created_ids) ++ extra_block_ids
 
         agent = %{
           name: name,
           block_ids: all_block_ids,
-          created_at: now_iso(),
-          updated_at: now_iso()
+          created_at: DateTime.to_iso8601(DateTime.utc_now()),
+          updated_at: DateTime.to_iso8601(DateTime.utc_now())
         }
 
-        :ets.insert(@agents_table, {name, agent})
-        broadcast_agent_change(name, :created)
+        :ets.insert(Tables.agents_table(), {name, agent})
+        Broadcast.agent_changed(name, :created)
 
         {:reply, {:ok, agent},
          %{state | dirty_blocks: dirty, dirty_agents: MapSet.put(state.dirty_agents, name)}}
@@ -327,20 +271,25 @@ defmodule Ichor.MemoryStore do
   end
 
   def handle_call({:get_agent, name}, _from, state) do
-    case :ets.lookup(@agents_table, name) do
+    case :ets.lookup(Tables.agents_table(), name) do
       [{^name, agent}] -> {:reply, {:ok, agent}, state}
       [] -> {:reply, {:error, :not_found}, state}
     end
   end
 
   def handle_call({:attach_block, agent_name, block_id}, _from, state) do
-    with [{^agent_name, agent}] <- :ets.lookup(@agents_table, agent_name),
-         [{^block_id, _block}] <- :ets.lookup(@blocks_table, block_id) do
+    with [{^agent_name, agent}] <- :ets.lookup(Tables.agents_table(), agent_name),
+         {:ok, _block} <- Blocks.get(block_id) do
       if block_id in agent.block_ids do
         {:reply, {:ok, agent}, state}
       else
-        updated = %{agent | block_ids: agent.block_ids ++ [block_id], updated_at: now_iso()}
-        :ets.insert(@agents_table, {agent_name, updated})
+        updated = %{
+          agent
+          | block_ids: agent.block_ids ++ [block_id],
+            updated_at: DateTime.to_iso8601(DateTime.utc_now())
+        }
+
+        :ets.insert(Tables.agents_table(), {agent_name, updated})
 
         {:reply, {:ok, updated},
          %{state | dirty_agents: MapSet.put(state.dirty_agents, agent_name)}}
@@ -351,15 +300,15 @@ defmodule Ichor.MemoryStore do
   end
 
   def handle_call({:detach_block, agent_name, block_id}, _from, state) do
-    case :ets.lookup(@agents_table, agent_name) do
+    case :ets.lookup(Tables.agents_table(), agent_name) do
       [{^agent_name, agent}] ->
         updated = %{
           agent
           | block_ids: List.delete(agent.block_ids, block_id),
-            updated_at: now_iso()
+            updated_at: DateTime.to_iso8601(DateTime.utc_now())
         }
 
-        :ets.insert(@agents_table, {agent_name, updated})
+        :ets.insert(Tables.agents_table(), {agent_name, updated})
 
         {:reply, {:ok, updated},
          %{state | dirty_agents: MapSet.put(state.dirty_agents, agent_name)}}
@@ -371,12 +320,12 @@ defmodule Ichor.MemoryStore do
 
   def handle_call(:list_agents, _from, state) do
     agents =
-      :ets.tab2list(@agents_table)
+      :ets.tab2list(Tables.agents_table())
       |> Enum.map(fn {_name, agent} ->
-        blocks = resolve_blocks(agent.block_ids)
+        blocks = Blocks.resolve(agent.block_ids)
         block_labels = Enum.map(blocks, & &1.label)
-        recall_count = length(get_recall(agent.name))
-        archival_count = archival_count_with_disk(agent.name)
+        recall_count = length(Recall.get(agent.name))
+        archival_count = Archival.count(agent.name)
 
         Map.merge(agent, %{
           block_labels: block_labels,
@@ -390,9 +339,9 @@ defmodule Ichor.MemoryStore do
   end
 
   def handle_call({:read_core_memory, agent_name}, _from, state) do
-    case :ets.lookup(@agents_table, agent_name) do
+    case :ets.lookup(Tables.agents_table(), agent_name) do
       [{^agent_name, agent}] ->
-        blocks = resolve_blocks(agent.block_ids)
+        blocks = Blocks.resolve(agent.block_ids)
 
         result = %{
           agent: agent_name,
@@ -405,8 +354,8 @@ defmodule Ichor.MemoryStore do
                 read_only: b.read_only
               }
             end),
-          recall_count: length(get_recall(agent_name)),
-          archival_count: archival_count_with_disk(agent_name)
+          recall_count: length(Recall.get(agent_name)),
+          archival_count: Archival.count(agent_name)
         }
 
         {:reply, {:ok, result}, state}
@@ -417,13 +366,9 @@ defmodule Ichor.MemoryStore do
   end
 
   def handle_call({:compile_memory, agent_name}, _from, state) do
-    case :ets.lookup(@agents_table, agent_name) do
+    case :ets.lookup(Tables.agents_table(), agent_name) do
       [{^agent_name, agent}] ->
-        blocks = resolve_blocks(agent.block_ids)
-
-        compiled = Enum.map_join(blocks, "\n\n", &compile_block/1)
-
-        {:reply, {:ok, compiled}, state}
+        {:reply, {:ok, agent.block_ids |> Blocks.resolve() |> Blocks.compile()}, state}
 
       [] ->
         {:reply, {:error, :not_found}, state}
@@ -435,11 +380,20 @@ defmodule Ichor.MemoryStore do
   # ═══════════════════════════════════════════════════════
 
   def handle_call({:memory_replace, agent_name, block_label, old_text, new_text}, _from, state) do
-    with {:ok, block} <- find_agent_block(agent_name, block_label),
-         :ok <- check_writable(block) do
+    with {:ok, block} <- Blocks.find_agent_block(agent_name, block_label),
+         :ok <- Blocks.writable?(block) do
       if String.contains?(block.value, old_text) do
-        new_value = String.replace(block.value, old_text, new_text, global: false)
-        save_block_value(block, new_value, state)
+        case Blocks.save_value(
+               block,
+               String.replace(block.value, old_text, new_text, global: false)
+             ) do
+          {:ok, updated} ->
+            {:reply, {:ok, updated},
+             %{state | dirty_blocks: MapSet.put(state.dirty_blocks, block.id)}}
+
+          error ->
+            {:reply, error, state}
+        end
       else
         {:reply, {:error, :text_not_found}, state}
       end
@@ -449,22 +403,19 @@ defmodule Ichor.MemoryStore do
   end
 
   def handle_call({:memory_insert, agent_name, block_label, position, text}, _from, state) do
-    with {:ok, block} <- find_agent_block(agent_name, block_label),
-         :ok <- check_writable(block) do
+    with {:ok, block} <- Blocks.find_agent_block(agent_name, block_label),
+         :ok <- Blocks.writable?(block) do
       lines = String.split(block.value, "\n")
       pos = min(max(position, 0), length(lines))
       {before, after_lines} = Enum.split(lines, pos)
-      new_value = Enum.join(before ++ [text] ++ after_lines, "\n")
 
-      if String.length(new_value) > block.limit do
-        {:reply, {:error, :exceeds_limit}, state}
-      else
-        updated = %{block | value: new_value, updated_at: now_iso()}
-        :ets.insert(@blocks_table, {block.id, updated})
-        broadcast_block_change(block.id, block.label)
+      case Blocks.save_value(block, Enum.join(before ++ [text] ++ after_lines, "\n")) do
+        {:ok, updated} ->
+          {:reply, {:ok, updated},
+           %{state | dirty_blocks: MapSet.put(state.dirty_blocks, block.id)}}
 
-        {:reply, {:ok, updated},
-         %{state | dirty_blocks: MapSet.put(state.dirty_blocks, block.id)}}
+        error ->
+          {:reply, error, state}
       end
     else
       error -> {:reply, error, state}
@@ -472,17 +423,15 @@ defmodule Ichor.MemoryStore do
   end
 
   def handle_call({:memory_rethink, agent_name, block_label, new_value}, _from, state) do
-    with {:ok, block} <- find_agent_block(agent_name, block_label),
-         :ok <- check_writable(block) do
-      if String.length(new_value) > block.limit do
-        {:reply, {:error, :exceeds_limit}, state}
-      else
-        updated = %{block | value: new_value, updated_at: now_iso()}
-        :ets.insert(@blocks_table, {block.id, updated})
-        broadcast_block_change(block.id, block.label)
+    with {:ok, block} <- Blocks.find_agent_block(agent_name, block_label),
+         :ok <- Blocks.writable?(block) do
+      case Blocks.save_value(block, new_value) do
+        {:ok, updated} ->
+          {:reply, {:ok, updated},
+           %{state | dirty_blocks: MapSet.put(state.dirty_blocks, block.id)}}
 
-        {:reply, {:ok, updated},
-         %{state | dirty_blocks: MapSet.put(state.dirty_blocks, block.id)}}
+        error ->
+          {:reply, error, state}
       end
     else
       error -> {:reply, error, state}
@@ -494,35 +443,12 @@ defmodule Ichor.MemoryStore do
   # ═══════════════════════════════════════════════════════
 
   def handle_call({:add_recall, agent_name, role, content, metadata}, _from, state) do
-    recall = get_recall(agent_name)
-
-    entry = %{
-      id: generate_id(),
-      role: role,
-      content: content,
-      metadata: metadata,
-      timestamp: now_iso()
-    }
-
-    updated = [entry | recall] |> Enum.take(@recall_limit)
-    :ets.insert(@recall_table, {agent_name, updated})
-
+    {:ok, entry} = Recall.add(agent_name, role, content, metadata)
     {:reply, {:ok, entry}, %{state | dirty_agents: MapSet.put(state.dirty_agents, agent_name)}}
   end
 
   def handle_call({:conversation_search, agent_name, query, opts}, _from, state) do
-    recall = get_recall(agent_name)
-    limit = Keyword.get(opts, :limit, 10)
-    page = Keyword.get(opts, :page, 0)
-    query_down = String.downcase(query)
-
-    results =
-      recall
-      |> Enum.filter(fn e -> String.contains?(String.downcase(e.content), query_down) end)
-      |> Enum.drop(page * limit)
-      |> Enum.take(limit)
-
-    {:reply, {:ok, results}, state}
+    {:reply, {:ok, Recall.search(agent_name, query, opts)}, state}
   end
 
   def handle_call(
@@ -530,18 +456,7 @@ defmodule Ichor.MemoryStore do
         _from,
         state
       ) do
-    recall = get_recall(agent_name)
-    limit = Keyword.get(opts, :limit, 10)
-
-    results =
-      recall
-      |> Enum.filter(fn e ->
-        ts = e.timestamp
-        ts >= start_date && ts <= end_date
-      end)
-      |> Enum.take(limit)
-
-    {:reply, {:ok, results}, state}
+    {:reply, {:ok, Recall.search_by_date(agent_name, start_date, end_date, opts)}, state}
   end
 
   # ═══════════════════════════════════════════════════════
@@ -549,64 +464,21 @@ defmodule Ichor.MemoryStore do
   # ═══════════════════════════════════════════════════════
 
   def handle_call({:archival_insert, agent_name, content, tags}, _from, state) do
-    archival = get_archival(agent_name)
-
-    passage = %{
-      id: generate_id(),
-      content: content,
-      tags: tags,
-      timestamp: now_iso()
-    }
-
-    # Keep only recent entries in ETS; older ones stay on disk only
-    updated = [passage | archival] |> Enum.take(@archival_ets_limit)
-    :ets.insert(@archival_table, {agent_name, updated})
-    broadcast_agent_change(agent_name, :archival_insert)
-
+    {:ok, passage} = Archival.insert(agent_name, content, tags)
     {:reply, {:ok, passage}, %{state | dirty_agents: MapSet.put(state.dirty_agents, agent_name)}}
   end
 
   def handle_call({:archival_search, agent_name, query, opts}, _from, state) do
-    # ETS holds at most @archival_ets_limit entries. If the agent has
-    # more on disk, search disk directly to avoid missing older passages.
-    archival = get_archival_for_search(agent_name)
-    tags_filter = Keyword.get(opts, :tags, [])
-    limit = Keyword.get(opts, :limit, 10)
-    page = Keyword.get(opts, :page, 0)
-    query_down = String.downcase(query)
-
-    results =
-      archival
-      |> filter_by_tags(tags_filter)
-      |> Enum.filter(fn e ->
-        String.contains?(String.downcase(e.content), query_down)
-      end)
-      |> Enum.drop(page * limit)
-      |> Enum.take(limit)
-
-    {:reply, {:ok, results}, state}
+    {:reply, {:ok, Archival.search(agent_name, query, opts)}, state}
   end
 
   def handle_call({:archival_delete, agent_name, passage_id}, _from, state) do
-    archival = get_archival(agent_name)
-    updated = Enum.reject(archival, fn e -> e.id == passage_id end)
-    :ets.insert(@archival_table, {agent_name, updated})
-
+    :ok = Archival.delete(agent_name, passage_id)
     {:reply, :ok, %{state | dirty_agents: MapSet.put(state.dirty_agents, agent_name)}}
   end
 
   def handle_call({:archival_list, agent_name, opts}, _from, state) do
-    # Use full disk archive for listing to get accurate totals
-    archival = get_archival_for_search(agent_name)
-    limit = Keyword.get(opts, :limit, 50)
-    page = Keyword.get(opts, :page, 0)
-
-    results =
-      archival
-      |> Enum.drop(page * limit)
-      |> Enum.take(limit)
-
-    {:reply, {:ok, %{passages: results, total: length(archival)}}, state}
+    {:reply, {:ok, Archival.list(agent_name, opts)}, state}
   end
 
   # ═══════════════════════════════════════════════════════
@@ -615,346 +487,9 @@ defmodule Ichor.MemoryStore do
 
   @impl true
   def handle_info(:flush_to_disk, state) do
-    flush_dirty(state)
+    Persistence.flush_dirty(state)
     schedule_flush()
     {:noreply, %{state | dirty_blocks: MapSet.new(), dirty_agents: MapSet.new()}}
-  end
-
-  # ═══════════════════════════════════════════════════════
-  # ETS Helpers
-  # ═══════════════════════════════════════════════════════
-
-  defp get_recall(agent_name) do
-    case :ets.lookup(@recall_table, agent_name) do
-      [{^agent_name, entries}] -> entries
-      [] -> []
-    end
-  end
-
-  defp get_archival(agent_name) do
-    case :ets.lookup(@archival_table, agent_name) do
-      [{^agent_name, entries}] -> entries
-      [] -> []
-    end
-  end
-
-  # Accurate archival count -- if ETS is capped, count disk lines
-  defp archival_count_with_disk(agent_name) do
-    ets_entries = get_archival(agent_name)
-
-    if length(ets_entries) >= @archival_ets_limit do
-      archival_path = Path.join([data_dir(), "agents", agent_name, "archival.jsonl"])
-
-      if File.exists?(archival_path) do
-        archival_path
-        |> File.stream!()
-        |> Stream.reject(&(String.trim(&1) == ""))
-        |> Enum.count()
-      else
-        length(ets_entries)
-      end
-    else
-      length(ets_entries)
-    end
-  end
-
-  # For search: if ETS is at capacity, read full archive from disk
-  defp get_archival_for_search(agent_name) do
-    ets_entries = get_archival(agent_name)
-
-    if length(ets_entries) >= @archival_ets_limit do
-      # ETS is capped -- disk may have more. Read disk directly.
-      archival_path = Path.join([data_dir(), "agents", agent_name, "archival.jsonl"])
-
-      if File.exists?(archival_path) do
-        load_jsonl(archival_path)
-      else
-        ets_entries
-      end
-    else
-      ets_entries
-    end
-  end
-
-  defp resolve_blocks(block_ids) do
-    Enum.reduce(block_ids, [], fn id, acc ->
-      case :ets.lookup(@blocks_table, id) do
-        [{^id, block}] -> [block | acc]
-        [] -> acc
-      end
-    end)
-    |> Enum.reverse()
-  end
-
-  defp find_agent_block(agent_name, block_label) do
-    case :ets.lookup(@agents_table, agent_name) do
-      [{^agent_name, agent}] ->
-        blocks = resolve_blocks(agent.block_ids)
-
-        case Enum.find(blocks, &(&1.label == block_label)) do
-          nil -> {:error, :block_not_found}
-          block -> {:ok, block}
-        end
-
-      [] ->
-        {:error, :agent_not_found}
-    end
-  end
-
-  defp check_writable(block) do
-    if block.read_only, do: {:error, :read_only}, else: :ok
-  end
-
-  defp build_block(attrs) do
-    %{
-      id: generate_id(),
-      label: attr(attrs, :label),
-      description: attr(attrs, :description, ""),
-      value: attr(attrs, :value, ""),
-      limit: attr(attrs, :limit, @default_block_limit),
-      read_only: attr(attrs, :read_only, false),
-      created_at: now_iso(),
-      updated_at: now_iso()
-    }
-  end
-
-  defp attr(map, key, default \\ nil), do: map[key] || map[to_string(key)] || default
-
-  defp compile_block(b) do
-    header = "<memory_block label=\"#{b.label}\" read_only=\"#{b.read_only}\">"
-    footer = "</memory_block>"
-    desc = if b.description != "", do: "<!-- #{b.description} -->\n", else: ""
-    "#{header}\n#{desc}#{b.value}\n#{footer}"
-  end
-
-  defp save_block_value(block, new_value, state) do
-    if String.length(new_value) > block.limit do
-      {:reply, {:error, :exceeds_limit}, state}
-    else
-      updated = %{block | value: new_value, updated_at: now_iso()}
-      :ets.insert(@blocks_table, {block.id, updated})
-      broadcast_block_change(block.id, block.label)
-
-      {:reply, {:ok, updated}, %{state | dirty_blocks: MapSet.put(state.dirty_blocks, block.id)}}
-    end
-  end
-
-  defp filter_by_tags(entries, []), do: entries
-
-  defp filter_by_tags(entries, tags) do
-    Enum.filter(entries, fn e -> Enum.any?(tags, &(&1 in (e.tags || []))) end)
-  end
-
-  # ═══════════════════════════════════════════════════════
-  # Disk Persistence
-  # ═══════════════════════════════════════════════════════
-
-  defp load_from_disk do
-    dir = data_dir()
-    load_blocks_from_dir(Path.join(dir, "blocks"))
-    load_agents_from_dir(Path.join(dir, "agents"))
-  end
-
-  defp load_blocks_from_dir(blocks_dir) do
-    with true <- File.dir?(blocks_dir),
-         {:ok, files} <- File.ls(blocks_dir) do
-      files
-      |> Enum.filter(&String.ends_with?(&1, ".json"))
-      |> Enum.each(fn file -> load_block_file(Path.join(blocks_dir, file)) end)
-    else
-      _ -> :ok
-    end
-  end
-
-  defp load_agents_from_dir(agents_dir) do
-    with true <- File.dir?(agents_dir),
-         {:ok, entries} <- File.ls(agents_dir) do
-      entries
-      |> Enum.filter(&File.dir?(Path.join(agents_dir, &1)))
-      |> Enum.each(fn name -> load_agent_from_disk(name, Path.join(agents_dir, name)) end)
-    else
-      _ -> :ok
-    end
-  end
-
-  defp load_block_file(path) do
-    with {:ok, content} <- File.read(path),
-         {:ok, data} <- Jason.decode(content) do
-      block = %{
-        id: data["id"],
-        label: data["label"],
-        description: data["description"] || "",
-        value: data["value"] || "",
-        limit: data["limit"] || @default_block_limit,
-        read_only: data["read_only"] || false,
-        created_at: data["created_at"],
-        updated_at: data["updated_at"]
-      }
-
-      :ets.insert(@blocks_table, {block.id, block})
-    else
-      _ -> Logger.warning("MemoryStore: failed to load block #{path}")
-    end
-  end
-
-  defp load_agent_from_disk(name, agent_dir) do
-    # Agent config
-    config_path = Path.join(agent_dir, "agent.json")
-
-    if File.exists?(config_path) do
-      with {:ok, content} <- File.read(config_path),
-           {:ok, data} <- Jason.decode(content) do
-        agent = %{
-          name: data["name"] || name,
-          block_ids: data["block_ids"] || [],
-          created_at: data["created_at"],
-          updated_at: data["updated_at"]
-        }
-
-        :ets.insert(@agents_table, {name, agent})
-      else
-        _ -> Logger.warning("MemoryStore: corrupt agent.json for #{name}")
-      end
-    end
-
-    # Recall memory
-    recall_path = Path.join(agent_dir, "recall.jsonl")
-
-    if File.exists?(recall_path) do
-      entries = load_jsonl(recall_path)
-      :ets.insert(@recall_table, {name, Enum.reverse(entries) |> Enum.take(@recall_limit)})
-    end
-
-    # Archival memory -- only load most recent entries into ETS
-    archival_path = Path.join(agent_dir, "archival.jsonl")
-
-    if File.exists?(archival_path) do
-      entries = load_jsonl(archival_path) |> Enum.take(@archival_ets_limit)
-      :ets.insert(@archival_table, {name, entries})
-    end
-
-    Logger.debug("MemoryStore: loaded agent #{name}")
-  end
-
-  defp load_jsonl(path) do
-    path
-    |> File.stream!()
-    |> Stream.map(&String.trim/1)
-    |> Stream.reject(&(&1 == ""))
-    |> Stream.map(&Jason.decode/1)
-    |> Stream.filter(fn
-      {:ok, _} -> true
-      _ -> false
-    end)
-    |> Stream.map(fn {:ok, data} -> atomize_entry(data) end)
-    |> Enum.to_list()
-  end
-
-  defp flush_dirty(state) do
-    dir = data_dir()
-    flush_dirty_blocks(state, dir)
-    flush_dirty_agents(state, dir)
-  rescue
-    e -> Logger.warning("MemoryStore: flush failed: #{inspect(e)}")
-  end
-
-  defp flush_dirty_blocks(state, dir) do
-    if MapSet.size(state.dirty_blocks) > 0 do
-      blocks_dir = Path.join(dir, "blocks")
-      File.mkdir_p!(blocks_dir)
-
-      Enum.each(state.dirty_blocks, fn block_id ->
-        flush_single_block(block_id, blocks_dir)
-      end)
-    end
-  end
-
-  defp flush_single_block(block_id, blocks_dir) do
-    path = Path.join(blocks_dir, "#{block_id}.json")
-
-    case :ets.lookup(@blocks_table, block_id) do
-      [{^block_id, block}] ->
-        File.write!(path, Jason.encode!(block, pretty: true))
-
-      [] ->
-        if File.exists?(path), do: File.rm(path)
-    end
-  end
-
-  defp flush_dirty_agents(state, dir) do
-    Enum.each(state.dirty_agents, fn agent_name ->
-      agent_dir = Path.join([dir, "agents", agent_name])
-      File.mkdir_p!(agent_dir)
-      flush_agent_config(agent_name, agent_dir)
-      flush_agent_recall(agent_name, agent_dir)
-      flush_agent_archival(agent_name, agent_dir)
-    end)
-  end
-
-  defp flush_agent_config(agent_name, agent_dir) do
-    case :ets.lookup(@agents_table, agent_name) do
-      [{^agent_name, agent}] ->
-        config_path = Path.join(agent_dir, "agent.json")
-        File.write!(config_path, Jason.encode!(agent, pretty: true))
-
-      [] ->
-        :ok
-    end
-  end
-
-  defp flush_agent_recall(agent_name, agent_dir) do
-    recall = get_recall(agent_name)
-
-    if recall != [] do
-      recall_path = Path.join(agent_dir, "recall.jsonl")
-      lines = recall |> Enum.reverse() |> Enum.map_join("\n", &Jason.encode!/1)
-      File.write!(recall_path, lines <> "\n")
-    end
-  end
-
-  defp flush_agent_archival(agent_name, agent_dir) do
-    archival = get_archival(agent_name)
-    if archival == [], do: :ok, else: do_flush_archival(archival, agent_dir)
-  end
-
-  defp do_flush_archival(archival, agent_dir) do
-    archival_path = Path.join(agent_dir, "archival.jsonl")
-    existing_ids = load_existing_archival_ids(archival_path)
-    new_entries = Enum.reject(archival, fn e -> MapSet.member?(existing_ids, e.id) end)
-
-    if new_entries != [] do
-      append_lines = new_entries |> Enum.reverse() |> Enum.map_join("\n", &Jason.encode!/1)
-      File.write!(archival_path, append_lines <> "\n", [:append])
-    end
-  end
-
-  defp load_existing_archival_ids(path) do
-    if File.exists?(path) do
-      path
-      |> File.stream!()
-      |> Stream.map(&String.trim/1)
-      |> Stream.reject(&(&1 == ""))
-      |> Stream.map(&Jason.decode/1)
-      |> Stream.filter(fn
-        {:ok, _} -> true
-        _ -> false
-      end)
-      |> Stream.map(fn {:ok, d} -> d["id"] end)
-      |> MapSet.new()
-    else
-      MapSet.new()
-    end
-  end
-
-  defp atomize_entry(data) when is_map(data) do
-    %{
-      id: data["id"],
-      role: data["role"],
-      content: data["content"] || data["summary"],
-      tags: data["tags"] || [],
-      metadata: data["metadata"] || %{},
-      timestamp: data["timestamp"]
-    }
   end
 
   # ═══════════════════════════════════════════════════════
@@ -962,26 +497,4 @@ defmodule Ichor.MemoryStore do
   # ═══════════════════════════════════════════════════════
 
   defp schedule_flush, do: Process.send_after(self(), :flush_to_disk, 10_000)
-
-  defp generate_id, do: :crypto.strong_rand_bytes(8) |> Base.encode16(case: :lower)
-
-  defp now_iso, do: DateTime.to_iso8601(DateTime.utc_now())
-
-  defp maybe_put(map, changes, key) do
-    str_key = to_string(key)
-
-    cond do
-      Map.has_key?(changes, key) -> Map.put(map, key, Map.get(changes, key))
-      Map.has_key?(changes, str_key) -> Map.put(map, key, Map.get(changes, str_key))
-      true -> map
-    end
-  end
-
-  defp broadcast_block_change(block_id, label) do
-    Ichor.Signals.emit(:block_changed, %{block_id: block_id, label: label})
-  end
-
-  defp broadcast_agent_change(agent_name, event) do
-    Ichor.Signals.emit(:memory_changed, agent_name, %{agent_name: agent_name, event: event})
-  end
 end
