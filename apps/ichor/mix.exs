@@ -141,7 +141,9 @@ defmodule Ichor.MixProject do
       Ichor.Fleet.Agent,
       Ichor.Fleet.Team,
       Ichor.Fleet.Views.Preparations.LoadAgents,
-      Ichor.Fleet.Views.Preparations.LoadTeams
+      Ichor.Fleet.Views.Preparations.LoadTeams,
+      Ichor.Mes,
+      Ichor.Mes.Project
     ]
   end
 end

@@ -16,7 +16,11 @@ config :ichor,
     Ichor.Workshop,
     Ichor.Archon,
     Ichor.Archon.Tools,
-    Ichor.Signals.Domain,
+    Ichor.Signals.Domain
+  ]
+
+config :ichor_mes,
+  ash_domains: [
     Ichor.Mes
   ]
 
