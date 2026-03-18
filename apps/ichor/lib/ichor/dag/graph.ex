@@ -2,7 +2,7 @@ defmodule Ichor.Dag.Graph do
   @moduledoc "Pure DAG computation on normalized graph node maps."
 
   @doc "Normalize to graph node map. Accepts Job structs or string-key maps."
-  def to_graph_node(%Ichor.Dag.Job{} = job) do
+  def to_graph_node(%{external_id: _external_id} = job) do
     %{
       id: job.external_id,
       status: to_string(job.status),
