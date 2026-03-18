@@ -26,4 +26,14 @@ defmodule Ichor.Genesis do
     resource(Ichor.Genesis.Task)
     resource(Ichor.Genesis.Subtask)
   end
+
+  @spec get_node(String.t(), keyword()) :: {:ok, term()} | {:error, term()}
+  def get_node(id, opts \\ []) do
+    Ichor.Genesis.Node.get(id, opts)
+  end
+
+  @spec node_by_project(String.t(), keyword()) :: {:ok, list(term())} | {:error, term()}
+  def node_by_project(project_id, opts \\ []) do
+    Ichor.Genesis.Node.by_project(project_id, opts)
+  end
 end
