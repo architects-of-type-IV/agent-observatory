@@ -6,9 +6,9 @@ defmodule Ichor.Archon.Tools.Events do
   use Ash.Resource, domain: Ichor.Archon.Tools
 
   alias Ichor.EventBuffer
+  alias Ichor.Fleet
   alias Ichor.Fleet.Lookup
   alias Ichor.Fleet.RuntimeQuery
-  alias Ichor.Fleet.Team, as: FleetTeam
 
   actions do
     action :agent_events, {:array, :map} do
@@ -54,9 +54,9 @@ defmodule Ichor.Archon.Tools.Events do
 
         teams =
           if team_filter in [nil, ""] do
-            FleetTeam.alive!()
+            Fleet.list_alive_teams()
           else
-            FleetTeam.alive!()
+            Fleet.list_alive_teams()
             |> Enum.filter(fn t -> t.name == team_filter end)
           end
 

@@ -1,0 +1,1 @@
+{application,ichor_events,[{modules,['Elixir.Ichor.Events','Elixir.Ichor.Events.Event','Elixir.Ichor.Events.Session','Elixir.Inspect.Ichor.Events.Event','Elixir.Inspect.Ichor.Events.Session']},{optional_applications,[]},{applications,[kernel,stdlib,elixir,logger,ichor_data,ash,ash_sqlite]},{description,"ichor_events"},{registered,[]},{vsn,"0.1.0"}]}.

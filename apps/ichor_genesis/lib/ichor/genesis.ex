@@ -36,4 +36,30 @@ defmodule Ichor.Genesis do
   def node_by_project(project_id, opts \\ []) do
     Ichor.Genesis.Node.by_project(project_id, opts)
   end
+
+  @spec create_node(map()) :: {:ok, Ichor.Genesis.Node.t()} | {:error, term()}
+  def create_node(attrs) do
+    Ichor.Genesis.Node.create(attrs)
+  end
+
+  @spec advance_node(String.t(), atom()) :: {:ok, Ichor.Genesis.Node.t()} | {:error, term()}
+  def advance_node(node_id, status) do
+    with {:ok, node} <- Ichor.Genesis.Node.get(node_id),
+         {:ok, updated} <- Ichor.Genesis.Node.advance(node, status) do
+      {:ok, updated}
+    end
+  end
+
+  @spec list_nodes() :: {:ok, list(Ichor.Genesis.Node.t())} | {:error, term()}
+  def list_nodes do
+    Ichor.Genesis.Node.list_all()
+  end
+
+  @spec load_node(String.t(), list()) :: {:ok, term()} | {:error, term()}
+  def load_node(node_id, loads) do
+    with {:ok, node} <- Ichor.Genesis.Node.get(node_id),
+         {:ok, loaded} <- Ash.load(node, loads) do
+      {:ok, loaded}
+    end
+  end
 end

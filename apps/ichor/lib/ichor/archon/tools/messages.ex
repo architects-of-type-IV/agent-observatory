@@ -4,7 +4,7 @@ defmodule Ichor.Archon.Tools.Messages do
   """
   use Ash.Resource, domain: Ichor.Archon.Tools
 
-  alias Ichor.Activity.Message, as: ActivityMessage
+  alias Ichor.Activity
   alias Ichor.Tools.Messaging
 
   actions do
@@ -23,7 +23,7 @@ defmodule Ichor.Archon.Tools.Messages do
         limit = input.arguments[:limit] || 20
 
         messages =
-          ActivityMessage.recent!()
+          Activity.list_recent_messages()
           |> Enum.take(limit)
           |> Enum.map(fn m ->
             %{

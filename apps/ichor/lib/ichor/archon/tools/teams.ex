@@ -4,8 +4,8 @@ defmodule Ichor.Archon.Tools.Teams do
   """
   use Ash.Resource, domain: Ichor.Archon.Tools
 
+  alias Ichor.Fleet
   alias Ichor.Fleet.RuntimeQuery
-  alias Ichor.Fleet.Team, as: FleetTeam
 
   actions do
     action :list_teams, {:array, :map} do
@@ -13,7 +13,7 @@ defmodule Ichor.Archon.Tools.Teams do
 
       run(fn _input, _context ->
         teams =
-          FleetTeam.alive!()
+          Fleet.list_alive_teams()
           |> Enum.map(&RuntimeQuery.format_team/1)
 
         {:ok, teams}

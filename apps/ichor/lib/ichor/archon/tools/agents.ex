@@ -4,7 +4,7 @@ defmodule Ichor.Archon.Tools.Agents do
   """
   use Ash.Resource, domain: Ichor.Archon.Tools
 
-  alias Ichor.Fleet.Agent, as: FleetAgent
+  alias Ichor.Fleet
   alias Ichor.Fleet.Lookup
   alias Ichor.Gateway.Channels.Tmux
 
@@ -16,7 +16,7 @@ defmodule Ichor.Archon.Tools.Agents do
 
       run(fn _input, _context ->
         agents =
-          FleetAgent.active!()
+          Fleet.list_active_agents()
           |> Enum.map(&format_agent/1)
 
         {:ok, agents}

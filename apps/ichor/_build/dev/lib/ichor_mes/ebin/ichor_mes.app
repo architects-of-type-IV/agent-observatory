@@ -1,0 +1,1 @@
+{application,ichor_mes,[{modules,['Elixir.Ichor.Mes','Elixir.Ichor.Mes.Project','Elixir.Inspect.Ichor.Mes.Project']},{optional_applications,[]},{applications,[kernel,stdlib,elixir,logger,ichor_data,ash,ash_sqlite]},{description,"ichor_mes"},{registered,[]},{vsn,"0.1.0"}]}.
