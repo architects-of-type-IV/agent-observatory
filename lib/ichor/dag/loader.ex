@@ -8,34 +8,22 @@ defmodule Ichor.Dag.Loader do
   def from_file(tasks_jsonl_path, opts \\ []) do
     label = Keyword.get(opts, :label, Path.basename(Path.dirname(tasks_jsonl_path)))
     tmux_session = Keyword.get(opts, :tmux_session)
+    raw_items = parse_jsonl(tasks_jsonl_path)
 
-    case check_existing_by_path(tasks_jsonl_path) do
-      {:ok, existing} ->
-        {:ok, existing}
-
-      :not_found ->
-        raw_items = parse_jsonl(tasks_jsonl_path)
-
-        create_run_with_jobs(raw_items, label, :imported, tmux_session, %{
-          project_path: Path.dirname(tasks_jsonl_path)
-        })
-    end
+    create_run_with_jobs(raw_items, label, :imported, tmux_session, %{
+      project_path: Path.dirname(tasks_jsonl_path)
+    })
   end
 
   @spec from_genesis(String.t(), keyword()) :: {:ok, Run.t()} | {:error, term()}
   def from_genesis(node_id, opts \\ []) do
     tmux_session = Keyword.get(opts, :tmux_session)
+    archive_existing_runs_for_node(node_id)
 
-    case check_existing_by_node(node_id) do
-      {:ok, existing} ->
-        {:ok, existing}
-
-      :not_found ->
-        with {:ok, task_maps} <- Ichor.Genesis.DagGenerator.generate(node_id) do
-          label = derive_label(node_id)
-          raw_items = Enum.map(task_maps, &normalize_genesis_map/1)
-          create_run_with_jobs(raw_items, label, :genesis, tmux_session, %{node_id: node_id})
-        end
+    with {:ok, task_maps} <- Ichor.Genesis.DagGenerator.generate(node_id) do
+      label = derive_label(node_id)
+      raw_items = Enum.map(task_maps, &normalize_genesis_map/1)
+      create_run_with_jobs(raw_items, label, :genesis, tmux_session, %{node_id: node_id})
     end
   end
 
@@ -130,19 +118,10 @@ defmodule Ichor.Dag.Loader do
   defp parse_priority("low"), do: :low
   defp parse_priority(_), do: :medium
 
-  defp check_existing_by_path(path) do
-    dir = Path.dirname(path)
-
-    case Run.by_path(dir) do
-      {:ok, [run | _]} -> {:ok, run}
-      _ -> :not_found
-    end
-  end
-
-  defp check_existing_by_node(node_id) do
+  defp archive_existing_runs_for_node(node_id) do
     case Run.by_node(node_id) do
-      {:ok, [run | _]} -> {:ok, run}
-      _ -> :not_found
+      {:ok, runs} -> Enum.each(runs, &Run.archive/1)
+      _ -> :ok
     end
   end
 
