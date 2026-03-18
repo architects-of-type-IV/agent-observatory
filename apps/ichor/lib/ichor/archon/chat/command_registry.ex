@@ -8,6 +8,7 @@ defmodule Ichor.Archon.Chat.CommandRegistry do
   alias Ichor.Archon.Tools.Control
   alias Ichor.Archon.Tools.Events
   alias Ichor.Archon.Tools.Memory
+  alias Ichor.Archon.Tools.Manager
   alias Ichor.Archon.Tools.Mes
   alias Ichor.Archon.Tools.Messages
   alias Ichor.Archon.Tools.System, as: SystemTools
@@ -16,6 +17,7 @@ defmodule Ichor.Archon.Chat.CommandRegistry do
   @usage """
   Unknown command: %s
   Observation: /agents /teams /status <id> /events <id> [limit] /tasks [team] /inbox /health /sessions
+  Manager:     /manager /attention
   Control:     /spawn <prompt> /stop <id> /pause <id> [reason] /resume <id> /sweep
   Messaging:   /msg <target> <text>
   MES:         /mes /projects [status] /operator-inbox /cleanup-mes
@@ -28,6 +30,12 @@ defmodule Ichor.Archon.Chat.CommandRegistry do
   def dispatch(%{command: "/inbox"}), do: run(:inbox, Messages, :recent_messages, %{})
   def dispatch(%{command: "/health"}), do: run(:health, SystemTools, :system_health, %{})
   def dispatch(%{command: "/sessions"}), do: run(:sessions, SystemTools, :tmux_sessions, %{})
+
+  def dispatch(%{command: "/manager"}),
+    do: run(:manager_snapshot, Manager, :manager_snapshot, %{})
+
+  def dispatch(%{command: "/attention"}),
+    do: run(:attention_queue, Manager, :attention_queue, %{})
 
   def dispatch(%{command: "/tasks", remainder: nil}),
     do: run(:fleet_tasks, Events, :fleet_tasks, %{})

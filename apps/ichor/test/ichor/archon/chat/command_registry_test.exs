@@ -29,6 +29,20 @@ defmodule Ichor.Archon.Chat.CommandRegistryTest do
     assert_receive {:archon_action, :agents, Ichor.Archon.Tools.Agents, :list_agents, %{}}
   end
 
+  test "dispatches managerial summary commands" do
+    assert {:ok, %{type: :manager_snapshot}} =
+             CommandRegistry.dispatch(%{command: "/manager", remainder: nil})
+
+    assert_receive {:archon_action, :manager_snapshot, Ichor.Archon.Tools.Manager,
+                    :manager_snapshot, %{}}
+
+    assert {:ok, %{type: :attention_queue}} =
+             CommandRegistry.dispatch(%{command: "/attention", remainder: nil})
+
+    assert_receive {:archon_action, :attention_queue, Ichor.Archon.Tools.Manager,
+                    :attention_queue, %{}}
+  end
+
   test "dispatches argument-bearing commands with parsed params" do
     assert {:ok, %{type: :agent_events}} =
              CommandRegistry.dispatch(%{command: "/events", remainder: "alpha 25"})
