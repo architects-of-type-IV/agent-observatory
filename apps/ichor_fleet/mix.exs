@@ -23,7 +23,6 @@ defmodule IchorFleet.MixProject do
 
   defp deps do
     [
-      {:ichor, in_umbrella: true},
       {:ash, "~> 3.0"}
     ]
   end
