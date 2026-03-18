@@ -61,6 +61,7 @@ defmodule Ichor.Archon.Chat.CommandRegistryTest do
              CommandRegistry.dispatch(%{command: "/wat", remainder: nil})
 
     assert data =~ "Unknown command: /wat"
-    assert data =~ "Observation: /agents /teams"
+    assert data =~ "Observation:"
+    assert data =~ "/agents /teams"
   end
 end

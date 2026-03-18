@@ -3,6 +3,7 @@ defmodule Ichor.Archon.Chat.CommandRegistry do
   Maps parsed Archon slash commands to Ash actions and typed responses.
   """
 
+  alias Ichor.Archon.CommandManifest
   alias Ichor.Archon.Chat.ActionRunner
   alias Ichor.Archon.Tools.Agents
   alias Ichor.Archon.Tools.Control
@@ -13,16 +14,6 @@ defmodule Ichor.Archon.Chat.CommandRegistry do
   alias Ichor.Archon.Tools.Messages
   alias Ichor.Archon.Tools.System, as: SystemTools
   alias Ichor.Archon.Tools.Teams
-
-  @usage """
-  Unknown command: %s
-  Observation: /agents /teams /status <id> /events <id> [limit] /tasks [team] /inbox /health /sessions
-  Manager:     /manager /attention
-  Control:     /spawn <prompt> /stop <id> /pause <id> [reason] /resume <id> /sweep
-  Messaging:   /msg <target> <text>
-  MES:         /mes /projects [status] /operator-inbox /cleanup-mes
-  Memory:      /remember <text> /recall <query> /query <question>
-  """
 
   @spec dispatch(map()) :: {:ok, %{type: atom(), data: term()}} | {:error, term()}
   def dispatch(%{command: "/agents"}), do: run(:agents, Agents, :list_agents, %{})
@@ -150,7 +141,7 @@ defmodule Ichor.Archon.Chat.CommandRegistry do
   end
 
   def dispatch(%{command: command}) do
-    {:ok, %{type: :error, data: String.replace(@usage, "%s", command)}}
+    {:ok, %{type: :error, data: CommandManifest.unknown_command_help(command)}}
   end
 
   defp run(type, resource, action, params) do

@@ -6,35 +6,12 @@ defmodule IchorWeb.Components.ArchonComponents do
 
   use Phoenix.Component
 
+  alias Ichor.Archon.CommandManifest
+
   import IchorWeb.Components.ArchonComponents.Icons, only: [archon_icon: 1]
   import IchorWeb.Components.ArchonComponents.CommandHud, only: [command_hud: 1]
   import IchorWeb.Components.ArchonComponents.ChatPanel, only: [chat_panel: 1]
   import IchorWeb.Components.ArchonComponents.ReferencePanel, only: [reference_panel: 1]
-
-  @quick_actions [
-    %{key: "1", cmd: "manager", label: "Manager", icon: "brain", desc: "System snapshot"},
-    %{key: "2", cmd: "attention", label: "Attention", icon: "pulse", desc: "Open issues"},
-    %{key: "3", cmd: "agents", label: "Agents", icon: "grid", desc: "List fleet"},
-    %{key: "4", cmd: "teams", label: "Teams", icon: "layers", desc: "Active teams"},
-    %{key: "5", cmd: "inbox", label: "Inbox", icon: "mail", desc: "Messages"},
-    %{key: "6", cmd: "sessions", label: "Sessions", icon: "terminal", desc: "Tmux"},
-    %{key: "7", cmd: "recall", label: "Recall", icon: "search", desc: "Search memory"}
-  ]
-
-  @shortcodes [
-    {"manager", "Summarize the system from signals"},
-    {"attention", "Show issues needing intervention"},
-    {"agents", "List all agents in the fleet"},
-    {"teams", "List all active teams"},
-    {"status <agent>", "Check an agent's status"},
-    {"msg <target> <text>", "Send a message to an agent or team"},
-    {"inbox", "Show recent messages"},
-    {"health", "System health check"},
-    {"sessions", "List tmux sessions"},
-    {"remember <text>", "Persist an observation to memory"},
-    {"recall <query>", "Search knowledge graph"},
-    {"query <question>", "Natural language memory query"}
-  ]
 
   # ── Main overlay ──────────────────────────────────────────────────────
 
@@ -47,8 +24,8 @@ defmodule IchorWeb.Components.ArchonComponents do
   def archon_overlay(assigns) do
     assigns =
       assigns
-      |> assign(:shortcodes, @shortcodes)
-      |> assign(:quick_actions, @quick_actions)
+      |> assign(:shortcodes, CommandManifest.reference_commands())
+      |> assign(:quick_actions, CommandManifest.quick_actions())
 
     ~H"""
     <div class="archon-overlay">
