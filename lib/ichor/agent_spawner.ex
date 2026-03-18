@@ -2,12 +2,16 @@ defmodule Ichor.AgentSpawner do
   @moduledoc """
   Spawns agents as tmux windows within team sessions, with BEAM process backing.
 
+  Follows the same pattern as Ichor.Mes.TeamSpawner:
+    1. Write prompt to ~/.ichor/agents/{window_name}.txt
+    2. Write launch script ~/.ichor/agents/{window_name}.sh
+    3. tmux new-window runs the script file
+    4. Register AgentProcess in BEAM fleet
+
   Tmux model: one session per team, one window per agent.
     - Team agents:    session = team_name,      window = agent_name
     - Standalone:     session = "ichor-fleet",   window = agent_name
-    - MES (separate): session = "mes-{run_id}",  window = role_name
 
-  Pipeline: validate -> write overlay -> ensure session -> create window -> start AgentProcess.
   Supports remote spawning on connected BEAM nodes via `:host` option.
   """
 
@@ -19,9 +23,9 @@ defmodule Ichor.AgentSpawner do
   alias Ichor.Fleet.TeamSupervisor
   alias Ichor.Fleet.TmuxHelpers
   alias Ichor.Gateway.Channels.Tmux
-  alias Ichor.InstructionOverlay
 
   @ichor_socket Path.expand("~/.ichor/tmux/obs.sock")
+  @agents_dir Path.expand("~/.ichor/agents")
   @counter_key :ichor_spawn_counter
   @standalone_session "ichor-fleet"
 
@@ -69,9 +73,9 @@ defmodule Ichor.AgentSpawner do
 
     with :ok <- validate_cwd(cwd),
          :ok <- validate_no_window_conflict(team_session, window_name),
-         :ok <- InstructionOverlay.write_session_files(cwd, opts),
+         :ok <- write_agent_scripts(window_name, opts),
          :ok <- ensure_session(team_session, cwd),
-         {:ok, _} <- create_window(team_session, window_name, cwd, opts) do
+         {:ok, _} <- create_window(team_session, window_name, cwd) do
       tmux_target = "#{team_session}:#{window_name}"
       register_agent(tmux_target, window_name, name, cwd, opts)
     end
@@ -101,7 +105,6 @@ defmodule Ichor.AgentSpawner do
   @doc "Stop a spawned agent by terminating its BEAM process and sending /exit to tmux."
   @spec stop_agent(String.t()) :: :ok | {:error, term()}
   def stop_agent(agent_id) do
-    # Look up tmux_target from Registry metadata before terminating
     tmux_target = resolve_tmux_target(agent_id)
     terminate_beam_process(agent_id)
     send_tmux_exit(tmux_target || agent_id)
@@ -113,9 +116,7 @@ defmodule Ichor.AgentSpawner do
   defp resolve_team_session(nil), do: @standalone_session
   defp resolve_team_session(team_name), do: team_name
 
-  defp unique_window_name(name) do
-    "#{name}-#{next_counter()}"
-  end
+  defp unique_window_name(name), do: "#{name}-#{next_counter()}"
 
   defp next_counter do
     ref = :persistent_term.get(@counter_key)
@@ -130,14 +131,9 @@ defmodule Ichor.AgentSpawner do
     Logger.info("[AgentSpawner] Spawning on remote node #{node}")
 
     case :rpc.call(node, __MODULE__, :spawn_local, [opts]) do
-      {:badrpc, reason} ->
-        {:error, {:remote_spawn_failed, node, reason}}
-
-      {:ok, result} ->
-        {:ok, Map.put(result, :node, node)}
-
-      {:error, _} = error ->
-        error
+      {:badrpc, reason} -> {:error, {:remote_spawn_failed, node, reason}}
+      {:ok, result} -> {:ok, Map.put(result, :node, node)}
+      {:error, _} = error -> error
     end
   end
 
@@ -186,10 +182,8 @@ defmodule Ichor.AgentSpawner do
   # ── Private: Validation ────────────────────────────────────────────
 
   defp validate_no_window_conflict(session, window_name) do
-    target = "#{session}:#{window_name}"
-
-    case Tmux.available?(target) do
-      true -> {:error, {:window_exists, target}}
+    case Tmux.available?("#{session}:#{window_name}") do
+      true -> {:error, {:window_exists, "#{session}:#{window_name}"}}
       false -> :ok
     end
   end
@@ -201,46 +195,61 @@ defmodule Ichor.AgentSpawner do
     end
   end
 
+  # ── Private: File Writing (matches MES TeamSpawner pattern) ────────
+
+  defp write_agent_scripts(window_name, opts) do
+    model = opts[:model] || "sonnet"
+    capability = opts[:capability] || "builder"
+    prompt = get_in(opts, [:task, "description"]) || get_in(opts, [:task, :description]) || ""
+
+    prompt_path = Path.join(@agents_dir, "#{window_name}.txt")
+    script_path = script_path(window_name)
+
+    cli_args =
+      ["--model", model]
+      |> TmuxHelpers.add_permission_args(capability)
+      |> Enum.join(" ")
+
+    File.mkdir_p!(@agents_dir)
+    File.write!(prompt_path, prompt)
+
+    File.write!(
+      script_path,
+      "#!/bin/sh\ncat #{prompt_path} | env -u CLAUDECODE claude #{cli_args}\n"
+    )
+
+    File.chmod!(script_path, 0o755)
+    :ok
+  end
+
+  defp script_path(window_name), do: Path.join(@agents_dir, "#{window_name}.sh")
+
   # ── Private: Tmux Session & Window ─────────────────────────────────
 
   defp ensure_session(session, cwd) do
-    if Tmux.available?(session) do
-      :ok
-    else
-      args = tmux_server_args() ++ ["new-session", "-d", "-s", session, "-c", cwd]
+    case Tmux.available?(session) do
+      true ->
+        :ok
 
-      case System.cmd("tmux", args, stderr_to_stdout: true) do
-        {_, 0} -> :ok
-        {output, code} -> {:error, {:session_create_failed, output, code}}
-      end
+      false ->
+        args = tmux_server_args() ++ ["new-session", "-d", "-s", session, "-c", cwd]
+
+        case System.cmd("tmux", args, stderr_to_stdout: true) do
+          {_, 0} -> :ok
+          {output, code} -> {:error, {:session_create_failed, output, code}}
+        end
     end
   end
 
-  defp create_window(session, window_name, cwd, opts) do
-    command = build_command(opts)
-
+  defp create_window(session, window_name, cwd) do
     args =
       tmux_server_args() ++
-        ["new-window", "-t", session, "-n", window_name, "-c", cwd, command]
+        ["new-window", "-t", session, "-n", window_name, "-c", cwd, script_path(window_name)]
 
     case System.cmd("tmux", args, stderr_to_stdout: true) do
       {_, 0} -> {:ok, "#{session}:#{window_name}"}
       {output, code} -> {:error, {:window_create_failed, output, code}}
     end
-  end
-
-  defp build_command(opts) do
-    model = opts[:model] || "sonnet"
-    capability = opts[:capability] || "builder"
-    name = opts[:name] || capability
-    claude_args = build_claude_args(model, capability, opts)
-    overlay = InstructionOverlay.overlay_path(name)
-    "cat #{overlay} | env -u CLAUDECODE claude #{Enum.join(claude_args, " ")}"
-  end
-
-  defp build_claude_args(model, capability, _opts) do
-    ["--model", model]
-    |> TmuxHelpers.add_permission_args(capability)
   end
 
   defp tmux_server_args do
@@ -271,9 +280,7 @@ defmodule Ichor.AgentSpawner do
   end
 
   defp do_terminate(%{team: nil}, agent_id), do: FleetSupervisor.terminate_agent(agent_id)
-
-  defp do_terminate(%{team: team}, agent_id),
-    do: TeamSupervisor.terminate_member(team, agent_id)
+  defp do_terminate(%{team: team}, agent_id), do: TeamSupervisor.terminate_member(team, agent_id)
 
   defp send_tmux_exit(tmux_target) do
     case Tmux.run_command(["send-keys", "-t", tmux_target, "/exit", "Enter"]) do
