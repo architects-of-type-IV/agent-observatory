@@ -17,6 +17,7 @@ defmodule Ichor.AgentSpawner do
   alias Ichor.Fleet.FleetSupervisor
   alias Ichor.Fleet.HostRegistry
   alias Ichor.Fleet.TeamSupervisor
+  alias Ichor.Fleet.TmuxHelpers
   alias Ichor.Gateway.Channels.Tmux
   alias Ichor.InstructionOverlay
 
@@ -142,14 +143,14 @@ defmodule Ichor.AgentSpawner do
 
   defp register_agent(tmux_target, agent_id, name, cwd, opts) do
     capability = opts[:capability] || "builder"
-    role = capability_to_role(capability)
+    role = TmuxHelpers.capability_to_role(capability)
 
     process_opts = [
       id: agent_id,
       role: role,
       team: opts[:team_name],
       backend: %{type: :tmux, session: tmux_target},
-      capabilities: capabilities_for(capability),
+      capabilities: TmuxHelpers.capabilities_for(capability),
       metadata: %{cwd: cwd, model: opts[:model] || "sonnet", parent_id: opts[:parent_id]}
     ]
 
@@ -173,20 +174,11 @@ defmodule Ichor.AgentSpawner do
   end
 
   defp start_agent_process(process_opts, team_name, name, cwd) do
-    ensure_team(team_name)
+    TmuxHelpers.ensure_team(team_name)
 
     case TeamSupervisor.spawn_member(team_name, process_opts) do
       {:ok, _pid} -> Logger.info("[AgentSpawner] Spawned #{name} in team #{team_name} at #{cwd}")
       {:error, reason} -> Logger.warning("[AgentSpawner] BEAM process failed: #{inspect(reason)}")
-    end
-  end
-
-  defp ensure_team(name) do
-    case FleetSupervisor.create_team(name: name) do
-      {:ok, _pid} -> :ok
-      {:error, :already_exists} -> :ok
-      {:error, {:already_started, _pid}} -> :ok
-      {:error, reason} -> {:error, reason}
     end
   end
 
@@ -243,26 +235,9 @@ defmodule Ichor.AgentSpawner do
     "env -u CLAUDECODE claude #{Enum.join(claude_args, " ")}"
   end
 
-  defp build_claude_args(model, capability, opts) do
+  defp build_claude_args(model, capability, _opts) do
     ["--model", model]
-    |> add_permission_args(capability)
-    |> add_task_args(opts[:task])
-  end
-
-  defp add_permission_args(args, cap) when cap in ["builder", "lead"],
-    do: args ++ ["--dangerously-skip-permissions"]
-
-  defp add_permission_args(args, "scout"),
-    do: args ++ ["--allowedTools", "Read,Glob,Grep,Bash(read-only)"]
-
-  defp add_permission_args(args, _), do: args
-
-  defp add_task_args(args, nil), do: args
-
-  defp add_task_args(args, task) do
-    subject = task["subject"] || task[:subject]
-    description = task["description"] || task[:description] || ""
-    args ++ ["-p", "\"Work on task: #{subject}. #{description}\""]
+    |> TmuxHelpers.add_permission_args(capability)
   end
 
   defp tmux_server_args do
@@ -307,15 +282,4 @@ defmodule Ichor.AgentSpawner do
         {:error, {:tmux_send_failed, output, code}}
     end
   end
-
-  # ── Private: Role Mapping ──────────────────────────────────────────
-
-  defp capabilities_for("lead"), do: [:read, :write, :spawn, :assign, :escalate]
-  defp capabilities_for("coordinator"), do: [:read, :write, :spawn, :assign, :escalate, :kill]
-  defp capabilities_for("scout"), do: [:read]
-  defp capabilities_for(_), do: [:read, :write]
-
-  defp capability_to_role("lead"), do: :lead
-  defp capability_to_role("coordinator"), do: :coordinator
-  defp capability_to_role(_), do: :worker
 end
