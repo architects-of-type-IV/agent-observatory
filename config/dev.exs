@@ -56,12 +56,12 @@ config :ichor, IchorWeb.Endpoint,
     web_console_logger: false,
     patterns: [
       # Static assets, except user uploads
-      ~r"priv/static/(?!uploads/).*\.(js|css|png|jpeg|jpg|gif|svg)$"E,
+      ~r"apps/ichor/priv/static/(?!uploads/).*\.(js|css|png|jpeg|jpg|gif|svg)$"E,
       # Gettext translations
-      ~r"priv/gettext/.*\.po$"E,
+      ~r"apps/ichor/priv/gettext/.*\.po$"E,
       # Router, Controllers, LiveViews and LiveComponents
-      ~r"lib/ichor_web/router\.ex$"E,
-      ~r"lib/ichor_web/(controllers|live|components)/.*\.(ex|heex)$"E
+      ~r"apps/ichor/lib/ichor_web/router\.ex$"E,
+      ~r"apps/ichor/lib/ichor_web/(controllers|live|components)/.*\.(ex|heex)$"E
     ]
   ]
 
