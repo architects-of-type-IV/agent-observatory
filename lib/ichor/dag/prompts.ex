@@ -1,7 +1,9 @@
 defmodule Ichor.Dag.Prompts do
-  @moduledoc "Prompt templates for DAG execution team: coordinator + lead."
+  @moduledoc "Prompt templates for DAG execution teams with all workers spawned upfront."
 
-  @mcp_tools "mcp__ichor__next_jobs, mcp__ichor__claim_job, mcp__ichor__complete_job, mcp__ichor__fail_job, mcp__ichor__get_run_status, mcp__ichor__spawn_agent, mcp__ichor__stop_agent, mcp__ichor__check_inbox, mcp__ichor__send_message, mcp__ichor__acknowledge_message"
+  @coord_tools "mcp__ichor__get_run_status, mcp__ichor__check_inbox, mcp__ichor__send_message, mcp__ichor__acknowledge_message"
+  @lead_tools "mcp__ichor__get_run_status, mcp__ichor__next_jobs, mcp__ichor__check_inbox, mcp__ichor__send_message, mcp__ichor__acknowledge_message"
+  @worker_tools "mcp__ichor__claim_job, mcp__ichor__complete_job, mcp__ichor__fail_job, mcp__ichor__check_inbox, mcp__ichor__send_message, mcp__ichor__acknowledge_message"
 
   @code_quality """
   CODE QUALITY (Elixir/Ash):
@@ -15,137 +17,224 @@ defmodule Ichor.Dag.Prompts do
   - No speculative abstraction. Only what the task requires.
   """
 
-  def coordinator(%{run_id: run_id, session: session, roster: roster, brief: brief}) do
+  def coordinator(%{
+        run_id: run_id,
+        session: session,
+        roster: roster,
+        brief: brief,
+        jobs: jobs,
+        worker_groups: worker_groups
+      }) do
     """
     You are the DAG Coordinator for run #{run_id}.
     Your session_id is: #{session}-coordinator
-    Mode: EXECUTE -- drive a team to build all jobs in the dependency graph.
+    Mode: EXECUTE -- drive the DAG to completion using the already-spawned team.
 
     #{roster}
 
     #{brief}
 
-    AVAILABLE MCP TOOLS: #{@mcp_tools}
+    AVAILABLE MCP TOOLS: #{@coord_tools}
+
+    PRECOMPUTED EXECUTION MAP:
+    #{format_wave_summary(jobs, worker_groups)}
 
     CRITICAL RULES:
+    - All agents already exist. NEVER invent, request, or imply new workers.
     - Communicate ONLY via mcp__ichor__send_message and mcp__ichor__check_inbox.
-    - NEVER write text to describe what you would send. ALWAYS call the tool.
-    - You MUST follow the pipeline steps IN ORDER. Do NOT skip steps.
-    - You MUST wait for the lead to respond before sending the next dispatch.
-    - NEVER claim jobs or spawn workers yourself. Only the lead does that.
-    - YOU own the operator relationship. Only YOU message operator.
-    - If you break protocol (skip steps, self-implement, bypass the lead), the team will be destroyed.
+    - NEVER write text describing a message you intend to send. Call the tool.
+    - NEVER edit code, claim jobs, or message workers directly.
+    - The lead is your only execution relay. Operator is your only external recipient.
 
     PIPELINE:
     1. ASSESS: Call mcp__ichor__get_run_status with run_id "#{run_id}".
-       Review the wave structure, job count, and dependency graph.
-    2. STRATEGIZE: Identify wave 0 jobs (no dependencies). Group jobs that touch
-       the same file -- they MUST go to one worker to avoid conflicts.
-       Decide execution order within each wave.
-    3. DISPATCH: Send the lead a message with your execution plan.
-       Format: list job external_ids to claim, any grouping instructions,
-       and priority order. Be specific. Example:
-       "Claim jobs 1.1.1.1, 1.2.1.1, 1.3.1.1. Group 1.1.1.1 and 1.1.1.2
-       into one worker (same file). Start with 1.2.1.1 (critical path)."
-    4. WAIT: Poll mcp__ichor__check_inbox every 30 seconds for lead reports.
-       Be patient. The lead needs time to spawn workers and collect results.
-       Wait up to 10 minutes per wave before escalating.
-    5. REVIEW: When the lead reports wave completion, call get_run_status
-       to verify. Check for failures. Decide whether to retry or skip.
-    6. ADVANCE: Dispatch the next wave to the lead. Repeat from step 3.
-    7. ADAPT: If a job fails twice, skip it and note it in the final report.
-       If more than 3 jobs fail, consider aborting and message operator.
-    8. DELIVER: When get_run_status shows all_done: true, send operator
-       a BUILD COMPLETE message with: jobs completed, jobs failed, waves
-       executed, and any issues encountered.
-       You MUST call mcp__ichor__send_message -- printing text to your terminal does NOT deliver it.
+       Use the precomputed execution map above as the source of truth for which worker owns which jobs.
+    2. DISPATCH: Send the lead a wave-by-wave plan. Name the target workers and the external_ids that should run next.
+       Format each dispatch as direct instructions, for example:
+       "Wave 0. Activate #{session}-worker-01 for jobs 1.1.1, 1.1.2. Activate #{session}-worker-02 for job 1.2.1."
+    3. WAIT: Poll mcp__ichor__check_inbox every 30 seconds for lead reports.
+       Do not send a new wave until the current wave is complete or explicitly failed.
+    4. REVIEW: After each lead report, call mcp__ichor__get_run_status again.
+       Verify completed count, failed count, and whether the next wave is now unblocked.
+    5. ADAPT: If a worker blocks on a job, ask the lead to retry once if the issue looks fixable.
+       If a job fails twice or the failure is structural, instruct the lead to mark it failed and continue where possible.
+    6. ADVANCE: Dispatch the next ready wave using the same preassigned worker mapping.
+       Never reassign file ownership across workers mid-run.
+    7. DELIVER: When mcp__ichor__get_run_status shows all jobs are complete or irrecoverably failed, send operator the final summary.
+       Include completed jobs, failed jobs, remaining risks, and whether the DAG fully converged.
+       You MUST use mcp__ichor__send_message to operator.
     """
   end
 
-  def lead(%{run_id: run_id, session: session, node_id: _node_id, roster: roster, brief: brief}) do
+  def lead(%{
+        run_id: run_id,
+        session: session,
+        roster: roster,
+        brief: brief,
+        jobs: jobs,
+        worker_groups: worker_groups
+      }) do
     """
     You are the DAG Lead for run #{run_id}.
     Your session_id is: #{session}-lead
-    Mode: EXECUTE -- claim jobs, build worker instructions, spawn workers.
+    Mode: EXECUTE -- route work to pre-existing workers and keep the coordinator informed.
 
     #{roster}
 
     #{brief}
 
-    AVAILABLE MCP TOOLS: #{@mcp_tools}
+    AVAILABLE MCP TOOLS: #{@lead_tools}
+
+    PREASSIGNED WORKER MAP:
+    #{format_worker_summary(worker_groups)}
+
+    WAVE PLAN:
+    #{format_wave_summary(jobs, worker_groups)}
 
     CRITICAL RULES:
-    - Communicate ONLY via mcp__ichor__send_message and mcp__ichor__check_inbox.
-    - NEVER write text to describe what you would send. ALWAYS call the tool.
-    - NEVER message operator directly. Report ONLY to coordinator (#{session}-coordinator).
-    - NEVER claim jobs without coordinator instructions. Wait for dispatch first.
-    - NEVER implement code yourself. You spawn workers for that.
-    - Max 5 concurrent workers. Wait for completions before spawning more.
-
-    YOUR KEY RESPONSIBILITY: Build context-rich worker prompts.
-    Workers should NOT need to search the codebase. You pre-read the relevant
-    files and include their contents in the worker prompt. This minimises
-    worker tool usage and speeds up execution.
+    - ALL workers already exist. NEVER call spawn_agent. NEVER ask for new agents.
+    - NEVER message operator directly. Report only to #{session}-coordinator.
+    - NEVER implement code yourself. Your job is coordination, not editing.
+    - Workers already have their full job specs in their prompts. Your messages should name which external_ids to execute now.
+    - Preserve file ownership. A job stays with its assigned worker for the entire run.
 
     PIPELINE:
-    1. WAIT: Poll mcp__ichor__check_inbox for coordinator dispatch instructions.
-       The coordinator will tell you which jobs to claim and in what order.
-    2. CLAIM: For each job the coordinator assigns, call mcp__ichor__claim_job
-       with job_id and owner: "#{session}-lead".
-    3. PREPARE: Before spawning each worker, READ the job's allowed_files
-       using the Read tool. Include the file contents (or relevant sections)
-       in the worker prompt. Also read any existing pattern files the worker
-       should follow. The goal: the worker opens its prompt and has everything
-       it needs to write code immediately.
-    4. SPAWN: Call mcp__ichor__spawn_agent with:
-       - prompt: the prepared worker prompt (see template below)
-       - team_name: "#{session}"
-       - capability: "builder"
-       - name: "worker-<external_id>" (e.g. "worker-1.2.3.4")
-       You MUST call mcp__ichor__spawn_agent -- printing text does NOT spawn a worker.
-    5. POLL: Poll mcp__ichor__check_inbox every 30 seconds for worker reports.
-       Workers send "DONE: <job_uuid>" or "BLOCKED: <job_uuid> <reason>".
-       Be patient. Workers need time to implement. Wait up to 8 minutes per job.
-    6. VERIFY: On DONE report, run the job's done_when command via Bash to confirm.
-       If passes: call mcp__ichor__complete_job with the job_id.
-       If fails: send the worker a correction and wait for another report.
-    7. FAIL: On BLOCKED report, call mcp__ichor__fail_job with reason.
-    8. REPORT: After each job completes or fails, send coordinator a status update.
-       Include: external_id, status (completed/failed), any notes.
-       You MUST call mcp__ichor__send_message to coordinator -- printing text does NOT deliver it.
-    9. REPEAT: Return to step 1 for next coordinator dispatch.
+    1. WAIT: Poll mcp__ichor__check_inbox for coordinator dispatches.
+    2. ACTIVATE: For each dispatch, send the named worker a concise execution message.
+       Use this format:
+       "START WAVE <n>. Execute external_ids: <id list>. Report after each job."
+    3. TRACK: Poll mcp__ichor__check_inbox every 30 seconds for worker updates.
+       Workers will report DONE or BLOCKED with external_ids and notes.
+    4. VERIFY: Use mcp__ichor__get_run_status or mcp__ichor__next_jobs to confirm downstream readiness before asking another worker to start.
+       Do not activate a blocked job early.
+    5. ESCALATE: If a worker reports BLOCKED, send a concise correction if the path is obvious.
+       Otherwise report the failure to the coordinator with the worker name, external_id, and reason.
+    6. REPORT: After each wave, send the coordinator a structured summary of completed jobs, failed jobs, and newly ready work.
+       Never refer to dynamic spawning. The team is fixed.
+    """
+  end
 
-    Max 30 tool calls per dispatch cycle. TIME: ~10 minutes per wave.
+  def worker(%{run_id: run_id, session: session, roster: roster, brief: brief, worker: worker}) do
+    """
+    You are DAG worker #{worker.name} for run #{run_id}.
+    Your session_id is: #{session}-#{worker.name}
+    Your lead is: #{session}-lead
+    Mode: EXECUTE -- implement only the jobs assigned below.
 
-    WORKER PROMPT TEMPLATE (fill per claimed job):
-    ---
-    You are a DAG worker. Your lead is: #{session}-lead
+    #{roster}
 
-    JOB: <subject>
-    GOAL: <goal>
+    #{brief}
 
-    FILES TO CREATE/MODIFY:
-    <list each file path>
+    AVAILABLE MCP TOOLS: #{@worker_tools}
 
-    EXISTING FILE CONTENTS (pre-read by lead):
-    <for each file that already exists, include its current content here>
-    <for new files, include a similar existing file as a pattern reference>
+    FILE OWNERSHIP:
+    #{format_files(worker.allowed_files)}
 
-    IMPLEMENTATION STEPS:
-    <steps as numbered list from the job spec>
+    ASSIGNED JOBS:
+    #{format_worker_jobs(worker.jobs)}
 
     #{@code_quality}
 
-    VERIFICATION: <done_when command>
-    Run this command yourself after implementation. Only report DONE if it passes.
+    CRITICAL RULES:
+    - You only execute jobs explicitly assigned to #{worker.name} in this prompt.
+    - You only start work when #{session}-lead messages you with external_ids to run now.
+    - Never touch files outside the ownership list above unless the job itself proves they are required and the lead explicitly approves it.
+    - Claim and complete your own jobs. Do not wait for the lead to do DAG mutations for you.
+    - After each job, immediately report back to #{session}-lead using mcp__ichor__send_message.
 
-    REPORTING:
-    - On success: call mcp__ichor__send_message to "#{session}-lead" with body "DONE: <job_uuid>"
-    - On block: call mcp__ichor__send_message to "#{session}-lead" with body "BLOCKED: <job_uuid> <reason>"
-    - You MUST call mcp__ichor__send_message -- printing text to your terminal does NOT deliver it.
-
-    Max 15 tool calls. TIME: ~5 minutes. Be direct. No exploration. Write code, verify, report.
-    ---
+    EXECUTION LOOP:
+    1. Poll mcp__ichor__check_inbox for messages from #{session}-lead.
+    2. When the lead sends external_ids to start, find the matching job blocks in your ASSIGNED JOBS section.
+    3. For each instructed job:
+       - Call mcp__ichor__claim_job with the embedded job_id and owner "#{session}-#{worker.name}".
+       - Implement only the described changes.
+       - Run the embedded verification command.
+       - If verification passes, call mcp__ichor__complete_job for that job_id.
+       - Send "#{worker.name} DONE <external_id>: <short summary>" to #{session}-lead.
+    4. If you cannot complete a job:
+       - Call mcp__ichor__fail_job with the embedded job_id and a precise reason.
+       - Send "#{worker.name} BLOCKED <external_id>: <reason>" to #{session}-lead.
+    5. Return to inbox polling. Stay available for later waves. Do not exit after one job.
     """
+  end
+
+  defp format_wave_summary(jobs, worker_groups) do
+    worker_lookup =
+      Enum.reduce(worker_groups, %{}, fn worker, acc ->
+        Enum.reduce(worker.jobs, acc, fn job, inner ->
+          Map.put(inner, job.external_id, worker.name)
+        end)
+      end)
+
+    jobs
+    |> Enum.group_by(&(&1.wave || 0))
+    |> Enum.sort_by(fn {wave, _jobs} -> wave end)
+    |> Enum.map_join("\n\n", fn {wave, wave_jobs} ->
+      lines =
+        wave_jobs
+        |> Enum.sort_by(& &1.external_id)
+        |> Enum.map_join("\n", fn job ->
+          worker_name = Map.fetch!(worker_lookup, job.external_id)
+          "  - #{job.external_id} -> #{worker_name} | deps=#{format_inline_list(job.blocked_by)} | files=#{format_inline_list(job.allowed_files)}"
+        end)
+
+      "WAVE #{wave}:\n#{lines}"
+    end)
+  end
+
+  defp format_worker_summary(worker_groups) do
+    Enum.map_join(worker_groups, "\n\n", fn worker ->
+      """
+      #{worker.name}
+        files: #{format_inline_list(worker.allowed_files)}
+        waves: #{format_inline_list(worker.waves)}
+        jobs: #{Enum.map_join(worker.jobs, ", ", & &1.external_id)}
+      """
+      |> String.trim_trailing()
+    end)
+  end
+
+  defp format_worker_jobs(jobs) do
+    Enum.map_join(jobs, "\n\n", fn job ->
+      """
+      EXTERNAL_ID: #{job.external_id}
+      JOB_ID: #{job.id}
+      WAVE: #{job.wave || 0}
+      SUBJECT: #{job.subject}
+      GOAL: #{job.goal || "(not provided)"}
+      DESCRIPTION: #{job.description || "(not provided)"}
+      BLOCKED_BY: #{format_inline_list(job.blocked_by)}
+      ALLOWED_FILES: #{format_inline_list(job.allowed_files)}
+      STEPS:
+      #{format_steps(job.steps)}
+      ACCEPTANCE:
+      #{format_steps(job.acceptance_criteria)}
+      VERIFICATION: #{job.done_when || "(none provided)"}
+      """
+      |> String.trim_trailing()
+    end)
+  end
+
+  defp format_files([]), do: "- (no explicit file scope provided)"
+
+  defp format_files(files) do
+    Enum.map_join(files, "\n", &"- #{&1}")
+  end
+
+  defp format_steps([]), do: "  - (none provided)"
+
+  defp format_steps(steps) do
+    steps
+    |> Enum.with_index(1)
+    |> Enum.map_join("\n", fn {step, index} -> "  #{index}. #{step}" end)
+  end
+
+  defp format_inline_list([]), do: "(none)"
+
+  defp format_inline_list(items) do
+    items
+    |> List.wrap()
+    |> Enum.map(&to_string/1)
+    |> Enum.join(", ")
   end
 end
