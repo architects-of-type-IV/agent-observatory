@@ -5,6 +5,7 @@ defmodule Ichor.Archon.Tools.Agents do
   use Ash.Resource, domain: Ichor.Archon.Tools
 
   alias Ichor.Fleet.Agent, as: FleetAgent
+  alias Ichor.Fleet.Lookup
   alias Ichor.Gateway.Channels.Tmux
 
   actions do
@@ -33,7 +34,7 @@ defmodule Ichor.Archon.Tools.Agents do
       run(fn input, _context ->
         query = input.arguments.agent_id
 
-        case find_agent(query) do
+        case Lookup.find_agent(query) do
           nil ->
             {:ok, %{"found" => false, "query" => query}}
 
@@ -70,13 +71,5 @@ defmodule Ichor.Archon.Tools.Agents do
       "current_tool" => a.current_tool,
       "last_event_at" => a.last_event_at
     }
-  end
-
-  defp find_agent(query) do
-    FleetAgent.all!()
-    |> Enum.find(fn a ->
-      a.agent_id == query || a.session_id == query ||
-        a.short_name == query || a.name == query
-    end)
   end
 end

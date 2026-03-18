@@ -8,7 +8,7 @@ defmodule Ichor.Archon.Tools.Control do
   alias Ash.Error.Unknown
 
   alias Ichor.AgentSpawner
-  alias Ichor.Fleet.Agent, as: FleetAgent
+  alias Ichor.Fleet.Lookup
   alias Ichor.Gateway.HITLRelay
 
   actions do
@@ -100,7 +100,7 @@ defmodule Ichor.Archon.Tools.Control do
       run(fn input, _context ->
         query = input.arguments.agent_id
 
-        case find_agent(query) do
+        case Lookup.find_agent(query) do
           nil ->
             {:ok, %{"stopped" => false, "reason" => "agent not found: #{query}"}}
 
@@ -129,12 +129,12 @@ defmodule Ichor.Archon.Tools.Control do
         query = input.arguments.agent_id
         reason = Map.get(input.arguments, :reason) || "Paused by Archon"
 
-        case find_agent(query) do
+        case Lookup.find_agent(query) do
           nil ->
             {:ok, %{"paused" => false, "reason" => "agent not found: #{query}"}}
 
           agent ->
-            sid = agent.session_id || agent.agent_id
+            sid = Lookup.agent_session_id(agent)
 
             case HITLRelay.pause(sid, sid, "archon", reason) do
               :ok ->
@@ -158,12 +158,12 @@ defmodule Ichor.Archon.Tools.Control do
       run(fn input, _context ->
         query = input.arguments.agent_id
 
-        case find_agent(query) do
+        case Lookup.find_agent(query) do
           nil ->
             {:ok, %{"resumed" => false, "reason" => "agent not found: #{query}"}}
 
           agent ->
-            sid = agent.session_id || agent.agent_id
+            sid = Lookup.agent_session_id(agent)
 
             case HITLRelay.unpause(sid, sid, "archon") do
               {:ok, flushed} ->
@@ -184,13 +184,5 @@ defmodule Ichor.Archon.Tools.Control do
         {:ok, %{"swept" => true}}
       end)
     end
-  end
-
-  defp find_agent(query) do
-    FleetAgent.all!()
-    |> Enum.find(fn a ->
-      a.agent_id == query or a.session_id == query or
-        a.short_name == query or a.name == query
-    end)
   end
 end

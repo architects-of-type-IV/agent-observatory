@@ -6,7 +6,7 @@ defmodule Ichor.Archon.Tools.Events do
   use Ash.Resource, domain: Ichor.Archon.Tools
 
   alias Ichor.EventBuffer
-  alias Ichor.Fleet.Agent, as: FleetAgent
+  alias Ichor.Fleet.Lookup
   alias Ichor.Fleet.Team, as: FleetTeam
   alias Ichor.TaskManager
 
@@ -28,8 +28,8 @@ defmodule Ichor.Archon.Tools.Events do
         query = input.arguments.agent_id
         limit = Map.get(input.arguments, :limit) || 30
 
-        agent = find_agent(query)
-        sid = if agent, do: agent.session_id || agent.agent_id, else: query
+        agent = Lookup.find_agent(query)
+        sid = Lookup.agent_session_id(agent) || query
 
         events =
           EventBuffer.list_events()
@@ -74,14 +74,6 @@ defmodule Ichor.Archon.Tools.Events do
         {:ok, tasks}
       end)
     end
-  end
-
-  defp find_agent(query) do
-    FleetAgent.all!()
-    |> Enum.find(fn a ->
-      a.agent_id == query or a.session_id == query or
-        a.short_name == query or a.name == query
-    end)
   end
 
   defp format_event(e) do
