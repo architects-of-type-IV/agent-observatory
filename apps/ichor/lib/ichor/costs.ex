@@ -1,8 +1,5 @@
 defmodule Ichor.Costs do
-  use Ash.Domain
-  @moduledoc false
-
-  resources do
-    resource(Ichor.Costs.TokenUsage)
-  end
+  @moduledoc """
+  Deprecated placeholder while cost tracking remains disabled.
+  """
 end
