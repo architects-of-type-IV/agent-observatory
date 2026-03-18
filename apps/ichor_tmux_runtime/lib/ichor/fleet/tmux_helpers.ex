@@ -1,10 +1,8 @@
 defmodule Ichor.Fleet.TmuxHelpers do
   @moduledoc """
   Shared helpers for tmux-based agent spawning.
-  Used by AgentSpawner, MES TeamSpawner, and Genesis ModeRunner.
+  Used by lifecycle, MES, and Genesis tmux-backed runtime flows.
   """
-
-  alias Ichor.Fleet.FleetSupervisor
 
   @ichor_socket Path.expand("~/.ichor/tmux/obs.sock")
 
@@ -13,16 +11,6 @@ defmodule Ichor.Fleet.TmuxHelpers do
     case File.exists?(@ichor_socket) do
       true -> ["-S", @ichor_socket]
       false -> ["-L", "obs"]
-    end
-  end
-
-  @spec ensure_team(String.t()) :: :ok | {:error, term()}
-  def ensure_team(name) do
-    case FleetSupervisor.create_team(name: name) do
-      {:ok, _pid} -> :ok
-      {:error, :already_exists} -> :ok
-      {:error, {:already_started, _pid}} -> :ok
-      {:error, reason} -> {:error, reason}
     end
   end
 

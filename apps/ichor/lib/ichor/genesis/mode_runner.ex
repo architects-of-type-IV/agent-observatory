@@ -6,6 +6,7 @@ defmodule Ichor.Genesis.ModeRunner do
   """
 
   alias Ichor.Fleet.TeamSupervisor
+  alias Ichor.Fleet.Lifecycle.Registration
   alias Ichor.Fleet.TmuxHelpers
 
   @prompt_dir Path.expand("~/.ichor/genesis")
@@ -83,7 +84,7 @@ defmodule Ichor.Genesis.ModeRunner do
       metadata: %{cwd: cwd, run_id: run_id, model: "sonnet", genesis_mode: true}
     ]
 
-    TmuxHelpers.ensure_team(team_name)
+    Registration.ensure_team(team_name)
     TeamSupervisor.spawn_member(team_name, process_opts)
   end
 

@@ -78,6 +78,7 @@ defmodule Ichor.MixProject do
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
       {:ichor_memory_core, in_umbrella: true},
+      {:ichor_tmux_runtime, in_umbrella: true},
       {:ichor_mesh, in_umbrella: true},
       {:ichor_signals, in_umbrella: true},
       # Subsystem contracts
