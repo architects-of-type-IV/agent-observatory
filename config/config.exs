@@ -11,7 +11,6 @@ config :ichor,
   ecto_repos: [Ichor.Repo],
   generators: [timestamp_type: :utc_datetime],
   ash_domains: [
-    Ichor.Events,
     Ichor.AgentTools,
     Ichor.Costs,
     Ichor.Fleet,
@@ -20,6 +19,11 @@ config :ichor,
     Ichor.Archon.Tools,
     Ichor.Signals.Domain,
     Ichor.Mes
+  ]
+
+config :ichor_events,
+  ash_domains: [
+    Ichor.Events
   ]
 
 config :ichor_activity,
