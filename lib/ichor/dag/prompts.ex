@@ -49,8 +49,11 @@ defmodule Ichor.Dag.Prompts do
        If empty list returned, poll mcp__ichor__check_inbox for worker reports first.
     2. CLAIM: For each available job (up to 5 total in_progress at once):
        Call mcp__ichor__claim_job with job_id and owner set to your session_id.
-    3. SPAWN: For each claimed job, call mcp__ichor__spawn_agent with the worker prompt below.
-       Fill in all fields from the claimed job spec.
+    3. SPAWN: For each claimed job, call mcp__ichor__spawn_agent with:
+       - prompt: the worker prompt below (fill in all fields from claimed job spec)
+       - team_name: "#{session}"
+       - capability: "builder"
+       - name: "worker-<external_id>" (e.g. "worker-1.2.3.4")
     4. WAIT: Poll mcp__ichor__check_inbox every 30 seconds for worker reports.
        Workers send "DONE: <job_uuid>" or "BLOCKED: <job_uuid> <reason>".
     5. VERIFY: On DONE report, run the job's done_when command via Bash to confirm completion.
