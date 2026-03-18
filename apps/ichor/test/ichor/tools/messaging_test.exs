@@ -6,7 +6,7 @@ defmodule Ichor.Tools.MessagingTest do
 
     Application.put_env(
       :ichor,
-      :tools_messaging_operator_module,
+      :tools_messaging_comms_module,
       Ichor.TestSupport.ToolsStubOperator
     )
 
@@ -20,7 +20,7 @@ defmodule Ichor.Tools.MessagingTest do
 
     on_exit(fn ->
       Application.delete_env(:ichor, :tools_test_pid)
-      Application.delete_env(:ichor, :tools_messaging_operator_module)
+      Application.delete_env(:ichor, :tools_messaging_comms_module)
       Application.delete_env(:ichor, :tools_messaging_fleet_agent_module)
       Application.delete_env(:ichor, :tools_messaging_router_module)
       Application.delete_env(:ichor, :tools_operator_delivered)

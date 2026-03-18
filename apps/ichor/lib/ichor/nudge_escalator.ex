@@ -18,8 +18,8 @@ defmodule Ichor.NudgeEscalator do
   require Logger
 
   alias Ichor.Fleet.AgentProcess
+  alias Ichor.Fleet.Comms
   alias Ichor.Gateway.AgentRegistry.AgentEntry
-  alias Ichor.Gateway.Channels.Tmux
   alias Ichor.Gateway.HITLRelay
 
   @default_stale_threshold 600
@@ -170,16 +170,15 @@ defmodule Ichor.NudgeEscalator do
     nudge_message =
       "[Ichor] Are you still working? No activity detected for >#{config(:stale_threshold_sec, @default_stale_threshold)}s. Reply or take action to clear this alert."
 
-    case Tmux.deliver(agent[:tmux_session] || session_id, %{
-           content: nudge_message,
+    case Comms.notify_session(agent[:tmux_session] || session_id, nudge_message,
            from: "ichor",
            type: :nudge
-         }) do
-      :ok ->
+         ) do
+      {:ok, _} ->
         :ok
 
       {:error, reason} ->
-        Logger.warning("NudgeEscalator: Tmux nudge failed for #{agent_name}: #{inspect(reason)}")
+        Logger.warning("NudgeEscalator: Nudge failed for #{agent_name}: #{inspect(reason)}")
     end
 
     Ichor.Signals.emit(:nudge_sent, %{session_id: session_id, agent_name: agent_name, level: 1})

@@ -5,8 +5,8 @@ defmodule IchorWeb.DashboardSwarmHandlers do
   """
   import Phoenix.Component, only: [assign: 3]
 
+  alias Ichor.Fleet.Overseer
   alias Ichor.Fleet.RuntimeQuery
-  alias Ichor.SwarmMonitor
 
   def dispatch("select_project", p, s), do: handle_select_project(p, s)
   def dispatch("heal_task", p, s), do: handle_heal_task(p, s)
@@ -22,48 +22,48 @@ defmodule IchorWeb.DashboardSwarmHandlers do
   def dispatch("clear_command_selection", p, s), do: handle_clear_command_selection(p, s)
 
   def handle_select_project(%{"project" => key}, socket) do
-    SwarmMonitor.set_active_project(key)
+    Overseer.set_active_project(key)
     socket
   end
 
   def handle_add_project(%{"path" => path}, socket) do
     key = Path.basename(path)
-    SwarmMonitor.add_project(key, path)
+    Overseer.add_project(key, path)
     socket
   end
 
   def handle_heal_task(%{"id" => task_id}, socket) do
-    SwarmMonitor.heal_task(task_id)
+    Overseer.heal_task(task_id)
     socket
   end
 
   def handle_reassign_swarm_task(%{"id" => task_id, "owner" => owner}, socket) do
-    SwarmMonitor.reassign_task(task_id, owner)
+    Overseer.reassign_task(task_id, owner)
     socket
   end
 
   def handle_reset_all_stale(_params, socket) do
-    SwarmMonitor.reset_all_stale()
+    Overseer.reset_all_stale()
     socket
   end
 
   def handle_trigger_gc(%{"team" => team_name}, socket) do
-    SwarmMonitor.trigger_gc(team_name)
+    Overseer.trigger_gc(team_name)
     socket
   end
 
   def handle_run_health_check(_params, socket) do
-    SwarmMonitor.run_health_check()
+    Overseer.run_health_check()
     socket
   end
 
   def handle_claim_swarm_task(%{"id" => task_id, "agent" => agent}, socket) do
-    SwarmMonitor.claim_task(task_id, agent)
+    Overseer.claim_task(task_id, agent)
     socket
   end
 
   def handle_select_dag_node(%{"id" => task_id}, socket) do
-    swarm = SwarmMonitor.get_state()
+    swarm = Overseer.get_state()
     task = Enum.find(swarm.tasks, &(&1.id == task_id))
 
     current = socket.assigns[:selected_dag_task]

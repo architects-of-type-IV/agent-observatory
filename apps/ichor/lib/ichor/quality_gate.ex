@@ -11,8 +11,7 @@ defmodule Ichor.QualityGate do
   use GenServer
   require Logger
 
-  alias Ichor.Gateway.Channels.Tmux
-  alias Ichor.Operator
+  alias Ichor.Fleet.Comms
 
   @default_timeout 60_000
 
@@ -120,21 +119,15 @@ defmodule Ichor.QualityGate do
         "Output:\n#{truncated}\n\n" <>
         "Fix the issues and re-run the gate before reporting completion."
 
-    # Try tmux first, fall back to mailbox
-    case Tmux.deliver(session_id, %{content: message, from: "ichor", type: :quality_gate}) do
-      :ok ->
-        :ok
-
-      {:error, _} ->
-        Operator.send("session:#{session_id}", message, type: :quality_gate)
-    end
+    _ = Comms.notify_session(session_id, message, from: "ichor", type: :quality_gate)
+    :ok
   end
 
   defp find_done_when(nil, _event), do: nil
 
   defp find_done_when(task_id, event) do
     # Check SwarmMonitor for the task's done_when field
-    swarm_state = Ichor.SwarmMonitor.get_state()
+    swarm_state = Ichor.Fleet.Overseer.get_state()
     tasks = swarm_state[:tasks] || []
 
     case Enum.find(tasks, fn t -> to_string(t["id"]) == to_string(task_id) end) do
