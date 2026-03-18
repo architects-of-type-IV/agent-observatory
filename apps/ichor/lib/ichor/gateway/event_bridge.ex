@@ -10,7 +10,7 @@ defmodule Ichor.Gateway.EventBridge do
 
   use GenServer
 
-  alias Ichor.Gateway.EntropyTracker
+  alias Ichor.Gateway.{EntropyTracker, TopologyBuilder}
   alias Ichor.Mesh.CausalDAG
   alias Ichor.Mesh.DecisionLog
 
@@ -249,6 +249,7 @@ defmodule Ichor.Gateway.EventBridge do
          %{intent: intent} when is_binary(intent) <- log.cognition do
       parent_id = Map.get(state.last_event, session_id)
       node = build_dag_node(log, event_id, agent_id, intent, parent_id)
+      TopologyBuilder.subscribe_to_session(session_id)
       CausalDAG.insert(session_id, node)
 
       %{

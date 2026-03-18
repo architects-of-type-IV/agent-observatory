@@ -251,14 +251,6 @@ defmodule Ichor.Mesh.CausalDAG do
       [] ->
         :ets.new(table_name, [:set, :public, :named_table])
         :ets.insert(:causal_dag_session_registry, {session_id, table_name})
-
-        topology_builder = Ichor.Gateway.TopologyBuilder
-
-        if Code.ensure_loaded?(topology_builder) &&
-             function_exported?(topology_builder, :subscribe_to_session, 1) do
-          topology_builder.subscribe_to_session(session_id)
-        end
-
         table_name
 
       [{^session_id, existing}] ->
