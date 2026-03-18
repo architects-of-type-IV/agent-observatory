@@ -133,7 +133,10 @@ defmodule Ichor.MixProject do
       Ichor.Activity.Error,
       Ichor.Activity.Preparations.LoadMessages,
       Ichor.Activity.Preparations.LoadTasks,
-      Ichor.Activity.Preparations.LoadErrors
+      Ichor.Activity.Preparations.LoadErrors,
+      Ichor.Events,
+      Ichor.Events.Event,
+      Ichor.Events.Session
     ]
   end
 end

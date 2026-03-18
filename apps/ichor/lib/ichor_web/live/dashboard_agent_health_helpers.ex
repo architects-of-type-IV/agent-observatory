@@ -1,11 +1,11 @@
 defmodule IchorWeb.DashboardAgentHealthHelpers do
   @moduledoc """
   Presentation helpers for agent health indicators (colors, formatting).
-  Domain logic lives in Ichor.Fleet.AgentHealth.
+  Domain logic lives in Ichor.Fleet.Analysis.AgentHealth.
   """
 
-  defdelegate compute_agent_health(member_events, now), to: Ichor.Fleet.AgentHealth
-  defdelegate calculate_failure_rate(events), to: Ichor.Fleet.AgentHealth
+  defdelegate compute_agent_health(member_events, now), to: Ichor.Fleet.Analysis.AgentHealth
+  defdelegate calculate_failure_rate(events), to: Ichor.Fleet.Analysis.AgentHealth
 
   def health_color(:healthy), do: "bg-success"
   def health_color(:warning), do: "bg-brand"

@@ -13,8 +13,7 @@ defmodule Ichor.Fleet.Agent do
 
   alias Ichor.AgentSpawner
   alias Ichor.Fleet.AgentProcess
-  alias Ichor.Fleet.FleetSupervisor
-  alias Ichor.Fleet.TeamSupervisor
+  alias Ichor.Fleet.Runtime
 
   attributes do
     attribute(:agent_id, :string, primary_key?: true, allow_nil?: false, public?: true)
@@ -52,17 +51,17 @@ defmodule Ichor.Fleet.Agent do
     # ── Reads ────────────────────────────────────────────────────────
 
     read :all do
-      prepare({Ichor.Fleet.Preparations.LoadAgents, []})
+      prepare({Ichor.Fleet.Views.Preparations.LoadAgents, []})
     end
 
     read :active do
-      prepare({Ichor.Fleet.Preparations.LoadAgents, []})
+      prepare({Ichor.Fleet.Views.Preparations.LoadAgents, []})
       filter(expr(status != :ended))
     end
 
     read :in_team do
       argument(:team_name, :string, allow_nil?: false)
-      prepare({Ichor.Fleet.Preparations.LoadAgents, []})
+      prepare({Ichor.Fleet.Views.Preparations.LoadAgents, []})
       filter(expr(team_name == ^arg(:team_name)))
     end
 
@@ -138,8 +137,8 @@ defmodule Ichor.Fleet.Agent do
           {_pid, meta} ->
             result =
               case meta[:team] do
-                nil -> FleetSupervisor.terminate_agent(agent_id)
-                team -> TeamSupervisor.terminate_member(team, agent_id)
+                nil -> Runtime.terminate_standalone_agent(agent_id)
+                team -> Runtime.terminate_team_member(team, agent_id)
               end
 
             case result do
@@ -298,15 +297,14 @@ defmodule Ichor.Fleet.Agent do
 
   @spec spawn_in_fleet(String.t() | nil, keyword()) :: {:ok, pid()} | {:error, term()}
   defp spawn_in_fleet(nil, opts) do
-    FleetSupervisor.spawn_agent(opts)
+    Runtime.spawn_standalone_agent(opts)
   end
 
   defp spawn_in_fleet(team_name, opts) do
-    # Ensure the team exists first
-    unless TeamSupervisor.exists?(team_name) do
-      FleetSupervisor.create_team(name: team_name)
+    unless Runtime.team_exists?(team_name) do
+      Runtime.create_team(name: team_name)
     end
 
-    TeamSupervisor.spawn_member(team_name, opts)
+    Runtime.spawn_team_member(team_name, opts)
   end
 end

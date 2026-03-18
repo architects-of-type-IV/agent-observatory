@@ -9,7 +9,7 @@ defmodule Ichor.Fleet.Team do
 
   use Ash.Resource, domain: Ichor.Fleet
 
-  alias Ichor.Fleet.{FleetSupervisor, TeamSupervisor}
+  alias Ichor.Fleet.Runtime
 
   attributes do
     attribute(:name, :string, primary_key?: true, allow_nil?: false, public?: true)
@@ -33,11 +33,11 @@ defmodule Ichor.Fleet.Team do
     # ── Reads ────────────────────────────────────────────────────────
 
     read :all do
-      prepare({Ichor.Fleet.Preparations.LoadTeams, []})
+      prepare({Ichor.Fleet.Views.Preparations.LoadTeams, []})
     end
 
     read :alive do
-      prepare({Ichor.Fleet.Preparations.LoadTeams, []})
+      prepare({Ichor.Fleet.Views.Preparations.LoadTeams, []})
       filter(expr(dead? == false))
     end
 
@@ -56,7 +56,7 @@ defmodule Ichor.Fleet.Team do
         opts = [name: args.name, strategy: args.strategy]
         opts = if args[:project], do: Keyword.put(opts, :project, args.project), else: opts
 
-        case FleetSupervisor.create_team(opts) do
+        case Runtime.create_team(opts) do
           {:ok, pid} ->
             {:ok,
              %{name: args.name, pid: inspect(pid), status: :created, strategy: args.strategy}}
@@ -75,7 +75,7 @@ defmodule Ichor.Fleet.Team do
       argument(:name, :string, allow_nil?: false)
 
       run(fn input, _context ->
-        case FleetSupervisor.disband_team(input.arguments.name) do
+        case Runtime.disband_team(input.arguments.name) do
           :ok -> {:ok, %{name: input.arguments.name, status: :disbanded}}
           {:error, :not_found} -> {:error, "Team not found: #{input.arguments.name}"}
           error -> {:error, "Failed to disband: #{inspect(error)}"}
@@ -96,7 +96,7 @@ defmodule Ichor.Fleet.Team do
         opts = [id: args.agent_id, role: args.role]
         opts = if args[:backend], do: Keyword.put(opts, :backend, args.backend), else: opts
 
-        case TeamSupervisor.spawn_member(args.team_name, opts) do
+        case Runtime.spawn_team_member(args.team_name, opts) do
           {:ok, pid} ->
             {:ok,
              %{agent_id: args.agent_id, team: args.team_name, pid: inspect(pid), status: :spawned}}
