@@ -3,17 +3,14 @@ defmodule Ichor.Activity.Preparations.LoadTasks do
   Loads tasks from TaskCreate/TaskUpdate hook events in the EventBuffer.
   """
 
-  import Ichor.MapHelpers, only: [maybe_put: 3]
-
   use Ash.Resource.Preparation
 
   alias Ash.DataLayer.Simple
-  alias Ichor.EventBuffer
 
   @impl true
   def prepare(query, _opts, _context) do
     tasks =
-      EventBuffer.list_events()
+      list_events()
       |> Enum.filter(fn e ->
         e.hook_event_type == :PreToolUse and e.tool_name in ["TaskCreate", "TaskUpdate"]
       end)
@@ -68,5 +65,24 @@ defmodule Ichor.Activity.Preparations.LoadTasks do
 
   defp to_resource(task) do
     struct!(Ichor.Activity.Task, task)
+  end
+
+  defp maybe_put(map, _key, nil), do: map
+  defp maybe_put(map, key, value), do: Map.put(map, key, value)
+
+  defp list_events do
+    event_buffer_module =
+      Application.get_env(
+        :ichor_activity,
+        :event_buffer_module,
+        Module.concat([Ichor, EventBuffer])
+      )
+
+    if Code.ensure_loaded?(event_buffer_module) and
+         function_exported?(event_buffer_module, :list_events, 0) do
+      event_buffer_module.list_events()
+    else
+      []
+    end
   end
 end
