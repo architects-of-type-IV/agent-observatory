@@ -3,13 +3,10 @@ defmodule Ichor.Tools.Messaging do
   Shared message-send actions used by Archon and agent-facing tool facades.
   """
 
-  alias Ichor.Fleet.Agent, as: FleetAgent
-  alias Ichor.Gateway.Router
   alias Ichor.Gateway.Target
-  alias Ichor.Operator
 
   def send_as_operator(to, content) when is_binary(to) and is_binary(content) do
-    with {:ok, delivered} <- Operator.send(to, content) do
+    with {:ok, delivered} <- operator_module().send(to, content) do
       {:ok, %{status: "sent", to: to, delivered: delivered}}
     end
   end
@@ -28,7 +25,7 @@ defmodule Ichor.Tools.Messaging do
   end
 
   defp deliver_to_agent(from, to, content) do
-    case FleetAgent.send_message(to, content, %{from: from}) do
+    case fleet_agent_module().send_message(to, content, %{from: from}) do
       {:ok, _result} ->
         {:ok, %{status: "sent", to: to, delivered: 1, via: "fleet"}}
 
@@ -38,7 +35,7 @@ defmodule Ichor.Tools.Messaging do
   end
 
   defp broadcast(channel, from, original_to, content) do
-    case Router.broadcast(channel, %{content: content, from: from}) do
+    case router_module().broadcast(channel, %{content: content, from: from}) do
       {:ok, delivered} when delivered > 0 ->
         {:ok, %{status: "sent", to: original_to, delivered: delivered}}
 
@@ -54,5 +51,17 @@ defmodule Ichor.Tools.Messaging do
       {:error, reason} ->
         {:error, "Failed to send message: #{inspect(reason)}"}
     end
+  end
+
+  defp operator_module do
+    Application.get_env(:ichor, :tools_messaging_operator_module, Ichor.Operator)
+  end
+
+  defp fleet_agent_module do
+    Application.get_env(:ichor, :tools_messaging_fleet_agent_module, Ichor.Fleet.Agent)
+  end
+
+  defp router_module do
+    Application.get_env(:ichor, :tools_messaging_router_module, Ichor.Gateway.Router)
   end
 end
