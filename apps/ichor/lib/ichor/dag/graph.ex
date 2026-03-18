@@ -24,9 +24,18 @@ defmodule Ichor.Dag.Graph do
     }
   end
 
-  defp first_present(map, keys, default) do
-    Enum.find_value(keys, default, &map[&1])
+  def to_graph_node(%{id: _} = task) do
+    %{
+      id: Map.get(task, :id, ""),
+      status: Map.get(task, :status, "pending"),
+      blocked_by: Map.get(task, :blocked_by, []),
+      allowed_files: first_present(task, [:files, :allowed_files], []),
+      owner: Map.get(task, :owner, ""),
+      updated_at: first_present(task, [:updated, :updated_at, :created], "")
+    }
   end
+
+  defp first_present(map, keys, default), do: Enum.find_value(keys, default, &Map.get(map, &1))
 
   @doc "Topological sort into execution waves. Wave 0 has no dependencies."
   def waves(items) do
