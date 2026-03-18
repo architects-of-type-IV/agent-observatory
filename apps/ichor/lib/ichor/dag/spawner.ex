@@ -7,10 +7,20 @@ defmodule Ichor.Dag.Spawner do
   touch the same files are assigned to the same worker for the lifetime of the run.
   """
 
-  alias Ichor.Dag.{Graph, Job, Loader, Prompts, RunSupervisor, Validator, WorkerGroups}
+  alias Ichor.Dag.{
+    Graph,
+    Handoff,
+    Job,
+    Loader,
+    Prompts,
+    RunSupervisor,
+    RuntimeSignals,
+    Validator,
+    WorkerGroups
+  }
+
   alias Ichor.Genesis.{ModeRunner, ModeSpawner}
   alias Ichor.Mes.SubsystemScaffold
-  alias Ichor.Signals
 
   @spec spawn(String.t(), String.t()) ::
           {:ok, %{session: String.t(), run: map()}} | {:error, term()}
@@ -29,6 +39,7 @@ defmodule Ichor.Dag.Spawner do
       worker_groups = build_worker_groups(jobs)
       roster = team_roster(session, worker_groups)
       prompt_ctx = %{subsystem_dir: subsystem_dir, module_name: module_name}
+      _handoff = Handoff.package_jobs(run.id, jobs)
       agents = build_agents(run, session, brief, jobs, worker_groups, roster, prompt_ctx)
 
       with :ok <- ModeRunner.write_agent_scripts(run.id, "dag", agents),
@@ -43,13 +54,13 @@ defmodule Ichor.Dag.Spawner do
           project_path: run.project_path
         )
 
-        Signals.emit(:dag_run_ready, %{
-          run_id: run.id,
-          session: session,
-          node_id: node_id,
-          agent_count: length(agents),
-          worker_count: length(worker_groups)
-        })
+        RuntimeSignals.emit_run_ready(
+          run.id,
+          session,
+          node_id,
+          length(agents),
+          length(worker_groups)
+        )
 
         {:ok, %{session: session, run: run}}
       end
