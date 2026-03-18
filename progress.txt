@@ -1,19 +1,18 @@
 # ICHOR IV Progress
 
-## Ichor.Dag Domain Implementation (2026-03-18) -- COMPLETE
-- [x] DagGenerator /dag compatibility (priority, acceptance_criteria, ISO 8601, notes, roadmap_ref)
-- [x] Dead code cleanup (genesis_tab_components, mes_research_components)
-- [x] Plan: 4 reviewer passes (naming, code, codex, ash expert), 19 tasks
-- [x] Phase 1: Dag domain, Run resource, Job resource, migration, signals (tasks 200-204)
-- [x] Phase 2: Graph (waves, critical_path, stats), Validator (cycles, overlaps) (tasks 205-206)
-- [x] Phase 3: Loader (from_file + from_genesis), Exporter (write-through sync) (tasks 207-208)
-- [x] Phase 4: HealthChecker, RunProcess, RunSupervisor, Supervisor (tasks 209-211)
-- [x] Phase 5: DagExecution MCP tools (7 tools), domain + router registration (tasks 212-213)
-- [x] Phase 6: Prompts (lead template), Spawner (one-call launch) (tasks 214-215)
-- [x] Phase 7: SwarmMonitor migration -- DEFERRED (task 216)
-- [x] Phase 8: Pipeline stage :building, MES Build button, event wiring (tasks 217-218)
-- [x] Build clean: mix compile --warnings-as-errors
-- [ ] NEXT: SwarmMonitor migration (task 216), smoke test, E2E test
+## Ichor.Dag Domain Implementation (2026-03-18) -- COMPLETE + ITERATED
+- [x] DagGenerator /dag compatibility
+- [x] Plan: 4 reviewer passes, 19 tasks, all implemented
+- [x] Phases 1-8: all domain modules, MCP tools, UI wiring
+- [x] Review fixes: after_action hooks, jq injection, error propagation
+- [x] AgentSpawner rewrite: match MES TeamSpawner pattern (write .sh scripts)
+- [x] InstructionOverlay fix: removed .claude/ pollution, write to ~/.ichor/
+- [x] Upfront team spawning: coordinator + lead + N workers ALL created at launch
+- [x] WorkerGroups: pure job-to-worker grouping by shared allowed_files
+- [x] Archon TeamWatchdog: signal-driven lifecycle monitor (no timers)
+- [x] Workshop DAG preset updated to coordinator + lead topology
+- [ ] SwarmMonitor migration (task 216) -- DEFERRED
+- [ ] E2E test: press Build, verify all agents in fleet, comms flowing
 
 ## DagGenerator /dag Compatibility + Dead Code Cleanup (2026-03-17) -- COMPLETE
 - [x] Dead code: moved genesis_tab_components.ex and mes_research_components.ex to tmp/trash/

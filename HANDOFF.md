@@ -1,56 +1,62 @@
 # ICHOR IV - Handoff
 
-## Current Status: Ichor.Dag Domain IMPLEMENTED (2026-03-18)
+## Current Status: Ichor.Dag Domain -- Upfront Team Spawning (2026-03-18)
 
 ### Session Summary
 
-Designed and implemented the full `Ichor.Dag` Ash domain -- 13 new modules, ~1700 lines. Sovereign DAG execution control plane replacing /dag CLI skill. SQLite is runtime truth with tasks.jsonl write-through sync.
+Implemented full Ichor.Dag Ash domain (13 modules), then iteratively fixed spawning to match the proven MES TeamSpawner pattern. Three major rewrites: (1) AgentSpawner fixed to write .sh scripts like MES, (2) InstructionOverlay pollution removed, (3) ALL agents now spawned upfront -- no dynamic spawning.
 
-### What Was Implemented
+### Architecture (FINAL)
 
-#### Ichor.Dag Domain (13 new files)
-- `dag.ex` -- Ash Domain registering Run + Job
-- `dag/run.ex` -- Ash Resource (SQLite): execution session with status lifecycle
-- `dag/job.ex` -- Ash Resource (SQLite): claimable work unit with claim/complete/fail/reset actions
-- `dag/graph.ex` -- Pure functions: waves, critical_path, pipeline_stats, stale_items, file_conflicts, available (extracted from SwarmMonitor)
-- `dag/validator.ex` -- Pure preflight checks: cycle detection, file overlap, missing refs
-- `dag/loader.ex` -- Ingest from tasks.jsonl or Genesis hierarchy into Run + Jobs
-- `dag/exporter.ex` -- Export Jobs to tasks.jsonl + write-through sync via jq
-- `dag/health_checker.ex` -- Pure Elixir health check (stale, conflicts, deadlocks)
-- `dag/run_process.ex` -- GenServer per-run lifecycle (stale reset, health, tmux liveness, completion)
-- `dag/run_supervisor.ex` -- DynamicSupervisor facade
-- `dag/supervisor.ex` -- Wraps RunSupervisor for application.ex
-- `dag/spawner.ex` -- Creates Run + Jobs + tmux lead agent in one call
-- `dag/prompts.ex` -- Lead agent prompt template with MCP tool references
+**DAG team spawn follows MES TeamSpawner pattern exactly:**
+1. Analyze job graph -> group by shared allowed_files -> determine worker count
+2. Create ALL agent prompts (coordinator + lead + N workers) with full job specs
+3. Write prompt .txt + .sh scripts via ModeRunner
+4. tmux new-session (coordinator) + new-window (lead + workers) -- ALL at once
+5. Register ALL agents in fleet with liveness_poll
+6. Start RunProcess lifecycle monitor
 
-#### MCP Tools (1 new file)
-- `agent_tools/dag_execution.ex` -- 7 MCP tools: next_jobs, claim_job, complete_job, fail_job, get_run_status, load_jsonl, export_jsonl
-- Registered in `agent_tools.ex` + `router.ex`
+**NO dynamic spawning. Workers exist from the start.** Lead dispatches to existing workers via send_message. Workers claim/complete their own jobs via MCP tools.
 
-#### UI Wiring
-- "Build" button on MES factory view (replaces DAG station button)
-- `mes_launch_dag` handler calls `Dag.Spawner.spawn/2`
-- Pipeline stage `:building` derived from active `Dag.Run.by_node`
-- No checkpoint changes -- clean domain boundary
+### Key Lessons Learned (Critical for Next Session)
 
-#### Infrastructure
-- 8 DAG signals in catalog (category `:dag`)
-- SQLite migration: `dag_runs` + `dag_jobs` tables with indexes
-- `Ichor.Dag` registered in `ash_domains` config
-- `Ichor.Genesis` added to config (was missing)
-- `ModeSpawner.load_project_brief` made public for reuse
+1. **MES TeamSpawner is the gold standard.** Any new team spawning MUST follow this exact pattern: write prompt files -> .sh scripts -> tmux session/windows -> fleet registration. No exceptions.
+
+2. **Never write to .claude/ directory.** Claude auto-reads all .md files in .claude/. InstructionOverlay wrote ICHOR_OVERLAY.md there, which poisoned ALL agents including Mode A Genesis teams. Overlays now go to ~/.ichor/agents/ or ~/.ichor/overlays/.
+
+3. **No dynamic spawning via spawn_agent MCP tool.** It uses AgentSpawner which has a different (inferior) path than ModeRunner. Workers spawned dynamically don't appear in fleet, can't communicate via MCP. Spawn everything upfront.
+
+4. **Archon TeamWatchdog is signal-driven.** Reacts to :dag_tmux_gone, :team_disbanded, :agent_stopped. No timers. Archives orphaned runs, resets jobs, notifies operator inbox.
+
+5. **ash-elixir-expert.md is mandatory.** Every code change must be evaluated through shape-first, boundary-first lens. Pure functions separated from orchestration. Resources own entity rules. No exceptions.
+
+### Files Created This Session
+
+| File | Purpose |
+|------|---------|
+| `lib/ichor/dag.ex` | Ash Domain |
+| `lib/ichor/dag/run.ex` | Ash Resource: execution session |
+| `lib/ichor/dag/job.ex` | Ash Resource: claimable work unit |
+| `lib/ichor/dag/graph.ex` | Pure functions: waves, critical path, stats |
+| `lib/ichor/dag/validator.ex` | Pure preflight checks |
+| `lib/ichor/dag/loader.ex` | Ingest from tasks.jsonl or Genesis |
+| `lib/ichor/dag/exporter.ex` | Export + write-through sync |
+| `lib/ichor/dag/health_checker.ex` | Pure Elixir health check |
+| `lib/ichor/dag/run_process.ex` | GenServer lifecycle monitor |
+| `lib/ichor/dag/run_supervisor.ex` | DynamicSupervisor facade |
+| `lib/ichor/dag/supervisor.ex` | Wraps RunSupervisor |
+| `lib/ichor/dag/spawner.ex` | Creates ALL agents upfront |
+| `lib/ichor/dag/prompts.ex` | Coordinator + lead + worker prompts |
+| `lib/ichor/dag/worker_groups.ex` | Pure job-to-worker grouping |
+| `lib/ichor/agent_tools/dag_execution.ex` | 7 MCP tools |
+| `lib/ichor/archon/team_watchdog.ex` | Signal-driven lifecycle monitor |
+| `lib/ichor/archon/team_watchdog/reactions.ex` | Pure decision logic |
 
 ### Build Status
 - `mix compile --warnings-as-errors` -- CLEAN
-- `mix credo --strict` -- no new errors (design suggestions only)
+- `mix dialyzer` -- CLEAN
 
 ### What's Next
-1. **SwarmMonitor migration** (task 216) -- thin to ~150 lines, delegate to Dag.Graph
-2. **Smoke test** -- verify via iex: Loader.from_file, Job.available, Job.claim
-3. **End-to-end test** -- click Build on PulseMonitor, verify tmux session + fleet registration
-
-### Critical Constraints
-- External Memories (port 4000) and Genesis apps are DOWN
-- MES scheduler PAUSED
-- Module limit: 200 lines (graph.ex at 204, job.ex at 218 -- acceptable for rich Ash resources)
-- Ash codegen snapshots broken -- manual migrations only
+1. Press Build on PulseMonitor and monitor the upfront-spawned team
+2. SwarmMonitor migration (task 216) -- deferred
+3. Verify workers appear in fleet and comms flow
