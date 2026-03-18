@@ -23,4 +23,11 @@ defmodule IchorWeb.PresentationTest do
     assert Presentation.safe_string(:active) == "active"
     assert Presentation.safe_string(%{ok: true}) =~ "ok"
   end
+
+  test "status palette helpers stay consistent" do
+    assert Presentation.member_status_dot_class(:active) == "bg-success"
+    assert Presentation.member_status_text_class(:ended) == "text-muted"
+    assert Presentation.severity_bg_class("high") == "bg-error"
+    assert Presentation.task_status_text_class("blocked") == "text-brand"
+  end
 end

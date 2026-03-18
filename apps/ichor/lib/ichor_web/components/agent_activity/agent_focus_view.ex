@@ -5,7 +5,7 @@ defmodule IchorWeb.Components.AgentActivity.AgentFocusView do
 
   use Phoenix.Component
   import IchorWeb.Components.AgentActivity.ActivityStream
-  import IchorWeb.DashboardTeamHelpers, only: [member_status_color: 1]
+  import IchorWeb.Presentation, only: [member_status_dot_class: 1]
 
   attr :agent, :map, required: true
   attr :events, :list, required: true
@@ -60,7 +60,7 @@ defmodule IchorWeb.Components.AgentActivity.AgentFocusView do
               </div>
               <div class="flex justify-between">
                 <span class="text-low">Status:</span>
-                <span class={"#{member_status_color(@agent)}"}>
+                <span class={member_status_dot_class(@agent)}>
                   {format_status(@agent[:status])}
                 </span>
               </div>

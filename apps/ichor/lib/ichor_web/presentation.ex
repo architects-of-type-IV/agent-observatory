@@ -58,4 +58,35 @@ defmodule IchorWeb.Presentation do
   def health_text_class(:warning), do: "text-brand"
   def health_text_class(:critical), do: "text-error"
   def health_text_class(_), do: "text-low"
+
+  def member_status_dot_class(member) when is_map(member) do
+    health_bg_class(member[:health] || :unknown)
+  end
+
+  def member_status_dot_class(:active), do: "bg-success"
+  def member_status_dot_class(:idle), do: "bg-brand"
+  def member_status_dot_class(:ended), do: "bg-highlight"
+  def member_status_dot_class(_), do: "bg-highlight"
+
+  def member_status_text_class(:active), do: "text-success"
+  def member_status_text_class(:idle), do: "text-default"
+  def member_status_text_class(:ended), do: "text-muted"
+  def member_status_text_class(_), do: "text-low"
+
+  def severity_bg_class("high"), do: "bg-error"
+  def severity_bg_class("medium"), do: "bg-brand-muted"
+  def severity_bg_class("low"), do: "bg-info"
+  def severity_bg_class(_), do: "bg-low"
+
+  def severity_text_class("high"), do: "text-error"
+  def severity_text_class("medium"), do: "text-brand"
+  def severity_text_class("low"), do: "text-info"
+  def severity_text_class(_), do: "text-default"
+
+  def task_status_text_class("completed"), do: "text-success"
+  def task_status_text_class("in_progress"), do: "text-info"
+  def task_status_text_class("failed"), do: "text-error"
+  def task_status_text_class("pending"), do: "text-default"
+  def task_status_text_class("blocked"), do: "text-brand"
+  def task_status_text_class(_), do: "text-low"
 end

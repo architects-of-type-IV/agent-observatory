@@ -4,7 +4,7 @@ defmodule IchorWeb.DashboardTeamHelpers do
   Handles merging event-based teams with disk-persisted teams.
   """
 
-  import IchorWeb.DashboardAgentHealthHelpers
+  alias IchorWeb.Presentation
 
   alias Ichor.Gateway.AgentRegistry.AgentEntry
 
@@ -169,11 +169,8 @@ defmodule IchorWeb.DashboardTeamHelpers do
   Get color class for member status indicator (now health-based).
   """
   def member_status_color(member) when is_map(member) do
-    health_color(member[:health] || :unknown)
+    Presentation.member_status_dot_class(member)
   end
 
-  def member_status_color(:active), do: "bg-success"
-  def member_status_color(:idle), do: "bg-brand"
-  def member_status_color(:ended), do: "bg-highlight"
-  def member_status_color(_), do: "bg-highlight"
+  def member_status_color(status), do: Presentation.member_status_dot_class(status)
 end

@@ -6,7 +6,7 @@ defmodule IchorWeb.Components.TeamsComponents do
   use Phoenix.Component
   import IchorWeb.IchorComponents
   import IchorWeb.DashboardTeamHelpers
-  import IchorWeb.DashboardAgentHealthHelpers
+  import IchorWeb.Presentation, only: [health_bg_class: 1]
 
   attr :teams, :list, required: true
   attr :inspected_teams, :list, default: []
@@ -65,7 +65,7 @@ defmodule IchorWeb.Components.TeamsComponents do
         <div class="flex items-center gap-3 min-w-0">
           <div class="flex items-center gap-2 min-w-0">
             <span class="text-sm font-medium text-high truncate">{@team.name}</span>
-            <span class={"w-2 h-2 rounded-full shrink-0 #{health_color(@summary.health)}"}></span>
+            <span class={"w-2 h-2 rounded-full shrink-0 #{health_bg_class(@summary.health)}"}></span>
           </div>
 
           <div class="flex items-center gap-1.5">

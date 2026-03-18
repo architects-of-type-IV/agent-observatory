@@ -4,7 +4,7 @@ defmodule IchorWeb.Components.SidebarComponents do
   """
   use Phoenix.Component
 
-  import IchorWeb.DashboardTeamHelpers, only: [member_status_color: 1]
+  import IchorWeb.Presentation, only: [member_status_dot_class: 1]
 
   import IchorWeb.DashboardFormatHelpers,
     only: [session_duration: 2, short_session: 1, session_color: 1]
@@ -64,7 +64,7 @@ defmodule IchorWeb.Components.SidebarComponents do
 
       <div class="space-y-0.5">
         <div :for={m <- @team.members} class="flex items-center gap-1.5">
-          <span class={"w-1.5 h-1.5 rounded-full shrink-0 #{member_status_color(m[:status])}"} />
+          <span class={"w-1.5 h-1.5 rounded-full shrink-0 #{member_status_dot_class(m[:status])}"} />
           <span class="si-title truncate">{m[:name] || "?"}</span>
           <span :if={m[:agent_type]} class="si-meta ml-auto">{m[:agent_type]}</span>
         </div>

@@ -4,7 +4,7 @@ defmodule IchorWeb.Components.Ichor.MemberStatusDot do
   """
 
   use Phoenix.Component
-  import IchorWeb.DashboardTeamHelpers
+  import IchorWeb.Presentation, only: [member_status_dot_class: 1]
 
   @doc """
   Renders a status dot for team members.
@@ -18,7 +18,7 @@ defmodule IchorWeb.Components.Ichor.MemberStatusDot do
 
   def member_status_dot(assigns) do
     ~H"""
-    <span class={"w-1.5 h-1.5 rounded-full shrink-0 #{member_status_color(@status)}"}></span>
+    <span class={"w-1.5 h-1.5 rounded-full shrink-0 #{member_status_dot_class(@status)}"}></span>
     """
   end
 end

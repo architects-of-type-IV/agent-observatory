@@ -8,9 +8,18 @@ defmodule IchorWeb.Components.CommandComponents do
   import IchorWeb.DashboardFormatHelpers
   import IchorWeb.IchorComponents
   import IchorWeb.Components.FeedComponents, only: [feed_view: 1]
-  alias IchorWeb.Components.FleetHelpers, as: FH
 
-  alias Ichor.Gateway.AgentRegistry.AgentEntry
+  import IchorWeb.Presentation,
+    only: [
+      member_status_dot_class: 1,
+      member_status_text_class: 1,
+      severity_bg_class: 1,
+      severity_text_class: 1,
+      task_status_text_class: 1,
+      short_id: 1
+    ]
+
+  alias IchorWeb.Components.FleetHelpers, as: FH
 
   embed_templates "command_components/*"
 
@@ -222,33 +231,6 @@ defmodule IchorWeb.Components.CommandComponents do
   defp status_sort_val(:idle), do: 1
   defp status_sort_val(_), do: 2
 
-  defp status_dot_color(:active), do: "bg-success"
-  defp status_dot_color(:idle), do: "bg-low"
-  defp status_dot_color(:ended), do: "bg-highlight"
-  defp status_dot_color(_), do: "bg-highlight"
-
-  defp status_text_color(:active), do: "text-success"
-  defp status_text_color(:idle), do: "text-default"
-  defp status_text_color(:ended), do: "text-muted"
-  defp status_text_color(_), do: "text-low"
-
-  defp severity_color("high"), do: "bg-error"
-  defp severity_color("medium"), do: "bg-brand-muted"
-  defp severity_color("low"), do: "bg-info"
-  defp severity_color(_), do: "bg-low"
-
-  defp severity_text_color("high"), do: "text-error"
-  defp severity_text_color("medium"), do: "text-brand"
-  defp severity_text_color("low"), do: "text-info"
-  defp severity_text_color(_), do: "text-default"
-
-  defp task_status_color("completed"), do: "text-success"
-  defp task_status_color("in_progress"), do: "text-info"
-  defp task_status_color("failed"), do: "text-error"
-  defp task_status_color("pending"), do: "text-default"
-  defp task_status_color("blocked"), do: "text-brand"
-  defp task_status_color(_), do: "text-low"
-
   defp short_model(nil), do: ""
 
   defp short_model(m) when is_binary(m) do
@@ -260,8 +242,11 @@ defmodule IchorWeb.Components.CommandComponents do
     end
   end
 
-  defp short_id(nil), do: "?"
-  defp short_id(id), do: AgentEntry.short_id(id)
+  defp status_dot_color(status), do: member_status_dot_class(status)
+  defp status_text_color(status), do: member_status_text_class(status)
+  defp severity_color(severity), do: severity_bg_class(severity)
+  defp severity_text_color(severity), do: severity_text_class(severity)
+  defp task_status_color(status), do: task_status_text_class(status)
 
   defp activity_icon(:tool), do: "text-cyan"
   defp activity_icon(:error), do: "text-error"
