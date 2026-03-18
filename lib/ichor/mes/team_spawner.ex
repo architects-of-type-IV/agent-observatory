@@ -14,46 +14,24 @@ defmodule Ichor.Mes.TeamSpawner do
   through the Ichor app via send_message/check_inbox MCP tools.
   """
 
-  alias Ichor.Fleet.{FleetSupervisor, TeamSupervisor}
+  alias Ichor.Fleet.Lifecycle.AgentSpec
+  alias Ichor.Fleet.Lifecycle.Cleanup
+  alias Ichor.Fleet.Lifecycle.TeamLaunch
+  alias Ichor.Fleet.Lifecycle.TeamSpec
   alias Ichor.Mes.{ResearchContext, RunProcess}
   alias Ichor.Signals
 
   @prompt_dir Path.expand("~/.ichor/mes")
-  @ichor_socket Path.expand("~/.ichor/tmux/obs.sock")
 
   # ── Public API ──────────────────────────────────────────────────────
 
   @spec spawn_run(String.t(), String.t()) :: {:ok, String.t()} | {:error, term()}
   def spawn_run(run_id, team_name) do
-    cwd = project_root()
     session = "mes-#{run_id}"
-    roster = team_roster(session)
+    spec = build_team_spec(run_id, team_name)
 
-    agents = [
-      %{
-        name: "coordinator",
-        capability: "coordinator",
-        prompt: coordinator_prompt(run_id, roster)
-      },
-      %{name: "lead", capability: "lead", prompt: lead_prompt(run_id, roster)},
-      %{name: "planner", capability: "builder", prompt: planner_prompt(run_id, roster)},
-      %{
-        name: "researcher-1",
-        capability: "scout",
-        prompt: researcher_1_prompt(run_id, roster)
-      },
-      %{
-        name: "researcher-2",
-        capability: "scout",
-        prompt: researcher_2_prompt(run_id, roster)
-      }
-    ]
-
-    with :ok <- write_agent_scripts(run_id, agents),
-         :ok <- create_session_with_agent(session, cwd, run_id, hd(agents)),
-         :ok <- create_remaining_windows(session, cwd, run_id, tl(agents)) do
-      Enum.each(agents, &register_agent(session, &1, team_name, run_id, cwd))
-      Signals.emit(:mes_team_ready, %{session: session, agent_count: length(agents)})
+    with {:ok, ^session} <- TeamLaunch.launch(spec) do
+      Signals.emit(:mes_team_ready, %{session: session, agent_count: length(spec.agents)})
       {:ok, session}
     else
       {:error, reason} ->
@@ -65,8 +43,7 @@ defmodule Ichor.Mes.TeamSpawner do
   @spec kill_session(String.t()) :: :ok
   def kill_session(session) do
     Signals.emit(:mes_team_killed, %{session: session})
-    kill_args = tmux_args() ++ ["kill-session", "-t", session]
-    System.cmd("tmux", kill_args, stderr_to_stdout: true)
+    _ = Cleanup.kill_session(session)
 
     run_id = String.replace_prefix(session, "mes-", "")
     cleanup_prompt_files(run_id)
@@ -77,47 +54,11 @@ defmodule Ichor.Mes.TeamSpawner do
   @spec spawn_corrective_agent(String.t(), String.t(), String.t() | nil, pos_integer()) ::
           :ok | {:error, term()}
   def spawn_corrective_agent(run_id, session, reason, attempt) do
-    cwd = project_root()
-    name = "corrective-#{attempt}"
+    spec = build_corrective_team_spec(run_id, session, reason, attempt)
 
-    agent = %{
-      name: name,
-      capability: "builder",
-      prompt: corrective_prompt(run_id, session, reason)
-    }
-
-    dir = prompt_dir(run_id)
-    File.mkdir_p!(dir)
-
-    prompt_path = Path.join(dir, "#{name}.txt")
-    script_path = Path.join(dir, "#{name}.sh")
-
-    cli_args =
-      ["--model", "sonnet"]
-      |> add_permission_args(agent.capability)
-      |> Enum.join(" ")
-
-    File.write!(prompt_path, agent.prompt)
-
-    File.write!(
-      script_path,
-      "#!/bin/sh\ncat #{prompt_path} | env -u CLAUDECODE claude #{cli_args}\n"
-    )
-
-    File.chmod!(script_path, 0o755)
-
-    args =
-      tmux_args() ++
-        ["new-window", "-t", session, "-n", name, "-c", cwd, build_agent_command(agent, run_id)]
-
-    case System.cmd("tmux", args, stderr_to_stdout: true) do
-      {_, 0} ->
-        register_agent(session, agent, "mes-#{run_id}", run_id, cwd)
-        :ok
-
-      {output, code} ->
-        Signals.emit(:mes_tmux_spawn_failed, %{session: session, output: output, exit_code: code})
-        {:error, {:corrective_spawn_failed, output, code}}
+    case TeamLaunch.launch_into_existing_session(spec, session) do
+      :ok -> :ok
+      {:error, reason} -> {:error, reason}
     end
   end
 
@@ -139,7 +80,7 @@ defmodule Ichor.Mes.TeamSpawner do
     path = Path.join(@prompt_dir, dir)
 
     if File.dir?(path) do
-      File.rm_rf!(path)
+      Cleanup.cleanup_prompt_dir(path)
       Signals.emit(:mes_cleanup, %{target: dir})
     end
   end
@@ -151,62 +92,12 @@ defmodule Ichor.Mes.TeamSpawner do
       |> Enum.map(fn {run_id, _pid} -> "mes-#{run_id}" end)
       |> MapSet.new()
 
-    TeamSupervisor.list_all()
-    |> Enum.filter(fn {name, _meta} -> String.starts_with?(name, "mes-") end)
-    |> Enum.reject(fn {name, _meta} -> MapSet.member?(active_teams, name) end)
-    |> Enum.each(fn {name, _meta} ->
-      FleetSupervisor.disband_team(name)
-      Signals.emit(:mes_cleanup, %{target: "orphaned_team/#{name}"})
-    end)
-
+    Cleanup.cleanup_orphaned_teams(active_teams, "mes-")
     cleanup_orphaned_tmux_sessions(active_teams)
   end
 
   defp cleanup_orphaned_tmux_sessions(active_teams) do
-    # tmux format: \#S expands to session name
-    args = tmux_args() ++ ["list-sessions", "-F", "\#S"]
-
-    case System.cmd("tmux", args, stderr_to_stdout: true) do
-      {output, 0} ->
-        output
-        |> String.split("\n", trim: true)
-        |> Enum.filter(&String.starts_with?(&1, "mes-"))
-        |> Enum.reject(&MapSet.member?(active_teams, &1))
-        |> Enum.each(fn session ->
-          kill_args = tmux_args() ++ ["kill-session", "-t", session]
-          System.cmd("tmux", kill_args, stderr_to_stdout: true)
-          Signals.emit(:mes_cleanup, %{target: "orphaned_tmux/#{session}"})
-        end)
-
-      _ ->
-        :ok
-    end
-  end
-
-  # ── Private: Prompt Files ──────────────────────────────────────────
-
-  defp write_agent_scripts(run_id, agents) do
-    dir = prompt_dir(run_id)
-    File.mkdir_p!(dir)
-
-    Enum.each(agents, fn agent ->
-      prompt_path = Path.join(dir, "#{agent.name}.txt")
-      script_path = Path.join(dir, "#{agent.name}.sh")
-
-      File.write!(prompt_path, agent.prompt)
-
-      cli_args =
-        ["--model", "sonnet"]
-        |> add_permission_args(agent.capability)
-        |> Enum.join(" ")
-
-      script = "#!/bin/sh\ncat #{prompt_path} | env -u CLAUDECODE claude #{cli_args}\n"
-      File.write!(script_path, script)
-      File.chmod!(script_path, 0o755)
-    end)
-
-    Signals.emit(:mes_prompts_written, %{run_id: run_id, agent_count: length(agents)})
-    :ok
+    Cleanup.cleanup_orphaned_tmux_sessions(active_teams, "mes-")
   end
 
   defp prompt_dir(run_id), do: Path.join(@prompt_dir, run_id)
@@ -215,138 +106,117 @@ defmodule Ichor.Mes.TeamSpawner do
     dir = prompt_dir(run_id)
 
     if File.dir?(dir) do
-      File.rm_rf!(dir)
+      Cleanup.cleanup_prompt_dir(dir)
       Signals.emit(:mes_cleanup, %{target: "prompt_files/#{run_id}"})
     end
   end
 
-  # ── Private: Tmux Session & Windows ─────────────────────────────────
+  defp project_root, do: File.cwd!()
 
-  defp create_session_with_agent(session, cwd, run_id, agent) do
-    command = build_agent_command(agent, run_id)
+  defp build_team_spec(run_id, team_name) do
+    cwd = project_root()
+    session = "mes-#{run_id}"
+    roster = team_roster(session)
 
-    args =
-      tmux_args() ++
-        ["new-session", "-d", "-s", session, "-c", cwd, "-n", agent.name, command]
-
-    Signals.emit(:mes_tmux_spawning, %{
-      session: session,
-      agent_name: agent.name,
-      command: command,
-      tmux_args: Enum.join(args, " ")
-    })
-
-    case System.cmd("tmux", args, stderr_to_stdout: true) do
-      {_, 0} ->
-        Signals.emit(:mes_tmux_session_created, %{session: session, agent_name: agent.name})
-        :ok
-
-      {output, code} ->
-        Signals.emit(:mes_tmux_spawn_failed, %{
-          session: session,
-          output: output,
-          exit_code: code
-        })
-
-        {:error, {:session_create_failed, output, code}}
-    end
-  end
-
-  defp create_remaining_windows(session, cwd, run_id, agents) do
-    Enum.reduce_while(agents, :ok, fn agent, :ok ->
-      command = build_agent_command(agent, run_id)
-
-      args =
-        tmux_args() ++
-          ["new-window", "-t", session, "-n", agent.name, "-c", cwd, command]
-
-      case System.cmd("tmux", args, stderr_to_stdout: true) do
-        {_, 0} ->
-          Signals.emit(:mes_tmux_window_created, %{session: session, agent_name: agent.name})
-          {:cont, :ok}
-
-        {output, code} ->
-          {:halt, {:error, {:window_create_failed, agent.name, output, code}}}
-      end
-    end)
-  end
-
-  defp build_agent_command(agent, run_id) do
-    Path.join(prompt_dir(run_id), "#{agent.name}.sh")
-  end
-
-  # ── Private: BEAM Registration ─────────────────────────────────────
-
-  defp register_agent(session, agent, team_name, run_id, cwd) do
-    agent_id = "#{session}-#{agent.name}"
-
-    process_opts = [
-      id: agent_id,
-      role: capability_to_role(agent.capability),
-      team: team_name,
-      liveness_poll: true,
-      backend: %{type: :tmux, session: "#{session}:#{agent.name}"},
-      capabilities: capabilities_for(agent.capability),
-      metadata: %{cwd: cwd, run_id: run_id, model: "sonnet"}
+    agents = [
+      build_agent_spec(
+        "coordinator",
+        "coordinator",
+        coordinator_prompt(run_id, roster),
+        cwd,
+        session,
+        team_name,
+        run_id
+      ),
+      build_agent_spec(
+        "lead",
+        "lead",
+        lead_prompt(run_id, roster),
+        cwd,
+        session,
+        team_name,
+        run_id
+      ),
+      build_agent_spec(
+        "planner",
+        "builder",
+        planner_prompt(run_id, roster),
+        cwd,
+        session,
+        team_name,
+        run_id
+      ),
+      build_agent_spec(
+        "researcher-1",
+        "scout",
+        researcher_1_prompt(run_id, roster),
+        cwd,
+        session,
+        team_name,
+        run_id
+      ),
+      build_agent_spec(
+        "researcher-2",
+        "scout",
+        researcher_2_prompt(run_id, roster),
+        cwd,
+        session,
+        team_name,
+        run_id
+      )
     ]
 
-    ensure_team(team_name)
+    TeamSpec.new(%{
+      team_name: team_name,
+      session: session,
+      cwd: cwd,
+      agents: agents,
+      prompt_dir: prompt_dir(run_id),
+      metadata: %{run_id: run_id}
+    })
+  end
 
-    case TeamSupervisor.spawn_member(team_name, process_opts) do
-      {:ok, _pid} ->
-        Signals.emit(:mes_agent_registered, %{agent_name: agent.name, session: session})
+  defp build_corrective_team_spec(run_id, session, reason, attempt) do
+    cwd = project_root()
+    name = "corrective-#{attempt}"
 
-      {:error, reason} ->
-        Signals.emit(:mes_agent_register_failed, %{
-          agent_name: agent.name,
-          reason: inspect(reason)
+    TeamSpec.new(%{
+      team_name: "mes-#{run_id}",
+      session: session,
+      cwd: cwd,
+      agents: [
+        AgentSpec.new(%{
+          name: name,
+          window_name: name,
+          agent_id: "#{session}-#{name}",
+          capability: "builder",
+          model: "sonnet",
+          cwd: cwd,
+          team_name: "mes-#{run_id}",
+          session: session,
+          prompt: corrective_prompt(run_id, session, reason),
+          metadata: %{run_id: run_id}
         })
-    end
+      ],
+      prompt_dir: prompt_dir(run_id),
+      metadata: %{run_id: run_id}
+    })
   end
 
-  defp ensure_team(name) do
-    case FleetSupervisor.create_team(name: name) do
-      {:ok, _pid} -> :ok
-      {:error, :already_exists} -> :ok
-      {:error, {:already_started, _pid}} -> :ok
-      {:error, reason} -> {:error, reason}
-    end
+  defp build_agent_spec(name, capability, prompt, cwd, session, team_name, run_id) do
+    AgentSpec.new(%{
+      name: name,
+      window_name: name,
+      agent_id: "#{session}-#{name}",
+      capability: capability,
+      model: "sonnet",
+      cwd: cwd,
+      team_name: team_name,
+      session: session,
+      prompt: prompt,
+      metadata: %{run_id: run_id}
+    })
   end
-
-  defp capabilities_for("lead"), do: [:read, :write, :spawn, :assign, :escalate]
-  defp capabilities_for("coordinator"), do: [:read, :write, :spawn, :assign, :escalate, :kill]
-  defp capabilities_for("scout"), do: [:read]
-  defp capabilities_for(_), do: [:read, :write]
-
-  # ── Private: Role/Permission Helpers ───────────────────────────────
-
-  defp capability_to_role("lead"), do: :lead
-  defp capability_to_role("coordinator"), do: :coordinator
-  defp capability_to_role(_), do: :worker
-
-  defp add_permission_args(args, cap) when cap in ["builder", "lead", "coordinator"],
-    do: args ++ ["--dangerously-skip-permissions"]
-
-  defp add_permission_args(args, "scout"),
-    do:
-      args ++
-        [
-          "--allowedTools",
-          "Read",
-          "Glob",
-          "Grep",
-          "WebSearch",
-          "WebFetch",
-          "Bash"
-        ]
-
-  defp add_permission_args(args, _), do: args
-
-  defp tmux_args do
-    if File.exists?(@ichor_socket), do: ["-S", @ichor_socket], else: ["-L", "obs"]
-  end
-
-  defp project_root, do: File.cwd!()
 
   # ── Private: Team Roster ──────────────────────────────────────────
 

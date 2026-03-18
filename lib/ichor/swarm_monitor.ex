@@ -7,8 +7,10 @@ defmodule Ichor.SwarmMonitor do
   use GenServer
   require Logger
 
+  alias Ichor.Fleet.Lifecycle.Cleanup
   alias Ichor.Signals.Message
   alias Ichor.SwarmMonitor.Discovery
+  alias Ichor.SwarmMonitor.TaskState
 
   @tasks_poll_interval 3_000
   @health_poll_interval 30_000
@@ -114,7 +116,7 @@ defmodule Ichor.SwarmMonitor do
         {:reply, {:error, :no_active_project}, state}
 
       path ->
-        result = jq_update_task(path, task_id, "pending", "")
+        result = TaskState.heal_task(path, task_id)
         state = refresh_tasks(state)
         broadcast(state)
         {:reply, result, state}
@@ -127,7 +129,7 @@ defmodule Ichor.SwarmMonitor do
         {:reply, {:error, :no_active_project}, state}
 
       path ->
-        result = jq_reassign_task(path, task_id, new_owner)
+        result = TaskState.reassign_task(path, task_id, new_owner)
         state = refresh_tasks(state)
         broadcast(state)
         {:reply, result, state}
@@ -161,16 +163,7 @@ defmodule Ichor.SwarmMonitor do
         {:reply, {:error, :no_active_project}, state}
 
       path ->
-        gc_script = Path.expand("~/.claude/skills/dag/scripts/gc.sh")
-
-        result =
-          case System.cmd("bash", [gc_script, team_name, path],
-                 stderr_to_stdout: true,
-                 env: []
-               ) do
-            {output, 0} -> {:ok, String.trim(output)}
-            {output, _} -> {:error, String.trim(output)}
-          end
+        result = Cleanup.trigger_gc(team_name, path)
 
         state = %{state | archives: scan_archives()}
         broadcast(state)
@@ -190,7 +183,7 @@ defmodule Ichor.SwarmMonitor do
         {:reply, {:error, :no_active_project}, state}
 
       path ->
-        result = run_claim_script(task_id, agent_name, path)
+        result = TaskState.claim_task(task_id, agent_name, path)
         state = refresh_tasks(state)
         broadcast(state)
         {:reply, result, state}
@@ -537,21 +530,6 @@ defmodule Ichor.SwarmMonitor do
     end)
   end
 
-  defp run_claim_script(task_id, agent_name, path) do
-    claim_script = Path.expand("~/.claude/skills/dag/scripts/claim-task.sh")
-
-    case System.cmd("bash", [claim_script, task_id, agent_name, path],
-           stderr_to_stdout: true,
-           env: []
-         ) do
-      {output, 0} ->
-        if String.contains?(output, "CLAIMED"), do: :ok, else: {:error, String.trim(output)}
-
-      {output, _} ->
-        {:error, String.trim(output)}
-    end
-  end
-
   defp wave_ready?(task, assigned, all_ids) do
     not MapSet.member?(assigned, task.id) and
       Enum.all?(task.blocked_by, fn dep ->
@@ -566,7 +544,7 @@ defmodule Ichor.SwarmMonitor do
   end
 
   defp count_reset(task, acc, path) do
-    case jq_update_task(path, task.id, "pending", "") do
+    case TaskState.update_task_status(path, task.id, "pending", "") do
       :ok -> acc + 1
       _ -> acc
     end
@@ -616,48 +594,6 @@ defmodule Ichor.SwarmMonitor do
         shared = Enum.filter(a.files, fn f -> f in b.files end),
         shared != [] do
       {a.id, b.id, shared}
-    end
-  end
-
-  # ═══════════════════════════════════════════════════════
-  # Task mutation via jq
-  # ═══════════════════════════════════════════════════════
-
-  defp jq_update_task(path, task_id, new_status, new_owner) do
-    now = DateTime.utc_now() |> DateTime.to_iso8601()
-
-    jq_expr =
-      ~s(if .id == "#{task_id}" then .status = "#{new_status}" | .owner = "#{new_owner}" | .updated = "#{now}" else . end)
-
-    jq_in_place(path, jq_expr)
-  end
-
-  defp jq_reassign_task(path, task_id, new_owner) do
-    now = DateTime.utc_now() |> DateTime.to_iso8601()
-
-    jq_expr =
-      ~s(if .id == "#{task_id}" then .owner = "#{new_owner}" | .updated = "#{now}" else . end)
-
-    jq_in_place(path, jq_expr)
-  end
-
-  defp jq_in_place(path, expr) do
-    tmp = path <> ".tmp"
-
-    case System.cmd("jq", ["-c", expr, path], stderr_to_stdout: true) do
-      {output, 0} ->
-        case File.write(tmp, output) do
-          :ok ->
-            File.rename!(tmp, path)
-            :ok
-
-          err ->
-            File.rm(tmp)
-            err
-        end
-
-      {err, _} ->
-        {:error, err}
     end
   end
 
