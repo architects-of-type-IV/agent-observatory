@@ -78,7 +78,7 @@ defmodule Ichor.Mes.ResearchIngestor do
   end
 
   defp load_project(project_id) do
-    case Ash.get(Project, project_id) do
+    case Project.get(project_id) do
       {:ok, project} -> project
       _ -> nil
     end

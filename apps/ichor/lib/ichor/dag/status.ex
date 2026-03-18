@@ -7,16 +7,16 @@ defmodule Ichor.Dag.Status do
   belongs.
   """
 
-  alias Ichor.SwarmMonitor
+  alias Ichor.Dag.Runtime
 
   @spec state() :: map()
-  def state, do: SwarmMonitor.get_state()
+  def state, do: Runtime.state()
 
   @spec set_active_project(String.t()) :: :ok | {:error, term()}
-  def set_active_project(project_key), do: SwarmMonitor.set_active_project(project_key)
+  def set_active_project(project_key), do: Runtime.set_active_project(project_key)
 
   @spec add_project(String.t(), String.t()) :: :ok | {:error, term()}
-  def add_project(key, path), do: SwarmMonitor.add_project(key, path)
+  def add_project(key, path), do: Runtime.add_project(key, path)
 
   @spec health_report() :: map()
   def health_report do

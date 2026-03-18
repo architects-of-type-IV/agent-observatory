@@ -53,7 +53,7 @@ defmodule Ichor.QualityGate do
     session_id = event.session_id
     payload = event.payload || %{}
 
-    # Try to find the task's done_when from SwarmMonitor
+    # Try to find the task's done_when from the DAG runtime state
     task_id = payload["task_id"]
     done_when = find_done_when(task_id, event)
 
@@ -127,9 +127,8 @@ defmodule Ichor.QualityGate do
   defp find_done_when(nil, _event), do: nil
 
   defp find_done_when(task_id, event) do
-    # Check SwarmMonitor for the task's done_when field
-    swarm_state = Status.state()
-    tasks = swarm_state[:tasks] || []
+    dag_state = Status.state()
+    tasks = dag_state[:tasks] || []
 
     case Enum.find(tasks, fn t -> to_string(t["id"]) == to_string(task_id) end) do
       %{"done_when" => done_when} when is_binary(done_when) -> done_when
