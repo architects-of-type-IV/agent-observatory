@@ -1,26 +1,19 @@
 defmodule IchorWeb.ExportController do
   use IchorWeb, :controller
-  alias Ichor.Events.Event
+  alias Ichor.Events
 
   def index(conn, params) do
     format = params["format"] || "json"
 
-    # Load events using Ash
-    case Ash.read(Event, action: :read) do
-      {:ok, events} ->
-        events =
-          events
-          |> apply_filters(params)
-          |> Enum.sort_by(& &1.inserted_at, DateTime)
+    events =
+      Events.list_events()
+      |> apply_filters(params)
+      |> Enum.sort_by(& &1.inserted_at, DateTime)
 
-        case format do
-          "csv" -> export_csv(conn, events)
-          "json" -> export_json(conn, events)
-          _ -> export_json(conn, events)
-        end
-
-      {:error, _} ->
-        send_resp(conn, 500, "Failed to load events")
+    case format do
+      "csv" -> export_csv(conn, events)
+      "json" -> export_json(conn, events)
+      _ -> export_json(conn, events)
     end
   end
 

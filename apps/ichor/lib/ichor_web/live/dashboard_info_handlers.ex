@@ -196,7 +196,7 @@ defmodule IchorWeb.DashboardInfoHandlers do
 
   defp reload_genesis_node(socket) do
     node =
-      case Ichor.Genesis.Node.by_project(socket.assigns.selected_mes_project.id,
+      case Ichor.Genesis.node_by_project(socket.assigns.selected_mes_project.id,
              load: @genesis_loads
            ) do
         {:ok, [n | _]} -> n

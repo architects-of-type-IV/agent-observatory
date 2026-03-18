@@ -5,8 +5,8 @@ defmodule IchorWeb.DashboardMesHandlers do
   import Phoenix.LiveView, only: [put_flash: 3]
 
   alias Ichor.Dag
+  alias Ichor.Genesis
   alias Ichor.Genesis.{DagGenerator, ModeSpawner}
-  alias Ichor.Genesis.Node, as: GenesisNode
   alias Ichor.Mes.{Project, Scheduler, SubsystemLoader}
   alias Ichor.Signals
 
@@ -164,7 +164,7 @@ defmodule IchorWeb.DashboardMesHandlers do
   ]
 
   defp load_genesis_node_by_id(node_id) do
-    case GenesisNode.get(node_id, load: @genesis_loads) do
+    case Genesis.get_node(node_id, load: @genesis_loads) do
       {:ok, node} -> node
       _ -> nil
     end
@@ -173,14 +173,14 @@ defmodule IchorWeb.DashboardMesHandlers do
   defp load_genesis_node(nil), do: nil
 
   defp load_genesis_node(project) do
-    case GenesisNode.by_project(project.id, load: @genesis_loads) do
+    case Genesis.node_by_project(project.id, load: @genesis_loads) do
       {:ok, [node | _]} -> node
       _ -> nil
     end
   end
 
   defp run_gate_check(node_id) do
-    case GenesisNode.get(node_id, load: @genesis_loads) do
+    case Genesis.get_node(node_id, load: @genesis_loads) do
       {:ok, loaded} -> build_gate_report(loaded)
       _ -> nil
     end

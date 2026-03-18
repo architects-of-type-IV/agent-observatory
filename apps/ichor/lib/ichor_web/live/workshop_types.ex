@@ -50,7 +50,7 @@ defmodule IchorWeb.WorkshopTypes do
   def handle_event("ws_delete_type", %{"id" => id}, socket) do
     case AgentType.by_id(id) do
       {:ok, type} ->
-        Ash.destroy!(type)
+        :ok = AgentType.destroy(type)
 
         socket =
           if match?(%{id: ^id}, socket.assigns.ws_editing_type),

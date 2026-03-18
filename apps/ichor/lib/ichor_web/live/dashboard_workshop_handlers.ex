@@ -10,7 +10,7 @@ defmodule IchorWeb.DashboardWorkshopHandlers do
   alias Ichor.Workshop.BlueprintState
   alias Ichor.Workshop.Launcher
   alias Ichor.Workshop.AgentType
-  alias Ichor.Workshop.TeamBlueprint
+  alias Ichor.Workshop.Persistence, as: WorkshopPersistence
   alias IchorWeb.WorkshopPersistence, as: WP
   alias IchorWeb.WorkshopPresets
   alias Phoenix.LiveView
@@ -123,10 +123,7 @@ defmodule IchorWeb.DashboardWorkshopHandlers do
 
   def handle_event("ws_clear", _, socket) do
     if bp_id = socket.assigns[:ws_blueprint_id] do
-      case TeamBlueprint.by_id(bp_id) do
-        {:ok, bp} -> Ash.destroy!(bp)
-        _ -> :ok
-      end
+      _ = WorkshopPersistence.delete_blueprint(bp_id)
     end
 
     {:noreply, socket |> WP.clear_canvas() |> assign(:ws_blueprint_id, nil) |> push_ws_state()}
