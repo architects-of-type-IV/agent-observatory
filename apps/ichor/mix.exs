@@ -82,6 +82,11 @@ defmodule Ichor.MixProject do
       {:ichor_tmux_runtime, in_umbrella: true},
       {:ichor_mesh, in_umbrella: true},
       {:ichor_signals, in_umbrella: true},
+      {:ichor_data, in_umbrella: true},
+      {:ichor_mes, in_umbrella: true},
+      {:ichor_events, in_umbrella: true},
+      {:ichor_genesis, in_umbrella: true},
+      {:ichor_dag, in_umbrella: true},
       # Subsystem contracts
       {:ichor_contracts, path: "../../subsystems/ichor_contracts"}
     ]
@@ -96,7 +101,7 @@ defmodule Ichor.MixProject do
   defp aliases do
     [
       setup: ["deps.get", "ecto.setup", "assets.setup", "assets.build"],
-      "ecto.setup": ["ecto.create", "ecto.migrate", "run priv/repo/seeds.exs"],
+      "ecto.setup": ["ecto.create", "ecto.migrate", "run ../ichor_data/priv/repo/seeds.exs"],
       "ecto.reset": ["ecto.drop", "ecto.setup"],
       test: ["ecto.create --quiet", "ecto.migrate --quiet", "test"],
       "assets.setup": ["tailwind.install --if-missing", "esbuild.install --if-missing"],
@@ -112,21 +117,6 @@ defmodule Ichor.MixProject do
 
   defp xref_excludes do
     [
-      Ichor.Genesis,
-      Ichor.Genesis.Node,
-      Ichor.Genesis.Adr,
-      Ichor.Genesis.Feature,
-      Ichor.Genesis.UseCase,
-      Ichor.Genesis.Checkpoint,
-      Ichor.Genesis.Conversation,
-      Ichor.Genesis.Phase,
-      Ichor.Genesis.Section,
-      Ichor.Genesis.Task,
-      Ichor.Genesis.Subtask,
-      Ichor.Dag,
-      Ichor.Dag.Run,
-      Ichor.Dag.Job,
-      Ichor.Dag.Job.Preparations.FilterAvailable,
       Ichor.Activity,
       Ichor.Activity.Message,
       Ichor.Activity.Task,
@@ -134,16 +124,11 @@ defmodule Ichor.MixProject do
       Ichor.Activity.Preparations.LoadMessages,
       Ichor.Activity.Preparations.LoadTasks,
       Ichor.Activity.Preparations.LoadErrors,
-      Ichor.Events,
-      Ichor.Events.Event,
-      Ichor.Events.Session,
       Ichor.Fleet,
       Ichor.Fleet.Agent,
       Ichor.Fleet.Team,
       Ichor.Fleet.Views.Preparations.LoadAgents,
-      Ichor.Fleet.Views.Preparations.LoadTeams,
-      Ichor.Mes,
-      Ichor.Mes.Project
+      Ichor.Fleet.Views.Preparations.LoadTeams
     ]
   end
 end

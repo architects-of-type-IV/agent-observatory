@@ -23,7 +23,8 @@ defmodule IchorGenesis.MixProject do
 
   defp deps do
     [
-      {:ichor, in_umbrella: true},
+      {:ichor_data, in_umbrella: true},
+      {:ichor_mes, in_umbrella: true},
       {:ash, "~> 3.0"},
       {:ash_sqlite, "~> 0.2"}
     ]

@@ -8,7 +8,6 @@
 import Config
 
 config :ichor,
-  ecto_repos: [Ichor.Repo],
   generators: [timestamp_type: :utc_datetime],
   ash_domains: [
     Ichor.AgentTools,
@@ -18,6 +17,9 @@ config :ichor,
     Ichor.Archon.Tools,
     Ichor.Signals.Domain
   ]
+
+config :ichor_data,
+  ecto_repos: [Ichor.Repo]
 
 config :ichor_mes,
   ash_domains: [

@@ -1,7 +1,7 @@
 import Config
 
 # Configure your database
-config :ichor, Ichor.Repo,
+config :ichor_data, Ichor.Repo,
   database: Path.expand("../ichor_dev.db", __DIR__),
   pool_size: 5,
   stacktrace: true,

@@ -1,9 +1,9 @@
-defmodule IchorMes.MixProject do
+defmodule IchorData.MixProject do
   use Mix.Project
 
   def project do
     [
-      app: :ichor_mes,
+      app: :ichor_data,
       version: "0.1.0",
       build_path: "../../_build",
       config_path: "../../config/config.exs",
@@ -23,9 +23,8 @@ defmodule IchorMes.MixProject do
 
   defp deps do
     [
-      {:ichor_data, in_umbrella: true},
-      {:ash, "~> 3.0"},
-      {:ash_sqlite, "~> 0.2"}
+      {:ecto_sql, "~> 3.13"},
+      {:ecto_sqlite3, ">= 0.0.0"}
     ]
   end
 end

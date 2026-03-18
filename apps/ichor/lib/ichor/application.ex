@@ -16,7 +16,7 @@ defmodule Ichor.Application do
       IchorWeb.Telemetry,
       Ichor.Repo,
       {Ecto.Migrator,
-       repos: Application.fetch_env!(:ichor, :ecto_repos), skip: skip_migrations?()},
+       repos: Application.fetch_env!(:ichor_data, :ecto_repos), skip: skip_migrations?()},
       {DNSCluster, query: Application.get_env(:ichor, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: Ichor.PubSub},
 

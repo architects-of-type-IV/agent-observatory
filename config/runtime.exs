@@ -54,7 +54,7 @@ if config_env() == :prod do
       For example: /etc/ichor/ichor.db
       """
 
-  config :ichor, Ichor.Repo,
+  config :ichor_data, Ichor.Repo,
     database: database_path,
     pool_size: String.to_integer(System.get_env("POOL_SIZE") || "5")
 
