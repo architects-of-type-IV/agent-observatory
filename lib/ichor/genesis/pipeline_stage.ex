@@ -1,7 +1,7 @@
 defmodule Ichor.Genesis.PipelineStage do
   @moduledoc """
   Derives pipeline stage from a Genesis Node's loaded associations.
-  Pure function -- no side effects, no queries.
+  Queries Ichor.Dag.Run for :building stage detection (cross-domain read).
   """
 
   @type stage ::
@@ -22,7 +22,12 @@ defmodule Ichor.Genesis.PipelineStage do
   def derive(nil), do: {:ideation, "Ideation"}
 
   def derive(node) do
-    stage = classify(node)
+    stage =
+      case has_active_dag_run?(node) do
+        true -> :building
+        false -> classify(node)
+      end
+
     {stage, label(stage)}
   end
 
@@ -118,6 +123,17 @@ defmodule Ichor.Genesis.PipelineStage do
   defp has_checkpoint_mode?(checkpoints, mode) do
     Enum.any?(checkpoints, fn cp -> cp.mode == mode or cp.mode == to_string(mode) end)
   end
+
+  defp has_active_dag_run?(nil), do: false
+
+  defp has_active_dag_run?(%{id: node_id}) when is_binary(node_id) do
+    case Ichor.Dag.Run.by_node(node_id) do
+      {:ok, [_ | _]} -> true
+      _ -> false
+    end
+  end
+
+  defp has_active_dag_run?(_), do: false
 
   @labels %{
     ideation: "Ideation",

@@ -20,7 +20,9 @@ config :ichor,
     Ichor.Archon,
     Ichor.Archon.Tools,
     Ichor.Signals,
-    Ichor.Mes
+    Ichor.Mes,
+    Ichor.Genesis,
+    Ichor.Dag
   ]
 
 # Configure the endpoint

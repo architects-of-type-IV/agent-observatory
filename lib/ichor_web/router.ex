@@ -79,7 +79,14 @@ defmodule IchorWeb.Router do
       :create_section,
       :create_task,
       :create_subtask,
-      :list_phases
+      :list_phases,
+      :next_jobs,
+      :claim_job,
+      :complete_job,
+      :fail_job,
+      :get_run_status,
+      :load_jsonl,
+      :export_jsonl
     ],
     otp_app: :ichor
 

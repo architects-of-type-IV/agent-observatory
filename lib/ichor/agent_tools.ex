@@ -9,6 +9,7 @@ defmodule Ichor.AgentTools do
   alias Ichor.AgentTools.{
     Agents,
     Archival,
+    DagExecution,
     GenesisArtifacts,
     GenesisGates,
     GenesisNodes,
@@ -31,6 +32,7 @@ defmodule Ichor.AgentTools do
     resource(GenesisArtifacts)
     resource(GenesisGates)
     resource(Ichor.AgentTools.GenesisRoadmap)
+    resource(DagExecution)
   end
 
   tools do
@@ -82,5 +84,13 @@ defmodule Ichor.AgentTools do
     tool(:create_task, Ichor.AgentTools.GenesisRoadmap, :create_task)
     tool(:create_subtask, Ichor.AgentTools.GenesisRoadmap, :create_subtask)
     tool(:list_phases, Ichor.AgentTools.GenesisRoadmap, :list_phases)
+    # DAG execution
+    tool(:next_jobs, DagExecution, :next_jobs)
+    tool(:claim_job, DagExecution, :claim_job)
+    tool(:complete_job, DagExecution, :complete_job)
+    tool(:fail_job, DagExecution, :fail_job)
+    tool(:get_run_status, DagExecution, :get_run_status)
+    tool(:load_jsonl, DagExecution, :load_jsonl)
+    tool(:export_jsonl, DagExecution, :export_jsonl)
   end
 end

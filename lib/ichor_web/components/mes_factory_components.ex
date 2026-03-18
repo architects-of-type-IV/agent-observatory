@@ -54,11 +54,10 @@ defmodule IchorWeb.Components.MesFactoryComponents do
             event="mes_gate_check"
             node_id={@genesis_node && @genesis_node.id}
           />
-          <.station_btn
-            label="DAG"
+          <.build_btn
             state={@stations.dag}
-            event="mes_generate_dag"
             node_id={@genesis_node && @genesis_node.id}
+            project_id={@project.id}
           />
         </div>
       </div>
@@ -123,6 +122,33 @@ defmodule IchorWeb.Components.MesFactoryComponents do
   defp station_btn(assigns) do
     assigns = assign(assigns, :cls, @pill_future)
     ~H"<span class={@cls}>{@label}</span>"
+  end
+
+  @pill_build "px-2.5 py-1 text-[8px] font-bold bg-warning/15 text-warning hover:bg-warning/25 transition-colors cursor-pointer"
+
+  defp build_btn(%{state: :active} = assigns) do
+    assigns = assign(assigns, :cls, @pill_build)
+
+    ~H"""
+    <button
+      phx-click="mes_launch_dag"
+      phx-value-node-id={@node_id}
+      phx-value-project-id={@project_id}
+      class={@cls}
+    >
+      Build
+    </button>
+    """
+  end
+
+  defp build_btn(%{state: :completed} = assigns) do
+    assigns = assign(assigns, :cls, @pill_completed)
+    ~H"<span class={@cls}>Built</span>"
+  end
+
+  defp build_btn(assigns) do
+    assigns = assign(assigns, :cls, @pill_future)
+    ~H"<span class={@cls}>Build</span>"
   end
 
   # ── Tab Bar ──────────────────────────────────────────────────────────

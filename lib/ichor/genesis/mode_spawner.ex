@@ -154,7 +154,7 @@ defmodule Ichor.Genesis.ModeSpawner do
     )
   end
 
-  defp load_project_brief(project_id) do
+  def load_project_brief(project_id) do
     case MesProject.get(project_id) do
       {:ok, project} ->
         """

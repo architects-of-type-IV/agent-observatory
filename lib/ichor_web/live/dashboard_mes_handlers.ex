@@ -4,6 +4,7 @@ defmodule IchorWeb.DashboardMesHandlers do
   import Phoenix.Component, only: [assign: 3]
   import Phoenix.LiveView, only: [put_flash: 3]
 
+  alias Ichor.Dag
   alias Ichor.Genesis.{DagGenerator, ModeSpawner}
   alias Ichor.Genesis.Node, as: GenesisNode
   alias Ichor.Mes.{Project, Scheduler, SubsystemLoader}
@@ -65,6 +66,18 @@ defmodule IchorWeb.DashboardMesHandlers do
 
       {:error, reason} ->
         put_flash(socket, :error, "DAG generation failed: #{inspect(reason)}")
+    end
+  end
+
+  def dispatch("mes_launch_dag", %{"node-id" => node_id, "project-id" => project_id}, socket) do
+    case Dag.Spawner.spawn(node_id, project_id) do
+      {:ok, %{session: session}} ->
+        socket
+        |> assign(:genesis_node, load_genesis_node_by_id(node_id))
+        |> put_flash(:info, "Build team launched: #{session}")
+
+      {:error, reason} ->
+        put_flash(socket, :error, "Build failed: #{inspect(reason)}")
     end
   end
 

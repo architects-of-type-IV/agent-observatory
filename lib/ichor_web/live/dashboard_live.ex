@@ -69,7 +69,7 @@ defmodule IchorWeb.DashboardLive do
   @p5_events ~w(toggle_agent_grid toggle_entropy_filter select_session toggle_subpanel sort_capability_directory update_route_weight retry_dlq_entry search_archive set_cost_group_by add_policy_rule toggle_forensic_panel toggle_protocol_item)
   @spawn_events ~w(spawn_agent stop_spawned_agent)
   @nav_events ~w(jump_to_timeline jump_to_feed jump_to_agents jump_to_tasks select_timeline_event filter_agent_tasks filter_analytics_tool restore_view_mode)
-  @mes_events ~w(mes_pick_up mes_load_subsystem toggle_mes_scheduler mes_select_project mes_deselect_project mes_start_mode mes_gate_check mes_generate_dag genesis_switch_tab genesis_select_artifact genesis_close_reader)
+  @mes_events ~w(mes_pick_up mes_load_subsystem toggle_mes_scheduler mes_select_project mes_deselect_project mes_start_mode mes_gate_check mes_generate_dag mes_launch_dag genesis_switch_tab genesis_select_artifact genesis_close_reader)
 
   # Messaging events only need view recompute (thread/search state)
   @messaging_view ~w(toggle_thread expand_all_threads collapse_all_threads search_messages)

@@ -434,6 +434,53 @@ defmodule Ichor.Signals.Catalog do
       category: :genesis,
       keys: [:id, :node_id, :type],
       doc: "Genesis artifact created via MCP tool (ADR, Feature, UseCase, Checkpoint, etc.)"
+    },
+
+    # ── DAG ─────────────────────────────────────────────────────────
+    dag_run_created: %{
+      category: :dag,
+      keys: [:run_id, :source, :label, :job_count],
+      doc: "Dag.Run created (genesis or imported ingest)"
+    },
+    dag_run_ready: %{
+      category: :dag,
+      keys: [:run_id, :session, :node_id],
+      doc: "Dag.Run spawned with lead agent in tmux"
+    },
+    dag_run_completed: %{
+      category: :dag,
+      keys: [:run_id, :label],
+      doc: "All jobs completed for a run"
+    },
+    dag_job_claimed: %{
+      category: :dag,
+      keys: [:run_id, :external_id, :owner, :wave],
+      doc: "Job claimed by a lead agent"
+    },
+    dag_job_completed: %{
+      category: :dag,
+      keys: [:run_id, :external_id, :owner],
+      doc: "Job marked completed after verification"
+    },
+    dag_job_failed: %{
+      category: :dag,
+      keys: [:run_id, :external_id, :notes],
+      doc: "Job marked failed"
+    },
+    dag_job_reset: %{
+      category: :dag,
+      keys: [:run_id, :external_id],
+      doc: "Stale or failed job reset to pending"
+    },
+    dag_tmux_gone: %{
+      category: :dag,
+      keys: [:run_id, :session],
+      doc: "DAG tmux session no longer exists (liveness check)"
+    },
+    dag_health_report: %{
+      category: :dag,
+      keys: [:run_id, :healthy, :issue_count],
+      doc: "Periodic health check result for a run"
     }
   }
 

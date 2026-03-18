@@ -50,6 +50,9 @@ defmodule Ichor.Application do
       # Genesis pipeline (DynamicSupervisor for mode RunProcesses)
       Ichor.Genesis.Supervisor,
 
+      # DAG execution subsystem (DynamicSupervisor for RunProcesses)
+      Ichor.Dag.Supervisor,
+
       # Memories bridge (signals -> knowledge graph)
       Ichor.MemoriesBridge,
 
