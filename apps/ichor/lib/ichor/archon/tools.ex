@@ -8,6 +8,7 @@ defmodule Ichor.Archon.Tools do
   alias Ichor.Archon.Tools.Control
   alias Ichor.Archon.Tools.Events
   alias Ichor.Archon.Tools.Memory
+  alias Ichor.Archon.Tools.Manager
   alias Ichor.Archon.Tools.Mes
   alias Ichor.Archon.Tools.Messages
   alias Ichor.Archon.Tools.System
@@ -18,6 +19,7 @@ defmodule Ichor.Archon.Tools do
     resource(Teams)
     resource(Messages)
     resource(System)
+    resource(Manager)
     resource(Memory)
     resource(Control)
     resource(Events)
@@ -41,6 +43,8 @@ defmodule Ichor.Archon.Tools do
     # System
     tool(:system_health, System, :system_health)
     tool(:tmux_sessions, System, :tmux_sessions)
+    tool(:manager_snapshot, Manager, :manager_snapshot)
+    tool(:attention_queue, Manager, :attention_queue)
     # Events & tasks
     tool(:agent_events, Events, :agent_events)
     tool(:fleet_tasks, Events, :fleet_tasks)
