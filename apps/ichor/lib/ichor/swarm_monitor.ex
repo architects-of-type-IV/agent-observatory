@@ -6,12 +6,13 @@ defmodule Ichor.SwarmMonitor do
   """
   use GenServer
 
-  alias Ichor.Fleet.Lifecycle.Cleanup
+  alias Ichor.SwarmMonitor.Actions
   alias Ichor.SwarmMonitor.Analysis
   alias Ichor.SwarmMonitor.Health
-  alias Ichor.Signals.Message
   alias Ichor.SwarmMonitor.Discovery
-  alias Ichor.SwarmMonitor.TaskState
+  alias Ichor.SwarmMonitor.Projects
+  alias Ichor.SwarmMonitor.StateBus
+  alias Ichor.Signals.Message
 
   @tasks_poll_interval 3_000
   @health_poll_interval 30_000
@@ -53,22 +54,19 @@ defmodule Ichor.SwarmMonitor do
 
   @impl true
   def init(_opts) do
-    projects = discover_projects()
+    project_state = Projects.initial_state()
 
-    state = %{
-      watched_projects: projects,
-      manual_projects: %{},
-      active_project: first_project_key(projects),
-      tasks: [],
-      pipeline: %{total: 0, pending: 0, in_progress: 0, completed: 0, failed: 0, blocked: 0},
-      dag: %{waves: [], edges: [], critical_path: []},
-      stale_tasks: [],
-      file_conflicts: [],
-      health: %{healthy: true, issues: [], agents: %{}, timestamp: nil},
-      monitor_running: false,
-      archives: scan_archives(),
-      known_cwds: MapSet.new()
-    }
+    state =
+      %{
+        tasks: [],
+        pipeline: %{total: 0, pending: 0, in_progress: 0, completed: 0, failed: 0, blocked: 0},
+        dag: %{waves: [], edges: [], critical_path: []},
+        stale_tasks: [],
+        file_conflicts: [],
+        health: %{healthy: true, issues: [], agents: %{}, timestamp: nil},
+        monitor_running: false
+      }
+      |> Map.merge(project_state)
 
     # Auto-discover projects from hook events (session cwds)
     Ichor.Signals.subscribe(:events)
@@ -84,88 +82,56 @@ defmodule Ichor.SwarmMonitor do
   end
 
   def handle_call({:set_active_project, key}, _from, state) do
-    if Map.has_key?(state.watched_projects, key) do
-      state = %{state | active_project: key}
-      state = refresh_tasks(state)
-      broadcast(state)
-      {:reply, :ok, state}
-    else
-      {:reply, {:error, :unknown_project}, state}
+    case Projects.set_active_project(state, key) do
+      {:ok, state} ->
+        state = refresh_tasks(state)
+        broadcast(state)
+        {:reply, :ok, state}
+
+      {:error, reason} ->
+        {:reply, {:error, reason}, state}
     end
   end
 
   def handle_call({:add_project, key, path}, _from, state) do
-    tasks_path = Path.join(path, "tasks.jsonl")
+    case Projects.add_project(state, key, path) do
+      {:ok, state} ->
+        state = refresh_tasks(state)
+        broadcast(state)
+        {:reply, :ok, state}
 
-    if File.exists?(tasks_path) or File.dir?(path) do
-      manual = Map.put(state.manual_projects, key, path)
-      projects = Map.put(state.watched_projects, key, path)
-      state = %{state | manual_projects: manual, watched_projects: projects, active_project: key}
-      state = refresh_tasks(state)
-      broadcast(state)
-      {:reply, :ok, state}
-    else
-      {:reply, {:error, :path_not_found}, state}
+      {:error, reason} ->
+        {:reply, {:error, reason}, state}
     end
   end
 
   def handle_call({:heal_task, task_id}, _from, state) do
-    case tasks_jsonl_path_for_task(state, task_id) do
-      nil ->
-        {:reply, {:error, :no_active_project}, state}
-
-      path ->
-        result = TaskState.heal_task(path, task_id)
-        state = refresh_tasks(state)
-        broadcast(state)
-        {:reply, result, state}
-    end
+    result = Actions.heal_task(state, task_id)
+    state = refresh_tasks(state)
+    broadcast(state)
+    {:reply, result, state}
   end
 
   def handle_call({:reassign_task, task_id, new_owner}, _from, state) do
-    case tasks_jsonl_path_for_task(state, task_id) do
-      nil ->
-        {:reply, {:error, :no_active_project}, state}
-
-      path ->
-        result = TaskState.reassign_task(path, task_id, new_owner)
-        state = refresh_tasks(state)
-        broadcast(state)
-        {:reply, result, state}
-    end
+    result = Actions.reassign_task(state, task_id, new_owner)
+    state = refresh_tasks(state)
+    broadcast(state)
+    {:reply, result, state}
   end
 
   def handle_call({:reset_all_stale, threshold_min}, _from, state) do
-    case tasks_jsonl_path(state) do
-      nil ->
-        {:reply, {:error, :no_active_project}, state}
-
-      path ->
-        now = DateTime.utc_now()
-
-        reset_count =
-          Analysis.find_stale_tasks(state.tasks, now)
-          |> Enum.filter(fn task -> stale_with_threshold?(task, now, threshold_min) end)
-          |> Enum.reduce(0, &count_reset(&1, &2, path))
-
-        state = refresh_tasks(state)
-        broadcast(state)
-        {:reply, {:ok, reset_count}, state}
-    end
+    result = Actions.reset_all_stale(state, threshold_min)
+    state = refresh_tasks(state)
+    broadcast(state)
+    {:reply, result, state}
   end
 
   def handle_call({:trigger_gc, team_name}, _from, state) do
-    case tasks_jsonl_path(state) do
-      nil ->
-        {:reply, {:error, :no_active_project}, state}
+    result = Actions.trigger_gc(state, team_name)
 
-      path ->
-        result = Cleanup.trigger_gc(team_name, path)
-
-        state = %{state | archives: scan_archives()}
-        broadcast(state)
-        {:reply, result, state}
-    end
+    state = %{state | archives: scan_archives()}
+    broadcast(state)
+    {:reply, result, state}
   end
 
   def handle_call(:run_health_check, _from, state) do
@@ -175,44 +141,20 @@ defmodule Ichor.SwarmMonitor do
   end
 
   def handle_call({:claim_task, task_id, agent_name}, _from, state) do
-    case tasks_jsonl_path_for_task(state, task_id) do
-      nil ->
-        {:reply, {:error, :no_active_project}, state}
-
-      path ->
-        result = TaskState.claim_task(task_id, agent_name, path)
-        state = refresh_tasks(state)
-        broadcast(state)
-        {:reply, result, state}
-    end
+    result = Actions.claim_task(state, task_id, agent_name)
+    state = refresh_tasks(state)
+    broadcast(state)
+    {:reply, result, state}
   end
 
   # Auto-discover projects from hook event cwds
   def handle_info(%Message{name: :new_event, data: %{event: event}}, state) do
-    cwd = event.cwd
+    {state, changed?} = Projects.register_cwd(state, event.cwd)
 
-    if is_binary(cwd) and cwd != "" and not MapSet.member?(state.known_cwds, cwd) do
-      new_cwds = MapSet.put(state.known_cwds, cwd)
-      key = Path.basename(cwd)
-      tasks_path = Path.join(cwd, "tasks.jsonl")
-
-      if File.exists?(tasks_path) and not Map.has_key?(state.watched_projects, key) do
-        projects = Map.put(state.watched_projects, key, cwd)
-        active = state.active_project || key
-
-        state = %{
-          state
-          | watched_projects: projects,
-            active_project: active,
-            known_cwds: new_cwds
-        }
-
-        state = refresh_tasks(state)
-        broadcast(state)
-        {:noreply, state}
-      else
-        {:noreply, %{state | known_cwds: new_cwds}}
-      end
+    if changed? do
+      state = refresh_tasks(state)
+      broadcast(state)
+      {:noreply, state}
     else
       {:noreply, state}
     end
@@ -225,24 +167,12 @@ defmodule Ichor.SwarmMonitor do
     # Re-discover projects on each poll (cheap: reads team config dir).
     # Merge manual_projects last so user additions survive team deletions,
     # but discovered projects that disappear from disk are dropped.
-    new_projects = Map.merge(discover_projects(), state.manual_projects)
-
-    state =
-      if new_projects != state.watched_projects do
-        active =
-          if state.active_project && Map.has_key?(new_projects, state.active_project),
-            do: state.active_project,
-            else: first_project_key(new_projects)
-
-        %{state | watched_projects: new_projects, active_project: active}
-      else
-        state
-      end
+    {state, projects_changed?} = Projects.refresh_discovered_projects(state)
 
     old_tasks = state.tasks
     state = refresh_tasks(state)
 
-    if state.tasks != old_tasks || new_projects != state.watched_projects do
+    if state.tasks != old_tasks || projects_changed? do
       broadcast(state)
     end
 
@@ -269,88 +199,16 @@ defmodule Ichor.SwarmMonitor do
   # ═══════════════════════════════════════════════════════
 
   defp do_health_check(state) do
-    Health.run(state, get_active_project_path(state))
+    Health.run(state, Projects.active_project_path(state))
   end
-
-  defp count_reset(task, acc, path) do
-    case TaskState.update_task_status(path, task.id, "pending", "") do
-      :ok -> acc + 1
-      _ -> acc
-    end
-  end
-
-  defp stale_with_threshold?(task, now, threshold_min) do
-    case parse_timestamp(task.updated) do
-      nil -> true
-      timestamp -> DateTime.diff(now, timestamp, :minute) > threshold_min
-    end
-  end
-
-  defp parse_timestamp(""), do: nil
-
-  defp parse_timestamp(str) when is_binary(str) do
-    str = String.replace(str, "Z", "")
-
-    case DateTime.from_iso8601(str <> "Z") do
-      {:ok, datetime, _} ->
-        datetime
-
-      _ ->
-        case NaiveDateTime.from_iso8601(str) do
-          {:ok, naive_datetime} -> DateTime.from_naive!(naive_datetime, "Etc/UTC")
-          _ -> nil
-        end
-    end
-  end
-
-  defp parse_timestamp(_), do: nil
 
   # ═══════════════════════════════════════════════════════
   # Project discovery (delegated to SwarmMonitor.Discovery)
   # ═══════════════════════════════════════════════════════
 
-  defp discover_projects, do: Discovery.discover_projects()
   defp scan_archives, do: Discovery.scan_archives()
 
-  # ═══════════════════════════════════════════════════════
-  # Helpers
-  # ═══════════════════════════════════════════════════════
-
-  defp tasks_jsonl_path(state) do
-    case get_active_project_path(state) do
-      nil -> nil
-      path -> Path.join(path, "tasks.jsonl")
-    end
-  end
-
-  # Find the tasks.jsonl path for a specific task by looking up its project
-  defp tasks_jsonl_path_for_task(state, task_id) do
-    case Enum.find(state.tasks, fn t -> t.id == task_id end) do
-      nil ->
-        tasks_jsonl_path(state)
-
-      %{project: project} when project != "" ->
-        case Map.get(state.watched_projects, project) do
-          nil -> tasks_jsonl_path(state)
-          path -> Path.join(path, "tasks.jsonl")
-        end
-
-      _ ->
-        tasks_jsonl_path(state)
-    end
-  end
-
-  defp get_active_project_path(state) do
-    case state.active_project do
-      nil -> nil
-      key -> Map.get(state.watched_projects, key)
-    end
-  end
-
-  defp first_project_key(projects) when map_size(projects) == 0, do: nil
-  defp first_project_key(projects), do: projects |> Map.keys() |> hd()
-
   defp broadcast(state) do
-    Ichor.Signals.emit(:swarm_state, %{state_map: state})
+    StateBus.broadcast(state)
   end
 end
