@@ -9,6 +9,8 @@ defmodule Ichor.Dag.Job do
     domain: Ichor.Dag,
     data_layer: AshSqlite.DataLayer
 
+  alias Ichor.Dag.RuntimeCallbacks
+
   sqlite do
     repo(Ichor.Repo)
     table("dag_jobs")
@@ -175,7 +177,7 @@ defmodule Ichor.Dag.Job do
 
       change(
         after_action(fn _changeset, result, _context ->
-          emit_and_sync(result, :dag_job_claimed, [:run_id, :external_id, :owner, :wave])
+          RuntimeCallbacks.after_job_transition(result, :job_claimed)
         end)
       )
     end
@@ -188,7 +190,7 @@ defmodule Ichor.Dag.Job do
 
       change(
         after_action(fn _changeset, result, _context ->
-          emit_and_sync(result, :dag_job_completed, [:run_id, :external_id, :owner])
+          RuntimeCallbacks.after_job_transition(result, :job_completed)
         end)
       )
     end
@@ -200,7 +202,7 @@ defmodule Ichor.Dag.Job do
 
       change(
         after_action(fn _changeset, result, _context ->
-          emit_and_sync(result, :dag_job_failed, [:run_id, :external_id, :notes])
+          RuntimeCallbacks.after_job_transition(result, :job_failed)
         end)
       )
     end
@@ -214,7 +216,7 @@ defmodule Ichor.Dag.Job do
 
       change(
         after_action(fn _changeset, result, _context ->
-          emit_and_sync(result, :dag_job_reset, [:run_id, :external_id])
+          RuntimeCallbacks.after_job_transition(result, :job_reset)
         end)
       )
     end
@@ -244,38 +246,4 @@ defmodule Ichor.Dag.Job do
 
   @doc false
   def now, do: DateTime.utc_now()
-
-  @doc false
-  def emit_and_sync(result, signal, keys) do
-    payload = Map.take(result, keys) |> Map.new(fn {k, v} -> {k, v} end)
-    maybe_emit_signal(signal, payload)
-    maybe_sync_run_process(result.run_id, result)
-    {:ok, result}
-  rescue
-    # RunProcess may not be running (no tmux session for imported runs)
-    _ -> {:ok, result}
-  end
-
-  defp maybe_emit_signal(signal, payload) do
-    signals_module =
-      Application.get_env(:ichor_dag, :signals_module, Module.concat([Ichor, Signals]))
-
-    if Code.ensure_loaded?(signals_module) and function_exported?(signals_module, :emit, 2) do
-      signals_module.emit(signal, payload)
-    end
-  end
-
-  defp maybe_sync_run_process(run_id, result) do
-    run_process_module =
-      Application.get_env(
-        :ichor_dag,
-        :run_process_module,
-        Module.concat([Ichor, Dag, RunProcess])
-      )
-
-    if Code.ensure_loaded?(run_process_module) and
-         function_exported?(run_process_module, :sync_job, 2) do
-      run_process_module.sync_job(run_id, result)
-    end
-  end
 end
