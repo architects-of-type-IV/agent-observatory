@@ -101,7 +101,7 @@ defmodule Ichor.Dag.RunProcess do
 
       false ->
         Signals.emit(:dag_tmux_gone, %{run_id: state.run_id, session: state.tmux_session})
-        FleetSupervisor.disband_team(state.tmux_session)
+        cleanup(state)
         {:stop, :normal, state}
     end
   end
@@ -114,9 +114,9 @@ defmodule Ichor.Dag.RunProcess do
         state
       )
       when is_binary(from) do
-    lead_id = "#{state.tmux_session}-lead"
+    coordinator_id = "#{state.tmux_session}-coordinator"
 
-    case from == lead_id do
+    case from == coordinator_id do
       true ->
         with {:ok, run} <- Run.get(state.run_id) do
           Run.complete(run)

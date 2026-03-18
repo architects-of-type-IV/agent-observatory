@@ -1,8 +1,8 @@
 defmodule Ichor.Dag.Spawner do
   @moduledoc """
-  Spawns a DAG execution run for a Genesis Node.
-  Creates Run + Jobs, validates, launches lead agent in tmux,
-  starts RunProcess lifecycle monitor.
+  Spawns a DAG execution team: coordinator + lead.
+  Workers are spawned dynamically by the lead via spawn_agent MCP tool.
+  Follows the Genesis ModeSpawner pattern: all upfront agents via ModeRunner.
   """
 
   alias Ichor.Dag.{Loader, Prompts, RunSupervisor, Validator}
@@ -12,50 +12,72 @@ defmodule Ichor.Dag.Spawner do
   @spec spawn(String.t(), String.t()) ::
           {:ok, %{session: String.t(), run: map()}} | {:error, term()}
   def spawn(node_id, project_id) do
-    tmux_session = "dag-#{short_id()}"
+    run_id = short_id()
+    session = "dag-#{run_id}"
+    cwd = File.cwd!()
     brief = ModeSpawner.load_project_brief(project_id)
 
-    with {:ok, run} <- Loader.from_genesis(node_id, tmux_session: tmux_session),
+    with {:ok, run} <- Loader.from_genesis(node_id, tmux_session: session),
          {:ok, _report} <- validate(run.id),
-         lead = build_lead(run.id, tmux_session, node_id, brief, run.project_path),
-         :ok <- ModeRunner.write_agent_scripts(run.id, "dag", [lead]),
-         :ok <-
-           ModeRunner.create_session_with_agent(tmux_session, File.cwd!(), run.id, "dag", lead) do
-      ModeRunner.register_agent(tmux_session, lead, tmux_session, run.id, File.cwd!())
+         agents = build_agents(run.id, session, node_id, brief),
+         :ok <- ModeRunner.write_agent_scripts(run.id, "dag", agents),
+         :ok <- ModeRunner.create_session_with_agent(session, cwd, run.id, "dag", hd(agents)),
+         :ok <- ModeRunner.create_remaining_windows(session, cwd, run.id, "dag", tl(agents)) do
+      Enum.each(agents, &ModeRunner.register_agent(session, &1, session, run.id, cwd))
 
       RunSupervisor.start_run(
         run_id: run.id,
-        tmux_session: tmux_session,
+        tmux_session: session,
         project_path: run.project_path
       )
 
       Signals.emit(:dag_run_ready, %{
         run_id: run.id,
-        session: tmux_session,
-        node_id: node_id
+        session: session,
+        node_id: node_id,
+        agent_count: length(agents)
       })
 
-      {:ok, %{session: tmux_session, run: run}}
+      {:ok, %{session: session, run: run}}
     else
       {:error, reason} ->
-        Signals.emit(:dag_tmux_gone, %{run_id: "spawn_failed", session: tmux_session})
         {:error, reason}
     end
   end
 
-  defp build_lead(run_id, session, node_id, brief, project_path) do
-    %{
-      name: "lead",
-      capability: "lead",
-      prompt:
-        Prompts.dag_lead(%{
-          run_id: run_id,
-          session: session,
-          node_id: node_id,
-          brief: brief,
-          project_path: project_path
-        })
-    }
+  defp build_agents(run_id, session, node_id, brief) do
+    roster = team_roster(session)
+
+    [
+      %{
+        name: "coordinator",
+        capability: "coordinator",
+        prompt:
+          Prompts.coordinator(%{run_id: run_id, session: session, roster: roster, brief: brief})
+      },
+      %{
+        name: "lead",
+        capability: "lead",
+        prompt:
+          Prompts.lead(%{
+            run_id: run_id,
+            session: session,
+            node_id: node_id,
+            roster: roster,
+            brief: brief
+          })
+      }
+    ]
+  end
+
+  defp team_roster(session) do
+    """
+    TEAM ROSTER (use EXACT IDs with send_message/check_inbox):
+      - coordinator: #{session}-coordinator
+      - lead: #{session}-lead
+      - operator: operator
+    Your session ID is: #{session}-YOUR_NAME
+    """
   end
 
   defp validate(run_id) do
@@ -65,10 +87,9 @@ defmodule Ichor.Dag.Spawner do
         cycles = Validator.detect_cycles(items)
         missing = Validator.flat_dag_check(items)
 
-        if cycles == [] and missing == [] do
-          {:ok, %{cycles: [], missing_refs: []}}
-        else
-          {:error, %{cycles: cycles, missing_refs: missing}}
+        case {cycles, missing} do
+          {[], []} -> {:ok, %{cycles: [], missing_refs: []}}
+          _ -> {:error, %{cycles: cycles, missing_refs: missing}}
         end
 
       error ->
