@@ -19,7 +19,8 @@ defmodule Ichor.MonitorSupervisor do
       {Ichor.NudgeEscalator, []},
       {Ichor.QualityGate, []},
       {Ichor.PaneMonitor, []},
-      {Ichor.Signals.Buffer, []}
+      {Ichor.Signals.Buffer, []},
+      {Ichor.Archon.TeamWatchdog, []}
     ]
 
     Supervisor.init(children, strategy: :one_for_one)

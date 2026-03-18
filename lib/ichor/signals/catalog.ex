@@ -481,6 +481,16 @@ defmodule Ichor.Signals.Catalog do
       category: :dag,
       keys: [:run_id, :healthy, :issue_count],
       doc: "Periodic health check result for a run"
+    },
+    dag_run_archived: %{
+      category: :dag,
+      keys: [:run_id, :label, :reason],
+      doc: "DAG run archived by watchdog after unexpected death"
+    },
+    watchdog_sweep: %{
+      category: :monitoring,
+      keys: [:orphaned_count],
+      doc: "TeamWatchdog periodic sweep completed"
     }
   }
 
