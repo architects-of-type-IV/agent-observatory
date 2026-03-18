@@ -20,13 +20,17 @@ config :ichor,
     Ichor.Archon,
     Ichor.Archon.Tools,
     Ichor.Signals.Domain,
-    Ichor.Mes,
-    Ichor.Dag
+    Ichor.Mes
   ]
 
 config :ichor_genesis,
   ash_domains: [
     Ichor.Genesis
+  ]
+
+config :ichor_dag,
+  ash_domains: [
+    Ichor.Dag
   ]
 
 config :ichor_signals,

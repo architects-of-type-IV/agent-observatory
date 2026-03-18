@@ -13,7 +13,7 @@ defmodule Ichor.MixProject do
       compilers: [:phoenix_live_view] ++ Mix.compilers(),
       listeners: [Phoenix.CodeReloader],
       dialyzer: [plt_add_apps: [:mix, :ex_unit]],
-      xref: [exclude: genesis_xref_excludes()]
+      xref: [exclude: xref_excludes()]
     ]
   end
 
@@ -110,7 +110,7 @@ defmodule Ichor.MixProject do
     ]
   end
 
-  defp genesis_xref_excludes do
+  defp xref_excludes do
     [
       Ichor.Genesis,
       Ichor.Genesis.Node,
@@ -122,7 +122,11 @@ defmodule Ichor.MixProject do
       Ichor.Genesis.Phase,
       Ichor.Genesis.Section,
       Ichor.Genesis.Task,
-      Ichor.Genesis.Subtask
+      Ichor.Genesis.Subtask,
+      Ichor.Dag,
+      Ichor.Dag.Run,
+      Ichor.Dag.Job,
+      Ichor.Dag.Job.Preparations.FilterAvailable
     ]
   end
 end
