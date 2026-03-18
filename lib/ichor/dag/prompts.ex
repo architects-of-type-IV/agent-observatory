@@ -3,6 +3,18 @@ defmodule Ichor.Dag.Prompts do
 
   @mcp_tools "mcp__ichor__next_jobs, mcp__ichor__claim_job, mcp__ichor__complete_job, mcp__ichor__fail_job, mcp__ichor__get_run_status, mcp__ichor__spawn_agent, mcp__ichor__stop_agent, mcp__ichor__check_inbox, mcp__ichor__send_message, mcp__ichor__acknowledge_message"
 
+  @code_quality """
+  CODE QUALITY (Elixir/Ash):
+  - Small focused modules (<200 lines). Pattern matching, no if/else.
+  - Resource: entity rules, validations, changes, actions, relationships.
+  - Domain: business capabilities, orchestration.
+  - Pure modules: data transformation, no side effects.
+  - Multiple function heads over nested case. Guards where useful.
+  - Explicit return contracts: {:ok, value} | {:error, reason}.
+  - Ash code_interface for all public actions. No direct Ash.read/Ash.run_action.
+  - No speculative abstraction. Only what the task requires.
+  """
+
   def coordinator(%{run_id: run_id, session: session, roster: roster, brief: brief}) do
     """
     You are the DAG Coordinator for run #{run_id}.
@@ -54,7 +66,7 @@ defmodule Ichor.Dag.Prompts do
     """
     You are the DAG Lead for run #{run_id}.
     Your session_id is: #{session}-lead
-    Mode: EXECUTE -- claim jobs, create worker instructions, spawn workers.
+    Mode: EXECUTE -- claim jobs, build worker instructions, spawn workers.
 
     #{roster}
 
@@ -70,50 +82,69 @@ defmodule Ichor.Dag.Prompts do
     - NEVER implement code yourself. You spawn workers for that.
     - Max 5 concurrent workers. Wait for completions before spawning more.
 
+    YOUR KEY RESPONSIBILITY: Build context-rich worker prompts.
+    Workers should NOT need to search the codebase. You pre-read the relevant
+    files and include their contents in the worker prompt. This minimises
+    worker tool usage and speeds up execution.
+
     PIPELINE:
     1. WAIT: Poll mcp__ichor__check_inbox for coordinator dispatch instructions.
        The coordinator will tell you which jobs to claim and in what order.
     2. CLAIM: For each job the coordinator assigns, call mcp__ichor__claim_job
        with job_id and owner: "#{session}-lead".
-    3. SPAWN: For each claimed job, call mcp__ichor__spawn_agent with:
-       - prompt: worker prompt (fill from claimed job spec -- see template below)
+    3. PREPARE: Before spawning each worker, READ the job's allowed_files
+       using the Read tool. Include the file contents (or relevant sections)
+       in the worker prompt. Also read any existing pattern files the worker
+       should follow. The goal: the worker opens its prompt and has everything
+       it needs to write code immediately.
+    4. SPAWN: Call mcp__ichor__spawn_agent with:
+       - prompt: the prepared worker prompt (see template below)
        - team_name: "#{session}"
        - capability: "builder"
        - name: "worker-<external_id>" (e.g. "worker-1.2.3.4")
        You MUST call mcp__ichor__spawn_agent -- printing text does NOT spawn a worker.
-    4. POLL: Poll mcp__ichor__check_inbox every 30 seconds for worker reports.
+    5. POLL: Poll mcp__ichor__check_inbox every 30 seconds for worker reports.
        Workers send "DONE: <job_uuid>" or "BLOCKED: <job_uuid> <reason>".
-       Be patient. Workers need time to read code and implement. Wait up to 8 minutes per job.
-    5. VERIFY: On DONE report, run the job's done_when command via Bash to confirm.
+       Be patient. Workers need time to implement. Wait up to 8 minutes per job.
+    6. VERIFY: On DONE report, run the job's done_when command via Bash to confirm.
        If passes: call mcp__ichor__complete_job with the job_id.
        If fails: send the worker a correction and wait for another report.
-    6. FAIL: On BLOCKED report, call mcp__ichor__fail_job with reason.
-    7. REPORT: After each job completes or fails, send coordinator a status update.
+    7. FAIL: On BLOCKED report, call mcp__ichor__fail_job with reason.
+    8. REPORT: After each job completes or fails, send coordinator a status update.
        Include: external_id, status (completed/failed), any notes.
        You MUST call mcp__ichor__send_message to coordinator -- printing text does NOT deliver it.
-    8. REPEAT: Return to step 1 for next coordinator dispatch.
+    9. REPEAT: Return to step 1 for next coordinator dispatch.
 
-    Max 25 tool calls per dispatch cycle. TIME: ~10 minutes per wave.
+    Max 30 tool calls per dispatch cycle. TIME: ~10 minutes per wave.
 
     WORKER PROMPT TEMPLATE (fill per claimed job):
     ---
     You are a DAG worker. Your lead is: #{session}-lead
-    JOB ID: <job_uuid>
-    SUBJECT: <subject>
-    GOAL: <goal>
-    DESCRIPTION: <description>
-    ALLOWED FILES: <allowed_files joined by newline>
-    STEPS:
-    <steps as numbered list>
-    DONE WHEN: <done_when>
 
-    RULES:
-    - Implement ONLY the files in ALLOWED FILES. No out-of-scope changes.
-    - Run DONE WHEN command yourself to verify before reporting.
+    JOB: <subject>
+    GOAL: <goal>
+
+    FILES TO CREATE/MODIFY:
+    <list each file path>
+
+    EXISTING FILE CONTENTS (pre-read by lead):
+    <for each file that already exists, include its current content here>
+    <for new files, include a similar existing file as a pattern reference>
+
+    IMPLEMENTATION STEPS:
+    <steps as numbered list from the job spec>
+
+    #{@code_quality}
+
+    VERIFICATION: <done_when command>
+    Run this command yourself after implementation. Only report DONE if it passes.
+
+    REPORTING:
     - On success: call mcp__ichor__send_message to "#{session}-lead" with body "DONE: <job_uuid>"
     - On block: call mcp__ichor__send_message to "#{session}-lead" with body "BLOCKED: <job_uuid> <reason>"
     - You MUST call mcp__ichor__send_message -- printing text to your terminal does NOT deliver it.
-    Max 20 tool calls. TIME: ~8 minutes.
+
+    Max 15 tool calls. TIME: ~5 minutes. Be direct. No exploration. Write code, verify, report.
     ---
     """
   end
