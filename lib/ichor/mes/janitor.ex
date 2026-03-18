@@ -18,7 +18,7 @@ defmodule Ichor.Mes.Janitor do
 
   alias Ichor.Fleet.FleetSupervisor
   alias Ichor.Gateway.Channels.Tmux
-  alias Ichor.Mes.{RunProcess, TeamSpawner}
+  alias Ichor.Mes.{RunProcess, TeamLifecycle}
   alias Ichor.Signals
 
   @sweep_interval :timer.minutes(2)
@@ -82,7 +82,7 @@ defmodule Ichor.Mes.Janitor do
       Signals.emit(:mes_janitor_skipped, %{run_id: run_id, reason: "tmux_alive"})
     else
       FleetSupervisor.disband_team("mes-#{run_id}")
-      TeamSpawner.kill_session(session)
+      TeamLifecycle.kill_session(session)
       Signals.emit(:mes_janitor_cleaned, %{run_id: run_id, trigger: "monitor"})
     end
   rescue
@@ -98,7 +98,7 @@ defmodule Ichor.Mes.Janitor do
   end
 
   defp safe_sweep do
-    TeamSpawner.cleanup_orphaned_teams()
+    TeamLifecycle.cleanup_orphaned_teams()
   rescue
     e ->
       Signals.emit(:mes_janitor_error, %{

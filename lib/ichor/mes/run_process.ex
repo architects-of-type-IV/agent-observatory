@@ -21,7 +21,7 @@ defmodule Ichor.Mes.RunProcess do
   use GenServer, restart: :temporary
 
   alias Ichor.Gateway.Channels.Tmux
-  alias Ichor.Mes.{Janitor, TeamSpawner}
+  alias Ichor.Mes.{Janitor, TeamLifecycle}
   alias Ichor.Signals
   alias Ichor.Signals.Message
 
@@ -90,7 +90,7 @@ defmodule Ichor.Mes.RunProcess do
 
   @impl true
   def handle_continue(:spawn_team, state) do
-    case TeamSpawner.spawn_run(state.run_id, state.team_name) do
+    case team_lifecycle().spawn_run(state.run_id, state.team_name) do
       {:ok, session} ->
         Janitor.monitor_run(state.run_id, self())
         Process.send_after(self(), :deadline, @deadline_ms)
@@ -130,7 +130,7 @@ defmodule Ichor.Mes.RunProcess do
         %{run_id: run_id} = state
       ) do
     failures = state.gate_failures + 1
-    TeamSpawner.spawn_corrective_agent(state.run_id, state.session, data[:reason], failures)
+    team_lifecycle().spawn_corrective_agent(state.run_id, state.session, data[:reason], failures)
     {:noreply, %{state | gate_failures: failures}}
   end
 
@@ -145,7 +145,7 @@ defmodule Ichor.Mes.RunProcess do
         %Message{name: :mes_project_created, data: %{run_id: run_id}},
         %{run_id: run_id} = state
       ) do
-    TeamSpawner.kill_session(state.session)
+    team_lifecycle().kill_session(state.session)
     {:stop, :normal, state}
   end
 
@@ -167,5 +167,9 @@ defmodule Ichor.Mes.RunProcess do
 
   defp tmux_session_alive?(session) do
     Tmux.available?(session)
+  end
+
+  defp team_lifecycle do
+    Application.get_env(:ichor, :mes_team_lifecycle_module, TeamLifecycle)
   end
 end

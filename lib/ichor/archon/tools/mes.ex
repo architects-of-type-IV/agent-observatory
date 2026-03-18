@@ -6,7 +6,7 @@ defmodule Ichor.Archon.Tools.Mes do
   use Ash.Resource, domain: Ichor.Archon.Tools
 
   alias Ichor.Fleet.AgentProcess
-  alias Ichor.Mes.{Project, RunProcess, Scheduler, TeamSpawner}
+  alias Ichor.Mes.{Project, RunProcess, Scheduler, TeamLifecycle}
 
   actions do
     action :list_projects, {:array, :map} do
@@ -221,7 +221,7 @@ defmodule Ichor.Archon.Tools.Mes do
 
       run(fn _input, _context ->
         try do
-          TeamSpawner.cleanup_orphaned_teams()
+          TeamLifecycle.cleanup_orphaned_teams()
           {:ok, %{"status" => "cleanup_complete"}}
         rescue
           e -> {:ok, %{"status" => "error", "reason" => Exception.message(e)}}
