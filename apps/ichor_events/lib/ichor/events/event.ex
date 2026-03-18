@@ -84,6 +84,10 @@ defmodule Ichor.Events.Event do
     end
   end
 
+  code_interface do
+    define(:read)
+  end
+
   identities do
     identity(:unique_event, [:id])
   end

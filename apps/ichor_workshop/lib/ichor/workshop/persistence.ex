@@ -8,8 +8,7 @@ defmodule Ichor.Workshop.Persistence do
 
   @spec list_blueprints() :: [map()]
   def list_blueprints do
-    TeamBlueprint.read!()
-    |> Ash.load!([:agent_blueprints, :spawn_links, :comm_rules])
+    TeamBlueprint.read!(load: [:agent_blueprints, :spawn_links, :comm_rules])
   end
 
   @spec list_agent_types() :: [map()]
@@ -21,15 +20,11 @@ defmodule Ichor.Workshop.Persistence do
 
     case blueprint_id do
       nil ->
-        TeamBlueprint
-        |> Ash.Changeset.for_create(:create, params)
-        |> Ash.create()
+        TeamBlueprint.create(params)
 
       id ->
         with {:ok, blueprint} <- TeamBlueprint.by_id(id) do
-          blueprint
-          |> Ash.Changeset.for_update(:update, params)
-          |> Ash.update()
+          TeamBlueprint.update(blueprint, params)
         else
           {:error, _} -> save_blueprint(nil, state)
         end
@@ -38,16 +33,15 @@ defmodule Ichor.Workshop.Persistence do
 
   @spec load_blueprint(map(), String.t()) :: {:ok, map()} | {:error, term()}
   def load_blueprint(state, id) do
-    with {:ok, blueprint} <- TeamBlueprint.by_id(id),
-         {:ok, loaded} <- Ash.load(blueprint, [:agent_blueprints, :spawn_links, :comm_rules]) do
-      {:ok, BlueprintState.apply_blueprint(state, loaded)}
+    with {:ok, blueprint} <- TeamBlueprint.by_id(id) do
+      {:ok, BlueprintState.apply_blueprint(state, blueprint)}
     end
   end
 
   @spec delete_blueprint(String.t()) :: :ok | {:error, term()}
   def delete_blueprint(id) do
     with {:ok, blueprint} <- TeamBlueprint.by_id(id),
-         :ok <- Ash.destroy(blueprint) do
+         :ok <- TeamBlueprint.destroy(blueprint) do
       :ok
     end
   end
