@@ -1,6 +1,6 @@
-defmodule Ichor.SwarmMonitor.TaskState do
+defmodule Ichor.Dag.TaskState do
   @moduledoc """
-  Side-effectful task mutation helpers used by SwarmMonitor.
+  Side-effectful task mutation helpers for the DAG runtime.
   """
 
   defdelegate heal_task(path, task_id), to: Ichor.Tasks.JsonlStore

@@ -1,11 +1,10 @@
 defmodule Ichor.Fleet.Overseer do
   @moduledoc """
-  Public runtime oversight boundary for active swarm work.
+  Public runtime oversight boundary for active DAG work.
 
   This is the human-facing runtime concept above project/task health,
   corrective actions, and active pipeline state. It currently acts as a
-  compatibility façade over the DAG runtime surface while the old
-  SwarmMonitor naming is retired.
+  compatibility façade over the DAG runtime surface.
   """
 
   defdelegate get_state, to: Ichor.Dag.Status, as: :state

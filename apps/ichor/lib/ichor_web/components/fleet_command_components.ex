@@ -3,7 +3,6 @@ defmodule IchorWeb.Components.FleetCommandComponents do
   @moduledoc false
 
   attr :dag_state, :map, default: %{}
-  attr :swarm_state, :map, default: %{}
   attr :throughput_rate, :any, default: nil
   attr :cost_heatmap, :list, default: []
   attr :node_status, :any, default: nil

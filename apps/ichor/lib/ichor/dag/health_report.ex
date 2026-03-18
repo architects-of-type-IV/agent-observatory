@@ -1,6 +1,6 @@
-defmodule Ichor.SwarmMonitor.Health do
+defmodule Ichor.Dag.HealthReport do
   @moduledoc """
-  Health-check execution and report parsing for the swarm monitor.
+  Health-check execution and report parsing for the DAG runtime.
   """
 
   require Logger
@@ -30,7 +30,7 @@ defmodule Ichor.SwarmMonitor.Health do
          }}
 
       _ ->
-        Logger.warning("SwarmMonitor: Failed to parse health report")
+        Logger.warning("DAG runtime: Failed to parse health report")
         :error
     end
   end

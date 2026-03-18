@@ -2,9 +2,7 @@ defmodule IchorWeb.DashboardDagHandlers do
   @moduledoc """
   Event handlers for the DAG pipeline views.
 
-  This is the DAG-facing replacement for the older swarm naming in the
-  dashboard layer. Legacy event names are still accepted for
-  compatibility while the UI shifts to DAG terminology.
+  This is the DAG-facing pipeline handler surface for the dashboard.
   """
 
   import Phoenix.Component, only: [assign: 3]
@@ -21,9 +19,7 @@ defmodule IchorWeb.DashboardDagHandlers do
   def dispatch("run_dag_health_check", p, s), do: handle_run_health_check(p, s)
   def dispatch("run_health_check", p, s), do: handle_run_health_check(p, s)
   def dispatch("reassign_dag_task", p, s), do: handle_reassign_dag_task(p, s)
-  def dispatch("reassign_swarm_task", p, s), do: handle_reassign_dag_task(p, s)
   def dispatch("claim_dag_task", p, s), do: handle_claim_dag_task(p, s)
-  def dispatch("claim_swarm_task", p, s), do: handle_claim_dag_task(p, s)
   def dispatch("trigger_dag_gc", p, s), do: handle_trigger_gc(p, s)
   def dispatch("trigger_gc", p, s), do: handle_trigger_gc(p, s)
   def dispatch("select_dag_node", p, s), do: handle_select_dag_node(p, s)
@@ -96,10 +92,7 @@ defmodule IchorWeb.DashboardDagHandlers do
       selected = RuntimeQuery.find_agent_entry(id, socket.assigns.teams, socket.assigns.events)
 
       task =
-        RuntimeQuery.find_active_task(
-          selected[:name],
-          socket.assigns[:dag_state] || socket.assigns[:swarm_state] || %{tasks: []}
-        )
+        RuntimeQuery.find_active_task(selected[:name], socket.assigns[:dag_state] || %{tasks: []})
 
       socket
       |> assign(:selected_command_agent, selected)

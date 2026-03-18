@@ -32,7 +32,6 @@ defmodule Ichor.MemoriesBridge do
     :heartbeat,
     :terminal_output,
     :protocol_update,
-    :swarm_state,
     :dag_status,
     :topology_snapshot,
     :registry_changed

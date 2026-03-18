@@ -105,7 +105,7 @@ critical_path = MapSet.new(dag.critical_path) %>
           Unassign
         </button>
         <button
-          phx-click="reset_swarm_task"
+          phx-click="heal_dag_task"
           phx-value-id={@selected_dag_task.id}
           class="ichor-btn bg-brand/15 text-brand hover:bg-brand/25"
         >

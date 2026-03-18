@@ -78,20 +78,11 @@ defmodule IchorWeb.DashboardInfoHandlers do
   def dispatch(%Message{name: :mailbox_message, data: %{message: message}}, socket),
     do: handle_new_mailbox_message(message, socket)
 
-  def dispatch(%Message{name: :swarm_state, data: %{state_map: state}}, socket),
-    do:
-      {:noreply,
-       socket
-       |> assign(:dag_state, state)
-       |> assign(:swarm_state, state)
-       |> maybe_refresh_archon_manager()}
-
   def dispatch(%Message{name: :dag_status, data: %{state_map: state}}, socket),
     do:
       {:noreply,
        socket
        |> assign(:dag_state, state)
-       |> assign(:swarm_state, state)
        |> maybe_refresh_archon_manager()}
 
   def dispatch(%Message{name: :protocol_update, data: %{stats_map: stats}}, socket),

@@ -1,6 +1,6 @@
-defmodule Ichor.SwarmMonitor.Analysis do
+defmodule Ichor.Dag.Analysis do
   @moduledoc """
-  Task parsing and derived swarm-state projection.
+  Task parsing and derived DAG runtime projection.
   """
 
   alias Ichor.Dag.Graph

@@ -55,7 +55,6 @@ defmodule IchorWeb.DashboardState do
       expanded_sessions: MapSet.new(),
       disk_teams: disk_teams,
       dag_state: Status.state(),
-      swarm_state: Status.state(),
       protocol_stats: %{},
       selected_dag_task: nil,
       selected_command_agent: nil,

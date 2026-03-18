@@ -1,9 +1,9 @@
-defmodule Ichor.SwarmMonitor.Projects do
+defmodule Ichor.Dag.Projects do
   @moduledoc """
-  Project selection, discovery, and tasks-path helpers for the swarm monitor.
+  Project selection, discovery, and tasks-path helpers for the DAG runtime.
   """
 
-  alias Ichor.SwarmMonitor.Discovery
+  alias Ichor.Dag.Discovery
 
   def initial_state do
     projects = Discovery.discover_projects()

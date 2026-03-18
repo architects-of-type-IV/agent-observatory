@@ -1,11 +1,11 @@
-defmodule Ichor.SwarmMonitor.Actions do
+defmodule Ichor.Dag.Actions do
   @moduledoc """
-  Task mutation and corrective actions for the swarm monitor.
+  Task mutation and corrective actions for the DAG runtime.
   """
 
+  alias Ichor.Dag.Analysis
+  alias Ichor.Dag.Projects
   alias Ichor.Fleet.Lifecycle.Cleanup
-  alias Ichor.SwarmMonitor.Analysis
-  alias Ichor.SwarmMonitor.Projects
   alias Ichor.Tasks.Pipeline
 
   def heal_task(state, task_id) do

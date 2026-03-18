@@ -1,6 +1,6 @@
-defmodule Ichor.SwarmMonitor.Discovery do
+defmodule Ichor.Dag.Discovery do
   @moduledoc """
-  Project discovery for SwarmMonitor.
+  Project discovery for the DAG runtime.
 
   Three sources, merged in ascending priority order:
   - Event-discovered: cwds from EventBuffer ETS (opportunistic)
@@ -13,8 +13,6 @@ defmodule Ichor.SwarmMonitor.Discovery do
   @teams_dir Path.expand("~/.claude/teams")
   @archive_dir Path.expand("~/.claude/teams/.archive")
 
-  # ── Project Discovery ─────────────────────────────────────────
-
   @spec discover_projects() :: %{String.t() => String.t()}
   def discover_projects do
     event_projects = discover_from_events()
@@ -24,6 +22,13 @@ defmodule Ichor.SwarmMonitor.Discovery do
     event_projects
     |> Map.merge(archive_projects)
     |> Map.merge(team_projects)
+  end
+
+  def scan_archives do
+    case File.ls(@archive_dir) do
+      {:ok, entries} -> Enum.map(entries, &parse_archive_entry/1)
+      _ -> []
+    end
   end
 
   defp discover_from_events do
@@ -71,16 +76,6 @@ defmodule Ichor.SwarmMonitor.Discovery do
       Enum.find_value(members, fn m -> m["cwd"] end)
     else
       _ -> nil
-    end
-  end
-
-  # ── Archive Scanning ──────────────────────────────────────────
-
-  @spec scan_archives() :: [map()]
-  def scan_archives do
-    case File.ls(@archive_dir) do
-      {:ok, entries} -> Enum.map(entries, &parse_archive_entry/1)
-      _ -> []
     end
   end
 

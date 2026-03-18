@@ -1,7 +1,7 @@
-defmodule Ichor.SwarmMonitor.AnalysisTest do
+defmodule Ichor.Dag.AnalysisTest do
   use ExUnit.Case, async: true
 
-  alias Ichor.SwarmMonitor.Analysis
+  alias Ichor.Dag.Analysis
 
   test "computes pipeline counts" do
     tasks = [

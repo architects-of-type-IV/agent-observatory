@@ -1,7 +1,7 @@
-defmodule Ichor.SwarmMonitor.HealthTest do
+defmodule Ichor.Dag.HealthReportTest do
   use ExUnit.Case, async: true
 
-  alias Ichor.SwarmMonitor.Health
+  alias Ichor.Dag.HealthReport
 
   test "parses health output into normalized map" do
     output =
@@ -15,7 +15,7 @@ defmodule Ichor.SwarmMonitor.HealthTest do
         }
       })
 
-    assert {:ok, report} = Health.parse_health_output(output)
+    assert {:ok, report} = HealthReport.parse_health_output(output)
     assert report.healthy
     assert report.agents["lead"]["status"] == "ok"
     assert [%{type: "stale", severity: "HIGH", task_id: "t1"}] = report.issues

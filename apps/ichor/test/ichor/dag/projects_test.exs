@@ -1,7 +1,7 @@
-defmodule Ichor.SwarmMonitor.ProjectsTest do
+defmodule Ichor.Dag.ProjectsTest do
   use ExUnit.Case, async: true
 
-  alias Ichor.SwarmMonitor.Projects
+  alias Ichor.Dag.Projects
 
   test "resolve tasks path for task project when available" do
     state = %{
