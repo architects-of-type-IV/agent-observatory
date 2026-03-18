@@ -232,8 +232,10 @@ defmodule Ichor.AgentSpawner do
   defp build_command(opts) do
     model = opts[:model] || "sonnet"
     capability = opts[:capability] || "builder"
+    name = opts[:name] || capability
     claude_args = build_claude_args(model, capability, opts)
-    "env -u CLAUDECODE claude #{Enum.join(claude_args, " ")}"
+    overlay = InstructionOverlay.overlay_path(name)
+    "cat #{overlay} | env -u CLAUDECODE claude #{Enum.join(claude_args, " ")}"
   end
 
   defp build_claude_args(model, capability, _opts) do

@@ -233,15 +233,22 @@ defmodule Ichor.InstructionOverlay do
     - `.claude/ICHOR_OVERLAY.md` -- instruction overlay
     - `.claude/settings.local.json` -- hooks pointing back to Ichor
   """
-  @spec write_session_files(String.t(), map()) :: :ok
-  def write_session_files(cwd, opts) do
-    overlay_content = generate(opts)
-    overlay_path = Path.join(cwd, ".claude/ICHOR_OVERLAY.md")
+  @overlay_dir Path.expand("~/.ichor/overlays")
 
-    File.mkdir_p!(Path.dirname(overlay_path))
+  @spec write_session_files(String.t(), map()) :: :ok
+  def write_session_files(_cwd, opts) do
+    overlay_content = generate(opts)
+    name = opts[:name] || opts[:capability] || "agent"
+    overlay_path = Path.join(@overlay_dir, "#{name}.md")
+
+    File.mkdir_p!(@overlay_dir)
     File.write!(overlay_path, overlay_content)
     :ok
   end
+
+  @doc "Returns the overlay file path for a given agent name."
+  @spec overlay_path(String.t()) :: String.t()
+  def overlay_path(name), do: Path.join(@overlay_dir, "#{name}.md")
 
   defp ichor_port do
     Application.get_env(:ichor, IchorWeb.Endpoint, [])
