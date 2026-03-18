@@ -84,6 +84,7 @@ defmodule Ichor.MixProject do
       {:ichor_signals, in_umbrella: true},
       {:ichor_data, in_umbrella: true},
       {:ichor_activity, in_umbrella: true},
+      {:ichor_workshop, in_umbrella: true},
       {:ichor_mes, in_umbrella: true},
       {:ichor_events, in_umbrella: true},
       {:ichor_genesis, in_umbrella: true},
@@ -122,7 +123,17 @@ defmodule Ichor.MixProject do
       Ichor.Fleet.Agent,
       Ichor.Fleet.Team,
       Ichor.Fleet.Views.Preparations.LoadAgents,
-      Ichor.Fleet.Views.Preparations.LoadTeams
+      Ichor.Fleet.Views.Preparations.LoadTeams,
+      Ichor.Workshop,
+      Ichor.Workshop.AgentBlueprint,
+      Ichor.Workshop.AgentType,
+      Ichor.Workshop.BlueprintState,
+      Ichor.Workshop.CommRule,
+      Ichor.Workshop.Persistence,
+      Ichor.Workshop.Presets,
+      Ichor.Workshop.SpawnLink,
+      Ichor.Workshop.TeamBlueprint,
+      Ichor.Workshop.TeamSpecBuilder
     ]
   end
 end

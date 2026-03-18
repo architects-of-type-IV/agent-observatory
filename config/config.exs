@@ -12,10 +12,14 @@ config :ichor,
   ash_domains: [
     Ichor.AgentTools,
     Ichor.Costs,
-    Ichor.Workshop,
     Ichor.Archon,
     Ichor.Archon.Tools,
     Ichor.Signals.Domain
+  ]
+
+config :ichor_workshop,
+  ash_domains: [
+    Ichor.Workshop
   ]
 
 config :ichor_data,
