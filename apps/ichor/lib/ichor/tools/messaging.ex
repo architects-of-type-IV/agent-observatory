@@ -4,9 +4,10 @@ defmodule Ichor.Tools.Messaging do
   """
 
   alias Ichor.Gateway.Target
+  alias Ichor.Fleet.Comms
 
   def send_as_operator(to, content) when is_binary(to) and is_binary(content) do
-    with {:ok, delivered} <- operator_module().send(to, content) do
+    with {:ok, delivered} <- comms_module().send(to, content) do
       {:ok, %{status: "sent", to: to, delivered: delivered}}
     end
   end
@@ -53,15 +54,15 @@ defmodule Ichor.Tools.Messaging do
     end
   end
 
-  defp operator_module do
-    Application.get_env(:ichor, :tools_messaging_operator_module, Ichor.Operator)
-  end
-
   defp fleet_agent_module do
     Application.get_env(:ichor, :tools_messaging_fleet_agent_module, Ichor.Fleet.Agent)
   end
 
   defp router_module do
     Application.get_env(:ichor, :tools_messaging_router_module, Ichor.Gateway.Router)
+  end
+
+  defp comms_module do
+    Application.get_env(:ichor, :tools_messaging_comms_module, Comms)
   end
 end
