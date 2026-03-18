@@ -418,7 +418,7 @@ defmodule IchorWeb.DashboardState do
     sid == "operator" or TmuxDiscovery.infrastructure_session?(sid)
   end
 
-  defp task_to_map(%Ichor.Activity.Task{} = t), do: Map.from_struct(t)
+  defp task_to_map(%{id: _id} = t), do: Map.from_struct(t)
   defp task_to_map(t) when is_map(t), do: t
 
   defp tmux_feed_entry(s, now) do

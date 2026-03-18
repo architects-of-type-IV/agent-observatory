@@ -126,7 +126,14 @@ defmodule Ichor.MixProject do
       Ichor.Dag,
       Ichor.Dag.Run,
       Ichor.Dag.Job,
-      Ichor.Dag.Job.Preparations.FilterAvailable
+      Ichor.Dag.Job.Preparations.FilterAvailable,
+      Ichor.Activity,
+      Ichor.Activity.Message,
+      Ichor.Activity.Task,
+      Ichor.Activity.Error,
+      Ichor.Activity.Preparations.LoadMessages,
+      Ichor.Activity.Preparations.LoadTasks,
+      Ichor.Activity.Preparations.LoadErrors
     ]
   end
 end
