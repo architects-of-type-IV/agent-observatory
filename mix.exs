@@ -25,6 +25,7 @@ defmodule ObservatoryUmbrella.MixProject do
       test: ["ecto.create --quiet", "ecto.migrate --quiet", "test"],
       "assets.setup": ["tailwind.install --if-missing", "esbuild.install --if-missing"],
       "assets.build": ["compile", "tailwind ichor", "esbuild ichor"],
+      "boundary.audit": [&boundary_audit/1],
       "assets.deploy": [
         "tailwind ichor --minify",
         "esbuild ichor --minify",
@@ -37,5 +38,9 @@ defmodule ObservatoryUmbrella.MixProject do
         "test"
       ]
     ]
+  end
+
+  defp boundary_audit(_args) do
+    Mix.shell().cmd("cd apps/ichor && mix ichor.boundary_audit")
   end
 end
