@@ -1,10 +1,9 @@
 defmodule Ichor.Dag.Loader do
   @moduledoc "Loads tasks into Dag.Run + Dag.Job records from tasks.jsonl or Genesis hierarchy."
 
-  alias Ichor.Dag.{Graph, Job, Run}
+  alias Ichor.Dag.{Graph, Job, Run, RuntimeSignals}
   alias Ichor.Genesis.DagGenerator
   alias Ichor.Genesis.Node, as: GenesisNode
-  alias Ichor.Signals
 
   @spec from_file(String.t(), keyword()) :: {:ok, Run.t()} | {:error, term()}
   def from_file(tasks_jsonl_path, opts \\ []) do
@@ -46,12 +45,7 @@ defmodule Ichor.Dag.Loader do
 
     with {:ok, run} <- Run.create(run_attrs),
          :ok <- create_jobs(raw_items, run.id, wave_map) do
-      Signals.emit(:dag_run_created, %{
-        run_id: run.id,
-        source: source,
-        label: label,
-        job_count: length(raw_items)
-      })
+      RuntimeSignals.emit_run_created(run.id, source, label, length(raw_items))
 
       {:ok, run}
     end
