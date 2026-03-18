@@ -9,6 +9,8 @@ defmodule IchorWeb.Components.ArchonComponents.CommandHud do
   attr :actions, :list, required: true
   attr :loading, :boolean, default: false
   attr :messages, :list, default: []
+  attr :snapshot, :map, default: %{}
+  attr :attention, :list, default: []
 
   def command_hud(assigns) do
     recent =
@@ -85,10 +87,7 @@ defmodule IchorWeb.Components.ArchonComponents.CommandHud do
         </div>
         <div class="archon-output-body">
           <%= if @recent == [] do %>
-            <div class="archon-output-empty">
-              <span class="archon-output-prompt">&gt;_</span>
-              <span>Awaiting command</span>
-            </div>
+            <.manager_snapshot snapshot={@snapshot} attention={@attention} />
           <% else %>
             <.output_entry :for={msg <- @recent} msg={msg} />
           <% end %>
@@ -258,6 +257,25 @@ defmodule IchorWeb.Components.ArchonComponents.CommandHud do
     """
   end
 
+  defp output_entry(%{msg: %{type: :manager_snapshot, data: snapshot}} = assigns) do
+    assigns =
+      assigns
+      |> assign(:manager_snapshot, snapshot)
+      |> assign(:manager_attention, List.wrap(assigns.msg[:attention] || []))
+
+    ~H"""
+    <.manager_snapshot snapshot={@manager_snapshot} attention={@manager_attention} />
+    """
+  end
+
+  defp output_entry(%{msg: %{type: :attention_queue, data: attention}} = assigns) do
+    assigns = assign(assigns, :manager_attention, attention)
+
+    ~H"""
+    <.attention_list attention={@manager_attention} />
+    """
+  end
+
   defp output_entry(%{msg: %{type: :agent_status, data: %{"found" => false} = d}} = assigns) do
     assigns = assign(assigns, :query, d["query"])
 
@@ -382,6 +400,80 @@ defmodule IchorWeb.Components.ArchonComponents.CommandHud do
     """
   end
 
+  attr :snapshot, :map, default: %{}
+  attr :attention, :list, default: []
+
+  defp manager_snapshot(assigns) do
+    counts = Map.get(assigns.snapshot, "counts_by_category", %{})
+    latest = Map.get(assigns.snapshot, "latest_by_category", %{})
+
+    assigns =
+      assigns
+      |> assign(:counts, Enum.sort_by(counts, fn {category, _} -> category end))
+      |> assign(:latest, Enum.take(Enum.sort_by(latest, fn {category, _} -> category end), 6))
+
+    ~H"""
+    <div class="archon-output-section">
+      <div class="archon-output-label">Manager Snapshot</div>
+      <div class="archon-output-health-grid">
+        <.health_row
+          label="Signals Seen"
+          value={to_string(Map.get(@snapshot, "signals_seen", 0))}
+          ok={Map.get(@snapshot, "signals_seen", 0) > 0}
+        />
+        <.health_row
+          label="Attention"
+          value={to_string(Map.get(@snapshot, "attention_count", 0))}
+          ok={Map.get(@snapshot, "attention_count", 0) == 0}
+        />
+      </div>
+
+      <div :if={@counts != []} class="archon-output-grid" style="margin-top: 0.75rem">
+        <div :for={{category, count} <- @counts} class="archon-output-card">
+          <div class="archon-output-card-name">{category}</div>
+          <div class="archon-output-card-detail">{count} signals</div>
+        </div>
+      </div>
+
+      <div :if={@latest != []} class="archon-output-message-list" style="margin-top: 0.75rem">
+        <div :for={{category, item} <- @latest} class="archon-output-message">
+          <div class="flex items-center justify-between">
+            <span class="archon-output-card-name">{category}</span>
+            <span class="archon-output-card-detail">
+              {to_string(item["name"] || item[:name] || "")}
+            </span>
+          </div>
+          <div class="archon-output-message-content">{item["summary"] || item[:summary]}</div>
+        </div>
+      </div>
+
+      <.attention_list attention={@attention} />
+    </div>
+    """
+  end
+
+  attr :attention, :list, default: []
+
+  defp attention_list(assigns) do
+    ~H"""
+    <div class="archon-output-section" style="margin-top: 0.75rem">
+      <div class="archon-output-label">Attention Queue</div>
+      <div :if={@attention == []} class="archon-output-empty-result">No active issues</div>
+      <div :if={@attention != []} class="archon-output-message-list">
+        <div :for={item <- @attention} class="archon-output-message">
+          <div class="flex items-center justify-between">
+            <span class="archon-output-card-name">{to_string(item[:signal] || item["signal"])}</span>
+            <span class={"archon-output-badge #{attention_color(item[:severity] || item["severity"])}"}>
+              {to_string(item[:severity] || item["severity"])}
+            </span>
+          </div>
+          <div class="archon-output-message-content">{item[:summary] || item["summary"]}</div>
+        </div>
+      </div>
+    </div>
+    """
+  end
+
   # ── Helpers ──────────────────────────────────────────────────────────
 
   defp status_color(status) when is_atom(status), do: status_color(to_string(status))
@@ -393,6 +485,12 @@ defmodule IchorWeb.Components.ArchonComponents.CommandHud do
   defp health_color("degraded"), do: "archon-badge-warn"
   defp health_color("critical"), do: "archon-badge-fail"
   defp health_color(_), do: "archon-badge-dim"
+
+  defp attention_color(:critical), do: "archon-badge-fail"
+  defp attention_color("critical"), do: "archon-badge-fail"
+  defp attention_color(:high), do: "archon-badge-warn"
+  defp attention_color("high"), do: "archon-badge-warn"
+  defp attention_color(_), do: "archon-badge-dim"
 
   defp format_ts(nil), do: ""
 

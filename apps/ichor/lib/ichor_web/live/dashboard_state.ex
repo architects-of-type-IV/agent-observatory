@@ -152,6 +152,8 @@ defmodule IchorWeb.DashboardState do
       archon_messages: [],
       archon_history: [],
       archon_loading: false,
+      archon_snapshot: %{},
+      archon_attention: [],
       # Recompute-derived assigns (defaults for static render before :load_data)
       teams: [],
       has_teams: false,

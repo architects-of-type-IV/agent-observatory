@@ -7,17 +7,34 @@ defmodule IchorWeb.DashboardArchonHandlers do
   import Phoenix.Component, only: [assign: 3]
 
   alias Ichor.Archon.Chat
+  alias Ichor.Archon.SignalManager
 
   require Logger
 
   @doc "Toggle the Archon overlay visibility."
   def handle_archon_toggle(socket) do
-    assign(socket, :show_archon, !socket.assigns.show_archon)
+    if socket.assigns.show_archon do
+      assign(socket, :show_archon, false)
+    else
+      socket
+      |> assign(:show_archon, true)
+      |> assign(:archon_tab, :command)
+      |> refresh_manager_state()
+    end
   end
 
   @doc "Close the Archon overlay."
   def handle_archon_close(socket) do
     assign(socket, :show_archon, false)
+  end
+
+  @doc "Refresh Archon's manager-facing snapshot assigns."
+  def refresh_manager_state(socket) do
+    socket
+    |> assign(:archon_snapshot, SignalManager.snapshot())
+    |> assign(:archon_attention, SignalManager.attention())
+  rescue
+    _ -> socket
   end
 
   @doc "Execute a shortcode command, clearing previous output."
@@ -100,6 +117,7 @@ defmodule IchorWeb.DashboardArchonHandlers do
     |> assign(:archon_messages, [])
     |> assign(:archon_loading, true)
     |> assign(:show_archon, true)
+    |> refresh_manager_state()
   end
 
   defp dispatch_message(content, socket) do
@@ -110,6 +128,7 @@ defmodule IchorWeb.DashboardArchonHandlers do
     |> assign(:archon_messages, socket.assigns.archon_messages ++ [user_msg])
     |> assign(:archon_loading, true)
     |> assign(:show_archon, true)
+    |> refresh_manager_state()
   end
 
   defp start_chat_task(content, history) do

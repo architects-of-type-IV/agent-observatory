@@ -12,6 +12,7 @@ defmodule IchorWeb.DashboardInfoHandlers do
   import IchorWeb.DashboardNotificationHandlers, only: [handle_agent_crashed: 4]
   import IchorWeb.DashboardGatewayHandlers, only: [handle_gateway_info: 2]
 
+  alias Ichor.Archon.SignalManager
   alias Ichor.Gateway.HITLRelay
   alias Ichor.Mes.Project
   alias Ichor.Signals.Message
@@ -40,7 +41,11 @@ defmodule IchorWeb.DashboardInfoHandlers do
     events = [event | socket.assigns.events] |> Enum.take(@max_events)
 
     {:noreply,
-     socket |> assign(:events, events) |> assign(:now, DateTime.utc_now()) |> schedule_recompute()}
+     socket
+     |> assign(:events, events)
+     |> assign(:now, DateTime.utc_now())
+     |> maybe_refresh_archon_manager()
+     |> schedule_recompute()}
   end
 
   def dispatch(%Message{name: :tasks_updated}, socket),
@@ -74,10 +79,15 @@ defmodule IchorWeb.DashboardInfoHandlers do
     do: handle_new_mailbox_message(message, socket)
 
   def dispatch(%Message{name: :swarm_state, data: %{state_map: state}}, socket),
-    do: {:noreply, assign(socket, :swarm_state, state)}
+    do: {:noreply, socket |> assign(:swarm_state, state) |> maybe_refresh_archon_manager()}
 
   def dispatch(%Message{name: :protocol_update, data: %{stats_map: stats}}, socket),
-    do: {:noreply, socket |> assign(:protocol_stats, stats) |> assign(:dirty, true)}
+    do:
+      {:noreply,
+       socket
+       |> assign(:protocol_stats, stats)
+       |> assign(:dirty, true)
+       |> maybe_refresh_archon_manager()}
 
   def dispatch(%Message{name: :terminal_output, data: %{session_id: sid, output: output}}, socket) do
     case socket.assigns.agent_slideout do
@@ -97,15 +107,18 @@ defmodule IchorWeb.DashboardInfoHandlers do
   # Nudge/gate: notifications only -- no data changed, no recompute
   def dispatch(%Message{name: name}, socket)
       when name in [:nudge_warning, :nudge_sent, :nudge_escalated, :nudge_zombie],
-      do: {:noreply, socket}
+      do: {:noreply, maybe_refresh_archon_manager(socket)}
 
-  def dispatch(%Message{name: :gate_passed}, socket), do: {:noreply, socket}
-  def dispatch(%Message{name: :gate_failed}, socket), do: {:noreply, socket}
+  def dispatch(%Message{name: :gate_passed}, socket),
+    do: {:noreply, maybe_refresh_archon_manager(socket)}
+
+  def dispatch(%Message{name: :gate_failed}, socket),
+    do: {:noreply, maybe_refresh_archon_manager(socket)}
 
   @gateway_signals ~w(decision_log schema_violation node_state_update dead_letter capability_update topology_snapshot entropy_alert dag_delta)a
 
   def dispatch(%Message{name: name} = sig, socket) when name in @gateway_signals,
-    do: {:noreply, handle_gateway_info(sig, socket)}
+    do: {:noreply, handle_gateway_info(sig, socket) |> maybe_refresh_archon_manager()}
 
   # ── Non-signal messages ────────────────────────────────────────────────
 
@@ -138,7 +151,7 @@ defmodule IchorWeb.DashboardInfoHandlers do
              :mes_research_ingested,
              :mes_research_ingest_failed
            ],
-      do: {:noreply, socket}
+      do: {:noreply, maybe_refresh_archon_manager(socket)}
 
   # ── Signal-native: Genesis signals ─────────────────────────────────
 
@@ -153,7 +166,7 @@ defmodule IchorWeb.DashboardInfoHandlers do
   end
 
   # Catch-all: ignore unknown signals (new signals added to catalog won't crash)
-  def dispatch(%Message{}, socket), do: {:noreply, socket}
+  def dispatch(%Message{}, socket), do: {:noreply, maybe_refresh_archon_manager(socket)}
 
   # ── Private ─────────────────────────────────────────────────────────
 
@@ -179,4 +192,14 @@ defmodule IchorWeb.DashboardInfoHandlers do
 
     assign(socket, :genesis_node, node)
   end
+
+  defp maybe_refresh_archon_manager(%{assigns: %{show_archon: true}} = socket) do
+    socket
+    |> assign(:archon_snapshot, SignalManager.snapshot())
+    |> assign(:archon_attention, SignalManager.attention())
+  rescue
+    _ -> socket
+  end
+
+  defp maybe_refresh_archon_manager(socket), do: socket
 end

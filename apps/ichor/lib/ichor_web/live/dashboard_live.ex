@@ -247,7 +247,11 @@ defmodule IchorWeb.DashboardLive do
     do: {:noreply, DashboardArchonHandlers.handle_archon_shortcode(p, s)}
 
   def handle_event("archon_set_tab", %{"tab" => tab}, s),
-    do: {:noreply, assign(s, :archon_tab, String.to_existing_atom(tab))}
+    do:
+      {:noreply,
+       s
+       |> assign(:archon_tab, String.to_existing_atom(tab))
+       |> DashboardArchonHandlers.refresh_manager_state()}
 
   def handle_event("dismiss_toast", %{"id" => id}, s),
     do: {:noreply, IchorWeb.DashboardToast.dismiss_toast(s, id)}

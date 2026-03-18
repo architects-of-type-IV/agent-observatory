@@ -12,16 +12,18 @@ defmodule IchorWeb.Components.ArchonComponents do
   import IchorWeb.Components.ArchonComponents.ReferencePanel, only: [reference_panel: 1]
 
   @quick_actions [
-    %{key: "1", cmd: "agents", label: "Agents", icon: "grid", desc: "List fleet"},
-    %{key: "2", cmd: "teams", label: "Teams", icon: "layers", desc: "Active teams"},
-    %{key: "3", cmd: "inbox", label: "Inbox", icon: "mail", desc: "Messages"},
-    %{key: "4", cmd: "health", label: "Health", icon: "pulse", desc: "System check"},
-    %{key: "5", cmd: "sessions", label: "Sessions", icon: "terminal", desc: "Tmux"},
-    %{key: "6", cmd: "recall", label: "Recall", icon: "search", desc: "Search memory"},
-    %{key: "7", cmd: "query", label: "Query", icon: "brain", desc: "Ask memory"}
+    %{key: "1", cmd: "manager", label: "Manager", icon: "brain", desc: "System snapshot"},
+    %{key: "2", cmd: "attention", label: "Attention", icon: "pulse", desc: "Open issues"},
+    %{key: "3", cmd: "agents", label: "Agents", icon: "grid", desc: "List fleet"},
+    %{key: "4", cmd: "teams", label: "Teams", icon: "layers", desc: "Active teams"},
+    %{key: "5", cmd: "inbox", label: "Inbox", icon: "mail", desc: "Messages"},
+    %{key: "6", cmd: "sessions", label: "Sessions", icon: "terminal", desc: "Tmux"},
+    %{key: "7", cmd: "recall", label: "Recall", icon: "search", desc: "Search memory"}
   ]
 
   @shortcodes [
+    {"manager", "Summarize the system from signals"},
+    {"attention", "Show issues needing intervention"},
     {"agents", "List all agents in the fleet"},
     {"teams", "List all active teams"},
     {"status <agent>", "Check an agent's status"},
@@ -39,6 +41,8 @@ defmodule IchorWeb.Components.ArchonComponents do
   attr :messages, :list, required: true
   attr :loading, :boolean, default: false
   attr :tab, :atom, default: :command
+  attr :snapshot, :map, default: %{}
+  attr :attention, :list, default: []
 
   def archon_overlay(assigns) do
     assigns =
@@ -100,6 +104,8 @@ defmodule IchorWeb.Components.ArchonComponents do
             actions={@quick_actions}
             loading={@loading}
             messages={@messages}
+            snapshot={@snapshot}
+            attention={@attention}
           />
           <.chat_panel :if={@tab == :chat} messages={@messages} loading={@loading} />
           <.reference_panel :if={@tab == :ref} shortcodes={@shortcodes} />
