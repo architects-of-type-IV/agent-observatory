@@ -1,69 +1,34 @@
 defmodule Ichor.Notes do
   @moduledoc """
   ETS-backed storage for event annotations and notes.
-  Allows users to add contextual notes to specific events.
+
+  Call `Ichor.Notes.init/0` once at application startup before any other
+  function is used. The ETS table is public so reads bypass any process
+  bottleneck.
   """
-  use GenServer
-  require Logger
 
   @table_name :ichor_notes
   @max_notes 1000
 
-  # Client API
-
-  def start_link(opts) do
-    GenServer.start_link(__MODULE__, opts, name: __MODULE__)
+  @doc "Create the ETS table. Must be called once at startup."
+  @spec init() :: :ok
+  def init do
+    :ets.new(@table_name, [:named_table, :public, :set])
+    :ok
   end
 
   @doc """
   Add or update a note for a specific event.
+  Evicts the oldest entry when the table is at capacity.
   """
+  @spec add_note(term(), String.t()) :: {:ok, map()}
   def add_note(event_id, text) when is_binary(text) do
-    GenServer.call(__MODULE__, {:add_note, event_id, text})
-  end
-
-  @doc """
-  Get the note for a specific event.
-  Returns `nil` if no note exists.
-  """
-  def get_note(event_id) do
-    GenServer.call(__MODULE__, {:get_note, event_id})
-  end
-
-  @doc """
-  List all notes with their event IDs.
-  Returns a map of %{event_id => %{text: text, timestamp: timestamp}}
-  """
-  def list_notes do
-    GenServer.call(__MODULE__, :list_notes)
-  end
-
-  @doc """
-  Delete a note for a specific event.
-  """
-  def delete_note(event_id) do
-    GenServer.call(__MODULE__, {:delete_note, event_id})
-  end
-
-  # Server Callbacks
-
-  @impl true
-  def init(_opts) do
-    # Create ETS table: {event_id, %{text: text, timestamp: timestamp}}
-    :ets.new(@table_name, [:named_table, :public, :set])
-    {:ok, %{}}
-  end
-
-  @impl true
-  def handle_call({:add_note, event_id, text}, _from, state) do
-    note = %{
-      text: text,
-      timestamp: DateTime.utc_now()
-    }
+    note = %{text: text, timestamp: DateTime.utc_now()}
 
     if :ets.info(@table_name, :size) >= @max_notes do
       oldest =
-        :ets.tab2list(@table_name)
+        @table_name
+        |> :ets.tab2list()
         |> Enum.min_by(fn {_id, n} -> n.timestamp end, DateTime)
         |> elem(0)
 
@@ -71,30 +36,36 @@ defmodule Ichor.Notes do
     end
 
     :ets.insert(@table_name, {event_id, note})
-    {:reply, {:ok, note}, state}
+    {:ok, note}
   end
 
-  def handle_call({:get_note, event_id}, _from, state) do
-    result =
-      case :ets.lookup(@table_name, event_id) do
-        [{^event_id, note}] -> note
-        [] -> nil
-      end
-
-    {:reply, result, state}
+  @doc """
+  Get the note for a specific event.
+  Returns `nil` if no note exists.
+  """
+  @spec get_note(term()) :: map() | nil
+  def get_note(event_id) do
+    case :ets.lookup(@table_name, event_id) do
+      [{^event_id, note}] -> note
+      [] -> nil
+    end
   end
 
-  def handle_call(:list_notes, _from, state) do
-    notes =
-      :ets.tab2list(@table_name)
-      |> Enum.map(fn {event_id, note} -> {event_id, note} end)
-      |> Map.new()
-
-    {:reply, notes, state}
+  @doc """
+  List all notes.
+  Returns a map of `%{event_id => %{text: text, timestamp: timestamp}}`.
+  """
+  @spec list_notes() :: %{term() => map()}
+  def list_notes do
+    @table_name
+    |> :ets.tab2list()
+    |> Map.new()
   end
 
-  def handle_call({:delete_note, event_id}, _from, state) do
+  @doc "Delete the note for a specific event."
+  @spec delete_note(term()) :: :ok
+  def delete_note(event_id) do
     :ets.delete(@table_name, event_id)
-    {:reply, :ok, state}
+    :ok
   end
 end

@@ -12,6 +12,7 @@ defmodule Ichor.Application do
     ensure_tmux_server()
     AgentLaunch.init_counter()
     Ichor.MessageRouter.start_message_log()
+    Ichor.Notes.init()
 
     children = [
       # Infrastructure (must start first -- everything depends on these)
@@ -31,11 +32,8 @@ defmodule Ichor.Application do
       # Fleet host registry (tracks BEAM nodes in the cluster)
       Ichor.Fleet.HostRegistry,
 
-      # Core services (mailbox, command queue, teams, notes, janitor, memory)
-      Ichor.CoreSupervisor,
-
-      # Gateway services (rest_for_one: registry first, then downstream)
-      Ichor.GatewaySupervisor,
+      # System services (core, gateway, monitoring -- all one_for_one)
+      Ichor.SystemSupervisor,
 
       # Fleet supervisor (BEAM-native teams + agents, after Gateway for channel access)
       Ichor.Fleet.FleetSupervisor,
@@ -57,9 +55,6 @@ defmodule Ichor.Application do
 
       # Memories bridge (signals -> knowledge graph)
       Ichor.MemoriesBridge,
-
-      # Monitoring services (independent observers)
-      Ichor.MonitorSupervisor,
 
       # Web endpoint (must start last -- depends on all services above)
       IchorWeb.Endpoint

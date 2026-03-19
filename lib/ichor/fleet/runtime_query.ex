@@ -4,7 +4,7 @@ defmodule Ichor.Fleet.RuntimeQuery do
   """
 
   alias Ichor.Fleet.Lookup
-  alias Ichor.TaskManager
+  alias Ichor.Tasks.TeamStore
   alias IchorWeb.Presentation
 
   def find_team_member(teams, agent_id) do
@@ -33,7 +33,7 @@ defmodule Ichor.Fleet.RuntimeQuery do
   def list_tasks_for_teams(teams) do
     Enum.flat_map(teams, fn team ->
       team.name
-      |> TaskManager.list_tasks()
+      |> TeamStore.list_tasks()
       |> Enum.map(&Map.put(&1, "team", team.name))
     end)
   end

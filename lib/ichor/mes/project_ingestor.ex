@@ -14,8 +14,6 @@ defmodule Ichor.Mes.ProjectIngestor do
 
   use GenServer
 
-  import Ichor.MapHelpers, only: [maybe_put: 3]
-
   require Logger
 
   alias Ichor.Mes
@@ -171,6 +169,11 @@ defmodule Ichor.Mes.ProjectIngestor do
       end
     end)
   end
+
+  defp maybe_put(map, _key, nil), do: map
+  defp maybe_put(map, _key, ""), do: map
+  defp maybe_put(map, _key, []), do: map
+  defp maybe_put(map, key, value), do: Map.put(map, key, value)
 
   defp extract_run_id(from_session) do
     case Regex.run(~r/^mes-([^-]+)/, from_session) do

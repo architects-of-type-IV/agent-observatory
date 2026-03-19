@@ -10,7 +10,7 @@ defmodule Ichor.AgentMonitor do
   alias Ichor.Gateway.AgentRegistry.AgentEntry
   alias Ichor.Gateway.Channels.Tmux
   alias Ichor.Signals.Message
-  alias Ichor.TaskManager
+  alias Ichor.Tasks.TeamStore
 
   @check_interval 5_000
   @crash_threshold_sec 120
@@ -140,7 +140,7 @@ defmodule Ichor.AgentMonitor do
   end
 
   defp reassign_agent_tasks(session_id, team_name) do
-    tasks = TaskManager.list_tasks(team_name)
+    tasks = TeamStore.list_tasks(team_name)
 
     # Find tasks owned by crashed agent
     owned_tasks =
@@ -151,7 +151,7 @@ defmodule Ichor.AgentMonitor do
     # Reset to pending status and count successes
     owned_tasks
     |> Enum.map(fn task ->
-      case TaskManager.update_task(team_name, task["id"], %{
+      case TeamStore.update_task(team_name, task["id"], %{
              "status" => "pending",
              "owner" => nil
            }) do
