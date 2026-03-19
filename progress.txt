@@ -11,9 +11,19 @@
 - [x] Signals bypass audit: 37 actions identified (15 HIGH, 14 MEDIUM, 8 LOW)
 - [x] @spec/@doc audit: 1,149 missing specs, 400+ missing docs, 11 missing moduledocs
 - [x] Ash AI article: constraint system for LLM types, description strings load-bearing
-- [ ] Wire missing signals (15 HIGH items)
-- [ ] Add @spec to highest-impact modules
+- [x] Wire missing signals: 13 resources via FromAsh notifier + 9 GenServer/LiveView emissions
+- [x] Fix 5 broken event subscribers (events:stream ghost topic)
+- [x] Remove dead PubSub channels + shrink Ichor.Channels to 3 -> 0 (deleted)
+- [x] StreamEntry struct + EntryFormatter (per-signal summaries, 40+ pattern clauses)
+- [x] Performance: 8 hot-path ETS/Enum fixes (select_delete, single-pass, ets.info)
+- [x] Safety: String.to_atom on HTTP input, Ash NotLoaded guards, struct truncation guard
+- [x] Dead code removal: 18 modules deleted, 20+ dead functions, 410 -> 392 files
+- [x] 6 consolidation audits (gateway, fleet, core, dag, mes/archon, web helpers)
+- [x] Ash enum candidates identified (11, saved to memory)
+- [ ] Ash.Type.Enum extraction (11 candidates)
+- [ ] @spec coverage on remaining public functions
 - [ ] E2E test: Build PulseMonitor with boundary enforcement
+- [ ] Boundary violation fixes (web helpers imported by core)
 
 ## ichor_contracts Refactor (2026-03-18) -- COMPLETE
 - [x] Created ichor_contracts shared library (facade + behaviour + config dispatch)
