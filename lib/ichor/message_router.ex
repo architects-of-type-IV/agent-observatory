@@ -98,20 +98,31 @@ defmodule Ichor.MessageRouter do
   end
 
   defp deliver_to_fleet(msg) do
-    agents = AgentProcess.list_all()
-    Enum.each(agents, fn {id, _meta} -> AgentProcess.send_message(id, msg) end)
-    {:ok, length(agents)}
+    count =
+      AgentProcess.list_all()
+      |> Enum.reduce(0, fn {id, _}, acc ->
+        AgentProcess.send_message(id, msg)
+        acc + 1
+      end)
+
+    {:ok, count}
   end
 
   defp deliver_to_role(role, msg) do
     role_atom = String.to_existing_atom(role)
 
-    agents =
+    count =
       AgentProcess.list_all()
-      |> Enum.filter(fn {_id, meta} -> meta[:role] == role_atom end)
+      |> Enum.reduce(0, fn
+        {id, %{role: ^role_atom}}, acc ->
+          AgentProcess.send_message(id, msg)
+          acc + 1
 
-    Enum.each(agents, fn {id, _} -> AgentProcess.send_message(id, msg) end)
-    {:ok, length(agents)}
+        _, acc ->
+          acc
+      end)
+
+    {:ok, count}
   rescue
     ArgumentError -> {:ok, 0}
   end

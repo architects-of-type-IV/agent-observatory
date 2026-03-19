@@ -44,10 +44,9 @@ defmodule Ichor.EventBuffer do
 
   @doc "Get all events from the buffer (most recent first)."
   def list_events do
-    @table
-    |> :ets.tab2list()
+    :ets.tab2list(@table)
+    |> Enum.sort_by(fn {_k, e} -> e.inserted_at end, {:desc, DateTime})
     |> Enum.map(&elem(&1, 1))
-    |> Enum.sort_by(& &1.inserted_at, {:desc, DateTime})
   end
 
   @doc "Get the latest event per session (lightweight seed for dashboard mount)."
@@ -84,13 +83,7 @@ defmodule Ichor.EventBuffer do
 
   @doc "Remove all events for a session and tombstone it."
   def remove_session(session_id) do
-    @table
-    |> :ets.tab2list()
-    |> Enum.each(fn
-      {id, %{session_id: ^session_id}} -> :ets.delete(@table, id)
-      _ -> :ok
-    end)
-
+    :ets.select_delete(@table, [{{:_, %{session_id: session_id}}, [], [true]}])
     tombstone_session(session_id)
   end
 
@@ -102,10 +95,11 @@ defmodule Ichor.EventBuffer do
 
   @doc "Get events for a specific session."
   def events_for_session(session_id) do
-    @table
-    |> :ets.tab2list()
-    |> Enum.map(&elem(&1, 1))
-    |> Enum.filter(&(&1.session_id == session_id))
+    :ets.tab2list(@table)
+    |> Enum.reduce([], fn
+      {_id, %{session_id: ^session_id} = event}, acc -> [event | acc]
+      _, acc -> acc
+    end)
     |> Enum.sort_by(& &1.inserted_at, {:desc, DateTime})
   end
 

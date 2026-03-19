@@ -8,11 +8,13 @@ defmodule Ichor.Gateway.Router.RecipientResolver do
 
   @spec resolve(String.t()) :: [map()]
   def resolve("agent:" <> name) do
-    AgentProcess.list_all()
-    |> Enum.filter(fn {id, meta} ->
-      id == name || meta[:short_name] == name || meta[:name] == name
+    Enum.flat_map(AgentProcess.list_all(), fn {id, meta} ->
+      if id == name || meta[:short_name] == name || meta[:name] == name do
+        [recipient_from_meta(id, meta)]
+      else
+        []
+      end
     end)
-    |> Enum.map(fn {id, meta} -> recipient_from_meta(id, meta) end)
   end
 
   def resolve("session:" <> sid) do
@@ -23,23 +25,23 @@ defmodule Ichor.Gateway.Router.RecipientResolver do
   end
 
   def resolve("team:" <> team_name) do
-    AgentProcess.list_all()
-    |> Enum.filter(fn {_id, meta} -> meta[:team] == team_name end)
-    |> Enum.map(fn {id, meta} -> recipient_from_meta(id, meta) end)
+    Enum.flat_map(AgentProcess.list_all(), fn {id, meta} ->
+      if meta[:team] == team_name, do: [recipient_from_meta(id, meta)], else: []
+    end)
   end
 
   def resolve("role:" <> role_str) do
     role = AgentEntry.role_from_string(role_str)
 
-    AgentProcess.list_all()
-    |> Enum.filter(fn {_id, meta} -> meta[:role] == role end)
-    |> Enum.map(fn {id, meta} -> recipient_from_meta(id, meta) end)
+    Enum.flat_map(AgentProcess.list_all(), fn {id, meta} ->
+      if meta[:role] == role, do: [recipient_from_meta(id, meta)], else: []
+    end)
   end
 
   def resolve("fleet:" <> _) do
-    AgentProcess.list_all()
-    |> Enum.filter(fn {_id, meta} -> meta[:status] == :active end)
-    |> Enum.map(fn {id, meta} -> recipient_from_meta(id, meta) end)
+    Enum.flat_map(AgentProcess.list_all(), fn {id, meta} ->
+      if meta[:status] == :active, do: [recipient_from_meta(id, meta)], else: []
+    end)
   end
 
   def resolve(_unknown), do: []

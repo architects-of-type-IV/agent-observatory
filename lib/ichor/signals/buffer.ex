@@ -18,9 +18,9 @@ defmodule Ichor.Signals.Buffer do
   def recent(limit \\ 100) do
     @table
     |> :ets.tab2list()
-    |> Enum.sort_by(fn {_id, e} -> e.seq end, :desc)
+    |> Enum.sort_by(&elem(&1, 0), :desc)
+    |> Stream.map(&elem(&1, 1))
     |> Enum.take(limit)
-    |> Enum.map(&elem(&1, 1))
   rescue
     ArgumentError -> []
   end
@@ -46,11 +46,7 @@ defmodule Ichor.Signals.Buffer do
 
   defp maybe_evict(seq) when seq > @max_events do
     cutoff = seq - @max_events
-
-    @table
-    |> :ets.tab2list()
-    |> Enum.filter(fn {id, _} -> id <= cutoff end)
-    |> Enum.each(fn {id, _} -> :ets.delete(@table, id) end)
+    :ets.select_delete(@table, [{{:"$1", :_}, [{:"=<", :"$1", cutoff}], [true]}])
   end
 
   defp maybe_evict(_), do: :ok

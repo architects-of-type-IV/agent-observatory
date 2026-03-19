@@ -48,9 +48,10 @@ defmodule Ichor.PaneMonitor do
 
   defp scan_all_agents(state) do
     AgentProcess.list_all()
-    |> Enum.map(fn {_id, meta} -> meta end)
-    |> Enum.filter(&(&1[:status] == :active))
-    |> Enum.reduce(state, &scan_active_agent/2)
+    |> Enum.reduce(state, fn
+      {_id, %{status: :active} = meta}, acc -> scan_active_agent(meta, acc)
+      _, acc -> acc
+    end)
   end
 
   defp scan_active_agent(agent, acc) do

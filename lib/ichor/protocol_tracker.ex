@@ -222,14 +222,13 @@ defmodule Ichor.ProtocolTracker do
   end
 
   defp prune_traces do
-    all = :ets.tab2list(@table_name)
+    size = :ets.info(@table_name, :size)
 
-    if length(all) > @max_traces do
-      all
-      |> Enum.map(&elem(&1, 1))
-      |> Enum.sort_by(& &1.timestamp, {:asc, DateTime})
-      |> Enum.take(length(all) - @max_traces)
-      |> Enum.each(fn trace -> :ets.delete(@table_name, trace.id) end)
+    if size > @max_traces do
+      :ets.tab2list(@table_name)
+      |> Enum.sort_by(fn {_, t} -> t.timestamp end, {:asc, DateTime})
+      |> Stream.take(size - @max_traces)
+      |> Enum.each(fn {id, _} -> :ets.delete(@table_name, id) end)
     end
   end
 
@@ -240,7 +239,7 @@ defmodule Ichor.ProtocolTracker do
     agent_processes = AgentProcess.list_all()
 
     %{
-      traces: length(traces),
+      traces: :ets.info(@table_name, :size),
       by_type: Enum.frequencies_by(traces, & &1.type),
       mailbox: %{
         agents: length(agent_processes),
