@@ -44,9 +44,5 @@ defmodule IchorWeb.DashboardViewRouter do
     Enum.reduce(sub_tab_assigns, socket, fn {key, value}, acc -> assign(acc, key, value) end)
   end
 
-  defp resolve_dynamic(mode) do
-    {String.to_existing_atom(mode), []}
-  rescue
-    ArgumentError -> {:command, []}
-  end
+  defp resolve_dynamic(_mode), do: {:command, []}
 end

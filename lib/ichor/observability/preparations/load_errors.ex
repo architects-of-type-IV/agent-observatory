@@ -6,11 +6,12 @@ defmodule Ichor.Observability.Preparations.LoadErrors do
   use Ash.Resource.Preparation
 
   alias Ash.DataLayer.Simple
+  alias Ichor.Observability.Preparations.EventBufferReader
 
   @impl true
   def prepare(query, _opts, _context) do
     errors =
-      list_events()
+      EventBufferReader.list_events()
       |> Enum.filter(&(&1.hook_event_type == :PostToolUseFailure))
       |> Enum.map(fn e ->
         struct!(Ichor.Observability.Error, %{
@@ -27,21 +28,5 @@ defmodule Ichor.Observability.Preparations.LoadErrors do
       end)
 
     Simple.set_data(query, errors)
-  end
-
-  defp list_events do
-    event_buffer_module =
-      Application.get_env(
-        :ichor_activity,
-        :event_buffer_module,
-        Module.concat([Ichor, EventBuffer])
-      )
-
-    if Code.ensure_loaded?(event_buffer_module) and
-         function_exported?(event_buffer_module, :list_events, 0) do
-      event_buffer_module.list_events()
-    else
-      []
-    end
   end
 end

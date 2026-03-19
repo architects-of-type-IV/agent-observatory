@@ -131,16 +131,14 @@ defmodule Ichor.Signals.Catalog do
   @doc "Derive a signal definition from its name prefix. Allows signals to work without catalog entries."
   @spec derive(atom()) :: signal_def()
   def derive(name) do
-    category =
+    prefix =
       name
       |> Atom.to_string()
       |> String.split("_", parts: 2)
       |> hd()
-      |> String.to_existing_atom()
 
+    category = Enum.find(@categories, :uncategorized, &(Atom.to_string(&1) == prefix))
     %{category: category, keys: [], dynamic: false, doc: "auto-derived"}
-  rescue
-    ArgumentError -> %{category: :uncategorized, keys: [], dynamic: false, doc: "auto-derived"}
   end
 
   @doc "True if the given atom is a known signal category."

@@ -6,11 +6,12 @@ defmodule Ichor.Observability.Preparations.LoadMessages do
   use Ash.Resource.Preparation
 
   alias Ash.DataLayer.Simple
+  alias Ichor.Observability.Preparations.EventBufferReader
 
   @impl true
   def prepare(query, _opts, _context) do
     hook_messages =
-      list_events()
+      EventBufferReader.list_events()
       |> Enum.filter(&send_message_event?/1)
       |> Enum.map(&event_to_message/1)
 
@@ -61,22 +62,6 @@ defmodule Ichor.Observability.Preparations.LoadMessages do
     case Jason.decode(json) do
       {:ok, map} when is_map(map) -> map
       _ -> %{"content" => json}
-    end
-  end
-
-  defp list_events do
-    event_buffer_module =
-      Application.get_env(
-        :ichor_activity,
-        :event_buffer_module,
-        Module.concat([Ichor, EventBuffer])
-      )
-
-    if Code.ensure_loaded?(event_buffer_module) and
-         function_exported?(event_buffer_module, :list_events, 0) do
-      event_buffer_module.list_events()
-    else
-      []
     end
   end
 end

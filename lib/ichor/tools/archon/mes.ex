@@ -9,6 +9,14 @@ defmodule Ichor.Tools.Archon.Mes do
   alias Ichor.Projects
   alias Ichor.Projects.{BuildRunner, Scheduler, TeamLifecycle}
 
+  @project_status_map %{
+    "proposed" => :proposed,
+    "in_progress" => :in_progress,
+    "compiled" => :compiled,
+    "loaded" => :loaded,
+    "failed" => :failed
+  }
+
   actions do
     action :list_projects, {:array, :map} do
       description(
@@ -30,8 +38,10 @@ defmodule Ichor.Tools.Archon.Mes do
               Projects.list_projects()
 
             status_str ->
-              status = String.to_existing_atom(status_str)
-              Projects.projects_by_status!(status)
+              case Map.fetch(@project_status_map, status_str) do
+                {:ok, status} -> Projects.projects_by_status!(status)
+                :error -> []
+              end
           end
 
         {:ok, Enum.map(projects, &project_to_map/1)}

@@ -244,12 +244,26 @@ defmodule Ichor.EventBuffer do
     attrs[key] || attrs[Atom.to_string(key)]
   end
 
+  @hook_event_type_map %{
+    "SessionStart" => :SessionStart,
+    "SessionEnd" => :SessionEnd,
+    "UserPromptSubmit" => :UserPromptSubmit,
+    "PreToolUse" => :PreToolUse,
+    "PostToolUse" => :PostToolUse,
+    "PostToolUseFailure" => :PostToolUseFailure,
+    "PermissionRequest" => :PermissionRequest,
+    "Notification" => :Notification,
+    "SubagentStart" => :SubagentStart,
+    "SubagentStop" => :SubagentStop,
+    "Stop" => :Stop,
+    "PreCompact" => :PreCompact,
+    "TaskCompleted" => :TaskCompleted
+  }
+
   defp coerce_hook_type(t) when is_atom(t), do: t
 
   defp coerce_hook_type(t) when is_binary(t) do
-    String.to_existing_atom(t)
-  rescue
-    ArgumentError -> :unknown
+    Map.get(@hook_event_type_map, t, :unknown)
   end
 
   defp coerce_hook_type(_), do: :Stop

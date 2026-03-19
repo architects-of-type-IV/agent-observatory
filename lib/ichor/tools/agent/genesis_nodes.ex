@@ -6,6 +6,13 @@ defmodule Ichor.Tools.Agent.GenesisNodes do
 
   alias Ichor.Projects
 
+  @node_status_map %{
+    "discover" => :discover,
+    "define" => :define,
+    "build" => :build,
+    "complete" => :complete
+  }
+
   actions do
     action :create_genesis_node, :map do
       description("Create a new Genesis Node from a subsystem proposal. Starts in discover mode.")
@@ -57,9 +64,12 @@ defmodule Ichor.Tools.Agent.GenesisNodes do
 
       run(fn input, _context ->
         with {:ok, node} <- Projects.get_node(input.arguments.node_id),
-             status <- String.to_existing_atom(input.arguments.status),
+             {:ok, status} <- Map.fetch(@node_status_map, input.arguments.status),
              {:ok, updated} <- Projects.advance_node(node.id, status) do
           {:ok, summarize_node(updated)}
+        else
+          :error -> {:error, "invalid status: #{input.arguments.status}"}
+          err -> err
         end
       end)
     end

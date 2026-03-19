@@ -103,9 +103,27 @@ defmodule IchorWeb.DashboardDataHelpers do
 
   defp maybe_filter(events, _field, nil), do: events
 
+  @hook_event_type_map %{
+    "SessionStart" => :SessionStart,
+    "SessionEnd" => :SessionEnd,
+    "UserPromptSubmit" => :UserPromptSubmit,
+    "PreToolUse" => :PreToolUse,
+    "PostToolUse" => :PostToolUse,
+    "PostToolUseFailure" => :PostToolUseFailure,
+    "PermissionRequest" => :PermissionRequest,
+    "Notification" => :Notification,
+    "SubagentStart" => :SubagentStart,
+    "SubagentStop" => :SubagentStop,
+    "Stop" => :Stop,
+    "PreCompact" => :PreCompact,
+    "TaskCompleted" => :TaskCompleted
+  }
+
   defp maybe_filter(events, :hook_event_type, value) do
-    atom_val = String.to_existing_atom(value)
-    Enum.filter(events, &(&1.hook_event_type == atom_val))
+    case Map.fetch(@hook_event_type_map, value) do
+      {:ok, atom_val} -> Enum.filter(events, &(&1.hook_event_type == atom_val))
+      :error -> events
+    end
   end
 
   defp maybe_filter(events, field, value) do

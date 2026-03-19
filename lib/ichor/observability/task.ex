@@ -5,8 +5,7 @@ defmodule Ichor.Observability.Task do
   """
 
   use Ash.Resource,
-    domain: Ichor.Observability,
-    simple_notifiers: [Ichor.Signals.FromAsh]
+    domain: Ichor.Observability
 
   attributes do
     attribute(:id, :string, primary_key?: true, allow_nil?: false, public?: true)

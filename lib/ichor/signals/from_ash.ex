@@ -22,10 +22,6 @@ defmodule Ichor.Signals.FromAsh do
     :ok
   end
 
-  defp signal_for(Ichor.Observability.Task, :create), do: {:task_created, &task_data/2}
-  defp signal_for(Ichor.Observability.Task, :update), do: {:task_updated, &task_data/2}
-  defp signal_for(Ichor.Observability.Task, :destroy), do: {:task_deleted, &task_data/2}
-
   defp signal_for(Ichor.Projects.Run, :create), do: {:dag_run_created, &run_data/2}
   defp signal_for(Ichor.Projects.Run, :complete), do: {:dag_run_completed, &run_data/2}
   defp signal_for(Ichor.Projects.Run, :fail), do: {:dag_run_completed, &run_data/2}
@@ -42,12 +38,14 @@ defmodule Ichor.Signals.FromAsh do
   defp signal_for(Ichor.Projects.UseCase, :create),
     do: {:genesis_artifact_created, &artifact_data/2}
 
-  defp signal_for(Ichor.Projects.Phase, :create), do: {:genesis_artifact_created, &artifact_data/2}
+  defp signal_for(Ichor.Projects.Phase, :create),
+    do: {:genesis_artifact_created, &artifact_data/2}
 
   defp signal_for(Ichor.Projects.Section, :create),
     do: {:genesis_artifact_created, &artifact_data/2}
 
-  defp signal_for(Ichor.Projects.RoadmapTask, :create), do: {:genesis_artifact_created, &artifact_data/2}
+  defp signal_for(Ichor.Projects.RoadmapTask, :create),
+    do: {:genesis_artifact_created, &artifact_data/2}
 
   defp signal_for(Ichor.Projects.Subtask, :create),
     do: {:genesis_artifact_created, &artifact_data/2}
@@ -59,9 +57,15 @@ defmodule Ichor.Signals.FromAsh do
     do: {:genesis_artifact_created, &artifact_data/2}
 
   defp signal_for(Ichor.Projects.Project, :pick_up), do: {:mes_project_picked_up, &project_data/2}
-  defp signal_for(Ichor.Projects.Project, :mark_compiled), do: {:mes_project_compiled, &project_data/2}
-  defp signal_for(Ichor.Projects.Project, :mark_loaded), do: {:mes_subsystem_loaded, &project_data/2}
-  defp signal_for(Ichor.Projects.Project, :mark_failed), do: {:mes_project_failed, &project_data/2}
+
+  defp signal_for(Ichor.Projects.Project, :mark_compiled),
+    do: {:mes_project_compiled, &project_data/2}
+
+  defp signal_for(Ichor.Projects.Project, :mark_loaded),
+    do: {:mes_subsystem_loaded, &project_data/2}
+
+  defp signal_for(Ichor.Projects.Project, :mark_failed),
+    do: {:mes_project_failed, &project_data/2}
 
   defp signal_for(Ichor.Gateway.WebhookDelivery, :enqueue),
     do: {:webhook_delivery_enqueued, &webhook_data/2}
@@ -83,10 +87,6 @@ defmodule Ichor.Signals.FromAsh do
 
   defp signal_for(_, _), do: nil
 
-  defp task_data(data, _action) do
-    %{task: Map.take(data, [:id, :status, :subject, :team_name, :session_id])}
-  end
-
   defp run_data(data, _action) do
     %{run_id: data.id, label: data.label, source: data.source, job_count: data.job_count}
   end
@@ -99,14 +99,20 @@ defmodule Ichor.Signals.FromAsh do
     %{id: data.id, node_id: data.id, title: data.title, type: action.name}
   end
 
-  defp artifact_data(data, _action) do
-    resource_type =
-      data.__struct__
-      |> Module.split()
-      |> List.last()
-      |> Macro.underscore()
-      |> String.to_existing_atom()
+  @artifact_type_map %{
+    Ichor.Projects.Adr => :adr,
+    Ichor.Projects.Feature => :feature,
+    Ichor.Projects.UseCase => :use_case,
+    Ichor.Projects.Phase => :phase,
+    Ichor.Projects.Section => :section,
+    Ichor.Projects.RoadmapTask => :roadmap_task,
+    Ichor.Projects.Subtask => :subtask,
+    Ichor.Projects.Checkpoint => :checkpoint,
+    Ichor.Projects.Conversation => :conversation
+  }
 
+  defp artifact_data(data, _action) do
+    resource_type = Map.get(@artifact_type_map, data.__struct__, :unknown)
     node_id = Map.get(data, :node_id) || Map.get(data, :genesis_node_id)
     %{id: data.id, node_id: node_id, type: resource_type}
   end

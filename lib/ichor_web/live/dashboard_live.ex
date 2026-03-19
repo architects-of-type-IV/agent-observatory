@@ -228,12 +228,20 @@ defmodule IchorWeb.DashboardLive do
   def handle_event("archon_shortcode", p, s),
     do: {:noreply, DashboardArchonHandlers.handle_archon_shortcode(p, s)}
 
-  def handle_event("archon_set_tab", %{"tab" => tab}, s),
-    do:
-      {:noreply,
-       s
-       |> assign(:archon_tab, String.to_existing_atom(tab))
-       |> DashboardArchonHandlers.refresh_manager_state()}
+  @archon_tab_map %{"command" => :command, "chat" => :chat, "ref" => :ref}
+
+  def handle_event("archon_set_tab", %{"tab" => tab}, s) do
+    case Map.fetch(@archon_tab_map, tab) do
+      {:ok, tab_atom} ->
+        {:noreply,
+         s
+         |> assign(:archon_tab, tab_atom)
+         |> DashboardArchonHandlers.refresh_manager_state()}
+
+      :error ->
+        {:noreply, s}
+    end
+  end
 
   def handle_event("dismiss_toast", %{"id" => id}, s),
     do: {:noreply, IchorWeb.DashboardToast.dismiss_toast(s, id)}

@@ -84,26 +84,24 @@ defmodule Ichor.Projects.SubsystemLoader do
       ebin_dir
       |> File.ls!()
       |> Enum.filter(&String.ends_with?(&1, ".beam"))
-      |> Enum.map(fn beam_file ->
-        beam_file |> String.replace_suffix(".beam", "") |> String.to_atom()
+      |> Enum.reject(fn beam_file ->
+        name = String.replace_suffix(beam_file, ".beam", "")
+        host_module_name?(name)
       end)
-      |> Enum.reject(&host_module?/1)
-      |> Enum.map(fn module_name ->
-        beam_path = Path.join(ebin_dir, "#{module_name}.beam")
+      |> Enum.map(fn beam_file ->
+        beam_path = Path.join(ebin_dir, beam_file)
+        abs_path = String.to_charlist(String.replace_suffix(beam_path, ".beam", ""))
 
-        case :code.load_abs(String.to_charlist(String.replace_suffix(beam_path, ".beam", ""))) do
+        case :code.load_abs(abs_path) do
           {:module, module} -> module
-          {:error, reason} -> raise "Failed to load #{module_name}: #{inspect(reason)}"
+          {:error, reason} -> raise "Failed to load #{beam_file}: #{inspect(reason)}"
         end
       end)
 
     {:ok, modules}
   end
 
-  defp host_module?(module_name) do
-    name_str = Atom.to_string(module_name)
-
-    # Only load Ichor.Subsystems.* modules -- everything else is a stub
+  defp host_module_name?(name_str) do
     not String.starts_with?(name_str, "Elixir.Ichor.Subsystems.")
   end
 end

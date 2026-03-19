@@ -12,7 +12,7 @@ tree = wc.spawn_tree_html(@ws_agents, @ws_spawn_links) %>
           phx-value-name={p.name}
           class={"text-[10px] px-2 py-1 bg-#{p.color}/10 text-#{p.color} hover:bg-#{p.color}/20 transition cursor-pointer"}
         >
-          <%= p.label %>
+          {p.label}
         </button>
       <% end %>
       <button

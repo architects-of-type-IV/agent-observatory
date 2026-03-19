@@ -23,11 +23,15 @@ defmodule IchorWeb.WorkshopTypes do
   end
 
   def handle_event("ws_save_type", params, socket) do
-    type_params =
-      params
-      |> Map.take(~w(name capability default_model default_permission
-         default_persona default_file_scope default_quality_gates))
-      |> Map.new(fn {k, v} -> {String.to_existing_atom(k), v} end)
+    type_params = %{
+      name: params["name"],
+      capability: params["capability"],
+      default_model: params["default_model"],
+      default_permission: params["default_permission"],
+      default_persona: params["default_persona"],
+      default_file_scope: params["default_file_scope"],
+      default_quality_gates: params["default_quality_gates"]
+    }
 
     result =
       case socket.assigns.ws_editing_type do

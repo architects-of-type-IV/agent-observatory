@@ -44,9 +44,27 @@ defmodule IchorWeb.ExportController do
   defp filter_by_event_type(events, nil), do: events
   defp filter_by_event_type(events, ""), do: events
 
+  @hook_event_type_map %{
+    "SessionStart" => :SessionStart,
+    "SessionEnd" => :SessionEnd,
+    "UserPromptSubmit" => :UserPromptSubmit,
+    "PreToolUse" => :PreToolUse,
+    "PostToolUse" => :PostToolUse,
+    "PostToolUseFailure" => :PostToolUseFailure,
+    "PermissionRequest" => :PermissionRequest,
+    "Notification" => :Notification,
+    "SubagentStart" => :SubagentStart,
+    "SubagentStop" => :SubagentStop,
+    "Stop" => :Stop,
+    "PreCompact" => :PreCompact,
+    "TaskCompleted" => :TaskCompleted
+  }
+
   defp filter_by_event_type(events, event_type) do
-    atom_val = String.to_existing_atom(event_type)
-    Enum.filter(events, &(&1.hook_event_type == atom_val))
+    case Map.fetch(@hook_event_type_map, event_type) do
+      {:ok, atom_val} -> Enum.filter(events, &(&1.hook_event_type == atom_val))
+      :error -> events
+    end
   end
 
   defp filter_by_search(events, nil), do: events

@@ -251,13 +251,19 @@ defmodule IchorWeb.DebugController do
     })
   end
 
+  @trace_type_map %{
+    "send_message" => :send_message,
+    "team_create" => :team_create,
+    "agent_spawn" => :agent_spawn
+  }
+
   defp maybe_filter_type(traces, nil), do: traces
 
   defp maybe_filter_type(traces, type) do
-    atom_type = String.to_existing_atom(type)
-    Enum.filter(traces, &(&1.type == atom_type))
-  rescue
-    ArgumentError -> traces
+    case Map.fetch(@trace_type_map, type) do
+      {:ok, atom_type} -> Enum.filter(traces, &(&1.type == atom_type))
+      :error -> traces
+    end
   end
 
   defp check_ets_tables do

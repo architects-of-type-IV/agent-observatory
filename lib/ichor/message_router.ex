@@ -114,23 +114,27 @@ defmodule Ichor.MessageRouter do
     {:ok, count}
   end
 
+  @role_map %{"coordinator" => :coordinator, "lead" => :lead, "worker" => :worker}
+
   defp deliver_to_role(role, msg) do
-    role_atom = String.to_existing_atom(role)
+    case Map.fetch(@role_map, role) do
+      {:ok, role_atom} ->
+        count =
+          AgentProcess.list_all()
+          |> Enum.reduce(0, fn
+            {id, %{role: ^role_atom}}, acc ->
+              AgentProcess.send_message(id, msg)
+              acc + 1
 
-    count =
-      AgentProcess.list_all()
-      |> Enum.reduce(0, fn
-        {id, %{role: ^role_atom}}, acc ->
-          AgentProcess.send_message(id, msg)
-          acc + 1
+            _, acc ->
+              acc
+          end)
 
-        _, acc ->
-          acc
-      end)
+        {:ok, count}
 
-    {:ok, count}
-  rescue
-    ArgumentError -> {:ok, 0}
+      :error ->
+        {:ok, 0}
+    end
   end
 
   defp normalize(from, content, attrs) do

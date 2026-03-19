@@ -12,6 +12,7 @@ defmodule Ichor.Control.Agent do
   alias Ichor.Control.AgentProcess
   alias Ichor.Control.FleetSupervisor
   alias Ichor.Control.Lifecycle.AgentLaunch
+  alias Ichor.Control.Lifecycle.Registration
   alias Ichor.Control.TeamSupervisor
 
   attributes do
@@ -128,21 +129,10 @@ defmodule Ichor.Control.Agent do
       run(fn input, _context ->
         agent_id = input.arguments.agent_id
 
-        case AgentProcess.lookup(agent_id) do
-          {_pid, meta} ->
-            result =
-              case meta[:team] do
-                nil -> FleetSupervisor.terminate_agent(agent_id)
-                team -> TeamSupervisor.terminate_member(team, agent_id)
-              end
-
-            case result do
-              :ok -> {:ok, %{agent_id: agent_id, status: :terminated}}
-              error -> {:error, "Failed to terminate: #{inspect(error)}"}
-            end
-
-          nil ->
-            {:error, "Agent not found: #{agent_id}"}
+        case Registration.terminate(agent_id) do
+          :ok -> {:ok, %{agent_id: agent_id, status: :terminated}}
+          {:error, :not_found} -> {:error, "Agent not found: #{agent_id}"}
+          error -> {:error, "Failed to terminate: #{inspect(error)}"}
         end
       end)
     end

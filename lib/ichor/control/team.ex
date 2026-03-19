@@ -45,7 +45,6 @@ defmodule Ichor.Control.Team do
       argument(:name, :string, allow_nil?: false, description: "Team name")
       argument(:strategy, :atom, default: :one_for_one, description: "Restart strategy")
       argument(:project, :string, description: "Project key or path")
-      argument(:description, :string, description: "Team description")
 
       run(fn input, _context ->
         args = input.arguments

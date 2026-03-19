@@ -21,15 +21,26 @@ defmodule IchorWeb.DashboardUIHandlers do
     |> Phoenix.Component.assign(:show_add_project, false)
   end
 
-  def dispatch("set_sub_tab", %{"screen" => screen, "tab" => tab}, s) do
-    key =
-      case screen do
-        "activity" -> :activity_tab
-        "pipeline" -> :pipeline_tab
-        _ -> nil
-      end
+  @activity_tab_map %{"comms" => :comms, "feed" => :feed}
+  @pipeline_tab_map %{"dag" => :dag, "runs" => :runs, "archive" => :archive}
 
-    if key, do: Phoenix.Component.assign(s, key, String.to_existing_atom(tab)), else: s
+  def dispatch("set_sub_tab", %{"screen" => screen, "tab" => tab}, s) do
+    case screen do
+      "activity" ->
+        case Map.fetch(@activity_tab_map, tab) do
+          {:ok, tab_atom} -> Phoenix.Component.assign(s, :activity_tab, tab_atom)
+          :error -> s
+        end
+
+      "pipeline" ->
+        case Map.fetch(@pipeline_tab_map, tab) do
+          {:ok, tab_atom} -> Phoenix.Component.assign(s, :pipeline_tab, tab_atom)
+          :error -> s
+        end
+
+      _ ->
+        s
+    end
   end
 
   def dispatch("toggle_sidebar", _p, s) do
