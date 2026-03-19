@@ -1,6 +1,8 @@
 defmodule IchorWeb.Router do
   use IchorWeb, :router
 
+  alias Ichor.Tools.Profiles
+
   pipeline :browser do
     plug :accepts, ["html"]
     plug :fetch_session
@@ -52,52 +54,7 @@ defmodule IchorWeb.Router do
   end
 
   forward "/mcp", AshAi.Mcp.Router,
-    tools: [
-      :check_inbox,
-      :acknowledge_message,
-      :send_message,
-      :get_tasks,
-      :update_task_status,
-      :spawn_agent,
-      :stop_agent,
-      :create_agent,
-      :list_agents,
-      :read_memory,
-      :memory_replace,
-      :memory_insert,
-      :memory_rethink,
-      :conversation_search,
-      :conversation_search_date,
-      :archival_memory_insert,
-      :archival_memory_search,
-      :create_genesis_node,
-      :advance_node,
-      :list_genesis_nodes,
-      :get_genesis_node,
-      :gate_check,
-      :create_adr,
-      :update_adr,
-      :list_adrs,
-      :create_feature,
-      :list_features,
-      :create_use_case,
-      :list_use_cases,
-      :create_checkpoint,
-      :create_conversation,
-      :list_conversations,
-      :create_phase,
-      :create_section,
-      :create_task,
-      :create_subtask,
-      :list_phases,
-      :next_jobs,
-      :claim_job,
-      :complete_job,
-      :fail_job,
-      :get_run_status,
-      :load_jsonl,
-      :export_jsonl
-    ],
+    tools: Profiles.agent(),
     otp_app: :ichor
 
   # Silence Chrome DevTools probe

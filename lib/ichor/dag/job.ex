@@ -64,11 +64,10 @@ defmodule Ichor.Dag.Job do
       description("external_id strings within same run")
     end
 
-    attribute :status, :atom do
+    attribute :status, Ichor.Dag.Types.JobStatus do
       allow_nil?(false)
       default(:pending)
       public?(true)
-      constraints(one_of: [:pending, :in_progress, :completed, :failed])
     end
 
     attribute :owner, :string do
@@ -76,11 +75,10 @@ defmodule Ichor.Dag.Job do
       description("Agent session ID")
     end
 
-    attribute :priority, :atom do
+    attribute :priority, Ichor.Dag.Types.JobPriority do
       allow_nil?(false)
       default(:medium)
       public?(true)
-      constraints(one_of: [:critical, :high, :medium, :low])
     end
 
     attribute :wave, :integer do

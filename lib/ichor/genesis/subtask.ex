@@ -57,11 +57,10 @@ defmodule Ichor.Genesis.Subtask do
       description("Verification command, e.g. mix compile --warnings-as-errors")
     end
 
-    attribute :status, :atom do
+    attribute :status, Ichor.Genesis.Types.WorkStatus do
       allow_nil?(false)
       default(:pending)
       public?(true)
-      constraints(one_of: [:pending, :in_progress, :completed, :blocked])
     end
 
     attribute :owner, :string do

@@ -23,10 +23,9 @@ defmodule Ichor.Dag.Run do
       description("Human name (project title)")
     end
 
-    attribute :source, :atom do
+    attribute :source, Ichor.Dag.Types.RunSource do
       allow_nil?(false)
       public?(true)
-      constraints(one_of: [:genesis, :imported])
       description("Origin: :genesis (from Genesis hierarchy) or :imported (from tasks.jsonl)")
     end
 
@@ -45,11 +44,10 @@ defmodule Ichor.Dag.Run do
       description("Tmux session name (set by Spawner)")
     end
 
-    attribute :status, :atom do
+    attribute :status, Ichor.Dag.Types.RunStatus do
       allow_nil?(false)
       default(:active)
       public?(true)
-      constraints(one_of: [:active, :completed, :failed, :archived])
     end
 
     attribute :job_count, :integer do

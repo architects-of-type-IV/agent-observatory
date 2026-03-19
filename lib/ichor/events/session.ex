@@ -30,10 +30,9 @@ defmodule Ichor.Events.Session do
       public?(true)
     end
 
-    attribute :status, :atom do
+    attribute :status, Ichor.Events.Types.SessionStatus do
       default(:active)
       public?(true)
-      constraints(one_of: [:active, :ended])
     end
 
     attribute :started_at, :utc_datetime do

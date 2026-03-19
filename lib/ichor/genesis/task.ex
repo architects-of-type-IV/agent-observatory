@@ -40,11 +40,10 @@ defmodule Ichor.Genesis.Task do
       description("UseCase code this task implements")
     end
 
-    attribute :status, :atom do
+    attribute :status, Ichor.Genesis.Types.WorkStatus do
       allow_nil?(false)
       default(:pending)
       public?(true)
-      constraints(one_of: [:pending, :in_progress, :completed, :blocked])
     end
 
     timestamps()
