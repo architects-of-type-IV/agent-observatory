@@ -17,8 +17,11 @@ defmodule IchorWeb do
   those modules here.
   """
 
+  @doc "Returns the list of static file path prefixes served by the endpoint."
+  @spec static_paths() :: [String.t()]
   def static_paths, do: ~w(assets fonts images favicon.ico robots.txt)
 
+  @doc false
   def router do
     quote do
       use Phoenix.Router, helpers: false
@@ -30,6 +33,7 @@ defmodule IchorWeb do
     end
   end
 
+  @doc false
   def controller do
     quote do
       use Phoenix.Controller, formats: [:html, :json]
@@ -42,6 +46,7 @@ defmodule IchorWeb do
     end
   end
 
+  @doc false
   def live_view do
     quote do
       use Phoenix.LiveView
@@ -50,6 +55,7 @@ defmodule IchorWeb do
     end
   end
 
+  @doc false
   def live_component do
     quote do
       use Phoenix.LiveComponent
@@ -58,6 +64,7 @@ defmodule IchorWeb do
     end
   end
 
+  @doc false
   def html do
     quote do
       use Phoenix.Component
@@ -91,6 +98,7 @@ defmodule IchorWeb do
     end
   end
 
+  @doc false
   def verified_routes do
     quote do
       use Phoenix.VerifiedRoutes,
