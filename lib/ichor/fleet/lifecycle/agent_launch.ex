@@ -60,9 +60,8 @@ defmodule Ichor.Fleet.Lifecycle.AgentLaunch do
              spec.model || "sonnet",
              spec.capability || "builder"
            ),
-         :ok <- launch_window(spec, script_path),
-         {:ok, result} <- Registration.register(spec, "#{spec.session}:#{spec.window_name}") do
-      {:ok, result}
+         :ok <- launch_window(spec, script_path) do
+      Registration.register(spec, "#{spec.session}:#{spec.window_name}")
     end
   end
 

@@ -5,8 +5,8 @@ defmodule Ichor.Genesis.ModeRunner do
   Delegates shared helpers to Ichor.Fleet.TmuxHelpers.
   """
 
-  alias Ichor.Fleet.TeamSupervisor
   alias Ichor.Fleet.Lifecycle.Registration
+  alias Ichor.Fleet.TeamSupervisor
   alias Ichor.Fleet.TmuxHelpers
 
   @prompt_dir Path.expand("~/.ichor/genesis")

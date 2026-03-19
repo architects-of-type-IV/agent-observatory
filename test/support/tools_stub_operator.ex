@@ -1,4 +1,6 @@
 defmodule Ichor.TestSupport.ToolsStubOperator do
+  @moduledoc false
+
   def send(to, content) do
     if pid = Application.get_env(:ichor, :tools_test_pid) do
       Kernel.send(pid, {:tools_operator_send, to, content})

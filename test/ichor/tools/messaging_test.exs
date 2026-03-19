@@ -1,5 +1,11 @@
 defmodule Ichor.Tools.MessagingTest do
+  @moduledoc false
   use ExUnit.Case, async: true
+
+  alias Ichor.TestSupport.ToolsStubFleetAgent
+  alias Ichor.TestSupport.ToolsStubOperator
+  alias Ichor.TestSupport.ToolsStubRouter
+  alias Ichor.Tools.Messaging
 
   setup do
     Application.put_env(:ichor, :tools_test_pid, self())
@@ -7,16 +13,16 @@ defmodule Ichor.Tools.MessagingTest do
     Application.put_env(
       :ichor,
       :tools_messaging_comms_module,
-      Ichor.TestSupport.ToolsStubOperator
+      ToolsStubOperator
     )
 
     Application.put_env(
       :ichor,
       :tools_messaging_fleet_agent_module,
-      Ichor.TestSupport.ToolsStubFleetAgent
+      ToolsStubFleetAgent
     )
 
-    Application.put_env(:ichor, :tools_messaging_router_module, Ichor.TestSupport.ToolsStubRouter)
+    Application.put_env(:ichor, :tools_messaging_router_module, ToolsStubRouter)
 
     on_exit(fn ->
       Application.delete_env(:ichor, :tools_test_pid)
@@ -35,7 +41,7 @@ defmodule Ichor.Tools.MessagingTest do
     Application.put_env(:ichor, :tools_operator_delivered, 2)
 
     assert {:ok, %{status: "sent", to: "operator", delivered: delivered}} =
-             Ichor.Tools.Messaging.send_as_operator("operator", "status")
+             Messaging.send_as_operator("operator", "status")
 
     assert delivered == 2
     assert_received {:tools_operator_send, "operator", "status"}
@@ -45,7 +51,7 @@ defmodule Ichor.Tools.MessagingTest do
     Application.put_env(:ichor, :tools_router_result, {:ok, 3})
 
     assert {:ok, %{status: "sent", to: "team:alpha", delivered: 3}} =
-             Ichor.Tools.Messaging.send_as_agent("agent-1", "team:alpha", "status")
+             Messaging.send_as_agent("agent-1", "team:alpha", "status")
 
     assert_received {:tools_router_broadcast, "team:alpha", %{content: "status", from: "agent-1"}}
   end
@@ -54,7 +60,7 @@ defmodule Ichor.Tools.MessagingTest do
     Application.put_env(:ichor, :tools_fleet_agent_result, {:ok, %{}})
 
     assert {:ok, %{status: "sent", to: "agent-2", delivered: 1, via: "fleet"}} =
-             Ichor.Tools.Messaging.send_as_agent("agent-1", "agent-2", "ping")
+             Messaging.send_as_agent("agent-1", "agent-2", "ping")
 
     assert_received {:tools_fleet_agent_send, "agent-2", "ping", %{from: "agent-1"}}
   end

@@ -3,13 +3,13 @@ defmodule Ichor.Archon.Chat.CommandRegistry do
   Maps parsed Archon slash commands to Ash actions and typed responses.
   """
 
-  alias Ichor.Archon.CommandManifest
   alias Ichor.Archon.Chat.ActionRunner
+  alias Ichor.Archon.CommandManifest
   alias Ichor.Archon.Tools.Agents
   alias Ichor.Archon.Tools.Control
   alias Ichor.Archon.Tools.Events
-  alias Ichor.Archon.Tools.Memory
   alias Ichor.Archon.Tools.Manager
+  alias Ichor.Archon.Tools.Memory
   alias Ichor.Archon.Tools.Mes
   alias Ichor.Archon.Tools.Messages
   alias Ichor.Archon.Tools.System, as: SystemTools

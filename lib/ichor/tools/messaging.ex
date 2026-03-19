@@ -3,8 +3,8 @@ defmodule Ichor.Tools.Messaging do
   Shared message-send actions used by Archon and agent-facing tool facades.
   """
 
-  alias Ichor.Gateway.Target
   alias Ichor.Fleet.Comms
+  alias Ichor.Gateway.Target
 
   def send_as_operator(to, content) when is_binary(to) and is_binary(content) do
     with {:ok, delivered} <- comms_module().send(to, content) do
@@ -26,13 +26,12 @@ defmodule Ichor.Tools.Messaging do
   end
 
   defp deliver_to_agent(from, to, content) do
-    case fleet_agent_module().send_message(to, content, %{from: from}) do
-      {:ok, _result} ->
-        {:ok, %{status: "sent", to: to, delivered: 1, via: "fleet"}}
+    message = %{content: content, from: from, type: "message"}
 
-      {:error, _reason} ->
-        broadcast(Target.normalize(to), from, to, content)
-    end
+    fleet_agent_module().send_message(to, message)
+    {:ok, %{status: "sent", to: to, delivered: 1, via: "fleet"}}
+  rescue
+    _ -> broadcast(Target.normalize(to), from, to, content)
   end
 
   defp broadcast(channel, from, original_to, content) do

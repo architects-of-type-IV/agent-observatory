@@ -1,4 +1,6 @@
 defmodule Ichor.TestSupport.MesStubTeamLifecycle do
+  @moduledoc false
+
   def spawn_run(run_id, team_name) do
     notify({:spawn_run, run_id, team_name})
     {:ok, "mes-#{run_id}"}

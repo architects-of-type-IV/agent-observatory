@@ -4,8 +4,10 @@ defmodule Ichor.Fleet.Preparations.LoadAgents do
   """
   use Ash.Resource.Preparation
 
+  alias Ichor.Fleet.Views.Preparations.LoadAgents, as: LoadAgentsImpl
+
   @impl true
   def prepare(query, opts, context) do
-    Ichor.Fleet.Views.Preparations.LoadAgents.prepare(query, opts, context)
+    LoadAgentsImpl.prepare(query, opts, context)
   end
 end

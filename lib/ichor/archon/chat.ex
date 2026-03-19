@@ -25,9 +25,8 @@ defmodule Ichor.Archon.Chat do
   end
 
   def chat(user_input, messages) do
-    with {:ok, chain} <- chain_builder_module().build(),
-         {:ok, response, history} <- turn_runner_module().run(chain, messages, user_input) do
-      {:ok, response, history}
+    with {:ok, chain} <- chain_builder_module().build() do
+      turn_runner_module().run(chain, messages, user_input)
     end
   end
 

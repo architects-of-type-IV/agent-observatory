@@ -9,26 +9,23 @@ defmodule Ichor.Dag.Actions do
   alias Ichor.Tasks.Pipeline
 
   def heal_task(state, task_id) do
-    with path when not is_nil(path) <- Projects.tasks_jsonl_path_for_task(state, task_id) do
-      Pipeline.heal_task(path, task_id)
-    else
+    case Projects.tasks_jsonl_path_for_task(state, task_id) do
       nil -> {:error, :no_active_project}
+      path -> Pipeline.heal_task(path, task_id)
     end
   end
 
   def reassign_task(state, task_id, new_owner) do
-    with path when not is_nil(path) <- Projects.tasks_jsonl_path_for_task(state, task_id) do
-      Pipeline.reassign_task(path, task_id, new_owner)
-    else
+    case Projects.tasks_jsonl_path_for_task(state, task_id) do
       nil -> {:error, :no_active_project}
+      path -> Pipeline.reassign_task(path, task_id, new_owner)
     end
   end
 
   def claim_task(state, task_id, agent_name) do
-    with path when not is_nil(path) <- Projects.tasks_jsonl_path_for_task(state, task_id) do
-      Pipeline.claim_task(task_id, agent_name, path)
-    else
+    case Projects.tasks_jsonl_path_for_task(state, task_id) do
       nil -> {:error, :no_active_project}
+      path -> Pipeline.claim_task(task_id, agent_name, path)
     end
   end
 

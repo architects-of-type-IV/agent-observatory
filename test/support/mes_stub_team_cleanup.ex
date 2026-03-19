@@ -1,4 +1,6 @@
 defmodule Ichor.TestSupport.MesStubTeamCleanup do
+  @moduledoc false
+
   def kill_session(session) do
     notify({:kill_session, session})
     :ok

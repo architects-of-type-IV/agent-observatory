@@ -20,8 +20,9 @@ defmodule Ichor.Fleet.RuntimeView do
 
     discovered =
       tmux_sessions
-      |> Enum.reject(&TmuxDiscovery.infrastructure_session?/1)
-      |> Enum.reject(&MapSet.member?(existing_names, &1))
+      |> Enum.reject(fn s ->
+        TmuxDiscovery.infrastructure_session?(s) or MapSet.member?(existing_names, s)
+      end)
       |> Enum.map(fn session_name ->
         members =
           agents

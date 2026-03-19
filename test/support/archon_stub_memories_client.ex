@@ -1,4 +1,6 @@
 defmodule Ichor.TestSupport.ArchonStubMemoriesClient do
+  @moduledoc false
+
   def search(query, opts \\ []) do
     if pid = Application.get_env(:ichor, :archon_test_pid) do
       send(pid, {:archon_memory_search, query, opts})

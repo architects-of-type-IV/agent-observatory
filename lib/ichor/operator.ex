@@ -13,25 +13,28 @@ defmodule Ichor.Operator do
     - raw session_id string -- treated as agent target
   """
 
+  alias Ichor.AgentSpawner
+  alias Ichor.Fleet.Comms
+
   def start_message_log do
-    Ichor.Fleet.Comms.start_message_log()
+    Comms.start_message_log()
   end
 
   @doc "Read recent messages for the comms panel."
   @spec recent_messages(pos_integer()) :: [map()]
-  defdelegate recent_messages(limit \\ 50), to: Ichor.Fleet.Comms
+  defdelegate recent_messages(limit \\ 50), to: Comms
 
   @doc """
   Spawn a new agent in a tmux session with instruction overlay.
 
   Delegates to AgentSpawner. Returns `{:ok, agent_info}` or `{:error, reason}`.
   """
-  defdelegate spawn_agent(opts), to: Ichor.AgentSpawner
+  defdelegate spawn_agent(opts), to: AgentSpawner
 
   @doc """
   Stop a spawned agent by session name.
   """
-  defdelegate stop_agent(session_name), to: Ichor.AgentSpawner
+  defdelegate stop_agent(session_name), to: AgentSpawner
 
   @doc """
   Send a message to any target. Returns `{:ok, delivered_count}` or `{:error, reason}`.
@@ -39,5 +42,5 @@ defmodule Ichor.Operator do
   Uses BEAM-native AgentProcess delivery. Falls back to direct tmux delivery
   via Registry metadata when no BEAM process exists.
   """
-  defdelegate send(target, content, opts \\ []), to: Ichor.Fleet.Comms
+  defdelegate send(target, content, opts \\ []), to: Comms
 end

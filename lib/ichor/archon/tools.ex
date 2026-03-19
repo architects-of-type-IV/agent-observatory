@@ -7,8 +7,8 @@ defmodule Ichor.Archon.Tools do
   alias Ichor.Archon.Tools.Agents
   alias Ichor.Archon.Tools.Control
   alias Ichor.Archon.Tools.Events
-  alias Ichor.Archon.Tools.Memory
   alias Ichor.Archon.Tools.Manager
+  alias Ichor.Archon.Tools.Memory
   alias Ichor.Archon.Tools.Mes
   alias Ichor.Archon.Tools.Messages
   alias Ichor.Archon.Tools.System

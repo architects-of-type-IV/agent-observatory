@@ -44,9 +44,8 @@ defmodule Ichor.Genesis do
 
   @spec advance_node(String.t(), atom()) :: {:ok, Ichor.Genesis.Node.t()} | {:error, term()}
   def advance_node(node_id, status) do
-    with {:ok, node} <- Ichor.Genesis.Node.get(node_id),
-         {:ok, updated} <- Ichor.Genesis.Node.advance(node, status) do
-      {:ok, updated}
+    with {:ok, node} <- Ichor.Genesis.Node.get(node_id) do
+      Ichor.Genesis.Node.advance(node, status)
     end
   end
 
@@ -57,9 +56,8 @@ defmodule Ichor.Genesis do
 
   @spec load_node(String.t(), list()) :: {:ok, term()} | {:error, term()}
   def load_node(node_id, loads) do
-    with {:ok, node} <- Ichor.Genesis.Node.get(node_id),
-         {:ok, loaded} <- Ash.load(node, loads) do
-      {:ok, loaded}
+    with {:ok, node} <- Ichor.Genesis.Node.get(node_id) do
+      Ash.load(node, loads)
     end
   end
 end

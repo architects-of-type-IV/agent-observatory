@@ -2,8 +2,8 @@ defmodule Ichor.Dag.Loader do
   @moduledoc "Loads tasks into Dag.Run + Dag.Job records from tasks.jsonl or Genesis hierarchy."
 
   alias Ichor.Dag.{Graph, Job, Run, RuntimeSignals}
-  alias Ichor.Genesis.DagGenerator
   alias Ichor.Genesis
+  alias Ichor.Genesis.DagGenerator
 
   @spec from_file(String.t(), keyword()) :: {:ok, Run.t()} | {:error, term()}
   def from_file(tasks_jsonl_path, opts \\ []) do

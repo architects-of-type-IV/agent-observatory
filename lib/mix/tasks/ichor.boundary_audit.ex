@@ -16,13 +16,15 @@ defmodule Mix.Tasks.Ichor.BoundaryAudit do
 
   use Mix.Task
 
+  alias Ichor.Architecture.BoundaryAudit
+
   @impl true
   def run(args) do
     {opts, _argv, _invalid} = OptionParser.parse(args, strict: [strict: :boolean])
 
-    report = Ichor.Architecture.BoundaryAudit.run()
+    report = BoundaryAudit.run()
 
-    Ichor.Architecture.BoundaryAudit.print_report(report,
+    BoundaryAudit.print_report(report,
       strict: Keyword.get(opts, :strict, false)
     )
   end

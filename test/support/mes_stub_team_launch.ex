@@ -1,4 +1,6 @@
 defmodule Ichor.TestSupport.MesStubTeamLaunch do
+  @moduledoc false
+
   def launch(spec) do
     notify({:launch, spec})
     {:ok, spec.session}

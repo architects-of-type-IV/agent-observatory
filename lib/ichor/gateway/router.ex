@@ -8,8 +8,8 @@ defmodule Ichor.Gateway.Router do
 
   require Logger
 
-  alias Ichor.Gateway.Router.{Audit, Delivery, EventIngest, RecipientResolver}
   alias Ichor.Gateway.{Envelope, SchemaInterceptor}
+  alias Ichor.Gateway.Router.{Audit, Delivery, EventIngest, RecipientResolver}
 
   @default_channels [
     {Ichor.Gateway.Channels.MailboxAdapter, primary: true},

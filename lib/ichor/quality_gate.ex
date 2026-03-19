@@ -11,8 +11,8 @@ defmodule Ichor.QualityGate do
   use GenServer
   require Logger
 
-  alias Ichor.Fleet.Comms
   alias Ichor.Dag.Status
+  alias Ichor.Fleet.Comms
 
   @default_timeout 60_000
 

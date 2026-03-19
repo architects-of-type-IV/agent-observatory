@@ -1,14 +1,16 @@
 defmodule Ichor.Events do
-  use Ash.Domain, validate_config_inclusion?: false
   @moduledoc false
+  use Ash.Domain, validate_config_inclusion?: false
+
+  alias Ichor.Events.Event
 
   resources do
     resource(Ichor.Events.Event)
     resource(Ichor.Events.Session)
   end
 
-  @spec list_events(keyword()) :: [Ichor.Events.Event.t()]
+  @spec list_events(keyword()) :: [Event.t()]
   def list_events(opts \\ []) do
-    Ichor.Events.Event.read!(opts)
+    Event.read!(opts)
   end
 end

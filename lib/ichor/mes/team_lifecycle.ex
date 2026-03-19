@@ -14,10 +14,11 @@ defmodule Ichor.Mes.TeamLifecycle do
     spec = builder.build_team_spec(run_id, team_name)
     session = spec.session
 
-    with {:ok, ^session} <- launch.launch(spec) do
-      Signals.emit(:mes_team_ready, %{session: session, agent_count: length(spec.agents)})
-      {:ok, session}
-    else
+    case launch.launch(spec) do
+      {:ok, ^session} ->
+        Signals.emit(:mes_team_ready, %{session: session, agent_count: length(spec.agents)})
+        {:ok, session}
+
       {:error, reason} = error ->
         Signals.emit(:mes_team_spawn_failed, %{session: session, reason: inspect(reason)})
         error

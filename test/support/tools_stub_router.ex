@@ -1,4 +1,6 @@
 defmodule Ichor.TestSupport.ToolsStubRouter do
+  @moduledoc false
+
   def broadcast(channel, payload) do
     if pid = Application.get_env(:ichor, :tools_test_pid) do
       Kernel.send(pid, {:tools_router_broadcast, channel, payload})

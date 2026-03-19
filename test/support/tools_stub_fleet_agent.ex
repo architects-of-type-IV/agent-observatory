@@ -1,4 +1,6 @@
 defmodule Ichor.TestSupport.ToolsStubFleetAgent do
+  @moduledoc false
+
   def send_message(to, content, opts) do
     if pid = Application.get_env(:ichor, :tools_test_pid) do
       Kernel.send(pid, {:tools_fleet_agent_send, to, content, opts})

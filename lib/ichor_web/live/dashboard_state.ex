@@ -10,6 +10,7 @@ defmodule IchorWeb.DashboardState do
   import IchorWeb.DashboardFeedHelpers, only: [build_feed_groups: 2]
 
   alias Ichor.Activity
+  alias Ichor.Dag.Status
   alias Ichor.Fleet
   alias Ichor.Fleet.Analysis.Queries, as: FQ
   alias Ichor.Fleet.Analysis.SessionEviction
@@ -18,7 +19,6 @@ defmodule IchorWeb.DashboardState do
   alias Ichor.Gateway.HITLRelay
   alias Ichor.Gateway.TmuxDiscovery
   alias Ichor.Notes
-  alias Ichor.Dag.Status
 
   def default_assigns(disk_teams) do
     %{

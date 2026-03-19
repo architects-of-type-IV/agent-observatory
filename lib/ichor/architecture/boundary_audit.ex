@@ -122,10 +122,7 @@ defmodule Ichor.Architecture.BoundaryAudit do
         ~r/\A\z/
 
       modules ->
-        escaped =
-          modules
-          |> Enum.map(&Regex.escape/1)
-          |> Enum.join("|")
+        escaped = Enum.map_join(modules, "|", &Regex.escape/1)
 
         Regex.compile!("\\b(?:#{escaped})\\b")
     end
@@ -137,10 +134,7 @@ defmodule Ichor.Architecture.BoundaryAudit do
         ~r/\A\z/
 
       modules ->
-        escaped =
-          modules
-          |> Enum.map(&Regex.escape/1)
-          |> Enum.join("|")
+        escaped = Enum.map_join(modules, "|", &Regex.escape/1)
 
         Regex.compile!("\\b(?:#{escaped})\\b")
     end

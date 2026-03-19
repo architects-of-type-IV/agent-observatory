@@ -1,4 +1,6 @@
 defmodule Ichor.TestSupport.RuntimeViewAgent do
+  @moduledoc false
+
   defstruct [
     :agent_id,
     :session_id,

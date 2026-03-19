@@ -1,4 +1,6 @@
 defmodule Ichor.TestSupport.ArchonStubActionRunner do
+  @moduledoc false
+
   def run(type, resource, action, params) do
     if pid = Application.get_env(:ichor, :archon_test_pid) do
       send(pid, {:archon_action, type, resource, action, params})

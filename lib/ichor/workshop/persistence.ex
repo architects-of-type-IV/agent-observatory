@@ -3,8 +3,9 @@ defmodule Ichor.Workshop.Persistence do
   Domain-facing persistence helpers for workshop blueprints and agent types.
   """
 
+  alias Ichor.Workshop.AgentType
   alias Ichor.Workshop.BlueprintState
-  alias Ichor.Workshop.{AgentType, TeamBlueprint}
+  alias Ichor.Workshop.TeamBlueprint
 
   @spec list_blueprints() :: [map()]
   def list_blueprints do
@@ -23,9 +24,8 @@ defmodule Ichor.Workshop.Persistence do
         TeamBlueprint.create(params)
 
       id ->
-        with {:ok, blueprint} <- TeamBlueprint.by_id(id) do
-          TeamBlueprint.update(blueprint, params)
-        else
+        case TeamBlueprint.by_id(id) do
+          {:ok, blueprint} -> TeamBlueprint.update(blueprint, params)
           {:error, _} -> save_blueprint(nil, state)
         end
     end
@@ -40,9 +40,8 @@ defmodule Ichor.Workshop.Persistence do
 
   @spec delete_blueprint(String.t()) :: :ok | {:error, term()}
   def delete_blueprint(id) do
-    with {:ok, blueprint} <- TeamBlueprint.by_id(id),
-         :ok <- TeamBlueprint.destroy(blueprint) do
-      :ok
+    with {:ok, blueprint} <- TeamBlueprint.by_id(id) do
+      TeamBlueprint.destroy(blueprint)
     end
   end
 end

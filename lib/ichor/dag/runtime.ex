@@ -7,12 +7,12 @@ defmodule Ichor.Dag.Runtime do
   """
   use GenServer
 
-  alias Ichor.Dag.StateBus
   alias Ichor.Dag.Actions
   alias Ichor.Dag.Analysis
   alias Ichor.Dag.Discovery
   alias Ichor.Dag.HealthReport
   alias Ichor.Dag.Projects
+  alias Ichor.Dag.StateBus
   alias Ichor.Signals.Message
 
   @tasks_poll_interval 3_000

@@ -1,6 +1,10 @@
 defmodule Ichor.Activity do
-  use Ash.Domain, validate_config_inclusion?: false
   @moduledoc false
+  use Ash.Domain, validate_config_inclusion?: false
+
+  alias Ichor.Activity.Error
+  alias Ichor.Activity.Message
+  alias Ichor.Activity.Task
 
   resources do
     resource(Ichor.Activity.Message)
@@ -8,15 +12,15 @@ defmodule Ichor.Activity do
     resource(Ichor.Activity.Error)
   end
 
-  @spec list_recent_messages() :: list(Ichor.Activity.Message.t())
-  def list_recent_messages, do: Ichor.Activity.Message.recent!()
+  @spec list_recent_messages() :: list(Message.t())
+  def list_recent_messages, do: Message.recent!()
 
-  @spec list_current_tasks() :: list(Ichor.Activity.Task.t())
-  def list_current_tasks, do: Ichor.Activity.Task.current!()
+  @spec list_current_tasks() :: list(Task.t())
+  def list_current_tasks, do: Task.current!()
 
-  @spec list_recent_errors() :: list(Ichor.Activity.Error.t())
-  def list_recent_errors, do: Ichor.Activity.Error.recent!()
+  @spec list_recent_errors() :: list(Error.t())
+  def list_recent_errors, do: Error.recent!()
 
   @spec list_error_groups() :: list(map())
-  def list_error_groups, do: Ichor.Activity.Error.by_tool!()
+  def list_error_groups, do: Error.by_tool!()
 end

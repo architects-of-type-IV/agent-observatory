@@ -4,8 +4,10 @@ defmodule Ichor.Fleet.Preparations.LoadTeams do
   """
   use Ash.Resource.Preparation
 
+  alias Ichor.Fleet.Views.Preparations.LoadTeams, as: LoadTeamsImpl
+
   @impl true
   def prepare(query, opts, context) do
-    Ichor.Fleet.Views.Preparations.LoadTeams.prepare(query, opts, context)
+    LoadTeamsImpl.prepare(query, opts, context)
   end
 end

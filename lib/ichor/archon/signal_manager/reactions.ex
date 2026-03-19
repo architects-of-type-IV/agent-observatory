@@ -96,18 +96,20 @@ defmodule Ichor.Archon.SignalManager.Reactions do
   end
 
   defp attention_item(name, %Message{} = message) do
-    with {:ok, severity, key} <- attention_meta(name, message.data) do
-      %{
-        key: key,
-        signal: name,
-        category: message.domain,
-        severity: severity,
-        summary: signal_summary(name, message.data),
-        at: message.timestamp,
-        data: project_data(message.data)
-      }
-    else
-      _ -> nil
+    case attention_meta(name, message.data) do
+      {:ok, severity, key} ->
+        %{
+          key: key,
+          signal: name,
+          category: message.domain,
+          severity: severity,
+          summary: signal_summary(name, message.data),
+          at: message.timestamp,
+          data: project_data(message.data)
+        }
+
+      _ ->
+        nil
     end
   end
 
