@@ -80,8 +80,6 @@ defmodule Ichor.MixProject do
       {:ichor_tmux_runtime, in_umbrella: true},
       {:ichor_signals, in_umbrella: true},
       {:ichor_data, in_umbrella: true},
-      {:ichor_fleet, in_umbrella: true},
-      {:ichor_workshop, in_umbrella: true},
       {:ichor_dag, in_umbrella: true},
       # Subsystem contracts
       {:ichor_contracts, path: "../../subsystems/ichor_contracts"}

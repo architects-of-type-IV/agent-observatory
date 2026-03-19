@@ -117,6 +117,10 @@ defmodule Ichor.Fleet.Team do
   end
 
   defp runtime_hooks do
-    Application.get_env(:ichor_fleet, :runtime_hooks_module, Module.concat([Ichor, Fleet, RuntimeHooks]))
+    Application.get_env(
+      :ichor_fleet,
+      :runtime_hooks_module,
+      Module.concat([Ichor, Fleet, RuntimeHooks])
+    )
   end
 end

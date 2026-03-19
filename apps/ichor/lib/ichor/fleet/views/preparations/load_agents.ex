@@ -57,6 +57,10 @@ defmodule Ichor.Fleet.Views.Preparations.LoadAgents do
   defp status_sort(_), do: 2
 
   defp runtime_hooks do
-    Application.get_env(:ichor_fleet, :runtime_hooks_module, Module.concat([Ichor, Fleet, RuntimeHooks]))
+    Application.get_env(
+      :ichor_fleet,
+      :runtime_hooks_module,
+      Module.concat([Ichor, Fleet, RuntimeHooks])
+    )
   end
 end

@@ -14,7 +14,8 @@ defmodule Ichor.Workshop do
     resource(Ichor.Workshop.CommRule)
   end
 
-  @spec blueprint_by_name(String.t()) :: {:ok, Ichor.Workshop.TeamBlueprint.t()} | {:error, term()}
+  @spec blueprint_by_name(String.t()) ::
+          {:ok, Ichor.Workshop.TeamBlueprint.t()} | {:error, term()}
   def blueprint_by_name(name), do: Ichor.Workshop.TeamBlueprint.by_name(name)
 
   @spec agent_type(String.t()) :: {:ok, Ichor.Workshop.AgentType.t()} | {:error, term()}

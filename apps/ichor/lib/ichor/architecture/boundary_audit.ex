@@ -9,20 +9,11 @@ defmodule Ichor.Architecture.BoundaryAudit do
   @swarm_pattern ~r/\bSwarmMonitor\b|\bswarm_state\b|\bswarm_[a-z0-9_]+\b/
 
   @resource_modules [
-    "Ichor.Fleet.Agent",
-    "Ichor.Fleet.Team",
-    "Ichor.Workshop.TeamBlueprint",
-    "Ichor.Workshop.AgentType",
-    "Ichor.Workshop.AgentBlueprint",
-    "Ichor.Workshop.SpawnLink",
-    "Ichor.Workshop.CommRule",
     "Ichor.Dag.Run",
     "Ichor.Dag.Job"
   ]
 
   @domain_modules [
-    "Ichor.Fleet",
-    "Ichor.Workshop",
     "Ichor.Dag"
   ]
 

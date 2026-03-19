@@ -15,23 +15,15 @@ config :ichor,
     Ichor.Archon,
     Ichor.Archon.Tools,
     Ichor.Events,
+    Ichor.Fleet,
     Ichor.Genesis,
     Ichor.Mes,
+    Ichor.Workshop,
     Ichor.Signals.Domain
-  ]
-
-config :ichor_workshop,
-  ash_domains: [
-    Ichor.Workshop
   ]
 
 config :ichor_data,
   ecto_repos: [Ichor.Repo]
-
-config :ichor_fleet,
-  ash_domains: [
-    Ichor.Fleet
-  ]
 
 config :ichor_dag,
   ash_domains: [
