@@ -6,7 +6,6 @@ defmodule IchorWeb.WorkshopTypes do
   import Phoenix.Component, only: [assign: 3]
 
   alias Ichor.Workshop
-  alias IchorWeb.WorkshopPersistence, as: WP
 
   def handle_event("ws_edit_type", %{"id" => id}, socket) do
     case Workshop.agent_type(id) do
@@ -40,7 +39,9 @@ defmodule IchorWeb.WorkshopTypes do
     case result do
       {:ok, _} ->
         {:noreply,
-         socket |> assign(:ws_agent_types, WP.list_agent_types()) |> assign(:ws_editing_type, nil)}
+         socket
+         |> assign(:ws_agent_types, Workshop.list_agent_types())
+         |> assign(:ws_editing_type, nil)}
 
       {:error, _} ->
         {:noreply, Phoenix.LiveView.put_flash(socket, :error, "Failed to save agent type")}
@@ -57,7 +58,7 @@ defmodule IchorWeb.WorkshopTypes do
             do: assign(socket, :ws_editing_type, nil),
             else: socket
 
-        {:noreply, assign(socket, :ws_agent_types, WP.list_agent_types())}
+        {:noreply, assign(socket, :ws_agent_types, Workshop.list_agent_types())}
 
       _ ->
         {:noreply, socket}

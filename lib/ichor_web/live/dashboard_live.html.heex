@@ -394,7 +394,7 @@
         <%!-- Signals View --%>
         <div :if={@nav_view == :signals} class="h-full -m-2">
           <IchorWeb.Components.SignalComponents.signals_view
-            stream_events={@stream_events}
+            streams={@streams}
             stream_filter={@stream_filter}
             stream_paused={@stream_paused}
           />

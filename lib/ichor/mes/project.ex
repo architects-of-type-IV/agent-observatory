@@ -87,11 +87,10 @@ defmodule Ichor.Mes.Project do
       description("Signal atoms or categories this subsystem subscribes to")
     end
 
-    attribute :status, :atom do
+    attribute :status, Ichor.Mes.Types.ProjectStatus do
       allow_nil?(false)
       default(:proposed)
       public?(true)
-      constraints(one_of: [:proposed, :in_progress, :compiled, :loaded, :failed])
     end
 
     attribute :team_name, :string do

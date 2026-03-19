@@ -104,7 +104,6 @@ defmodule IchorWeb.DashboardState do
       sel_team: nil,
       nav_view: :pipeline,
       # Stream view
-      stream_events: [],
       stream_filter: "",
       stream_paused: false,
       # MES

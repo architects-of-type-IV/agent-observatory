@@ -7,11 +7,12 @@ defmodule Ichor.Fleet.Views.Preparations.LoadAgents do
 
   alias Ash.DataLayer.Simple
   alias Ichor.Fleet.Agent
+  alias Ichor.Fleet.AgentProcess
 
   @impl true
   def prepare(query, _opts, _context) do
     agents =
-      runtime_hooks().list_agents()
+      AgentProcess.list_all()
       |> Enum.map(fn {id, meta} -> to_agent(id, meta) end)
       |> Enum.sort_by(fn a -> {status_sort(a.status), a.name} end)
 
@@ -55,12 +56,4 @@ defmodule Ichor.Fleet.Views.Preparations.LoadAgents do
   defp status_sort(:active), do: 0
   defp status_sort(:idle), do: 1
   defp status_sort(_), do: 2
-
-  defp runtime_hooks do
-    Application.get_env(
-      :ichor_fleet,
-      :runtime_hooks_module,
-      Module.concat([Ichor, Fleet, RuntimeHooks])
-    )
-  end
 end

@@ -7,14 +7,15 @@ defmodule IchorWeb.WorkshopPersistence do
   import Phoenix.Component, only: [assign: 3]
   import Phoenix.LiveView, only: [push_event: 3]
 
+  alias Ichor.Workshop
   alias Ichor.Workshop.BlueprintState
   alias Ichor.Workshop.Persistence
 
   @spec list_blueprints() :: [map()]
-  def list_blueprints, do: Persistence.list_blueprints()
+  def list_blueprints, do: Workshop.list_blueprints()
 
   @spec list_agent_types() :: [map()]
-  def list_agent_types, do: Persistence.list_agent_types()
+  def list_agent_types, do: Workshop.list_agent_types()
 
   @spec push_ws_state(Phoenix.LiveView.Socket.t()) :: Phoenix.LiveView.Socket.t()
   def push_ws_state(socket) do

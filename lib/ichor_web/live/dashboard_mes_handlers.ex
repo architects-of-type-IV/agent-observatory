@@ -7,7 +7,8 @@ defmodule IchorWeb.DashboardMesHandlers do
   alias Ichor.Dag
   alias Ichor.Genesis
   alias Ichor.Genesis.{DagGenerator, ModeSpawner}
-  alias Ichor.Mes.{Project, Scheduler, SubsystemLoader}
+  alias Ichor.Mes
+  alias Ichor.Mes.{Scheduler, SubsystemLoader}
   alias Ichor.Signals
 
   @spec dispatch(String.t(), map(), Phoenix.LiveView.Socket.t()) :: Phoenix.LiveView.Socket.t()
@@ -87,10 +88,10 @@ defmodule IchorWeb.DashboardMesHandlers do
   def dispatch("mes_pick_up", %{"id" => id}, socket) do
     project = Enum.find(socket.assigns.mes_projects, &(&1.id == id))
 
-    case Project.pick_up(project, "manual") do
+    case Mes.pick_up_project(project, "manual") do
       {:ok, _} ->
         Signals.emit(:mes_project_picked_up, %{project_id: id, session_id: "manual"})
-        assign(socket, :mes_projects, Project.list_all!())
+        assign(socket, :mes_projects, Mes.list_projects())
 
       {:error, reason} ->
         put_flash(socket, :error, "Failed to pick up: #{inspect(reason)}")
@@ -131,17 +132,17 @@ defmodule IchorWeb.DashboardMesHandlers do
 
     case SubsystemLoader.compile_and_load(project) do
       {:ok, modules} ->
-        Project.mark_loaded(project)
+        Mes.mark_loaded(project)
 
         socket
-        |> assign(:mes_projects, Project.list_all!())
+        |> assign(:mes_projects, Mes.list_projects())
         |> put_flash(:info, "Loaded #{length(modules)} modules")
 
       {:error, reason} ->
-        Project.mark_failed(project, reason)
+        Mes.mark_failed(project, reason)
 
         socket
-        |> assign(:mes_projects, Project.list_all!())
+        |> assign(:mes_projects, Mes.list_projects())
         |> put_flash(:error, reason)
     end
   end

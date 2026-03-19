@@ -1,4 +1,4 @@
-defmodule Ichor.EventJanitor do
+defmodule Ichor.Events.Janitor do
   @moduledoc """
   Periodically purges old events from SQLite to keep the database small.
   Runs every 6 hours and deletes events older than @retention_days.
@@ -36,11 +36,11 @@ defmodule Ichor.EventJanitor do
 
       if events > 0 or sessions > 0 do
         Logger.info(
-          "EventJanitor: purged #{events} events, #{sessions} sessions older than #{@retention_days} days"
+          "Events.Janitor: purged #{events} events, #{sessions} sessions older than #{@retention_days} days"
         )
       end
     rescue
-      e -> Logger.warning("EventJanitor: purge error: #{inspect(e)}")
+      e -> Logger.warning("Events.Janitor: purge error: #{inspect(e)}")
     catch
       :exit, _ -> :ok
     end

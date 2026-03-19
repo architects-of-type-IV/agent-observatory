@@ -1,12 +1,15 @@
 defmodule IchorWeb.Components.SignalComponents do
   @moduledoc """
   Components for the /signals nervous system page.
+  The live feed uses a Phoenix stream of {seq, %Message{}} tuples.
+  Per-signal rendering is delegated to IchorWeb.SignalFeed.Renderer.
   """
   use Phoenix.Component
 
-  alias Ichor.Signals.Catalog
+  alias Ichor.Signals.{Catalog, Message}
+  alias IchorWeb.SignalFeed.Renderer
 
-  attr :stream_events, :list, required: true
+  attr :streams, :any, required: true
   attr :stream_filter, :string, required: true
   attr :stream_paused, :boolean, required: true
 
@@ -14,24 +17,10 @@ defmodule IchorWeb.Components.SignalComponents do
     catalog = Catalog.all() |> Enum.sort_by(fn {name, _} -> name end)
     categories = Catalog.categories()
 
-    filtered_events =
-      if assigns.stream_filter == "" do
-        assigns.stream_events
-      else
-        f = String.downcase(assigns.stream_filter)
-
-        Enum.filter(assigns.stream_events, fn e ->
-          String.contains?(String.downcase(e.topic), f) or
-            String.contains?(String.downcase(e.summary.text), f) or
-            String.contains?(String.downcase(Atom.to_string(e.name)), f)
-        end)
-      end
-
     assigns =
       assigns
       |> assign(:catalog, catalog)
       |> assign(:categories, categories)
-      |> assign(:filtered_events, filtered_events)
 
     ~H"""
     <div class="h-full flex overflow-hidden">
@@ -105,51 +94,54 @@ defmodule IchorWeb.Components.SignalComponents do
           >
             Clear
           </button>
-          <span class="text-[9px] text-muted">{length(@filtered_events)} signals</span>
         </div>
 
         <div class="flex-1 overflow-y-auto" id="stream-feed" phx-hook="StreamAutoScroll">
           <table class="w-full text-[11px]">
             <thead class="sticky top-0 bg-base/95 backdrop-blur z-10">
               <tr class="text-left text-[9px] text-muted uppercase tracking-wider">
-                <th class="px-2 py-1 w-16">Time</th>
-                <th class="px-2 py-1 w-24">Category</th>
-                <th class="px-2 py-1 w-40">Signal</th>
-                <th class="px-2 py-1">Summary</th>
+                <th class="px-2 py-1 w-[70px]">Time</th>
+                <th class="px-2 py-1 w-[80px]">Category</th>
+                <th class="px-2 py-1 w-[120px]">Signal</th>
+                <th class="px-2 py-1">Detail</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody id="signals" phx-update="stream">
               <tr
-                :for={event <- @filtered_events}
-                class={"border-t border-border/20 hover:bg-raised/40 transition #{topic_row_class(event.topic)}"}
+                :for={{dom_id, {seq, message}} <- @streams.signals}
+                :if={passes_filter?(message, @stream_filter)}
+                id={dom_id}
+                class={"border-b border-raised hover:bg-surface-raised/50 #{row_class(message)}"}
               >
-                <td class="px-2 py-0.5 font-mono text-muted whitespace-nowrap">
-                  {format_time(event.captured_at)}
+                <td class="px-2 py-0.5 text-medium font-mono text-[10px] w-[70px]">
+                  {format_ts(message.timestamp)}
                 </td>
-                <td class="px-2 py-0.5">
-                  <span class={"text-[9px] font-bold uppercase tracking-widest #{category_color(event.category)}"}>
-                    {event.category}
+                <td class="px-2 py-0.5 w-[80px]">
+                  <span class={"text-[10px] font-medium #{category_color(message.domain)}"}>
+                    {message.domain}
                   </span>
                 </td>
-                <td class="px-2 py-0.5">
+                <td class="px-2 py-0.5 w-[120px]">
                   <button
                     phx-click="stream_filter_topic"
-                    phx-value-topic={event.topic}
-                    class={"font-mono cursor-pointer hover:underline #{topic_text_color(event.topic)}"}
+                    phx-value-topic={"#{message.domain}:#{message.name}"}
+                    class={"font-mono text-[10px] cursor-pointer hover:underline #{category_color(message.domain)}"}
                   >
-                    {event.name}
+                    {message.name}
                   </button>
                 </td>
-                <td class="px-2 py-0.5 text-high truncate max-w-[400px]">{event.summary.text}</td>
+                <td class="px-2 py-0.5 flex items-center gap-1 flex-wrap">
+                  <Renderer.render seq={seq} message={message} />
+                </td>
               </tr>
             </tbody>
           </table>
 
           <div
-            :if={@filtered_events == []}
-            class="flex items-center justify-center h-32 text-muted text-[11px]"
+            :if={@stream_paused}
+            class="flex items-center justify-center h-16 text-muted text-[11px]"
           >
-            {if @stream_paused, do: "Feed paused", else: "Waiting for signals..."}
+            Feed paused
           </div>
         </div>
       </div>
@@ -157,7 +149,25 @@ defmodule IchorWeb.Components.SignalComponents do
     """
   end
 
-  defp format_time(dt), do: Calendar.strftime(dt, "%H:%M:%S")
+  defp format_ts(nil), do: "--:--:--"
+
+  defp format_ts(ms) when is_integer(ms) do
+    total_seconds = div(ms, 1000)
+    h = div(total_seconds, 3600) |> rem(24)
+    m = div(total_seconds, 60) |> rem(60)
+    s = rem(total_seconds, 60)
+    :io_lib.format("~2..0B:~2..0B:~2..0B", [h, m, s]) |> IO.iodata_to_binary()
+  end
+
+  defp passes_filter?(_message, ""), do: true
+
+  defp passes_filter?(%Message{domain: domain, name: name}, filter) do
+    f = String.downcase(filter)
+
+    String.contains?(Atom.to_string(domain), f) or
+      String.contains?(Atom.to_string(name), f) or
+      String.contains?("#{domain}:#{name}", f)
+  end
 
   defp category_color(:events), do: "text-success"
   defp category_color(:fleet), do: "text-brand"
@@ -170,25 +180,19 @@ defmodule IchorWeb.Components.SignalComponents do
   defp category_color(:messages), do: "text-success"
   defp category_color(:memory), do: "text-interactive"
   defp category_color(:system), do: "text-muted"
+  defp category_color(:genesis), do: "text-brand"
+  defp category_color(:dag), do: "text-info"
+  defp category_color(:mes), do: "text-default"
   defp category_color(_), do: "text-muted"
 
-  defp topic_text_color("events:" <> _), do: "text-success"
-  defp topic_text_color("fleet:" <> _), do: "text-brand"
-  defp topic_text_color("gateway:" <> _), do: "text-cyan"
-  defp topic_text_color("agent:" <> _), do: "text-interactive"
-  defp topic_text_color("hitl:" <> _), do: "text-error"
-  defp topic_text_color("team:" <> _), do: "text-info"
-  defp topic_text_color("monitoring:" <> _), do: "text-default"
-  defp topic_text_color("messages:" <> _), do: "text-success"
-  defp topic_text_color("memory:" <> _), do: "text-interactive"
-  defp topic_text_color("system:" <> _), do: "text-muted"
-  defp topic_text_color("mesh:" <> _), do: "text-brand"
-  defp topic_text_color(_), do: "text-muted"
+  defp row_class(%Message{name: :agent_crashed}), do: "bg-error/5"
+  defp row_class(%Message{name: :schema_violation}), do: "bg-error/5"
+  defp row_class(%Message{name: :dead_letter}), do: "bg-error/5"
 
-  defp topic_row_class(t) when t in ~w(agent:agent_crashed), do: "bg-error/5"
-  defp topic_row_class("agent:nudge" <> _), do: "bg-brand/5"
-  defp topic_row_class("monitoring:gate" <> _), do: "bg-info/5"
-  defp topic_row_class("gateway:schema_violation"), do: "bg-error/5"
-  defp topic_row_class("gateway:dead_letter"), do: "bg-error/5"
-  defp topic_row_class(_), do: ""
+  defp row_class(%Message{name: name})
+       when name in [:nudge_warning, :nudge_sent, :nudge_escalated, :nudge_zombie],
+       do: "bg-brand/5"
+
+  defp row_class(%Message{name: name}) when name in [:gate_passed, :gate_failed], do: "bg-info/5"
+  defp row_class(_), do: ""
 end

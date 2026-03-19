@@ -6,7 +6,8 @@ defmodule Ichor.Archon.Tools.Mes do
   use Ash.Resource, domain: Ichor.Archon.Tools
 
   alias Ichor.Fleet.AgentProcess
-  alias Ichor.Mes.{Project, RunProcess, Scheduler, TeamLifecycle}
+  alias Ichor.Mes
+  alias Ichor.Mes.{RunProcess, Scheduler, TeamLifecycle}
 
   actions do
     action :list_projects, {:array, :map} do
@@ -26,11 +27,11 @@ defmodule Ichor.Archon.Tools.Mes do
         projects =
           case input.arguments[:status] do
             s when s in [nil, ""] ->
-              Project.list_all!()
+              Mes.list_projects()
 
             status_str ->
               status = String.to_existing_atom(status_str)
-              Project.by_status!(status)
+              Mes.projects_by_status!(status)
           end
 
         {:ok, Enum.map(projects, &project_to_map/1)}
@@ -139,7 +140,7 @@ defmodule Ichor.Archon.Tools.Mes do
           |> maybe_put(:run_id, args[:run_id])
           |> maybe_put(:team_name, args[:team_name])
 
-        case Project.create(attrs) do
+        case Mes.create_project(attrs) do
           {:ok, project} -> {:ok, project_to_map(project)}
           {:error, reason} -> {:error, reason}
         end

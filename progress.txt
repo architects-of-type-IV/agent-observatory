@@ -1,16 +1,24 @@
 # ICHOR IV Progress
 
-## Ash DSL + Code Interface Audit (2026-03-19) -- COMPLETE (research), IN PROGRESS (implementation)
+## Domain Centralization + Signal Feed + Consolidation (2026-03-19) -- COMPLETE
+- [x] Genesis domain: 27 new functions for 9 sub-resources, 3 agent tools rewired
+- [x] Workshop domain: 6 new functions, Persistence rewired, 4-hop delegation chain collapsed
+- [x] MES domain: 3 new functions, handler + archon tools rewired
+- [x] Fleet RuntimeHooks/Runtime: 2 wrapper modules deleted, 22 call sites rewired
+- [x] Signal livefeed: Buffer stores {seq, %Message{}}, LiveView uses streams (at: 0, limit: 200)
+- [x] Signal renderers: 10 per-category components (agent, core, gateway, genesis, dag, mes, monitoring, fallback + primitives + dispatcher)
+- [x] AgentWatchdog: 4 GenServers merged -> 1 + 3 pure helpers (EventState, NudgePolicy, PaneParser)
+- [x] Module consolidation: deleted archon.ex, mailer.ex; moved event_janitor, heartbeat
+- [x] Ash.Type.Enum: 5 HIGH extracted (HookEventType, AgentStatus, HealthStatus, NodeStatus, ProjectStatus)
+- [x] Build fix: consolidate_protocols: false in dev
+- [ ] Ash.Type.Enum: 6 MEDIUM/LOW remaining (JobPriority, JobStatus, RunStatus, RunSource, SessionStatus, WorkStatus)
+- [ ] Comprehensive usage_rules.search_docs validation
+
+## Ash DSL + Code Interface Audit (2026-03-19) -- COMPLETE
 - [x] Ash macro audit: found 4 HIGH violations (manual changeset fns), all fixed
 - [x] Ash code_interface audit: found 3 HIGH boundary violations (Genesis, MES handlers, Workshop)
 - [x] Ash enum candidates identified: 11 inline one_of -> Ash.Type.Enum
 - [x] AgentWatchdog design complete (codex): 4 GenServers -> 1 + 3 pure helpers
-- [ ] Extend Genesis domain with sub-resource functions (9 resources)
-- [ ] Extend Workshop domain with blueprint/type CRUD
-- [ ] Fix LiveView MES handlers to go through domain
-- [ ] Ash.Type.Enum extraction (11 candidates)
-- [ ] AgentWatchdog implementation
-- [ ] Comprehensive usage_rules.search_docs validation
 
 ## Supervisor Consolidation + Dead Module Elimination (2026-03-19) -- COMPLETE
 - [x] Collapsed CoreSupervisor + GatewaySupervisor + MonitorSupervisor -> SystemSupervisor (one_for_one)

@@ -4,7 +4,7 @@ defmodule Ichor.Archon.Tools.System do
   """
   use Ash.Resource, domain: Ichor.Archon.Tools
 
-  alias Ichor.{EventBuffer, Heartbeat, ProtocolTracker}
+  alias Ichor.{AgentWatchdog, EventBuffer, ProtocolTracker}
   alias Ichor.Fleet
   alias Ichor.Gateway.Channels.Tmux
 
@@ -22,7 +22,7 @@ defmodule Ichor.Archon.Tools.System do
            "active_agents" => Enum.count(agents, fn a -> a.status == :active end),
            "teams" => length(teams),
            "event_buffer" => alive?(EventBuffer),
-           "heartbeat" => alive?(Heartbeat),
+           "heartbeat" => alive?(AgentWatchdog),
            "protocol_tracker" => alive?(ProtocolTracker)
          }}
       end)

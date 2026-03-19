@@ -17,12 +17,6 @@ config :ichor, IchorWeb.Endpoint,
   secret_key_base: "aBlgLUb/veilHX83O3xEkTTRJ7etTmP2+HpA2B8r0Qr/sdZs1l5MS/0Y6PfehObb",
   server: false
 
-# In test we don't send emails
-config :ichor, Ichor.Mailer, adapter: Swoosh.Adapters.Test
-
-# Disable swoosh api client as it is only required for production adapters
-config :swoosh, :api_client, false
-
 # Print only warnings and errors during test
 config :logger, level: :warning
 

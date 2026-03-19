@@ -15,8 +15,8 @@ defmodule IchorWeb.DashboardWorkshopHandlers do
   alias IchorWeb.WorkshopPresets
   alias Phoenix.LiveView
 
-  defdelegate list_blueprints, to: WP
-  defdelegate list_agent_types, to: WP
+  def list_blueprints, do: Workshop.list_blueprints()
+  def list_agent_types, do: Workshop.list_agent_types()
   defdelegate push_ws_state(socket), to: WP
 
   def handle_event("ws_add_agent", _, socket) do

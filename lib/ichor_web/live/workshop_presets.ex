@@ -18,7 +18,4 @@ defmodule IchorWeb.WorkshopPresets do
     |> Phoenix.Component.assign(:ws_spawn_links, state.ws_spawn_links)
     |> Phoenix.Component.assign(:ws_comm_rules, state.ws_comm_rules)
   end
-
-  @spec spawn_order([map()], [map()]) :: [map()]
-  defdelegate spawn_order(agents, spawn_links), to: Presets
 end

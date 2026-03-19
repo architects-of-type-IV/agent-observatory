@@ -46,11 +46,10 @@ defmodule Ichor.Genesis.Node do
       default([])
     end
 
-    attribute :status, :atom do
+    attribute :status, Ichor.Genesis.Types.NodeStatus do
       allow_nil?(false)
       default(:discover)
       public?(true)
-      constraints(one_of: [:discover, :define, :build, :complete])
     end
 
     timestamps()

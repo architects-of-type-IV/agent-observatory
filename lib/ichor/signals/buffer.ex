@@ -2,24 +2,23 @@ defmodule Ichor.Signals.Buffer do
   @moduledoc """
   Ring buffer for the Signals nervous system.
   Subscribes to all signal categories via `Ichor.Signals.subscribe/1`.
-  Re-broadcasts each entry on "stream:feed" for the /signals LiveView page.
+  Re-broadcasts each raw signal on "signals:feed" for the /signals LiveView page.
   """
   use GenServer
 
-  alias Ichor.Signals.{Catalog, EntryFormatter, Message}
+  alias Ichor.Signals.{Catalog, Message}
 
   @max_events 200
   @table :signal_buffer
 
   def start_link(opts), do: GenServer.start_link(__MODULE__, opts, name: __MODULE__)
 
-  @doc "Return the last N captured signals, newest first."
-  @spec recent(non_neg_integer()) :: [map()]
+  @doc "Return the last N captured signals as `{seq, %Message{}}` tuples, newest first."
+  @spec recent(non_neg_integer()) :: [{non_neg_integer(), Message.t()}]
   def recent(limit \\ 100) do
     @table
     |> :ets.tab2list()
     |> Enum.sort_by(&elem(&1, 0), :desc)
-    |> Stream.map(&elem(&1, 1))
     |> Enum.take(limit)
   rescue
     ArgumentError -> []
@@ -35,10 +34,9 @@ defmodule Ichor.Signals.Buffer do
   @impl true
   def handle_info(%Message{} = sig, %{seq: seq} = state) do
     next = seq + 1
-    entry = EntryFormatter.format(sig, next)
-    :ets.insert(@table, {next, entry})
+    :ets.insert(@table, {next, sig})
     maybe_evict(next)
-    Phoenix.PubSub.broadcast(Ichor.PubSub, "stream:feed", {:stream_event, entry})
+    Phoenix.PubSub.broadcast(Ichor.PubSub, "signals:feed", {:signal, next, sig})
     {:noreply, %{state | seq: next}}
   end
 

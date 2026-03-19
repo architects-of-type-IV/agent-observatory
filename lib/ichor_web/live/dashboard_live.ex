@@ -16,7 +16,7 @@ defmodule IchorWeb.DashboardLive do
   import IchorWeb.DashboardMessagingHandlers, only: [subscribe_to_mailboxes: 1]
 
   alias Ichor.Mes
-  alias Ichor.Signals.{Buffer, Catalog}
+  alias Ichor.Signals.{Buffer, Catalog, Message}
 
   alias IchorWeb.{
     DashboardArchonHandlers,
@@ -102,10 +102,12 @@ defmodule IchorWeb.DashboardLive do
 
   defp apply_nav_view(:signals, socket) do
     if connected?(socket) do
-      Phoenix.PubSub.subscribe(Ichor.PubSub, "stream:feed")
+      Phoenix.PubSub.subscribe(Ichor.PubSub, "signals:feed")
     end
 
-    assign(socket, :stream_events, Buffer.recent(200))
+    socket
+    |> stream_configure(:signals, dom_id: fn {seq, _msg} -> "signal-#{seq}" end)
+    |> stream(:signals, Buffer.recent(200), reset: true)
   end
 
   defp apply_nav_view(:mes, socket) do
@@ -128,12 +130,11 @@ defmodule IchorWeb.DashboardLive do
     {:noreply, socket}
   end
 
-  def handle_info({:stream_event, entry}, socket) do
+  def handle_info({:signal, seq, %Message{} = message}, socket) do
     if socket.assigns.stream_paused do
       {:noreply, socket}
     else
-      events = [entry | Enum.take(socket.assigns.stream_events, 499)]
-      {:noreply, assign(socket, :stream_events, events)}
+      {:noreply, stream_insert(socket, :signals, {seq, message}, at: 0, limit: 200)}
     end
   end
 
@@ -262,7 +263,7 @@ defmodule IchorWeb.DashboardLive do
   def handle_event("stream_toggle_pause", _p, s),
     do: {:noreply, assign(s, :stream_paused, !s.assigns.stream_paused)}
 
-  def handle_event("stream_clear", _p, s), do: {:noreply, assign(s, :stream_events, [])}
+  def handle_event("stream_clear", _p, s), do: {:noreply, stream(s, :signals, [], reset: true)}
 
   def handle_event("stream_filter_topic", %{"topic" => t}, s),
     do: {:noreply, assign(s, :stream_filter, t)}

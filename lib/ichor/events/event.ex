@@ -22,27 +22,9 @@ defmodule Ichor.Events.Event do
       public?(true)
     end
 
-    attribute :hook_event_type, :atom do
+    attribute :hook_event_type, Ichor.Events.Types.HookEventType do
       allow_nil?(false)
       public?(true)
-
-      constraints(
-        one_of: [
-          :SessionStart,
-          :SessionEnd,
-          :UserPromptSubmit,
-          :PreToolUse,
-          :PostToolUse,
-          :PostToolUseFailure,
-          :PermissionRequest,
-          :Notification,
-          :SubagentStart,
-          :SubagentStop,
-          :Stop,
-          :PreCompact,
-          :TaskCompleted
-        ]
-      )
     end
 
     attribute :payload, :map do

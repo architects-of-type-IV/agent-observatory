@@ -13,7 +13,6 @@ config :ichor,
   ash_domains: [
     Ichor.Activity,
     Ichor.AgentTools,
-    Ichor.Archon,
     Ichor.Archon.Tools,
     Ichor.Events,
     Ichor.Fleet,
@@ -41,15 +40,6 @@ config :ichor, IchorWeb.Endpoint,
   ],
   pubsub_server: Ichor.PubSub,
   live_view: [signing_salt: "Uss9/vBE"]
-
-# Configure the mailer
-#
-# By default it uses the "Local" adapter which stores the emails
-# locally. You can see the emails in your browser, at "/dev/mailbox".
-#
-# For production it's recommended to configure a different adapter
-# at the `config/runtime.exs`.
-config :ichor, Ichor.Mailer, adapter: Swoosh.Adapters.Local
 
 # Configure esbuild (the version is required)
 config :esbuild,

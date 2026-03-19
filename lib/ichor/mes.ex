@@ -46,4 +46,21 @@ defmodule Ichor.Mes do
   @spec mark_failed(Project.t(), String.t()) ::
           {:ok, Project.t()} | {:error, term()}
   def mark_failed(project, build_log), do: Project.mark_failed(project, build_log)
+
+  @doc "Claim a project for implementation by the given session."
+  @spec pick_up_project(Project.t(), String.t()) :: {:ok, Project.t()} | {:error, term()}
+  def pick_up_project(project, session_id), do: Project.pick_up(project, session_id)
+
+  @doc "List all projects matching the given status atom."
+  @spec projects_by_status(atom()) :: list(Project.t())
+  def projects_by_status(status) do
+    case Project.by_status(status) do
+      {:ok, projects} -> projects
+      _ -> []
+    end
+  end
+
+  @doc "List all projects matching the given status atom, raising on error."
+  @spec projects_by_status!(atom()) :: list(Project.t())
+  def projects_by_status!(status), do: Project.by_status!(status)
 end
