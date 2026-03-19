@@ -9,7 +9,6 @@ defmodule Ichor.Dag.Spawner do
 
   alias Ichor.Dag.{
     Graph,
-    Handoff,
     Job,
     Loader,
     Prompts,
@@ -39,7 +38,6 @@ defmodule Ichor.Dag.Spawner do
       worker_groups = build_worker_groups(jobs)
       roster = team_roster(session, worker_groups)
       prompt_ctx = %{subsystem_dir: subsystem_dir, module_name: module_name}
-      _handoff = Handoff.package_jobs(run.id, jobs)
       agents = build_agents(run, session, brief, jobs, worker_groups, roster, prompt_ctx)
 
       with :ok <- ModeRunner.write_agent_scripts(run.id, "dag", agents),

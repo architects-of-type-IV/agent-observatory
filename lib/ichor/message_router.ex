@@ -11,7 +11,6 @@ defmodule Ichor.MessageRouter do
 
   alias Ichor.Fleet.{AgentProcess, TeamSupervisor}
   alias Ichor.Gateway.Channels.Tmux
-  alias Ichor.MessageRouter.Target
   alias Ichor.Signals
 
   @message_log :ichor_message_log
@@ -27,7 +26,7 @@ defmodule Ichor.MessageRouter do
   def send(%{from: from, to: to, content: content} = attrs)
       when is_binary(to) and is_binary(content) do
     message = normalize(from, content, attrs)
-    target = Target.resolve(to)
+    target = resolve_target(to)
 
     {:ok, delivered} = deliver(target, message)
     log_delivery(from, to, message)
@@ -60,6 +59,13 @@ defmodule Ichor.MessageRouter do
   rescue
     ArgumentError -> []
   end
+
+  defp resolve_target("team:" <> name), do: {:team, name}
+  defp resolve_target("fleet:all"), do: {:fleet, :all}
+  defp resolve_target("role:" <> role), do: {:role, role}
+  defp resolve_target("session:" <> sid), do: {:session, sid}
+  defp resolve_target("agent:" <> id), do: {:agent, id}
+  defp resolve_target(id) when is_binary(id), do: {:agent, id}
 
   defp deliver({:agent, id}, msg), do: deliver_to_agent(id, msg)
   defp deliver({:session, sid}, msg), do: deliver_to_agent(sid, msg)

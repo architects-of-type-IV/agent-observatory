@@ -6,26 +6,26 @@ defmodule Ichor.Dag.Actions do
   alias Ichor.Dag.Analysis
   alias Ichor.Dag.Projects
   alias Ichor.Fleet.Lifecycle.Cleanup
-  alias Ichor.Tasks.Pipeline
+  alias Ichor.Tasks.JsonlStore
 
   def heal_task(state, task_id) do
     case Projects.tasks_jsonl_path_for_task(state, task_id) do
       nil -> {:error, :no_active_project}
-      path -> Pipeline.heal_task(path, task_id)
+      path -> JsonlStore.heal_task(path, task_id)
     end
   end
 
   def reassign_task(state, task_id, new_owner) do
     case Projects.tasks_jsonl_path_for_task(state, task_id) do
       nil -> {:error, :no_active_project}
-      path -> Pipeline.reassign_task(path, task_id, new_owner)
+      path -> JsonlStore.reassign_task(path, task_id, new_owner)
     end
   end
 
   def claim_task(state, task_id, agent_name) do
     case Projects.tasks_jsonl_path_for_task(state, task_id) do
       nil -> {:error, :no_active_project}
-      path -> Pipeline.claim_task(task_id, agent_name, path)
+      path -> JsonlStore.claim_task(task_id, agent_name, path)
     end
   end
 
@@ -54,7 +54,7 @@ defmodule Ichor.Dag.Actions do
   end
 
   defp count_reset(task, acc, path) do
-    case Pipeline.update_task_status(path, task.id, "pending", "") do
+    case JsonlStore.update_task_status(path, task.id, "pending", "") do
       :ok -> acc + 1
       _ -> acc
     end

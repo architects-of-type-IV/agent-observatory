@@ -11,9 +11,9 @@ defmodule IchorWeb.DashboardWorkshopHandlers do
   alias Ichor.Fleet.Lifecycle
   alias Ichor.Workshop.BlueprintState
   alias Ichor.Workshop.Persistence, as: WorkshopPersistence
+  alias Ichor.Workshop.Presets
   alias Ichor.Workshop.TeamSpecBuilder
   alias IchorWeb.WorkshopPersistence, as: WP
-  alias IchorWeb.WorkshopPresets
   alias Phoenix.LiveView
 
   def list_blueprints, do: Control.list_blueprints()
@@ -119,7 +119,7 @@ defmodule IchorWeb.DashboardWorkshopHandlers do
   end
 
   def handle_event("ws_preset", %{"name" => name}, socket) do
-    {:noreply, socket |> WP.clear_canvas() |> WorkshopPresets.apply(name) |> save_and_push()}
+    {:noreply, socket |> WP.clear_canvas() |> apply_preset(name) |> save_and_push()}
   end
 
   def handle_event("ws_clear", _, socket) do
@@ -157,6 +157,19 @@ defmodule IchorWeb.DashboardWorkshopHandlers do
          total: length(spec.agents)
        }}
     end
+  end
+
+  defp apply_preset(socket, name) do
+    state = Presets.apply(socket.assigns, name)
+
+    socket
+    |> assign(:ws_team_name, state.ws_team_name)
+    |> assign(:ws_strategy, state.ws_strategy)
+    |> assign(:ws_default_model, state.ws_default_model)
+    |> assign(:ws_agents, state.ws_agents)
+    |> assign(:ws_next_id, state.ws_next_id)
+    |> assign(:ws_spawn_links, state.ws_spawn_links)
+    |> assign(:ws_comm_rules, state.ws_comm_rules)
   end
 
   defp save_and_push(socket), do: socket |> WP.auto_save() |> push_ws_state()

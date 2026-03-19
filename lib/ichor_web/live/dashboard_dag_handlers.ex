@@ -7,7 +7,7 @@ defmodule IchorWeb.DashboardDagHandlers do
 
   import Phoenix.Component, only: [assign: 3]
 
-  alias Ichor.Dag.{Claims, GC, Health, Status}
+  alias Ichor.Dag.{Runtime, Status}
   alias Ichor.Fleet.RuntimeQuery
 
   def dispatch("select_dag_project", p, s), do: handle_select_project(p, s)
@@ -35,32 +35,32 @@ defmodule IchorWeb.DashboardDagHandlers do
   end
 
   def handle_heal_task(%{"id" => task_id}, socket) do
-    Claims.heal_task(task_id)
+    Runtime.heal_task(task_id)
     socket
   end
 
   def handle_reassign_dag_task(%{"id" => task_id, "owner" => owner}, socket) do
-    Claims.reassign_task(task_id, owner)
+    Runtime.reassign_task(task_id, owner)
     socket
   end
 
   def handle_reset_all_stale(_params, socket) do
-    Claims.reset_stale()
+    Runtime.reset_all_stale(10)
     socket
   end
 
   def handle_trigger_gc(%{"team" => team_name}, socket) do
-    GC.trigger(team_name)
+    Runtime.trigger_gc(team_name)
     socket
   end
 
   def handle_run_health_check(_params, socket) do
-    Health.check()
+    Runtime.run_health_check()
     socket
   end
 
   def handle_claim_dag_task(%{"id" => task_id, "agent" => agent}, socket) do
-    Claims.claim_task(task_id, agent)
+    Runtime.claim_task(task_id, agent)
     socket
   end
 

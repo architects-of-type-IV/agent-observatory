@@ -7,9 +7,6 @@ defmodule IchorWeb.DashboardLive do
   import IchorWeb.DashboardAgentActivityHelpers, only: [agent_events: 2]
   import IchorWeb.DashboardState, only: [recompute: 1, recompute_view: 1, default_assigns: 1]
 
-  import IchorWeb.DashboardGatewayHandlers,
-    only: [subscribe_gateway_topics: 0, seed_gateway_assigns: 1]
-
   import IchorWeb.DashboardWorkshopHandlers,
     only: [list_blueprints: 0, list_agent_types: 0, push_ws_state: 1]
 
@@ -72,7 +69,6 @@ defmodule IchorWeb.DashboardLive do
 
     if connected?(socket) do
       Enum.each(Catalog.categories(), &Ichor.Signals.subscribe/1)
-      subscribe_gateway_topics()
       send(self(), :load_data)
     end
 
@@ -125,7 +121,7 @@ defmodule IchorWeb.DashboardLive do
   @impl true
   def handle_info(:load_data, socket) do
     events = Ichor.EventBuffer.latest_per_session()
-    socket = socket |> assign(:events, events) |> seed_gateway_assigns() |> recompute()
+    socket = socket |> assign(:events, events) |> recompute()
     subscribe_to_mailboxes(socket.assigns.sessions)
     {:noreply, socket}
   end

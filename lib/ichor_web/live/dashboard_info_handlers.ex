@@ -10,7 +10,6 @@ defmodule IchorWeb.DashboardInfoHandlers do
   import IchorWeb.DashboardTmuxHandlers, only: [refresh_tmux_panels: 1]
   import IchorWeb.DashboardMessagingHandlers, only: [handle_new_mailbox_message: 2]
   import IchorWeb.DashboardNotificationHandlers, only: [handle_agent_crashed: 4]
-  import IchorWeb.DashboardGatewayHandlers, only: [handle_gateway_info: 2]
 
   alias Ichor.Archon.SignalManager
   alias Ichor.Gateway.HITLRelay
@@ -114,8 +113,8 @@ defmodule IchorWeb.DashboardInfoHandlers do
 
   @gateway_signals ~w(decision_log schema_violation node_state_update dead_letter capability_update topology_snapshot entropy_alert dag_delta)a
 
-  def dispatch(%Message{name: name} = sig, socket) when name in @gateway_signals,
-    do: {:noreply, handle_gateway_info(sig, socket) |> maybe_refresh_archon_manager()}
+  def dispatch(%Message{name: name}, socket) when name in @gateway_signals,
+    do: {:noreply, maybe_refresh_archon_manager(socket)}
 
   def dispatch({:archon_response, result}, socket),
     do: {:noreply, DashboardArchonHandlers.handle_archon_response(result, socket)}
