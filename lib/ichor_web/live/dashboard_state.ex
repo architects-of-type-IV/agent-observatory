@@ -9,8 +9,8 @@ defmodule IchorWeb.DashboardState do
   import IchorWeb.DashboardTeamHelpers, only: [all_team_sids: 1]
   import IchorWeb.DashboardFeedHelpers, only: [build_feed_groups: 2]
 
+  alias Ichor.Control
   alias Ichor.Dag.Status
-  alias Ichor.Fleet
   alias Ichor.Fleet.Analysis.Queries, as: FQ
   alias Ichor.Fleet.Analysis.SessionEviction
   alias Ichor.Fleet.RuntimeView
@@ -133,9 +133,9 @@ defmodule IchorWeb.DashboardState do
     assigns = socket.assigns
 
     # Ash domain queries
-    teams = Fleet.list_alive_teams()
-    all_teams = Fleet.list_teams()
-    agents = Fleet.list_agents()
+    teams = Control.list_alive_teams()
+    all_teams = Control.list_teams()
+    agents = Control.list_agents()
     messages = Observability.list_recent_messages()
     event_tasks = Observability.list_current_tasks() |> Enum.map(&task_to_map/1)
     errors = Observability.list_recent_errors()

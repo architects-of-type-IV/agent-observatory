@@ -109,7 +109,6 @@ defmodule IchorWeb.Components.SignalComponents do
             <tbody id="signals" phx-update="stream">
               <tr
                 :for={{dom_id, {seq, message}} <- @streams.signals}
-                :if={passes_filter?(message, @stream_filter)}
                 id={dom_id}
                 class={"border-b border-raised hover:bg-surface-raised/50 #{row_class(message)}"}
               >
@@ -151,22 +150,13 @@ defmodule IchorWeb.Components.SignalComponents do
 
   defp format_ts(nil), do: "--:--:--"
 
-  defp format_ts(ms) when is_integer(ms) do
-    total_seconds = div(ms, 1000)
-    h = div(total_seconds, 3600) |> rem(24)
-    m = div(total_seconds, 60) |> rem(60)
-    s = rem(total_seconds, 60)
+  defp format_ts(monotonic_ms) when is_integer(monotonic_ms) do
+    wall_ms = System.time_offset(:millisecond) + monotonic_ms
+    wall_s = div(wall_ms, 1000)
+    h = div(wall_s, 3600) |> rem(24)
+    m = div(wall_s, 60) |> rem(60)
+    s = rem(wall_s, 60)
     :io_lib.format("~2..0B:~2..0B:~2..0B", [h, m, s]) |> IO.iodata_to_binary()
-  end
-
-  defp passes_filter?(_message, ""), do: true
-
-  defp passes_filter?(%Message{domain: domain, name: name}, filter) do
-    f = String.downcase(filter)
-
-    String.contains?(Atom.to_string(domain), f) or
-      String.contains?(Atom.to_string(name), f) or
-      String.contains?("#{domain}:#{name}", f)
   end
 
   defp category_color(:events), do: "text-success"

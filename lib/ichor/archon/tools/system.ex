@@ -5,7 +5,7 @@ defmodule Ichor.Archon.Tools.System do
   use Ash.Resource, domain: Ichor.Archon.Tools
 
   alias Ichor.{AgentWatchdog, EventBuffer, ProtocolTracker}
-  alias Ichor.Fleet
+  alias Ichor.Control
   alias Ichor.Gateway.Channels.Tmux
 
   actions do
@@ -13,8 +13,8 @@ defmodule Ichor.Archon.Tools.System do
       description("Check Ichor system health: agents, teams, core processes.")
 
       run(fn _input, _context ->
-        agents = Fleet.list_agents()
-        teams = Fleet.list_alive_teams()
+        agents = Control.list_agents()
+        teams = Control.list_alive_teams()
 
         {:ok,
          %{
@@ -35,7 +35,7 @@ defmodule Ichor.Archon.Tools.System do
         sessions = Tmux.list_sessions()
 
         agents_by_tmux =
-          Fleet.list_agents()
+          Control.list_agents()
           |> Enum.filter(fn a -> a.channels[:tmux] != nil end)
           |> Enum.group_by(fn a -> a.channels[:tmux] end)
 

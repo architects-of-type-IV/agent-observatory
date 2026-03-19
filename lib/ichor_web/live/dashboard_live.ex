@@ -131,10 +131,15 @@ defmodule IchorWeb.DashboardLive do
   end
 
   def handle_info({:signal, seq, %Message{} = message}, socket) do
-    if socket.assigns.stream_paused do
-      {:noreply, socket}
-    else
-      {:noreply, stream_insert(socket, :signals, {seq, message}, at: 0, limit: 200)}
+    cond do
+      socket.assigns.stream_paused ->
+        {:noreply, socket}
+
+      not passes_filter?(message, socket.assigns.stream_filter) ->
+        {:noreply, socket}
+
+      true ->
+        {:noreply, stream_insert(socket, :signals, {seq, message}, at: 0, limit: 200)}
     end
   end
 
@@ -258,15 +263,44 @@ defmodule IchorWeb.DashboardLive do
   def handle_event("ws_" <> _ = e, p, s),
     do: IchorWeb.DashboardWorkshopHandlers.handle_event(e, p, s)
 
-  def handle_event("stream_search", %{"q" => q}, s), do: {:noreply, assign(s, :stream_filter, q)}
+  def handle_event("stream_search", %{"q" => q}, s) do
+    s = assign(s, :stream_filter, q)
+    {:noreply, stream(s, :signals, filtered_signals(q), reset: true)}
+  end
 
   def handle_event("stream_toggle_pause", _p, s),
     do: {:noreply, assign(s, :stream_paused, !s.assigns.stream_paused)}
 
-  def handle_event("stream_clear", _p, s), do: {:noreply, stream(s, :signals, [], reset: true)}
+  def handle_event("stream_clear", _p, s),
+    do: {:noreply, assign(s, :stream_filter, "") |> stream(:signals, [], reset: true)}
 
-  def handle_event("stream_filter_topic", %{"topic" => t}, s),
-    do: {:noreply, assign(s, :stream_filter, t)}
+  def handle_event("stream_filter_topic", %{"topic" => t}, s) do
+    s = assign(s, :stream_filter, t)
+    {:noreply, stream(s, :signals, filtered_signals(t), reset: true)}
+  end
 
   def handle_event("stop", _p, s), do: {:noreply, s}
+
+  defp filtered_signals(""), do: Buffer.recent(200)
+
+  defp filtered_signals(filter) do
+    f = String.downcase(filter)
+    Buffer.recent(200) |> Enum.filter(&signal_matches?(&1, f))
+  end
+
+  defp passes_filter?(_message, ""), do: true
+
+  defp passes_filter?(%Message{domain: domain, name: name}, filter) do
+    f = String.downcase(filter)
+
+    String.contains?(Atom.to_string(domain), f) or
+      String.contains?(Atom.to_string(name), f) or
+      String.contains?("#{domain}:#{name}", f)
+  end
+
+  defp signal_matches?({_seq, %Message{domain: domain, name: name}}, f) do
+    String.contains?(Atom.to_string(domain), f) or
+      String.contains?(Atom.to_string(name), f) or
+      String.contains?("#{domain}:#{name}", f)
+  end
 end

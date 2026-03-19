@@ -7,7 +7,7 @@ defmodule Ichor.Fleet.Team do
   This is the canonical entry point for all team operations.
   """
 
-  use Ash.Resource, domain: Ichor.Fleet
+  use Ash.Resource, domain: Ichor.Control
 
   alias Ichor.Fleet.FleetSupervisor
   alias Ichor.Fleet.TeamSupervisor

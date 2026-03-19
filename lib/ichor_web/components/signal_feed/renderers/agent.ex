@@ -171,6 +171,85 @@ defmodule IchorWeb.SignalFeed.Renderers.Agent do
     """
   end
 
+  def render(%{message: %Message{name: :agent_event, data: data}} = assigns) do
+    event = data[:event] || %{}
+
+    assigns =
+      assign(assigns,
+        sid: Primitives.short(data[:session_id] || data[:scope_id]),
+        kind: to_string(event[:kind] || event[:type] || event[:name] || "event")
+      )
+
+    ~H"""
+    <span class="text-[10px] text-muted">event</span>
+    <Primitives.kv :if={@sid != "?"} key="sid" value={@sid} />
+    <Primitives.kv key="kind" value={@kind} />
+    """
+  end
+
+  def render(%{message: %Message{name: :agent_message_intercepted, data: data}} = assigns) do
+    assigns =
+      assign(assigns,
+        from: Primitives.short(data[:from]),
+        to: Primitives.short(data[:to]),
+        type: to_string(data[:type] || "msg")
+      )
+
+    ~H"""
+    <span class="text-[10px] text-muted">intercepted</span>
+    <span class="font-mono text-[9px] text-muted">{@from} -> {@to}</span>
+    <Primitives.kv key="type" value={@type} />
+    """
+  end
+
+  def render(%{message: %Message{name: :terminal_output, data: data}} = assigns) do
+    assigns = assign(assigns, sid: Primitives.short(data[:session_id] || data[:scope_id]))
+
+    ~H"""
+    <span class="text-[10px] text-muted font-mono">tmux</span>
+    <span class="font-mono text-[9px]">{@sid}</span>
+    """
+  end
+
+  def render(%{message: %Message{name: :mailbox_message, data: data}} = assigns) do
+    msg = data[:message] || %{}
+
+    assigns =
+      assign(assigns,
+        sid: Primitives.short(data[:scope_id]),
+        from: Primitives.short(msg[:from] || msg["from"])
+      )
+
+    ~H"""
+    <span class="text-[10px] text-default">mailbox</span>
+    <Primitives.kv :if={@from != "?"} key="from" value={@from} />
+    <Primitives.kv :if={@sid != "?"} key="to" value={@sid} />
+    """
+  end
+
+  def render(%{message: %Message{name: :agent_instructions, data: data}} = assigns) do
+    assigns =
+      assign(assigns,
+        cls: to_string(data[:agent_class] || "?"),
+        sid: Primitives.short(data[:scope_id])
+      )
+
+    ~H"""
+    <span class="text-[10px] text-default">instructions</span>
+    <Primitives.kv key="class" value={@cls} />
+    <Primitives.kv :if={@sid != "?"} key="sid" value={@sid} />
+    """
+  end
+
+  def render(%{message: %Message{name: :scheduled_job, data: data}} = assigns) do
+    assigns = assign(assigns, agent_id: Primitives.short(data[:agent_id]))
+
+    ~H"""
+    <span class="text-[10px] text-muted">scheduled job fired</span>
+    <Primitives.kv key="agent" value={@agent_id} />
+    """
+  end
+
   def render(assigns) do
     ~H"""
     <span class="text-[10px] text-muted font-mono">{@message.name}</span>

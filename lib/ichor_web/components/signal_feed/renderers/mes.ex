@@ -285,6 +285,204 @@ defmodule IchorWeb.SignalFeed.Renderers.Mes do
     """
   end
 
+  def render(%{message: %Message{name: :mes_agent_tmux_gone, data: data}} = assigns) do
+    assigns = assign(assigns, agent_id: Primitives.short(data[:agent_id]))
+
+    ~H"""
+    <span class="text-[10px] text-muted">agent tmux gone</span>
+    <span class="font-mono text-[9px]">{@agent_id}</span>
+    """
+  end
+
+  def render(%{message: %Message{name: :mes_agent_register_failed, data: data}} = assigns) do
+    assigns =
+      assign(assigns,
+        name: to_string(data[:agent_name] || "?"),
+        reason: to_string(data[:reason] || "?")
+      )
+
+    ~H"""
+    <span class="text-[10px] text-error font-medium">agent register failed</span>
+    <Primitives.kv key="agent" value={@name} />
+    <Primitives.kv key="reason" value={@reason} />
+    """
+  end
+
+  def render(%{message: %Message{name: :mes_run_init, data: data}} = assigns) do
+    assigns =
+      assign(assigns,
+        run_id: Primitives.short(data[:run_id]),
+        team: to_string(data[:team_name] || "?")
+      )
+
+    ~H"""
+    <span class="text-[10px] text-muted">run init</span>
+    <Primitives.kv key="team" value={@team} />
+    <Primitives.kv key="run" value={@run_id} />
+    """
+  end
+
+  def render(%{message: %Message{name: :mes_run_started, data: data}} = assigns) do
+    assigns =
+      assign(assigns,
+        run_id: Primitives.short(data[:run_id]),
+        session: to_string(data[:session] || "?")
+      )
+
+    ~H"""
+    <span class="text-[10px] text-default">run started</span>
+    <Primitives.kv key="session" value={@session} />
+    <Primitives.kv key="run" value={@run_id} />
+    """
+  end
+
+  def render(%{message: %Message{name: :mes_run_terminated, data: data}} = assigns) do
+    assigns = assign(assigns, run_id: Primitives.short(data[:run_id]))
+
+    ~H"""
+    <span class="text-[10px] text-medium">run terminated</span>
+    <span class="font-mono text-[9px]">{@run_id}</span>
+    """
+  end
+
+  def render(%{message: %Message{name: :mes_janitor_init, data: data}} = assigns) do
+    assigns = assign(assigns, monitored: to_string(data[:monitored] || 0))
+
+    ~H"""
+    <span class="text-[10px] text-muted">janitor init</span>
+    <Primitives.kv key="monitoring" value={@monitored} />
+    """
+  end
+
+  def render(%{message: %Message{name: :mes_janitor_cleaned, data: data}} = assigns) do
+    assigns =
+      assign(assigns,
+        run_id: Primitives.short(data[:run_id]),
+        trigger: to_string(data[:trigger] || "?")
+      )
+
+    ~H"""
+    <span class="text-[10px] text-muted">janitor cleaned</span>
+    <Primitives.kv key="run" value={@run_id} />
+    <Primitives.kv key="trigger" value={@trigger} />
+    """
+  end
+
+  def render(%{message: %Message{name: :mes_janitor_error, data: data}} = assigns) do
+    assigns =
+      assign(assigns,
+        run_id: Primitives.short(data[:run_id]),
+        reason: to_string(data[:reason] || "?")
+      )
+
+    ~H"""
+    <span class="text-[10px] text-error">janitor error</span>
+    <Primitives.kv key="run" value={@run_id} />
+    <Primitives.kv key="reason" value={@reason} />
+    """
+  end
+
+  def render(%{message: %Message{name: :mes_prompts_written, data: data}} = assigns) do
+    assigns =
+      assign(assigns,
+        run_id: Primitives.short(data[:run_id]),
+        count: to_string(data[:agent_count] || "?")
+      )
+
+    ~H"""
+    <span class="text-[10px] text-default">prompts written</span>
+    <Primitives.kv key="agents" value={@count} />
+    <Primitives.kv key="run" value={@run_id} />
+    """
+  end
+
+  def render(%{message: %Message{name: :mes_tmux_spawning, data: data}} = assigns) do
+    assigns =
+      assign(assigns,
+        session: to_string(data[:session] || "?"),
+        name: to_string(data[:agent_name] || "?")
+      )
+
+    ~H"""
+    <span class="text-[10px] text-muted">spawning tmux</span>
+    <Primitives.kv key="session" value={@session} />
+    <Primitives.kv key="agent" value={@name} />
+    """
+  end
+
+  def render(%{message: %Message{name: :mes_tmux_session_created, data: data}} = assigns) do
+    assigns =
+      assign(assigns,
+        session: to_string(data[:session] || "?"),
+        name: to_string(data[:agent_name] || "?")
+      )
+
+    ~H"""
+    <span class="text-[10px] text-success">tmux session created</span>
+    <Primitives.kv key="session" value={@session} />
+    <Primitives.kv key="agent" value={@name} />
+    """
+  end
+
+  def render(%{message: %Message{name: :mes_tmux_spawn_failed, data: data}} = assigns) do
+    assigns =
+      assign(assigns,
+        session: to_string(data[:session] || "?"),
+        exit_code: to_string(data[:exit_code] || "?")
+      )
+
+    ~H"""
+    <span class="text-[10px] text-error font-medium">tmux spawn failed</span>
+    <Primitives.kv key="session" value={@session} />
+    <Primitives.kv key="exit" value={@exit_code} />
+    """
+  end
+
+  def render(%{message: %Message{name: :mes_tmux_window_created, data: data}} = assigns) do
+    assigns =
+      assign(assigns,
+        session: to_string(data[:session] || "?"),
+        name: to_string(data[:agent_name] || "?")
+      )
+
+    ~H"""
+    <span class="text-[10px] text-default">tmux window created</span>
+    <Primitives.kv key="agent" value={@name} />
+    """
+  end
+
+  def render(%{message: %Message{name: :mes_team_spawn_failed, data: data}} = assigns) do
+    assigns =
+      assign(assigns,
+        session: to_string(data[:session] || "?"),
+        reason: to_string(data[:reason] || "?")
+      )
+
+    ~H"""
+    <span class="text-[10px] text-error font-medium">team spawn failed</span>
+    <Primitives.kv key="session" value={@session} />
+    <Primitives.kv key="reason" value={@reason} />
+    """
+  end
+
+  def render(%{message: %Message{name: :mes_operator_ensured, data: data}} = assigns) do
+    assigns = assign(assigns, status: to_string(data[:status] || "?"))
+
+    ~H"""
+    <span class="text-[10px] text-muted">operator ensured</span>
+    <Primitives.kv key="status" value={@status} />
+    """
+  end
+
+  def render(%{message: %Message{name: :mes_cleanup, data: data}} = assigns) do
+    assigns = assign(assigns, target: to_string(data[:target] || "?"))
+
+    ~H"""
+    <span class="text-[10px] text-muted">cleanup</span>
+    <Primitives.kv key="target" value={@target} />
+    """
+  end
+
   def render(assigns) do
     ~H"""
     <span class="text-[10px] text-muted font-mono">{@message.name}</span>

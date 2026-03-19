@@ -3,11 +3,11 @@ defmodule Ichor.Fleet.Lookup do
   Shared lookup helpers for fleet agent and team projections.
   """
 
-  alias Ichor.Fleet
+  alias Ichor.Control
 
   @spec find_agent(String.t()) :: struct() | nil
   def find_agent(query) when is_binary(query) do
-    Fleet.list_agents()
+    Control.list_agents()
     |> Enum.find(fn agent ->
       agent.agent_id == query or agent.session_id == query or
         agent.short_name == query or agent.name == query

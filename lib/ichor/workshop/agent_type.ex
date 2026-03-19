@@ -5,7 +5,7 @@ defmodule Ichor.Workshop.AgentType do
   """
 
   use Ash.Resource,
-    domain: Ichor.Workshop,
+    domain: Ichor.Control,
     data_layer: AshSqlite.DataLayer
 
   sqlite do

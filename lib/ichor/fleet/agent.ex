@@ -7,7 +7,7 @@ defmodule Ichor.Fleet.Agent do
   This is the canonical entry point for all agent operations.
   """
 
-  use Ash.Resource, domain: Ichor.Fleet
+  use Ash.Resource, domain: Ichor.Control
 
   alias Ichor.Fleet.AgentProcess
   alias Ichor.Fleet.FleetSupervisor

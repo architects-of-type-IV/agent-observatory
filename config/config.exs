@@ -14,13 +14,11 @@ config :ichor,
     Ichor.AgentTools,
     Ichor.Archon.Tools,
     Ichor.Control,
-    Ichor.Fleet,
     Ichor.Dag,
     Ichor.Genesis,
     Ichor.Mes,
     Ichor.Observability,
-    Ichor.Projects,
-    Ichor.Workshop
+    Ichor.Projects
   ]
 
 config :ichor, Ichor.Repo,

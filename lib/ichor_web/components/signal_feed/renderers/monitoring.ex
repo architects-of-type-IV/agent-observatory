@@ -67,9 +67,19 @@ defmodule IchorWeb.SignalFeed.Renderers.Monitoring do
     """
   end
 
-  def render(%{message: %Message{name: :protocol_update}} = assigns) do
+  def render(%{message: %Message{name: :protocol_update, data: data}} = assigns) do
+    stats = data[:stats_map] || %{}
+
+    assigns =
+      assign(assigns,
+        agents: stats[:agent_count] || stats["agent_count"],
+        sessions: stats[:session_count] || stats["session_count"]
+      )
+
     ~H"""
     <span class="text-[10px] text-muted">protocol stats updated</span>
+    <Primitives.kv :if={@agents} key="agents" value={to_string(@agents)} />
+    <Primitives.kv :if={@sessions} key="sessions" value={to_string(@sessions)} />
     """
   end
 

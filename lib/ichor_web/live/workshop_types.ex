@@ -5,10 +5,10 @@ defmodule IchorWeb.WorkshopTypes do
 
   import Phoenix.Component, only: [assign: 3]
 
-  alias Ichor.Workshop
+  alias Ichor.Control
 
   def handle_event("ws_edit_type", %{"id" => id}, socket) do
-    case Workshop.agent_type(id) do
+    case Control.agent_type(id) do
       {:ok, type} -> {:noreply, assign(socket, :ws_editing_type, type)}
       _ -> {:noreply, socket}
     end
@@ -31,8 +31,8 @@ defmodule IchorWeb.WorkshopTypes do
 
     result =
       case socket.assigns.ws_editing_type do
-        :new -> Workshop.create_agent_type(type_params)
-        %{__struct__: _} = existing -> Workshop.update_agent_type(existing, type_params)
+        :new -> Control.create_agent_type(type_params)
+        %{__struct__: _} = existing -> Control.update_agent_type(existing, type_params)
         _ -> {:error, :no_type}
       end
 
@@ -40,7 +40,7 @@ defmodule IchorWeb.WorkshopTypes do
       {:ok, _} ->
         {:noreply,
          socket
-         |> assign(:ws_agent_types, Workshop.list_agent_types())
+         |> assign(:ws_agent_types, Control.list_agent_types())
          |> assign(:ws_editing_type, nil)}
 
       {:error, _} ->
@@ -49,16 +49,16 @@ defmodule IchorWeb.WorkshopTypes do
   end
 
   def handle_event("ws_delete_type", %{"id" => id}, socket) do
-    case Workshop.agent_type(id) do
+    case Control.agent_type(id) do
       {:ok, type} ->
-        :ok = Workshop.destroy_agent_type(type)
+        :ok = Control.destroy_agent_type(type)
 
         socket =
           if match?(%{id: ^id}, socket.assigns.ws_editing_type),
             do: assign(socket, :ws_editing_type, nil),
             else: socket
 
-        {:noreply, assign(socket, :ws_agent_types, Workshop.list_agent_types())}
+        {:noreply, assign(socket, :ws_agent_types, Control.list_agent_types())}
 
       _ ->
         {:noreply, socket}
