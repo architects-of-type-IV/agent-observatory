@@ -11,8 +11,6 @@ defmodule Ichor.Mes.ResearchStore do
 
   @research_space "project:ichor:research"
 
-
-
   @spec search(String.t(), keyword()) :: {:ok, list()} | {:error, term()}
   def search(query, opts \\ []) do
     MemoriesClient.search(query, Keyword.put_new(opts, :limit, 20))
@@ -39,8 +37,6 @@ defmodule Ichor.Mes.ResearchStore do
   def query(question, opts \\ []) do
     MemoriesClient.query_memory(question, opts)
   end
-
-
 
   defp get(path, params) do
     url = memories_url() <> path
@@ -72,8 +68,6 @@ defmodule Ichor.Mes.ResearchStore do
         [{to_string(k), v}]
     end)
   end
-
-
 
   defp memories_config, do: Application.fetch_env!(:ichor, :memories)
   defp memories_url, do: Keyword.fetch!(memories_config(), :url)

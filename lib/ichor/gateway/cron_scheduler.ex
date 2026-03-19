@@ -16,8 +16,6 @@ defmodule Ichor.Gateway.CronScheduler do
 
   import Ecto.Query
 
-
-
   def start_link(opts) do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
   end
@@ -43,8 +41,6 @@ defmodule Ichor.Gateway.CronScheduler do
   rescue
     _ -> []
   end
-
-
 
   @impl true
   def init(_opts) do

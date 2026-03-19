@@ -83,6 +83,8 @@ defmodule IchorWeb.DashboardSessionControlHandlers do
         |> push_toast(:info, "Session was not paused")
 
       {:ok, count} ->
+        Ichor.Signals.emit(:hitl_operator_approved, %{session_id: session_id})
+
         socket
         |> Phoenix.Component.assign(:paused_sessions, paused)
         |> push_toast(:info, "Approved: #{count} buffered messages flushed")
@@ -94,6 +96,7 @@ defmodule IchorWeb.DashboardSessionControlHandlers do
   """
   def handle_hitl_reject(%{"session_id" => session_id}, socket) do
     HITLRelay.reject(session_id, session_id, "operator")
+    Ichor.Signals.emit(:hitl_operator_rejected, %{session_id: session_id})
     paused = MapSet.delete(socket.assigns.paused_sessions, session_id)
 
     socket
@@ -141,6 +144,7 @@ defmodule IchorWeb.DashboardSessionControlHandlers do
       end
 
     EventBuffer.tombstone_session(session_id)
+    Ichor.Signals.emit(:agent_stopped, %{session_id: session_id, reason: "dashboard_shutdown"})
 
     short = String.slice(session_id, 0..7)
 

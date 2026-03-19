@@ -25,13 +25,9 @@ defmodule Ichor.Signals.Catalog do
            |> Map.merge(MesDefs.definitions())
            |> Map.merge(GenesisDagDefs.definitions())
 
-
-
   @catalog Map.new(@signals, fn {k, v} -> {k, Map.put_new(v, :dynamic, false)} end)
   @categories @catalog |> Map.values() |> Enum.map(& &1.category) |> Enum.uniq() |> Enum.sort()
   @static_signals @catalog |> Enum.reject(fn {_, v} -> v.dynamic end) |> Enum.map(&elem(&1, 0))
-
-
 
   @spec lookup(atom()) :: signal_def() | nil
   def lookup(name), do: Map.get(@catalog, name)

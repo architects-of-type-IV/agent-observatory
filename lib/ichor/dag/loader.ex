@@ -28,8 +28,6 @@ defmodule Ichor.Dag.Loader do
     end
   end
 
-
-
   defp create_run_with_jobs(raw_items, label, source, tmux_session, extra_attrs) do
     nodes = Enum.map(raw_items, &Graph.to_graph_node/1)
     waves = Graph.waves(nodes)

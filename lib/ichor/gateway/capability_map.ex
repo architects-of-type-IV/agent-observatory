@@ -7,8 +7,6 @@ defmodule Ichor.Gateway.CapabilityMap do
 
   use GenServer
 
-
-
   def start_link(opts) do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
   end
@@ -32,8 +30,6 @@ defmodule Ichor.Gateway.CapabilityMap do
   def list_agents do
     GenServer.call(__MODULE__, :list)
   end
-
-
 
   @impl true
   def init(_opts) do

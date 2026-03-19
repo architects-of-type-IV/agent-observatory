@@ -16,8 +16,6 @@ defmodule Ichor.Fleet.HostRegistry do
   @pg_scope :ichor_agents
   @pg_group :ichor_hosts
 
-
-
   @spec start_link(keyword()) :: GenServer.on_start()
   def start_link(opts) do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
@@ -65,8 +63,6 @@ defmodule Ichor.Fleet.HostRegistry do
       metadata: %{}
     }
   end
-
-
 
   @impl true
   def init(_opts) do
@@ -135,8 +131,6 @@ defmodule Ichor.Fleet.HostRegistry do
   end
 
   def handle_info(_msg, state), do: {:noreply, state}
-
-
 
   defp host_entry(node, status) do
     %{

@@ -97,8 +97,6 @@ defmodule Ichor.Genesis.ModeRunner do
     :ok
   end
 
-
-
   defp cleanup_prompt_files(run_id, mode) do
     dir = prompt_dir(run_id, mode)
 

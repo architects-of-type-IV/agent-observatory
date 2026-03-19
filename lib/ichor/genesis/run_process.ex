@@ -24,8 +24,6 @@ defmodule Ichor.Genesis.RunProcess do
 
   defstruct [:run_id, :mode, :session, :node_id]
 
-
-
   @spec start_link(keyword()) :: GenServer.on_start()
   def start_link(opts) do
     run_id = Keyword.fetch!(opts, :run_id)
@@ -49,8 +47,6 @@ defmodule Ichor.Genesis.RunProcess do
       {{{:genesis_run, :"$1"}, :"$2", :_}, [], [{{:"$1", :"$2"}}]}
     ])
   end
-
-
 
   @impl true
   def init(opts) do
@@ -128,8 +124,6 @@ defmodule Ichor.Genesis.RunProcess do
     Signals.emit(:genesis_run_terminated, %{run_id: state.run_id, mode: state.mode})
     :ok
   end
-
-
 
   defp cleanup(state) do
     ModeRunner.kill_session(state.session, state.run_id, state.mode)

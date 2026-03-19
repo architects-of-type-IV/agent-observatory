@@ -76,8 +76,6 @@ defmodule Ichor.Genesis.ModeSpawner do
     end
   end
 
-
-
   defp agents_for_mode("a", run_id, session, node_id, brief) do
     roster = team_roster(session, ~w(coordinator architect reviewer))
 
@@ -143,8 +141,6 @@ defmodule Ichor.Genesis.ModeSpawner do
       }
     ]
   end
-
-
 
   defp start_run_process(run_id, mode, session, node_id) do
     DynamicSupervisor.start_child(

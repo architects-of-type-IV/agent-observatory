@@ -119,6 +119,21 @@ defmodule Ichor.Signals.Catalog.GatewayAgentDefs do
         keys: [:session_id, :added_nodes],
         dynamic: true,
         doc: "Causal DAG update"
+      },
+      hitl_auto_released: %{
+        category: :hitl,
+        keys: [:session_id],
+        doc: "Paused session auto-released by sweep"
+      },
+      hitl_operator_approved: %{
+        category: :hitl,
+        keys: [:session_id],
+        doc: "Operator approved buffered messages"
+      },
+      hitl_operator_rejected: %{
+        category: :hitl,
+        keys: [:session_id],
+        doc: "Operator rejected buffered messages"
       }
     }
   end

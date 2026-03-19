@@ -43,7 +43,6 @@ defmodule Ichor.Fleet.Agent do
 
   actions do
 
-
     read :all do
       prepare({Ichor.Fleet.Views.Preparations.LoadAgents, []})
     end
@@ -58,8 +57,6 @@ defmodule Ichor.Fleet.Agent do
       prepare({Ichor.Fleet.Views.Preparations.LoadAgents, []})
       filter(expr(team_name == ^arg(:team_name)))
     end
-
-
 
     action :spawn, :map do
       description("Spawn a new agent process in the fleet.")
@@ -194,8 +191,6 @@ defmodule Ichor.Fleet.Agent do
       end)
     end
 
-
-
     action :send_message, :map do
       description("Send a message to an agent.")
 
@@ -288,8 +283,6 @@ defmodule Ichor.Fleet.Agent do
     define(:send_message, args: [:agent_id, :content])
     define(:update_instructions, args: [:agent_id, :instructions])
   end
-
-
 
   @spec spawn_in_fleet(String.t() | nil, keyword()) :: {:ok, pid()} | {:error, term()}
   defp spawn_in_fleet(nil, opts) do

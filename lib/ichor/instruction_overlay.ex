@@ -224,8 +224,6 @@ defmodule Ichor.InstructionOverlay do
     ["mix compile --warnings-as-errors", "mix test"]
   end
 
-
-
   @doc """
   Write the overlay and hooks files to the agent's working directory.
 

@@ -58,13 +58,9 @@ defmodule Ichor.Gateway.EventBridge do
 
   def handle_info(_msg, state), do: {:noreply, state}
 
-
-
   defp schedule_sweep do
     Process.send_after(self(), :sweep, @sweep_interval)
   end
-
-
 
   defp event_to_decision_log(event) do
     %DecisionLog{

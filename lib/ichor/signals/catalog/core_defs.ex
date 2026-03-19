@@ -50,6 +50,21 @@ defmodule Ichor.Signals.Catalog.CoreDefs do
         keys: [:agent_name, :event],
         dynamic: true,
         doc: "Per-agent memory change"
+      },
+      agent_evicted: %{
+        category: :fleet,
+        keys: [:session_id],
+        doc: "Agent evicted due to missed heartbeats"
+      },
+      agent_reaped: %{
+        category: :fleet,
+        keys: [:session_id],
+        doc: "Dead agent reaped by TmuxDiscovery"
+      },
+      agent_discovered: %{
+        category: :fleet,
+        keys: [:session_id],
+        doc: "Agent discovered via tmux session scan"
       }
     }
   end

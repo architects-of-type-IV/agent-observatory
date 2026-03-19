@@ -10,11 +10,10 @@ defmodule Ichor.Gateway.HeartbeatManager do
   require Logger
 
   alias Ichor.Gateway.CapabilityMap
+  alias Ichor.Signals
 
   @eviction_threshold_seconds 90
   @check_interval_ms 30_000
-
-
 
   def start_link(opts) do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
@@ -34,8 +33,6 @@ defmodule Ichor.Gateway.HeartbeatManager do
   def list_zombies do
     GenServer.call(__MODULE__, :list_zombies)
   end
-
-
 
   @impl true
   def init(_opts) do
@@ -79,6 +76,7 @@ defmodule Ichor.Gateway.HeartbeatManager do
 
     Enum.each(evicted_ids, fn agent_id ->
       CapabilityMap.remove_agent(agent_id)
+      Signals.emit(:agent_evicted, %{session_id: agent_id})
       Logger.info("Evicted stale agent #{agent_id}")
     end)
 

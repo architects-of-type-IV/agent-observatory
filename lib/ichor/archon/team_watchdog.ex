@@ -37,8 +37,6 @@ defmodule Ichor.Archon.TeamWatchdog do
 
   def handle_info(_, state), do: {:noreply, state}
 
-
-
   defp dispatch(:noop), do: :ok
 
   defp dispatch({:archive_run, run_id}) do

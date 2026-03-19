@@ -62,6 +62,7 @@ defmodule IchorWeb.DashboardMesHandlers do
         jsonl = DagGenerator.to_jsonl_string(tasks)
         dag_path = Path.join(File.cwd!(), "tasks.jsonl")
         File.write!(dag_path, jsonl <> "\n", [:append])
+        Signals.emit(:mes_dag_generated, %{node_id: node_id})
         put_flash(socket, :info, "DAG generated: #{length(tasks)} tasks appended to tasks.jsonl")
 
       {:error, reason} ->
@@ -72,6 +73,8 @@ defmodule IchorWeb.DashboardMesHandlers do
   def dispatch("mes_launch_dag", %{"node-id" => node_id, "project-id" => project_id}, socket) do
     case Dag.Spawner.spawn(node_id, project_id) do
       {:ok, %{session: session}} ->
+        Signals.emit(:mes_dag_launched, %{node_id: node_id, session: session})
+
         socket
         |> assign(:genesis_node, load_genesis_node_by_id(node_id))
         |> put_flash(:info, "Build team launched: #{session}")

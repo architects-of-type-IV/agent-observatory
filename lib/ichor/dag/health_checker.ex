@@ -24,8 +24,6 @@ defmodule Ichor.Dag.HealthChecker do
           stats: map()
         }
 
-
-
   @spec check(String.t()) :: {:ok, report()} | {:error, term()}
   def check(run_id) do
     with {:ok, jobs} <- Job.by_run(run_id) do
@@ -50,8 +48,6 @@ defmodule Ichor.Dag.HealthChecker do
       stats: stats
     }
   end
-
-
 
   defp stale_issues(nodes, now) do
     nodes

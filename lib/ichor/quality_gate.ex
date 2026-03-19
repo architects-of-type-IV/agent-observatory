@@ -46,8 +46,6 @@ defmodule Ichor.QualityGate do
     {:reply, result, state}
   end
 
-
-
   defp handle_task_completed(event) do
     session_id = event.session_id
     payload = event.payload || %{}

@@ -73,8 +73,6 @@ defmodule Ichor.Gateway.Channels.SshTmux do
     end
   end
 
-
-
   defp parse_address(address) do
     case String.split(address, "@", parts: 2) do
       [session, host] -> {session, host}

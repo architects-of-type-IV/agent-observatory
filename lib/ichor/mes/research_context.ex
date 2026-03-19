@@ -56,8 +56,6 @@ defmodule Ichor.Mes.ResearchContext do
     ~s("I want a subsystem that bridges MQTT/AMQP/Redis into Signals")
   ]
 
-
-
   @doc "Rendered existing subsystems section for prompt interpolation."
   @spec existing_subsystems() :: String.t()
   def existing_subsystems do
@@ -89,8 +87,6 @@ defmodule Ichor.Mes.ResearchContext do
   @spec pain_points() :: String.t()
   def pain_points, do: render_lines(@pain_points)
 
-
-
   defp loaded_projects do
     Mes.loaded_projects()
   end
@@ -98,8 +94,6 @@ defmodule Ichor.Mes.ResearchContext do
   defp all_projects do
     Mes.all_projects()
   end
-
-
 
   defp build_subsystem_list(loaded) do
     core_lines = Enum.map(@core_subsystems, fn {name, desc} -> "#{name}: #{desc} (CORE)" end)
@@ -112,8 +106,6 @@ defmodule Ichor.Mes.ResearchContext do
     core_lines ++ project_lines
   end
 
-
-
   defp reject_filled(gaps, loaded) do
     subsystem_names = Enum.map(loaded, fn p -> p.subsystem || p.title || "" end)
 
@@ -124,8 +116,6 @@ defmodule Ichor.Mes.ResearchContext do
     end)
     |> Enum.map(fn {desc, _markers} -> desc end)
   end
-
-
 
   defp auto_dead_zones(all) do
     failed_or_proposed = Enum.filter(all, &(&1.status in [:proposed, :failed]))
@@ -139,8 +129,6 @@ defmodule Ichor.Mes.ResearchContext do
   end
 
   defp normalize_title(%{title: title}), do: title
-
-
 
   defp render_lines(items) do
     Enum.map_join(items, "\n    ", &"- #{&1}")

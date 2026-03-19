@@ -14,8 +14,6 @@ defmodule Ichor.Archon.MemoriesClient do
 
   require Logger
 
-
-
   defmodule IngestResult do
     @moduledoc "Response from a single-episode ingest."
 
@@ -73,15 +71,11 @@ defmodule Ichor.Archon.MemoriesClient do
     defstruct [:answer, :citations, :context]
   end
 
-
-
   defp memories_config, do: Application.fetch_env!(:ichor, :memories)
   defp memories_url, do: Keyword.fetch!(memories_config(), :url)
   defp api_key, do: Keyword.fetch!(memories_config(), :api_key)
   defp group_id_default, do: Keyword.fetch!(memories_config(), :group_id)
   defp user_id_default, do: Keyword.fetch!(memories_config(), :user_id)
-
-
 
   @spec search(String.t(), keyword()) :: {:ok, [SearchResult.t()]} | {:error, term()}
   def search(query, opts \\ []) do
@@ -141,8 +135,6 @@ defmodule Ichor.Archon.MemoriesClient do
   @spec user_id() :: String.t()
   def user_id, do: user_id_default()
 
-
-
   defp post(path, body) do
     url = memories_url() <> path
     encoded = JSON.encode!(%{data: body})
@@ -168,8 +160,6 @@ defmodule Ichor.Archon.MemoriesClient do
       {"accept", "application/vnd.api+json"}
     ]
   end
-
-
 
   defp to_ingest_result(%{"chunked" => true} = resp) do
     %ChunkedIngestResult{

@@ -28,8 +28,6 @@ defmodule Ichor.Genesis.DagGenerator do
     Enum.map_join(tasks, "\n", &Jason.encode!/1)
   end
 
-
-
   defp flatten_hierarchy(phases) do
     for phase <- phases,
         section <- Enum.sort_by(phase.sections, & &1.number),

@@ -37,8 +37,6 @@ defmodule Ichor.MemoriesBridge do
     :registry_changed
   ]
 
-
-
   @spec start_link(keyword()) :: GenServer.on_start()
   def start_link(opts), do: GenServer.start_link(__MODULE__, opts, name: __MODULE__)
 
@@ -52,8 +50,6 @@ defmodule Ichor.MemoriesBridge do
 
   @spec stats() :: map()
   def stats, do: GenServer.call(__MODULE__, :stats)
-
-
 
   @impl true
   def init(_opts) do
@@ -106,8 +102,6 @@ defmodule Ichor.MemoriesBridge do
      }, state}
   end
 
-
-
   defp flush_buffers(state) do
     {sent, errors} =
       state.buffers
@@ -159,7 +153,6 @@ defmodule Ichor.MemoriesBridge do
 
     "ICHOR IV control plane observations (#{category} domain, #{timestamp}):\n\n#{body}"
   end
-
 
   # Produce natural language so the Memories extraction LLM can
   # identify entities (agents, teams, subsystems) and facts (relationships,

@@ -79,8 +79,6 @@ defmodule Ichor.Gateway.TopologyBuilder do
 
   def handle_info(_msg, state), do: {:noreply, state}
 
-
-
   defp build_topology(node_map) do
     nodes =
       Enum.map(node_map, fn {_trace_id, node} ->

@@ -58,6 +58,7 @@ defmodule Ichor.Signals.Runtime do
   end
 
   @impl true
+  @spec unsubscribe(atom(), String.t()) :: :ok
   def unsubscribe(name, scope_id) when is_atom(name) and is_binary(scope_id) do
     case Catalog.lookup(name) do
       %{dynamic: true} = info ->

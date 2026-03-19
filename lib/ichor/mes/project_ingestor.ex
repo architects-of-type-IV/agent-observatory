@@ -26,12 +26,8 @@ defmodule Ichor.Mes.ProjectIngestor do
                features use_cases architecture dependencies
                signals_emitted signals_subscribed)
 
-
-
   @spec start_link(keyword()) :: GenServer.on_start()
   def start_link(opts), do: GenServer.start_link(__MODULE__, opts, name: __MODULE__)
-
-
 
   @impl true
   def init(_opts) do
@@ -50,8 +46,6 @@ defmodule Ichor.Mes.ProjectIngestor do
   end
 
   def handle_info(%Ichor.Signals.Message{}, state), do: {:noreply, state}
-
-
 
   # Normalized messages use :to and :from (atom keys), not :to_session_id
   defp extract_mes_payload(%{msg_map: %{to: "operator", content: content} = msg})
@@ -99,8 +93,6 @@ defmodule Ichor.Mes.ProjectIngestor do
       is_binary(val) and val != ""
     end)
   end
-
-
 
   @spec parse_key_value_brief(String.t()) :: map()
   defp parse_key_value_brief(text) do
@@ -186,8 +178,6 @@ defmodule Ichor.Mes.ProjectIngestor do
       _ -> from_session
     end
   end
-
-
 
   defp ingest_project(payload, data) do
     from = get_in(data, [:msg_map, :from_session_id]) || ""

@@ -46,8 +46,6 @@ defmodule Ichor.PaneMonitor do
     {:reply, Map.get(state.captures, session_name), state}
   end
 
-
-
   defp scan_all_agents(state) do
     AgentProcess.list_all()
     |> Enum.map(fn {_id, meta} -> meta end)

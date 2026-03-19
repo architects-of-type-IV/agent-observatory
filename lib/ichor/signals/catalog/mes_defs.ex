@@ -189,6 +189,16 @@ defmodule Ichor.Signals.Catalog.MesDefs do
         category: :mes,
         keys: [:run_id, :project_id, :reason],
         doc: "Subsystem compile/load failed after DAG completion"
+      },
+      mes_dag_generated: %{
+        category: :mes,
+        keys: [:node_id],
+        doc: "DAG tasks.jsonl generated for MES project"
+      },
+      mes_dag_launched: %{
+        category: :mes,
+        keys: [:node_id, :session],
+        doc: "DAG build team launched for MES project"
       }
     }
   end

@@ -25,8 +25,6 @@ defmodule Ichor.Signals.Buffer do
     ArgumentError -> []
   end
 
-
-
   @impl true
   def init(_opts) do
     :ets.new(@table, [:named_table, :public, :set])
@@ -59,8 +57,6 @@ defmodule Ichor.Signals.Buffer do
   end
 
   def handle_info(_msg, state), do: {:noreply, state}
-
-
 
   defp short_val(v) when is_binary(v) and byte_size(v) > 20, do: String.slice(v, 0, 16) <> ".."
   defp short_val(v) when is_binary(v), do: v

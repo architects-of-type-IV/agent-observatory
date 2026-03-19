@@ -187,6 +187,7 @@ defmodule Ichor.Gateway.HITLRelay do
     # Flush and clear abandoned paused sessions
     Enum.each(abandoned, fn sid ->
       flush_buffer(sid)
+      Ichor.Signals.emit(:hitl_auto_released, %{session_id: sid})
     end)
 
     new_sessions = Map.drop(state.sessions, abandoned)

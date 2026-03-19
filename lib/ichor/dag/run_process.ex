@@ -28,8 +28,6 @@ defmodule Ichor.Dag.RunProcess do
 
   defstruct [:run_id, :tmux_session, :project_path]
 
-
-
   @spec start_link(keyword()) :: GenServer.on_start()
   def start_link(opts) do
     run_id = Keyword.fetch!(opts, :run_id)
@@ -41,8 +39,6 @@ defmodule Ichor.Dag.RunProcess do
 
   @spec sync_job(String.t(), struct() | map()) :: :ok
   def sync_job(run_id, job), do: GenServer.cast(via(run_id), {:sync_job, job})
-
-
 
   @impl true
   def init(opts) do
@@ -137,8 +133,6 @@ defmodule Ichor.Dag.RunProcess do
 
   @impl true
   def terminate(_reason, _state), do: :ok
-
-
 
   defp cleanup(state) do
     ModeRunner.kill_session(state.tmux_session, state.run_id, "dag")

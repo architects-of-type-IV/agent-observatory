@@ -103,8 +103,6 @@ defmodule Ichor.Activity.EventAnalysis do
     end)
   end
 
-
-
   defp build_timeline_blocks(events) do
     post_events =
       events

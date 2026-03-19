@@ -30,8 +30,6 @@ defmodule Ichor.Mes.RunProcess do
 
   defstruct [:run_id, :team_name, :session, :deadline_passed, agents: [], gate_failures: 0]
 
-
-
   @spec start_link(keyword()) :: GenServer.on_start()
   def start_link(opts) do
     run_id = Keyword.fetch!(opts, :run_id)
@@ -68,8 +66,6 @@ defmodule Ichor.Mes.RunProcess do
       end
     end)
   end
-
-
 
   @impl true
   def init(opts) do
@@ -158,8 +154,6 @@ defmodule Ichor.Mes.RunProcess do
     # tmux windows die (liveness_poll). RunProcess does NOT own agent lifecycle.
     :ok
   end
-
-
 
   defp schedule_liveness_check do
     Process.send_after(self(), :check_liveness, @liveness_interval_ms)

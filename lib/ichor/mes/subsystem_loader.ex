@@ -12,8 +12,6 @@ defmodule Ichor.Mes.SubsystemLoader do
 
   @subsystems_dir Path.expand("subsystems")
 
-
-
   @spec compile_and_load(struct() | map()) :: {:ok, [module()]} | {:error, String.t()}
   def compile_and_load(project) do
     path = project.path || Path.join(@subsystems_dir, project.subsystem)
@@ -35,8 +33,6 @@ defmodule Ichor.Mes.SubsystemLoader do
 
   @spec subsystems_dir() :: String.t()
   def subsystems_dir, do: @subsystems_dir
-
-
 
   defp validate_path(path) do
     cond do

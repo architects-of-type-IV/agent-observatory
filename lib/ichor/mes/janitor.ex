@@ -23,8 +23,6 @@ defmodule Ichor.Mes.Janitor do
 
   @sweep_interval :timer.minutes(2)
 
-
-
   @spec start_link(keyword()) :: GenServer.on_start()
   def start_link(opts), do: GenServer.start_link(__MODULE__, opts, name: __MODULE__)
 
@@ -33,8 +31,6 @@ defmodule Ichor.Mes.Janitor do
   def monitor_run(run_id, pid) do
     GenServer.cast(__MODULE__, {:monitor, run_id, pid})
   end
-
-
 
   @impl true
   def init(_opts) do
@@ -68,8 +64,6 @@ defmodule Ichor.Mes.Janitor do
     schedule_sweep()
     {:noreply, state}
   end
-
-
 
   defp safe_cleanup_run(run_id) do
     session = "mes-#{run_id}"

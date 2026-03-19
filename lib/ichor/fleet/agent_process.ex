@@ -47,8 +47,6 @@ defmodule Ichor.Fleet.AgentProcess do
     unread: []
   ]
 
-
-
   @doc "Start an agent process and register it in the fleet registry."
   @spec start_link(keyword()) :: GenServer.on_start()
   def start_link(opts) do
@@ -163,8 +161,6 @@ defmodule Ichor.Fleet.AgentProcess do
       |> Enum.map(fn pid -> {id, pid} end)
     end)
   end
-
-
 
   @impl true
   def init(opts) do

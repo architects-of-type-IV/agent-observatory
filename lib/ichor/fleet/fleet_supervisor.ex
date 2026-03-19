@@ -18,8 +18,6 @@ defmodule Ichor.Fleet.FleetSupervisor do
 
   alias Ichor.Fleet.{AgentProcess, TeamSupervisor}
 
-
-
   @doc "Start the fleet supervisor."
   @spec start_link(keyword()) :: Supervisor.on_start()
   def start_link(opts) do
@@ -111,8 +109,6 @@ defmodule Ichor.Fleet.FleetSupervisor do
       agents: agents
     }
   end
-
-
 
   @impl true
   def init(_opts) do

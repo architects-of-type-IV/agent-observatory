@@ -30,8 +30,6 @@ defmodule Ichor.Mes.CompletionHandler do
 
   def handle_info(%Signals.Message{}, state), do: {:noreply, state}
 
-
-
   defp handle_completion(%{run_id: run_id}) do
     with {:ok, run} <- Dag.get_run(run_id),
          {:ok, node} <- resolve_node(run.node_id),

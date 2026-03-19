@@ -13,16 +13,13 @@ defmodule Ichor.Gateway.TmuxDiscovery do
   alias Ichor.Fleet.AgentProcess
   alias Ichor.Fleet.FleetSupervisor
   alias Ichor.Gateway.Channels.Tmux
+  alias Ichor.Signals
 
   @poll_interval 5_000
-
-
 
   def start_link(opts) do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
   end
-
-
 
   @impl true
   def init(_opts) do
@@ -38,8 +35,6 @@ defmodule Ichor.Gateway.TmuxDiscovery do
   end
 
   def handle_info(_msg, state), do: {:noreply, state}
-
-
 
   defp poll do
     tmux_sessions = Tmux.list_sessions()
@@ -76,6 +71,7 @@ defmodule Ichor.Gateway.TmuxDiscovery do
         not MapSet.member?(live_sessions, tmux_session) do
       Logger.info("[TmuxDiscovery] Reaping #{id} -- tmux session #{tmux_session} is gone")
       FleetSupervisor.terminate_agent(id)
+      Signals.emit(:agent_reaped, %{session_id: id})
     end
   end
 
@@ -89,6 +85,7 @@ defmodule Ichor.Gateway.TmuxDiscovery do
 
     case FleetSupervisor.spawn_agent(process_opts) do
       {:ok, _pid} ->
+        Signals.emit(:agent_discovered, %{session_id: session_name})
         Logger.info("[TmuxDiscovery] Created BEAM process for tmux session #{session_name}")
 
       {:error, {:already_started, _pid}} ->

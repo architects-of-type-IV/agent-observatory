@@ -23,8 +23,6 @@ defmodule Ichor.EventBuffer do
   @max_events 5_000
   @tombstone_ttl_ms 30_000
 
-
-
   def start_link(opts \\ []), do: GenServer.start_link(__MODULE__, opts, name: __MODULE__)
 
   @doc "Ingest a hook event. Drops events for tombstoned sessions."
@@ -111,15 +109,11 @@ defmodule Ichor.EventBuffer do
     |> Enum.sort_by(& &1.inserted_at, {:desc, DateTime})
   end
 
-
-
   @impl true
   def init(_opts) do
     Enum.each([@table, @tools, @aliases, @tombstones], &ensure_ets/1)
     {:ok, %{}}
   end
-
-
 
   defp ensure_ets(name) do
     case :ets.whereis(name) do
@@ -147,8 +141,6 @@ defmodule Ichor.EventBuffer do
     end
   end
 
-
-
   defp tombstoned?(session_id) do
     case :ets.lookup(@tombstones, session_id) do
       [{_, placed_at}] ->
@@ -164,8 +156,6 @@ defmodule Ichor.EventBuffer do
     end
   end
 
-
-
   defp resolve_session_id(raw_id, tmux) when tmux in [nil, ""] do
     case {AgentEntry.uuid?(raw_id), :ets.lookup(@aliases, raw_id)} do
       {true, [{_, canonical}]} -> canonical
@@ -177,8 +167,6 @@ defmodule Ichor.EventBuffer do
     if AgentEntry.uuid?(raw_id), do: :ets.insert(@aliases, {raw_id, tmux_session})
     tmux_session
   end
-
-
 
   defp sanitize_payload(payload) when is_map(payload) do
     payload
@@ -203,8 +191,6 @@ defmodule Ichor.EventBuffer do
 
   defp truncate_tool_input(payload), do: payload
 
-
-
   defp put_duration(%{hook_event_type: type, tool_use_id: id} = attrs)
        when type in ["PostToolUse", "PostToolUseFailure"] and is_binary(id) do
     case :ets.lookup(@tools, id) do
@@ -226,8 +212,6 @@ defmodule Ichor.EventBuffer do
   end
 
   defp track_tool_start(attrs), do: attrs
-
-
 
   defp build_event(attrs) do
     now = DateTime.utc_now()

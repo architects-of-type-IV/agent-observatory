@@ -60,8 +60,6 @@ defmodule Ichor.Archon.TeamWatchdog.Reactions do
 
   def react(_signal, _data, state), do: {[:noop], state}
 
-
-
   defp dag_cleanup_actions(run_id, session, reason) do
     [
       {:archive_run, run_id},

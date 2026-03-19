@@ -19,12 +19,8 @@ defmodule Ichor.Mes.ResearchIngestor do
   @research_space "project:ichor:research"
   @briefs_dir "subsystems/briefs"
 
-
-
   @spec start_link(keyword()) :: GenServer.on_start()
   def start_link(opts), do: GenServer.start_link(__MODULE__, opts, name: __MODULE__)
-
-
 
   @impl true
   def init(_opts) do
@@ -39,8 +35,6 @@ defmodule Ichor.Mes.ResearchIngestor do
   end
 
   def handle_info(%Message{}, state), do: {:noreply, state}
-
-
 
   defp ingest_research(%{project_id: project_id, run_id: run_id} = data) do
     project = load_project(project_id)

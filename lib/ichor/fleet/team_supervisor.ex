@@ -15,8 +15,6 @@ defmodule Ichor.Fleet.TeamSupervisor do
 
   defstruct [:name, :project, :strategy, :lead_id, metadata: %{}]
 
-
-
   @doc "Start a team supervisor and register it in the team registry."
   @spec start_link(keyword()) :: Supervisor.on_start()
   def start_link(opts) do
@@ -89,8 +87,6 @@ defmodule Ichor.Fleet.TeamSupervisor do
     end)
     |> Enum.map(fn {:team, name} -> name end)
   end
-
-
 
   defp via(name), do: {:via, Registry, {@team_registry, {:team, name}, %{}}}
 
