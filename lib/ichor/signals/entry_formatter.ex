@@ -195,9 +195,12 @@ defmodule Ichor.Signals.EntryFormatter do
   defp truncate_string(s, max) when byte_size(s) > max, do: String.slice(s, 0, max - 2) <> ".."
   defp truncate_string(s, _max), do: s
 
+  defp truncate_payload(%_{} = struct), do: struct
+
   defp truncate_payload(data) when is_map(data) do
     Map.new(data, fn
       {k, v} when is_binary(v) and byte_size(v) > 200 -> {k, String.slice(v, 0, 197) <> "..."}
+      {k, %_{} = v} -> {k, v}
       {k, v} when is_map(v) -> {k, truncate_payload(v)}
       {k, v} -> {k, v}
     end)
