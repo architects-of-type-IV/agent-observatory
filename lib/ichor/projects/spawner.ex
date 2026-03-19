@@ -7,12 +7,13 @@ defmodule Ichor.Projects.Spawner do
   touch the same files are assigned to the same worker for the lifetime of the run.
   """
 
+  alias Ichor.Control.Lifecycle.TeamLaunch
+
   alias Ichor.Projects.{
-    DagPrompts,
+    DagTeamSpecBuilder,
     Graph,
     Job,
     Loader,
-    ModeRunner,
     ModeSpawner,
     RunSupervisor,
     RuntimeSignals,
@@ -27,7 +28,6 @@ defmodule Ichor.Projects.Spawner do
           {:ok, %{session: String.t(), run: map()}} | {:error, term()}
   def spawn(node_id, project_id) do
     session = "dag-#{short_id()}"
-    cwd = File.cwd!()
     brief = ModeSpawner.load_project_brief(project_id)
 
     with {:ok, node} <- Ichor.Projects.get_node(node_id),
@@ -38,19 +38,15 @@ defmodule Ichor.Projects.Spawner do
          {:ok, _report} <- validate(run.id),
          {:ok, jobs} <- Job.by_run(run.id) do
       worker_groups = build_worker_groups(jobs)
-      roster = team_roster(session, worker_groups)
       prompt_ctx = %{subsystem_dir: subsystem_dir, module_name: module_name}
-      agents = build_agents(run, session, brief, jobs, worker_groups, roster, prompt_ctx)
 
-      with :ok <- ModeRunner.write_agent_scripts(run.id, "dag", agents),
-           :ok <- ModeRunner.create_session_with_agent(session, cwd, run.id, "dag", hd(agents)),
-           :ok <-
-             ModeRunner.create_remaining_windows(session, cwd, run.id, "dag", tl(agents)) do
-        Enum.each(agents, &ModeRunner.register_agent(session, &1, session, run.id, cwd))
+      spec =
+        DagTeamSpecBuilder.build_team_spec(run, session, brief, jobs, worker_groups, prompt_ctx)
 
+      with {:ok, ^session} <- TeamLaunch.launch(spec) do
         RunSupervisor.start_run(
           run_id: run.id,
-          tmux_session: session,
+          team_spec: spec,
           project_path: run.project_path
         )
 
@@ -58,7 +54,7 @@ defmodule Ichor.Projects.Spawner do
           run.id,
           session,
           node_id,
-          length(agents),
+          length(spec.agents),
           length(worker_groups)
         )
 
@@ -68,40 +64,6 @@ defmodule Ichor.Projects.Spawner do
       {:error, reason} ->
         {:error, reason}
     end
-  end
-
-  defp build_agents(run, session, brief, jobs, worker_groups, roster, prompt_ctx) do
-    shared = %{
-      run_id: run.id,
-      session: session,
-      roster: roster,
-      brief: brief,
-      subsystem_dir: prompt_ctx.subsystem_dir
-    }
-
-    worker_agents =
-      Enum.map(worker_groups, fn worker ->
-        %{
-          name: worker.name,
-          capability: "builder",
-          prompt: DagPrompts.worker(Map.put(shared, :worker, worker))
-        }
-      end)
-
-    [
-      %{
-        name: "coordinator",
-        capability: "coordinator",
-        prompt:
-          DagPrompts.coordinator(Map.merge(shared, %{jobs: jobs, worker_groups: worker_groups}))
-      },
-      %{
-        name: "lead",
-        capability: "lead",
-        prompt: DagPrompts.lead(Map.merge(shared, %{jobs: jobs, worker_groups: worker_groups}))
-      }
-      | worker_agents
-    ]
   end
 
   defp build_worker_groups(jobs) do
@@ -119,19 +81,6 @@ defmodule Ichor.Projects.Spawner do
       allowed_files: Enum.sort(group.files),
       waves: group.jobs |> Enum.map(&(&1.wave || 0)) |> Enum.uniq()
     }
-  end
-
-  defp team_roster(session, worker_groups) do
-    names = ["coordinator", "lead"] ++ Enum.map(worker_groups, & &1.name)
-
-    ids = Enum.map_join(names, "\n", fn name -> "  - #{name}: #{session}-#{name}" end)
-
-    """
-    TEAM ROSTER (use EXACT IDs with send_message/check_inbox):
-    #{ids}
-      - operator: operator
-    Your session ID is: #{session}-YOUR_NAME
-    """
   end
 
   defp validate(run_id) do

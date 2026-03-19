@@ -15,9 +15,10 @@ defmodule Ichor.Projects.RunProcess do
 
   use GenServer, restart: :temporary
 
-  alias Ichor.Control.FleetSupervisor
-  alias Ichor.Gateway.Channels.Tmux
-  alias Ichor.Projects.{Exporter, HealthChecker, Job, ModeRunner, Run, RuntimeSignals}
+  alias Ichor.Control.Lifecycle.TeamLaunch
+  alias Ichor.Control.Lifecycle.TeamSpec
+  alias Ichor.Control.Lifecycle.TmuxLauncher
+  alias Ichor.Projects.{Exporter, HealthChecker, Job, Run, RuntimeSignals}
   alias Ichor.Signals
   alias Ichor.Signals.Message
 
@@ -25,12 +26,12 @@ defmodule Ichor.Projects.RunProcess do
   @health_interval_ms :timer.seconds(30)
   @liveness_interval_ms :timer.seconds(60)
 
-  @enforce_keys [:run_id, :tmux_session]
-  defstruct [:run_id, :tmux_session, :project_path]
+  @enforce_keys [:run_id, :team_spec]
+  defstruct [:run_id, :team_spec, :project_path]
 
   @type t :: %__MODULE__{
           run_id: String.t(),
-          tmux_session: String.t(),
+          team_spec: TeamSpec.t(),
           project_path: String.t() | nil
         }
 
@@ -52,12 +53,12 @@ defmodule Ichor.Projects.RunProcess do
   @impl true
   def init(opts) do
     run_id = Keyword.fetch!(opts, :run_id)
-    tmux_session = Keyword.fetch!(opts, :tmux_session)
+    team_spec = Keyword.fetch!(opts, :team_spec)
     project_path = Keyword.get(opts, :project_path)
 
     state = %__MODULE__{
       run_id: run_id,
-      tmux_session: tmux_session,
+      team_spec: team_spec,
       project_path: project_path
     }
 
@@ -95,13 +96,13 @@ defmodule Ichor.Projects.RunProcess do
   end
 
   def handle_info(:check_liveness, state) do
-    case Tmux.available?(state.tmux_session) do
+    case TmuxLauncher.available?(state.team_spec.session) do
       true ->
         schedule_liveness_check()
         {:noreply, state}
 
       false ->
-        RuntimeSignals.emit_tmux_gone(state.run_id, state.tmux_session)
+        RuntimeSignals.emit_tmux_gone(state.run_id, state.team_spec.session)
         cleanup(state)
         {:stop, :normal, state}
     end
@@ -115,7 +116,7 @@ defmodule Ichor.Projects.RunProcess do
         state
       )
       when is_binary(from) do
-    coordinator_id = "#{state.tmux_session}-coordinator"
+    coordinator_id = "#{state.team_spec.session}-coordinator"
 
     case from == coordinator_id do
       true ->
@@ -144,8 +145,7 @@ defmodule Ichor.Projects.RunProcess do
   def terminate(_reason, _state), do: :ok
 
   defp cleanup(state) do
-    ModeRunner.kill_session(state.tmux_session, state.run_id, "dag")
-    FleetSupervisor.disband_team(state.tmux_session)
+    TeamLaunch.teardown(state.team_spec)
   end
 
   defp schedule_stale_check do

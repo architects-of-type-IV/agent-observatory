@@ -1,8 +1,9 @@
 defmodule Ichor.Control.Lifecycle.TeamLaunch do
   @moduledoc """
-  Lifecycle operations for launching multi-agent tmux-backed teams.
+  Lifecycle operations for launching and tearing down multi-agent tmux-backed teams.
   """
 
+  alias Ichor.Control.FleetSupervisor
   alias Ichor.Control.Lifecycle.Registration
   alias Ichor.Control.Lifecycle.TeamSpec
   alias Ichor.Control.Lifecycle.TmuxLauncher
@@ -81,6 +82,22 @@ defmodule Ichor.Control.Lifecycle.TeamLaunch do
           {:halt, {:error, reason}}
       end
     end)
+  end
+
+  @doc """
+  Tear down a launched team: kill the tmux session, disband the fleet team,
+  and remove prompt files. Idempotent -- missing session or prompt dir does not raise.
+  """
+  @spec teardown(TeamSpec.t()) :: :ok
+  def teardown(%TeamSpec{} = spec) do
+    _ = TmuxLauncher.kill_session(spec.session)
+    _ = FleetSupervisor.disband_team(spec.team_name)
+
+    if spec.prompt_dir do
+      TmuxScript.cleanup_dir(spec.prompt_dir)
+    end
+
+    :ok
   end
 
   defp script_for!(scripts, window_name), do: Map.fetch!(scripts, window_name)
