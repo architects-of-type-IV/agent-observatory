@@ -16,7 +16,7 @@ defmodule Ichor.Projects.PlanRunner do
 
   alias Ichor.Control.Lifecycle.TeamLaunch
   alias Ichor.Control.Lifecycle.TeamSpec
-  alias Ichor.Gateway.Channels.Tmux
+  alias Ichor.Control.Lifecycle.TmuxLauncher
   alias Ichor.Projects.RunnerRegistry
   alias Ichor.Signals
   alias Ichor.Signals.Message
@@ -80,19 +80,17 @@ defmodule Ichor.Projects.PlanRunner do
 
   @impl true
   def handle_info(:check_liveness, state) do
-    case Tmux.available?(state.team_spec.session) do
-      true ->
-        schedule_liveness_check()
-        {:noreply, state}
+    if TmuxLauncher.available?(state.team_spec.session) do
+      schedule_liveness_check()
+      {:noreply, state}
+    else
+      Signals.emit(:genesis_tmux_gone, %{
+        run_id: state.run_id,
+        session: state.team_spec.session
+      })
 
-      false ->
-        Signals.emit(:genesis_tmux_gone, %{
-          run_id: state.run_id,
-          session: state.team_spec.session
-        })
-
-        cleanup(state)
-        {:stop, :normal, state}
+      cleanup(state)
+      {:stop, :normal, state}
     end
   end
 
@@ -104,20 +102,18 @@ defmodule Ichor.Projects.PlanRunner do
         state
       )
       when is_binary(from) do
-    case String.starts_with?(from, state.team_spec.session) do
-      true ->
-        Signals.emit(:genesis_run_complete, %{
-          run_id: state.run_id,
-          mode: state.mode,
-          session: state.team_spec.session,
-          delivered_by: from
-        })
+    if String.starts_with?(from, state.team_spec.session) do
+      Signals.emit(:genesis_run_complete, %{
+        run_id: state.run_id,
+        mode: state.mode,
+        session: state.team_spec.session,
+        delivered_by: from
+      })
 
-        cleanup(state)
-        {:stop, :normal, state}
-
-      false ->
-        {:noreply, state}
+      cleanup(state)
+      {:stop, :normal, state}
+    else
+      {:noreply, state}
     end
   end
 

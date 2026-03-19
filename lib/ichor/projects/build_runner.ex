@@ -107,7 +107,7 @@ defmodule Ichor.Projects.BuildRunner do
 
   @impl true
   def handle_call(:deadline_passed?, _from, state) do
-    {:reply, Map.get(state, :deadline_passed, false), state}
+    {:reply, state.deadline_passed, state}
   end
 
   @impl true

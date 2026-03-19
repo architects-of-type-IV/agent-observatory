@@ -5,7 +5,7 @@ defmodule Ichor.Tools do
   Capability-based organization. Exposure scoped per MCP endpoint
   (/mcp/agent, /mcp/archon) via router tool lists.
   """
-  use Ash.Domain, extensions: [AshAi], validate_config_inclusion?: false
+  use Ash.Domain, extensions: [AshAi], validate_config_inclusion?: true
 
   alias Ichor.Tools.Agent.Agents
   alias Ichor.Tools.Agent.Archival

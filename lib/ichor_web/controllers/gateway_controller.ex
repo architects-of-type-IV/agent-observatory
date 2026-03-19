@@ -26,7 +26,7 @@ defmodule IchorWeb.GatewayController do
   end
 
   defp handle_valid(conn, log) do
-    Task.start(fn -> Ichor.Signals.emit(:decision_log, %{log: log}) end)
+    Ichor.Signals.emit(:decision_log, %{log: log})
 
     trace_id = if log.meta, do: log.meta.trace_id, else: nil
 
@@ -39,14 +39,12 @@ defmodule IchorWeb.GatewayController do
     raw_body = conn.assigns[:raw_body]
     event = SchemaInterceptor.build_violation_event(changeset, params, raw_body)
 
-    Task.start(fn -> Ichor.Signals.emit(:schema_violation, %{event_map: event}) end)
+    Ichor.Signals.emit(:schema_violation, %{event_map: event})
 
-    Task.start(fn ->
-      Ichor.Signals.emit(:node_state_update, %{
-        agent_id: event["agent_id"],
-        state: :schema_violation
-      })
-    end)
+    Ichor.Signals.emit(:node_state_update, %{
+      agent_id: event["agent_id"],
+      state: :schema_violation
+    })
 
     conn
     |> put_status(:unprocessable_entity)

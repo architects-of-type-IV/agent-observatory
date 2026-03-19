@@ -231,8 +231,14 @@ defmodule Ichor.AgentWatchdog do
   defp maybe_unpause(_session_id, %{level: level}) when level < 2, do: :ok
 
   defp maybe_unpause(session_id, _entry) do
-    {:ok, _} = HITLRelay.unpause(session_id, session_id, "ichor-auto")
-    :ok
+    case HITLRelay.unpause(session_id, session_id, "ichor-auto") do
+      {:ok, _} ->
+        :ok
+
+      {:error, reason} ->
+        Logger.warning("AgentWatchdog: unpause failed for #{session_id}: #{inspect(reason)}")
+        :ok
+    end
   end
 
   defp execute_escalation(session_id, agent, level) do

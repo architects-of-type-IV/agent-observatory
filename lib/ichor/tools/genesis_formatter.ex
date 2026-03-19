@@ -3,11 +3,9 @@ defmodule Ichor.Tools.GenesisFormatter do
   Shared projection and input-normalization helpers for Genesis tool facades.
   """
 
-  @doc "Project an Ash action result into a string-keyed map, emitting a signal on success."
+  @doc "Project an Ash action result into a string-keyed map."
   @spec to_map({:ok, struct()} | {:error, term()}, [atom()]) :: {:ok, map()} | {:error, term()}
   def to_map({:ok, record}, fields) do
-    emit_signal(record)
-
     {:ok,
      record
      |> Map.take([:id | fields])
@@ -55,17 +53,4 @@ defmodule Ichor.Tools.GenesisFormatter do
   @spec put_if(map(), term(), term()) :: map()
   def put_if(map, _key, nil), do: map
   def put_if(map, key, value), do: Map.put(map, key, value)
-
-  defp emit_signal(record) do
-    Ichor.Signals.emit(:genesis_artifact_created, %{
-      id: record.id,
-      node_id: infer_node_id(record),
-      type: record.__struct__ |> Module.split() |> List.last() |> String.downcase()
-    })
-  end
-
-  defp infer_node_id(record) do
-    Map.get(record, :node_id) || Map.get(record, :phase_id) || Map.get(record, :section_id) ||
-      Map.get(record, :task_id)
-  end
 end

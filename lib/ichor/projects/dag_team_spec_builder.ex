@@ -64,10 +64,10 @@ defmodule Ichor.Projects.DagTeamSpecBuilder do
 
     # Preset has coordinator (id=1) and lead (id=2) with next_id=3.
     # Inject one worker agent per group starting at next_id.
-    {injected_state, final_next_id} =
+    injected_state =
       worker_groups
       |> Enum.with_index(base.ws_next_id)
-      |> Enum.reduce({base, base.ws_next_id}, fn {worker, slot_id}, {acc_state, _} ->
+      |> Enum.reduce(base, fn {worker, slot_id}, acc ->
         agent = %{
           id: slot_id,
           name: worker.name,
@@ -91,20 +91,16 @@ defmodule Ichor.Projects.DagTeamSpecBuilder do
           %{from: slot_id, to: 2, policy: "allow", via: nil}
         ]
 
-        updated =
-          acc_state
-          |> Map.update!(:ws_agents, &(&1 ++ [agent]))
-          |> Map.update!(:ws_spawn_links, &(&1 ++ new_links))
-          |> Map.update!(:ws_comm_rules, &(&1 ++ new_rules))
-          |> Map.put(:ws_next_id, slot_id + 1)
-
-        {updated, slot_id + 1}
+        acc
+        |> Map.update!(:ws_agents, &(&1 ++ [agent]))
+        |> Map.update!(:ws_spawn_links, &(&1 ++ new_links))
+        |> Map.update!(:ws_comm_rules, &(&1 ++ new_rules))
+        |> Map.put(:ws_next_id, slot_id + 1)
       end)
 
     # team_name MUST equal session for DAG cleanup semantics.
     injected_state
     |> Map.put(:ws_team_name, session)
-    |> Map.put(:ws_next_id, final_next_id)
     |> Map.put(:ws_cwd, File.cwd!())
   end
 

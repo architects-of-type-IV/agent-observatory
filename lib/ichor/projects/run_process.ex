@@ -46,6 +46,14 @@ defmodule Ichor.Projects.RunProcess do
   @spec via(String.t()) :: {:via, Registry, {Ichor.Registry, {:dag_run, String.t()}}}
   def via(run_id), do: RunnerRegistry.via(:dag_run, run_id)
 
+  @doc "Returns the pid for run_id if alive, or nil."
+  @spec lookup(String.t()) :: pid() | nil
+  def lookup(run_id), do: RunnerRegistry.lookup(:dag_run, run_id)
+
+  @doc "Lists all active DAG run IDs and their process PIDs."
+  @spec list_all() :: [{String.t(), pid()}]
+  def list_all, do: RunnerRegistry.list_all(:dag_run)
+
   @doc "Enqueues a job for write-through sync to the project tasks.jsonl file."
   @spec sync_job(String.t(), struct() | map()) :: :ok
   def sync_job(run_id, job), do: GenServer.cast(via(run_id), {:sync_job, job})
@@ -118,18 +126,16 @@ defmodule Ichor.Projects.RunProcess do
       when is_binary(from) do
     coordinator_id = "#{state.team_spec.session}-coordinator"
 
-    case from == coordinator_id do
-      true ->
-        with {:ok, run} <- Run.get(state.run_id) do
-          Run.complete(run)
-          RuntimeSignals.emit_run_completed(state.run_id, run.label)
-        end
+    if from == coordinator_id do
+      with {:ok, run} <- Run.get(state.run_id) do
+        Run.complete(run)
+        RuntimeSignals.emit_run_completed(state.run_id, run.label)
+      end
 
-        cleanup(state)
-        {:stop, :normal, state}
-
-      false ->
-        {:noreply, state}
+      cleanup(state)
+      {:stop, :normal, state}
+    else
+      {:noreply, state}
     end
   end
 
@@ -142,7 +148,10 @@ defmodule Ichor.Projects.RunProcess do
   end
 
   @impl true
-  def terminate(_reason, _state), do: :ok
+  def terminate(_reason, state) do
+    Signals.emit(:dag_run_terminated, %{run_id: state.run_id, session: state.team_spec.session})
+    :ok
+  end
 
   defp cleanup(state) do
     TeamLaunch.teardown(state.team_spec)

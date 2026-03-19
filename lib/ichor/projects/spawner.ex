@@ -36,33 +36,34 @@ defmodule Ichor.Projects.Spawner do
          {:ok, _path} <- SubsystemScaffold.scaffold(app_name, module_name),
          {:ok, run} <- Loader.from_genesis(node_id, tmux_session: session),
          {:ok, _report} <- validate(run.id),
-         {:ok, jobs} <- Job.by_run(run.id) do
-      worker_groups = build_worker_groups(jobs)
-      prompt_ctx = %{subsystem_dir: subsystem_dir, module_name: module_name}
+         {:ok, jobs} <- Job.by_run(run.id),
+         worker_groups = build_worker_groups(jobs),
+         prompt_ctx = %{subsystem_dir: subsystem_dir, module_name: module_name},
+         spec =
+           DagTeamSpecBuilder.build_team_spec(
+             run,
+             session,
+             brief,
+             jobs,
+             worker_groups,
+             prompt_ctx
+           ),
+         {:ok, ^session} <- TeamLaunch.launch(spec) do
+      RunSupervisor.start_run(
+        run_id: run.id,
+        team_spec: spec,
+        project_path: run.project_path
+      )
 
-      spec =
-        DagTeamSpecBuilder.build_team_spec(run, session, brief, jobs, worker_groups, prompt_ctx)
+      RuntimeSignals.emit_run_ready(
+        run.id,
+        session,
+        node_id,
+        length(spec.agents),
+        length(worker_groups)
+      )
 
-      with {:ok, ^session} <- TeamLaunch.launch(spec) do
-        RunSupervisor.start_run(
-          run_id: run.id,
-          team_spec: spec,
-          project_path: run.project_path
-        )
-
-        RuntimeSignals.emit_run_ready(
-          run.id,
-          session,
-          node_id,
-          length(spec.agents),
-          length(worker_groups)
-        )
-
-        {:ok, %{session: session, run: run}}
-      end
-    else
-      {:error, reason} ->
-        {:error, reason}
+      {:ok, %{session: session, run: run}}
     end
   end
 
