@@ -21,10 +21,10 @@ all orchestrated from this app.
 | `Ichor.Mes.*` | MES runtime: team spawning, scheduler, subsystem loader, run process |
 | `Ichor.Dag.*` | DAG runtime: spawner, run supervisor, worker groups, runtime event bridge |
 | `Ichor.Genesis.*` | Genesis pipeline runtime: mode runner, spawner, DAG generator |
+| `Ichor.ObservationSupervisor` | Supervises gateway observation infrastructure: event bridge, topology projection, causal DAG |
 | `Ichor.AgentTools.*` | MCP tool implementations served to agents (inbox, memory, spawn, tasks) |
 | `IchorWeb.Components.*` | Phoenix component library for all dashboard views |
-| `Ichor.SwarmMonitor` | Aggregate swarm health analysis |
-| `Ichor.Costs` | Token cost aggregation and reporting |
+| `Ichor.Fleet.Overseer` | Runtime oversight and aggregated DAG/fleet operational state |
 
 ## Dependencies on Other Apps
 
@@ -38,7 +38,7 @@ Depends on all umbrella siblings:
 - `ichor_genesis` -- Genesis Node/ADR/Phase Ash domain
 - `ichor_dag` -- DAG Run/Job Ash domain
 - `ichor_activity` -- Activity Message/Task/Error domain
-- `ichor_mesh` -- CausalDAG and DecisionLog schemas
+- `ichor_mesh` -- observation infrastructure: CausalDAG and DecisionLog schemas
 - `ichor_memory_core` -- ETS-backed agent memory store
 - `ichor_tmux_runtime` -- tmux session and window lifecycle
 - `ichor_contracts` -- shared Signals behaviour contract
@@ -46,5 +46,6 @@ Depends on all umbrella siblings:
 ## Architecture Role
 
 `ichor` is the composition root. It owns no Ash resources but consumes all domain APIs.
-All Phoenix HTTP/LiveView surface, gateway ingestion, and runtime supervisors live here.
-Sibling apps are pure domain libraries; this app wires them into a running system.
+All Phoenix HTTP/LiveView surface, gateway ingestion, observation supervision,
+and runtime supervisors live here. Sibling apps are focused domain or infrastructure
+libraries; this app wires them into a running system.

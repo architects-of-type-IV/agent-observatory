@@ -17,7 +17,7 @@ observers, and Archon (the AI floor manager). It contains ~32,900 lines across ~
 | `Ichor.Application` | application.ex | 101 | Other | OTP start, supervision tree root |
 | `Ichor.CoreSupervisor` | core_supervisor.ex | 25 | Other | Supervisor for Notes, EventJanitor, MemoryStore, EventBuffer |
 | `Ichor.GatewaySupervisor` | gateway_supervisor.ex | 30 | Other | Supervisor for gateway GenServers |
-| `Ichor.MeshSupervisor` | mesh_supervisor.ex | ~30 | Other | Supervisor for mesh/topology services |
+| `Ichor.ObservationSupervisor` | observation_supervisor.ex | ~30 | Other | Supervisor for gateway observation services |
 | `Ichor.MonitorSupervisor` | monitor_supervisor.ex | 30 | Other | Supervisor for monitoring observers |
 | `Ichor.EventBuffer` | event_buffer.ex | 270 | GenServer | ETS event buffer, payload sanitization, tool duration tracking |
 | `Ichor.EventJanitor` | event_janitor.ex | ~60 | GenServer | Periodic ETS eviction for tombstones/stale data |
@@ -321,7 +321,7 @@ graph TD
     App --> Core[CoreSupervisor]
     App --> Gateway[GatewaySupervisor]
     App --> Fleet[Fleet.FleetSupervisor]
-    App --> Mesh[MeshSupervisor]
+    App --> Mesh[ObservationSupervisor]
     App --> TaskSup[Task.Supervisor]
     App --> MES[Mes.Supervisor]
     App --> Genesis[Genesis.Supervisor]

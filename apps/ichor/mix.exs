@@ -82,11 +82,9 @@ defmodule Ichor.MixProject do
       {:ichor_mesh, in_umbrella: true},
       {:ichor_signals, in_umbrella: true},
       {:ichor_data, in_umbrella: true},
-      {:ichor_activity, in_umbrella: true},
       {:ichor_fleet, in_umbrella: true},
       {:ichor_workshop, in_umbrella: true},
       {:ichor_mes, in_umbrella: true},
-      {:ichor_events, in_umbrella: true},
       {:ichor_genesis, in_umbrella: true},
       {:ichor_dag, in_umbrella: true},
       # Subsystem contracts

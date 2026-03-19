@@ -38,8 +38,8 @@ defmodule Ichor.Application do
       # Fleet supervisor (BEAM-native teams + agents, after Gateway for channel access)
       Ichor.Fleet.FleetSupervisor,
 
-      # Mesh/DAG services (rest_for_one: DAG first, then topology + event bridge)
-      Ichor.MeshSupervisor,
+      # Observation services (rest_for_one: causal DAG first, then topology + event bridge)
+      Ichor.ObservationSupervisor,
 
       # Task supervisor for fire-and-forget tasks
       {Task.Supervisor, name: Ichor.TaskSupervisor},
