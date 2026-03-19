@@ -33,8 +33,6 @@ Depends on all umbrella siblings:
 - `ichor_signals` -- PubSub transport and signal catalog
 - `ichor_fleet` -- Agent/Team Ash domain
 - `ichor_workshop` -- Blueprint Ash domain
-- `ichor_mes` -- MES Project Ash domain
-- `ichor_genesis` -- Genesis Node/ADR/Phase Ash domain
 - `ichor_dag` -- DAG Run/Job Ash domain
 - `ichor_tmux_runtime` -- tmux session and window lifecycle
 - `ichor_contracts` -- shared Signals behaviour contract

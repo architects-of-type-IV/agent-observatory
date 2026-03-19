@@ -15,6 +15,8 @@ config :ichor,
     Ichor.Archon,
     Ichor.Archon.Tools,
     Ichor.Events,
+    Ichor.Genesis,
+    Ichor.Mes,
     Ichor.Signals.Domain
   ]
 
@@ -26,19 +28,9 @@ config :ichor_workshop,
 config :ichor_data,
   ecto_repos: [Ichor.Repo]
 
-config :ichor_mes,
-  ash_domains: [
-    Ichor.Mes
-  ]
-
 config :ichor_fleet,
   ash_domains: [
     Ichor.Fleet
-  ]
-
-config :ichor_genesis,
-  ash_domains: [
-    Ichor.Genesis
   ]
 
 config :ichor_dag,

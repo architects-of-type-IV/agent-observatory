@@ -11,17 +11,6 @@ defmodule Ichor.Architecture.BoundaryAudit do
   @resource_modules [
     "Ichor.Fleet.Agent",
     "Ichor.Fleet.Team",
-    "Ichor.Genesis.Node",
-    "Ichor.Genesis.Adr",
-    "Ichor.Genesis.Feature",
-    "Ichor.Genesis.UseCase",
-    "Ichor.Genesis.Checkpoint",
-    "Ichor.Genesis.Conversation",
-    "Ichor.Genesis.Phase",
-    "Ichor.Genesis.Section",
-    "Ichor.Genesis.Task",
-    "Ichor.Genesis.Subtask",
-    "Ichor.Mes.Project",
     "Ichor.Workshop.TeamBlueprint",
     "Ichor.Workshop.AgentType",
     "Ichor.Workshop.AgentBlueprint",
@@ -33,8 +22,6 @@ defmodule Ichor.Architecture.BoundaryAudit do
 
   @domain_modules [
     "Ichor.Fleet",
-    "Ichor.Genesis",
-    "Ichor.Mes",
     "Ichor.Workshop",
     "Ichor.Dag"
   ]
