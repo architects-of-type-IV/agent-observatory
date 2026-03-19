@@ -1,61 +1,50 @@
 # ICHOR IV - Handoff
 
-## Current Status: Domain Consolidation (2026-03-19) -- Phase 3 Complete, Phase 4 In Progress
+## Current Status: Domain Consolidation COMPLETE + Ecto→Ash COMPLETE (2026-03-19)
 
 ### Session Summary
 
-Coordinator-driven session with ash-elixir-expert agents and codex (GPT-5.4) as architecture partner. Massive domain consolidation: 10 Ash Domains → 5 (target: 4). Plus signal livefeed refactor, AgentWatchdog merge, module consolidation, and quality fixes.
+Coordinator-driven session with ash-elixir-expert agents and codex (GPT-5.4). Achieved: 10→4 Ash Domains, 3 Ecto→Ash conversions, signal livefeed refactor, AgentWatchdog merge, module consolidation, quality fixes.
 
-### Domain Consolidation Progress
+### Domain Architecture (FINAL)
 
-| Phase | What | Status |
-|-------|------|--------|
-| Phase 0 | Bootstrap empty Control, Projects, Observability | Done |
-| Phase 1 | Events + Activity + Signals.Domain → Observability (6 resources) | Done |
-| Phase 2 | Fleet + Workshop → Control (7 resources) | Done |
-| Phase 3 | Genesis + MES + DAG → Projects (13 resources) | Done |
-| Phase 4 | AgentTools + Archon.Tools → Tools | In Progress (tool name collision audit done, codex naming consultation pending) |
+| Domain | Resources | Role |
+|--------|-----------|------|
+| Ichor.Control | Fleet.Agent, Fleet.Team, Workshop.*, WebhookDelivery, CronJob | Agents, configs, spawning, operational delivery |
+| Ichor.Projects | Genesis.*, Mes.Project, Dag.Run, Dag.Job | Project lifecycle: planning → coherence → execution |
+| Ichor.Observability | Events.*, Activity.*, Signals.Event, HITLInterventionEvent | Everything that happened |
+| Ichor.Tools | AgentTools.* (12), Archon.Tools.* (9) | MCP surfaces, capability-based |
 
-### Current ash_domains (5):
-- Ichor.AgentTools
-- Ichor.Archon.Tools
-- Ichor.Control (7 resources: Fleet.Agent, Fleet.Team, Workshop.*)
-- Ichor.Observability (6 resources: Events.*, Activity.*, Signals.Event)
-- Ichor.Projects (13 resources: Genesis.*, Mes.Project, Dag.Run, Dag.Job)
+Signals bus (emit/subscribe/Message/Buffer/Catalog) stays as infrastructure -- not a domain.
 
-### Phase 4 Tool Name Collisions (must resolve before merge)
-4 collisions found between AgentTools and Archon.Tools:
-- :list_agents -- different semantics (memory registry vs live fleet)
-- :spawn_agent -- same backend, different strictness
-- :stop_agent -- same backend, different return shapes
-- :send_message -- different caller semantics (agent-to-agent vs operator-to-agent)
+### Ecto→Ash Conversions Done
+- WebhookDelivery → Ash Resource in Control (8 Repo calls eliminated)
+- CronJob → Ash Resource in Control (all Repo calls eliminated)
+- HITLInterventionEvent → Ash Resource in Observability (append-only audit trail)
+- DecisionLog → stays as Ecto embedded_schema (correct design per codex)
 
-Codex naming consultation dispatched. Approach: merge domains but not meanings. Scoped MCP endpoints (/mcp/agent, /mcp/archon).
-
-### Other Session Accomplishments
-
-1. **Signal livefeed refactor** -- Buffer stores {seq, %Message{}}, LiveView streams (not list assigns), 10 per-category renderer components, filtering via stream reset
-2. **AgentWatchdog merge** -- 4 GenServers → 1 + 3 pure helpers
-3. **Module consolidation** -- deleted archon.ex, mailer.ex, RuntimeHooks, Runtime. Moved janitor, heartbeat. Collapsed 4-hop delegation chains.
-4. **Ash.Type.Enum** -- 5 HIGH priority enums extracted
-5. **Quality fixes** -- banners removed, @enforce_keys on 6 structs, @type t on 5 modules, validate_config_inclusion? re-enabled
-6. **Domain centralization** -- Genesis (27 functions), Workshop (6), MES (3) all centralized earlier in session
-7. **Codex review** -- PASS with one fix (stale template string)
+### Other Session Work
+- Signal livefeed: LiveView streams, per-category renderers, filter fix, timestamp fix
+- AgentWatchdog: 4 GenServers → 1 + 3 pure helpers
+- Module consolidation: deleted archon.ex, mailer.ex, RuntimeHooks/Runtime, delegation chains
+- Ash.Type.Enum: 7 extracted (5 domain + DeliveryStatus + HITLAction)
+- Quality: banners removed, @enforce_keys, @type t, validate_config_inclusion? re-enabled
 
 ### Build Status
 - `mix compile --warnings-as-errors` -- CLEAN
 - `mix credo --strict` -- CLEAN (0 issues)
-- `validate_config_inclusion?` re-enabled on all 3 new domains
 - Server needs restart to pick up domain changes
 
 ### What's Next
-1. Complete Phase 4 (Tools merge -- resolve naming, create Ichor.Tools, split MCP router)
-2. Phase 5: Module inlining (51 files identified)
-3. Ecto→Ash migration (4 areas: DecisionLog, WebhookDelivery, CronJob, HITLInterventionEvent)
-4. RunProcess lifecycle consolidation (3 parallel implementations → shared)
-5. Component library (variant-based primitives -- research done, docs/plans/2026-03-19-component-library-research.md)
+1. Phase 5: Module inlining (51 files identified for single-caller collapse)
+2. AshAi tool profiles (Ichor.Tools.Profiles with agent/0 and archon/0)
+3. /mcp/archon endpoint for Archon-specific tool access
+4. Component library (variant-based primitives -- research at docs/plans/2026-03-19-component-library-research.md)
+5. RunProcess lifecycle consolidation (3 parallel implementations)
+6. Remaining Ash.Type.Enum extraction (6 MEDIUM/LOW candidates)
 
-### Research Documents Created
+### Research Documents
 - docs/plans/2026-03-19-domain-consolidation.md
 - docs/plans/2026-03-19-component-library-research.md
 - docs/plans/2026-03-19-quality-audit.md
+- docs/plans/2026-03-19-ash-ai-tool-scoping.md
