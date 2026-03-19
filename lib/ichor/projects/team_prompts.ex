@@ -392,7 +392,6 @@ defmodule Ichor.Projects.TeamPrompts do
     After Phase 4, you are done. Stop.
 
     TOOL BUDGET: Max 8 tool calls.
-    TIME: 10 minute deadline. Complete within 8 minutes.
     """
   end
 
@@ -492,7 +491,6 @@ defmodule Ichor.Projects.TeamPrompts do
     After Phase 4, you are done. Stop.
 
     TOOL BUDGET: Max 8 tool calls.
-    TIME: 10 minute deadline. Complete within 8 minutes.
     """
   end
 

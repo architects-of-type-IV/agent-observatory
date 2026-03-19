@@ -53,3 +53,5 @@ Generated: 2026-03-19
 |------|---------|-------------|
 | [2026-03-19-merge-back-gates.md](2026-03-19-merge-back-gates.md) | 2026-03-19 00:32 | Merge-back gates -- checklist before merging any umbrella app back into apps/ichor |
 | [2026-03-19-next-session-prompt.md](2026-03-19-next-session-prompt.md) | 2026-03-19 17:19 | Next session starter prompt -- handoff context after 10->4 domain refactor and file reorg task |
+| [2026-03-19-next-priorities.md](2026-03-19-next-priorities.md) | 2026-03-19 20:30 | Codex-reviewed next session priorities -- RunProcess consolidation, spawn convergence, registry, wrappers |
+| [VALIDATION.md](VALIDATION.md) | 2026-03-19 20:00 | Plan status validation -- tracks completion status of all plans |
