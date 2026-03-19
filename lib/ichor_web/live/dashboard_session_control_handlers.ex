@@ -36,7 +36,8 @@ defmodule IchorWeb.DashboardSessionControlHandlers do
       to: session_id,
       content: "Pause requested by dashboard",
       type: :session_control,
-      metadata: %{action: "pause"}
+      metadata: %{action: "pause"},
+      transport: :operator
     })
 
     paused = MapSet.put(socket.assigns.paused_sessions, session_id)
@@ -60,7 +61,8 @@ defmodule IchorWeb.DashboardSessionControlHandlers do
       to: session_id,
       content: "Resume requested by dashboard",
       type: :session_control,
-      metadata: %{action: "resume"}
+      metadata: %{action: "resume"},
+      transport: :operator
     })
 
     paused = MapSet.delete(socket.assigns.paused_sessions, session_id)
@@ -114,7 +116,8 @@ defmodule IchorWeb.DashboardSessionControlHandlers do
       to: session_id,
       content: "Shutdown requested by dashboard",
       type: :session_control,
-      metadata: %{action: "shutdown"}
+      metadata: %{action: "shutdown"},
+      transport: :operator
     })
 
     tmux_killed = kill_tmux_for_agent(session_id)

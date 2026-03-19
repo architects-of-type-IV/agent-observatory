@@ -43,9 +43,13 @@ defmodule Ichor.Observability.Preparations.LoadMessages do
       recipient: pick(args, ["to_session_id", "recipient", "to"], nil),
       content: pick(args, ["content", "summary"], ""),
       summary: args["summary"],
-      timestamp: e.inserted_at
+      timestamp: e.inserted_at,
+      transport: derive_transport(e.tool_name)
     })
   end
+
+  defp derive_transport("mcp__ichor__send_message"), do: :mcp
+  defp derive_transport(_), do: :hook
 
   defp pick(map, keys, default) do
     Enum.find_value(keys, default, &map[&1])

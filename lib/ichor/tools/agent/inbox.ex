@@ -70,7 +70,8 @@ defmodule Ichor.Tools.Agent.Inbox do
                from: input.arguments.from_session_id,
                to: input.arguments.to_session_id,
                content: input.arguments.content,
-               type: :message
+               type: :message,
+               transport: :mcp
              }) do
           {:ok, result} ->
             {:ok,

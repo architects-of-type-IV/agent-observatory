@@ -36,7 +36,30 @@ defmodule Ichor.Projects.TeamPrompts do
     - This is a pull-based inbox -- nothing arrives unless you call check_inbox.
 
     ============================================================
-    PHASE 1: DISPATCH (do this RIGHT NOW)
+    PHASE 0: ANNOUNCE READY (do this FIRST, before anything else)
+    ============================================================
+
+    Call send_message ONCE to announce you are ready:
+
+      from: "mes-#{run_id}-coordinator"
+      to: "mes-#{run_id}-coordinator"
+      content: "COORDINATOR READY"
+
+    This self-message is a placeholder. Your parent is the Scheduler -- it has
+    already started you. No READY message needs to go upstream.
+
+    ============================================================
+    PHASE 1: WAIT FOR LEAD READY SIGNAL
+    ============================================================
+
+    Call check_inbox with session_id "mes-#{run_id}-coordinator".
+    If empty, wait 20 seconds, call check_inbox again. REPEAT.
+
+    You are waiting for a message from "mes-#{run_id}-lead" containing "READY".
+    Do NOT dispatch any work until you receive the READY message from lead.
+
+    ============================================================
+    PHASE 2: DISPATCH (only after receiving READY from lead)
     ============================================================
 
     Call send_message ONCE:
@@ -46,7 +69,7 @@ defmodule Ichor.Projects.TeamPrompts do
       content: "START NOW. Assign topic domains to researcher-1 and researcher-2. Collect their results, forward the best to planner. Send the planner's brief back to me."
 
     ============================================================
-    PHASE 2: COLLECT (poll inbox, wait for brief from lead)
+    PHASE 3: COLLECT (poll inbox, wait for brief from lead)
     ============================================================
 
     After dispatching, call check_inbox with session_id "mes-#{run_id}-coordinator".
@@ -54,12 +77,14 @@ defmodule Ichor.Projects.TeamPrompts do
 
     You are waiting for the brief to arrive from lead (who relays it from planner).
     Do NOT contact lead, planner, or researchers directly after the initial dispatch.
+    Wait as long as needed. Do NOT synthesize the brief yourself. Do NOT deliver
+    anything to operator until you receive the completed brief from lead.
 
     ============================================================
-    PHASE 3: DELIVER (send brief to operator)
+    PHASE 4: DELIVER (send brief to operator)
     ============================================================
 
-    When you receive the synthesized brief:
+    When you receive the synthesized brief from lead:
     - Send it to operator: send_message from "mes-#{run_id}-coordinator" to "operator"
 
     The content to operator MUST be plain text starting with "TITLE:" on the first line:
@@ -80,16 +105,7 @@ defmodule Ichor.Projects.TeamPrompts do
 
     Also write the brief to subsystems/briefs/#{run_id}.md (mkdir -p subsystems/briefs first).
 
-    ============================================================
-    DEADLINE & FALLBACK
-    ============================================================
-    If after 8 minutes you have ANY material but no brief:
-    - Synthesize the brief yourself from whatever you have
-    - Send it to operator via send_message
-    - Write it to disk
-    If after 10 minutes you have NOTHING: write a note to subsystems/briefs/#{run_id}.md explaining the failure.
-
-    TOOL BUDGET: Max 10 tool calls.
+    TOOL BUDGET: Max 15 tool calls.
     """
   end
 
@@ -111,15 +127,32 @@ defmodule Ichor.Projects.TeamPrompts do
     forward it to planner, and relay the brief back to coordinator.
 
     ============================================================
+    STEP 0: ANNOUNCE READY TO COORDINATOR (do this FIRST)
+    ============================================================
+    Call send_message ONCE:
+      from: "mes-#{run_id}-lead"
+      to: "mes-#{run_id}-coordinator"
+      content: "READY"
+
+    ============================================================
     STEP 1: WAIT FOR COORDINATOR START SIGNAL
     ============================================================
-    Call check_inbox with session_id "mes-#{run_id}-lead" RIGHT NOW.
+    After sending READY, call check_inbox with session_id "mes-#{run_id}-lead".
     If empty, wait 20 seconds, call check_inbox again. REPEAT.
 
     ============================================================
-    STEP 2: DISPATCH TO RESEARCHERS
+    STEP 2: WAIT FOR RESEARCHERS TO BE READY
     ============================================================
-    When you receive the start signal from coordinator, immediately send TWO messages:
+    When you receive the start signal from coordinator, call check_inbox with
+    session_id "mes-#{run_id}-lead" and wait for READY messages from BOTH
+    "mes-#{run_id}-researcher-1" AND "mes-#{run_id}-researcher-2".
+    If empty, wait 20 seconds, call check_inbox again. REPEAT.
+    Do NOT dispatch any topics until you have received READY from both researchers.
+
+    ============================================================
+    STEP 3: DISPATCH TO RESEARCHERS
+    ============================================================
+    Only after receiving READY from researcher-1 AND researcher-2, send TWO messages:
 
     1. from: "mes-#{run_id}-lead", to: "mes-#{run_id}-researcher-1"
        content: "START NOW. Research ONE of these open gaps:
@@ -134,16 +167,16 @@ defmodule Ichor.Projects.TeamPrompts do
     Send your proposal to mes-#{run_id}-lead when done."
 
     ============================================================
-    STEP 3: COLLECT RESEARCHER PROPOSALS
+    STEP 4: COLLECT RESEARCHER PROPOSALS
     ============================================================
     After dispatching, call check_inbox with session_id "mes-#{run_id}-lead".
     If empty, wait 20 seconds, try again. REPEAT.
 
     Collect proposals from both researchers. You need at least ONE to proceed.
-    If after 6 minutes you have only one proposal, use it. Do not wait indefinitely.
+    Wait as long as needed. Do not cut the pipeline short.
 
     ============================================================
-    STEP 4: FORWARD BEST PROPOSAL TO PLANNER
+    STEP 5: FORWARD BEST PROPOSAL TO PLANNER
     ============================================================
     Select the stronger proposal (or merge the best elements of both).
     Call send_message:
@@ -152,14 +185,14 @@ defmodule Ichor.Projects.TeamPrompts do
       content: "Synthesize now. Here is the selected research proposal: [proposal]. Expand into a full brief and send it back to mes-#{run_id}-lead."
 
     ============================================================
-    STEP 5: COLLECT BRIEF FROM PLANNER
+    STEP 6: COLLECT BRIEF FROM PLANNER
     ============================================================
     Call check_inbox with session_id "mes-#{run_id}-lead".
     If empty, wait 20 seconds, try again. REPEAT.
-    Wait for the brief from planner.
+    Wait for the brief from planner. Do not synthesize it yourself.
 
     ============================================================
-    STEP 6: FORWARD BRIEF TO COORDINATOR
+    STEP 7: FORWARD BRIEF TO COORDINATOR
     ============================================================
     When you receive the brief from planner:
     Call send_message:
@@ -167,10 +200,9 @@ defmodule Ichor.Projects.TeamPrompts do
       to: "mes-#{run_id}-coordinator"
       content: [the brief in full, exactly as received from planner]
 
-    After Step 6 you are done. Stop.
+    After Step 7 you are done. Stop.
 
-    TOOL BUDGET: Max 20 tool calls.
-    TIME: 10 minute deadline. Initiate 8 minute fallback if stalled.
+    TOOL BUDGET: Max 25 tool calls.
     """
   end
 
@@ -188,7 +220,13 @@ defmodule Ichor.Projects.TeamPrompts do
     - Do NOT read the codebase. Do NOT explore files. ONLY poll check_inbox and synthesize.
     - This is a pull-based inbox -- nothing arrives unless you call check_inbox.
 
-    STEP 1: Call check_inbox with session_id "mes-#{run_id}-planner" RIGHT NOW.
+    STEP 0: ANNOUNCE READY TO LEAD (do this FIRST, before anything else)
+    Call send_message ONCE:
+      from: "mes-#{run_id}-planner"
+      to: "mes-#{run_id}-lead"
+      content: "READY"
+
+    STEP 1: Call check_inbox with session_id "mes-#{run_id}-planner".
     If empty, wait 20 seconds, call check_inbox again. REPEAT until you receive
     a research proposal from lead.
 
@@ -319,11 +357,16 @@ defmodule Ichor.Projects.TeamPrompts do
     YOUR PROCEDURE
     ============================================================
 
+    PHASE 0 -- ANNOUNCE READY TO LEAD (do this FIRST, before anything else)
+    Call send_message ONCE:
+      from: "mes-#{run_id}-researcher-1"
+      to: "mes-#{run_id}-lead"
+      content: "READY"
+
     PHASE 1 -- WAIT FOR ASSIGNMENT FROM LEAD
     Call check_inbox with session_id "mes-#{run_id}-researcher-1".
     Wait for lead's assignment message specifying your topic domain.
-    If empty, wait 15 seconds, try again. Max 3 polls.
-    If nothing after 3 polls, pick the first open gap yourself and proceed.
+    If empty, wait 20 seconds, try again. REPEAT.
 
     PHASE 2 -- RESEARCH (3 WebSearch calls, all different angles)
     Do exactly 3 web searches on your assigned topic domain.
@@ -414,12 +457,16 @@ defmodule Ichor.Projects.TeamPrompts do
     YOUR PROCEDURE
     ============================================================
 
+    PHASE 0 -- ANNOUNCE READY TO LEAD (do this FIRST, before anything else)
+    Call send_message ONCE:
+      from: "mes-#{run_id}-researcher-2"
+      to: "mes-#{run_id}-lead"
+      content: "READY"
+
     PHASE 1 -- WAIT FOR ASSIGNMENT FROM LEAD
     Call check_inbox with session_id "mes-#{run_id}-researcher-2".
     Wait for lead's assignment message specifying your topic domain.
-    If empty, wait 15 seconds, try again. Max 3 polls.
-    If nothing after 3 polls, pick a different open gap from researcher-1
-    and proceed independently.
+    If empty, wait 20 seconds, try again. REPEAT.
 
     PHASE 2 -- RESEARCH (3 WebSearch calls, all different angles)
     Do exactly 3 web searches on your assigned topic domain.

@@ -181,7 +181,7 @@ defmodule IchorWeb.DashboardState do
 
     mailbox_messages =
       (operator_messages ++ hook_messages)
-      |> Enum.uniq_by(& &1.id)
+      |> Enum.uniq_by(fn msg -> {msg.from, msg.to, msg.content} end)
       |> Enum.sort_by(& &1.timestamp, {:desc, DateTime})
       |> Enum.take(50)
 
@@ -253,8 +253,11 @@ defmodule IchorWeb.DashboardState do
         to: m.recipient,
         content: m.content,
         type: m.type,
-        read: false,
-        timestamp: m.timestamp
+        read: true,
+        timestamp: m.timestamp,
+        sender_app: m.sender_app,
+        summary: m.summary,
+        transport: m.transport || :hook
       }
     end)
   end

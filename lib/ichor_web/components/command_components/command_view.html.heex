@@ -240,6 +240,16 @@ selected = @selected_command_agent %>
                 <span class={"text-[9px] px-1.5 py-0.5 rounded #{if msg.read, do: "text-success", else: "text-brand bg-brand/10"}"}>
                   {if msg.read, do: "read", else: "unread"}
                 </span>
+                <%= case msg[:transport] do %>
+                  <% :mcp -> %>
+                    <span class="text-[9px] px-1.5 py-0.5 rounded bg-interactive/15 text-interactive">mcp</span>
+                  <% :operator -> %>
+                    <span class="text-[9px] px-1.5 py-0.5 rounded bg-brand/10 text-brand">operator</span>
+                  <% :hook -> %>
+                    <span class="text-[9px] px-1.5 py-0.5 rounded bg-warning/15 text-warning">hook</span>
+                  <% _ -> %>
+                    <span class="text-[9px] px-1.5 py-0.5 rounded bg-success/15 text-success">http</span>
+                <% end %>
                 <span class="text-[9px] text-muted font-mono tabular-nums">
                   {FH.format_timestamp(msg.timestamp)}
                 </span>

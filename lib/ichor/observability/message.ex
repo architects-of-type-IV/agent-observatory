@@ -15,6 +15,7 @@ defmodule Ichor.Observability.Message do
     attribute(:content, :string, public?: true)
     attribute(:summary, :string, public?: true)
     attribute(:timestamp, :utc_datetime_usec, public?: true)
+    attribute(:transport, :atom, public?: true)
   end
 
   actions do

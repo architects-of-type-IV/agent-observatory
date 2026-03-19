@@ -12,7 +12,7 @@ defmodule IchorWeb.DashboardMessagingHandlers do
   def handle_send_agent_message(%{"content" => ""}, socket), do: {:noreply, socket}
 
   def handle_send_agent_message(%{"session_id" => sid, "content" => content}, socket) do
-    case MessageRouter.send(%{from: "operator", to: sid, content: content}) do
+    case MessageRouter.send(%{from: "operator", to: sid, content: content, transport: :operator}) do
       {:ok, %{delivered: delivered}} when delivered > 0 ->
         label = resolve_label(sid, socket)
 
@@ -36,7 +36,12 @@ defmodule IchorWeb.DashboardMessagingHandlers do
   end
 
   def handle_send_team_broadcast(%{"team" => team_name, "content" => content}, socket) do
-    case MessageRouter.send(%{from: "operator", to: "team:#{team_name}", content: content}) do
+    case MessageRouter.send(%{
+           from: "operator",
+           to: "team:#{team_name}",
+           content: content,
+           transport: :operator
+         }) do
       {:ok, %{delivered: delivered}} ->
         socket =
           Phoenix.LiveView.push_event(socket, "toast", %{
@@ -56,7 +61,8 @@ defmodule IchorWeb.DashboardMessagingHandlers do
           to: sid,
           content: content,
           type: :context_push,
-          metadata: %{file_path: path}
+          metadata: %{file_path: path},
+          transport: :operator
         })
 
         {:noreply, socket}
@@ -86,7 +92,12 @@ defmodule IchorWeb.DashboardMessagingHandlers do
   def handle_send_targeted_message(%{"target" => _, "content" => ""}, socket), do: socket
 
   def handle_send_targeted_message(%{"target" => target, "content" => content}, socket) do
-    case MessageRouter.send(%{from: "operator", to: target, content: content}) do
+    case MessageRouter.send(%{
+           from: "operator",
+           to: target,
+           content: content,
+           transport: :operator
+         }) do
       {:ok, %{delivered: 0}} ->
         Phoenix.LiveView.push_event(socket, "toast", %{
           message: "No targets found",

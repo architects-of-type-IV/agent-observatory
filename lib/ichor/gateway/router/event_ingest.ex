@@ -26,16 +26,32 @@ defmodule Ichor.Gateway.Router.EventIngest do
 
   defp handle_channel_events(%{hook_event_type: :PreToolUse} = event) do
     input = (event.payload || %{})["tool_input"] || %{}
-
-    case event.tool_name do
-      "TeamCreate" -> handle_team_create(input)
-      "TeamDelete" -> handle_team_delete(input)
-      "SendMessage" -> handle_send_message(event, input)
-      _ -> :ok
-    end
+    handle_pre_tool_use(event.tool_name, event, input)
   end
 
   defp handle_channel_events(_event), do: :ok
+
+  defp handle_pre_tool_use("TeamCreate", _event, input), do: handle_team_create(input)
+  defp handle_pre_tool_use("TeamDelete", _event, input), do: handle_team_delete(input)
+
+  # Claude-native SendMessage tool: observability signal only, no delivery.
+  defp handle_pre_tool_use("SendMessage", event, input) do
+    emit_intercepted(
+      event,
+      input["recipient"],
+      input["content"] || input["summary"] || "",
+      input["type"]
+    )
+  end
+
+  # MCP send_message tool: PreToolUse is a monitoring event only.
+  # Delivery happens exclusively via the MCP path (/mcp -> AshAi -> MessageRouter).
+  # Args are nested under "input" key in MCP tool_input.
+  defp handle_pre_tool_use("mcp__ichor__send_message", event, input) do
+    emit_intercepted_mcp(event, input["input"] || %{})
+  end
+
+  defp handle_pre_tool_use(_tool_name, _event, _input), do: :ok
 
   defp handle_team_create(input) do
     if team_name = input["team_name"] do
@@ -49,17 +65,31 @@ defmodule Ichor.Gateway.Router.EventIngest do
     end
   end
 
-  defp handle_send_message(event, input) do
-    recipient = input["recipient"]
-    content = input["content"] || input["summary"] || ""
-
+  # Observability signal for Claude-native SendMessage tool.
+  # Emits a signal so the dashboard can show the intercepted message.
+  # Never delivers to agent mailboxes -- that is the tool's own responsibility.
+  defp emit_intercepted(event, recipient, content, type) do
     Ichor.Signals.emit(:agent_message_intercepted, event.session_id, %{
       from: event.session_id,
       to: recipient,
       content: String.slice(content, 0, 200),
-      type: input["type"] || "message"
+      type: type || "message"
     })
   end
+
+  # Observability signal for MCP mcp__ichor__send_message tool.
+  # MCP tools nest arguments under an "input" key in tool_input.
+  # The actual delivery happens via the MCP execution path -- NOT here.
+  defp emit_intercepted_mcp(event, args) when is_map(args) do
+    Ichor.Signals.emit(:agent_message_intercepted, event.session_id, %{
+      from: args["from_session_id"] || event.session_id,
+      to: args["to_session_id"],
+      content: String.slice(args["content"] || "", 0, 200),
+      type: "message"
+    })
+  end
+
+  defp emit_intercepted_mcp(_event, _args), do: :ok
 
   defp ensure_team_supervisor(team_name) do
     unless TeamSupervisor.exists?(team_name) do

@@ -29,7 +29,7 @@ defmodule Ichor.MessageRouter do
     target = resolve_target(to)
 
     {:ok, delivered} = deliver(target, message)
-    log_delivery(from, to, message)
+    log_delivery(from, to, message, attrs)
     {:ok, %{status: "sent", to: to, delivered: delivered}}
   end
 
@@ -146,7 +146,7 @@ defmodule Ichor.MessageRouter do
     }
   end
 
-  defp log_delivery(from, to, message) do
+  defp log_delivery(from, to, message, attrs) do
     now = DateTime.utc_now()
 
     msg = %{
@@ -156,7 +156,10 @@ defmodule Ichor.MessageRouter do
       content: message.content,
       type: message.type,
       timestamp: now,
-      read: false
+      read: false,
+      sender_app: Map.get(attrs, :sender_app),
+      summary: nil,
+      transport: Map.get(attrs, :transport, :http)
     }
 
     try do
