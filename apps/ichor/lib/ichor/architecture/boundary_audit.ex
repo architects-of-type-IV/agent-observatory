@@ -9,11 +9,6 @@ defmodule Ichor.Architecture.BoundaryAudit do
   @swarm_pattern ~r/\bSwarmMonitor\b|\bswarm_state\b|\bswarm_[a-z0-9_]+\b/
 
   @resource_modules [
-    "Ichor.Events.Event",
-    "Ichor.Events.Session",
-    "Ichor.Activity.Message",
-    "Ichor.Activity.Task",
-    "Ichor.Activity.Error",
     "Ichor.Fleet.Agent",
     "Ichor.Fleet.Team",
     "Ichor.Genesis.Node",
@@ -37,8 +32,6 @@ defmodule Ichor.Architecture.BoundaryAudit do
   ]
 
   @domain_modules [
-    "Ichor.Events",
-    "Ichor.Activity",
     "Ichor.Fleet",
     "Ichor.Genesis",
     "Ichor.Mes",
