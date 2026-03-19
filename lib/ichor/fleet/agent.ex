@@ -206,13 +206,15 @@ defmodule Ichor.Fleet.Agent do
       run(fn input, _context ->
         args = input.arguments
 
-        runtime_hooks().send_agent_message(args.agent_id, %{
-          content: args.content,
-          from: args.from,
-          type: :message
-        })
-
-        {:ok, %{to: args.agent_id, from: args.from, status: :sent}}
+        case Ichor.MessageRouter.send(%{
+               from: args.from,
+               to: args.agent_id,
+               content: args.content,
+               type: :message
+             }) do
+          {:ok, result} -> {:ok, %{to: args.agent_id, from: args.from, status: result.status}}
+          {:error, reason} -> {:error, reason}
+        end
       end)
     end
 

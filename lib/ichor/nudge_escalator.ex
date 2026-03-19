@@ -18,7 +18,6 @@ defmodule Ichor.NudgeEscalator do
   require Logger
 
   alias Ichor.Fleet.AgentProcess
-  alias Ichor.Fleet.Comms
   alias Ichor.Gateway.AgentRegistry.AgentEntry
   alias Ichor.Gateway.HITLRelay
 
@@ -155,25 +154,27 @@ defmodule Ichor.NudgeEscalator do
 
   defp execute_escalation(session_id, agent, level) do
     agent_name = agent[:name] || agent[:short_name] || AgentEntry.short_id(session_id)
-    do_escalate(session_id, agent, agent_name, level)
+    do_escalate(level, session_id, agent_name)
   end
 
-  defp do_escalate(session_id, _agent, agent_name, 0) do
+  defp do_escalate(0, session_id, agent_name) do
     Logger.warning("NudgeEscalator: Agent #{agent_name} (#{session_id}) is stale (level 0: warn)")
 
     Ichor.Signals.emit(:nudge_warning, %{session_id: session_id, agent_name: agent_name, level: 0})
   end
 
-  defp do_escalate(session_id, agent, agent_name, 1) do
+  defp do_escalate(1, session_id, agent_name) do
     Logger.warning("NudgeEscalator: Nudging agent #{agent_name} via tmux (level 1)")
 
     nudge_message =
       "[Ichor] Are you still working? No activity detected for >#{config(:stale_threshold_sec, @default_stale_threshold)}s. Reply or take action to clear this alert."
 
-    case Comms.notify_session(agent[:tmux_session] || session_id, nudge_message,
+    case Ichor.MessageRouter.send(%{
            from: "ichor",
+           to: session_id,
+           content: nudge_message,
            type: :nudge
-         ) do
+         }) do
       {:ok, _} ->
         :ok
 
@@ -184,7 +185,7 @@ defmodule Ichor.NudgeEscalator do
     Ichor.Signals.emit(:nudge_sent, %{session_id: session_id, agent_name: agent_name, level: 1})
   end
 
-  defp do_escalate(session_id, _agent, agent_name, 2) do
+  defp do_escalate(2, session_id, agent_name) do
     Logger.warning("NudgeEscalator: Escalating agent #{agent_name} to HITL pause (level 2)")
     HITLRelay.pause(session_id, session_id, "ichor", "Auto-paused: no activity detected")
 
@@ -195,13 +196,13 @@ defmodule Ichor.NudgeEscalator do
     })
   end
 
-  defp do_escalate(session_id, _agent, agent_name, 3) do
+  defp do_escalate(3, session_id, agent_name) do
     Logger.warning("NudgeEscalator: Agent #{agent_name} marked as zombie (level 3: terminate)")
 
     Ichor.Signals.emit(:nudge_zombie, %{session_id: session_id, agent_name: agent_name, level: 3})
   end
 
-  defp do_escalate(_session_id, _agent, _agent_name, _level), do: :ok
+  defp do_escalate(_level, _session_id, _agent_name), do: :ok
 
   defp config(key, default) do
     Application.get_env(:ichor, __MODULE__, [])

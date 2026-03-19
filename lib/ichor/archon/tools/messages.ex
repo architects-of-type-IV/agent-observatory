@@ -5,7 +5,6 @@ defmodule Ichor.Archon.Tools.Messages do
   use Ash.Resource, domain: Ichor.Archon.Tools
 
   alias Ichor.Activity
-  alias Ichor.Tools.Messaging
 
   actions do
     action :recent_messages, {:array, :map} do
@@ -57,7 +56,8 @@ defmodule Ichor.Archon.Tools.Messages do
         to = input.arguments.to
         content = input.arguments.content
 
-        with {:ok, result} <- Messaging.send_as_operator(to, content) do
+        with {:ok, result} <-
+               Ichor.MessageRouter.send(%{from: "archon", to: to, content: content}) do
           {:ok,
            %{
              "status" => result.status,

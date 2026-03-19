@@ -1,46 +1,20 @@
 defmodule Ichor.Operator do
   @moduledoc """
-  Unified operator messaging interface.
-
-  Two delivery paths:
-    1. BEAM-native: AgentProcess.send_message (GenServer.cast)
-    2. Tmux direct: Registry metadata lookup -> Tmux.deliver
-
-  Targets:
-    - `"agent:<session_id>"` or `"session:<session_id>"` -- single agent
-    - `"team:<name>"` -- all members of a team
-    - `"fleet:all"` -- all active agents
-    - raw session_id string -- treated as agent target
+  Operator facade. Manages agent spawning and message log access.
+  Messaging goes through Ichor.MessageRouter directly -- Operator no longer owns send.
   """
 
   alias Ichor.AgentSpawner
-  alias Ichor.Fleet.Comms
+  alias Ichor.MessageRouter
 
-  def start_message_log do
-    Comms.start_message_log()
-  end
+  def start_message_log, do: MessageRouter.start_message_log()
 
-  @doc "Read recent messages for the comms panel."
   @spec recent_messages(pos_integer()) :: [map()]
-  defdelegate recent_messages(limit \\ 50), to: Comms
+  defdelegate recent_messages(limit \\ 50), to: MessageRouter
 
-  @doc """
-  Spawn a new agent in a tmux session with instruction overlay.
-
-  Delegates to AgentSpawner. Returns `{:ok, agent_info}` or `{:error, reason}`.
-  """
+  @doc "Spawn a new agent in a tmux session with instruction overlay."
   defdelegate spawn_agent(opts), to: AgentSpawner
 
-  @doc """
-  Stop a spawned agent by session name.
-  """
+  @doc "Stop a spawned agent by session name."
   defdelegate stop_agent(session_name), to: AgentSpawner
-
-  @doc """
-  Send a message to any target. Returns `{:ok, delivered_count}` or `{:error, reason}`.
-
-  Uses BEAM-native AgentProcess delivery. Falls back to direct tmux delivery
-  via Registry metadata when no BEAM process exists.
-  """
-  defdelegate send(target, content, opts \\ []), to: Comms
 end

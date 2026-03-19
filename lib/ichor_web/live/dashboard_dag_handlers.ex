@@ -94,15 +94,15 @@ defmodule IchorWeb.DashboardDagHandlers do
 
   def handle_send_command_message(%{"to" => to, "content" => content}, socket) do
     if content != "" do
-      case Ichor.Operator.send(to, content) do
-        {:ok, delivered} when delivered > 0 ->
+      case Ichor.MessageRouter.send(%{from: "operator", to: to, content: content}) do
+        {:ok, %{delivered: delivered}} when delivered > 0 ->
           Phoenix.LiveView.push_event(socket, "toast", %{
             message:
               "Sent to #{String.slice(to, 0, 12)} (#{delivered} channel#{if delivered > 1, do: "s", else: ""})",
             type: "success"
           })
 
-        {:ok, 0} ->
+        {:ok, %{delivered: 0}} ->
           Phoenix.LiveView.push_event(socket, "toast", %{
             message: "No delivery channel for #{String.slice(to, 0, 12)}",
             type: "warning"

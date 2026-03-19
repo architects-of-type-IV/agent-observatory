@@ -12,7 +12,6 @@ defmodule Ichor.QualityGate do
   require Logger
 
   alias Ichor.Dag.Status
-  alias Ichor.Fleet.Comms
 
   @default_timeout 60_000
 
@@ -120,7 +119,14 @@ defmodule Ichor.QualityGate do
         "Output:\n#{truncated}\n\n" <>
         "Fix the issues and re-run the gate before reporting completion."
 
-    _ = Comms.notify_session(session_id, message, from: "ichor", type: :quality_gate)
+    _ =
+      Ichor.MessageRouter.send(%{
+        from: "ichor",
+        to: session_id,
+        content: message,
+        type: :quality_gate
+      })
+
     :ok
   end
 

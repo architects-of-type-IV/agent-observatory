@@ -6,7 +6,7 @@ defmodule Ichor.AgentTools.Inbox do
   use Ash.Resource, domain: Ichor.AgentTools
 
   alias Ichor.Fleet
-  alias Ichor.Tools.Messaging
+  alias Ichor.MessageRouter
 
   actions do
     action :check_inbox, {:array, :map} do
@@ -66,19 +66,20 @@ defmodule Ichor.AgentTools.Inbox do
       end
 
       run(fn input, _context ->
-        from = input.arguments.from_session_id
-        to = input.arguments.to_session_id
-        content = input.arguments.content
-
-        case Messaging.send_as_agent(from, to, content) do
+        case MessageRouter.send(%{
+               from: input.arguments.from_session_id,
+               to: input.arguments.to_session_id,
+               content: input.arguments.content,
+               type: :message
+             }) do
           {:ok, result} ->
             {:ok,
              %{
                "status" => result.status,
                "to" => result.to,
                "delivered" => result.delivered,
-               "via" => result[:via],
-               "error" => result[:error]
+               "via" => nil,
+               "error" => nil
              }}
 
           {:error, reason} ->
