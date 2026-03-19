@@ -33,18 +33,15 @@ defmodule Ichor.QualityGate do
   end
 
   @impl true
-  def handle_info(%Message{name: :new_event, data: %{event: event}}, state) do
-    if event.hook_event_type == :TaskCompleted do
-      handle_task_completed(event)
-    end
-
+  def handle_info(
+        %Message{name: :new_event, data: %{event: %{hook_event_type: :TaskCompleted} = event}},
+        state
+      ) do
+    handle_task_completed(event)
     {:noreply, state}
   end
 
-  @impl true
   def handle_info(%Message{}, state), do: {:noreply, state}
-
-  @impl true
   def handle_info(_msg, state), do: {:noreply, state}
 
   @impl true

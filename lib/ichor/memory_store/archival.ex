@@ -3,7 +3,6 @@ defmodule Ichor.MemoryStore.Archival do
   Archival memory operations for the memory store.
   """
 
-  alias Ichor.MemoryStore.Broadcast
   alias Ichor.MemoryStore.Persistence
   alias Ichor.MemoryStore.Tables
 
@@ -37,9 +36,7 @@ defmodule Ichor.MemoryStore.Archival do
     end
   end
 
-  @doc "Return all entries suitable for search, falling back to disk when ETS is at limit."
-  @spec for_search(String.t()) :: [map()]
-  def for_search(agent_name) do
+  defp for_search(agent_name) do
     ets_entries = get(agent_name)
 
     if length(ets_entries) >= Tables.archival_ets_limit() do
@@ -62,7 +59,12 @@ defmodule Ichor.MemoryStore.Archival do
 
     updated = [passage | get(agent_name)] |> Enum.take(Tables.archival_ets_limit())
     :ets.insert(Tables.archival_table(), {agent_name, updated})
-    Broadcast.agent_changed(agent_name, :archival_insert)
+
+    Ichor.Signals.emit(:memory_changed, agent_name, %{
+      agent_name: agent_name,
+      event: :archival_insert
+    })
+
     {:ok, passage}
   end
 
@@ -102,11 +104,9 @@ defmodule Ichor.MemoryStore.Archival do
     }
   end
 
-  @doc "Filter entries by tag list. Returns all entries if tags list is empty."
-  @spec filter_by_tags([map()], [String.t()]) :: [map()]
-  def filter_by_tags(entries, []), do: entries
+  defp filter_by_tags(entries, []), do: entries
 
-  def filter_by_tags(entries, tags),
+  defp filter_by_tags(entries, tags),
     do: Enum.filter(entries, fn entry -> Enum.any?(tags, &(&1 in (entry.tags || []))) end)
 
   defp generate_id, do: :crypto.strong_rand_bytes(8) |> Base.encode16(case: :lower)

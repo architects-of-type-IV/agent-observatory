@@ -126,22 +126,15 @@ defmodule Ichor.AgentWatchdog do
     _ -> false
   end
 
+  defp handle_crash(session_id, nil) do
+    Logger.warning("AgentWatchdog: Detected crash for session #{session_id} (standalone)")
+    Ichor.Signals.emit(:agent_crashed, %{session_id: session_id, team_name: nil})
+  end
+
   defp handle_crash(session_id, team_name) do
-    team_label = team_name || "standalone"
-    Logger.warning("AgentWatchdog: Detected crash for session #{session_id} (#{team_label})")
-
-    reassigned_count =
-      if team_name do
-        reassign_agent_tasks(session_id, team_name)
-      else
-        0
-      end
-
-    Ichor.Signals.emit(:agent_crashed, %{
-      session_id: session_id,
-      team_name: team_name
-    })
-
+    Logger.warning("AgentWatchdog: Detected crash for session #{session_id} (#{team_name})")
+    reassigned_count = reassign_agent_tasks(session_id, team_name)
+    Ichor.Signals.emit(:agent_crashed, %{session_id: session_id, team_name: team_name})
     write_inbox_notification(session_id, team_name, reassigned_count)
   end
 
@@ -165,8 +158,6 @@ defmodule Ichor.AgentWatchdog do
     end)
     |> Enum.sum()
   end
-
-  defp write_inbox_notification(_session_id, nil, _reassigned_count), do: :ok
 
   defp write_inbox_notification(session_id, team_name, reassigned_count) do
     inbox_dir = Path.expand("~/.claude/inbox")
@@ -384,10 +375,9 @@ defmodule Ichor.AgentWatchdog do
   end
 
   defp check_pane_activity(agent, state) do
-    session_id = agent[:session_id] || agent[:id]
-
-    if session_id do
-      AgentProcess.update_fields(session_id, %{last_event_at: DateTime.utc_now()})
+    case agent[:session_id] || agent[:id] do
+      nil -> :ok
+      session_id -> AgentProcess.update_fields(session_id, %{last_event_at: DateTime.utc_now()})
     end
 
     state

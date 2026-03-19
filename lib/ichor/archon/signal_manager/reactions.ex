@@ -168,8 +168,12 @@ defmodule Ichor.Archon.SignalManager.Reactions do
     "MES team #{session} failed to spawn: #{reason}"
   end
 
+  defp signal_summary(:agent_crashed, %{session_id: session_id, team_name: nil}) do
+    "Agent #{session_id} crashed"
+  end
+
   defp signal_summary(:agent_crashed, %{session_id: session_id, team_name: team_name}) do
-    "Agent #{session_id} crashed#{suffix(" in team #{team_name}")}"
+    "Agent #{session_id} crashed in team #{team_name}"
   end
 
   defp signal_summary(:nudge_zombie, %{agent_name: agent_name, session_id: session_id}) do
@@ -193,7 +197,4 @@ defmodule Ichor.Archon.SignalManager.Reactions do
     |> Enum.take(6)
     |> Map.new()
   end
-
-  defp suffix(value) when value in [nil, ""], do: ""
-  defp suffix(value), do: value
 end

@@ -132,22 +132,22 @@ defmodule Ichor.Gateway.Router.EventIngest do
 
   defp terminate_agent_process(session_id) do
     case AgentProcess.lookup(session_id) do
-      {pid, _meta} ->
-        FleetSupervisor.terminate_agent(session_id)
-        |> case do
-          :ok ->
-            :ok
+      {pid, _meta} -> terminate_or_stop(session_id, pid)
+      nil -> :ok
+    end
+  end
 
-          {:error, :not_found} ->
-            try do
-              GenServer.stop(pid, :normal)
-            catch
-              :exit, _ -> :ok
-            end
-        end
-
-      nil ->
+  defp terminate_or_stop(session_id, pid) do
+    case FleetSupervisor.terminate_agent(session_id) do
+      :ok ->
         :ok
+
+      {:error, :not_found} ->
+        try do
+          GenServer.stop(pid, :normal)
+        catch
+          :exit, _ -> :ok
+        end
     end
   end
 end

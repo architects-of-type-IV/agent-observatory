@@ -141,29 +141,6 @@ defmodule Ichor.Fleet.AgentProcess do
     end
   end
 
-  @doc "Lookup an agent across all nodes in the cluster. Returns pid or nil."
-  @spec lookup_cluster(String.t()) :: pid() | nil
-  def lookup_cluster(agent_id) do
-    case lookup(agent_id) do
-      {pid, _meta} -> pid
-      nil -> lookup_remote(agent_id)
-    end
-  end
-
-  @doc "List all agent PIDs across the cluster via :pg."
-  @spec list_cluster() :: [{String.t(), pid()}]
-  def list_cluster do
-    :pg.which_groups(@pg_scope)
-    |> Enum.filter(fn
-      {:agent, _id} -> true
-      _ -> false
-    end)
-    |> Enum.flat_map(fn {:agent, id} = group ->
-      :pg.get_members(@pg_scope, group)
-      |> Enum.map(fn pid -> {id, pid} end)
-    end)
-  end
-
   @impl true
   def init(opts) do
     id = Keyword.fetch!(opts, :id)
@@ -271,12 +248,4 @@ defmodule Ichor.Fleet.AgentProcess do
 
   @spec via(String.t()) :: {:via, module(), tuple()}
   defp via(id), do: {:via, Registry, {@type_iv_registry, {:agent, id}, %{}}}
-
-  @spec lookup_remote(String.t()) :: pid() | nil
-  defp lookup_remote(agent_id) do
-    case :pg.get_members(@pg_scope, {:agent, agent_id}) do
-      [pid | _] -> pid
-      [] -> nil
-    end
-  end
 end

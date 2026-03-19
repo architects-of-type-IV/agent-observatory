@@ -31,7 +31,6 @@ defmodule Ichor.MemoryStore do
 
   alias Ichor.MemoryStore.Archival
   alias Ichor.MemoryStore.Blocks
-  alias Ichor.MemoryStore.Broadcast
   alias Ichor.MemoryStore.Persistence
   alias Ichor.MemoryStore.Recall
   alias Ichor.MemoryStore.Tables
@@ -275,7 +274,7 @@ defmodule Ichor.MemoryStore do
         }
 
         :ets.insert(Tables.agents_table(), {name, agent})
-        Broadcast.agent_changed(name, :created)
+        Ichor.Signals.emit(:memory_changed, name, %{agent_name: name, event: :created})
 
         {:reply, {:ok, agent},
          %{state | dirty_blocks: dirty, dirty_agents: MapSet.put(state.dirty_agents, name)}}

@@ -70,23 +70,6 @@ defmodule Ichor.Fleet.FleetSupervisor do
     DynamicSupervisor.start_child(__MODULE__, {AgentProcess, opts})
   end
 
-  @doc """
-  Spawn an agent on a specific node. If the target is the local node,
-  delegates to `spawn_agent/1`. For remote nodes, calls the remote
-  FleetSupervisor via `:rpc`.
-  """
-  @spec spawn_agent_on(node(), keyword()) :: DynamicSupervisor.on_start_child() | {:error, term()}
-  def spawn_agent_on(node, opts) when node == node() do
-    spawn_agent(opts)
-  end
-
-  def spawn_agent_on(node, opts) do
-    case :rpc.call(node, __MODULE__, :spawn_agent, [opts]) do
-      {:badrpc, reason} -> {:error, {:remote_spawn_failed, node, reason}}
-      result -> result
-    end
-  end
-
   @doc "Terminate a standalone agent by ID."
   @spec terminate_agent(String.t()) :: :ok | {:error, :not_found}
   def terminate_agent(agent_id) do
@@ -94,20 +77,6 @@ defmodule Ichor.Fleet.FleetSupervisor do
       [{pid, _}] -> DynamicSupervisor.terminate_child(__MODULE__, pid)
       [] -> {:error, :not_found}
     end
-  end
-
-  @doc "Report fleet status: child count, teams, and agents."
-  @spec status() :: map()
-  def status do
-    children = DynamicSupervisor.which_children(__MODULE__)
-    teams = TeamSupervisor.list_all()
-    agents = AgentProcess.list_all()
-
-    %{
-      child_count: length(children),
-      teams: teams,
-      agents: agents
-    }
   end
 
   @impl true

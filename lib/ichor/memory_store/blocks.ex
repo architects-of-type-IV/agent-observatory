@@ -3,7 +3,6 @@ defmodule Ichor.MemoryStore.Blocks do
   Block shaping and block-related ETS operations for the memory store.
   """
 
-  alias Ichor.MemoryStore.Broadcast
   alias Ichor.MemoryStore.Tables
 
   @doc "True if the block store has reached the maximum allowed blocks."
@@ -132,9 +131,7 @@ defmodule Ichor.MemoryStore.Blocks do
   @spec compile([map()]) :: String.t()
   def compile(blocks), do: Enum.map_join(blocks, "\n\n", &compile_block/1)
 
-  @doc "Build a new block map from attrs, generating an id and timestamps."
-  @spec build(map()) :: map()
-  def build(attrs) do
+  defp build(attrs) do
     %{
       id: generate_id(),
       label: attr(attrs, :label),
@@ -147,13 +144,9 @@ defmodule Ichor.MemoryStore.Blocks do
     }
   end
 
-  @doc "Get an attr from a map by atom or string key, returning default if absent."
-  @spec attr(map(), atom(), term()) :: term()
-  def attr(map, key, default \\ nil), do: map[key] || map[to_string(key)] || default
+  defp attr(map, key, default \\ nil), do: map[key] || map[to_string(key)] || default
 
-  @doc "Put a key from changes map into map if present as atom or string key."
-  @spec maybe_put(map(), map(), atom()) :: map()
-  def maybe_put(map, changes, key) do
+  defp maybe_put(map, changes, key) do
     str_key = to_string(key)
 
     cond do
@@ -168,7 +161,7 @@ defmodule Ichor.MemoryStore.Blocks do
       {:error, :exceeds_limit}
     else
       :ets.insert(Tables.blocks_table(), {updated.id, updated})
-      Broadcast.block_changed(updated.id, updated.label)
+      Ichor.Signals.emit(:block_changed, %{block_id: updated.id, label: updated.label})
       {:ok, updated}
     end
   end

@@ -72,27 +72,6 @@ defmodule Ichor.Fleet.Lifecycle.AgentLaunch do
   @spec stop(String.t()) :: :ok | {:error, term()}
   def stop(agent_id), do: Cleanup.stop_agent(agent_id)
 
-  @doc "List all tmux session names that were spawned by this lifecycle manager."
-  @spec list_spawned() :: [String.t()]
-  def list_spawned do
-    TmuxLauncher.list_sessions()
-    |> Enum.filter(&spawned_session?/1)
-  end
-
-  @doc "Return true if the session name matches an ichor-managed spawn pattern."
-  @spec spawned_session?(String.t()) :: boolean()
-  def spawned_session?(@standalone_session), do: true
-
-  def spawned_session?("ichor-" <> rest) do
-    case String.split(rest, "-") do
-      [n] -> match?({_, ""}, Integer.parse(n))
-      [_team_hash, _n] -> true
-      _ -> false
-    end
-  end
-
-  def spawned_session?(_), do: false
-
   defp spawn_remote(node, opts) do
     Logger.info("[Lifecycle.AgentLaunch] Spawning on remote node #{node}")
 

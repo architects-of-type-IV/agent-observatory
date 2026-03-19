@@ -50,60 +50,42 @@ defmodule Ichor.Archon.Chat.ContextBuilder do
     _ -> {:ok, []}
   end
 
-  @doc "Format edge search results into a facts text block."
-  @spec format_edges(term()) :: String.t()
-  def format_edges({:ok, edges}) when is_list(edges) and edges != [] do
-    items =
-      edges
-      |> Enum.take(10)
-      |> Enum.map_join("\n", fn edge ->
-        "- #{edge.fact || edge.name || inspect(edge)}"
-      end)
-
+  defp format_edges({:ok, edges}) when is_list(edges) and edges != [] do
+    items = Enum.map_join(Enum.take(edges, 10), "\n", &edge_line/1)
     "Facts:\n#{items}"
   end
 
-  def format_edges({:ok, %{"results" => %{"edges" => edges}}})
-      when is_list(edges) and edges != [] do
-    items =
-      edges
-      |> Enum.take(10)
-      |> Enum.map_join("\n", fn edge ->
-        "- #{edge["fact"] || edge["name"] || inspect(edge)}"
-      end)
-
+  defp format_edges({:ok, %{"results" => %{"edges" => edges}}})
+       when is_list(edges) and edges != [] do
+    items = Enum.map_join(Enum.take(edges, 10), "\n", &edge_line/1)
     "Facts:\n#{items}"
   end
 
-  def format_edges(_), do: ""
+  defp format_edges(_), do: ""
 
-  @doc "Format episode search results into a recent conversations text block."
-  @spec format_episodes(term()) :: String.t()
-  def format_episodes({:ok, episodes}) when is_list(episodes) and episodes != [] do
-    items =
-      episodes
-      |> Enum.take(5)
-      |> Enum.map_join("\n", fn episode ->
-        content = Map.get(episode, :content) || Map.get(episode, "content") || ""
-        "- #{String.slice(content, 0, 200)}"
-      end)
+  defp edge_line(%{fact: f}) when is_binary(f), do: "- #{f}"
+  defp edge_line(%{name: n}) when is_binary(n), do: "- #{n}"
+  defp edge_line(%{"fact" => f}) when is_binary(f), do: "- #{f}"
+  defp edge_line(%{"name" => n}) when is_binary(n), do: "- #{n}"
+  defp edge_line(edge), do: "- #{inspect(edge)}"
 
+  defp format_episodes({:ok, episodes}) when is_list(episodes) and episodes != [] do
+    items = Enum.map_join(Enum.take(episodes, 5), "\n", &episode_line/1)
     "Recent conversations:\n#{items}"
   end
 
-  def format_episodes({:ok, %{"results" => %{"episodes" => episodes}}})
-      when is_list(episodes) and episodes != [] do
-    items =
-      episodes
-      |> Enum.take(5)
-      |> Enum.map_join("\n", fn episode ->
-        "- #{String.slice(episode["content"] || "", 0, 200)}"
-      end)
-
+  defp format_episodes({:ok, %{"results" => %{"episodes" => episodes}}})
+       when is_list(episodes) and episodes != [] do
+    items = Enum.map_join(Enum.take(episodes, 5), "\n", &episode_line/1)
     "Recent conversations:\n#{items}"
   end
 
-  def format_episodes(_), do: ""
+  defp format_episodes(_), do: ""
+
+  defp episode_line(episode) do
+    content = Map.get(episode, :content) || Map.get(episode, "content") || ""
+    "- #{String.slice(content, 0, 200)}"
+  end
 
   defp client_module do
     Application.get_env(:ichor, :archon_memories_client_module, MemoriesClient)

@@ -10,6 +10,8 @@ defmodule Ichor.Observability.Janitor do
   @retention_days 7
   @interval_ms :timer.hours(6)
 
+  @doc false
+  @spec start_link(keyword()) :: GenServer.on_start()
   def start_link(opts), do: GenServer.start_link(__MODULE__, opts, name: __MODULE__)
 
   @impl true

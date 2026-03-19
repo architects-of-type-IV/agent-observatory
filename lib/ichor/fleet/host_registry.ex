@@ -94,7 +94,7 @@ defmodule Ichor.Fleet.HostRegistry do
   end
 
   def handle_call({:register, node_name, metadata}, _from, state) do
-    status = registration_status(node_name)
+    status = if available?(node_name), do: :connected, else: :registered
     entry = host_entry(node_name, status) |> Map.put(:metadata, metadata)
     hosts = Map.put(state.hosts, node_name, entry)
 
@@ -146,13 +146,6 @@ defmodule Ichor.Fleet.HostRegistry do
 
   defp connected_timestamp(:connected), do: DateTime.utc_now()
   defp connected_timestamp(_), do: nil
-
-  defp registration_status(node_name) do
-    case available?(node_name) do
-      true -> :connected
-      false -> :registered
-    end
-  end
 
   defp node_hostname(node) do
     node

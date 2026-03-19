@@ -11,24 +11,24 @@ defmodule Ichor.Plugs.OperatorAuth do
   def init(opts), do: opts
 
   def call(conn, _opts) do
-    case conn |> get_req_header("x-ichor-operator-id") |> List.first() do
+    case conn |> get_req_header("x-ichor-operator-id") |> List.first() |> then(&trim_or_nil/1) do
       nil ->
         conn
         |> put_status(401)
         |> json(%{status: "error", reason: "missing_operator_id"})
         |> halt()
 
-      value ->
-        trimmed = String.trim(value)
+      id ->
+        assign(conn, :operator_id, id)
+    end
+  end
 
-        if trimmed == "" do
-          conn
-          |> put_status(401)
-          |> json(%{status: "error", reason: "missing_operator_id"})
-          |> halt()
-        else
-          assign(conn, :operator_id, trimmed)
-        end
+  defp trim_or_nil(nil), do: nil
+
+  defp trim_or_nil(value) do
+    case String.trim(value) do
+      "" -> nil
+      trimmed -> trimmed
     end
   end
 end

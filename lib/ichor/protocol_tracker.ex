@@ -84,14 +84,14 @@ defmodule Ichor.ProtocolTracker do
   end
 
   @impl true
-  def handle_cast({:mailbox_delivery, message_id, to, _from}, state) do
-    update_trace_hop(message_id, :mailbox, :delivered, to)
+  def handle_cast({:mailbox_delivery, message_id, _to, _from}, state) do
+    update_trace_hop(message_id, :mailbox, :delivered)
     {:noreply, state}
   end
 
   @impl true
-  def handle_cast({:command_write, session_id, command_id}, state) do
-    update_trace_hop(command_id, :command_queue, :pending, session_id)
+  def handle_cast({:command_write, _session_id, command_id}, state) do
+    update_trace_hop(command_id, :command_queue, :pending)
     {:noreply, state}
   end
 
@@ -222,7 +222,7 @@ defmodule Ichor.ProtocolTracker do
     prune_traces()
   end
 
-  defp update_trace_hop(trace_id, protocol, status, _context) do
+  defp update_trace_hop(trace_id, protocol, status) do
     case :ets.lookup(@table_name, trace_id) do
       [{^trace_id, trace}] ->
         hop = %{protocol: protocol, status: status, at: DateTime.utc_now(), detail: ""}

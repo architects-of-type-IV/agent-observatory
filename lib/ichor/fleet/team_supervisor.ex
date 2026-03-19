@@ -86,17 +86,6 @@ defmodule Ichor.Fleet.TeamSupervisor do
     ])
   end
 
-  @doc "List all team names across the cluster via :pg."
-  @spec list_cluster() :: [String.t()]
-  def list_cluster do
-    :pg.which_groups(@pg_scope)
-    |> Enum.filter(fn
-      {:team, _name} -> true
-      _ -> false
-    end)
-    |> Enum.map(fn {:team, name} -> name end)
-  end
-
   defp via(name), do: {:via, Registry, {@team_registry, {:team, name}, %{}}}
 
   @impl true

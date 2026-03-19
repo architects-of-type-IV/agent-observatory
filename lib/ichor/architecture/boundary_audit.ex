@@ -116,27 +116,13 @@ defmodule Ichor.Architecture.BoundaryAudit do
     IO.puts("")
   end
 
-  defp resource_pattern do
-    case @resource_modules do
-      [] ->
-        ~r/\A\z/
+  defp resource_pattern, do: pattern_for(@resource_modules)
+  defp domain_pattern, do: pattern_for(@domain_modules)
 
-      modules ->
-        escaped = Enum.map_join(modules, "|", &Regex.escape/1)
+  defp pattern_for([]), do: ~r/\A\z/
 
-        Regex.compile!("\\b(?:#{escaped})\\b")
-    end
-  end
-
-  defp domain_pattern do
-    case @domain_modules do
-      [] ->
-        ~r/\A\z/
-
-      modules ->
-        escaped = Enum.map_join(modules, "|", &Regex.escape/1)
-
-        Regex.compile!("\\b(?:#{escaped})\\b")
-    end
+  defp pattern_for(modules) do
+    escaped = Enum.map_join(modules, "|", &Regex.escape/1)
+    Regex.compile!("\\b(?:#{escaped})\\b")
   end
 end

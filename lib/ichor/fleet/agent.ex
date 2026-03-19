@@ -73,14 +73,15 @@ defmodule Ichor.Fleet.Agent do
 
       run(fn input, _context ->
         args = input.arguments
-        opts = [id: args.id, role: args.role, capabilities: args.capabilities]
 
         opts =
-          if args[:instructions],
-            do: Keyword.put(opts, :instructions, args.instructions),
-            else: opts
-
-        opts = if args[:backend], do: Keyword.put(opts, :backend, args.backend), else: opts
+          [id: args.id, role: args.role, capabilities: args.capabilities]
+          |> then(fn o ->
+            if args[:instructions], do: Keyword.put(o, :instructions, args.instructions), else: o
+          end)
+          |> then(fn o ->
+            if args[:backend], do: Keyword.put(o, :backend, args.backend), else: o
+          end)
 
         case spawn_in_fleet(args[:team_name], opts) do
           {:ok, pid} ->
@@ -294,7 +295,7 @@ defmodule Ichor.Fleet.Agent do
   end
 
   defp spawn_in_fleet(team_name, opts) do
-    unless TeamSupervisor.exists?(team_name) do
+    if not TeamSupervisor.exists?(team_name) do
       FleetSupervisor.create_team(name: team_name)
     end
 

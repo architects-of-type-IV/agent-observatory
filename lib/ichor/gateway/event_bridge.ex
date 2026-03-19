@@ -191,36 +191,19 @@ defmodule Ichor.Gateway.EventBridge do
     }
   end
 
-  defp map_action_status(hook_event_type) do
-    case hook_event_type do
-      :PostToolUse -> :success
-      :PostToolUseFailure -> :failure
-      :PreToolUse -> :pending
-      :PermissionRequest -> :pending
-      _ -> :success
-    end
-  end
+  defp map_action_status(:PostToolUse), do: :success
+  defp map_action_status(:PostToolUseFailure), do: :failure
+  defp map_action_status(:PreToolUse), do: :pending
+  defp map_action_status(:PermissionRequest), do: :pending
+  defp map_action_status(_), do: :success
 
-  defp build_control(event) do
-    case event.hook_event_type do
-      :Stop ->
-        %DecisionLog.Control{is_terminal: true}
+  defp build_control(%{hook_event_type: type}) when type in [:Stop, :SessionEnd],
+    do: %DecisionLog.Control{is_terminal: true}
 
-      :SessionEnd ->
-        %DecisionLog.Control{is_terminal: true}
+  defp build_control(_event), do: nil
 
-      _ ->
-        nil
-    end
-  end
-
-  defp maybe_register_agent(%{session_id: sid}) when is_binary(sid) do
-    EntropyTracker.register_agent(sid, sid)
-  rescue
-    _ -> :ok
-  catch
-    :exit, _ -> :ok
-  end
+  defp maybe_register_agent(%{session_id: sid}) when is_binary(sid),
+    do: EntropyTracker.register_agent(sid, sid)
 
   defp maybe_register_agent(_), do: :ok
 

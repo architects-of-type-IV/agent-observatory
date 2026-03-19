@@ -45,9 +45,7 @@ defmodule Ichor.Gateway.CronScheduler do
   @impl true
   def init(_opts) do
     try do
-      jobs = Control.list_all_cron_jobs()
-
-      Enum.each(jobs, fn job ->
+      Enum.each(list_all_jobs(), fn job ->
         delay = DateTime.diff(job.next_fire_at, DateTime.utc_now(), :millisecond)
         Process.send_after(self(), {:fire_job, job.id, job.agent_id, job.payload}, max(delay, 0))
       end)

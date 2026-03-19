@@ -142,7 +142,7 @@ defmodule Ichor.Gateway.EntropyTracker do
          _warning_threshold
        )
        when score < loop_threshold do
-    :ok = build_alert_event(session_id, agent_id, score, window)
+    build_alert_event(session_id, agent_id, score, window)
     Ichor.Signals.emit(:node_state_update, %{agent_id: session_id, state: "alert_entropy"})
     :ets.insert(table, {session_id, {window, :loop, agent_id}})
     {:ok, score, :loop}
@@ -188,11 +188,6 @@ defmodule Ichor.Gateway.EntropyTracker do
     n = length(window)
     unique = window |> MapSet.new() |> MapSet.size()
     Float.round(unique / n, 4)
-  end
-
-  defp build_alert_event(session_id, nil, score, window) do
-    # Fallback: use session_id as agent_id when none registered
-    build_alert_event(session_id, session_id, score, window)
   end
 
   defp build_alert_event(session_id, _agent_id, score, _window) do
