@@ -8,6 +8,7 @@ defmodule Ichor.ProtocolTracker do
   require Logger
 
   alias Ichor.Fleet.AgentProcess
+  alias Ichor.Signals.Message
 
   @table_name :protocol_traces
   @max_traces 200
@@ -44,19 +45,19 @@ defmodule Ichor.ProtocolTracker do
   @impl true
   def init(_opts) do
     :ets.new(@table_name, [:named_table, :public, :set])
-    Phoenix.PubSub.subscribe(Ichor.PubSub, "events:stream")
+    Ichor.Signals.subscribe(:events)
     Ichor.Signals.subscribe(:heartbeat)
 
     {:ok, %{trace_count: 0}}
   end
 
   @impl true
-  def handle_info({:new_event, event}, state) do
+  def handle_info(%Message{name: :new_event, data: %{event: event}}, state) do
     state = maybe_create_trace(event, state)
     {:noreply, state}
   end
 
-  def handle_info(%Ichor.Signals.Message{name: :heartbeat}, state) do
+  def handle_info(%Message{name: :heartbeat}, state) do
     stats = compute_stats()
 
     Ichor.Signals.emit(:protocol_update, %{stats_map: stats})

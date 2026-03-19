@@ -20,6 +20,7 @@ defmodule Ichor.NudgeEscalator do
   alias Ichor.Fleet.AgentProcess
   alias Ichor.Gateway.AgentRegistry.AgentEntry
   alias Ichor.Gateway.HITLRelay
+  alias Ichor.Signals.Message
 
   @default_stale_threshold 600
   @default_nudge_interval 300
@@ -40,18 +41,18 @@ defmodule Ichor.NudgeEscalator do
   @impl true
   def init(_opts) do
     Ichor.Signals.subscribe(:heartbeat)
-    Phoenix.PubSub.subscribe(Ichor.PubSub, "events:stream")
+    Ichor.Signals.subscribe(:events)
     {:ok, %__MODULE__{}}
   end
 
   @impl true
-  def handle_info(%Ichor.Signals.Message{name: :heartbeat}, state) do
+  def handle_info(%Message{name: :heartbeat}, state) do
     state = check_and_escalate(state)
     {:noreply, state}
   end
 
   # Activity on a session resets its escalation and unpauses if HITL-paused
-  def handle_info({:new_event, event}, state) do
+  def handle_info(%Message{name: :new_event, data: %{event: event}}, state) do
     session_id = event.session_id
 
     if Map.has_key?(state.escalations, session_id) do

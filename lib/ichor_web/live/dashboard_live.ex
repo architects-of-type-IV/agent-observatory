@@ -38,9 +38,6 @@ defmodule IchorWeb.DashboardLive do
     DashboardUIHandlers
   }
 
-  # Legacy PubSub topics still used for transport (not nervous system signals)
-  @pubsub_topics ~w(agent:operator)
-
   # Events that change filter/search state and need view recompute
   @filter_events ~w(filter clear_filters apply_preset search_feed search_sessions filter_tool filter_tool_use_id clear_events filter_session filter_team filter_agent set_view)
 
@@ -74,7 +71,6 @@ defmodule IchorWeb.DashboardLive do
     socket = socket |> assign(default_assigns(%{})) |> assign(:recompute_timer, nil)
 
     if connected?(socket) do
-      Enum.each(@pubsub_topics, &Phoenix.PubSub.subscribe(Ichor.PubSub, &1))
       Enum.each(Catalog.categories(), &Ichor.Signals.subscribe/1)
       subscribe_gateway_topics()
       send(self(), :load_data)

@@ -12,10 +12,6 @@ defmodule IchorWeb.DashboardSlideoutHandlers do
     # Unwatch previous agent if any
     if socket.assigns.agent_slideout do
       prev_sid = socket.assigns.agent_slideout[:session_id]
-
-      if prev_sid,
-        do: Phoenix.PubSub.unsubscribe(Ichor.PubSub, "agent:#{prev_sid}:activity")
-
       if prev_sid, do: OutputCapture.unwatch(prev_sid)
     end
 
@@ -25,7 +21,6 @@ defmodule IchorWeb.DashboardSlideoutHandlers do
         nil -> nil
       end
 
-    Phoenix.PubSub.subscribe(Ichor.PubSub, "agent:#{sid}:activity")
     OutputCapture.watch(sid)
 
     activity = build_slideout_activity(sid, socket.assigns.events, socket.assigns.messages)
@@ -39,10 +34,6 @@ defmodule IchorWeb.DashboardSlideoutHandlers do
   def handle_close_agent_slideout(socket) do
     if socket.assigns.agent_slideout do
       sid = socket.assigns.agent_slideout[:session_id]
-
-      if sid,
-        do: Phoenix.PubSub.unsubscribe(Ichor.PubSub, "agent:#{sid}:activity")
-
       if sid, do: OutputCapture.unwatch(sid)
     end
 

@@ -13,6 +13,7 @@ defmodule Ichor.Gateway.EventBridge do
   alias Ichor.Gateway.{EntropyTracker, TopologyBuilder}
   alias Ichor.Mesh.CausalDAG
   alias Ichor.Mesh.DecisionLog
+  alias Ichor.Signals.Message
 
   def start_link(opts) do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
@@ -23,13 +24,13 @@ defmodule Ichor.Gateway.EventBridge do
 
   @impl true
   def init(_opts) do
-    Phoenix.PubSub.subscribe(Ichor.PubSub, "events:stream")
+    Ichor.Signals.subscribe(:events)
     schedule_sweep()
     {:ok, %{last_event: %{}, last_seen: %{}}}
   end
 
   @impl true
-  def handle_info({:new_event, event}, state) do
+  def handle_info(%Message{name: :new_event, data: %{event: event}}, state) do
     maybe_register_agent(event)
     log = event_to_decision_log(event)
     log = maybe_enrich_entropy(log)

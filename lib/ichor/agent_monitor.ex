@@ -9,6 +9,7 @@ defmodule Ichor.AgentMonitor do
   alias Ichor.Fleet.AgentProcess
   alias Ichor.Gateway.AgentRegistry.AgentEntry
   alias Ichor.Gateway.Channels.Tmux
+  alias Ichor.Signals.Message
   alias Ichor.TaskManager
 
   @check_interval 5_000
@@ -19,16 +20,19 @@ defmodule Ichor.AgentMonitor do
 
   @impl true
   def init(_opts) do
-    Phoenix.PubSub.subscribe(Ichor.PubSub, "events:stream")
+    Ichor.Signals.subscribe(:events)
     schedule_check()
     {:ok, %{sessions: %{}}}
   end
 
   @impl true
-  def handle_info({:new_event, event}, state) do
+  def handle_info(%Message{name: :new_event, data: %{event: event}}, state) do
     state = update_session_activity(event, state)
     {:noreply, state}
   end
+
+  @impl true
+  def handle_info(%Message{}, state), do: {:noreply, state}
 
   @impl true
   def handle_info(:check_crashes, state) do

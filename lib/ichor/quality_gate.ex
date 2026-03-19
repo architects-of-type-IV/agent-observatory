@@ -12,6 +12,7 @@ defmodule Ichor.QualityGate do
   require Logger
 
   alias Ichor.Dag.Status
+  alias Ichor.Signals.Message
 
   @default_timeout 60_000
 
@@ -25,18 +26,20 @@ defmodule Ichor.QualityGate do
 
   @impl true
   def init(_opts) do
-    Phoenix.PubSub.subscribe(Ichor.PubSub, "events:stream")
+    Ichor.Signals.subscribe(:events)
     {:ok, %{}}
   end
 
   @impl true
-  def handle_info({:new_event, event}, state) do
+  def handle_info(%Message{name: :new_event, data: %{event: event}}, state) do
     if event.hook_event_type == :TaskCompleted do
       handle_task_completed(event)
     end
 
     {:noreply, state}
   end
+
+  def handle_info(%Message{}, state), do: {:noreply, state}
 
   def handle_info(_msg, state), do: {:noreply, state}
 
