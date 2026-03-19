@@ -142,14 +142,6 @@ selected = @selected_command_agent %>
         >
           Feed
         </span>
-        <span
-          phx-click="set_sub_tab"
-          phx-value-screen="activity"
-          phx-value-tab="costs"
-          class={"text-[10px] font-semibold uppercase tracking-wider cursor-pointer transition #{if active_tab == :costs, do: "text-success", else: "text-muted hover:text-default"}"}
-        >
-          Costs
-        </span>
       </div>
       <div :if={active_tab == :comms} class="flex gap-1">
         <span
@@ -278,13 +270,6 @@ selected = @selected_command_agent %>
         expanded_sessions={@expanded_sessions}
         now={@now}
       />
-    </div>
-
-    <%!-- Costs: Token usage dashboard --%>
-    <div :if={active_tab == :costs} class="flex-1 overflow-hidden">
-      <IchorWeb.Components.CostComponents.cost_view cost_data={
-        assigns[:cost_data] || %{by_model: [], by_session: [], totals: %{}}
-      } />
     </div>
   </div>
 

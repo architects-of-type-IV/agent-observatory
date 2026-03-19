@@ -6,7 +6,6 @@ defmodule IchorWeb.DashboardUIHandlers do
   alias IchorWeb.DashboardViewRouter
 
   def dispatch("toggle_shortcuts_help", p, s), do: handle_toggle_shortcuts_help(p, s)
-  def dispatch("toggle_create_task_modal", p, s), do: handle_toggle_create_task_modal(p, s)
   def dispatch("toggle_event_detail", p, s), do: handle_toggle_event_detail(p, s)
   def dispatch("focus_agent", p, s), do: handle_focus_agent(p, s)
   def dispatch("close_agent_focus", p, s), do: handle_close_agent_focus(p, s)
@@ -27,8 +26,6 @@ defmodule IchorWeb.DashboardUIHandlers do
       case screen do
         "activity" -> :activity_tab
         "pipeline" -> :pipeline_tab
-        "forensic" -> :forensic_tab
-        "control" -> :control_tab
         _ -> nil
       end
 
@@ -45,11 +42,6 @@ defmodule IchorWeb.DashboardUIHandlers do
 
   def handle_toggle_shortcuts_help(_params, socket) do
     socket |> Phoenix.Component.assign(:show_shortcuts_help, !socket.assigns.show_shortcuts_help)
-  end
-
-  def handle_toggle_create_task_modal(_params, socket) do
-    socket
-    |> Phoenix.Component.assign(:show_create_task_modal, !socket.assigns.show_create_task_modal)
   end
 
   def handle_close_detail(_params, socket) do
@@ -87,7 +79,9 @@ defmodule IchorWeb.DashboardUIHandlers do
   end
 
   def handle_keyboard_navigate(%{"direction" => direction}, socket) do
-    if socket.assigns.view_mode == :activity && socket.assigns.visible_events != [] do
+    if socket.assigns.view_mode == :command &&
+         socket.assigns.activity_tab == :feed &&
+         socket.assigns.visible_events != [] do
       events = socket.assigns.visible_events
       current = socket.assigns.selected_event
       new_event = navigate_event(direction, events, current)

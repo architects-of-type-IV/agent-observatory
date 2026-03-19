@@ -11,7 +11,6 @@ defmodule IchorWeb.IchorComponents do
   defdelegate empty_state(assigns), to: IchorWeb.Components.Ichor.EmptyState
   defdelegate health_warnings(assigns), to: IchorWeb.Components.Ichor.HealthWarnings
   defdelegate model_badge(assigns), to: IchorWeb.Components.Ichor.ModelBadge
-  defdelegate message_thread(assigns), to: IchorWeb.Components.Ichor.MessageThread
   defdelegate session_identity(assigns), to: IchorWeb.Components.Ichor.SessionIdentity
 
   attr :id, :string, required: true

@@ -362,49 +362,6 @@
             </div>
           </div>
 
-          <%!-- Topology node info bar --%>
-          <div
-            :if={@selected_topology_node}
-            class="px-3 py-1.5 bg-base/50 border-b border-border flex items-center gap-4 text-[10px] shrink-0"
-          >
-            <div class="flex items-center gap-2">
-              <span class={"w-2 h-2 rounded-full #{if @selected_topology_node.status == :active, do: "bg-success", else: if(@selected_topology_node.status == :idle, do: "bg-low", else: "bg-highlight")}"} />
-              <span class="font-mono text-high">
-                {String.slice(@selected_topology_node.session_id, 0, 12)}
-              </span>
-            </div>
-            <span :if={@selected_topology_node[:source_app]} class="text-default">
-              {@selected_topology_node.source_app}
-            </span>
-            <span :if={@selected_topology_node[:model]} class="text-interactive">
-              {@selected_topology_node.model}
-            </span>
-            <span :if={@selected_topology_node[:event_count]} class="text-low">
-              {@selected_topology_node.event_count} events
-            </span>
-            <span :if={@selected_topology_node[:tool_count]} class="text-low">
-              {@selected_topology_node.tool_count} tools
-            </span>
-            <span :if={@selected_topology_node[:duration]} class="text-low">
-              {@selected_topology_node.duration}
-            </span>
-            <span
-              :if={@selected_topology_node[:cwd]}
-              class="font-mono text-muted truncate max-w-[200px]"
-            >
-              {@selected_topology_node.cwd}
-            </span>
-            <span :if={@selected_topology_node[:last_tool]} class="text-cyan">
-              {@selected_topology_node.last_tool}
-            </span>
-            <button
-              phx-click="clear_topology_selection"
-              class="ml-auto text-muted hover:text-default"
-            >
-              x
-            </button>
-          </div>
-
           <%!-- Pipeline content --%>
           <div class="flex-1 overflow-hidden">
             <IchorWeb.Components.PipelineComponents.pipeline_view
@@ -465,11 +422,9 @@
             errors={@errors}
             now={@now}
             selected_command_agent={@selected_command_agent}
-            selected_command_task={@selected_command_task}
             messages={@messages}
             protocol_stats={@protocol_stats}
             active_tasks={@active_tasks}
-            analytics={@analytics}
             tmux_sessions={@tmux_sessions}
             feed_groups={@feed_groups}
             visible_events={@visible_events}
@@ -480,7 +435,6 @@
             comms_team_filter={@comms_team_filter}
             comms_agent_filter={@comms_agent_filter}
             activity_tab={@activity_tab}
-            cost_data={@cost_data}
             agent_index={@agent_index}
             paused_sessions={@paused_sessions}
             mailbox_messages={@mailbox_messages}
@@ -664,34 +618,12 @@
         <div :if={@teams != []} class="mt-3 pt-3 border-t border-border">
           <h2 class="ichor-section-title px-1 mb-1.5">Message</h2>
           <div phx-update="ignore" id="message-composer-stable" phx-hook="ClearFormOnSubmit">
-            <IchorWeb.Components.TeamMessageComponents.message_composer
-              teams={@teams}
-              selected_message_target={@selected_message_target}
-            />
+            <IchorWeb.Components.TeamMessageComponents.message_composer teams={@teams} />
           </div>
         </div>
       </div>
     </aside>
   </div>
-
-  <%!-- Inspector Drawer --%>
-  <IchorWeb.Components.TeamInspectorComponents.inspector_drawer
-    inspected_teams={@inspected_teams}
-    inspector_layout={@inspector_layout}
-    inspector_maximized={@inspector_maximized}
-    inspector_size={@inspector_size}
-    now={@now}
-  />
-
-  <%!-- Tmux Maximized View --%>
-  <IchorWeb.Components.TeamTmuxComponents.tmux_view
-    :if={@inspector_maximized && @inspected_teams != []}
-    inspected_teams={@inspected_teams}
-    output_mode={@output_mode}
-    agent_toggles={@agent_toggles}
-    live_events={@inspector_events}
-    now={@now}
-  />
 </div>
 
 <%!-- Agent Focus Slideout --%>
@@ -843,11 +775,6 @@
 </div>
 
 <%!-- Modals --%>
-<IchorWeb.Components.ModalComponents.create_task_modal
-  show={@show_create_task_modal}
-  sel_team={@sel_team}
-  selected_team={@selected_team}
-/>
 <IchorWeb.Components.ModalComponents.shortcuts_modal show={@show_shortcuts_help} />
 
 <%!-- Archon FAB (bottom-right) --%>

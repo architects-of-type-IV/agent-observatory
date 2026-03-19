@@ -29,13 +29,11 @@ defmodule IchorWeb.DashboardLive do
     DashboardMessagingHandlers,
     DashboardNavigationHandlers,
     DashboardNotesHandlers,
-    DashboardPhase5Handlers,
     DashboardSelectionHandlers,
     DashboardSessionControlHandlers,
     DashboardSlideoutHandlers,
     DashboardSpawnHandlers,
     DashboardTaskHandlers,
-    DashboardTeamInspectorHandlers,
     DashboardTmuxHandlers,
     DashboardUIHandlers
   }
@@ -47,7 +45,7 @@ defmodule IchorWeb.DashboardLive do
   @filter_events ~w(filter clear_filters apply_preset search_feed search_sessions filter_tool filter_tool_use_id clear_events filter_session filter_team filter_agent set_view)
 
   # UI events that only toggle booleans/state -- no recompute needed
-  @ui_no_recompute ~w(toggle_shortcuts_help toggle_create_task_modal toggle_event_detail focus_agent close_agent_focus toggle_add_project set_sub_tab)
+  @ui_no_recompute ~w(toggle_shortcuts_help toggle_event_detail focus_agent close_agent_focus toggle_add_project set_sub_tab)
 
   # UI events that change filter state -- need view recompute
   @ui_recompute ~w(keyboard_escape keyboard_navigate add_project)
@@ -60,20 +58,17 @@ defmodule IchorWeb.DashboardLive do
 
   @session_control_events ~w(pause_agent resume_agent shutdown_agent hitl_approve hitl_reject kill_switch_click kill_switch_first_confirm kill_switch_second_confirm kill_switch_cancel push_instructions_intent push_instructions_confirm push_instructions_cancel)
   @tmux_events ~w(connect_tmux disconnect_tmux close_all_tmux switch_tmux_tab toggle_tmux_layout send_tmux_keys kill_tmux_session kill_sidebar_tmux launch_session)
-  @inspector_events ~w(inspect_team remove_from_inspector close_all_inspector toggle_inspector_layout toggle_maximize_inspector set_inspector_size set_output_mode toggle_agent_output set_message_target send_targeted_message)
-  @dag_events ~w(select_dag_project select_project heal_dag_task heal_task reset_dag_stale reset_all_stale run_dag_health_check run_health_check reassign_dag_task claim_dag_task trigger_dag_gc trigger_gc select_dag_node select_command_agent select_subagent send_command_message clear_command_selection)
-  @task_events ~w(create_task update_task_status reassign_task delete_task)
+  @dag_events ~w(select_dag_project heal_dag_task heal_task reset_dag_stale run_dag_health_check reassign_dag_task claim_dag_task trigger_dag_gc select_dag_node select_command_agent send_command_message clear_command_selection)
+  @task_events ~w(update_task_status reassign_task delete_task)
   @note_events ~w(add_note delete_note)
   @feed_events ~w(toggle_session_collapse expand_all collapse_all)
   @fleet_events ~w(toggle_fleet_team set_comms_filter trace_agent clear_trace)
-  @p5_events ~w(toggle_agent_grid toggle_entropy_filter select_session toggle_subpanel sort_capability_directory update_route_weight retry_dlq_entry search_archive set_cost_group_by add_policy_rule toggle_forensic_panel toggle_protocol_item)
   @spawn_events ~w(spawn_agent stop_spawned_agent)
-  @nav_events ~w(jump_to_timeline jump_to_feed jump_to_agents jump_to_tasks select_timeline_event filter_agent_tasks filter_analytics_tool restore_view_mode)
+  @nav_events ~w(jump_to_agents restore_view_mode)
   @mes_events ~w(mes_pick_up mes_load_subsystem toggle_mes_scheduler mes_select_project mes_deselect_project mes_start_mode mes_gate_check mes_generate_dag mes_launch_dag genesis_switch_tab genesis_select_artifact genesis_close_reader)
+  @messaging_events ~w(set_message_target send_targeted_message)
 
   # Messaging events only need view recompute (thread/search state)
-  @messaging_view ~w(toggle_thread expand_all_threads collapse_all_threads search_messages)
-
   @impl true
   def mount(_params, _session, socket) do
     socket = socket |> assign(default_assigns(%{})) |> assign(:recompute_timer, nil)
@@ -162,9 +157,6 @@ defmodule IchorWeb.DashboardLive do
   def handle_event(e, p, s) when e in @session_control_events,
     do: {:noreply, DashboardSessionControlHandlers.dispatch(e, p, s) |> recompute()}
 
-  def handle_event(e, p, s) when e in @inspector_events,
-    do: {:noreply, DashboardTeamInspectorHandlers.dispatch(e, p, s) |> recompute()}
-
   def handle_event(e, p, s) when e in @dag_events,
     do: {:noreply, DashboardDagHandlers.dispatch(e, p, s) |> recompute()}
 
@@ -173,9 +165,6 @@ defmodule IchorWeb.DashboardLive do
 
   def handle_event(e, p, s) when e in @note_events,
     do: {:noreply, DashboardNotesHandlers.dispatch(e, p, s) |> recompute()}
-
-  def handle_event(e, p, s) when e in @p5_events,
-    do: {:noreply, DashboardPhase5Handlers.dispatch(e, p, s) |> recompute()}
 
   def handle_event(e, p, s) when e in @spawn_events,
     do: {:noreply, DashboardSpawnHandlers.dispatch(e, p, s) |> recompute()}
@@ -190,9 +179,6 @@ defmodule IchorWeb.DashboardLive do
 
   def handle_event(e, p, s) when e in @selection_recompute,
     do: {:noreply, DashboardSelectionHandlers.dispatch(e, p, s) |> recompute_view()}
-
-  def handle_event(e, p, s) when e in @messaging_view,
-    do: {:noreply, DashboardMessagingHandlers.dispatch(e, p, s) |> recompute_view()}
 
   # ── Events: no recompute (pure UI state) ─────────────────────────────
 
@@ -211,6 +197,9 @@ defmodule IchorWeb.DashboardLive do
   def handle_event(e, p, s) when e in @fleet_events,
     do: {:noreply, DashboardFleetTreeHandlers.dispatch(e, p, s)}
 
+  def handle_event(e, p, s) when e in @messaging_events,
+    do: {:noreply, DashboardMessagingHandlers.dispatch(e, p, s)}
+
   # ── Events: messaging (passthrough -- handlers return {:noreply, socket}) ──
 
   def handle_event("send_agent_message", p, s),
@@ -225,9 +214,6 @@ defmodule IchorWeb.DashboardLive do
 
   def handle_event("toggle_sidebar", _p, s),
     do: {:noreply, DashboardUIHandlers.dispatch("toggle_sidebar", %{}, s)}
-
-  def handle_event("clear_topology_selection", _p, s),
-    do: {:noreply, assign(s, :selected_topology_node, nil)}
 
   def handle_event("restore_state", p, s),
     do: {:noreply, DashboardUIHandlers.handle_restore_state(p, s) |> recompute()}
@@ -263,9 +249,6 @@ defmodule IchorWeb.DashboardLive do
 
   def handle_event("close_agent_slideout", _p, s),
     do: {:noreply, DashboardSlideoutHandlers.handle_close_agent_slideout(s)}
-
-  def handle_event("node_selected", %{"trace_id" => tid}, s),
-    do: {:noreply, DashboardSlideoutHandlers.handle_node_selected(tid, s)}
 
   # ── Events: workshop (prefix-match delegation) ─────────────────────────
 

@@ -6,8 +6,6 @@ defmodule IchorWeb.Components.ModalComponents do
 
   use Phoenix.Component
 
-  import IchorWeb.IchorComponents, only: [stable_select: 1]
-
   @shortcuts [
     {"Navigation",
      [
@@ -74,62 +72,6 @@ defmodule IchorWeb.Components.ModalComponents do
     """
   end
 
-  # ── Create Task Modal ─────────────────────────────────────────────────
-
-  attr :show, :boolean, required: true
-  attr :sel_team, :any, default: nil
-  attr :selected_team, :any, default: nil
-
-  def create_task_modal(assigns) do
-    ~H"""
-    <.modal show={@show} on_close="toggle_create_task_modal">
-      <:header>Create New Task</:header>
-      <form phx-submit="create_task" class="px-4 py-3 space-y-3">
-        <.form_field label="Subject">
-          <input
-            type="text"
-            name="subject"
-            required
-            class="w-full ichor-input text-xs py-1.5"
-            placeholder="Add new feature..."
-          />
-        </.form_field>
-        <.form_field label="Description">
-          <textarea
-            name="description"
-            required
-            rows="3"
-            class="w-full ichor-input text-xs py-1.5"
-            placeholder="Detailed description of the task..."
-          ></textarea>
-        </.form_field>
-        <.form_field label="Assign To">
-          <.stable_select
-            id="select-task-owner"
-            name="owner"
-            class="w-full ichor-select text-xs py-1.5"
-          >
-            <option value="">Unassigned</option>
-            <option
-              :for={member <- if @sel_team, do: @sel_team.members, else: []}
-              value={member[:agent_id] || member[:name]}
-            >
-              {member[:name] || member[:agent_id]}
-            </option>
-          </.stable_select>
-        </.form_field>
-        <input type="hidden" name="team" value={@selected_team} />
-        <div class="flex justify-end gap-2 pt-2">
-          <button type="button" phx-click="toggle_create_task_modal" class="ichor-btn ichor-btn-muted">
-            Cancel
-          </button>
-          <button type="submit" class="ichor-btn ichor-btn-primary">Create Task</button>
-        </div>
-      </form>
-    </.modal>
-    """
-  end
-
   # ── Keyboard Shortcuts Modal ──────────────────────────────────────────
 
   attr :show, :boolean, required: true
@@ -144,22 +86,6 @@ defmodule IchorWeb.Components.ModalComponents do
         <.shortcut_group :for={{title, keys} <- @shortcut_groups} title={title} keys={keys} />
       </div>
     </.modal>
-    """
-  end
-
-  # ── Sub-components ────────────────────────────────────────────────────
-
-  slot :inner_block, required: true
-  attr :label, :string, required: true
-
-  defp form_field(assigns) do
-    ~H"""
-    <div>
-      <label class="block text-[10px] font-semibold text-low uppercase tracking-wider mb-1">
-        {@label}
-      </label>
-      {render_slot(@inner_block)}
-    </div>
     """
   end
 

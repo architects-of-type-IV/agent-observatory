@@ -4,10 +4,8 @@ defmodule IchorWeb.DashboardMessagingHandlers do
   All outbound messages route through Ichor.Operator for unified delivery.
   """
 
-  def dispatch("search_messages", p, s), do: handle_search_messages(p, s)
-  def dispatch("toggle_thread", p, s), do: handle_toggle_thread(p, s)
-  def dispatch("expand_all_threads", _p, s), do: handle_expand_all_threads(s)
-  def dispatch("collapse_all_threads", _p, s), do: handle_collapse_all_threads(s)
+  def dispatch("set_message_target", p, s), do: handle_set_message_target(p, s)
+  def dispatch("send_targeted_message", p, s), do: handle_send_targeted_message(p, s)
 
   def handle_send_agent_message(%{"content" => ""}, socket), do: {:noreply, socket}
 
@@ -60,7 +58,7 @@ defmodule IchorWeb.DashboardMessagingHandlers do
   end
 
   def handle_new_mailbox_message(_message, socket) do
-    {:noreply, socket |> refresh_mailbox_assigns() |> Phoenix.Component.assign(:dirty, true)}
+    {:noreply, refresh_mailbox_assigns(socket)}
   end
 
   def refresh_mailbox_assigns(socket) do
@@ -76,29 +74,27 @@ defmodule IchorWeb.DashboardMessagingHandlers do
     end)
   end
 
-  def handle_search_messages(%{"q" => q}, socket) do
-    socket |> Phoenix.Component.assign(:search_messages, q)
+  def handle_set_message_target(%{"target" => target}, socket) do
+    Phoenix.Component.assign(socket, :selected_message_target, target)
   end
 
-  def handle_toggle_thread(%{"key" => key}, socket) do
-    collapsed_threads = socket.assigns.collapsed_threads
-    new_state = !Map.get(collapsed_threads, key, false)
+  def handle_send_targeted_message(%{"target" => "", "content" => _}, socket), do: socket
+  def handle_send_targeted_message(%{"target" => _, "content" => ""}, socket), do: socket
 
-    socket
-    |> Phoenix.Component.assign(:collapsed_threads, Map.put(collapsed_threads, key, new_state))
-  end
+  def handle_send_targeted_message(%{"target" => target, "content" => content}, socket) do
+    case Ichor.Operator.send(target, content) do
+      {:ok, 0} ->
+        Phoenix.LiveView.push_event(socket, "toast", %{
+          message: "No targets found",
+          type: "warning"
+        })
 
-  def handle_expand_all_threads(socket) do
-    socket |> Phoenix.Component.assign(:collapsed_threads, %{})
-  end
-
-  def handle_collapse_all_threads(socket) do
-    thread_keys =
-      socket.assigns.message_threads
-      |> Enum.map(&IchorWeb.DashboardMessageHelpers.participant_key(&1.participants))
-
-    collapsed_map = Map.new(thread_keys, fn k -> {k, true} end)
-    socket |> Phoenix.Component.assign(:collapsed_threads, collapsed_map)
+      {:ok, delivered} ->
+        Phoenix.LiveView.push_event(socket, "toast", %{
+          message: "Sent to #{delivered} agent(s)",
+          type: "success"
+        })
+    end
   end
 
   defp resolve_label(sid, socket) do

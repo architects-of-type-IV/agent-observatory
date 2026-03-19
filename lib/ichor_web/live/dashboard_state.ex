@@ -5,15 +5,11 @@ defmodule IchorWeb.DashboardState do
   """
 
   import Phoenix.Component, only: [assign: 3]
-  import Phoenix.LiveView, only: [push_event: 3]
   import IchorWeb.DashboardDataHelpers, only: [filtered_events: 1, filtered_sessions: 2]
-  import IchorWeb.DashboardMessageHelpers, only: [search_messages: 2, group_messages_by_thread: 1]
   import IchorWeb.DashboardTeamHelpers, only: [all_team_sids: 1]
   import IchorWeb.DashboardFeedHelpers, only: [build_feed_groups: 2]
 
   alias Ichor.Activity
-  alias Ichor.Activity.EventAnalysis
-  alias Ichor.Costs.CostAggregator
   alias Ichor.Fleet
   alias Ichor.Fleet.Analysis.Queries, as: FQ
   alias Ichor.Fleet.Analysis.SessionEviction
@@ -33,7 +29,6 @@ defmodule IchorWeb.DashboardState do
       filter_slow: false,
       search_feed: "",
       search_sessions: "",
-      search_messages: "",
       search_history: [],
       selected_event: nil,
       selected_task: nil,
@@ -44,8 +39,6 @@ defmodule IchorWeb.DashboardState do
       view_mode: :command,
       activity_tab: :comms,
       pipeline_tab: :dag,
-      forensic_tab: :archive,
-      control_tab: :emergency,
       agent_slideout: nil,
       slideout_terminal: "",
       slideout_activity: [],
@@ -55,26 +48,13 @@ defmodule IchorWeb.DashboardState do
       protocol_stats: %{},
       selected_dag_task: nil,
       selected_command_agent: nil,
-      selected_command_task: nil,
       show_add_project: false,
       selected_team: nil,
-      mailbox_counts: %{},
-      collapsed_threads: %{},
-      show_shortcuts_help: false,
-      show_create_task_modal: false,
-      inspected_teams: [],
-      inspector_layout: :horizontal,
-      inspector_maximized: false,
-      inspector_size: :default,
-      output_mode: :all_live,
-      agent_toggles: %{},
       selected_message_target: nil,
-      inspector_events: [],
-      current_session_id: "operator",
+      show_shortcuts_help: false,
       collapsed_fleet_teams: MapSet.new(),
       comms_team_filter: nil,
       comms_agent_filter: [],
-      dirty: true,
       sidebar_collapsed: false,
       active_tmux_session: nil,
       tmux_output: "",
@@ -82,49 +62,6 @@ defmodule IchorWeb.DashboardState do
       tmux_panels: [],
       tmux_outputs: %{},
       tmux_layout: :tabs,
-      # Phase 5 - Fleet Command
-      throughput_rate: nil,
-      cost_heatmap: [],
-      node_status: nil,
-      latency_metrics: %{},
-      mtls_status: "Not configured",
-      agent_grid_open: false,
-      selected_topology_node: nil,
-      # Phase 5 - Session Cluster & Registry
-      entropy_filter_active: false,
-      entropy_threshold: 0.7,
-      selected_session_id: nil,
-      scratchpad_intents: [],
-      feed_panel_open: false,
-      messages_panel_open: false,
-      tasks_panel_open: false,
-      protocols_panel_open: false,
-      agent_types: [],
-      route_weights: %{},
-      capability_sort_field: :agent_type,
-      capability_sort_dir: :asc,
-      route_weight_errors: %{},
-      # Phase 5 - God Mode
-      kill_switch_confirm_step: nil,
-      agent_classes: [],
-      instructions_confirm_pending: nil,
-      instructions_banner: nil,
-      # Phase 5 - Scheduler
-      cron_jobs: [],
-      dlq_entries: [],
-      zombie_agents: [],
-      # Phase 5 - Forensic
-      archive_search: "",
-      archive_results: [],
-      cost_group_by: :agent_id,
-      cost_attribution: [],
-      webhook_logs: [],
-      policy_rules: [],
-      forensic_audit_open: false,
-      forensic_topology_open: false,
-      forensic_entropy_open: false,
-      expanded_protocol_items: MapSet.new(),
-      cost_data: %{by_model: [], by_session: [], totals: %{}},
       agent_index: %{},
       paused_sessions: MapSet.new(),
       mailbox_messages: [],
@@ -158,12 +95,9 @@ defmodule IchorWeb.DashboardState do
       sessions: [],
       total_sessions: 0,
       messages: [],
-      message_threads: [],
       active_tasks: [],
       errors: [],
       error_groups: [],
-      analytics: %{},
-      timeline: [],
       visible_events: [],
       event_notes: [],
       feed_groups: [],
@@ -221,10 +155,6 @@ defmodule IchorWeb.DashboardState do
         MapSet.member?(team_sids, s.session_id) or infrastructure_entry?(s)
       end)
 
-    # Messages (single query, reused for both assigns)
-    filtered_messages = search_messages(messages, assigns.search_messages)
-    message_threads = group_messages_by_thread(filtered_messages)
-
     event_notes = Notes.list_notes()
 
     # Auto-select team when only 1 exists
@@ -237,17 +167,6 @@ defmodule IchorWeb.DashboardState do
         event_tasks != [] -> event_tasks
         true -> []
       end
-
-    # Inspector (Fleet.Queries) -- skip if no teams inspected
-    refreshed_inspected = RuntimeView.refresh_inspected_teams(teams, assigns.inspected_teams)
-
-    inspector_events =
-      if refreshed_inspected != [],
-        do: FQ.inspector_events(refreshed_inspected, assigns.events),
-        else: []
-
-    # Topology (Fleet.Queries)
-    {topo_nodes, topo_edges} = FQ.topology(all_sessions, teams, assigns.now)
 
     # Tmux session list (for sidebar)
     tmux_session_names = safe_tmux_sessions()
@@ -268,35 +187,26 @@ defmodule IchorWeb.DashboardState do
       |> Enum.take(50)
 
     # Conditional: only compute expensive derivations for active view
-    {analytics, timeline} = maybe_analytics(assigns)
     feed_groups = maybe_feed(assigns, teams, tmux_only)
-    cost_data = maybe_costs(assigns)
 
     socket
     |> assign(:agent_index, agent_index)
     |> assign(:visible_events, filtered_events(assigns))
-    |> assign(:cost_data, cost_data)
     |> assign(:feed_groups, feed_groups)
-    |> assign(:inspected_teams, refreshed_inspected)
-    |> assign(:inspector_events, inspector_events)
     |> assign(:sessions, filtered_sessions(standalone, assigns.search_sessions))
     |> assign(:total_sessions, length(all_sessions))
     |> assign(:teams, teams)
     |> assign(:has_teams, teams != [])
     |> assign(:active_tasks, active_tasks)
     |> assign(:messages, messages)
-    |> assign(:message_threads, message_threads)
     |> assign(:event_notes, event_notes)
     |> assign(:selected_team, selected_team)
     |> assign(:sel_team, sel_team)
     |> assign(:errors, errors)
     |> assign(:error_groups, error_groups)
-    |> assign(:analytics, analytics)
-    |> assign(:timeline, timeline)
     |> assign(:paused_sessions, paused_sessions)
     |> assign(:mailbox_messages, mailbox_messages)
     |> assign(:tmux_sessions, tmux_session_names)
-    |> push_event("fleet_topology_update", %{nodes: topo_nodes, edges: topo_edges})
   end
 
   @doc "View-only recompute: re-derives display assigns from existing data. No Ash/SQL queries."
@@ -314,12 +224,8 @@ defmodule IchorWeb.DashboardState do
         true -> []
       end
 
-    filtered_messages = search_messages(assigns[:messages] || [], assigns.search_messages)
-    message_threads = group_messages_by_thread(filtered_messages)
-
     socket
     |> assign(:visible_events, filtered_events(assigns))
-    |> assign(:message_threads, message_threads)
     |> assign(:selected_team, selected_team)
     |> assign(:sel_team, sel_team)
     |> assign(:active_tasks, active_tasks)
@@ -354,31 +260,13 @@ defmodule IchorWeb.DashboardState do
     end)
   end
 
-  # Analytics + timeline only needed when activity analytics/timeline tab is active
-  defp maybe_analytics(assigns) do
-    if assigns.view_mode == :activity and assigns.activity_tab in [:analytics, :timeline] do
-      {EventAnalysis.tool_analytics(assigns.events), EventAnalysis.timeline(assigns.events)}
-    else
-      {assigns[:analytics] || %{}, assigns[:timeline] || []}
-    end
-  end
-
   # Feed groups needed on command/activity views with feed/comms tab
   defp maybe_feed(assigns, teams, tmux_only) do
-    if assigns.view_mode in [:command, :activity] and assigns.activity_tab in [:feed, :comms] do
+    if assigns.view_mode == :command and assigns.activity_tab in [:feed, :comms] do
       groups = build_feed_groups(assigns.events, teams)
       groups ++ Enum.map(tmux_only, &tmux_feed_entry(&1, assigns.now))
     else
       assigns[:feed_groups] || []
-    end
-  end
-
-  # Cost data only needed on forensic/control views (3 SQL queries)
-  defp maybe_costs(assigns) do
-    if assigns.view_mode in [:forensic, :control] do
-      CostAggregator.load_cost_data()
-    else
-      assigns[:cost_data] || %{by_model: [], by_session: [], totals: %{}}
     end
   end
 

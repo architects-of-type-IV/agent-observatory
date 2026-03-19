@@ -8,7 +8,6 @@ defmodule IchorWeb.Components.TeamMessageComponents do
   import IchorWeb.IchorComponents, only: [stable_select: 1]
 
   attr :teams, :list, required: true
-  attr :selected_message_target, :any, default: nil
 
   def message_composer(assigns) do
     ~H"""

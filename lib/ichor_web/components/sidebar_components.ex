@@ -72,17 +72,10 @@ defmodule IchorWeb.Components.SidebarComponents do
 
       <div class="flex gap-1 mt-1">
         <button
-          phx-click="inspect_team"
-          phx-value-team={@team.name}
-          class="flex-1 ichor-btn ichor-btn-muted !text-[9px] !py-0.5"
-        >
-          Inspect
-        </button>
-        <button
           phx-click="send_team_broadcast"
           phx-value-team={@team.name}
           phx-value-content="status"
-          class="ichor-btn !text-[9px] !py-0.5 bg-cyan/15 text-cyan hover:bg-cyan/25"
+          class="flex-1 ichor-btn !text-[9px] !py-0.5 bg-cyan/15 text-cyan hover:bg-cyan/25"
           title={"Ping all agents in #{@team.name}"}
         >
           Ping

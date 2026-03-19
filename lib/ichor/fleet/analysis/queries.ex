@@ -42,29 +42,6 @@ defmodule Ichor.Fleet.Analysis.Queries do
   end
 
   @doc """
-  Filter events by team member session IDs for the inspector view.
-  """
-  def inspector_events(teams, events) do
-    sids =
-      teams
-      |> Enum.flat_map(fn t ->
-        t.members
-        |> Enum.map(& &1[:agent_id])
-        |> Enum.reject(&is_nil/1)
-      end)
-      |> MapSet.new()
-
-    if MapSet.size(sids) > 0 do
-      events
-      |> Enum.filter(fn e -> MapSet.member?(sids, e.session_id) end)
-      |> Enum.sort_by(& &1.inserted_at, {:desc, DateTime})
-      |> Enum.take(200)
-    else
-      []
-    end
-  end
-
-  @doc """
   Compute topology nodes and edges from sessions and teams.
   """
   def topology(all_sessions, teams, now) do

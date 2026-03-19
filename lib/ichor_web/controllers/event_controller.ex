@@ -1,11 +1,10 @@
 defmodule IchorWeb.EventController do
   @moduledoc """
   Thin HTTP adapter for hook events.
-  All domain logic lives in EventBuffer, Costs, and Gateway.Router.
+  All domain logic lives in EventBuffer and Gateway.Router.
   """
   use IchorWeb, :controller
 
-  alias Ichor.Costs.CostAggregator
   alias Ichor.EventBuffer
   alias Ichor.Gateway.Router
 
@@ -28,8 +27,6 @@ defmodule IchorWeb.EventController do
     }
 
     {:ok, event} = EventBuffer.ingest(event_attrs)
-
-    CostAggregator.record_usage(event, raw)
 
     Ichor.Signals.emit(:new_event, %{event: event})
 

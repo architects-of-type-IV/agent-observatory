@@ -1,1 +1,0 @@
-{application,ichor_data,[{modules,['Elixir.Ichor.Repo']},{optional_applications,[]},{applications,[kernel,stdlib,elixir,logger,ecto_sql,ecto_sqlite3]},{description,"ichor_data"},{registered,[]},{vsn,"0.1.0"}]}.

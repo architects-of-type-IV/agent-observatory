@@ -89,7 +89,7 @@ defmodule IchorWeb.DashboardFilterHandlers do
   def handle_filter_agent(sid, socket) do
     socket
     |> assign(:filter_session_id, sid)
-    |> assign(:view_mode, :activity)
+    |> assign(:view_mode, :command)
     |> assign(:activity_tab, :feed)
   end
 

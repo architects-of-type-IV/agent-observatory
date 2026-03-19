@@ -7,25 +7,22 @@ defmodule IchorWeb.DashboardViewRouter do
 
   @mode_mappings %{
     "command" => {:command, []},
-    "activity" => {:activity, []},
     "pipeline" => {:pipeline, []},
-    "forensic" => {:forensic, []},
-    "control" => {:control, []},
     "fleet_command" => {:command, []},
     "overview" => {:command, []},
     "agents" => {:command, []},
     "teams" => {:command, []},
     "protocols" => {:command, []},
-    "feed" => {:activity, [activity_tab: :feed]},
-    "timeline" => {:activity, [activity_tab: :timeline]},
-    "analytics" => {:activity, [activity_tab: :analytics]},
-    "messages" => {:activity, [activity_tab: :messages]},
-    "errors" => {:activity, [activity_tab: :errors]},
-    "tasks" => {:pipeline, [pipeline_tab: :board]},
-    "scheduler" => {:pipeline, [pipeline_tab: :scheduler]},
-    "registry" => {:forensic, [forensic_tab: :registry]},
-    "god_mode" => {:control, [control_tab: :emergency]},
-    "session_cluster" => {:control, [control_tab: :sessions]}
+    "feed" => {:command, [activity_tab: :feed]},
+    "timeline" => {:command, [activity_tab: :feed]},
+    "analytics" => {:command, [activity_tab: :feed]},
+    "messages" => {:command, [activity_tab: :comms]},
+    "errors" => {:command, [activity_tab: :feed]},
+    "tasks" => {:pipeline, []},
+    "scheduler" => {:pipeline, []},
+    "registry" => {:command, []},
+    "god_mode" => {:command, []},
+    "session_cluster" => {:command, []}
   }
 
   def resolve(mode) when is_atom(mode), do: {mode, []}

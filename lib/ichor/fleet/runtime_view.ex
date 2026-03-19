@@ -15,11 +15,6 @@ defmodule Ichor.Fleet.RuntimeView do
     Enum.find(teams, &(&1.name == name))
   end
 
-  def refresh_inspected_teams(teams, inspected_teams) do
-    inspected_names = Enum.map(inspected_teams, & &1.name)
-    Enum.filter(teams, &(&1.name in inspected_names))
-  end
-
   def merge_display_teams(teams, agents, tmux_sessions) do
     existing_names = MapSet.new(teams, & &1.name)
 

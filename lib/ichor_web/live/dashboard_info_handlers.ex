@@ -90,7 +90,6 @@ defmodule IchorWeb.DashboardInfoHandlers do
       {:noreply,
        socket
        |> assign(:protocol_stats, stats)
-       |> assign(:dirty, true)
        |> maybe_refresh_archon_manager()}
 
   def dispatch(%Message{name: :terminal_output, data: %{session_id: sid, output: output}}, socket) do

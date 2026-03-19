@@ -3,13 +3,17 @@ defmodule IchorWeb.DashboardViewRouterTest do
 
   alias IchorWeb.DashboardViewRouter
 
-  test "assign_view maps legacy aliases to canonical view tabs" do
+  test "assign_view maps legacy aliases to current visible views" do
     socket = socket()
 
     socket = DashboardViewRouter.assign_view(socket, "tasks")
 
     assert socket.assigns.view_mode == :pipeline
-    assert socket.assigns.pipeline_tab == :board
+
+    socket = DashboardViewRouter.assign_view(socket, "messages")
+
+    assert socket.assigns.view_mode == :command
+    assert socket.assigns.activity_tab == :comms
   end
 
   test "assign_view falls back to command for unknown modes" do
