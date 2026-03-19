@@ -2,7 +2,7 @@ defmodule Ichor.AgentTools.Recall do
   @moduledoc """
   Recall memory tools for agents. Search conversation history.
   """
-  use Ash.Resource, domain: Ichor.AgentTools
+  use Ash.Resource, domain: Ichor.Tools
 
   alias Ichor.MemoryStore
 

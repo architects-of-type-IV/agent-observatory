@@ -3,7 +3,7 @@ defmodule Ichor.AgentTools.GenesisArtifacts do
   MCP tools for creating and listing Genesis artifacts (ADRs, Features, UseCases,
   Checkpoints, Conversations) within a Node.
   """
-  use Ash.Resource, domain: Ichor.AgentTools
+  use Ash.Resource, domain: Ichor.Tools
 
   alias Ichor.Projects
   alias Ichor.Tools.GenesisFormatter

@@ -2,7 +2,7 @@ defmodule Ichor.Archon.Tools.System do
   @moduledoc """
   System diagnostics tools for Archon. Health checks and tmux state.
   """
-  use Ash.Resource, domain: Ichor.Archon.Tools
+  use Ash.Resource, domain: Ichor.Tools
 
   alias Ichor.{AgentWatchdog, EventBuffer, ProtocolTracker}
   alias Ichor.Control

@@ -2,7 +2,7 @@ defmodule Ichor.Archon.Tools.Teams do
   @moduledoc """
   Team query tools for Archon. Reads from Fleet.Team code interfaces.
   """
-  use Ash.Resource, domain: Ichor.Archon.Tools
+  use Ash.Resource, domain: Ichor.Tools
 
   alias Ichor.Control
   alias Ichor.Fleet.RuntimeQuery

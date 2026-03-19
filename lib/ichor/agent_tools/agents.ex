@@ -2,7 +2,7 @@ defmodule Ichor.AgentTools.Agents do
   @moduledoc """
   Agent registration tools. Create and list memory-backed agents.
   """
-  use Ash.Resource, domain: Ichor.AgentTools
+  use Ash.Resource, domain: Ichor.Tools
 
   alias Ichor.MemoryStore
 
@@ -51,7 +51,7 @@ defmodule Ichor.AgentTools.Agents do
       end)
     end
 
-    action :list_agents, {:array, :map} do
+    action :list_registered_agents, {:array, :map} do
       description("List all registered specialist agents with their memory block summaries.")
 
       run(fn _input, _context ->

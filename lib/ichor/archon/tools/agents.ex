@@ -2,14 +2,14 @@ defmodule Ichor.Archon.Tools.Agents do
   @moduledoc """
   Agent query tools for Archon. Reads from Fleet.Agent code interfaces.
   """
-  use Ash.Resource, domain: Ichor.Archon.Tools
+  use Ash.Resource, domain: Ichor.Tools
 
   alias Ichor.Control
   alias Ichor.Fleet.Lookup
   alias Ichor.Gateway.Channels.Tmux
 
   actions do
-    action :list_agents, {:array, :map} do
+    action :list_live_agents, {:array, :map} do
       description(
         "List all registered agents with their status, team, role, model, and current tool."
       )

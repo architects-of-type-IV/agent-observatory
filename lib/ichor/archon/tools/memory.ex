@@ -5,7 +5,7 @@ defmodule Ichor.Archon.Tools.Memory do
   Search and store observations in the Memories knowledge graph.
   Uses the Archon-dedicated namespace for all operations.
   """
-  use Ash.Resource, domain: Ichor.Archon.Tools
+  use Ash.Resource, domain: Ichor.Tools
 
   alias Ichor.Archon.MemoriesClient
 

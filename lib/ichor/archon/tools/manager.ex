@@ -3,7 +3,7 @@ defmodule Ichor.Archon.Tools.Manager do
   Manager-facing signal summaries for Archon.
   """
 
-  use Ash.Resource, domain: Ichor.Archon.Tools
+  use Ash.Resource, domain: Ichor.Tools
 
   alias Ichor.Archon.SignalManager
 

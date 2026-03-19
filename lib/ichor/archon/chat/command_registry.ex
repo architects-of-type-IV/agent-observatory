@@ -16,7 +16,7 @@ defmodule Ichor.Archon.Chat.CommandRegistry do
   alias Ichor.Archon.Tools.Teams
 
   @spec dispatch(map()) :: {:ok, %{type: atom(), data: term()}} | {:error, term()}
-  def dispatch(%{command: "/agents"}), do: run(:agents, Agents, :list_agents, %{})
+  def dispatch(%{command: "/agents"}), do: run(:agents, Agents, :list_live_agents, %{})
   def dispatch(%{command: "/teams"}), do: run(:teams, Teams, :list_teams, %{})
   def dispatch(%{command: "/inbox"}), do: run(:inbox, Messages, :recent_messages, %{})
   def dispatch(%{command: "/health"}), do: run(:health, SystemTools, :system_health, %{})
@@ -117,7 +117,7 @@ defmodule Ichor.Archon.Chat.CommandRegistry do
   def dispatch(%{command: "/msg", remainder: rest}) when is_binary(rest) do
     case String.split(rest, " ", parts: 2) do
       [to, content] ->
-        run(:msg_sent, Messages, :send_message, %{to: to, content: content})
+        run(:msg_sent, Messages, :operator_send_message, %{to: to, content: content})
 
       [_to_only] ->
         {:ok, %{type: :error, data: "Usage: /msg <target> <message>"}}

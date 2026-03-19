@@ -11,8 +11,7 @@ config :ichor,
   generators: [timestamp_type: :utc_datetime],
   ecto_repos: [Ichor.Repo],
   ash_domains: [
-    Ichor.AgentTools,
-    Ichor.Archon.Tools,
+    Ichor.Tools,
     Ichor.Control,
     Ichor.Observability,
     Ichor.Projects

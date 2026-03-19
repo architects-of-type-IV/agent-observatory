@@ -3,7 +3,7 @@ defmodule Ichor.Archon.Tools.Control do
   Fleet control tools for Archon. Spawn, stop, pause, and resume agents.
   Trigger manual GC sweep.
   """
-  use Ash.Resource, domain: Ichor.Archon.Tools
+  use Ash.Resource, domain: Ichor.Tools
 
   alias Ash.Error.Unknown
 

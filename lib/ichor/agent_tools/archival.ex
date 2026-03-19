@@ -2,7 +2,7 @@ defmodule Ichor.AgentTools.Archival do
   @moduledoc """
   Archival memory tools for agents. Long-term passage storage and search.
   """
-  use Ash.Resource, domain: Ichor.AgentTools
+  use Ash.Resource, domain: Ichor.Tools
 
   alias Ichor.MemoryStore
 

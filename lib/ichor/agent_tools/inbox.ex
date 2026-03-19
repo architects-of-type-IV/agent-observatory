@@ -3,7 +3,7 @@ defmodule Ichor.AgentTools.Inbox do
   Message exchange tools for agents. Check, acknowledge, and send messages.
   Routes through Fleet code interfaces for consistency.
   """
-  use Ash.Resource, domain: Ichor.AgentTools
+  use Ash.Resource, domain: Ichor.Tools
 
   alias Ichor.Control
   alias Ichor.MessageRouter
@@ -47,7 +47,7 @@ defmodule Ichor.AgentTools.Inbox do
       end)
     end
 
-    action :send_message, :map do
+    action :agent_send_message, :map do
       description("Send a message to another agent or back to the Ichor dashboard.")
 
       argument :from_session_id, :string do

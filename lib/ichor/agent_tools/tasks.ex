@@ -2,7 +2,7 @@ defmodule Ichor.AgentTools.Tasks do
   @moduledoc """
   Task management tools for agents.
   """
-  use Ash.Resource, domain: Ichor.AgentTools
+  use Ash.Resource, domain: Ichor.Tools
 
   alias Ichor.Tasks.Board
 

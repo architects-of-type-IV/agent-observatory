@@ -2,7 +2,7 @@ defmodule Ichor.AgentTools.Memory do
   @moduledoc """
   Core memory tools for agents. Read and edit in-context memory blocks.
   """
-  use Ash.Resource, domain: Ichor.AgentTools
+  use Ash.Resource, domain: Ichor.Tools
 
   alias Ichor.MemoryStore
 

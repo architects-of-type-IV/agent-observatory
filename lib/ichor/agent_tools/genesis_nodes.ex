@@ -2,7 +2,7 @@ defmodule Ichor.AgentTools.GenesisNodes do
   @moduledoc """
   MCP tools for Genesis Node lifecycle management.
   """
-  use Ash.Resource, domain: Ichor.AgentTools
+  use Ash.Resource, domain: Ichor.Tools
 
   alias Ichor.Projects
 

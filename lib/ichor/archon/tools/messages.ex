@@ -2,7 +2,7 @@ defmodule Ichor.Archon.Tools.Messages do
   @moduledoc """
   Messaging tools for Archon. Reads from Activity.Message, sends via Operator.
   """
-  use Ash.Resource, domain: Ichor.Archon.Tools
+  use Ash.Resource, domain: Ichor.Tools
 
   alias Ichor.Observability
 
@@ -39,7 +39,7 @@ defmodule Ichor.Archon.Tools.Messages do
       end)
     end
 
-    action :send_message, :map do
+    action :operator_send_message, :map do
       description("Send a message to an agent or team as the operator (Architect).")
 
       argument :to, :string do

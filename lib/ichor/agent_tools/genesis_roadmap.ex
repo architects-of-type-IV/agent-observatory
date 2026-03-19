@@ -1,6 +1,6 @@
 defmodule Ichor.AgentTools.GenesisRoadmap do
   @moduledoc "MCP tools for Mode C roadmap hierarchy: Phase, Section, Task, Subtask."
-  use Ash.Resource, domain: Ichor.AgentTools
+  use Ash.Resource, domain: Ichor.Tools
 
   alias Ichor.Projects
   alias Ichor.Tools.GenesisFormatter

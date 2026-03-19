@@ -1,6 +1,6 @@
 defmodule Ichor.AgentTools.DagExecution do
   @moduledoc "MCP tools for DAG execution: claiming jobs, reporting completion, status queries, and JSONL I/O."
-  use Ash.Resource, domain: Ichor.AgentTools
+  use Ash.Resource, domain: Ichor.Tools
 
   alias Ichor.Dag.{Exporter, Graph, Job, Loader, Run}
 

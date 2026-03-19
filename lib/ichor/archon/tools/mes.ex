@@ -3,7 +3,7 @@ defmodule Ichor.Archon.Tools.Mes do
   MES floor management tools for Archon. Lists projects, creates briefs,
   checks operator inbox, and manages the manufacturing pipeline.
   """
-  use Ash.Resource, domain: Ichor.Archon.Tools
+  use Ash.Resource, domain: Ichor.Tools
 
   alias Ichor.Fleet.AgentProcess
   alias Ichor.Mes.{RunProcess, Scheduler, TeamLifecycle}

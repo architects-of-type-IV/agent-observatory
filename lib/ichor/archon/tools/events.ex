@@ -3,7 +3,7 @@ defmodule Ichor.Archon.Tools.Events do
   Event feed and task overview tools for Archon.
   Provides raw event stream access and fleet-wide task visibility.
   """
-  use Ash.Resource, domain: Ichor.Archon.Tools
+  use Ash.Resource, domain: Ichor.Tools
 
   alias Ichor.Control
   alias Ichor.EventBuffer

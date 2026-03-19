@@ -4,7 +4,7 @@ defmodule Ichor.AgentTools.Spawn do
   Agents spawned this way get their own session_id, are visible in the fleet panel,
   can receive messages, and are traceable.
   """
-  use Ash.Resource, domain: Ichor.AgentTools
+  use Ash.Resource, domain: Ichor.Tools
   alias Ichor.Tools.AgentControl
 
   actions do

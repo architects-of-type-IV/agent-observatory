@@ -1,8 +1,9 @@
-defmodule Ichor.AgentTools do
+defmodule Ichor.Tools do
   @moduledoc """
-  Ash Domain exposing agent communication tools via MCP.
-  Agents connect to Ichor's MCP server to check inbox,
-  send messages, and manage tasks.
+  Ash Domain: MCP tool surfaces for agents and the Archon.
+
+  Capability-based organization. Exposure scoped per MCP endpoint
+  (/mcp/agent, /mcp/archon) via router tool lists.
   """
   use Ash.Domain, extensions: [AshAi], validate_config_inclusion?: false
 
@@ -20,7 +21,16 @@ defmodule Ichor.AgentTools do
     Tasks
   }
 
+  alias Ichor.Archon.Tools.Control
+  alias Ichor.Archon.Tools.Events
+  alias Ichor.Archon.Tools.Manager
+  alias Ichor.Archon.Tools.Mes
+  alias Ichor.Archon.Tools.Messages
+  alias Ichor.Archon.Tools.System
+  alias Ichor.Archon.Tools.Teams
+
   resources do
+    # Agent tools (12)
     resource(Inbox)
     resource(Tasks)
     resource(Memory)
@@ -33,6 +43,16 @@ defmodule Ichor.AgentTools do
     resource(GenesisGates)
     resource(Ichor.AgentTools.GenesisRoadmap)
     resource(DagExecution)
+    # Archon tools (9)
+    resource(Ichor.Archon.Tools.Agents)
+    resource(Teams)
+    resource(Messages)
+    resource(System)
+    resource(Manager)
+    resource(Ichor.Archon.Tools.Memory)
+    resource(Control)
+    resource(Events)
+    resource(Mes)
   end
 
   tools do
@@ -92,5 +112,36 @@ defmodule Ichor.AgentTools do
     tool(:get_run_status, DagExecution, :get_run_status)
     tool(:load_jsonl, DagExecution, :load_jsonl)
     tool(:export_jsonl, DagExecution, :export_jsonl)
+    # Fleet observation (Archon)
+    tool(:list_archon_agents, Ichor.Archon.Tools.Agents, :list_agents)
+    tool(:agent_status, Ichor.Archon.Tools.Agents, :agent_status)
+    tool(:list_teams, Teams, :list_teams)
+    # Fleet control (Archon)
+    tool(:spawn_archon_agent, Control, :spawn_agent)
+    tool(:stop_archon_agent, Control, :stop_agent)
+    tool(:pause_agent, Control, :pause_agent)
+    tool(:resume_agent, Control, :resume_agent)
+    tool(:sweep, Control, :sweep)
+    # Messaging (Archon)
+    tool(:recent_messages, Messages, :recent_messages)
+    tool(:archon_send_message, Messages, :send_message)
+    # System (Archon)
+    tool(:system_health, System, :system_health)
+    tool(:tmux_sessions, System, :tmux_sessions)
+    tool(:manager_snapshot, Manager, :manager_snapshot)
+    tool(:attention_queue, Manager, :attention_queue)
+    # Events & tasks (Archon)
+    tool(:agent_events, Events, :agent_events)
+    tool(:fleet_tasks, Events, :fleet_tasks)
+    # Memory (Archon)
+    tool(:search_memory, Ichor.Archon.Tools.Memory, :search_memory)
+    tool(:remember, Ichor.Archon.Tools.Memory, :remember)
+    tool(:query_memory, Ichor.Archon.Tools.Memory, :query_memory)
+    # MES floor management (Archon)
+    tool(:list_projects, Mes, :list_projects)
+    tool(:create_project, Mes, :create_project)
+    tool(:check_operator_inbox, Mes, :check_operator_inbox)
+    tool(:mes_status, Mes, :mes_status)
+    tool(:cleanup_mes, Mes, :cleanup_mes)
   end
 end

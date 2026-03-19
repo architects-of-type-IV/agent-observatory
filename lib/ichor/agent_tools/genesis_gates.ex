@@ -2,7 +2,7 @@ defmodule Ichor.AgentTools.GenesisGates do
   @moduledoc """
   MCP tools for Genesis gate checkpoints and design conversations.
   """
-  use Ash.Resource, domain: Ichor.AgentTools
+  use Ash.Resource, domain: Ichor.Tools
 
   alias Ichor.Projects
   alias Ichor.Tools.GenesisFormatter
