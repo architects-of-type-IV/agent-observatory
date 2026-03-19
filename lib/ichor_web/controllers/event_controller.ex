@@ -37,8 +37,6 @@ defmodule IchorWeb.EventController do
     |> json(%{ok: true, id: event.id})
   end
 
-  # ── Envelope Extraction ──────────────────────────────────────────
-
   defp extract_envelope(%{"raw" => raw} = params) do
     {
       raw,

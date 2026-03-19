@@ -12,7 +12,7 @@ defmodule Ichor.Gateway.OutputCapture do
 
   @capture_poll_interval 1_500
 
-  # ── Client API ───────────────────────────────────────────────────────
+
 
   def start_link(opts) do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
@@ -30,7 +30,7 @@ defmodule Ichor.Gateway.OutputCapture do
     GenServer.cast(__MODULE__, {:unwatch, session_id})
   end
 
-  # ── Server Callbacks ────────────────────────────────────────────────
+
 
   @impl true
   def init(_opts) do
@@ -65,7 +65,7 @@ defmodule Ichor.Gateway.OutputCapture do
 
   def handle_info(_msg, state), do: {:noreply, state}
 
-  # ── Private ─────────────────────────────────────────────────────────
+
 
   defp capture_watched(watched, last_capture) do
     Enum.reduce(watched, last_capture, fn session_id, acc ->

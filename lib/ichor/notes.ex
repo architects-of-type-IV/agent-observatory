@@ -9,9 +9,7 @@ defmodule Ichor.Notes do
   @table_name :ichor_notes
   @max_notes 1000
 
-  # ═══════════════════════════════════════════════════════
   # Client API
-  # ═══════════════════════════════════════════════════════
 
   def start_link(opts) do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
@@ -47,9 +45,7 @@ defmodule Ichor.Notes do
     GenServer.call(__MODULE__, {:delete_note, event_id})
   end
 
-  # ═══════════════════════════════════════════════════════
   # Server Callbacks
-  # ═══════════════════════════════════════════════════════
 
   @impl true
   def init(_opts) do

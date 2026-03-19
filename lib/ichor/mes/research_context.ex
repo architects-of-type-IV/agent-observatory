@@ -56,7 +56,7 @@ defmodule Ichor.Mes.ResearchContext do
     ~s("I want a subsystem that bridges MQTT/AMQP/Redis into Signals")
   ]
 
-  # ── Public API ──────────────────────────────────────────────────────
+
 
   @doc "Rendered existing subsystems section for prompt interpolation."
   @spec existing_subsystems() :: String.t()
@@ -89,7 +89,7 @@ defmodule Ichor.Mes.ResearchContext do
   @spec pain_points() :: String.t()
   def pain_points, do: render_lines(@pain_points)
 
-  # ── Private: Data Queries ───────────────────────────────────────────
+
 
   defp loaded_projects do
     Mes.loaded_projects()
@@ -99,7 +99,7 @@ defmodule Ichor.Mes.ResearchContext do
     Mes.all_projects()
   end
 
-  # ── Private: Subsystems ─────────────────────────────────────────────
+
 
   defp build_subsystem_list(loaded) do
     core_lines = Enum.map(@core_subsystems, fn {name, desc} -> "#{name}: #{desc} (CORE)" end)
@@ -112,7 +112,7 @@ defmodule Ichor.Mes.ResearchContext do
     core_lines ++ project_lines
   end
 
-  # ── Private: Gap Detection ──────────────────────────────────────────
+
 
   defp reject_filled(gaps, loaded) do
     subsystem_names = Enum.map(loaded, fn p -> p.subsystem || p.title || "" end)
@@ -125,7 +125,7 @@ defmodule Ichor.Mes.ResearchContext do
     |> Enum.map(fn {desc, _markers} -> desc end)
   end
 
-  # ── Private: Dead Zones ─────────────────────────────────────────────
+
 
   defp auto_dead_zones(all) do
     failed_or_proposed = Enum.filter(all, &(&1.status in [:proposed, :failed]))
@@ -140,7 +140,7 @@ defmodule Ichor.Mes.ResearchContext do
 
   defp normalize_title(%{title: title}), do: title
 
-  # ── Private: Rendering ──────────────────────────────────────────────
+
 
   defp render_lines(items) do
     Enum.map_join(items, "\n    ", &"- #{&1}")

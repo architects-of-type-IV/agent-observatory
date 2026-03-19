@@ -30,7 +30,7 @@ defmodule Ichor.Mes.RunProcess do
 
   defstruct [:run_id, :team_name, :session, :deadline_passed, agents: [], gate_failures: 0]
 
-  # ── Public API ──────────────────────────────────────────────────────
+
 
   @spec start_link(keyword()) :: GenServer.on_start()
   def start_link(opts) do
@@ -69,7 +69,7 @@ defmodule Ichor.Mes.RunProcess do
     end)
   end
 
-  # ── GenServer Callbacks ─────────────────────────────────────────────
+
 
   @impl true
   def init(opts) do
@@ -159,7 +159,7 @@ defmodule Ichor.Mes.RunProcess do
     :ok
   end
 
-  # ── Private ────────────────────────────────────────────────────────
+
 
   defp schedule_liveness_check do
     Process.send_after(self(), :check_liveness, @liveness_interval_ms)

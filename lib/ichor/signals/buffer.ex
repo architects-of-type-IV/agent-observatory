@@ -25,7 +25,7 @@ defmodule Ichor.Signals.Buffer do
     ArgumentError -> []
   end
 
-  # ── Server ──────────────────────────────────────────────────────────
+
 
   @impl true
   def init(_opts) do
@@ -60,7 +60,7 @@ defmodule Ichor.Signals.Buffer do
 
   def handle_info(_msg, state), do: {:noreply, state}
 
-  # ── Helpers ─────────────────────────────────────────────────────────
+
 
   defp short_val(v) when is_binary(v) and byte_size(v) > 20, do: String.slice(v, 0, 16) <> ".."
   defp short_val(v) when is_binary(v), do: v

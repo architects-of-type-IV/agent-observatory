@@ -8,8 +8,6 @@ defmodule IchorWeb.Components.WorkshopComponents do
 
   embed_templates "workshop_components/*"
 
-  # ── Workshop View (canvas-based team builder) ─────────────
-
   attr :ws_agents, :list, required: true
   attr :ws_spawn_links, :list, required: true
   attr :ws_comm_rules, :list, required: true
@@ -24,8 +22,6 @@ defmodule IchorWeb.Components.WorkshopComponents do
   attr :ws_editing_type, :any, default: nil
 
   def workshop_view(assigns)
-
-  # ── Helpers ────────────────────────────────────────────────
 
   @cap_colors %{
     "builder" => {"hsl(var(--ichor-role-builder))", "ichor-badge-cyan", "BLD"},

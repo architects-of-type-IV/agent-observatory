@@ -13,8 +13,6 @@ defmodule IchorWeb.Components.ArchonComponents do
   import IchorWeb.Components.ArchonComponents.ChatPanel, only: [chat_panel: 1]
   import IchorWeb.Components.ArchonComponents.ReferencePanel, only: [reference_panel: 1]
 
-  # ── Main overlay ──────────────────────────────────────────────────────
-
   attr :messages, :list, required: true
   attr :loading, :boolean, default: false
   attr :tab, :atom, default: :command
@@ -91,8 +89,6 @@ defmodule IchorWeb.Components.ArchonComponents do
     </div>
     """
   end
-
-  # ── FAB ──────────────────────────────────────────────────────────────
 
   attr :show_archon, :boolean, default: false
 

@@ -28,7 +28,7 @@ defmodule Ichor.Genesis.DagGenerator do
     Enum.map_join(tasks, "\n", &Jason.encode!/1)
   end
 
-  # ── Private ──────────────────────────────────────────────────────
+
 
   defp flatten_hierarchy(phases) do
     for phase <- phases,

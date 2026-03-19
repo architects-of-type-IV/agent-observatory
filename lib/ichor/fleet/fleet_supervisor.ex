@@ -18,7 +18,7 @@ defmodule Ichor.Fleet.FleetSupervisor do
 
   alias Ichor.Fleet.{AgentProcess, TeamSupervisor}
 
-  # ── Public API ──────────────────────────────────────────────────────
+
 
   @doc "Start the fleet supervisor."
   @spec start_link(keyword()) :: Supervisor.on_start()
@@ -112,7 +112,7 @@ defmodule Ichor.Fleet.FleetSupervisor do
     }
   end
 
-  # ── Server Callbacks ────────────────────────────────────────────────
+
 
   @impl true
   def init(_opts) do

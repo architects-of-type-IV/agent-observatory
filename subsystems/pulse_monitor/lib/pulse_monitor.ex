@@ -24,8 +24,6 @@ defmodule Ichor.Subsystems.PulseMonitor do
   @burst_multiplier 3.0
   @silence_threshold_seconds 60
 
-  # ── Subsystem Behaviour ─────────────────────────────────────────────
-
   @impl Ichor.Mes.Subsystem
   def info do
     %Ichor.Mes.Subsystem.Info{
@@ -78,8 +76,6 @@ defmodule Ichor.Subsystems.PulseMonitor do
     :exit, _ -> :ok
   end
 
-  # ── Public Read API (ETS direct, no GenServer bottleneck) ──────────
-
   @spec get_frequencies() :: %{atom() => non_neg_integer()}
   def get_frequencies do
     if :ets.whereis(@table) != :undefined do
@@ -102,8 +98,6 @@ defmodule Ichor.Subsystems.PulseMonitor do
   catch
     :exit, _ -> %{}
   end
-
-  # ── GenServer Callbacks ────────────────────────────────────────────
 
   @impl GenServer
   def init(_opts) do
@@ -162,8 +156,6 @@ defmodule Ichor.Subsystems.PulseMonitor do
     unsubscribe_all()
     :ok
   end
-
-  # ── Private ────────────────────────────────────────────────────────
 
   defp subscribe_all do
     categories = Ichor.Signals.categories()

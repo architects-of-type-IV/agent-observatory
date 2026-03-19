@@ -24,7 +24,7 @@ defmodule Ichor.Dag.HealthChecker do
           stats: map()
         }
 
-  # ── Public API ───────────────────────────────────────────────────────
+
 
   @spec check(String.t()) :: {:ok, report()} | {:error, term()}
   def check(run_id) do
@@ -51,7 +51,7 @@ defmodule Ichor.Dag.HealthChecker do
     }
   end
 
-  # ── Private ──────────────────────────────────────────────────────────
+
 
   defp stale_issues(nodes, now) do
     nodes

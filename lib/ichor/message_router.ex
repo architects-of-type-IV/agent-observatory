@@ -17,8 +17,12 @@ defmodule Ichor.MessageRouter do
   @message_log :ichor_message_log
   @max_messages 200
 
-  # ── Public API ──────────────────────────────────────────────────────
+  @doc """
+  Send a message to any target. Returns `{:ok, %{status, to, delivered}}`.
 
+  Required keys: `:from`, `:to`, `:content` (all binaries).
+  Optional keys: `:type` (default `:text`), `:metadata` (default `%{}`).
+  """
   @spec send(map()) :: {:ok, map()} | {:error, String.t()}
   def send(%{from: from, to: to, content: content} = attrs)
       when is_binary(to) and is_binary(content) do
@@ -36,6 +40,7 @@ defmodule Ichor.MessageRouter do
 
   def send(_), do: {:error, "missing required keys: :from, :to, :content"}
 
+  @doc "Initialize the ETS message log. Called at application start."
   @spec start_message_log() :: :ok
   def start_message_log do
     :ets.new(@message_log, [:named_table, :public, :ordered_set])
@@ -44,6 +49,7 @@ defmodule Ichor.MessageRouter do
     ArgumentError -> :ok
   end
 
+  @doc "Read recent messages from the ETS log, newest first."
   @spec recent_messages(pos_integer()) :: [map()]
   def recent_messages(limit \\ 50) do
     @message_log
@@ -54,8 +60,6 @@ defmodule Ichor.MessageRouter do
   rescue
     ArgumentError -> []
   end
-
-  # ── Delivery ────────────────────────────────────────────────────────
 
   defp deliver({:agent, id}, msg), do: deliver_to_agent(id, msg)
   defp deliver({:session, sid}, msg), do: deliver_to_agent(sid, msg)
@@ -111,8 +115,6 @@ defmodule Ichor.MessageRouter do
   rescue
     ArgumentError -> {:ok, 0}
   end
-
-  # ── Helpers ─────────────────────────────────────────────────────────
 
   defp normalize(from, content, attrs) do
     %{

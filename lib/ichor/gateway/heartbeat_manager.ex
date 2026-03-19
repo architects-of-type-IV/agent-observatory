@@ -14,7 +14,7 @@ defmodule Ichor.Gateway.HeartbeatManager do
   @eviction_threshold_seconds 90
   @check_interval_ms 30_000
 
-  # ── Client API ──────────────────────────────────────────────────────
+
 
   def start_link(opts) do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
@@ -35,7 +35,7 @@ defmodule Ichor.Gateway.HeartbeatManager do
     GenServer.call(__MODULE__, :list_zombies)
   end
 
-  # ── Server Callbacks ────────────────────────────────────────────────
+
 
   @impl true
   def init(_opts) do

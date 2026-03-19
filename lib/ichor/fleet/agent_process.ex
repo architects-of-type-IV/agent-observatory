@@ -47,7 +47,7 @@ defmodule Ichor.Fleet.AgentProcess do
     unread: []
   ]
 
-  # ── Public API ──────────────────────────────────────────────────────
+
 
   @doc "Start an agent process and register it in the fleet registry."
   @spec start_link(keyword()) :: GenServer.on_start()
@@ -164,7 +164,7 @@ defmodule Ichor.Fleet.AgentProcess do
     end)
   end
 
-  # ── Server Callbacks ────────────────────────────────────────────────
+
 
   @impl true
   def init(opts) do

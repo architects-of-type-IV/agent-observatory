@@ -28,7 +28,7 @@ defmodule Ichor.Fleet.Team do
   end
 
   actions do
-    # ── Reads ────────────────────────────────────────────────────────
+
 
     read :all do
       prepare({Ichor.Fleet.Views.Preparations.LoadTeams, []})
@@ -39,7 +39,7 @@ defmodule Ichor.Fleet.Team do
       filter(expr(dead? == false))
     end
 
-    # ── Lifecycle ────────────────────────────────────────────────────
+
 
     action :create_team, :map do
       description("Create a new team with a DynamicSupervisor.")

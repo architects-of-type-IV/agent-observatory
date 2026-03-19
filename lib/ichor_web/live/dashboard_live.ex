@@ -124,8 +124,6 @@ defmodule IchorWeb.DashboardLive do
 
   defp apply_nav_view(_nav_view, socket), do: socket
 
-  # ── handle_info ──────────────────────────────────────────────────────
-
   @impl true
   def handle_info(:load_data, socket) do
     events = Ichor.EventBuffer.latest_per_session()
@@ -144,8 +142,6 @@ defmodule IchorWeb.DashboardLive do
   end
 
   def handle_info(msg, socket), do: DashboardInfoHandlers.dispatch(msg, socket)
-
-  # ── Events: full recompute (data-changing) ───────────────────────────
 
   @impl true
   def handle_event(e, p, s) when e in @filter_events,
@@ -175,12 +171,8 @@ defmodule IchorWeb.DashboardLive do
   def handle_event(e, p, s) when e in @mes_events,
     do: {:noreply, DashboardMesHandlers.dispatch(e, p, s)}
 
-  # ── Events: view-only recompute (no Ash/SQL queries) ─────────────────
-
   def handle_event(e, p, s) when e in @selection_recompute,
     do: {:noreply, DashboardSelectionHandlers.dispatch(e, p, s) |> recompute_view()}
-
-  # ── Events: no recompute (pure UI state) ─────────────────────────────
 
   def handle_event(e, p, s) when e in @ui_no_recompute,
     do: {:noreply, DashboardUIHandlers.dispatch(e, p, s)}
@@ -200,8 +192,6 @@ defmodule IchorWeb.DashboardLive do
   def handle_event(e, p, s) when e in @messaging_events,
     do: {:noreply, DashboardMessagingHandlers.dispatch(e, p, s)}
 
-  # ── Events: messaging (passthrough -- handlers return {:noreply, socket}) ──
-
   def handle_event("send_agent_message", p, s),
     do: DashboardMessagingHandlers.handle_send_agent_message(p, s)
 
@@ -210,15 +200,11 @@ defmodule IchorWeb.DashboardLive do
 
   def handle_event("push_context", p, s), do: DashboardMessagingHandlers.handle_push_context(p, s)
 
-  # ── Events: standalone ─────────────────────────────────────────────────
-
   def handle_event("toggle_sidebar", _p, s),
     do: {:noreply, DashboardUIHandlers.dispatch("toggle_sidebar", %{}, s)}
 
   def handle_event("restore_state", p, s),
     do: {:noreply, DashboardUIHandlers.handle_restore_state(p, s) |> recompute()}
-
-  # ── Events: archon ─────────────────────────────────────────────────────
 
   def handle_event("archon_toggle", _p, s),
     do: {:noreply, DashboardArchonHandlers.handle_archon_toggle(s)}
@@ -242,15 +228,11 @@ defmodule IchorWeb.DashboardLive do
   def handle_event("dismiss_toast", %{"id" => id}, s),
     do: {:noreply, IchorWeb.DashboardToast.dismiss_toast(s, id)}
 
-  # ── Events: slideout ───────────────────────────────────────────────────
-
   def handle_event("open_agent_slideout", %{"session_id" => sid}, s),
     do: {:noreply, DashboardSlideoutHandlers.handle_open_agent_slideout(sid, s) |> recompute()}
 
   def handle_event("close_agent_slideout", _p, s),
     do: {:noreply, DashboardSlideoutHandlers.handle_close_agent_slideout(s)}
-
-  # ── Events: workshop (prefix-match delegation) ─────────────────────────
 
   def handle_event("ws_edit_type" <> _ = e, p, s),
     do: IchorWeb.WorkshopTypes.handle_event(e, p, s)
@@ -278,8 +260,6 @@ defmodule IchorWeb.DashboardLive do
 
   def handle_event("ws_" <> _ = e, p, s),
     do: IchorWeb.DashboardWorkshopHandlers.handle_event(e, p, s)
-
-  # ── Events: signals ────────────────────────────────────────────────
 
   def handle_event("stream_search", %{"q" => q}, s), do: {:noreply, assign(s, :stream_filter, q)}
 

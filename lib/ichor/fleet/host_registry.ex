@@ -16,7 +16,7 @@ defmodule Ichor.Fleet.HostRegistry do
   @pg_scope :ichor_agents
   @pg_group :ichor_hosts
 
-  # ── Public API ──────────────────────────────────────────────────────
+
 
   @spec start_link(keyword()) :: GenServer.on_start()
   def start_link(opts) do
@@ -66,7 +66,7 @@ defmodule Ichor.Fleet.HostRegistry do
     }
   end
 
-  # ── Server Callbacks ────────────────────────────────────────────────
+
 
   @impl true
   def init(_opts) do
@@ -136,7 +136,7 @@ defmodule Ichor.Fleet.HostRegistry do
 
   def handle_info(_msg, state), do: {:noreply, state}
 
-  # ── Private ────────────────────────────────────────────────────────
+
 
   defp host_entry(node, status) do
     %{

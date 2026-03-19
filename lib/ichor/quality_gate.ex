@@ -46,7 +46,7 @@ defmodule Ichor.QualityGate do
     {:reply, result, state}
   end
 
-  # ── Private ──────────────────────────────────────────────────────────
+
 
   defp handle_task_completed(event) do
     session_id = event.session_id

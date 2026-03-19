@@ -4,8 +4,6 @@ defmodule IchorWeb.Components.MesFactoryComponents do
   use Phoenix.Component
   alias Ichor.Genesis.PipelineStage
 
-  # ── Action Bar ───────────────────────────────────────────────────────
-
   attr :project, :map, required: true
   attr :genesis_node, :any, required: true
   attr :reader_open, :boolean, default: false
@@ -150,8 +148,6 @@ defmodule IchorWeb.Components.MesFactoryComponents do
     assigns = assign(assigns, :cls, @pill_future)
     ~H"<span class={@cls}>Build</span>"
   end
-
-  # ── Tab Bar ──────────────────────────────────────────────────────────
 
   attr :active, :atom, required: true
   attr :genesis_node, :any, required: true

@@ -37,7 +37,7 @@ defmodule Ichor.Archon.TeamWatchdog do
 
   def handle_info(_, state), do: {:noreply, state}
 
-  # ── Dispatch (side effects isolated here) ────────────────────────
+
 
   defp dispatch(:noop), do: :ok
 

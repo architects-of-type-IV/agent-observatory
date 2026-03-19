@@ -24,9 +24,7 @@ defmodule IchorWeb.Components.Feed.SessionGroup do
 
   embed_templates "session_group/*"
 
-  # ═══════════════════════════════════════════════════════
   # Composable primitives
-  # ═══════════════════════════════════════════════════════
 
   @doc """
   Nesting wrapper. Provides the tree indentation line.
@@ -110,9 +108,7 @@ defmodule IchorWeb.Components.Feed.SessionGroup do
     """
   end
 
-  # ═══════════════════════════════════════════════════════
   # Style helpers -- single source of truth for row element sizing
-  # ═══════════════════════════════════════════════════════
 
   @doc "CSS class for a row label (PROMPT, RESEARCH, START, etc.)"
   def label_class(color),
@@ -124,17 +120,13 @@ defmodule IchorWeb.Components.Feed.SessionGroup do
   @doc "CSS class for metadata stats (tool count, duration, time, etc.)"
   def stat_class(color \\ "text-muted"), do: "text-xs font-mono #{color} shrink-0"
 
-  # ═══════════════════════════════════════════════════════
   # Turn dispatch -- routes to embedded templates
-  # ═══════════════════════════════════════════════════════
 
   defp render_item(%{item: %{type: :turn}} = assigns), do: conversation_turn(assigns)
   defp render_item(%{item: %{type: :preamble}} = assigns), do: preamble_segment(assigns)
   defp render_item(%{item: %{type: :subagent_stop}} = assigns), do: orphan_subagent(assigns)
 
-  # ═══════════════════════════════════════════════════════
   # Tool pair -- start + done rows in one nest
-  # ═══════════════════════════════════════════════════════
 
   attr :pair, :map, required: true
   attr :selected_event, :map, default: nil
@@ -181,9 +173,7 @@ defmodule IchorWeb.Components.Feed.SessionGroup do
     """
   end
 
-  # ═══════════════════════════════════════════════════════
   # Orphan subagent stop
-  # ═══════════════════════════════════════════════════════
 
   defp orphan_subagent(assigns) do
     ~H"""
@@ -199,9 +189,7 @@ defmodule IchorWeb.Components.Feed.SessionGroup do
     """
   end
 
-  # ═══════════════════════════════════════════════════════
   # Preamble segment (events before first turn)
-  # ═══════════════════════════════════════════════════════
 
   defp preamble_segment(assigns) do
     assigns =
@@ -237,9 +225,7 @@ defmodule IchorWeb.Components.Feed.SessionGroup do
     """
   end
 
-  # ═══════════════════════════════════════════════════════
   # Phase helpers
-  # ═══════════════════════════════════════════════════════
 
   def phase_label(:research), do: "Research"
   def phase_label(:build), do: "Build"
@@ -257,9 +243,7 @@ defmodule IchorWeb.Components.Feed.SessionGroup do
   def phase_color(:think), do: "text-violet"
   def phase_color(:other), do: "text-default"
 
-  # ═══════════════════════════════════════════════════════
   # Role badge
-  # ═══════════════════════════════════════════════════════
 
   defp role_badge(%{role: :lead} = assigns) do
     ~H"""
@@ -284,9 +268,7 @@ defmodule IchorWeb.Components.Feed.SessionGroup do
     """
   end
 
-  # ═══════════════════════════════════════════════════════
   # Helpers
-  # ═══════════════════════════════════════════════════════
 
   defp agent_display_name(group) do
     cond do

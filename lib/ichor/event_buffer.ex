@@ -23,7 +23,7 @@ defmodule Ichor.EventBuffer do
   @max_events 5_000
   @tombstone_ttl_ms 30_000
 
-  # ── Public API ──────────────────────────────────────────────────
+
 
   def start_link(opts \\ []), do: GenServer.start_link(__MODULE__, opts, name: __MODULE__)
 
@@ -111,7 +111,7 @@ defmodule Ichor.EventBuffer do
     |> Enum.sort_by(& &1.inserted_at, {:desc, DateTime})
   end
 
-  # ── GenServer ─────────────────────────────────────────────────
+
 
   @impl true
   def init(_opts) do
@@ -119,7 +119,7 @@ defmodule Ichor.EventBuffer do
     {:ok, %{}}
   end
 
-  # ── Internals ─────────────────────────────────────────────────
+
 
   defp ensure_ets(name) do
     case :ets.whereis(name) do
@@ -147,7 +147,7 @@ defmodule Ichor.EventBuffer do
     end
   end
 
-  # ── Tombstones ────────────────────────────────────────────────
+
 
   defp tombstoned?(session_id) do
     case :ets.lookup(@tombstones, session_id) do
@@ -164,7 +164,7 @@ defmodule Ichor.EventBuffer do
     end
   end
 
-  # ── Session ID Resolution ─────────────────────────────────────
+
 
   defp resolve_session_id(raw_id, tmux) when tmux in [nil, ""] do
     case {AgentEntry.uuid?(raw_id), :ets.lookup(@aliases, raw_id)} do
@@ -178,7 +178,7 @@ defmodule Ichor.EventBuffer do
     tmux_session
   end
 
-  # ── Message Sanitization ──────────────────────────────────────
+
 
   defp sanitize_payload(payload) when is_map(payload) do
     payload
@@ -203,7 +203,7 @@ defmodule Ichor.EventBuffer do
 
   defp truncate_tool_input(payload), do: payload
 
-  # ── Tool Duration Tracking ────────────────────────────────────
+
 
   defp put_duration(%{hook_event_type: type, tool_use_id: id} = attrs)
        when type in ["PostToolUse", "PostToolUseFailure"] and is_binary(id) do
@@ -227,7 +227,7 @@ defmodule Ichor.EventBuffer do
 
   defp track_tool_start(attrs), do: attrs
 
-  # ── Event Construction ────────────────────────────────────────
+
 
   defp build_event(attrs) do
     now = DateTime.utc_now()

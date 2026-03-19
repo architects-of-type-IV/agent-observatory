@@ -153,8 +153,6 @@ defmodule IchorWeb.Components.SignalComponents do
     """
   end
 
-  # ── Helpers ──────────────────────────────────────────────────────────
-
   defp format_time(dt), do: Calendar.strftime(dt, "%H:%M:%S")
 
   defp category_color(:events), do: "text-success"

@@ -19,12 +19,12 @@ defmodule Ichor.Mes.ResearchIngestor do
   @research_space "project:ichor:research"
   @briefs_dir "subsystems/briefs"
 
-  # ── Public API ──────────────────────────────────────────────────────
+
 
   @spec start_link(keyword()) :: GenServer.on_start()
   def start_link(opts), do: GenServer.start_link(__MODULE__, opts, name: __MODULE__)
 
-  # ── GenServer Callbacks ─────────────────────────────────────────────
+
 
   @impl true
   def init(_opts) do
@@ -40,7 +40,7 @@ defmodule Ichor.Mes.ResearchIngestor do
 
   def handle_info(%Message{}, state), do: {:noreply, state}
 
-  # ── Private ─────────────────────────────────────────────────────────
+
 
   defp ingest_research(%{project_id: project_id, run_id: run_id} = data) do
     project = load_project(project_id)

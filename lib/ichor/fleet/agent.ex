@@ -42,7 +42,7 @@ defmodule Ichor.Fleet.Agent do
   end
 
   actions do
-    # ── Reads ────────────────────────────────────────────────────────
+
 
     read :all do
       prepare({Ichor.Fleet.Views.Preparations.LoadAgents, []})
@@ -59,7 +59,7 @@ defmodule Ichor.Fleet.Agent do
       filter(expr(team_name == ^arg(:team_name)))
     end
 
-    # ── Lifecycle ────────────────────────────────────────────────────
+
 
     action :spawn, :map do
       description("Spawn a new agent process in the fleet.")
@@ -194,7 +194,7 @@ defmodule Ichor.Fleet.Agent do
       end)
     end
 
-    # ── Messaging ────────────────────────────────────────────────────
+
 
     action :send_message, :map do
       description("Send a message to an agent.")
@@ -289,7 +289,7 @@ defmodule Ichor.Fleet.Agent do
     define(:update_instructions, args: [:agent_id, :instructions])
   end
 
-  # ── Private Helpers ──────────────────────────────────────────────
+
 
   @spec spawn_in_fleet(String.t() | nil, keyword()) :: {:ok, pid()} | {:error, term()}
   defp spawn_in_fleet(nil, opts) do

@@ -35,7 +35,7 @@ defmodule Ichor.Mes.SubsystemScaffold do
   @spec subsystem_path(String.t()) :: String.t()
   def subsystem_path(app_name), do: Path.join(@subsystems_dir, app_name)
 
-  # ── Private ──────────────────────────────────────────────────────
+
 
   defp create_project(path, app_name, module_name) do
     lib_dir = Path.join(path, "lib")

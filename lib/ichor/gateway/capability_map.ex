@@ -7,7 +7,7 @@ defmodule Ichor.Gateway.CapabilityMap do
 
   use GenServer
 
-  # ── Client API ──────────────────────────────────────────────────────
+
 
   def start_link(opts) do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
@@ -33,7 +33,7 @@ defmodule Ichor.Gateway.CapabilityMap do
     GenServer.call(__MODULE__, :list)
   end
 
-  # ── Server Callbacks ────────────────────────────────────────────────
+
 
   @impl true
   def init(_opts) do

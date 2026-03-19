@@ -24,7 +24,7 @@ defmodule Ichor.Genesis.RunProcess do
 
   defstruct [:run_id, :mode, :session, :node_id]
 
-  # ── Public API ──────────────────────────────────────────────────────
+
 
   @spec start_link(keyword()) :: GenServer.on_start()
   def start_link(opts) do
@@ -50,7 +50,7 @@ defmodule Ichor.Genesis.RunProcess do
     ])
   end
 
-  # ── GenServer Callbacks ─────────────────────────────────────────────
+
 
   @impl true
   def init(opts) do
@@ -129,7 +129,7 @@ defmodule Ichor.Genesis.RunProcess do
     :ok
   end
 
-  # ── Private ─────────────────────────────────────────────────────────
+
 
   defp cleanup(state) do
     ModeRunner.kill_session(state.session, state.run_id, state.mode)

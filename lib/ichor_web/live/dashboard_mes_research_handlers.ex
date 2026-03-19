@@ -30,8 +30,6 @@ defmodule IchorWeb.DashboardMesResearchHandlers do
     load_research_data(socket)
   end
 
-  # ── Data Loading ────────────────────────────────────────────────────
-
   @spec load_research_data(Phoenix.LiveView.Socket.t()) :: Phoenix.LiveView.Socket.t()
   def load_research_data(socket) do
     entities = safe_fetch(&ResearchStore.list_entities/0)
@@ -41,8 +39,6 @@ defmodule IchorWeb.DashboardMesResearchHandlers do
     |> assign(:mes_research_entities, entities)
     |> assign(:mes_research_episodes, episodes)
   end
-
-  # ── Private ─────────────────────────────────────────────────────────
 
   defp do_search(""), do: []
 

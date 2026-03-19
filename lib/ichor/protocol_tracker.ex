@@ -12,9 +12,7 @@ defmodule Ichor.ProtocolTracker do
   @table_name :protocol_traces
   @max_traces 200
 
-  # ═══════════════════════════════════════════════════════
   # Client API
-  # ═══════════════════════════════════════════════════════
 
   def start_link(opts), do: GenServer.start_link(__MODULE__, opts, name: __MODULE__)
 
@@ -41,9 +39,7 @@ defmodule Ichor.ProtocolTracker do
     GenServer.cast(__MODULE__, {:gateway_broadcast, data})
   end
 
-  # ═══════════════════════════════════════════════════════
   # Server
-  # ═══════════════════════════════════════════════════════
 
   @impl true
   def init(_opts) do
@@ -133,9 +129,7 @@ defmodule Ichor.ProtocolTracker do
     {:noreply, %{state | trace_count: state.trace_count + 1}}
   end
 
-  # ═══════════════════════════════════════════════════════
   # Trace creation from events
-  # ═══════════════════════════════════════════════════════
 
   defp maybe_create_trace(
          %{hook_event_type: :PreToolUse, tool_name: "SendMessage"} = event,
@@ -238,9 +232,7 @@ defmodule Ichor.ProtocolTracker do
     end
   end
 
-  # ═══════════════════════════════════════════════════════
   # Stats
-  # ═══════════════════════════════════════════════════════
 
   defp compute_stats do
     traces = :ets.tab2list(@table_name) |> Enum.map(&elem(&1, 1))
@@ -260,9 +252,7 @@ defmodule Ichor.ProtocolTracker do
     }
   end
 
-  # ═══════════════════════════════════════════════════════
   # Helpers
-  # ═══════════════════════════════════════════════════════
 
   defp truncate(nil, _len), do: ""
 

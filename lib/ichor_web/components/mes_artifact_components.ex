@@ -10,8 +10,6 @@ defmodule IchorWeb.Components.MesArtifactComponents do
 
   defdelegate reader_sidebar(assigns), to: MesReaderComponents
 
-  # ── Artifact List ────────────────────────────────────────────────────
-
   attr :genesis_node, :any, required: true
   attr :sub_tab, :atom, required: true
   attr :selected, :any, default: nil

@@ -11,7 +11,7 @@ defmodule Ichor.Mes.ResearchStore do
 
   @research_space "project:ichor:research"
 
-  # ── Public API ──────────────────────────────────────────────────────
+
 
   @spec search(String.t(), keyword()) :: {:ok, list()} | {:error, term()}
   def search(query, opts \\ []) do
@@ -40,7 +40,7 @@ defmodule Ichor.Mes.ResearchStore do
     MemoriesClient.query_memory(question, opts)
   end
 
-  # ── HTTP (GET only) ─────────────────────────────────────────────────
+
 
   defp get(path, params) do
     url = memories_url() <> path
@@ -73,7 +73,7 @@ defmodule Ichor.Mes.ResearchStore do
     end)
   end
 
-  # ── Config (mirrors MemoriesClient) ─────────────────────────────────
+
 
   defp memories_config, do: Application.fetch_env!(:ichor, :memories)
   defp memories_url, do: Keyword.fetch!(memories_config(), :url)

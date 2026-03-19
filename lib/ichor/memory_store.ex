@@ -36,9 +36,7 @@ defmodule Ichor.MemoryStore do
   alias Ichor.MemoryStore.Recall
   alias Ichor.MemoryStore.Tables
 
-  # ═══════════════════════════════════════════════════════
   # Client API -- Blocks
-  # ═══════════════════════════════════════════════════════
 
   def start_link(opts), do: GenServer.start_link(__MODULE__, opts, name: __MODULE__)
 
@@ -67,9 +65,7 @@ defmodule Ichor.MemoryStore do
     GenServer.call(__MODULE__, {:list_blocks, opts})
   end
 
-  # ═══════════════════════════════════════════════════════
   # Client API -- Agents
-  # ═══════════════════════════════════════════════════════
 
   @doc """
   Create an agent with initial memory blocks.
@@ -116,9 +112,7 @@ defmodule Ichor.MemoryStore do
     GenServer.call(__MODULE__, {:compile_memory, agent_name})
   end
 
-  # ═══════════════════════════════════════════════════════
   # Client API -- Memory Tools (agent-facing, Letta V2)
-  # ═══════════════════════════════════════════════════════
 
   @doc "Replace text in a block. Letta's memory_replace."
   def memory_replace(agent_name, block_label, old_text, new_text) do
@@ -135,9 +129,7 @@ defmodule Ichor.MemoryStore do
     GenServer.call(__MODULE__, {:memory_rethink, agent_name, block_label, new_value})
   end
 
-  # ═══════════════════════════════════════════════════════
   # Client API -- Recall Memory
-  # ═══════════════════════════════════════════════════════
 
   @doc "Add a message to recall memory."
   def add_recall(agent_name, role, content, metadata \\ %{}) do
@@ -157,9 +149,7 @@ defmodule Ichor.MemoryStore do
     )
   end
 
-  # ═══════════════════════════════════════════════════════
   # Client API -- Archival Memory
-  # ═══════════════════════════════════════════════════════
 
   @doc "Insert a passage into archival memory. Letta's archival_memory_insert."
   def archival_memory_insert(agent_name, content, tags \\ []) do
@@ -184,9 +174,7 @@ defmodule Ichor.MemoryStore do
   @doc "Data directory path."
   def data_dir, do: Tables.data_dir()
 
-  # ═══════════════════════════════════════════════════════
   # Server -- Init
-  # ═══════════════════════════════════════════════════════
 
   @impl true
   def init(_opts) do
@@ -199,9 +187,7 @@ defmodule Ichor.MemoryStore do
     {:ok, %{dirty_blocks: MapSet.new(), dirty_agents: MapSet.new()}}
   end
 
-  # ═══════════════════════════════════════════════════════
   # Server -- Block Handlers
-  # ═══════════════════════════════════════════════════════
 
   @impl true
   def handle_call({:create_block, attrs}, _from, state) do
@@ -237,9 +223,7 @@ defmodule Ichor.MemoryStore do
     {:reply, {:ok, Blocks.list(opts)}, state}
   end
 
-  # ═══════════════════════════════════════════════════════
   # Server -- Agent Handlers
-  # ═══════════════════════════════════════════════════════
 
   def handle_call({:create_agent, name, memory_blocks, extra_block_ids}, _from, state) do
     cond do
@@ -375,9 +359,7 @@ defmodule Ichor.MemoryStore do
     end
   end
 
-  # ═══════════════════════════════════════════════════════
   # Server -- Memory Tool Handlers (V2 line-aware)
-  # ═══════════════════════════════════════════════════════
 
   def handle_call({:memory_replace, agent_name, block_label, old_text, new_text}, _from, state) do
     with {:ok, block} <- Blocks.find_agent_block(agent_name, block_label),
@@ -424,9 +406,7 @@ defmodule Ichor.MemoryStore do
     end
   end
 
-  # ═══════════════════════════════════════════════════════
   # Server -- Recall Memory Handlers
-  # ═══════════════════════════════════════════════════════
 
   def handle_call({:add_recall, agent_name, role, content, metadata}, _from, state) do
     {:ok, entry} = Recall.add(agent_name, role, content, metadata)
@@ -445,9 +425,7 @@ defmodule Ichor.MemoryStore do
     {:reply, {:ok, Recall.search_by_date(agent_name, start_date, end_date, opts)}, state}
   end
 
-  # ═══════════════════════════════════════════════════════
   # Server -- Archival Memory Handlers
-  # ═══════════════════════════════════════════════════════
 
   def handle_call({:archival_insert, agent_name, content, tags}, _from, state) do
     {:ok, passage} = Archival.insert(agent_name, content, tags)
@@ -467,9 +445,7 @@ defmodule Ichor.MemoryStore do
     {:reply, {:ok, Archival.list(agent_name, opts)}, state}
   end
 
-  # ═══════════════════════════════════════════════════════
   # Server -- Flush
-  # ═══════════════════════════════════════════════════════
 
   @impl true
   def handle_info(:flush_to_disk, state) do
@@ -478,9 +454,7 @@ defmodule Ichor.MemoryStore do
     {:noreply, %{state | dirty_blocks: MapSet.new(), dirty_agents: MapSet.new()}}
   end
 
-  # ═══════════════════════════════════════════════════════
   # Utilities
-  # ═══════════════════════════════════════════════════════
 
   defp schedule_flush, do: Process.send_after(self(), :flush_to_disk, 10_000)
 

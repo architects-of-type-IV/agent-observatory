@@ -21,8 +21,6 @@ defmodule IchorWeb.DashboardInfoHandlers do
   @max_events 500
   @recompute_debounce_ms 100
 
-  # ── Debounced recompute ──────────────────────────────────────────────
-
   defp schedule_recompute(%{assigns: %{recompute_timer: timer}} = socket) when not is_nil(timer),
     do: socket
 
@@ -34,8 +32,6 @@ defmodule IchorWeb.DashboardInfoHandlers do
   def dispatch(:do_recompute, socket) do
     {:noreply, socket |> assign(:recompute_timer, nil) |> recompute()}
   end
-
-  # ── Signal-native: data-changing events ────────────────────────────────
 
   def dispatch(%Message{name: :new_event, data: %{event: event}}, socket) do
     events = [event | socket.assigns.events] |> Enum.take(@max_events)
@@ -67,8 +63,6 @@ defmodule IchorWeb.DashboardInfoHandlers do
 
   def dispatch(%Message{name: :fleet_changed}, socket),
     do: {:noreply, schedule_recompute(socket)}
-
-  # ── Signal-native: lightweight events ──────────────────────────────────
 
   def dispatch(%Message{name: :heartbeat}, %{assigns: %{tmux_panels: [_ | _]}} = socket),
     do: {:noreply, refresh_tmux_panels(socket)}
@@ -123,15 +117,11 @@ defmodule IchorWeb.DashboardInfoHandlers do
   def dispatch(%Message{name: name} = sig, socket) when name in @gateway_signals,
     do: {:noreply, handle_gateway_info(sig, socket) |> maybe_refresh_archon_manager()}
 
-  # ── Non-signal messages ────────────────────────────────────────────────
-
   def dispatch({:archon_response, result}, socket),
     do: {:noreply, DashboardArchonHandlers.handle_archon_response(result, socket)}
 
   def dispatch({:dismiss_toast, id}, socket),
     do: {:noreply, IchorWeb.DashboardToast.dismiss_toast(socket, id)}
-
-  # ── Signal-native: MES signals ─────────────────────────────────────
 
   def dispatch(%Message{name: :mes_project_created}, socket) do
     {:noreply, assign(socket, :mes_projects, Mes.list_projects())}
@@ -156,8 +146,6 @@ defmodule IchorWeb.DashboardInfoHandlers do
            ],
       do: {:noreply, maybe_refresh_archon_manager(socket)}
 
-  # ── Signal-native: Genesis signals ─────────────────────────────────
-
   def dispatch(%Message{name: name}, socket)
       when name in [
              :genesis_artifact_created,
@@ -170,8 +158,6 @@ defmodule IchorWeb.DashboardInfoHandlers do
 
   # Catch-all: ignore unknown signals (new signals added to catalog won't crash)
   def dispatch(%Message{}, socket), do: {:noreply, maybe_refresh_archon_manager(socket)}
-
-  # ── Private ─────────────────────────────────────────────────────────
 
   @genesis_loads [
     :adrs,

@@ -58,13 +58,13 @@ defmodule Ichor.Gateway.EventBridge do
 
   def handle_info(_msg, state), do: {:noreply, state}
 
-  # ── Private ──────────────────────────────────────────────────────
+
 
   defp schedule_sweep do
     Process.send_after(self(), :sweep, @sweep_interval)
   end
 
-  # ── Transform ────────────────────────────────────────────────────
+
 
   defp event_to_decision_log(event) do
     %DecisionLog{

@@ -25,8 +25,6 @@ defmodule IchorWeb.Components.ModalComponents do
      ]}
   ]
 
-  # ── Generic modal wrapper ─────────────────────────────────────────────
-
   attr :show, :boolean, required: true
   attr :on_close, :string, required: true
   attr :max_width, :string, default: "max-w-lg"
@@ -54,8 +52,6 @@ defmodule IchorWeb.Components.ModalComponents do
     """
   end
 
-  # ── Close button (reusable) ───────────────────────────────────────────
-
   attr :on_close, :string, required: true
 
   defp close_button(assigns) do
@@ -71,8 +67,6 @@ defmodule IchorWeb.Components.ModalComponents do
     </button>
     """
   end
-
-  # ── Keyboard Shortcuts Modal ──────────────────────────────────────────
 
   attr :show, :boolean, required: true
 

@@ -5,7 +5,6 @@ defmodule IchorWeb.Components.MesReaderComponents do
 
   alias IchorWeb.Components.MesPhaseRenderer
 
-  # ── Reader Sidebar ────────────────────────────────────────────────────
   # Close button emits "genesis_close_reader" -- handler must set genesis_selected to nil.
 
   attr :genesis_node, :any, required: true
@@ -64,8 +63,6 @@ defmodule IchorWeb.Components.MesReaderComponents do
     """
   end
 
-  # ── Content Routing ───────────────────────────────────────────────────
-
   defp render_content(%{html: true, content: content}), do: content
   defp render_content(%{content: nil}), do: ""
   defp render_content(%{content: ""}), do: ""
@@ -76,8 +73,6 @@ defmodule IchorWeb.Components.MesReaderComponents do
       {:error, html, _} -> html
     end
   end
-
-  # ── Item Lookup ───────────────────────────────────────────────────────
 
   defp find_selected(_node, nil), do: nil
   defp find_selected(nil, _selected), do: nil
@@ -94,8 +89,6 @@ defmodule IchorWeb.Components.MesReaderComponents do
   defp artifact_key(:checkpoint), do: :checkpoints
   defp artifact_key(:conversation), do: :conversations
   defp artifact_key(:phase), do: :phases
-
-  # ── Item Builders ─────────────────────────────────────────────────────
 
   defp build_item(_type, nil), do: nil
 
@@ -163,8 +156,6 @@ defmodule IchorWeb.Components.MesReaderComponents do
   end
 
   defp ref(type, code), do: %{type: type, id: code, label: code}
-
-  # ── Helpers ───────────────────────────────────────────────────────────
 
   defp safe_list(nil, _key), do: []
 

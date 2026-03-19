@@ -8,7 +8,7 @@ defmodule Ichor.Genesis.ModePrompts do
   @mcp_tools_define "create_feature, create_use_case, list_features, list_use_cases, create_checkpoint, create_conversation, gate_check"
   @mcp_tools_build "list_features, list_use_cases, create_phase, create_section, create_task, create_subtask, create_checkpoint, create_conversation, gate_check"
 
-  # ── Mode A: Discover (ADRs) ─────────────────────────────────────
+
 
   def mode_a_coordinator(run_id, roster, node_id, brief) do
     """
@@ -119,7 +119,7 @@ defmodule Ichor.Genesis.ModePrompts do
     """
   end
 
-  # ── Mode B: Define (FRDs/UCs) ───────────────────────────────────
+
 
   def mode_b_coordinator(run_id, roster, node_id, brief) do
     """
@@ -210,7 +210,7 @@ defmodule Ichor.Genesis.ModePrompts do
     """
   end
 
-  # ── Mode C: Build (Roadmap) ─────────────────────────────────────
+
 
   def mode_c_coordinator(run_id, roster, node_id, brief) do
     """

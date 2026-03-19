@@ -23,7 +23,7 @@ defmodule Ichor.Mes.Janitor do
 
   @sweep_interval :timer.minutes(2)
 
-  # ── Public API ──────────────────────────────────────────────────────
+
 
   @spec start_link(keyword()) :: GenServer.on_start()
   def start_link(opts), do: GenServer.start_link(__MODULE__, opts, name: __MODULE__)
@@ -34,7 +34,7 @@ defmodule Ichor.Mes.Janitor do
     GenServer.cast(__MODULE__, {:monitor, run_id, pid})
   end
 
-  # ── GenServer Callbacks ─────────────────────────────────────────────
+
 
   @impl true
   def init(_opts) do
@@ -69,7 +69,7 @@ defmodule Ichor.Mes.Janitor do
     {:noreply, state}
   end
 
-  # ── Private ─────────────────────────────────────────────────────────
+
 
   defp safe_cleanup_run(run_id) do
     session = "mes-#{run_id}"

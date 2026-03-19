@@ -16,13 +16,13 @@ defmodule Ichor.Gateway.TmuxDiscovery do
 
   @poll_interval 5_000
 
-  # ── Client API ───────────────────────────────────────────────────────
+
 
   def start_link(opts) do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
   end
 
-  # ── Server Callbacks ────────────────────────────────────────────────
+
 
   @impl true
   def init(_opts) do
@@ -39,7 +39,7 @@ defmodule Ichor.Gateway.TmuxDiscovery do
 
   def handle_info(_msg, state), do: {:noreply, state}
 
-  # ── Private ─────────────────────────────────────────────────────────
+
 
   defp poll do
     tmux_sessions = Tmux.list_sessions()

@@ -14,7 +14,7 @@ defmodule Ichor.Archon.MemoriesClient do
 
   require Logger
 
-  # ── Response Structs ──────────────────────────────────────────────
+
 
   defmodule IngestResult do
     @moduledoc "Response from a single-episode ingest."
@@ -73,7 +73,7 @@ defmodule Ichor.Archon.MemoriesClient do
     defstruct [:answer, :citations, :context]
   end
 
-  # ── Config ────────────────────────────────────────────────────────
+
 
   defp memories_config, do: Application.fetch_env!(:ichor, :memories)
   defp memories_url, do: Keyword.fetch!(memories_config(), :url)
@@ -81,7 +81,7 @@ defmodule Ichor.Archon.MemoriesClient do
   defp group_id_default, do: Keyword.fetch!(memories_config(), :group_id)
   defp user_id_default, do: Keyword.fetch!(memories_config(), :user_id)
 
-  # ── Public API ────────────────────────────────────────────────────
+
 
   @spec search(String.t(), keyword()) :: {:ok, [SearchResult.t()]} | {:error, term()}
   def search(query, opts \\ []) do
@@ -141,7 +141,7 @@ defmodule Ichor.Archon.MemoriesClient do
   @spec user_id() :: String.t()
   def user_id, do: user_id_default()
 
-  # ── HTTP ──────────────────────────────────────────────────────────
+
 
   defp post(path, body) do
     url = memories_url() <> path
@@ -169,7 +169,7 @@ defmodule Ichor.Archon.MemoriesClient do
     ]
   end
 
-  # ── Result Coercion ───────────────────────────────────────────────
+
 
   defp to_ingest_result(%{"chunked" => true} = resp) do
     %ChunkedIngestResult{

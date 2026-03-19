@@ -17,7 +17,7 @@ defmodule Ichor.Gateway.WebhookRouter do
   @poll_interval_ms 5_000
   @max_attempts 5
 
-  # ── Client API ──────────────────────────────────────────────────────
+
 
   def start_link(opts) do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
@@ -73,7 +73,7 @@ defmodule Ichor.Gateway.WebhookRouter do
     Plug.Crypto.secure_compare(expected, provided_signature)
   end
 
-  # ── Server Callbacks ────────────────────────────────────────────────
+
 
   @impl true
   def init(_opts) do
@@ -109,7 +109,7 @@ defmodule Ichor.Gateway.WebhookRouter do
     {:noreply, state}
   end
 
-  # ── Private ─────────────────────────────────────────────────────────
+
 
   defp attempt_delivery(delivery) do
     headers = [{"x-ichor-signature", delivery.signature}]

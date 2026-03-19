@@ -35,7 +35,7 @@ defmodule Ichor.Dag.Exporter do
     jq_update_item(tasks_path, job.external_id, to_string(job.status), job.owner || "")
   end
 
-  # ── Private ──────────────────────────────────────────────────────
+
 
   defp job_to_jsonl(job) do
     %{

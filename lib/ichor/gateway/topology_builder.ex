@@ -79,7 +79,7 @@ defmodule Ichor.Gateway.TopologyBuilder do
 
   def handle_info(_msg, state), do: {:noreply, state}
 
-  # ── Private ──────────────────────────────────────────────────────
+
 
   defp build_topology(node_map) do
     nodes =

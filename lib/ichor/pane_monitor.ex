@@ -46,7 +46,7 @@ defmodule Ichor.PaneMonitor do
     {:reply, Map.get(state.captures, session_name), state}
   end
 
-  # ── Private ──────────────────────────────────────────────────────────
+
 
   defp scan_all_agents(state) do
     AgentProcess.list_all()

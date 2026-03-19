@@ -10,15 +10,11 @@ defmodule IchorWeb.WorkshopPersistence do
   alias Ichor.Workshop.BlueprintState
   alias Ichor.Workshop.Persistence
 
-  # ── Public Queries ─────────────────────────────────────────
-
   @spec list_blueprints() :: [map()]
   def list_blueprints, do: Persistence.list_blueprints()
 
   @spec list_agent_types() :: [map()]
   def list_agent_types, do: Persistence.list_agent_types()
-
-  # ── Push Canvas State ──────────────────────────────────────
 
   @spec push_ws_state(Phoenix.LiveView.Socket.t()) :: Phoenix.LiveView.Socket.t()
   def push_ws_state(socket) do
@@ -30,15 +26,11 @@ defmodule IchorWeb.WorkshopPersistence do
     })
   end
 
-  # ── Clear Canvas ───────────────────────────────────────────
-
   @spec clear_canvas(Phoenix.LiveView.Socket.t()) :: Phoenix.LiveView.Socket.t()
   def clear_canvas(socket) do
     socket
     |> assign_workshop_state(BlueprintState.clear(socket.assigns))
   end
-
-  # ── Blueprint Events ───────────────────────────────────────
 
   def handle_event("ws_save_blueprint", _, socket) do
     socket = auto_save(socket)
@@ -78,8 +70,6 @@ defmodule IchorWeb.WorkshopPersistence do
     {:noreply, assign(socket, :ws_blueprints, list_blueprints())}
   end
 
-  # ── Auto-Save ──────────────────────────────────────────────
-
   @spec auto_save(Phoenix.LiveView.Socket.t()) :: Phoenix.LiveView.Socket.t()
   def auto_save(socket) do
     case Persistence.save_blueprint(socket.assigns[:ws_blueprint_id], socket.assigns) do
@@ -90,8 +80,6 @@ defmodule IchorWeb.WorkshopPersistence do
         socket
     end
   end
-
-  # ── Private ────────────────────────────────────────────────
 
   defp flash(socket, level, msg), do: Phoenix.LiveView.put_flash(socket, level, msg)
 

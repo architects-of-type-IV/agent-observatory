@@ -182,9 +182,7 @@ defmodule IchorWeb.Components.CommandComponents do
     }
   end
 
-  # ═══════════════════════════════════════════════════════
   # Cluster hierarchy: project -> swarm -> agent
-  # ═══════════════════════════════════════════════════════
 
   defp build_alerts(issues, stale_tasks) do
     issue_alerts =

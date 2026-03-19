@@ -16,7 +16,7 @@ defmodule Ichor.Gateway.CronScheduler do
 
   import Ecto.Query
 
-  # ── Client API ──────────────────────────────────────────────────────
+
 
   def start_link(opts) do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
@@ -44,7 +44,7 @@ defmodule Ichor.Gateway.CronScheduler do
     _ -> []
   end
 
-  # ── Server Callbacks ────────────────────────────────────────────────
+
 
   @impl true
   def init(_opts) do

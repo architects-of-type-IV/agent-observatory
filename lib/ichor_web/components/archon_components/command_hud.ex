@@ -113,8 +113,6 @@ defmodule IchorWeb.Components.ArchonComponents.CommandHud do
     """
   end
 
-  # ── Structured output rendering ──────────────────────────────────────
-
   attr :msg, :map, required: true
 
   defp output_entry(%{msg: %{type: :agents, data: agents}} = assigns) do
@@ -372,8 +370,6 @@ defmodule IchorWeb.Components.ArchonComponents.CommandHud do
     """
   end
 
-  # ── Sub-components ──────────────────────────────────────────────────
-
   attr :label, :string, required: true
   attr :value, :string, required: true
   attr :ok, :boolean, required: true
@@ -474,8 +470,6 @@ defmodule IchorWeb.Components.ArchonComponents.CommandHud do
     </div>
     """
   end
-
-  # ── Helpers ──────────────────────────────────────────────────────────
 
   defp format_tool(%{tool_name: name}), do: to_string(name)
   defp format_tool(tool) when is_binary(tool), do: tool

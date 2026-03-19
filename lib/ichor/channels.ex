@@ -13,9 +13,7 @@ defmodule Ichor.Channels do
 
   @pubsub Ichor.PubSub
 
-  # ═══════════════════════════════════════════════════════
   # Channel Subscriptions
-  # ═══════════════════════════════════════════════════════
 
   @doc """
   Subscribe to an agent's mailbox channel.
@@ -59,9 +57,7 @@ defmodule Ichor.Channels do
     Phoenix.PubSub.unsubscribe(@pubsub, team_channel(team_name))
   end
 
-  # ═══════════════════════════════════════════════════════
   # Publishing Messages
-  # ═══════════════════════════════════════════════════════
 
   @doc """
   Publish a message to a specific agent's mailbox channel.
@@ -110,9 +106,7 @@ defmodule Ichor.Channels do
     Phoenix.PubSub.broadcast(@pubsub, channel, message)
   end
 
-  # ═══════════════════════════════════════════════════════
   # Channel Management
-  # ═══════════════════════════════════════════════════════
 
   @doc """
   Create and initialize an agent channel (triggered by SessionStart).
@@ -133,9 +127,7 @@ defmodule Ichor.Channels do
     :ok
   end
 
-  # ═══════════════════════════════════════════════════════
   # Channel Name Helpers
-  # ═══════════════════════════════════════════════════════
 
   defp agent_channel(session_id), do: "agent:#{session_id}"
   defp team_channel(team_name), do: "team:#{team_name}"

@@ -15,7 +15,7 @@ defmodule Ichor.Fleet.TeamSupervisor do
 
   defstruct [:name, :project, :strategy, :lead_id, metadata: %{}]
 
-  # ── Public API ──────────────────────────────────────────────────────
+
 
   @doc "Start a team supervisor and register it in the team registry."
   @spec start_link(keyword()) :: Supervisor.on_start()
@@ -90,7 +90,7 @@ defmodule Ichor.Fleet.TeamSupervisor do
     |> Enum.map(fn {:team, name} -> name end)
   end
 
-  # ── Server Callbacks ────────────────────────────────────────────────
+
 
   defp via(name), do: {:via, Registry, {@team_registry, {:team, name}, %{}}}
 

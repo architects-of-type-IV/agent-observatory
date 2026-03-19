@@ -26,12 +26,12 @@ defmodule Ichor.Mes.ProjectIngestor do
                features use_cases architecture dependencies
                signals_emitted signals_subscribed)
 
-  # ── Public API ──────────────────────────────────────────────────────
+
 
   @spec start_link(keyword()) :: GenServer.on_start()
   def start_link(opts), do: GenServer.start_link(__MODULE__, opts, name: __MODULE__)
 
-  # ── GenServer Callbacks ─────────────────────────────────────────────
+
 
   @impl true
   def init(_opts) do
@@ -51,7 +51,7 @@ defmodule Ichor.Mes.ProjectIngestor do
 
   def handle_info(%Ichor.Signals.Message{}, state), do: {:noreply, state}
 
-  # ── Private: Extraction ────────────────────────────────────────────
+
 
   # Normalized messages use :to and :from (atom keys), not :to_session_id
   defp extract_mes_payload(%{msg_map: %{to: "operator", content: content} = msg})
@@ -100,7 +100,7 @@ defmodule Ichor.Mes.ProjectIngestor do
     end)
   end
 
-  # ── Private: Plain Text Parser ─────────────────────────────────────
+
 
   @spec parse_key_value_brief(String.t()) :: map()
   defp parse_key_value_brief(text) do
@@ -187,7 +187,7 @@ defmodule Ichor.Mes.ProjectIngestor do
     end
   end
 
-  # ── Private: Ingestion ─────────────────────────────────────────────
+
 
   defp ingest_project(payload, data) do
     from = get_in(data, [:msg_map, :from_session_id]) || ""

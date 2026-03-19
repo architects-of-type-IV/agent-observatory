@@ -22,14 +22,14 @@ defmodule Ichor.Signals.FromAsh do
     :ok
   end
 
-  # ── Resource -> Signal mapping ──────────────────────────────────────
+
 
   defp signal_for(Ichor.Activity.Task, :create), do: {:task_created, &task_data/2}
   defp signal_for(Ichor.Activity.Task, :update), do: {:task_updated, &task_data/2}
   defp signal_for(Ichor.Activity.Task, :destroy), do: {:task_deleted, &task_data/2}
   defp signal_for(_, _), do: nil
 
-  # ── Data extractors ─────────────────────────────────────────────────
+
 
   defp task_data(data, _action) do
     %{task: Map.take(data, [:id, :status, :subject, :team_name, :session_id])}

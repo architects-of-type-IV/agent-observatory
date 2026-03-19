@@ -19,7 +19,7 @@ defmodule Ichor.Mes.Scheduler do
   @max_concurrent 1
   @pause_flag Path.join(File.cwd!(), "tmp/mes_paused")
 
-  # ── Public API ──────────────────────────────────────────────────────
+
 
   @spec start_link(keyword()) :: GenServer.on_start()
   def start_link(opts), do: GenServer.start_link(__MODULE__, opts, name: __MODULE__)
@@ -36,7 +36,7 @@ defmodule Ichor.Mes.Scheduler do
   @spec paused?() :: boolean()
   def paused?, do: GenServer.call(__MODULE__, :paused?)
 
-  # ── GenServer Callbacks ─────────────────────────────────────────────
+
 
   @impl true
   def init(_opts) do
@@ -118,7 +118,7 @@ defmodule Ichor.Mes.Scheduler do
      }, state}
   end
 
-  # ── Private ─────────────────────────────────────────────────────────
+
 
   defp schedule_tick, do: Process.send_after(self(), :tick, @tick_interval)
 

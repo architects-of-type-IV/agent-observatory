@@ -60,7 +60,7 @@ defmodule Ichor.Archon.TeamWatchdog.Reactions do
 
   def react(_signal, _data, state), do: {[:noop], state}
 
-  # ── Helpers ──────────────────────────────────────────────────────
+
 
   defp dag_cleanup_actions(run_id, session, reason) do
     [

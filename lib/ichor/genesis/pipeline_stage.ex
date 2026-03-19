@@ -88,7 +88,7 @@ defmodule Ichor.Genesis.PipelineStage do
   def stage_color(:compiled), do: {"text-success", "bg-success/15"}
   def stage_color(:running), do: {"text-success", "bg-success/15"}
 
-  # ── Private ─────────────────────────────────────────────────────────
+
 
   defp classify(%{phases: phases} = node) when is_list(phases) and phases != [] do
     case gate_c_checkpoint?(node.checkpoints) do

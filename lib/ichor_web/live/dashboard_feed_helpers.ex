@@ -7,9 +7,7 @@ defmodule IchorWeb.DashboardFeedHelpers do
 
   alias Ichor.Gateway.AgentRegistry.AgentEntry
 
-  # ═══════════════════════════════════════════════════════
   # Public API
-  # ═══════════════════════════════════════════════════════
 
   @doc """
   Build grouped feed structure with turns, agent names, and full metadata.
@@ -68,9 +66,7 @@ defmodule IchorWeb.DashboardFeedHelpers do
     end
   end
 
-  # ═══════════════════════════════════════════════════════
   # Tool classification
-  # ═══════════════════════════════════════════════════════
 
   @doc """
   Classify a tool name into an activity phase category.
@@ -93,9 +89,7 @@ defmodule IchorWeb.DashboardFeedHelpers do
   def classify_tool("mcp__sequential-thinking" <> _), do: :think
   def classify_tool(_), do: :other
 
-  # ═══════════════════════════════════════════════════════
   # Turn builder -- splits session events by conversation turn boundaries
-  # ═══════════════════════════════════════════════════════
 
   @doc """
   Build conversation turns from sorted session events.
@@ -161,9 +155,7 @@ defmodule IchorWeb.DashboardFeedHelpers do
     end)
   end
 
-  # ═══════════════════════════════════════════════════════
   # Session group builder
-  # ═══════════════════════════════════════════════════════
 
   defp group_events_by_session(events) do
     Enum.group_by(events, & &1.session_id)
@@ -224,9 +216,7 @@ defmodule IchorWeb.DashboardFeedHelpers do
     }
   end
 
-  # ═══════════════════════════════════════════════════════
   # Turn reducer -- one clause per hook_event_type
-  # ═══════════════════════════════════════════════════════
 
   defp reduce_event(%{hook_event_type: :UserPromptSubmit} = event, items, current_turn, _pair_map) do
     items = flush_turn(items, current_turn)
@@ -336,9 +326,7 @@ defmodule IchorWeb.DashboardFeedHelpers do
     {items ++ [preamble], nil}
   end
 
-  # ═══════════════════════════════════════════════════════
   # Turn enrichment
-  # ═══════════════════════════════════════════════════════
 
   defp enrich_item(%{type: :turn} = turn) do
     phases = group_into_phases(turn.tool_pairs)
@@ -388,9 +376,7 @@ defmodule IchorWeb.DashboardFeedHelpers do
     end
   end
 
-  # ═══════════════════════════════════════════════════════
   # Turn builder helpers
-  # ═══════════════════════════════════════════════════════
 
   defp flush_turn(items, nil), do: items
   defp flush_turn(items, turn), do: items ++ [turn]
@@ -421,9 +407,7 @@ defmodule IchorWeb.DashboardFeedHelpers do
     end)
   end
 
-  # ═══════════════════════════════════════════════════════
   # Agent name resolution
-  # ═══════════════════════════════════════════════════════
 
   defp build_agent_name_map(events, teams) do
     team_names = extract_team_names(teams)
@@ -462,9 +446,7 @@ defmodule IchorWeb.DashboardFeedHelpers do
     end)
   end
 
-  # ═══════════════════════════════════════════════════════
   # Tool pairing
-  # ═══════════════════════════════════════════════════════
 
   defp pair_tool_events(events) do
     post_events =
@@ -495,9 +477,7 @@ defmodule IchorWeb.DashboardFeedHelpers do
   defp determine_status(%{hook_event_type: :PostToolUseFailure}), do: :failure
   defp determine_status(_), do: :unknown
 
-  # ═══════════════════════════════════════════════════════
   # Metadata extraction
-  # ═══════════════════════════════════════════════════════
 
   defp extract_model(events) do
     session_start = Enum.find(events, &(&1.hook_event_type == :SessionStart))

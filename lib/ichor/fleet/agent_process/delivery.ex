@@ -9,7 +9,7 @@ defmodule Ichor.Fleet.AgentProcess.Delivery do
 
   alias Ichor.Gateway.Channels.{SshTmux, Tmux, WebhookAdapter}
 
-  # ── Message Normalization ────────────────────────────────────────────
+
 
   @doc "Normalize a message into canonical form with ID, recipient, and timestamp."
   @spec normalize(map(), String.t()) :: map()
@@ -36,7 +36,7 @@ defmodule Ichor.Fleet.AgentProcess.Delivery do
     }
   end
 
-  # ── Backend Delivery ─────────────────────────────────────────────────
+
 
   @doc "Deliver a message to the agent's configured backend transport."
   @spec deliver(map() | nil, map()) :: :ok
@@ -63,7 +63,7 @@ defmodule Ichor.Fleet.AgentProcess.Delivery do
 
   def deliver(%{type: _type}, _msg), do: :ok
 
-  # ── PubSub ───────────────────────────────────────────────────────────
+
 
   @doc "Broadcast a message delivery event to the messages stream."
   @spec broadcast(String.t(), map()) :: :ok
