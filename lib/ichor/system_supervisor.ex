@@ -48,6 +48,6 @@ defmodule Ichor.SystemSupervisor do
       {Ichor.Archon.TeamWatchdog, []}
     ]
 
-    Supervisor.init(children, strategy: :one_for_one)
+    Supervisor.init(children, strategy: :one_for_one, max_restarts: 10, max_seconds: 60)
   end
 end

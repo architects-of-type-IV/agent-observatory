@@ -23,6 +23,6 @@ defmodule Ichor.ObservationSupervisor do
       {Ichor.Gateway.EventBridge, []}
     ]
 
-    Supervisor.init(children, strategy: :rest_for_one)
+    Supervisor.init(children, strategy: :rest_for_one, max_restarts: 5, max_seconds: 60)
   end
 end

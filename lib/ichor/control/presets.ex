@@ -31,7 +31,7 @@ defmodule Ichor.Control.Presets do
           model: "sonnet",
           permission: "default",
           persona:
-            "Tactical DAG executor. Claims jobs per coordinator dispatch, pre-reads target files, builds context-rich worker prompts, spawns workers via spawn_agent MCP, verifies done_when, reports to coordinator. Max 5 concurrent workers.",
+            "Tactical DAG executor. Claims jobs per coordinator dispatch, pre-reads target files, builds context-rich worker prompts, dispatches to pre-spawned workers via send_message, verifies done_when, reports to coordinator.",
           file_scope: "",
           quality_gates: "mix compile --warnings-as-errors",
           x: 220,
@@ -284,6 +284,168 @@ defmodule Ichor.Control.Presets do
         %{from: 3, to: 1, policy: "allow", via: nil},
         %{from: 4, to: 2, policy: "allow", via: nil},
         %{from: 5, to: 2, policy: "allow", via: nil}
+      ]
+    },
+    "genesis_a" => %{
+      label: "Genesis Mode A",
+      color: "violet",
+      team_name: "genesis",
+      strategy: "one_for_one",
+      model: "sonnet",
+      agents: [
+        %{
+          id: 1,
+          name: "coordinator",
+          capability: "coordinator",
+          model: "sonnet",
+          permission: "default",
+          persona:
+            "Genesis Mode A coordinator. Mediates all communication between architect and reviewer.",
+          file_scope: "",
+          quality_gates: "",
+          x: 220,
+          y: 20
+        },
+        %{
+          id: 2,
+          name: "architect",
+          capability: "builder",
+          model: "sonnet",
+          permission: "default",
+          persona: "Designs architecture decisions and proposals.",
+          file_scope: "",
+          quality_gates: "",
+          x: 40,
+          y: 200
+        },
+        %{
+          id: 3,
+          name: "reviewer",
+          capability: "scout",
+          model: "sonnet",
+          permission: "default",
+          persona: "Reviews architecture proposals for correctness and completeness.",
+          file_scope: "",
+          quality_gates: "",
+          x: 400,
+          y: 200
+        }
+      ],
+      next_id: 4,
+      links: [%{from: 1, to: 2}, %{from: 1, to: 3}],
+      rules: [
+        %{from: 1, to: 2, policy: "allow", via: nil},
+        %{from: 2, to: 1, policy: "allow", via: nil},
+        %{from: 1, to: 3, policy: "allow", via: nil},
+        %{from: 3, to: 1, policy: "allow", via: nil}
+      ]
+    },
+    "genesis_b" => %{
+      label: "Genesis Mode B",
+      color: "violet",
+      team_name: "genesis",
+      strategy: "one_for_one",
+      model: "sonnet",
+      agents: [
+        %{
+          id: 1,
+          name: "coordinator",
+          capability: "coordinator",
+          model: "sonnet",
+          permission: "default",
+          persona:
+            "Genesis Mode B coordinator. Mediates all communication between analyst and designer.",
+          file_scope: "",
+          quality_gates: "",
+          x: 220,
+          y: 20
+        },
+        %{
+          id: 2,
+          name: "analyst",
+          capability: "builder",
+          model: "sonnet",
+          permission: "default",
+          persona: "Analyzes requirements and produces functional specifications.",
+          file_scope: "",
+          quality_gates: "",
+          x: 40,
+          y: 200
+        },
+        %{
+          id: 3,
+          name: "designer",
+          capability: "builder",
+          model: "sonnet",
+          permission: "default",
+          persona: "Designs implementation approach from functional specs.",
+          file_scope: "",
+          quality_gates: "",
+          x: 400,
+          y: 200
+        }
+      ],
+      next_id: 4,
+      links: [%{from: 1, to: 2}, %{from: 1, to: 3}],
+      rules: [
+        %{from: 1, to: 2, policy: "allow", via: nil},
+        %{from: 2, to: 1, policy: "allow", via: nil},
+        %{from: 1, to: 3, policy: "allow", via: nil},
+        %{from: 3, to: 1, policy: "allow", via: nil}
+      ]
+    },
+    "genesis_c" => %{
+      label: "Genesis Mode C",
+      color: "violet",
+      team_name: "genesis",
+      strategy: "one_for_one",
+      model: "sonnet",
+      agents: [
+        %{
+          id: 1,
+          name: "coordinator",
+          capability: "coordinator",
+          model: "sonnet",
+          permission: "default",
+          persona:
+            "Genesis Mode C coordinator. Mediates all communication between planner and architect.",
+          file_scope: "",
+          quality_gates: "",
+          x: 220,
+          y: 20
+        },
+        %{
+          id: 2,
+          name: "planner",
+          capability: "builder",
+          model: "sonnet",
+          permission: "default",
+          persona: "Plans implementation roadmap with phases, sections, and tasks.",
+          file_scope: "",
+          quality_gates: "",
+          x: 40,
+          y: 200
+        },
+        %{
+          id: 3,
+          name: "architect",
+          capability: "builder",
+          model: "sonnet",
+          permission: "default",
+          persona: "Validates and refines implementation plans for feasibility.",
+          file_scope: "",
+          quality_gates: "",
+          x: 400,
+          y: 200
+        }
+      ],
+      next_id: 4,
+      links: [%{from: 1, to: 2}, %{from: 1, to: 3}],
+      rules: [
+        %{from: 1, to: 2, policy: "allow", via: nil},
+        %{from: 2, to: 1, policy: "allow", via: nil},
+        %{from: 1, to: 3, policy: "allow", via: nil},
+        %{from: 3, to: 1, policy: "allow", via: nil}
       ]
     }
   }
