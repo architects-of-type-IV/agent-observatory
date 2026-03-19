@@ -12,6 +12,8 @@ defmodule Ichor.Gateway.OutputCapture do
 
   @capture_poll_interval 1_500
 
+  @doc "Start the OutputCapture GenServer."
+  @spec start_link(keyword()) :: GenServer.on_start()
   def start_link(opts) do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
   end

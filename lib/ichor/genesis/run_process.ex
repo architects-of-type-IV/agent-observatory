@@ -32,15 +32,18 @@ defmodule Ichor.Genesis.RunProcess do
           node_id: String.t() | nil
         }
 
+  @doc false
   @spec start_link(keyword()) :: GenServer.on_start()
   def start_link(opts) do
     run_id = Keyword.fetch!(opts, :run_id)
     GenServer.start_link(__MODULE__, opts, name: via(run_id))
   end
 
+  @doc "Returns the via-tuple for Registry-based name lookup."
   @spec via(String.t()) :: {:via, Registry, {Ichor.Registry, {:genesis_run, String.t()}}}
   def via(run_id), do: {:via, Registry, {Ichor.Registry, {:genesis_run, run_id}}}
 
+  @doc "Returns the pid for run_id if alive, or nil."
   @spec lookup(String.t()) :: pid() | nil
   def lookup(run_id) do
     case Registry.lookup(Ichor.Registry, {:genesis_run, run_id}) do
@@ -49,6 +52,7 @@ defmodule Ichor.Genesis.RunProcess do
     end
   end
 
+  @doc "Lists all active genesis run IDs and their process PIDs."
   @spec list_all() :: [{String.t(), pid()}]
   def list_all do
     Registry.select(Ichor.Registry, [

@@ -4,6 +4,7 @@ defmodule Ichor.Dag.WorkerGroups do
   Produces named worker groups for upfront agent spawning.
   """
 
+  @doc "Groups jobs by shared file ownership, assigning each group a worker name."
   @spec group([struct() | map()]) :: [map()]
   def group([]), do: []
 

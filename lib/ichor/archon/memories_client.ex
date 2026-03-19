@@ -75,6 +75,7 @@ defmodule Ichor.Archon.MemoriesClient do
   defp group_id_default, do: Keyword.fetch!(memories_config(), :group_id)
   defp user_id_default, do: Keyword.fetch!(memories_config(), :user_id)
 
+  @doc "Search the Memories knowledge graph for edges or episodes matching the query."
   @spec search(String.t(), keyword()) :: {:ok, [SearchResult.t()]} | {:error, term()}
   def search(query, opts \\ []) do
     scope = Keyword.get(opts, :scope, "edges")
@@ -92,6 +93,7 @@ defmodule Ichor.Archon.MemoriesClient do
     end
   end
 
+  @doc "Ingest content into the Memories knowledge graph."
   @spec ingest(String.t(), keyword()) ::
           {:ok, IngestResult.t() | ChunkedIngestResult.t()} | {:error, term()}
   def ingest(content, opts \\ []) do
@@ -113,6 +115,7 @@ defmodule Ichor.Archon.MemoriesClient do
     end
   end
 
+  @doc "Query the Memories knowledge graph with a natural language question."
   @spec query_memory(String.t(), keyword()) :: {:ok, QueryResult.t()} | {:error, term()}
   def query_memory(query, opts \\ []) do
     limit = Keyword.get(opts, :limit, 10)
@@ -127,9 +130,11 @@ defmodule Ichor.Archon.MemoriesClient do
     end
   end
 
+  @doc "Return the configured group_id for this Archon instance."
   @spec group_id() :: String.t()
   def group_id, do: group_id_default()
 
+  @doc "Return the configured user_id for this Archon instance."
   @spec user_id() :: String.t()
   def user_id, do: user_id_default()
 

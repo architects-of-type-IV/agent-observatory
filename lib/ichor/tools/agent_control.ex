@@ -7,6 +7,8 @@ defmodule Ichor.Tools.AgentControl do
   alias Ichor.Fleet.Lookup
   alias Ichor.Gateway.HITLRelay
 
+  @doc "Spawn a new agent and return its session metadata."
+  @spec spawn(map()) :: {:ok, map()} | {:error, term()}
   def spawn(opts) when is_map(opts) do
     case AgentLaunch.spawn(opts) do
       {:ok, result} ->
@@ -25,6 +27,8 @@ defmodule Ichor.Tools.AgentControl do
     end
   end
 
+  @doc "Stop an agent by agent_id or session query."
+  @spec stop(String.t()) :: {:ok, map()}
   def stop(query) when is_binary(query) do
     case Lookup.find_agent(query) do
       nil ->
@@ -37,6 +41,8 @@ defmodule Ichor.Tools.AgentControl do
     end
   end
 
+  @doc "Pause an agent via HITL with an optional reason."
+  @spec pause(String.t(), String.t()) :: {:ok, map()}
   def pause(query, reason) when is_binary(query) do
     case Lookup.find_agent(query) do
       nil ->
@@ -55,6 +61,8 @@ defmodule Ichor.Tools.AgentControl do
     end
   end
 
+  @doc "Resume a paused agent and flush buffered messages."
+  @spec resume(String.t()) :: {:ok, map()}
   def resume(query) when is_binary(query) do
     case Lookup.find_agent(query) do
       nil ->

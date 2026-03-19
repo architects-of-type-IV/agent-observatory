@@ -11,6 +11,7 @@ defmodule Ichor.Fleet.Lifecycle.Registration do
   alias Ichor.Fleet.TeamSupervisor
   alias Ichor.Fleet.TmuxHelpers
 
+  @doc "Ensure a TeamSupervisor exists for `name`, creating it if absent."
   @spec ensure_team(String.t()) :: :ok | {:error, term()}
   def ensure_team(name) do
     case FleetSupervisor.create_team(name: name) do
@@ -21,6 +22,7 @@ defmodule Ichor.Fleet.Lifecycle.Registration do
     end
   end
 
+  @doc "Register an agent process for the given spec and tmux target, joining it to its team if set."
   @spec register(AgentSpec.t(), String.t()) :: {:ok, map()} | {:error, term()}
   def register(%AgentSpec{} = spec, tmux_target) do
     process_opts = [
@@ -100,6 +102,7 @@ defmodule Ichor.Fleet.Lifecycle.Registration do
     end
   end
 
+  @doc "Look up the tmux target string for an agent from its registry metadata."
   @spec resolve_tmux_target(String.t()) :: String.t() | nil
   def resolve_tmux_target(agent_id) do
     case AgentProcess.lookup(agent_id) do
@@ -108,6 +111,7 @@ defmodule Ichor.Fleet.Lifecycle.Registration do
     end
   end
 
+  @doc "Terminate an agent process, routing through its team supervisor if applicable."
   @spec terminate(String.t()) :: :ok | {:error, :not_found}
   def terminate(agent_id) do
     case AgentProcess.alive?(agent_id) do

@@ -9,6 +9,7 @@ defmodule Ichor.Mes.SubsystemScaffold do
 
   @subsystems_dir "subsystems"
 
+  @doc "Creates a standalone Mix project for app_name/module_name; idempotent."
   @spec scaffold(String.t(), String.t()) :: {:ok, String.t()} | {:error, String.t()}
   def scaffold(app_name, module_name) do
     path = subsystem_path(app_name)
@@ -20,6 +21,7 @@ defmodule Ichor.Mes.SubsystemScaffold do
     end
   end
 
+  @doc "Derives `{app_name, module_name}` from a human-readable title string."
   @spec derive_names(String.t()) :: {String.t(), String.t()}
   def derive_names(title) do
     app_name =
@@ -32,6 +34,7 @@ defmodule Ichor.Mes.SubsystemScaffold do
     {app_name, module_name}
   end
 
+  @doc "Returns the filesystem path for a subsystem by its app name."
   @spec subsystem_path(String.t()) :: String.t()
   def subsystem_path(app_name), do: Path.join(@subsystems_dir, app_name)
 

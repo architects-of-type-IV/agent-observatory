@@ -7,6 +7,8 @@ defmodule Ichor.Dag.HealthReport do
 
   @health_check_script Path.expand("~/.claude/skills/swarm/scripts/health-check.sh")
 
+  @doc "Runs the external health-check script and merges result into state."
+  @spec run(map(), String.t() | nil) :: map()
   def run(state, project_path) do
     if project_path && File.exists?(@health_check_script) do
       case run_health_script(project_path) do
@@ -18,6 +20,8 @@ defmodule Ichor.Dag.HealthReport do
     end
   end
 
+  @doc "Parses JSON health-check script output into a structured health map."
+  @spec parse_health_output(String.t()) :: {:ok, map()} | :error
   def parse_health_output(output) do
     case Jason.decode(output) do
       {:ok, report} ->

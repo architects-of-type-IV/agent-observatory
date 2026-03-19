@@ -31,6 +31,7 @@ defmodule Ichor.Fleet.Lifecycle.Cleanup do
   @spec kill_session(String.t()) :: :ok | {:error, term()}
   def kill_session(session), do: TmuxLauncher.kill_session(session)
 
+  @doc "Remove the prompt directory created for an agent's launch scripts."
   @spec cleanup_prompt_dir(String.t()) :: :ok
   def cleanup_prompt_dir(dir), do: TmuxScript.cleanup_dir(dir)
 
@@ -54,6 +55,7 @@ defmodule Ichor.Fleet.Lifecycle.Cleanup do
     :ok
   end
 
+  @doc "Run the GC script for a team at `path`. Returns stdout on success or an error string."
   @spec trigger_gc(String.t(), String.t()) :: {:ok, String.t()} | {:error, String.t()}
   def trigger_gc(team_name, path) do
     case System.cmd("bash", [@gc_script, team_name, path], stderr_to_stdout: true, env: []) do

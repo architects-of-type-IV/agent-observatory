@@ -17,6 +17,8 @@ defmodule Ichor.Gateway.EntropyTracker do
 
   require Logger
 
+  @doc "Start the EntropyTracker GenServer."
+  @spec start_link(keyword()) :: GenServer.on_start()
   def start_link(opts \\ []) do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
   end

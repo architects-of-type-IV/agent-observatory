@@ -19,6 +19,7 @@ defmodule Ichor.Mes.ResearchIngestor do
   @research_space "project:ichor:research"
   @briefs_dir "subsystems/briefs"
 
+  @doc false
   @spec start_link(keyword()) :: GenServer.on_start()
   def start_link(opts), do: GenServer.start_link(__MODULE__, opts, name: __MODULE__)
 

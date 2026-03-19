@@ -24,6 +24,7 @@ defmodule Ichor.Mes.ProjectIngestor do
                features use_cases architecture dependencies
                signals_emitted signals_subscribed)
 
+  @doc false
   @spec start_link(keyword()) :: GenServer.on_start()
   def start_link(opts), do: GenServer.start_link(__MODULE__, opts, name: __MODULE__)
 

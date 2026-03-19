@@ -8,6 +8,7 @@ defmodule Ichor.Activity.EventAnalysis do
   Compute tool performance analytics from events.
   Groups by tool name, calculates success/failure rates and average durations.
   """
+  @spec tool_analytics([map()]) :: [map()]
   def tool_analytics(events) do
     tool_events =
       Enum.filter(events, fn e ->
@@ -53,6 +54,7 @@ defmodule Ichor.Activity.EventAnalysis do
   Compute timeline data from events grouped by session.
   Returns a list of session timelines with tool blocks and idle gaps.
   """
+  @spec timeline([map()]) :: [map()]
   def timeline(events) do
     events
     |> Enum.group_by(& &1.session_id)
@@ -79,6 +81,7 @@ defmodule Ichor.Activity.EventAnalysis do
   Pair PreToolUse events with their PostToolUse/PostToolUseFailure counterparts.
   Shared pairing logic used by feed, timeline, and analytics.
   """
+  @spec pair_tool_events([map()]) :: [map()]
   def pair_tool_events(events) do
     post_events =
       events

@@ -22,9 +22,15 @@
 - [x] Researched AshAi tool exposure, router scoping, actor filtering, setup_ash_ai
 - [x] Analyzed travel_agency reference repo
 - [x] Documented at docs/plans/2026-03-19-ash-ai-tool-scoping.md
-- [ ] Implement Ichor.Tools.Profiles (agent/0, archon/0)
-- [ ] Add /mcp/archon endpoint
-- [ ] Phase 5: Module inlining (51 files identified)
+- [x] Implement Ichor.Tools.Profiles (agent/0, archon/0)
+- [x] Add /mcp/archon endpoint
+- [x] Phase 5: Module inlining round 1 (11 files) + round 2 (11 files) = 22 eliminated
+- [x] Tool name mismatches fixed (4, per codex review)
+- [x] 7 stale tests/stubs removed
+- [x] Doc/spec sweep dispatched (5 parallel agents)
+- [ ] Physical file reorganization (move files to match 4-domain structure)
+- [ ] RunProcess lifecycle consolidation
+- [ ] Component library implementation
 
 ## Domain Centralization + Signal Feed + Consolidation (2026-03-19) -- COMPLETE
 - [x] Genesis domain: 27 new functions for 9 sub-resources, 3 agent tools rewired

@@ -5,16 +5,22 @@ defmodule Ichor.Fleet.RuntimeView do
 
   alias Ichor.Gateway.TmuxDiscovery
 
+  @doc "Return the current selected team name, defaulting to the only team if one exists."
+  @spec resolve_selected_team(String.t() | nil, list()) :: String.t() | nil
   def resolve_selected_team(current, _teams) when not is_nil(current), do: current
   def resolve_selected_team(nil, [team]), do: team.name
   def resolve_selected_team(nil, _teams), do: nil
 
+  @doc "Find a team by name from a list of team maps."
+  @spec find_team(list(), String.t() | nil) :: map() | nil
   def find_team(_teams, nil), do: nil
 
   def find_team(teams, name) when is_binary(name) do
     Enum.find(teams, &(&1.name == name))
   end
 
+  @doc "Merge BEAM-registered teams with teams discovered from tmux sessions and fleet agents."
+  @spec merge_display_teams(list(), list(), list()) :: list()
   def merge_display_teams(teams, agents, tmux_sessions) do
     existing_names = MapSet.new(teams, & &1.name)
 
@@ -47,6 +53,8 @@ defmodule Ichor.Fleet.RuntimeView do
     teams ++ discovered
   end
 
+  @doc "Build a map from agent ID / session_id / short_name keys to agent data maps."
+  @spec build_agent_lookup(list()) :: map()
   def build_agent_lookup(agents) do
     agents
     |> Enum.flat_map(fn agent ->

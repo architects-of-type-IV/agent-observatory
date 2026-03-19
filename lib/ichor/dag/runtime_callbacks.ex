@@ -12,6 +12,7 @@ defmodule Ichor.Dag.RuntimeCallbacks do
           | :job_failed
           | :job_reset
 
+  @doc "Emits a signal and syncs the run process after a job state transition."
   @spec after_job_transition(map(), transition()) :: {:ok, map()}
   def after_job_transition(result, transition) do
     emit_transition(result, transition)

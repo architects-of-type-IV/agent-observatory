@@ -14,6 +14,7 @@ defmodule Ichor.Archon.Chat.CommandRegistry do
   alias Ichor.Archon.Tools.System, as: SystemTools
   alias Ichor.Archon.Tools.Teams
 
+  @doc "Dispatch a parsed command map to its corresponding Ash action."
   @spec dispatch(map()) :: {:ok, %{type: atom(), data: term()}} | {:error, term()}
   def dispatch(%{command: "/agents"}), do: run(:agents, Agents, :list_live_agents, %{})
   def dispatch(%{command: "/teams"}), do: run(:teams, Teams, :list_teams, %{})

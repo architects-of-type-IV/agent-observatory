@@ -9,6 +9,7 @@ defmodule Ichor.Mes.TeamCleanup do
   alias Ichor.Mes.TeamSpecBuilder
   alias Ichor.Signals
 
+  @doc "Kills a MES tmux session and cleans up associated prompt files."
   @spec kill_session(String.t()) :: :ok
   def kill_session(session) do
     Signals.emit(:mes_team_killed, %{session: session})
@@ -17,6 +18,7 @@ defmodule Ichor.Mes.TeamCleanup do
     :ok
   end
 
+  @doc "Cleans up prompt directories and orphaned teams from previous runs."
   @spec cleanup_old_runs() :: :ok
   def cleanup_old_runs do
     cleanup_prompt_root_dir()
@@ -24,6 +26,7 @@ defmodule Ichor.Mes.TeamCleanup do
     :ok
   end
 
+  @doc "Removes all subdirectories under the MES prompt root directory."
   @spec cleanup_prompt_root_dir() :: :ok
   def cleanup_prompt_root_dir do
     case File.ls(TeamSpecBuilder.prompt_root_dir()) do
@@ -34,6 +37,7 @@ defmodule Ichor.Mes.TeamCleanup do
     :ok
   end
 
+  @doc "Removes prompt files for a specific run ID."
   @spec cleanup_prompt_files(String.t()) :: :ok
   def cleanup_prompt_files(run_id) do
     dir = TeamSpecBuilder.prompt_dir(run_id)
@@ -46,6 +50,7 @@ defmodule Ichor.Mes.TeamCleanup do
     :ok
   end
 
+  @doc "Disbands fleet teams and kills tmux sessions not backed by an active RunProcess."
   @spec cleanup_orphaned_teams() :: :ok
   def cleanup_orphaned_teams do
     active_teams = active_team_names()
@@ -66,6 +71,7 @@ defmodule Ichor.Mes.TeamCleanup do
     :ok
   end
 
+  @doc "Returns a MapSet of tmux session names for all active RunProcesses."
   @spec active_team_names() :: MapSet.t(String.t())
   def active_team_names do
     run_process_module().list_all()
@@ -73,6 +79,7 @@ defmodule Ichor.Mes.TeamCleanup do
     |> MapSet.new()
   end
 
+  @doc "Returns team names from fleet entries that are not in the active set."
   @spec orphaned_team_names(MapSet.t(String.t()), [{String.t(), map()}]) :: [String.t()]
   def orphaned_team_names(active_teams, team_entries) do
     team_entries
@@ -81,6 +88,7 @@ defmodule Ichor.Mes.TeamCleanup do
     |> Enum.reject(&MapSet.member?(active_teams, &1))
   end
 
+  @doc "Returns tmux session names prefixed with `mes-` that are not in the active set."
   @spec orphaned_sessions(MapSet.t(String.t()), [String.t()]) :: [String.t()]
   def orphaned_sessions(active_teams, sessions) do
     sessions

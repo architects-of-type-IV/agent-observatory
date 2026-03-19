@@ -1,4 +1,6 @@
 defmodule IchorWeb.HeartbeatController do
+  @moduledoc "Records agent heartbeat signals to track liveness."
+
   use IchorWeb, :controller
 
   require Logger

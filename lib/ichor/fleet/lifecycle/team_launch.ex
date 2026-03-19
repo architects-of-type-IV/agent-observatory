@@ -8,6 +8,7 @@ defmodule Ichor.Fleet.Lifecycle.TeamLaunch do
   alias Ichor.Fleet.Lifecycle.TmuxLauncher
   alias Ichor.Fleet.Lifecycle.TmuxScript
 
+  @doc "Launch a full multi-agent team: creates tmux session, all windows, and registers all agents."
   @spec launch(TeamSpec.t()) :: {:ok, String.t()} | {:error, term()}
   def launch(%TeamSpec{agents: [first | rest]} = spec) do
     with {:ok, scripts} <- write_agent_files(spec),
@@ -24,6 +25,7 @@ defmodule Ichor.Fleet.Lifecycle.TeamLaunch do
     end
   end
 
+  @doc "Launch a single agent from the spec into an already-running tmux session."
   @spec launch_into_existing_session(TeamSpec.t(), String.t()) :: :ok | {:error, term()}
   def launch_into_existing_session(%TeamSpec{agents: [agent]} = spec, session) do
     with {:ok, scripts} <- write_agent_files(spec),

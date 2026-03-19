@@ -7,6 +7,7 @@ defmodule Ichor.Workshop.TeamSpecBuilder do
   alias Ichor.Fleet.Lifecycle.TeamSpec
   alias Ichor.Workshop.Presets
 
+  @doc "Build a `TeamSpec` from workshop LiveView state and optional overrides."
   @spec build_from_state(map(), keyword()) :: TeamSpec.t()
   def build_from_state(state, opts \\ []) do
     team_name = state.ws_team_name
@@ -53,12 +54,15 @@ defmodule Ichor.Workshop.TeamSpecBuilder do
     })
   end
 
+  @doc "Derive the tmux session name from a team name."
   @spec session_name(String.t()) :: String.t()
   def session_name(team_name), do: "workshop-#{slug(team_name)}"
 
+  @doc "Return the prompt directory path for a team."
   @spec prompt_dir(String.t()) :: String.t()
   def prompt_dir(team_name), do: Path.join(prompt_root_dir(), slug(team_name))
 
+  @doc "Return the root prompt directory, from config or default."
   @spec prompt_root_dir() :: String.t()
   def prompt_root_dir do
     Application.get_env(:ichor, :workshop_prompt_root_dir, Path.expand("~/.ichor/workshop"))

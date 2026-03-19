@@ -56,6 +56,7 @@ defmodule Ichor.Fleet.AgentProcess do
   end
 
   @doc "Override child_spec for liveness-polled agents (restart: :temporary)."
+  @spec child_spec(keyword()) :: Supervisor.child_spec()
   def child_spec(opts) do
     spec = super(opts)
 

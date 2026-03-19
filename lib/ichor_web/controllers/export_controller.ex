@@ -1,4 +1,6 @@
 defmodule IchorWeb.ExportController do
+  @moduledoc "Exports event data as JSON or CSV for download."
+
   use IchorWeb, :controller
   alias Ichor.Observability
 

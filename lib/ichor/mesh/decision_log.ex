@@ -230,6 +230,7 @@ defmodule Ichor.Mesh.DecisionLog do
   Required fields within present sections are enforced by each sub-schema's
   own changeset function.
   """
+  @spec changeset(t(), map()) :: Ecto.Changeset.t()
   def changeset(struct, params) do
     struct
     |> cast(params, [])
@@ -241,9 +242,13 @@ defmodule Ichor.Mesh.DecisionLog do
     |> cast_embed(:control, required: false, with: &Control.changeset/2)
   end
 
+  @doc "True if the decision log has no parent step (i.e., it is a root node)."
+  @spec root?(t()) :: boolean()
   def root?(%__MODULE__{meta: %{parent_step_id: nil}}), do: true
   def root?(%__MODULE__{}), do: false
 
+  @doc "Parse the major version integer from the capability_version string."
+  @spec major_version(t()) :: non_neg_integer() | nil
   def major_version(%__MODULE__{identity: %{capability_version: v}}) when is_binary(v) do
     case String.split(v, ".") do
       [major | _] -> String.to_integer(major)
@@ -258,6 +263,7 @@ defmodule Ichor.Mesh.DecisionLog do
 
   Returns the log unchanged when `cognition` is nil.
   """
+  @spec put_gateway_entropy_score(t(), float()) :: t()
   def put_gateway_entropy_score(%__MODULE__{cognition: nil} = log, _score), do: log
 
   def put_gateway_entropy_score(%__MODULE__{cognition: cognition} = log, score)
@@ -270,6 +276,7 @@ defmodule Ichor.Mesh.DecisionLog do
 
   Returns `{:ok, %DecisionLog{}}` on success, `{:error, changeset}` on failure.
   """
+  @spec from_json(map()) :: {:ok, t()} | {:error, Ecto.Changeset.t()}
   def from_json(attrs) when is_map(attrs) do
     cs = changeset(%__MODULE__{}, attrs)
     if cs.valid?, do: {:ok, Ecto.Changeset.apply_changes(cs)}, else: {:error, cs}

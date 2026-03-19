@@ -1,4 +1,6 @@
 defmodule IchorWeb.GatewayController do
+  @moduledoc "Receives DecisionLog payloads from agents, validates schema, and routes downstream."
+
   use IchorWeb, :controller
 
   require Logger

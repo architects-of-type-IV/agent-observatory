@@ -12,6 +12,8 @@ defmodule Ichor.Gateway.HITLRelay do
   @sweep_interval :timer.minutes(30)
   @abandoned_ttl_seconds 1_800
 
+  @doc "Start the HITLRelay GenServer."
+  @spec start_link(keyword()) :: GenServer.on_start()
   def start_link(opts) do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
   end

@@ -5,6 +5,7 @@ defmodule Ichor.Dag.Loader do
   alias Ichor.Genesis.DagGenerator
   alias Ichor.Projects
 
+  @doc "Creates a Run and Jobs from a tasks.jsonl file path."
   @spec from_file(String.t(), keyword()) :: {:ok, Run.t()} | {:error, term()}
   def from_file(tasks_jsonl_path, opts \\ []) do
     label = Keyword.get(opts, :label, Path.basename(Path.dirname(tasks_jsonl_path)))
@@ -16,6 +17,7 @@ defmodule Ichor.Dag.Loader do
     })
   end
 
+  @doc "Creates a Run and Jobs from a Genesis node hierarchy, archiving prior runs first."
   @spec from_genesis(String.t(), keyword()) :: {:ok, Run.t()} | {:error, term()}
   def from_genesis(node_id, opts \\ []) do
     tmux_session = Keyword.get(opts, :tmux_session)

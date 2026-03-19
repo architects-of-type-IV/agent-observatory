@@ -16,6 +16,7 @@ defmodule Ichor.Fleet.HostRegistry do
   @pg_scope :ichor_agents
   @pg_group :ichor_hosts
 
+  @doc "Start the HostRegistry GenServer."
   @spec start_link(keyword()) :: GenServer.on_start()
   def start_link(opts) do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)

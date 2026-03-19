@@ -36,6 +36,7 @@ defmodule Ichor.Gateway.SchemaInterceptor do
     end
   end
 
+  @doc "Build a schema violation audit event map from a failed changeset, params, and optional raw body."
   @spec build_violation_event(Ecto.Changeset.t(), map(), binary() | nil) :: map()
   def build_violation_event(changeset, params, raw_body) do
     agent_id = get_in(params, ["identity", "agent_id"]) || "unknown"

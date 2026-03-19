@@ -15,10 +15,14 @@ defmodule Ichor.Gateway.TopologyBuilder do
   @sweep_interval :timer.hours(1)
   @stale_ttl_seconds 7_200
 
+  @doc "Start the TopologyBuilder GenServer."
+  @spec start_link(keyword()) :: GenServer.on_start()
   def start_link(opts \\ []) do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
   end
 
+  @doc "Subscribe to DAG delta events for the given session."
+  @spec subscribe_to_session(String.t()) :: :ok
   def subscribe_to_session(session_id) do
     GenServer.cast(__MODULE__, {:subscribe, session_id})
   end

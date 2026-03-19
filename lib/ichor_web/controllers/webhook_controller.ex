@@ -1,4 +1,6 @@
 defmodule IchorWeb.WebhookController do
+  @moduledoc "Handles inbound webhook deliveries with HMAC signature verification."
+
   use IchorWeb, :controller
 
   alias Ichor.Gateway.WebhookRouter

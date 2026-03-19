@@ -59,7 +59,7 @@ defmodule Ichor.Tools do
     # Inbox
     tool(:check_inbox, Inbox, :check_inbox)
     tool(:acknowledge_message, Inbox, :acknowledge_message)
-    tool(:send_message, Inbox, :send_message)
+    tool(:send_message, Inbox, :agent_send_message)
     # Tasks
     tool(:get_tasks, Tasks, :get_tasks)
     tool(:update_task_status, Tasks, :update_task_status)
@@ -76,7 +76,7 @@ defmodule Ichor.Tools do
     tool(:archival_memory_search, Archival, :archival_memory_search)
     # Agent management
     tool(:create_agent, Agents, :create_agent)
-    tool(:list_agents, Agents, :list_agents)
+    tool(:list_agents, Agents, :list_registered_agents)
     # Fleet spawning
     tool(:spawn_agent, Spawn, :spawn_agent)
     tool(:stop_agent, Spawn, :stop_agent)
@@ -113,7 +113,7 @@ defmodule Ichor.Tools do
     tool(:load_jsonl, DagExecution, :load_jsonl)
     tool(:export_jsonl, DagExecution, :export_jsonl)
     # Fleet observation (Archon)
-    tool(:list_archon_agents, Ichor.Archon.Tools.Agents, :list_agents)
+    tool(:list_archon_agents, Ichor.Archon.Tools.Agents, :list_live_agents)
     tool(:agent_status, Ichor.Archon.Tools.Agents, :agent_status)
     tool(:list_teams, Teams, :list_teams)
     # Fleet control (Archon)
@@ -124,7 +124,7 @@ defmodule Ichor.Tools do
     tool(:sweep, Control, :sweep)
     # Messaging (Archon)
     tool(:recent_messages, Messages, :recent_messages)
-    tool(:archon_send_message, Messages, :send_message)
+    tool(:archon_send_message, Messages, :operator_send_message)
     # System (Archon)
     tool(:system_health, System, :system_health)
     tool(:tmux_sessions, System, :tmux_sessions)

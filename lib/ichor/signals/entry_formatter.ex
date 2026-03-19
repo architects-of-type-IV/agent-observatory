@@ -3,6 +3,7 @@ defmodule Ichor.Signals.EntryFormatter do
 
   alias Ichor.Signals.{Catalog, Message, StreamEntry}
 
+  @doc "Format a signal message into a structured stream entry at the given sequence number."
   @spec format(Message.t(), non_neg_integer()) :: StreamEntry.t()
   def format(%Message{} = sig, seq) do
     info = Catalog.lookup(sig.name)

@@ -5,6 +5,7 @@ defmodule Ichor.Fleet.Lifecycle.TmuxScript do
 
   alias Ichor.Fleet.TmuxHelpers
 
+  @doc "Write the prompt file and launch shell script for an agent to `base_dir`."
   @spec write_agent_files(String.t(), String.t(), String.t(), String.t(), String.t()) ::
           {:ok, map()} | {:error, term()}
   def write_agent_files(base_dir, file_name, prompt, model, capability) do
@@ -19,6 +20,7 @@ defmodule Ichor.Fleet.Lifecycle.TmuxScript do
     end
   end
 
+  @doc "Remove a prompt directory and its contents if it exists."
   @spec cleanup_dir(String.t()) :: :ok
   def cleanup_dir(dir) do
     if File.dir?(dir) do
@@ -28,6 +30,7 @@ defmodule Ichor.Fleet.Lifecycle.TmuxScript do
     :ok
   end
 
+  @doc "Render the shell script that launches Claude with the given prompt, model, and capability."
   @spec render_script(String.t(), String.t(), String.t()) :: String.t()
   def render_script(prompt_path, model, capability) do
     cli_args =

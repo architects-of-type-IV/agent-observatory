@@ -5,6 +5,8 @@ defmodule Ichor.Dag.Analysis do
 
   alias Ichor.Dag.Graph
 
+  @doc "Reloads tasks from all watched projects and updates derived DAG state."
+  @spec refresh_tasks(map()) :: map()
   def refresh_tasks(state) do
     all_tasks =
       state.watched_projects
@@ -40,6 +42,8 @@ defmodule Ichor.Dag.Analysis do
     end
   end
 
+  @doc "Parses a tasks.jsonl file into normalized task maps, skipping deleted entries."
+  @spec parse_tasks_jsonl(String.t()) :: [map()]
   def parse_tasks_jsonl(path) do
     if File.exists?(path) do
       path
@@ -51,6 +55,8 @@ defmodule Ichor.Dag.Analysis do
     end
   end
 
+  @doc "Returns tasks that have been in_progress beyond the stale threshold."
+  @spec find_stale_tasks([map()], DateTime.t()) :: [map()]
   def find_stale_tasks(tasks, now), do: stale_tasks(tasks, now)
 
   defp empty_pipeline,

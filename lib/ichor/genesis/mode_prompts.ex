@@ -8,6 +8,8 @@ defmodule Ichor.Genesis.ModePrompts do
   @mcp_tools_define "create_feature, create_use_case, list_features, list_use_cases, create_checkpoint, create_conversation, gate_check"
   @mcp_tools_build "list_features, list_use_cases, create_phase, create_section, create_task, create_subtask, create_checkpoint, create_conversation, gate_check"
 
+  @doc "Generates the Mode A coordinator prompt."
+  @spec mode_a_coordinator(String.t(), String.t(), String.t() | nil, String.t()) :: String.t()
   def mode_a_coordinator(run_id, roster, node_id, brief) do
     """
     You are the Genesis Mode A Coordinator for run #{run_id}.
@@ -50,6 +52,8 @@ defmodule Ichor.Genesis.ModePrompts do
     """
   end
 
+  @doc "Generates the Mode A architect prompt."
+  @spec mode_a_architect(String.t(), String.t(), String.t() | nil, String.t()) :: String.t()
   def mode_a_architect(run_id, roster, node_id, brief) do
     """
     You are the Genesis Mode A Architect for run #{run_id}.
@@ -85,6 +89,8 @@ defmodule Ichor.Genesis.ModePrompts do
     """
   end
 
+  @doc "Generates the Mode A reviewer prompt."
+  @spec mode_a_reviewer(String.t(), String.t(), String.t() | nil, String.t()) :: String.t()
   def mode_a_reviewer(run_id, roster, node_id, brief) do
     """
     You are the Genesis Mode A Reviewer for run #{run_id}.
@@ -117,6 +123,8 @@ defmodule Ichor.Genesis.ModePrompts do
     """
   end
 
+  @doc "Generates the Mode B coordinator prompt."
+  @spec mode_b_coordinator(String.t(), String.t(), String.t() | nil, String.t()) :: String.t()
   def mode_b_coordinator(run_id, roster, node_id, brief) do
     """
     You are the Genesis Mode B Coordinator for run #{run_id}.
@@ -157,6 +165,8 @@ defmodule Ichor.Genesis.ModePrompts do
     """
   end
 
+  @doc "Generates the Mode B analyst prompt."
+  @spec mode_b_analyst(String.t(), String.t(), String.t() | nil, String.t()) :: String.t()
   def mode_b_analyst(run_id, roster, node_id, brief) do
     """
     You are the Genesis Mode B Analyst for run #{run_id}.
@@ -182,6 +192,8 @@ defmodule Ichor.Genesis.ModePrompts do
     """
   end
 
+  @doc "Generates the Mode B designer prompt."
+  @spec mode_b_designer(String.t(), String.t(), String.t() | nil, String.t()) :: String.t()
   def mode_b_designer(run_id, roster, node_id, brief) do
     """
     You are the Genesis Mode B Designer for run #{run_id}.
@@ -206,6 +218,8 @@ defmodule Ichor.Genesis.ModePrompts do
     """
   end
 
+  @doc "Generates the Mode C coordinator prompt."
+  @spec mode_c_coordinator(String.t(), String.t(), String.t() | nil, String.t()) :: String.t()
   def mode_c_coordinator(run_id, roster, node_id, brief) do
     """
     You are the Genesis Mode C Coordinator for run #{run_id}.
@@ -242,6 +256,8 @@ defmodule Ichor.Genesis.ModePrompts do
     """
   end
 
+  @doc "Generates the Mode C planner prompt."
+  @spec mode_c_planner(String.t(), String.t(), String.t() | nil, String.t()) :: String.t()
   def mode_c_planner(run_id, roster, node_id, brief) do
     """
     You are the Genesis Mode C Planner for run #{run_id}.
@@ -273,6 +289,8 @@ defmodule Ichor.Genesis.ModePrompts do
     """
   end
 
+  @doc "Generates the Mode C architect prompt."
+  @spec mode_c_architect(String.t(), String.t(), String.t() | nil, String.t()) :: String.t()
   def mode_c_architect(run_id, roster, node_id, brief) do
     """
     You are the Genesis Mode C Architect for run #{run_id}.

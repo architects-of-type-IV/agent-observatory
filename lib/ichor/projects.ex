@@ -44,15 +44,19 @@ defmodule Ichor.Projects do
 
   # Project Intake
 
+  @doc "Fetch a single project by id."
   @spec get_project(String.t()) :: {:ok, Project.t()} | {:error, term()}
   def get_project(id), do: Project.get(id)
 
+  @doc "Create a new project from the given attrs map."
   @spec create_project(map()) :: {:ok, Project.t()} | {:error, term()}
   def create_project(attrs), do: Project.create(attrs)
 
+  @doc "Return all projects, raising on error."
   @spec list_projects() :: list(Project.t())
   def list_projects, do: Project.list_all!()
 
+  @doc "Return all projects with :loaded status, returning an empty list on error."
   @spec loaded_projects() :: list(Project.t())
   def loaded_projects do
     case Project.by_status(:loaded) do
@@ -61,6 +65,7 @@ defmodule Ichor.Projects do
     end
   end
 
+  @doc "Return all projects, returning an empty list on error."
   @spec all_projects() :: list(Project.t())
   def all_projects do
     case Project.list_all() do
@@ -69,9 +74,11 @@ defmodule Ichor.Projects do
     end
   end
 
+  @doc "Transition a project to :loaded status."
   @spec mark_loaded(Project.t()) :: {:ok, Project.t()} | {:error, term()}
   def mark_loaded(project), do: Project.mark_loaded(project)
 
+  @doc "Transition a project to :failed status with the given build log."
   @spec mark_failed(Project.t(), String.t()) :: {:ok, Project.t()} | {:error, term()}
   def mark_failed(project, build_log), do: Project.mark_failed(project, build_log)
 
@@ -94,21 +101,25 @@ defmodule Ichor.Projects do
 
   # Planning Nodes
 
+  @doc "Fetch a single genesis node by id, with optional load opts."
   @spec get_node(String.t(), keyword()) :: {:ok, term()} | {:error, term()}
   def get_node(id, opts \\ []) do
     Node.get(id, opts)
   end
 
+  @doc "Return all genesis nodes for the given project id."
   @spec node_by_project(String.t(), keyword()) :: {:ok, list(term())} | {:error, term()}
   def node_by_project(project_id, opts \\ []) do
     Node.by_project(project_id, opts)
   end
 
+  @doc "Create a new genesis node from the given attrs map."
   @spec create_node(map()) :: {:ok, Node.t()} | {:error, term()}
   def create_node(attrs) do
     Node.create(attrs)
   end
 
+  @doc "Advance a genesis node to the given status atom."
   @spec advance_node(String.t(), atom()) :: {:ok, Node.t()} | {:error, term()}
   def advance_node(node_id, status) do
     with {:ok, node} <- Node.get(node_id) do
@@ -116,11 +127,13 @@ defmodule Ichor.Projects do
     end
   end
 
+  @doc "Return all genesis nodes."
   @spec list_nodes() :: {:ok, list(Node.t())} | {:error, term()}
   def list_nodes do
     Node.list_all()
   end
 
+  @doc "Load the given relationships onto a node by id."
   @spec load_node(String.t(), list()) :: {:ok, term()} | {:error, term()}
   def load_node(node_id, loads) do
     with {:ok, node} <- Node.get(node_id) do
@@ -246,21 +259,27 @@ defmodule Ichor.Projects do
 
   # Execution
 
+  @doc "Fetch a single DAG run by id."
   @spec get_run(String.t()) :: {:ok, Run.t()} | {:error, term()}
   def get_run(id), do: Run.get(id)
 
+  @doc "Return all active DAG runs, raising on error."
   @spec active_runs() :: list(Run.t())
   def active_runs, do: Run.active!()
 
+  @doc "Return all DAG runs for the given genesis node id, raising on error."
   @spec runs_by_node(String.t()) :: list(Run.t())
   def runs_by_node(node_id), do: Run.by_node!(node_id)
 
+  @doc "Return all DAG runs for the given project path, raising on error."
   @spec runs_by_path(String.t()) :: list(Run.t())
   def runs_by_path(project_path), do: Run.by_path!(project_path)
 
+  @doc "Return all jobs for the given run id, raising on error."
   @spec jobs_for_run(String.t()) :: list(Job.t())
   def jobs_for_run(run_id), do: Job.by_run!(run_id)
 
+  @doc "Return all jobs for the given run id, returning a tagged tuple."
   @spec fetch_jobs_for_run(String.t()) :: {:ok, list(Job.t())} | {:error, term()}
   def fetch_jobs_for_run(run_id), do: Job.by_run(run_id)
 end

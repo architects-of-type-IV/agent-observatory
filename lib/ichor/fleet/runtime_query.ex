@@ -7,12 +7,16 @@ defmodule Ichor.Fleet.RuntimeQuery do
   alias Ichor.Tasks.TeamStore
   alias IchorWeb.Presentation
 
+  @doc "Find the first team member map whose `:agent_id` matches `agent_id`."
+  @spec find_team_member(list(), String.t()) :: map() | nil
   def find_team_member(teams, agent_id) do
     teams
     |> Enum.flat_map(& &1.members)
     |> Enum.find(&(&1[:agent_id] == agent_id))
   end
 
+  @doc "Find a team member or synthesize a minimal agent entry from events for the given ID."
+  @spec find_agent_entry(String.t(), list(), list()) :: map()
   def find_agent_entry(id, teams, events) do
     team_agent =
       teams
@@ -22,6 +26,8 @@ defmodule Ichor.Fleet.RuntimeQuery do
     team_agent || %{agent_id: id, name: find_session_name(events, id), session_id: id}
   end
 
+  @doc "Find the in-progress task assigned to `agent_name` in the swarm state, or nil."
+  @spec find_active_task(String.t() | nil, map() | any()) :: map() | nil
   def find_active_task(nil, _swarm), do: nil
 
   def find_active_task(agent_name, %{tasks: tasks}) when is_list(tasks) do
@@ -30,6 +36,8 @@ defmodule Ichor.Fleet.RuntimeQuery do
 
   def find_active_task(_agent_name, _swarm), do: nil
 
+  @doc "Aggregate all tasks from the TeamStore for the given team list, tagged with team name."
+  @spec list_tasks_for_teams(list()) :: list()
   def list_tasks_for_teams(teams) do
     Enum.flat_map(teams, fn team ->
       team.name
@@ -38,6 +46,8 @@ defmodule Ichor.Fleet.RuntimeQuery do
     end)
   end
 
+  @doc "Serialize a team struct to a string-keyed map for JSON or LiveView rendering."
+  @spec format_team(map()) :: map()
   def format_team(team) do
     %{
       "name" => team.name,

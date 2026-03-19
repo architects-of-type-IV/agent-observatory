@@ -24,6 +24,8 @@ defmodule Ichor.Dag.Discovery do
     |> Map.merge(team_projects)
   end
 
+  @doc "Returns archive entry maps from ~/.claude/teams/.archive/."
+  @spec scan_archives() :: [map()]
   def scan_archives do
     case File.ls(@archive_dir) do
       {:ok, entries} -> Enum.map(entries, &parse_archive_entry/1)

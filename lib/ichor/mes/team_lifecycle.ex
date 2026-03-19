@@ -7,6 +7,7 @@ defmodule Ichor.Mes.TeamLifecycle do
   alias Ichor.Mes.TeamSpecBuilder
   alias Ichor.Signals
 
+  @doc "Builds and launches a MES team, returning the tmux session name on success."
   @spec spawn_run(String.t(), String.t()) :: {:ok, String.t()} | {:error, term()}
   def spawn_run(run_id, team_name) do
     builder = team_spec_builder()
@@ -25,6 +26,7 @@ defmodule Ichor.Mes.TeamLifecycle do
     end
   end
 
+  @doc "Spawns a corrective agent into an existing session after a quality gate failure."
   @spec spawn_corrective_agent(String.t(), String.t(), String.t() | nil, pos_integer()) ::
           :ok | {:error, term()}
   def spawn_corrective_agent(run_id, session, reason, attempt) do
@@ -38,12 +40,15 @@ defmodule Ichor.Mes.TeamLifecycle do
     end
   end
 
+  @doc "Kills a MES tmux session via the configured cleanup module."
   @spec kill_session(String.t()) :: :ok
   def kill_session(session), do: cleanup_module().kill_session(session)
 
+  @doc "Cleans up prompt directories and orphaned teams from previous runs."
   @spec cleanup_old_runs() :: :ok
   def cleanup_old_runs, do: cleanup_module().cleanup_old_runs()
 
+  @doc "Disbands fleet teams and kills sessions not backed by an active RunProcess."
   @spec cleanup_orphaned_teams() :: :ok
   def cleanup_orphaned_teams, do: cleanup_module().cleanup_orphaned_teams()
 

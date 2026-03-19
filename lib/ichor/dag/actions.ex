@@ -8,6 +8,8 @@ defmodule Ichor.Dag.Actions do
   alias Ichor.Fleet.Lifecycle.Cleanup
   alias Ichor.Tasks.JsonlStore
 
+  @doc "Resets a stale task in the active project's tasks.jsonl."
+  @spec heal_task(map(), String.t()) :: :ok | {:error, term()}
   def heal_task(state, task_id) do
     case Projects.tasks_jsonl_path_for_task(state, task_id) do
       nil -> {:error, :no_active_project}
@@ -15,6 +17,8 @@ defmodule Ichor.Dag.Actions do
     end
   end
 
+  @doc "Assigns a task to a new owner in the active project's tasks.jsonl."
+  @spec reassign_task(map(), String.t(), String.t()) :: :ok | {:error, term()}
   def reassign_task(state, task_id, new_owner) do
     case Projects.tasks_jsonl_path_for_task(state, task_id) do
       nil -> {:error, :no_active_project}
@@ -22,6 +26,8 @@ defmodule Ichor.Dag.Actions do
     end
   end
 
+  @doc "Claims a task for an agent, setting status to in_progress."
+  @spec claim_task(map(), String.t(), String.t()) :: :ok | {:error, term()}
   def claim_task(state, task_id, agent_name) do
     case Projects.tasks_jsonl_path_for_task(state, task_id) do
       nil -> {:error, :no_active_project}
@@ -29,6 +35,8 @@ defmodule Ichor.Dag.Actions do
     end
   end
 
+  @doc "Resets all in_progress tasks stale longer than threshold_min minutes."
+  @spec reset_all_stale(map(), non_neg_integer()) :: {:ok, non_neg_integer()} | {:error, term()}
   def reset_all_stale(state, threshold_min) do
     case Projects.tasks_jsonl_path(state) do
       nil ->
@@ -46,6 +54,8 @@ defmodule Ichor.Dag.Actions do
     end
   end
 
+  @doc "Triggers GC for a named team, archiving completed work."
+  @spec trigger_gc(map(), String.t()) :: :ok | {:error, term()}
   def trigger_gc(state, team_name) do
     case Projects.tasks_jsonl_path(state) do
       nil -> {:error, :no_active_project}

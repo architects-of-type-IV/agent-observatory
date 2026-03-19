@@ -10,6 +10,7 @@ defmodule Ichor.Genesis.DagGenerator do
   @hierarchy_load [sections: [tasks: :subtasks]]
   @compile_gate "mix compile --warnings-as-errors"
 
+  @doc "Generates a tasks.jsonl-compatible list of maps from a Genesis node hierarchy."
   @spec generate(String.t()) :: {:ok, [map()]} | {:error, term()}
   def generate(node_id) do
     with {:ok, node} <- Ichor.Projects.load_node(node_id, phases: @hierarchy_load) do
@@ -23,6 +24,7 @@ defmodule Ichor.Genesis.DagGenerator do
     end
   end
 
+  @doc "Encodes a list of task maps to a newline-delimited JSONL string."
   @spec to_jsonl_string([map()]) :: String.t()
   def to_jsonl_string(tasks) do
     Enum.map_join(tasks, "\n", &Jason.encode!/1)

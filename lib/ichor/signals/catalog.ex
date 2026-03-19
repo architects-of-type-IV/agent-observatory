@@ -118,9 +118,11 @@ defmodule Ichor.Signals.Catalog do
   @categories @catalog |> Map.values() |> Enum.map(& &1.category) |> Enum.uniq() |> Enum.sort()
   @static_signals @catalog |> Enum.reject(fn {_, v} -> v.dynamic end) |> Enum.map(&elem(&1, 0))
 
+  @doc "Look up a signal definition by name. Returns nil if not found."
   @spec lookup(atom()) :: signal_def() | nil
   def lookup(name), do: Map.get(@catalog, name)
 
+  @doc "Look up a signal definition, deriving one from name prefix if absent."
   @spec lookup!(atom()) :: signal_def()
   def lookup!(name) do
     Map.get(@catalog, name) || derive(name)
@@ -141,21 +143,27 @@ defmodule Ichor.Signals.Catalog do
     ArgumentError -> %{category: :uncategorized, keys: [], dynamic: false, doc: "auto-derived"}
   end
 
+  @doc "True if the given atom is a known signal category."
   @spec valid_category?(atom()) :: boolean()
   def valid_category?(cat), do: cat in @categories
 
+  @doc "Return the list of all known signal categories."
   @spec categories() :: [atom()]
   def categories, do: @categories
 
+  @doc "Return the full signal catalog map."
   @spec all() :: %{atom() => signal_def()}
   def all, do: @catalog
 
+  @doc "Return all signal definitions for a given category."
   @spec by_category(atom()) :: [{atom(), signal_def()}]
   def by_category(cat), do: Enum.filter(@catalog, fn {_, v} -> v.category == cat end)
 
+  @doc "Return all non-dynamic signal names."
   @spec static_signals() :: [atom()]
   def static_signals, do: @static_signals
 
+  @doc "Return all dynamic signal definitions."
   @spec dynamic_signals() :: [{atom(), signal_def()}]
   def dynamic_signals, do: Enum.filter(@catalog, fn {_, v} -> v.dynamic end)
 end

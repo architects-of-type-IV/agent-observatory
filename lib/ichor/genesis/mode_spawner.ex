@@ -15,6 +15,7 @@ defmodule Ichor.Genesis.ModeSpawner do
   alias Ichor.Projects
   alias Ichor.Signals
 
+  @doc "Spawns a Genesis mode team (a/b/c) inside a new tmux session."
   @spec spawn_mode(String.t(), String.t(), String.t() | nil) ::
           {:ok, String.t()} | {:error, term()}
   def spawn_mode(mode, project_id, genesis_node_id) do
@@ -47,6 +48,7 @@ defmodule Ichor.Genesis.ModeSpawner do
     end
   end
 
+  @doc "Returns an existing genesis node ID or creates one for the project."
   @spec ensure_genesis_node(String.t() | nil, map()) :: {:ok, String.t()} | {:error, term()}
   def ensure_genesis_node(nil, project) do
     case find_existing_node(project.id) do
@@ -149,6 +151,8 @@ defmodule Ichor.Genesis.ModeSpawner do
     )
   end
 
+  @doc "Loads a formatted project brief string for injection into agent prompts."
+  @spec load_project_brief(String.t()) :: String.t()
   def load_project_brief(project_id) do
     case Projects.get_project(project_id) do
       {:ok, project} ->

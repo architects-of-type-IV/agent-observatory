@@ -2,6 +2,7 @@ defmodule Ichor.Dag.Graph do
   @moduledoc "Pure DAG computation on normalized graph node maps."
 
   @doc "Normalize to graph node map. Accepts Job structs or string-key maps."
+  @spec to_graph_node(struct() | map()) :: map()
   def to_graph_node(%{external_id: _external_id} = job) do
     %{
       id: job.external_id,
@@ -38,6 +39,7 @@ defmodule Ichor.Dag.Graph do
   defp first_present(map, keys, default), do: Enum.find_value(keys, default, &Map.get(map, &1))
 
   @doc "Topological sort into execution waves. Wave 0 has no dependencies."
+  @spec waves([map()]) :: [[String.t()]]
   def waves(items) do
     all_ids = items |> Enum.map(& &1.id) |> MapSet.new()
     do_compute_waves(items, all_ids, MapSet.new(), [], 0)
@@ -75,13 +77,23 @@ defmodule Ichor.Dag.Graph do
     items |> Enum.reject(&MapSet.member?(assigned, &1.id)) |> Enum.map(& &1.id)
   end
 
+  @doc "Returns `{from_id, to_id}` edge pairs from blocked_by relationships."
+  @spec edges([map()]) :: [{String.t(), String.t()}]
   def edges(items) do
     Enum.flat_map(items, fn t -> Enum.map(t.blocked_by, &{&1, t.id}) end)
   end
 
+  @doc "Returns a map with waves, edges, and critical_path for a DAG."
+  @spec dag([map()]) :: %{
+          waves: [[String.t()]],
+          edges: [{String.t(), String.t()}],
+          critical_path: [String.t()]
+        }
   def dag(items),
     do: %{waves: waves(items), edges: edges(items), critical_path: critical_path(items)}
 
+  @doc "Returns the longest dependency chain as an ordered list of item IDs."
+  @spec critical_path([map()]) :: [String.t()]
   def critical_path(items) do
     task_map = Map.new(items, &{&1.id, &1})
 
@@ -148,6 +160,14 @@ defmodule Ichor.Dag.Graph do
   end
 
   @doc "Counts by status."
+  @spec pipeline_stats([map()]) :: %{
+          total: non_neg_integer(),
+          pending: non_neg_integer(),
+          in_progress: non_neg_integer(),
+          completed: non_neg_integer(),
+          failed: non_neg_integer(),
+          blocked: non_neg_integer()
+        }
   def pipeline_stats(items) do
     %{
       total: length(items),
@@ -160,6 +180,7 @@ defmodule Ichor.Dag.Graph do
   end
 
   @doc "Pending, unowned items with all blocked_by completed."
+  @spec available([map()]) :: [map()]
   def available(items) do
     completed =
       items |> Enum.filter(&(to_string(&1.status) == "completed")) |> MapSet.new(& &1.id)
@@ -171,6 +192,7 @@ defmodule Ichor.Dag.Graph do
   end
 
   @doc "Items in_progress longer than threshold_min minutes."
+  @spec stale_items([map()], DateTime.t(), non_neg_integer()) :: [map()]
   def stale_items(items, now, threshold_min \\ 10) do
     Enum.filter(items, fn t ->
       to_string(t.status) == "in_progress" and stale?(t, now, threshold_min)
@@ -203,6 +225,8 @@ defmodule Ichor.Dag.Graph do
 
   defp parse_timestamp(_), do: nil
 
+  @doc "Returns `{id_a, id_b, shared_files}` triples for in_progress items sharing files."
+  @spec file_conflicts([map()]) :: [{String.t(), String.t(), [String.t()]}]
   def file_conflicts(items) do
     in_progress = Enum.filter(items, &(to_string(&1.status) == "in_progress"))
 

@@ -1,4 +1,6 @@
 defmodule IchorWeb.Endpoint do
+  @moduledoc "Phoenix endpoint for the Ichor web application."
+
   use Phoenix.Endpoint, otp_app: :ichor
 
   # The session will be stored in the cookie and signed,

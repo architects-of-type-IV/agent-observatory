@@ -24,6 +24,7 @@ defmodule Ichor.Gateway.Envelope do
         }
 
   @doc "Build an envelope with auto-generated id and timestamp."
+  @spec new(String.t(), map(), keyword()) :: t()
   def new(channel, payload, opts \\ []) do
     %__MODULE__{
       id: generate_id(),

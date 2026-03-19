@@ -13,11 +13,14 @@ defmodule Ichor.Gateway.HeartbeatManager do
   @eviction_threshold_seconds 90
   @check_interval_ms 30_000
 
+  @doc "Start the HeartbeatManager GenServer."
+  @spec start_link(keyword()) :: GenServer.on_start()
   def start_link(opts) do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
   end
 
   @doc "Record a heartbeat for `agent_id` within `cluster_id`."
+  @spec record_heartbeat(String.t(), String.t()) :: :ok
   def record_heartbeat(agent_id, cluster_id) do
     GenServer.call(__MODULE__, {:heartbeat, agent_id, cluster_id})
   end

@@ -38,12 +38,15 @@ defmodule Ichor.Archon.CommandManifest do
     {"Memory", "/remember <text> /recall <query> /query <question>"}
   ]
 
+  @doc "Return the list of quick action shortcut definitions."
   @spec quick_actions() :: [map()]
   def quick_actions, do: @quick_actions
 
+  @doc "Return the reference command list of {command, description} pairs."
   @spec reference_commands() :: [{String.t(), String.t()}]
   def reference_commands, do: @reference_commands
 
+  @doc "Build a formatted help string for an unrecognized command."
   @spec unknown_command_help(String.t()) :: String.t()
   def unknown_command_help(command) do
     lines =

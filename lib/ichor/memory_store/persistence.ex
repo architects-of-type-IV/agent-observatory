@@ -7,12 +7,16 @@ defmodule Ichor.MemoryStore.Persistence do
 
   alias Ichor.MemoryStore.Tables
 
+  @doc "Load all blocks and agents from the configured data directory into ETS."
+  @spec load_from_disk() :: :ok
   def load_from_disk do
     dir = Tables.data_dir()
     load_blocks_from_dir(Path.join(dir, "blocks"))
     load_agents_from_dir(Path.join(dir, "agents"))
   end
 
+  @doc "Parse a JSONL file into a list of atomized entry maps."
+  @spec load_jsonl(String.t()) :: [map()]
   def load_jsonl(path) do
     path
     |> File.stream!()
@@ -27,6 +31,8 @@ defmodule Ichor.MemoryStore.Persistence do
     |> Enum.to_list()
   end
 
+  @doc "Flush dirty blocks and agents from state to disk."
+  @spec flush_dirty(map()) :: :ok
   def flush_dirty(state) do
     dir = Tables.data_dir()
     flush_dirty_blocks(state, dir)

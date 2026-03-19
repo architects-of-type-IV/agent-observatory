@@ -7,6 +7,8 @@ defmodule Ichor.MemoryStore.Archival do
   alias Ichor.MemoryStore.Persistence
   alias Ichor.MemoryStore.Tables
 
+  @doc "Return all archival entries for an agent from ETS."
+  @spec get(String.t()) :: [map()]
   def get(agent_name) do
     case :ets.lookup(Tables.archival_table(), agent_name) do
       [{^agent_name, entries}] -> entries
@@ -14,6 +16,8 @@ defmodule Ichor.MemoryStore.Archival do
     end
   end
 
+  @doc "Return the total count of archival entries, reading the JSONL file if ETS is at limit."
+  @spec count(String.t()) :: non_neg_integer()
   def count(agent_name) do
     ets_entries = get(agent_name)
 
@@ -33,6 +37,8 @@ defmodule Ichor.MemoryStore.Archival do
     end
   end
 
+  @doc "Return all entries suitable for search, falling back to disk when ETS is at limit."
+  @spec for_search(String.t()) :: [map()]
   def for_search(agent_name) do
     ets_entries = get(agent_name)
 
@@ -44,6 +50,8 @@ defmodule Ichor.MemoryStore.Archival do
     end
   end
 
+  @doc "Insert a new archival passage for an agent."
+  @spec insert(String.t(), String.t(), [String.t()]) :: {:ok, map()}
   def insert(agent_name, content, tags) do
     passage = %{
       id: generate_id(),
@@ -58,6 +66,8 @@ defmodule Ichor.MemoryStore.Archival do
     {:ok, passage}
   end
 
+  @doc "Full-text search archival entries by query string, with optional tag filter and pagination."
+  @spec search(String.t(), String.t(), keyword()) :: [map()]
   def search(agent_name, query, opts) do
     tags_filter = Keyword.get(opts, :tags, [])
     limit = Keyword.get(opts, :limit, 10)
@@ -71,12 +81,16 @@ defmodule Ichor.MemoryStore.Archival do
     |> Enum.take(limit)
   end
 
+  @doc "Remove a passage by id from an agent's archival store."
+  @spec delete(String.t(), String.t()) :: :ok
   def delete(agent_name, passage_id) do
     updated = Enum.reject(get(agent_name), fn entry -> entry.id == passage_id end)
     :ets.insert(Tables.archival_table(), {agent_name, updated})
     :ok
   end
 
+  @doc "Return a paginated list of archival entries with total count."
+  @spec list(String.t(), keyword()) :: %{passages: [map()], total: non_neg_integer()}
   def list(agent_name, opts) do
     archival = for_search(agent_name)
     limit = Keyword.get(opts, :limit, 50)
@@ -88,6 +102,8 @@ defmodule Ichor.MemoryStore.Archival do
     }
   end
 
+  @doc "Filter entries by tag list. Returns all entries if tags list is empty."
+  @spec filter_by_tags([map()], [String.t()]) :: [map()]
   def filter_by_tags(entries, []), do: entries
 
   def filter_by_tags(entries, tags),

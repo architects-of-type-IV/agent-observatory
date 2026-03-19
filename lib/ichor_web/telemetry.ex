@@ -1,7 +1,11 @@
 defmodule IchorWeb.Telemetry do
+  @moduledoc "Telemetry supervisor that registers Phoenix, database, and VM metrics."
+
   use Supervisor
   import Telemetry.Metrics
 
+  @doc "Starts the telemetry supervisor."
+  @spec start_link(any()) :: Supervisor.on_start()
   def start_link(arg) do
     Supervisor.start_link(__MODULE__, arg, name: __MODULE__)
   end
@@ -19,6 +23,8 @@ defmodule IchorWeb.Telemetry do
     Supervisor.init(children, strategy: :one_for_one)
   end
 
+  @doc "Returns the list of telemetry metrics to report."
+  @spec metrics() :: [Telemetry.Metrics.t()]
   def metrics do
     [
       # Phoenix Metrics

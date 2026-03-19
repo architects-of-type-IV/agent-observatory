@@ -5,6 +5,8 @@ defmodule Ichor.Fleet.AgentProcess.Registry do
 
   @type_iv_registry Ichor.Registry
 
+  @doc "Build the initial registry metadata map for a newly started agent."
+  @spec build_initial_meta(String.t(), Ichor.Fleet.AgentProcess.t(), map()) :: map()
   def build_initial_meta(id, state, meta) do
     tmux_target = extract_tmux_target(state.backend)
     tmux_session = extract_session_name(tmux_target)
@@ -30,6 +32,8 @@ defmodule Ichor.Fleet.AgentProcess.Registry do
     }
   end
 
+  @doc "Derive registry field updates from an agent event payload."
+  @spec fields_from_event(map()) :: map()
   def fields_from_event(event) do
     %{last_event_at: DateTime.utc_now(), status: :active}
     |> maybe_merge(:model, Map.get(event, :model_name))
@@ -38,6 +42,8 @@ defmodule Ichor.Fleet.AgentProcess.Registry do
     |> merge_current_tool(event)
   end
 
+  @doc "Merge `fields` into the registry metadata for the given agent ID."
+  @spec update(String.t(), map()) :: {term(), term()} | :error
   def update(id, fields) do
     Registry.update_value(@type_iv_registry, {:agent, id}, fn meta -> Map.merge(meta, fields) end)
   end

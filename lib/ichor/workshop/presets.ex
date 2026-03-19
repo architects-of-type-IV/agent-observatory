@@ -274,9 +274,11 @@ defmodule Ichor.Workshop.Presets do
     }
   }
 
+  @doc "Return the list of all preset names."
   @spec names() :: [String.t()]
   def names, do: Map.keys(@presets)
 
+  @doc "Fetch a preset by name."
   @spec fetch(String.t()) :: {:ok, map()} | :error
   def fetch(name) do
     case Map.fetch(@presets, name) do
@@ -285,6 +287,7 @@ defmodule Ichor.Workshop.Presets do
     end
   end
 
+  @doc "Apply a named preset to the workshop state, returning the updated state."
   @spec apply(map(), String.t()) :: map()
   def apply(state, name) do
     case fetch(name) do
@@ -303,6 +306,7 @@ defmodule Ichor.Workshop.Presets do
     end
   end
 
+  @doc "Return agents sorted in depth-first spawn order per spawn links."
   @spec spawn_order([map()], [map()]) :: [map()]
   def spawn_order(agents, spawn_links) do
     has_parent = MapSet.new(Enum.map(spawn_links, & &1.to))

@@ -12,13 +12,17 @@ defmodule Ichor.Archon.SignalManager do
   alias Ichor.Signals
   alias Ichor.Signals.Message
 
+  @doc false
+  @spec start_link(keyword()) :: GenServer.on_start()
   def start_link(opts), do: GenServer.start_link(__MODULE__, opts, name: __MODULE__)
 
+  @doc "Return a compact map of signal counts and latest activity."
   @spec snapshot() :: map()
   def snapshot do
     GenServer.call(__MODULE__, :snapshot)
   end
 
+  @doc "Return the current attention queue (signals requiring intervention)."
   @spec attention() :: [map()]
   def attention do
     GenServer.call(__MODULE__, :attention)

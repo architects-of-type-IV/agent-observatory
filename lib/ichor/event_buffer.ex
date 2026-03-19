@@ -23,9 +23,12 @@ defmodule Ichor.EventBuffer do
   @max_events 5_000
   @tombstone_ttl_ms 30_000
 
+  @doc false
+  @spec start_link(keyword()) :: GenServer.on_start()
   def start_link(opts \\ []), do: GenServer.start_link(__MODULE__, opts, name: __MODULE__)
 
   @doc "Ingest a hook event. Drops events for tombstoned sessions."
+  @spec ingest(map()) :: {:ok, map()}
   def ingest(event_attrs) when is_map(event_attrs) do
     event =
       event_attrs
@@ -43,6 +46,7 @@ defmodule Ichor.EventBuffer do
   end
 
   @doc "Get all events from the buffer (most recent first)."
+  @spec list_events() :: [map()]
   def list_events do
     :ets.tab2list(@table)
     |> Enum.sort_by(fn {_k, e} -> e.inserted_at end, {:desc, DateTime})
@@ -50,6 +54,7 @@ defmodule Ichor.EventBuffer do
   end
 
   @doc "Get the latest event per session (lightweight seed for dashboard mount)."
+  @spec latest_per_session() :: [map()]
   def latest_per_session do
     :ets.foldl(fn {_id, event}, acc -> keep_latest(acc, event) end, %{}, @table)
     |> Map.values()
@@ -82,18 +87,21 @@ defmodule Ichor.EventBuffer do
   end
 
   @doc "Remove all events for a session and tombstone it."
+  @spec remove_session(String.t()) :: :ok
   def remove_session(session_id) do
     :ets.select_delete(@table, [{{:_, %{session_id: session_id}}, [], [true]}])
     tombstone_session(session_id)
   end
 
   @doc "Place a 30s tombstone to reject late events without purging existing ones."
+  @spec tombstone_session(String.t()) :: :ok
   def tombstone_session(session_id) do
     :ets.insert(@tombstones, {session_id, System.monotonic_time(:millisecond)})
     :ok
   end
 
   @doc "Get events for a specific session."
+  @spec events_for_session(String.t()) :: [map()]
   def events_for_session(session_id) do
     :ets.tab2list(@table)
     |> Enum.reduce([], fn

@@ -16,6 +16,8 @@ defmodule Ichor.QualityGate do
 
   @default_timeout 60_000
 
+  @doc false
+  @spec start_link(keyword()) :: GenServer.on_start()
   def start_link(opts), do: GenServer.start_link(__MODULE__, opts, name: __MODULE__)
 
   @doc "Manually trigger a quality gate check for a session."
@@ -39,8 +41,10 @@ defmodule Ichor.QualityGate do
     {:noreply, state}
   end
 
+  @impl true
   def handle_info(%Message{}, state), do: {:noreply, state}
 
+  @impl true
   def handle_info(_msg, state), do: {:noreply, state}
 
   @impl true

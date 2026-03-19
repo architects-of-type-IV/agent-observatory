@@ -55,6 +55,7 @@ defmodule Ichor.Gateway.Channels.SshTmux do
   end
 
   @doc "Capture pane output from a remote tmux session."
+  @spec capture_pane(String.t(), keyword()) :: {:ok, String.t()} | {:error, term()}
   def capture_pane(address, opts \\ []) do
     {session_name, host} = parse_address(address)
     lines = Keyword.get(opts, :lines, 50)
@@ -66,6 +67,7 @@ defmodule Ichor.Gateway.Channels.SshTmux do
   end
 
   @doc "List tmux sessions on a remote host."
+  @spec list_sessions(String.t()) :: [String.t()]
   def list_sessions(host) do
     case ssh_tmux(host, ["list-sessions", "-F", "\#{session_name}"]) do
       {:ok, output} -> String.split(output, "\n", trim: true)

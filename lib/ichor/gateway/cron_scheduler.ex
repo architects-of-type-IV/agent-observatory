@@ -13,6 +13,8 @@ defmodule Ichor.Gateway.CronScheduler do
 
   alias Ichor.Control
 
+  @doc "Start the CronScheduler GenServer."
+  @spec start_link(keyword()) :: GenServer.on_start()
   def start_link(opts) do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
   end

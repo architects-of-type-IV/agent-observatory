@@ -1,4 +1,6 @@
 defmodule IchorWeb.Router do
+  @moduledoc "Phoenix router — maps all HTTP and LiveView routes for the Ichor web application."
+
   use IchorWeb, :router
 
   alias Ichor.Tools.Profiles
@@ -52,6 +54,10 @@ defmodule IchorWeb.Router do
     post "/rewrite", HITLController, :rewrite
     post "/inject", HITLController, :inject
   end
+
+  forward "/mcp/archon", AshAi.Mcp.Router,
+    tools: Profiles.archon(),
+    otp_app: :ichor
 
   forward "/mcp", AshAi.Mcp.Router,
     tools: Profiles.agent(),

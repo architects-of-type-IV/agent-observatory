@@ -11,6 +11,7 @@ defmodule Ichor.Fleet.Analysis.AgentHealth do
   Compute health status for an agent based on their events.
   Returns health level (:healthy, :warning, :critical) and issues list.
   """
+  @spec compute_agent_health(list(), DateTime.t()) :: map()
   def compute_agent_health([], _now) do
     %{health: :unknown, issues: [], failure_rate: 0.0}
   end
@@ -32,6 +33,7 @@ defmodule Ichor.Fleet.Analysis.AgentHealth do
   @doc """
   Calculate failure rate as ratio of failed tool uses to total tool uses.
   """
+  @spec calculate_failure_rate(list()) :: float()
   def calculate_failure_rate(events) do
     tool_events =
       events

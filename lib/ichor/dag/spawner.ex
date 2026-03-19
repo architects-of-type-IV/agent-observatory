@@ -21,6 +21,7 @@ defmodule Ichor.Dag.Spawner do
   alias Ichor.Genesis.{ModeRunner, ModeSpawner}
   alias Ichor.Mes.SubsystemScaffold
 
+  @doc "Spawns a full DAG execution team for the given genesis node and project."
   @spec spawn(String.t(), String.t()) ::
           {:ok, %{session: String.t(), run: map()}} | {:error, term()}
   def spawn(node_id, project_id) do

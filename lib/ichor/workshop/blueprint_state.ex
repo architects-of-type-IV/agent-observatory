@@ -34,6 +34,7 @@ defmodule Ichor.Workshop.BlueprintState do
 
   @default_quality_gates "mix compile --warnings-as-errors"
 
+  @doc "Return the default Workshop canvas state."
   @spec defaults() :: map()
   def defaults do
     %{
@@ -50,11 +51,13 @@ defmodule Ichor.Workshop.BlueprintState do
     }
   end
 
+  @doc "Reset all workshop canvas fields to defaults."
   @spec clear(map()) :: map()
   def clear(state) do
     Map.merge(state, defaults())
   end
 
+  @doc "Add a new agent to the canvas, returning the updated state."
   @spec add_agent(t(), map()) :: t()
   def add_agent(state, attrs) do
     agent = new_agent(state, attrs)
@@ -65,9 +68,11 @@ defmodule Ichor.Workshop.BlueprintState do
     |> Map.put(:ws_selected_agent, agent.id)
   end
 
+  @doc "Set the selected agent id in state."
   @spec select_agent(t(), integer()) :: t()
   def select_agent(state, id), do: Map.put(state, :ws_selected_agent, id)
 
+  @doc "Move an agent to new canvas coordinates."
   @spec move_agent(t(), integer(), integer(), integer()) :: t()
   def move_agent(state, id, x, y) do
     update_agents(state, fn agent ->
@@ -75,6 +80,7 @@ defmodule Ichor.Workshop.BlueprintState do
     end)
   end
 
+  @doc "Apply param changes to a specific agent by id."
   @spec update_agent(t(), integer(), map()) :: t()
   def update_agent(state, id, params) do
     update_agents(state, fn agent ->
@@ -95,6 +101,7 @@ defmodule Ichor.Workshop.BlueprintState do
     end)
   end
 
+  @doc "Remove an agent and its associated links and rules from state."
   @spec remove_agent(t(), integer()) :: t()
   def remove_agent(state, id) do
     state
@@ -109,6 +116,7 @@ defmodule Ichor.Workshop.BlueprintState do
     |> Map.put(:ws_selected_agent, nil)
   end
 
+  @doc "Add a spawn link between two agent slots (idempotent)."
   @spec add_spawn_link(t(), integer(), integer()) :: t()
   def add_spawn_link(state, from, to) do
     already? =
@@ -123,11 +131,13 @@ defmodule Ichor.Workshop.BlueprintState do
     end
   end
 
+  @doc "Remove a spawn link at the given index."
   @spec remove_spawn_link(t(), integer()) :: t()
   def remove_spawn_link(state, index) do
     Map.update!(state, :ws_spawn_links, &List.delete_at(&1, index))
   end
 
+  @doc "Add a communication rule between two agent slots (idempotent)."
   @spec add_comm_rule(t(), integer(), integer(), String.t()) :: t()
   def add_comm_rule(state, from, to, policy) do
     exists? =
@@ -146,11 +156,13 @@ defmodule Ichor.Workshop.BlueprintState do
     end
   end
 
+  @doc "Remove a communication rule at the given index."
   @spec remove_comm_rule(t(), integer()) :: t()
   def remove_comm_rule(state, index) do
     Map.update!(state, :ws_comm_rules, &List.delete_at(&1, index))
   end
 
+  @doc "Apply team-level param changes (name, strategy, default_model, cwd)."
   @spec update_team(t(), map()) :: t()
   def update_team(state, params) do
     state
@@ -160,6 +172,7 @@ defmodule Ichor.Workshop.BlueprintState do
     |> Map.put(:ws_cwd, Map.get(params, "cwd", state.ws_cwd))
   end
 
+  @doc "Apply a persisted blueprint record to the canvas state."
   @spec apply_blueprint(t(), map()) :: t()
   def apply_blueprint(state, blueprint) do
     agents = safe_list(blueprint.agent_blueprints) |> Enum.map(&ash_to_agent/1)
@@ -180,6 +193,7 @@ defmodule Ichor.Workshop.BlueprintState do
     |> Map.put(:ws_next_id, max_slot + 1)
   end
 
+  @doc "Build a new agent map with auto-positioned canvas coordinates."
   @spec new_agent(t(), map()) :: agent()
   def new_agent(state, attrs) do
     count = length(state.ws_agents)
@@ -200,6 +214,7 @@ defmodule Ichor.Workshop.BlueprintState do
     }
   end
 
+  @doc "Build a canvas agent from an AgentType record and a position index."
   @spec agent_type_agent(t(), map(), non_neg_integer()) :: agent()
   def agent_type_agent(state, type, index) do
     new_agent(state, %{
@@ -213,6 +228,7 @@ defmodule Ichor.Workshop.BlueprintState do
     })
   end
 
+  @doc "Convert workshop state to persistence params for blueprint create/update."
   @spec to_persistence_params(t()) :: map()
   def to_persistence_params(state) do
     %{

@@ -29,6 +29,7 @@ defmodule Ichor.Fleet.Lifecycle.AgentLaunch do
   @standalone_session "ichor-fleet"
   @counter_key :ichor_spawn_counter
 
+  @doc "Initialize the atomic spawn counter. Called once at application startup."
   @spec init_counter() :: :ok
   def init_counter do
     ref = :atomics.new(1, signed: false)
@@ -36,6 +37,7 @@ defmodule Ichor.Fleet.Lifecycle.AgentLaunch do
     :ok
   end
 
+  @doc "Spawn an agent locally or on a remote node if `host` is specified in opts."
   @spec spawn(launch_opts()) :: {:ok, map()} | {:error, term()}
   def spawn(%{host: target} = opts) when not is_nil(target) do
     case HostRegistry.available?(target) do
@@ -46,6 +48,7 @@ defmodule Ichor.Fleet.Lifecycle.AgentLaunch do
 
   def spawn(opts), do: spawn_local(opts)
 
+  @doc "Spawn an agent on the local node: validate, write scripts, create tmux window, register."
   @spec spawn_local(launch_opts()) :: {:ok, map()} | {:error, term()}
   def spawn_local(opts) do
     spec = build_spec(opts)
@@ -65,15 +68,18 @@ defmodule Ichor.Fleet.Lifecycle.AgentLaunch do
     end
   end
 
+  @doc "Stop an agent process and clean up its backend."
   @spec stop(String.t()) :: :ok | {:error, term()}
   def stop(agent_id), do: Cleanup.stop_agent(agent_id)
 
+  @doc "List all tmux session names that were spawned by this lifecycle manager."
   @spec list_spawned() :: [String.t()]
   def list_spawned do
     TmuxLauncher.list_sessions()
     |> Enum.filter(&spawned_session?/1)
   end
 
+  @doc "Return true if the session name matches an ichor-managed spawn pattern."
   @spec spawned_session?(String.t()) :: boolean()
   def spawned_session?(@standalone_session), do: true
 

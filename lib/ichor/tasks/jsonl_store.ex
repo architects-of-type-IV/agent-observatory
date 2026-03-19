@@ -5,8 +5,12 @@ defmodule Ichor.Tasks.JsonlStore do
 
   @claim_script Path.expand("~/.claude/skills/dag/scripts/claim-task.sh")
 
+  @doc "Reset a task to pending status with no owner."
+  @spec heal_task(String.t(), String.t()) :: :ok | {:error, term()}
   def heal_task(path, task_id), do: update_task_status(path, task_id, "pending", "")
 
+  @doc "Reassign a task to a new owner in place."
+  @spec reassign_task(String.t(), String.t(), String.t()) :: :ok | {:error, term()}
   def reassign_task(path, task_id, new_owner) do
     now = DateTime.utc_now() |> DateTime.to_iso8601()
 
@@ -16,6 +20,8 @@ defmodule Ichor.Tasks.JsonlStore do
     jq_in_place(path, expr)
   end
 
+  @doc "Atomically claim a task using the claim-task.sh script."
+  @spec claim_task(String.t(), String.t(), String.t()) :: :ok | {:error, String.t()}
   def claim_task(task_id, agent_name, path) do
     case System.cmd("bash", [@claim_script, task_id, agent_name, path],
            stderr_to_stdout: true,
@@ -29,6 +35,9 @@ defmodule Ichor.Tasks.JsonlStore do
     end
   end
 
+  @doc "Update a task's status and owner in the jsonl file in place."
+  @spec update_task_status(String.t(), String.t(), String.t(), String.t()) ::
+          :ok | {:error, term()}
   def update_task_status(path, task_id, status, owner) do
     now = DateTime.utc_now() |> DateTime.to_iso8601()
 

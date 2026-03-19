@@ -17,6 +17,8 @@ defmodule Ichor.Archon.TeamWatchdog do
 
   @inbox_dir Path.expand("~/.claude/inbox")
 
+  @doc false
+  @spec start_link(keyword()) :: GenServer.on_start()
   def start_link(opts), do: GenServer.start_link(__MODULE__, opts, name: __MODULE__)
 
   @impl true

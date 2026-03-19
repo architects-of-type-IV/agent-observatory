@@ -17,6 +17,8 @@ defmodule Ichor.Dag.Prompts do
   - No speculative abstraction. Only what the task requires.
   """
 
+  @doc "Generates the coordinator agent prompt for a DAG run."
+  @spec coordinator(map()) :: String.t()
   def coordinator(%{
         run_id: run_id,
         session: session,
@@ -68,6 +70,8 @@ defmodule Ichor.Dag.Prompts do
     """
   end
 
+  @doc "Generates the lead agent prompt for a DAG run."
+  @spec lead(map()) :: String.t()
   def lead(%{
         run_id: run_id,
         session: session,
@@ -118,6 +122,8 @@ defmodule Ichor.Dag.Prompts do
     """
   end
 
+  @doc "Generates a worker agent prompt for a DAG run."
+  @spec worker(map()) :: String.t()
   def worker(%{
         run_id: run_id,
         session: session,

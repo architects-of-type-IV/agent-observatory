@@ -12,6 +12,7 @@ defmodule Ichor.Fleet.Analysis.Queries do
   @doc """
   Derive active sessions from raw events and tmux sessions.
   """
+  @spec active_sessions(list(), keyword()) :: list()
   def active_sessions(events, opts \\ []) do
     tmux_sessions = Keyword.get(opts, :tmux, [])
     now = Keyword.get(opts, :now, DateTime.utc_now())
@@ -44,6 +45,7 @@ defmodule Ichor.Fleet.Analysis.Queries do
   @doc """
   Compute topology nodes and edges from sessions and teams.
   """
+  @spec topology(list(), list(), DateTime.t()) :: {list(), list()}
   def topology(all_sessions, teams, now) do
     team_member_index = build_team_member_index(teams)
     session_sids = MapSet.new(all_sessions, & &1.session_id)

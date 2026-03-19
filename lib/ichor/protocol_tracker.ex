@@ -15,27 +15,36 @@ defmodule Ichor.ProtocolTracker do
 
   # Client API
 
+  @doc false
+  @spec start_link(keyword()) :: GenServer.on_start()
   def start_link(opts), do: GenServer.start_link(__MODULE__, opts, name: __MODULE__)
 
+  @doc "Return all traces sorted by timestamp descending."
+  @spec get_traces() :: [map()]
   def get_traces,
     do:
       :ets.tab2list(@table_name)
       |> Enum.map(&elem(&1, 1))
       |> Enum.sort_by(& &1.timestamp, {:desc, DateTime})
 
+  @doc "Return aggregate protocol stats."
+  @spec get_stats() :: map()
   def get_stats, do: GenServer.call(__MODULE__, :get_stats)
 
-  # Called by Mailbox when a message is delivered to ETS
+  @doc "Track a mailbox delivery for the given message."
+  @spec track_mailbox_delivery(String.t(), String.t(), String.t()) :: :ok
   def track_mailbox_delivery(message_id, to, from) do
     GenServer.cast(__MODULE__, {:mailbox_delivery, message_id, to, from})
   end
 
-  # Called by CommandQueue when a command file is written
+  @doc "Track a command queue write for the given session."
+  @spec track_command_write(String.t(), String.t()) :: :ok
   def track_command_write(session_id, command_id) do
     GenServer.cast(__MODULE__, {:command_write, session_id, command_id})
   end
 
-  # Called by Gateway.Router when a message is broadcast through the pipeline
+  @doc "Track a gateway broadcast through the pipeline."
+  @spec track_gateway_broadcast(map()) :: :ok
   def track_gateway_broadcast(data) do
     GenServer.cast(__MODULE__, {:gateway_broadcast, data})
   end
@@ -57,6 +66,7 @@ defmodule Ichor.ProtocolTracker do
     {:noreply, state}
   end
 
+  @impl true
   def handle_info(%Message{name: :heartbeat}, state) do
     stats = compute_stats()
 
@@ -65,6 +75,7 @@ defmodule Ichor.ProtocolTracker do
     {:noreply, state}
   end
 
+  @impl true
   def handle_info(_msg, state), do: {:noreply, state}
 
   @impl true
@@ -78,11 +89,13 @@ defmodule Ichor.ProtocolTracker do
     {:noreply, state}
   end
 
+  @impl true
   def handle_cast({:command_write, session_id, command_id}, state) do
     update_trace_hop(command_id, :command_queue, :pending, session_id)
     {:noreply, state}
   end
 
+  @impl true
   def handle_cast({:gateway_broadcast, data}, state) do
     to_label =
       case data.recipients do

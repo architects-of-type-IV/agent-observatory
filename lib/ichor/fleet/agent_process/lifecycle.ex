@@ -7,15 +7,21 @@ defmodule Ichor.Fleet.AgentProcess.Lifecycle do
 
   @liveness_interval :timer.seconds(15)
 
+  @doc "Schedule a liveness check for the calling process after the default interval."
+  @spec schedule_liveness_check() :: reference()
   def schedule_liveness_check do
     Process.send_after(self(), :check_liveness, @liveness_interval)
   end
 
+  @doc "Check if the tmux backend session is still alive. Returns `{alive?, tmux_target}`."
+  @spec tmux_alive?(map() | nil) :: {boolean(), String.t()}
   def tmux_alive?(backend) do
     tmux_target = get_in(backend, [:session]) || ""
     {Tmux.available?(tmux_target), tmux_target}
   end
 
+  @doc "Terminate the tmux backend for a session or window."
+  @spec terminate_backend(map() | nil) :: :ok | {:error, term()}
   def terminate_backend(%{type: :tmux, session: session}) when is_binary(session) do
     if String.contains?(session, ":") do
       Tmux.run_command(["kill-window", "-t", session])
@@ -26,6 +32,13 @@ defmodule Ichor.Fleet.AgentProcess.Lifecycle do
 
   def terminate_backend(_backend), do: :ok
 
+  @doc "Broadcast a lifecycle event signal."
+  @spec broadcast(
+          {:agent_started, String.t(), map()}
+          | {:agent_paused, String.t()}
+          | {:agent_resumed, String.t()}
+          | {:agent_stopped, String.t(), term()}
+        ) :: :ok
   def broadcast({:agent_started, id, %{role: role, team: team}}) do
     Ichor.Signals.emit(:agent_started, %{session_id: id, role: role, team: team})
   end

@@ -19,18 +19,23 @@ defmodule Ichor.Mes.Scheduler do
   @max_concurrent 1
   @pause_flag Path.join(File.cwd!(), "tmp/mes_paused")
 
+  @doc false
   @spec start_link(keyword()) :: GenServer.on_start()
   def start_link(opts), do: GenServer.start_link(__MODULE__, opts, name: __MODULE__)
 
+  @doc "Returns current scheduler status including tick count and active run count."
   @spec status() :: map()
   def status, do: GenServer.call(__MODULE__, :status)
 
+  @doc "Pauses the scheduler; persists the paused flag to disk."
   @spec pause() :: :ok
   def pause, do: GenServer.call(__MODULE__, :pause)
 
+  @doc "Resumes a paused scheduler; removes the paused flag from disk."
   @spec resume() :: :ok
   def resume, do: GenServer.call(__MODULE__, :resume)
 
+  @doc "Returns true if the scheduler is currently paused."
   @spec paused?() :: boolean()
   def paused?, do: GenServer.call(__MODULE__, :paused?)
 

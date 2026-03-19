@@ -38,29 +38,36 @@ defmodule Ichor.MemoryStore do
 
   # Client API -- Blocks
 
+  @doc false
+  @spec start_link(keyword()) :: GenServer.on_start()
   def start_link(opts), do: GenServer.start_link(__MODULE__, opts, name: __MODULE__)
 
   @doc "Create a standalone block. Returns {:ok, block}."
+  @spec create_block(map()) :: {:ok, map()} | {:error, term()}
   def create_block(attrs) do
     GenServer.call(__MODULE__, {:create_block, attrs})
   end
 
   @doc "Get a block by ID."
+  @spec get_block(String.t()) :: {:ok, map()} | {:error, :not_found}
   def get_block(block_id) do
     GenServer.call(__MODULE__, {:get_block, block_id})
   end
 
   @doc "Update a block's value, limit, or description."
+  @spec update_block(String.t(), map()) :: {:ok, map()} | {:error, term()}
   def update_block(block_id, changes) do
     GenServer.call(__MODULE__, {:update_block, block_id, changes})
   end
 
   @doc "Delete a block (detaches from all agents)."
+  @spec delete_block(String.t()) :: :ok
   def delete_block(block_id) do
     GenServer.call(__MODULE__, {:delete_block, block_id})
   end
 
   @doc "List all blocks, optionally filtered by label."
+  @spec list_blocks(keyword()) :: {:ok, [map()]}
   def list_blocks(opts \\ []) do
     GenServer.call(__MODULE__, {:list_blocks, opts})
   end
@@ -72,26 +79,31 @@ defmodule Ichor.MemoryStore do
   `memory_blocks` is a list of %{label, value, description?, limit?}.
   `block_ids` is a list of existing block IDs to attach.
   """
+  @spec create_agent(String.t(), [map()], [String.t()]) :: {:ok, map()} | {:error, term()}
   def create_agent(name, memory_blocks \\ [], block_ids \\ []) do
     GenServer.call(__MODULE__, {:create_agent, name, memory_blocks, block_ids})
   end
 
   @doc "Get agent config + all attached block IDs."
+  @spec get_agent(String.t()) :: {:ok, map()} | {:error, :not_found}
   def get_agent(name) do
     GenServer.call(__MODULE__, {:get_agent, name})
   end
 
   @doc "Attach an existing block to an agent."
+  @spec attach_block(String.t(), String.t()) :: {:ok, map()} | {:error, :not_found}
   def attach_block(agent_name, block_id) do
     GenServer.call(__MODULE__, {:attach_block, agent_name, block_id})
   end
 
   @doc "Detach a block from an agent (does not delete the block)."
+  @spec detach_block(String.t(), String.t()) :: {:ok, map()} | {:error, :not_found}
   def detach_block(agent_name, block_id) do
     GenServer.call(__MODULE__, {:detach_block, agent_name, block_id})
   end
 
   @doc "List all registered agents."
+  @spec list_agents() :: {:ok, [map()]}
   def list_agents do
     GenServer.call(__MODULE__, :list_agents)
   end
@@ -100,6 +112,7 @@ defmodule Ichor.MemoryStore do
   Read all core memory for an agent: renders blocks into context format.
   This is what gets injected into the agent's system prompt.
   """
+  @spec read_core_memory(String.t()) :: {:ok, map()} | {:error, :not_found}
   def read_core_memory(agent_name) do
     GenServer.call(__MODULE__, {:read_core_memory, agent_name})
   end
@@ -108,6 +121,7 @@ defmodule Ichor.MemoryStore do
   Compile core memory into a system prompt segment.
   Returns a formatted string like Letta's Memory.compile().
   """
+  @spec compile_memory(String.t()) :: {:ok, String.t()} | {:error, :not_found}
   def compile_memory(agent_name) do
     GenServer.call(__MODULE__, {:compile_memory, agent_name})
   end
@@ -115,16 +129,21 @@ defmodule Ichor.MemoryStore do
   # Client API -- Memory Tools (agent-facing, Letta V2)
 
   @doc "Replace text in a block. Letta's memory_replace."
+  @spec memory_replace(String.t(), String.t(), String.t(), String.t()) ::
+          {:ok, map()} | {:error, term()}
   def memory_replace(agent_name, block_label, old_text, new_text) do
     GenServer.call(__MODULE__, {:memory_replace, agent_name, block_label, old_text, new_text})
   end
 
   @doc "Insert text at a position in a block. Letta's memory_insert."
+  @spec memory_insert(String.t(), String.t(), non_neg_integer(), String.t()) ::
+          {:ok, map()} | {:error, term()}
   def memory_insert(agent_name, block_label, position, text) do
     GenServer.call(__MODULE__, {:memory_insert, agent_name, block_label, position, text})
   end
 
   @doc "Rewrite a block entirely. Letta's memory_rethink."
+  @spec memory_rethink(String.t(), String.t(), String.t()) :: {:ok, map()} | {:error, term()}
   def memory_rethink(agent_name, block_label, new_value) do
     GenServer.call(__MODULE__, {:memory_rethink, agent_name, block_label, new_value})
   end
@@ -132,16 +151,20 @@ defmodule Ichor.MemoryStore do
   # Client API -- Recall Memory
 
   @doc "Add a message to recall memory."
+  @spec add_recall(String.t(), atom(), String.t(), map()) :: {:ok, map()}
   def add_recall(agent_name, role, content, metadata \\ %{}) do
     GenServer.call(__MODULE__, {:add_recall, agent_name, role, content, metadata})
   end
 
   @doc "Search recall memory by text. Letta's conversation_search."
+  @spec conversation_search(String.t(), String.t(), keyword()) :: {:ok, [map()]}
   def conversation_search(agent_name, query, opts \\ []) do
     GenServer.call(__MODULE__, {:conversation_search, agent_name, query, opts})
   end
 
   @doc "Search recall memory by date range. Letta's conversation_search_date."
+  @spec conversation_search_date(String.t(), DateTime.t(), DateTime.t(), keyword()) ::
+          {:ok, [map()]}
   def conversation_search_date(agent_name, start_date, end_date, opts \\ []) do
     GenServer.call(
       __MODULE__,
@@ -152,26 +175,31 @@ defmodule Ichor.MemoryStore do
   # Client API -- Archival Memory
 
   @doc "Insert a passage into archival memory. Letta's archival_memory_insert."
+  @spec archival_memory_insert(String.t(), String.t(), [String.t()]) :: {:ok, map()}
   def archival_memory_insert(agent_name, content, tags \\ []) do
     GenServer.call(__MODULE__, {:archival_insert, agent_name, content, tags})
   end
 
   @doc "Search archival memory by keyword. Letta's archival_memory_search."
+  @spec archival_memory_search(String.t(), String.t(), keyword()) :: {:ok, [map()]}
   def archival_memory_search(agent_name, query, opts \\ []) do
     GenServer.call(__MODULE__, {:archival_search, agent_name, query, opts})
   end
 
   @doc "Delete an archival passage by ID."
+  @spec archival_memory_delete(String.t(), String.t()) :: :ok
   def archival_memory_delete(agent_name, passage_id) do
     GenServer.call(__MODULE__, {:archival_delete, agent_name, passage_id})
   end
 
   @doc "List archival passages (paginated)."
+  @spec archival_memory_list(String.t(), keyword()) :: {:ok, [map()]}
   def archival_memory_list(agent_name, opts \\ []) do
     GenServer.call(__MODULE__, {:archival_list, agent_name, opts})
   end
 
   @doc "Data directory path."
+  @spec data_dir() :: String.t()
   def data_dir, do: Tables.data_dir()
 
   # Server -- Init

@@ -37,9 +37,11 @@ defmodule Ichor.MemoriesBridge do
     :registry_changed
   ]
 
+  @doc false
   @spec start_link(keyword()) :: GenServer.on_start()
   def start_link(opts), do: GenServer.start_link(__MODULE__, opts, name: __MODULE__)
 
+  @doc "Returns true if the Memories API key is configured."
   @spec enabled?() :: boolean()
   def enabled? do
     case Application.get_env(:ichor, :memories) do
@@ -48,6 +50,7 @@ defmodule Ichor.MemoriesBridge do
     end
   end
 
+  @doc "Return bridge stats: buffer sizes, episodes sent, signals processed, and error count."
   @spec stats() :: map()
   def stats, do: GenServer.call(__MODULE__, :stats)
 

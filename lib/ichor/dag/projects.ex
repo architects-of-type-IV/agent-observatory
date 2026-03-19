@@ -5,6 +5,8 @@ defmodule Ichor.Dag.Projects do
 
   alias Ichor.Dag.Discovery
 
+  @doc "Builds the initial project state map from discovered projects."
+  @spec initial_state() :: map()
   def initial_state do
     projects = Discovery.discover_projects()
 
@@ -17,6 +19,8 @@ defmodule Ichor.Dag.Projects do
     }
   end
 
+  @doc "Sets the active project by key, returning an error if not found."
+  @spec set_active_project(map(), String.t()) :: {:ok, map()} | {:error, :unknown_project}
   def set_active_project(state, key) do
     if Map.has_key?(state.watched_projects, key) do
       {:ok, %{state | active_project: key}}
@@ -25,6 +29,8 @@ defmodule Ichor.Dag.Projects do
     end
   end
 
+  @doc "Adds a project at path under key, activating it immediately."
+  @spec add_project(map(), String.t(), String.t()) :: {:ok, map()} | {:error, :path_not_found}
   def add_project(state, key, path) do
     tasks_path = Path.join(path, "tasks.jsonl")
 
@@ -38,6 +44,8 @@ defmodule Ichor.Dag.Projects do
     end
   end
 
+  @doc "Re-discovers projects and merges with manual entries. Returns `{state, changed?}`."
+  @spec refresh_discovered_projects(map()) :: {map(), boolean()}
   def refresh_discovered_projects(state) do
     new_projects = Map.merge(Discovery.discover_projects(), state.manual_projects)
 
@@ -53,6 +61,8 @@ defmodule Ichor.Dag.Projects do
     end
   end
 
+  @doc "Registers a working directory as a watched project if it contains tasks.jsonl."
+  @spec register_cwd(map(), String.t()) :: {map(), boolean()}
   def register_cwd(state, cwd) when is_binary(cwd) and cwd != "" do
     if MapSet.member?(state.known_cwds, cwd) do
       {state, false}
@@ -75,6 +85,8 @@ defmodule Ichor.Dag.Projects do
 
   def register_cwd(state, _cwd), do: {state, false}
 
+  @doc "Returns the tasks.jsonl path for the active project, or nil if none."
+  @spec tasks_jsonl_path(map()) :: String.t() | nil
   def tasks_jsonl_path(state) do
     case active_project_path(state) do
       nil -> nil
@@ -82,6 +94,8 @@ defmodule Ichor.Dag.Projects do
     end
   end
 
+  @doc "Returns the tasks.jsonl path for the project that owns the given task."
+  @spec tasks_jsonl_path_for_task(map(), String.t()) :: String.t() | nil
   def tasks_jsonl_path_for_task(state, task_id) do
     case Enum.find(state.tasks, fn task -> task.id == task_id end) do
       nil ->
@@ -98,6 +112,8 @@ defmodule Ichor.Dag.Projects do
     end
   end
 
+  @doc "Returns the filesystem path for the active project, or nil."
+  @spec active_project_path(map()) :: String.t() | nil
   def active_project_path(state) do
     case state.active_project do
       nil -> nil
@@ -105,6 +121,8 @@ defmodule Ichor.Dag.Projects do
     end
   end
 
+  @doc "Returns the first project key from the map, or nil if empty."
+  @spec first_project_key(map()) :: String.t() | nil
   def first_project_key(projects) when map_size(projects) == 0, do: nil
   def first_project_key(projects), do: projects |> Map.keys() |> hd()
 end

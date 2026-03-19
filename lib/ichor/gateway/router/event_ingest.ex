@@ -7,6 +7,7 @@ defmodule Ichor.Gateway.Router.EventIngest do
 
   alias Ichor.Fleet.{AgentProcess, FleetSupervisor, TeamSupervisor}
 
+  @doc "Ingest a hook event: ensure agent process exists, handle channel side effects, emit signals."
   @spec ingest(map()) :: :ok
   def ingest(event) do
     agent_id = resolve_or_create_agent(event.session_id, event)

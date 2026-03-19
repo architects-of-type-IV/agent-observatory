@@ -17,6 +17,8 @@ defmodule Ichor.Gateway.TmuxDiscovery do
 
   @poll_interval 5_000
 
+  @doc "Start the TmuxDiscovery GenServer."
+  @spec start_link(keyword()) :: GenServer.on_start()
   def start_link(opts) do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
   end

@@ -7,6 +7,8 @@ defmodule Ichor.Tasks.TeamStore do
 
   @tasks_base_dir Path.expand("~/.claude/tasks")
 
+  @doc "Create a new task file for the team and return the task map."
+  @spec create_task(String.t(), map()) :: {:ok, map()} | {:error, term()}
   def create_task(team_name, attrs) when is_map(attrs) do
     task_id = next_task_id(team_name)
     team_dir = team_directory(team_name)
@@ -34,6 +36,9 @@ defmodule Ichor.Tasks.TeamStore do
     end
   end
 
+  @doc "Deep-merge changes into an existing task file and return the updated task."
+  @spec update_task(String.t(), String.t() | pos_integer(), map()) ::
+          {:ok, map()} | {:error, term()}
   def update_task(team_name, task_id, changes) when is_map(changes) do
     file_path = task_file_path(team_name, task_id)
 
@@ -58,6 +63,8 @@ defmodule Ichor.Tasks.TeamStore do
     end
   end
 
+  @doc "Read a single task file by id."
+  @spec get_task(String.t(), String.t() | pos_integer()) :: {:ok, map()} | {:error, term()}
   def get_task(team_name, task_id) do
     file_path = task_file_path(team_name, task_id)
 
@@ -68,6 +75,8 @@ defmodule Ichor.Tasks.TeamStore do
     end
   end
 
+  @doc "Return all tasks for a team, sorted by numeric id."
+  @spec list_tasks(String.t()) :: [map()]
   def list_tasks(team_name) do
     team_dir = team_directory(team_name)
 
@@ -83,6 +92,8 @@ defmodule Ichor.Tasks.TeamStore do
     end
   end
 
+  @doc "Delete a task file by id."
+  @spec delete_task(String.t(), String.t() | pos_integer()) :: :ok | {:error, term()}
   def delete_task(team_name, task_id) do
     file_path = task_file_path(team_name, task_id)
 
@@ -99,6 +110,8 @@ defmodule Ichor.Tasks.TeamStore do
     end
   end
 
+  @doc "Return the next available task id for a team."
+  @spec next_task_id(String.t()) :: pos_integer()
   def next_task_id(team_name) do
     team_dir = team_directory(team_name)
 

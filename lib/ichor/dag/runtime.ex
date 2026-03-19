@@ -17,31 +17,51 @@ defmodule Ichor.Dag.Runtime do
   @tasks_poll_interval 3_000
   @health_poll_interval 30_000
 
+  @doc false
+  @spec start_link(keyword()) :: GenServer.on_start()
   def start_link(opts), do: GenServer.start_link(__MODULE__, opts, name: __MODULE__)
 
+  @doc "Returns the current DAG runtime state map."
+  @spec state() :: map()
   def state, do: GenServer.call(__MODULE__, :get_state)
 
+  @doc "Switches the active project to the given key."
+  @spec set_active_project(String.t()) :: :ok | {:error, term()}
   def set_active_project(project_key),
     do: GenServer.call(__MODULE__, {:set_active_project, project_key})
 
+  @doc "Registers a project at the given path under key."
+  @spec add_project(String.t(), String.t()) :: :ok | {:error, term()}
   def add_project(key, path),
     do: GenServer.call(__MODULE__, {:add_project, key, path})
 
+  @doc "Resets a stale or failed task back to pending."
+  @spec heal_task(String.t()) :: :ok | {:error, term()}
   def heal_task(task_id),
     do: GenServer.call(__MODULE__, {:heal_task, task_id})
 
+  @doc "Reassigns a task to a new owner."
+  @spec reassign_task(String.t(), String.t()) :: :ok | {:error, term()}
   def reassign_task(task_id, new_owner),
     do: GenServer.call(__MODULE__, {:reassign_task, task_id, new_owner})
 
+  @doc "Resets all in-progress tasks stale longer than threshold_min minutes."
+  @spec reset_all_stale(non_neg_integer()) :: {:ok, non_neg_integer()} | {:error, term()}
   def reset_all_stale(threshold_min \\ 10),
     do: GenServer.call(__MODULE__, {:reset_all_stale, threshold_min})
 
+  @doc "Triggers GC for a named team, archiving completed work."
+  @spec trigger_gc(String.t()) :: :ok | {:error, term()}
   def trigger_gc(team_name),
     do: GenServer.call(__MODULE__, {:trigger_gc, team_name}, 15_000)
 
+  @doc "Runs a health check immediately and broadcasts the result."
+  @spec run_health_check() :: :ok
   def run_health_check,
     do: GenServer.call(__MODULE__, :run_health_check, 15_000)
 
+  @doc "Claims a task for an agent, setting it to in_progress."
+  @spec claim_task(String.t(), String.t()) :: :ok | {:error, term()}
   def claim_task(task_id, agent_name),
     do: GenServer.call(__MODULE__, {:claim_task, task_id, agent_name})
 

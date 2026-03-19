@@ -11,6 +11,7 @@ defmodule Ichor.Genesis.ModeRunner do
 
   @prompt_dir Path.expand("~/.ichor/genesis")
 
+  @doc "Writes prompt files and shell launcher scripts for each agent."
   @spec write_agent_scripts(String.t(), String.t(), [map()]) :: :ok
   def write_agent_scripts(run_id, mode, agents) do
     dir = prompt_dir(run_id, mode)
@@ -38,6 +39,7 @@ defmodule Ichor.Genesis.ModeRunner do
     :ok
   end
 
+  @doc "Creates a new tmux session and runs the first agent in its initial window."
   @spec create_session_with_agent(String.t(), String.t(), String.t(), String.t(), map()) ::
           :ok | {:error, term()}
   def create_session_with_agent(session, cwd, run_id, mode, agent) do
@@ -53,6 +55,7 @@ defmodule Ichor.Genesis.ModeRunner do
     end
   end
 
+  @doc "Creates additional tmux windows for all agents after the first."
   @spec create_remaining_windows(String.t(), String.t(), String.t(), String.t(), [map()]) ::
           :ok | {:error, term()}
   def create_remaining_windows(session, cwd, run_id, mode, agents) do
@@ -70,6 +73,7 @@ defmodule Ichor.Genesis.ModeRunner do
     end)
   end
 
+  @doc "Registers an agent with the fleet under the given team and session."
   @spec register_agent(String.t(), map(), String.t(), String.t(), String.t()) :: term()
   def register_agent(session, agent, team_name, run_id, cwd) do
     agent_id = "#{session}-#{agent.name}"
@@ -88,6 +92,7 @@ defmodule Ichor.Genesis.ModeRunner do
     TeamSupervisor.spawn_member(team_name, process_opts)
   end
 
+  @doc "Kills the tmux session and removes prompt files for the given run."
   @spec kill_session(String.t(), String.t(), String.t()) :: :ok
   def kill_session(session, run_id, mode) do
     Ichor.Signals.emit(:genesis_team_killed, %{session: session})

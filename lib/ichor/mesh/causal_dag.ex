@@ -50,22 +50,32 @@ defmodule Ichor.Mesh.CausalDAG do
 
   ## Public API
 
+  @doc false
+  @spec start_link(keyword()) :: GenServer.on_start()
   def start_link(opts \\ []) do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
   end
 
+  @doc "Insert a node into the session's DAG, buffering if parent not yet present."
+  @spec insert(String.t(), Node.t()) :: :ok | {:error, term()}
   def insert(session_id, %Node{} = node) do
     GenServer.call(__MODULE__, {:insert, session_id, node})
   end
 
+  @doc "Return the full node map for a session, keyed by trace_id."
+  @spec get_session_dag(String.t()) :: {:ok, map()} | {:error, :session_not_found}
   def get_session_dag(session_id) do
     GenServer.call(__MODULE__, {:get_session_dag, session_id})
   end
 
+  @doc "Return the children list for a node in a session's DAG."
+  @spec get_children(String.t(), String.t()) :: {:ok, [String.t()]} | {:error, :not_found}
   def get_children(session_id, trace_id) do
     GenServer.call(__MODULE__, {:get_children, session_id, trace_id})
   end
 
+  @doc "Signal that a session is terminal; schedule its DAG for pruning."
+  @spec signal_terminal(String.t()) :: :ok
   def signal_terminal(session_id) do
     GenServer.cast(__MODULE__, {:terminal, session_id})
   end

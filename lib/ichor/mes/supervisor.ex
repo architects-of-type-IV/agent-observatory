@@ -27,6 +27,8 @@ defmodule Ichor.Mes.Supervisor do
 
   alias Ichor.Fleet.{AgentProcess, FleetSupervisor}
 
+  @doc false
+  @spec start_link(keyword()) :: Supervisor.on_start()
   def start_link(opts) do
     result = Supervisor.start_link(__MODULE__, opts, name: __MODULE__)
     ensure_operator_process()

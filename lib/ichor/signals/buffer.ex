@@ -11,6 +11,8 @@ defmodule Ichor.Signals.Buffer do
   @max_events 200
   @table :signal_buffer
 
+  @doc false
+  @spec start_link(keyword()) :: GenServer.on_start()
   def start_link(opts), do: GenServer.start_link(__MODULE__, opts, name: __MODULE__)
 
   @doc "Return the last N captured signals as `{seq, %Message{}}` tuples, newest first."

@@ -10,12 +10,14 @@ defmodule Ichor.Dag.RunSupervisor do
 
   @supervisor Ichor.Dag.DynRunSupervisor
 
+  @doc "Starts a RunProcess under the DynamicSupervisor for the given run opts."
   @spec start_run(keyword()) :: {:ok, pid()} | {:error, term()}
   def start_run(opts) do
     child_spec = {RunProcess, opts}
     DynamicSupervisor.start_child(@supervisor, child_spec)
   end
 
+  @doc "Terminates the RunProcess for the given run_id."
   @spec stop_run(String.t()) :: :ok | {:error, :not_found}
   def stop_run(run_id) do
     case Registry.lookup(Ichor.Registry, {:dag_run, run_id}) do
@@ -27,6 +29,7 @@ defmodule Ichor.Dag.RunSupervisor do
     end
   end
 
+  @doc "Lists all active DAG run IDs and their process PIDs."
   @spec list_active() :: [{String.t(), pid()}]
   def list_active do
     Registry.select(Ichor.Registry, [

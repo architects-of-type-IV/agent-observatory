@@ -9,6 +9,7 @@ defmodule Ichor.Dag.Exporter do
     No-op if run has no project_path.
   """
 
+  @doc "Returns all jobs for run_id as a JSONL string, one job per line."
   @spec to_jsonl(String.t()) :: {:ok, String.t()} | {:error, term()}
   def to_jsonl(run_id) do
     with {:ok, jobs} <- Ichor.Projects.fetch_jobs_for_run(run_id) do
@@ -16,6 +17,7 @@ defmodule Ichor.Dag.Exporter do
     end
   end
 
+  @doc "Atomically updates the job entry in project_path/tasks.jsonl via jq."
   @spec sync_to_file(struct() | map(), String.t() | nil) :: :ok | {:error, term()}
   def sync_to_file(_job, nil), do: :ok
   def sync_to_file(_job, ""), do: :ok

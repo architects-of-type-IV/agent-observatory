@@ -3,5 +3,7 @@ defmodule Ichor.Repo do
     otp_app: :ichor,
     adapter: Ecto.Adapters.SQLite3
 
+  @doc false
+  @spec installed_extensions() :: []
   def installed_extensions, do: []
 end

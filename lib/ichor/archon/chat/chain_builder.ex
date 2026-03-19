@@ -41,6 +41,7 @@ defmodule Ichor.Archon.Chat.ChainBuilder do
   MEMORY: Your knowledge graph is automatically searched each turn. Relevant facts and past conversations are injected before your response. Use that context directly -- do not call search_memory or query_memory unless the Architect asks for a deeper search.
   """
 
+  @doc "Build and configure the Archon LLM chain with all tools mounted."
   @spec build() :: {:ok, term()} | {:error, term()}
   def build do
     case ChatOpenAI.new(%{model: model(), api_key: api_key()}) do

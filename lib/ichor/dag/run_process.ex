@@ -35,15 +35,18 @@ defmodule Ichor.Dag.RunProcess do
           project_path: String.t() | nil
         }
 
+  @doc false
   @spec start_link(keyword()) :: GenServer.on_start()
   def start_link(opts) do
     run_id = Keyword.fetch!(opts, :run_id)
     GenServer.start_link(__MODULE__, opts, name: via(run_id))
   end
 
+  @doc "Returns the via-tuple for Registry-based name lookup."
   @spec via(String.t()) :: {:via, Registry, {Ichor.Registry, {:dag_run, String.t()}}}
   def via(run_id), do: {:via, Registry, {Ichor.Registry, {:dag_run, run_id}}}
 
+  @doc "Enqueues a job for write-through sync to the project tasks.jsonl file."
   @spec sync_job(String.t(), struct() | map()) :: :ok
   def sync_job(run_id, job), do: GenServer.cast(via(run_id), {:sync_job, job})
 

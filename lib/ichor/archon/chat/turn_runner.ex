@@ -9,6 +9,7 @@ defmodule Ichor.Archon.Chat.TurnRunner do
 
   require Logger
 
+  @doc "Execute a single LLM-backed turn with history, memory context, and user input."
   @spec run(term(), list(), String.t()) :: {:ok, String.t(), list()} | {:error, term()}
   def run(chain, history, user_input) do
     with {:ok, chain} <- add_history(chain, history),

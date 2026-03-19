@@ -15,6 +15,8 @@ defmodule Ichor.Gateway.EventBridge do
   alias Ichor.Mesh.DecisionLog
   alias Ichor.Signals.Message
 
+  @doc "Start the EventBridge GenServer."
+  @spec start_link(keyword()) :: GenServer.on_start()
   def start_link(opts) do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
   end

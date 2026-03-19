@@ -8,6 +8,7 @@ defmodule Ichor.Archon.Chat.ContextBuilder do
 
   @timeout_ms 2_000
 
+  @doc "Retrieve memory context from the knowledge graph and return system messages."
   @spec build_messages(String.t()) :: {:ok, list()}
   def build_messages(user_input) do
     client = client_module()
@@ -49,6 +50,7 @@ defmodule Ichor.Archon.Chat.ContextBuilder do
     _ -> {:ok, []}
   end
 
+  @doc "Format edge search results into a facts text block."
   @spec format_edges(term()) :: String.t()
   def format_edges({:ok, edges}) when is_list(edges) and edges != [] do
     items =
@@ -75,6 +77,7 @@ defmodule Ichor.Archon.Chat.ContextBuilder do
 
   def format_edges(_), do: ""
 
+  @doc "Format episode search results into a recent conversations text block."
   @spec format_episodes(term()) :: String.t()
   def format_episodes({:ok, episodes}) when is_list(episodes) and episodes != [] do
     items =

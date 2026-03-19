@@ -1,4 +1,12 @@
 defmodule IchorWeb.DashboardLive do
+  @moduledoc """
+  Root LiveView for the Ichor dashboard.
+
+  Orchestrates all dashboard panels — pipeline, fleet, signals, MES, workshop.
+  Event routing is delegated to focused handler modules (DashboardInfoHandlers,
+  DashboardMesHandlers, etc.). Navigation state is driven by URL params.
+  """
+
   use IchorWeb, :live_view
 
   import IchorWeb.DashboardDataHelpers, only: [unique_values: 2]

@@ -17,6 +17,7 @@ defmodule Ichor.Fleet.Lifecycle.TeamSpec do
           metadata: map()
         }
 
+  @doc "Build a TeamSpec from an attrs map. Raises `ArgumentError` on missing required keys."
   @spec new(map()) :: t()
   def new(attrs) when is_map(attrs) do
     %__MODULE__{
