@@ -215,7 +215,7 @@ defmodule Ichor.Control.Presets do
           capability: "lead",
           model: "sonnet",
           permission: "default",
-          persona: "Reviews briefs and acts as quality gate.",
+          persona: "Dispatches research topics to scouts, collects results, forwards to planner.",
           file_scope: "",
           quality_gates: "",
           x: 220,
@@ -239,7 +239,7 @@ defmodule Ichor.Control.Presets do
           capability: "scout",
           model: "sonnet",
           permission: "default",
-          persona: "Drives the peer research loop and synthesizes candidate ideas.",
+          persona: "Researches assigned topic domain, sends proposal to lead.",
           file_scope: "",
           quality_gates: "",
           x: 40,
@@ -251,7 +251,7 @@ defmodule Ichor.Control.Presets do
           capability: "scout",
           model: "sonnet",
           permission: "default",
-          persona: "Challenges and strengthens researcher-1 proposals.",
+          persona: "Researches assigned topic domain, sends proposal to lead.",
           file_scope: "",
           quality_gates: "",
           x: 400,
@@ -259,17 +259,24 @@ defmodule Ichor.Control.Presets do
         }
       ],
       next_id: 6,
-      links: [%{from: 1, to: 2}, %{from: 1, to: 3}, %{from: 1, to: 4}, %{from: 1, to: 5}],
+      links: [
+        %{from: 1, to: 2},
+        %{from: 2, to: 4},
+        %{from: 2, to: 5},
+        %{from: 4, to: 2},
+        %{from: 5, to: 2},
+        %{from: 2, to: 3},
+        %{from: 3, to: 1}
+      ],
       rules: [
         %{from: 1, to: 2, policy: "allow", via: nil},
-        %{from: 1, to: 3, policy: "allow", via: nil},
-        %{from: 1, to: 4, policy: "allow", via: nil},
-        %{from: 1, to: 5, policy: "allow", via: nil},
-        %{from: 4, to: 5, policy: "allow", via: nil},
-        %{from: 5, to: 4, policy: "allow", via: nil},
         %{from: 2, to: 1, policy: "allow", via: nil},
+        %{from: 2, to: 3, policy: "allow", via: nil},
+        %{from: 2, to: 4, policy: "allow", via: nil},
+        %{from: 2, to: 5, policy: "allow", via: nil},
         %{from: 3, to: 1, policy: "allow", via: nil},
-        %{from: 4, to: 1, policy: "allow", via: nil}
+        %{from: 4, to: 2, policy: "allow", via: nil},
+        %{from: 5, to: 2, policy: "allow", via: nil}
       ]
     }
   }
