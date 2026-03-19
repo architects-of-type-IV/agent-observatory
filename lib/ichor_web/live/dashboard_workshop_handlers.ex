@@ -8,11 +8,11 @@ defmodule IchorWeb.DashboardWorkshopHandlers do
   import Phoenix.Component, only: [assign: 3]
 
   alias Ichor.Control
-  alias Ichor.Fleet.Lifecycle
-  alias Ichor.Workshop.BlueprintState
-  alias Ichor.Workshop.Persistence, as: WorkshopPersistence
-  alias Ichor.Workshop.Presets
-  alias Ichor.Workshop.TeamSpecBuilder
+  alias Ichor.Control.BlueprintState
+  alias Ichor.Control.Lifecycle
+  alias Ichor.Control.Persistence, as: WorkshopPersistence
+  alias Ichor.Control.Presets
+  alias Ichor.Control.TeamSpecBuilder
   alias IchorWeb.WorkshopPersistence, as: WP
   alias Phoenix.LiveView
 

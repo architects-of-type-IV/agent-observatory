@@ -5,7 +5,7 @@ defmodule IchorWeb.DashboardSelectionHandlers do
   """
 
   import Phoenix.Component, only: [assign: 3]
-  alias Ichor.Fleet.RuntimeQuery
+  alias Ichor.Control.RuntimeQuery
 
   def dispatch("select_event", %{"id" => id}, socket) do
     cur = socket.assigns.selected_event

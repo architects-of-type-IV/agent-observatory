@@ -40,7 +40,7 @@ defmodule Ichor.SystemSupervisor do
 
       # Monitoring and observability services
       {Ichor.AgentWatchdog, []},
-      {Ichor.Dag.Runtime, []},
+      {Ichor.Projects.Runtime, []},
       {Ichor.ProtocolTracker, []},
       {Ichor.QualityGate, []},
       {Ichor.Signals.Buffer, []},

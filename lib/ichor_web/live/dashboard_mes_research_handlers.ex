@@ -5,7 +5,7 @@ defmodule IchorWeb.DashboardMesResearchHandlers do
 
   import Phoenix.Component, only: [assign: 3]
 
-  alias Ichor.Mes.ResearchStore
+  alias Ichor.Projects.ResearchStore
 
   @spec dispatch(String.t(), map(), Phoenix.LiveView.Socket.t()) :: Phoenix.LiveView.Socket.t()
   def dispatch("mes_research_search", %{"query" => query}, socket) do

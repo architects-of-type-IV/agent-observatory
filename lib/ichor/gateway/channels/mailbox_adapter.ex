@@ -6,7 +6,7 @@ defmodule Ichor.Gateway.Channels.MailboxAdapter do
 
   @behaviour Ichor.Gateway.Channel
 
-  alias Ichor.Fleet.AgentProcess
+  alias Ichor.Control.AgentProcess
 
   @impl true
   def channel_key, do: :mailbox

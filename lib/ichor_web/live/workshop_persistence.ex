@@ -8,8 +8,8 @@ defmodule IchorWeb.WorkshopPersistence do
   import Phoenix.LiveView, only: [push_event: 3]
 
   alias Ichor.Control
-  alias Ichor.Workshop.BlueprintState
-  alias Ichor.Workshop.Persistence
+  alias Ichor.Control.BlueprintState
+  alias Ichor.Control.Persistence
 
   @spec list_blueprints() :: [map()]
   def list_blueprints, do: Control.list_blueprints()

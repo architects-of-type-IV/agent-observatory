@@ -7,7 +7,7 @@ defmodule Ichor.ProtocolTracker do
   use GenServer
   require Logger
 
-  alias Ichor.Fleet.AgentProcess
+  alias Ichor.Control.AgentProcess
   alias Ichor.Signals.Message
 
   @table_name :protocol_traces

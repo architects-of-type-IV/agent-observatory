@@ -8,7 +8,7 @@ defmodule Ichor.Gateway.Router do
 
   require Logger
 
-  alias Ichor.Fleet.AgentProcess
+  alias Ichor.Control.AgentProcess
   alias Ichor.Gateway.AgentRegistry.AgentEntry
   alias Ichor.Gateway.{Envelope, SchemaInterceptor}
   alias Ichor.Gateway.Router.EventIngest

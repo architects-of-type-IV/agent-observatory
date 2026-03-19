@@ -7,7 +7,7 @@ defmodule Ichor.Gateway.OutputCapture do
   use GenServer
   require Logger
 
-  alias Ichor.Fleet.AgentProcess
+  alias Ichor.Control.AgentProcess
   alias Ichor.Gateway.Channels.Tmux
 
   @capture_poll_interval 1_500

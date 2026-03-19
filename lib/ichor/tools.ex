@@ -7,33 +7,34 @@ defmodule Ichor.Tools do
   """
   use Ash.Domain, extensions: [AshAi], validate_config_inclusion?: false
 
-  alias Ichor.AgentTools.{
-    Agents,
-    Archival,
-    DagExecution,
-    GenesisArtifacts,
-    GenesisGates,
-    GenesisNodes,
-    Inbox,
-    Memory,
-    Recall,
-    Spawn,
-    Tasks
-  }
+  alias Ichor.Tools.Agent.Agents
+  alias Ichor.Tools.Agent.Archival
+  alias Ichor.Tools.Agent.DagExecution
+  alias Ichor.Tools.Agent.GenesisArtifacts
+  alias Ichor.Tools.Agent.GenesisGates
+  alias Ichor.Tools.Agent.GenesisNodes
+  alias Ichor.Tools.Agent.GenesisRoadmap
+  alias Ichor.Tools.Agent.Inbox
+  alias Ichor.Tools.Agent.Memory, as: AgentMemory
+  alias Ichor.Tools.Agent.Recall
+  alias Ichor.Tools.Agent.Spawn
+  alias Ichor.Tools.Agent.Tasks
 
-  alias Ichor.Archon.Tools.Control
-  alias Ichor.Archon.Tools.Events
-  alias Ichor.Archon.Tools.Manager
-  alias Ichor.Archon.Tools.Mes
-  alias Ichor.Archon.Tools.Messages
-  alias Ichor.Archon.Tools.System
-  alias Ichor.Archon.Tools.Teams
+  alias Ichor.Tools.Archon.Agents, as: ArchonAgents
+  alias Ichor.Tools.Archon.Control
+  alias Ichor.Tools.Archon.Events
+  alias Ichor.Tools.Archon.Manager
+  alias Ichor.Tools.Archon.Memory, as: ArchonMemory
+  alias Ichor.Tools.Archon.Mes
+  alias Ichor.Tools.Archon.Messages
+  alias Ichor.Tools.Archon.System, as: ArchonSystem
+  alias Ichor.Tools.Archon.Teams
 
   resources do
     # Agent tools (12)
     resource(Inbox)
     resource(Tasks)
-    resource(Memory)
+    resource(AgentMemory)
     resource(Recall)
     resource(Archival)
     resource(Agents)
@@ -41,15 +42,15 @@ defmodule Ichor.Tools do
     resource(GenesisNodes)
     resource(GenesisArtifacts)
     resource(GenesisGates)
-    resource(Ichor.AgentTools.GenesisRoadmap)
+    resource(GenesisRoadmap)
     resource(DagExecution)
     # Archon tools (9)
-    resource(Ichor.Archon.Tools.Agents)
+    resource(ArchonAgents)
     resource(Teams)
     resource(Messages)
-    resource(System)
+    resource(ArchonSystem)
     resource(Manager)
-    resource(Ichor.Archon.Tools.Memory)
+    resource(ArchonMemory)
     resource(Control)
     resource(Events)
     resource(Mes)
@@ -64,10 +65,10 @@ defmodule Ichor.Tools do
     tool(:get_tasks, Tasks, :get_tasks)
     tool(:update_task_status, Tasks, :update_task_status)
     # Core memory
-    tool(:read_memory, Memory, :read_memory)
-    tool(:memory_replace, Memory, :memory_replace)
-    tool(:memory_insert, Memory, :memory_insert)
-    tool(:memory_rethink, Memory, :memory_rethink)
+    tool(:read_memory, AgentMemory, :read_memory)
+    tool(:memory_replace, AgentMemory, :memory_replace)
+    tool(:memory_insert, AgentMemory, :memory_insert)
+    tool(:memory_rethink, AgentMemory, :memory_rethink)
     # Recall
     tool(:conversation_search, Recall, :conversation_search)
     tool(:conversation_search_date, Recall, :conversation_search_date)
@@ -99,11 +100,11 @@ defmodule Ichor.Tools do
     tool(:create_conversation, GenesisGates, :create_conversation)
     tool(:list_conversations, GenesisGates, :list_conversations)
     # Genesis roadmap (Mode C)
-    tool(:create_phase, Ichor.AgentTools.GenesisRoadmap, :create_phase)
-    tool(:create_section, Ichor.AgentTools.GenesisRoadmap, :create_section)
-    tool(:create_task, Ichor.AgentTools.GenesisRoadmap, :create_task)
-    tool(:create_subtask, Ichor.AgentTools.GenesisRoadmap, :create_subtask)
-    tool(:list_phases, Ichor.AgentTools.GenesisRoadmap, :list_phases)
+    tool(:create_phase, GenesisRoadmap, :create_phase)
+    tool(:create_section, GenesisRoadmap, :create_section)
+    tool(:create_task, GenesisRoadmap, :create_task)
+    tool(:create_subtask, GenesisRoadmap, :create_subtask)
+    tool(:list_phases, GenesisRoadmap, :list_phases)
     # DAG execution
     tool(:next_jobs, DagExecution, :next_jobs)
     tool(:claim_job, DagExecution, :claim_job)
@@ -113,8 +114,8 @@ defmodule Ichor.Tools do
     tool(:load_jsonl, DagExecution, :load_jsonl)
     tool(:export_jsonl, DagExecution, :export_jsonl)
     # Fleet observation (Archon)
-    tool(:list_archon_agents, Ichor.Archon.Tools.Agents, :list_live_agents)
-    tool(:agent_status, Ichor.Archon.Tools.Agents, :agent_status)
+    tool(:list_archon_agents, ArchonAgents, :list_live_agents)
+    tool(:agent_status, ArchonAgents, :agent_status)
     tool(:list_teams, Teams, :list_teams)
     # Fleet control (Archon)
     tool(:spawn_archon_agent, Control, :spawn_agent)
@@ -126,17 +127,17 @@ defmodule Ichor.Tools do
     tool(:recent_messages, Messages, :recent_messages)
     tool(:archon_send_message, Messages, :operator_send_message)
     # System (Archon)
-    tool(:system_health, System, :system_health)
-    tool(:tmux_sessions, System, :tmux_sessions)
+    tool(:system_health, ArchonSystem, :system_health)
+    tool(:tmux_sessions, ArchonSystem, :tmux_sessions)
     tool(:manager_snapshot, Manager, :manager_snapshot)
     tool(:attention_queue, Manager, :attention_queue)
     # Events & tasks (Archon)
     tool(:agent_events, Events, :agent_events)
     tool(:fleet_tasks, Events, :fleet_tasks)
     # Memory (Archon)
-    tool(:search_memory, Ichor.Archon.Tools.Memory, :search_memory)
-    tool(:remember, Ichor.Archon.Tools.Memory, :remember)
-    tool(:query_memory, Ichor.Archon.Tools.Memory, :query_memory)
+    tool(:search_memory, ArchonMemory, :search_memory)
+    tool(:remember, ArchonMemory, :remember)
+    tool(:query_memory, ArchonMemory, :query_memory)
     # MES floor management (Archon)
     tool(:list_projects, Mes, :list_projects)
     tool(:create_project, Mes, :create_project)

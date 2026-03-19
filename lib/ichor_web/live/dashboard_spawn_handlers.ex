@@ -4,7 +4,7 @@ defmodule IchorWeb.DashboardSpawnHandlers do
   Each dispatch/3 clause returns the updated socket (caller wraps in {:noreply, ...}).
   """
 
-  alias Ichor.Fleet.Lifecycle.AgentLaunch
+  alias Ichor.Control.Lifecycle.AgentLaunch
 
   def dispatch("spawn_agent", params, socket) do
     opts =

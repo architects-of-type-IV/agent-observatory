@@ -3,8 +3,8 @@ defmodule Ichor.Tools.AgentControl do
   Shared runtime control actions used by tool-facing Ash resources.
   """
 
-  alias Ichor.Fleet.Lifecycle.AgentLaunch
-  alias Ichor.Fleet.Lookup
+  alias Ichor.Control.Lifecycle.AgentLaunch
+  alias Ichor.Control.Lookup
   alias Ichor.Gateway.HITLRelay
 
   @doc "Spawn a new agent and return its session metadata."

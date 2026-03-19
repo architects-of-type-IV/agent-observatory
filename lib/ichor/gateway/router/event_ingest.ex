@@ -5,7 +5,7 @@ defmodule Ichor.Gateway.Router.EventIngest do
 
   require Logger
 
-  alias Ichor.Fleet.{AgentProcess, FleetSupervisor, TeamSupervisor}
+  alias Ichor.Control.{AgentProcess, FleetSupervisor, TeamSupervisor}
 
   @doc "Ingest a hook event: ensure agent process exists, handle channel side effects, emit signals."
   @spec ingest(map()) :: :ok

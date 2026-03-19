@@ -4,15 +4,15 @@ defmodule Ichor.Archon.Chat.CommandRegistry do
   """
 
   alias Ichor.Archon.CommandManifest
-  alias Ichor.Archon.Tools.Agents
-  alias Ichor.Archon.Tools.Control
-  alias Ichor.Archon.Tools.Events
-  alias Ichor.Archon.Tools.Manager
-  alias Ichor.Archon.Tools.Memory
-  alias Ichor.Archon.Tools.Mes
-  alias Ichor.Archon.Tools.Messages
-  alias Ichor.Archon.Tools.System, as: SystemTools
-  alias Ichor.Archon.Tools.Teams
+  alias Ichor.Tools.Archon.Agents
+  alias Ichor.Tools.Archon.Control
+  alias Ichor.Tools.Archon.Events
+  alias Ichor.Tools.Archon.Manager
+  alias Ichor.Tools.Archon.Memory
+  alias Ichor.Tools.Archon.Mes
+  alias Ichor.Tools.Archon.Messages
+  alias Ichor.Tools.Archon.System, as: SystemTools
+  alias Ichor.Tools.Archon.Teams
 
   @doc "Dispatch a parsed command map to its corresponding Ash action."
   @spec dispatch(map()) :: {:ok, %{type: atom(), data: term()}} | {:error, term()}

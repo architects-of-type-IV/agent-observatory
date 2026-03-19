@@ -15,7 +15,7 @@ defmodule Ichor.AgentWatchdog do
   require Logger
 
   alias Ichor.AgentWatchdog.{EventState, NudgePolicy, PaneParser}
-  alias Ichor.Fleet.AgentProcess
+  alias Ichor.Control.AgentProcess
   alias Ichor.Gateway.AgentRegistry.AgentEntry
   alias Ichor.Gateway.Channels.Tmux
   alias Ichor.Gateway.HITLRelay

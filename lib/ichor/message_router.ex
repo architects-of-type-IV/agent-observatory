@@ -9,7 +9,7 @@ defmodule Ichor.MessageRouter do
 
   require Logger
 
-  alias Ichor.Fleet.{AgentProcess, TeamSupervisor}
+  alias Ichor.Control.{AgentProcess, TeamSupervisor}
   alias Ichor.Gateway.Channels.Tmux
   alias Ichor.Signals
 

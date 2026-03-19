@@ -5,7 +5,7 @@ defmodule Ichor.Application do
 
   use Application
 
-  alias Ichor.Fleet.Lifecycle.AgentLaunch
+  alias Ichor.Control.Lifecycle.AgentLaunch
 
   @impl true
   def start(_type, _args) do
@@ -30,13 +30,13 @@ defmodule Ichor.Application do
       %{id: :pg_ichor_agents, start: {:pg, :start_link, [:ichor_agents]}},
 
       # Fleet host registry (tracks BEAM nodes in the cluster)
-      Ichor.Fleet.HostRegistry,
+      Ichor.Control.HostRegistry,
 
       # System services (core, gateway, monitoring -- all one_for_one)
       Ichor.SystemSupervisor,
 
       # Fleet supervisor (BEAM-native teams + agents, after Gateway for channel access)
-      Ichor.Fleet.FleetSupervisor,
+      Ichor.Control.FleetSupervisor,
 
       # Observation services (rest_for_one: causal DAG first, then topology + event bridge)
       Ichor.ObservationSupervisor,
@@ -45,13 +45,13 @@ defmodule Ichor.Application do
       {Task.Supervisor, name: Ichor.TaskSupervisor},
 
       # MES subsystem (Registry + DynamicSupervisor + ProjectIngestor + Scheduler)
-      Ichor.Mes.Supervisor,
+      Ichor.Projects.LifecycleSupervisor,
 
       # Genesis pipeline (DynamicSupervisor for mode RunProcesses)
-      Ichor.Genesis.Supervisor,
+      Ichor.Projects.PlanSupervisor,
 
       # DAG execution subsystem (DynamicSupervisor for RunProcesses)
-      Ichor.Dag.Supervisor,
+      Ichor.Projects.ExecutionSupervisor,
 
       # Memories bridge (signals -> knowledge graph)
       Ichor.MemoriesBridge,

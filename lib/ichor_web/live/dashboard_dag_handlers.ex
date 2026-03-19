@@ -7,8 +7,8 @@ defmodule IchorWeb.DashboardDagHandlers do
 
   import Phoenix.Component, only: [assign: 3]
 
-  alias Ichor.Dag.{Runtime, Status}
-  alias Ichor.Fleet.RuntimeQuery
+  alias Ichor.Control.RuntimeQuery
+  alias Ichor.Projects.{Runtime, Status}
 
   def dispatch("select_dag_project", p, s), do: handle_select_project(p, s)
   def dispatch("heal_dag_task", p, s), do: handle_heal_task(p, s)

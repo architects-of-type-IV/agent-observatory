@@ -8,38 +8,36 @@ defmodule Ichor.Projects do
   """
   use Ash.Domain
 
-  alias Ichor.Dag.Job
-  alias Ichor.Dag.Run
-
-  alias Ichor.Genesis.{
+  alias Ichor.Projects.{
     Adr,
     Checkpoint,
     Conversation,
     Feature,
+    Job,
     Node,
     Phase,
+    Project,
+    RoadmapTask,
+    Run,
     Section,
     Subtask,
-    Task,
     UseCase
   }
 
-  alias Ichor.Mes.Project
-
   resources do
-    resource(Ichor.Mes.Project)
-    resource(Ichor.Genesis.Node)
-    resource(Ichor.Genesis.Adr)
-    resource(Ichor.Genesis.Feature)
-    resource(Ichor.Genesis.UseCase)
-    resource(Ichor.Genesis.Checkpoint)
-    resource(Ichor.Genesis.Conversation)
-    resource(Ichor.Genesis.Phase)
-    resource(Ichor.Genesis.Section)
-    resource(Ichor.Genesis.Task)
-    resource(Ichor.Genesis.Subtask)
-    resource(Ichor.Dag.Run)
-    resource(Ichor.Dag.Job)
+    resource(Ichor.Projects.Project)
+    resource(Ichor.Projects.Node)
+    resource(Ichor.Projects.Adr)
+    resource(Ichor.Projects.Feature)
+    resource(Ichor.Projects.UseCase)
+    resource(Ichor.Projects.Checkpoint)
+    resource(Ichor.Projects.Conversation)
+    resource(Ichor.Projects.Phase)
+    resource(Ichor.Projects.Section)
+    resource(Ichor.Projects.RoadmapTask)
+    resource(Ichor.Projects.Subtask)
+    resource(Ichor.Projects.Run)
+    resource(Ichor.Projects.Job)
   end
 
   # Project Intake
@@ -234,16 +232,16 @@ defmodule Ichor.Projects do
   def sections_by_phase(phase_id), do: Section.by_phase(phase_id)
 
   @doc "Create a Task within a Section."
-  @spec create_task(map()) :: {:ok, Task.t()} | {:error, term()}
-  def create_task(attrs), do: Task.create(attrs)
+  @spec create_task(map()) :: {:ok, RoadmapTask.t()} | {:error, term()}
+  def create_task(attrs), do: RoadmapTask.create(attrs)
 
   @doc "Fetch a Task by id."
-  @spec get_task(String.t()) :: {:ok, Task.t()} | {:error, term()}
-  def get_task(id), do: Task.get(id)
+  @spec get_task(String.t()) :: {:ok, RoadmapTask.t()} | {:error, term()}
+  def get_task(id), do: RoadmapTask.get(id)
 
   @doc "List all Tasks for a section."
-  @spec tasks_by_section(String.t()) :: {:ok, list(Task.t())} | {:error, term()}
-  def tasks_by_section(section_id), do: Task.by_section(section_id)
+  @spec tasks_by_section(String.t()) :: {:ok, list(RoadmapTask.t())} | {:error, term()}
+  def tasks_by_section(section_id), do: RoadmapTask.by_section(section_id)
 
   @doc "Create a Subtask within a Task."
   @spec create_subtask(map()) :: {:ok, Subtask.t()} | {:error, term()}

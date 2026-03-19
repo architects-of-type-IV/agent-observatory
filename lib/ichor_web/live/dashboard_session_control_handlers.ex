@@ -5,8 +5,8 @@ defmodule IchorWeb.DashboardSessionControlHandlers do
   Pause/resume goes through HITLRelay for message buffering.
   """
 
+  alias Ichor.Control.{AgentProcess, FleetSupervisor, TeamSupervisor}
   alias Ichor.EventBuffer
-  alias Ichor.Fleet.{AgentProcess, FleetSupervisor, TeamSupervisor}
   alias Ichor.Gateway.AgentRegistry.AgentEntry
   alias Ichor.Gateway.Channels.Tmux
   alias Ichor.Gateway.HITLRelay

@@ -1,0 +1,86 @@
+defmodule Ichor.Projects.Checkpoint do
+  @moduledoc """
+  Gate checkpoint marking a milestone in the Monad Method pipeline.
+
+  Records readiness assessments at mode transitions (discover->define,
+  define->build, build->complete). Belongs to a Genesis Node.
+  """
+
+  use Ash.Resource,
+    domain: Ichor.Projects,
+    data_layer: AshSqlite.DataLayer,
+    simple_notifiers: [Ichor.Signals.FromAsh]
+
+  sqlite do
+    repo(Ichor.Repo)
+    table("genesis_checkpoints")
+  end
+
+  attributes do
+    uuid_primary_key(:id)
+
+    attribute :title, :string do
+      allow_nil?(false)
+      public?(true)
+    end
+
+    attribute :mode, :atom do
+      allow_nil?(false)
+      public?(true)
+      constraints(one_of: [:discover, :define, :build, :gate_a, :gate_b, :gate_c])
+
+      description(
+        "Mode this checkpoint assesses: discover/define/build for work, gate_a/b/c for gate assessments"
+      )
+    end
+
+    attribute :content, :string do
+      public?(true)
+      description("Gate check report body")
+    end
+
+    attribute :summary, :string do
+      public?(true)
+      description("One-line readiness verdict")
+    end
+
+    timestamps()
+  end
+
+  relationships do
+    belongs_to :node, Ichor.Projects.Node do
+      allow_nil?(false)
+      attribute_public?(true)
+    end
+  end
+
+  actions do
+    defaults([:read, :destroy])
+
+    create :create do
+      primary?(true)
+      accept([:title, :mode, :content, :summary, :node_id])
+    end
+
+    update :update do
+      primary?(true)
+      accept([:title, :content, :summary])
+    end
+
+    read :by_node do
+      argument :node_id, :uuid do
+        allow_nil?(false)
+      end
+
+      filter(expr(node_id == ^arg(:node_id)))
+      prepare(build(sort: [inserted_at: :asc]))
+    end
+  end
+
+  code_interface do
+    define(:create)
+    define(:update)
+    define(:get, action: :read, get_by: [:id])
+    define(:by_node, args: [:node_id])
+  end
+end

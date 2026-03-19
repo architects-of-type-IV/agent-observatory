@@ -4,10 +4,8 @@ defmodule IchorWeb.DashboardMesHandlers do
   import Phoenix.Component, only: [assign: 3]
   import Phoenix.LiveView, only: [put_flash: 3]
 
-  alias Ichor.Dag
-  alias Ichor.Genesis.{DagGenerator, ModeSpawner}
-  alias Ichor.Mes.{Scheduler, SubsystemLoader}
   alias Ichor.Projects
+  alias Ichor.Projects.{DagGenerator, ModeSpawner, Scheduler, Spawner, SubsystemLoader}
   alias Ichor.Signals
 
   @spec dispatch(String.t(), map(), Phoenix.LiveView.Socket.t()) :: Phoenix.LiveView.Socket.t()
@@ -71,7 +69,7 @@ defmodule IchorWeb.DashboardMesHandlers do
   end
 
   def dispatch("mes_launch_dag", %{"node-id" => node_id, "project-id" => project_id}, socket) do
-    case Dag.Spawner.spawn(node_id, project_id) do
+    case Spawner.spawn(node_id, project_id) do
       {:ok, %{session: session}} ->
         Signals.emit(:mes_dag_launched, %{node_id: node_id, session: session})
 

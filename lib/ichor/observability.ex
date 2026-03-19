@@ -7,19 +7,19 @@ defmodule Ichor.Observability do
   """
   use Ash.Domain
 
-  alias Ichor.Activity.Error
-  alias Ichor.Activity.Message
-  alias Ichor.Activity.Task, as: ActivityTask
-  alias Ichor.Events.Event
-  alias Ichor.Events.Session
   alias Ichor.Gateway.HITLInterventionEvent
+  alias Ichor.Observability.Error
+  alias Ichor.Observability.Event
+  alias Ichor.Observability.Message
+  alias Ichor.Observability.Session
+  alias Ichor.Observability.Task, as: ObservabilityTask
   alias Ichor.Signals.Event, as: SignalEvent
 
   resources do
     resource(Event)
     resource(Session)
     resource(Message)
-    resource(ActivityTask)
+    resource(ObservabilityTask)
     resource(Error)
     resource(SignalEvent)
     resource(HITLInterventionEvent)
@@ -34,8 +34,8 @@ defmodule Ichor.Observability do
   def list_recent_messages, do: Message.recent!()
 
   @doc "Returns tasks that are currently in progress."
-  @spec list_current_tasks() :: list(ActivityTask.t())
-  def list_current_tasks, do: ActivityTask.current!()
+  @spec list_current_tasks() :: list(ObservabilityTask.t())
+  def list_current_tasks, do: ObservabilityTask.current!()
 
   @doc "Returns recent errors across all agents and tools."
   @spec list_recent_errors() :: list(Error.t())

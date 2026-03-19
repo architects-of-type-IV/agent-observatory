@@ -38,3 +38,12 @@
 - Always consult codex. All agents ash-elixir-expert. Coordinate and delegate.
 - No backward compat. Surgical edits. Frontend must work. Split work evenly.
 - Tests during refactor: delete, don't adapt. Resources always through domain.
+
+## Namespace Consolidation (2026-03-19)
+- Genesis + Mes + Dag all merged into Ichor.Projects
+- Supervisors get semantic names: PlanSupervisor, LifecycleSupervisor, ExecutionSupervisor
+- RunProcess instances: PlanRunner (genesis), BuildRunner (mes), RunProcess (dag)
+- Dag.Projects -> Catalog; Dag.Analysis -> DagAnalysis; Dag.Prompts -> DagPrompts
+- Genesis.Task -> RoadmapTask (collision avoidance with Ash.Type concepts)
+- Multi-alias forms (alias Mod.{A,B}) not handled by perl s/// -- require manual grep+fix
+- `has_many` relationship destination_attribute must be explicit when FK name != resource_snake_case + "_id"

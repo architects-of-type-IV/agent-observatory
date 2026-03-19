@@ -8,19 +8,19 @@ defmodule Ichor.Control do
   """
   use Ash.Domain
 
-  alias Ichor.Fleet.Agent
-  alias Ichor.Fleet.Team
-  alias Ichor.Workshop.AgentType
-  alias Ichor.Workshop.TeamBlueprint
+  alias Ichor.Control.Agent
+  alias Ichor.Control.AgentType
+  alias Ichor.Control.Team
+  alias Ichor.Control.TeamBlueprint
 
   resources do
-    resource(Ichor.Fleet.Agent)
-    resource(Ichor.Fleet.Team)
-    resource(Ichor.Workshop.TeamBlueprint)
-    resource(Ichor.Workshop.AgentBlueprint)
-    resource(Ichor.Workshop.AgentType)
-    resource(Ichor.Workshop.SpawnLink)
-    resource(Ichor.Workshop.CommRule)
+    resource(Ichor.Control.Agent)
+    resource(Ichor.Control.Team)
+    resource(Ichor.Control.TeamBlueprint)
+    resource(Ichor.Control.AgentBlueprint)
+    resource(Ichor.Control.AgentType)
+    resource(Ichor.Control.SpawnLink)
+    resource(Ichor.Control.CommRule)
     resource(Ichor.Gateway.WebhookDelivery)
     resource(Ichor.Gateway.CronJob)
   end

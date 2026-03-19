@@ -22,46 +22,46 @@ defmodule Ichor.Signals.FromAsh do
     :ok
   end
 
-  defp signal_for(Ichor.Activity.Task, :create), do: {:task_created, &task_data/2}
-  defp signal_for(Ichor.Activity.Task, :update), do: {:task_updated, &task_data/2}
-  defp signal_for(Ichor.Activity.Task, :destroy), do: {:task_deleted, &task_data/2}
+  defp signal_for(Ichor.Observability.Task, :create), do: {:task_created, &task_data/2}
+  defp signal_for(Ichor.Observability.Task, :update), do: {:task_updated, &task_data/2}
+  defp signal_for(Ichor.Observability.Task, :destroy), do: {:task_deleted, &task_data/2}
 
-  defp signal_for(Ichor.Dag.Run, :create), do: {:dag_run_created, &run_data/2}
-  defp signal_for(Ichor.Dag.Run, :complete), do: {:dag_run_completed, &run_data/2}
-  defp signal_for(Ichor.Dag.Run, :fail), do: {:dag_run_completed, &run_data/2}
-  defp signal_for(Ichor.Dag.Run, :archive), do: {:dag_run_archived, &run_archive_data/2}
+  defp signal_for(Ichor.Projects.Run, :create), do: {:dag_run_created, &run_data/2}
+  defp signal_for(Ichor.Projects.Run, :complete), do: {:dag_run_completed, &run_data/2}
+  defp signal_for(Ichor.Projects.Run, :fail), do: {:dag_run_completed, &run_data/2}
+  defp signal_for(Ichor.Projects.Run, :archive), do: {:dag_run_archived, &run_archive_data/2}
 
-  defp signal_for(Ichor.Genesis.Node, :create), do: {:genesis_node_created, &node_data/2}
-  defp signal_for(Ichor.Genesis.Node, :advance), do: {:genesis_node_advanced, &node_data/2}
+  defp signal_for(Ichor.Projects.Node, :create), do: {:genesis_node_created, &node_data/2}
+  defp signal_for(Ichor.Projects.Node, :advance), do: {:genesis_node_advanced, &node_data/2}
 
-  defp signal_for(Ichor.Genesis.Adr, :create), do: {:genesis_artifact_created, &artifact_data/2}
+  defp signal_for(Ichor.Projects.Adr, :create), do: {:genesis_artifact_created, &artifact_data/2}
 
-  defp signal_for(Ichor.Genesis.Feature, :create),
+  defp signal_for(Ichor.Projects.Feature, :create),
     do: {:genesis_artifact_created, &artifact_data/2}
 
-  defp signal_for(Ichor.Genesis.UseCase, :create),
+  defp signal_for(Ichor.Projects.UseCase, :create),
     do: {:genesis_artifact_created, &artifact_data/2}
 
-  defp signal_for(Ichor.Genesis.Phase, :create), do: {:genesis_artifact_created, &artifact_data/2}
+  defp signal_for(Ichor.Projects.Phase, :create), do: {:genesis_artifact_created, &artifact_data/2}
 
-  defp signal_for(Ichor.Genesis.Section, :create),
+  defp signal_for(Ichor.Projects.Section, :create),
     do: {:genesis_artifact_created, &artifact_data/2}
 
-  defp signal_for(Ichor.Genesis.Task, :create), do: {:genesis_artifact_created, &artifact_data/2}
+  defp signal_for(Ichor.Projects.RoadmapTask, :create), do: {:genesis_artifact_created, &artifact_data/2}
 
-  defp signal_for(Ichor.Genesis.Subtask, :create),
+  defp signal_for(Ichor.Projects.Subtask, :create),
     do: {:genesis_artifact_created, &artifact_data/2}
 
-  defp signal_for(Ichor.Genesis.Checkpoint, :create),
+  defp signal_for(Ichor.Projects.Checkpoint, :create),
     do: {:genesis_artifact_created, &artifact_data/2}
 
-  defp signal_for(Ichor.Genesis.Conversation, :create),
+  defp signal_for(Ichor.Projects.Conversation, :create),
     do: {:genesis_artifact_created, &artifact_data/2}
 
-  defp signal_for(Ichor.Mes.Project, :pick_up), do: {:mes_project_picked_up, &project_data/2}
-  defp signal_for(Ichor.Mes.Project, :mark_compiled), do: {:mes_project_compiled, &project_data/2}
-  defp signal_for(Ichor.Mes.Project, :mark_loaded), do: {:mes_subsystem_loaded, &project_data/2}
-  defp signal_for(Ichor.Mes.Project, :mark_failed), do: {:mes_project_failed, &project_data/2}
+  defp signal_for(Ichor.Projects.Project, :pick_up), do: {:mes_project_picked_up, &project_data/2}
+  defp signal_for(Ichor.Projects.Project, :mark_compiled), do: {:mes_project_compiled, &project_data/2}
+  defp signal_for(Ichor.Projects.Project, :mark_loaded), do: {:mes_subsystem_loaded, &project_data/2}
+  defp signal_for(Ichor.Projects.Project, :mark_failed), do: {:mes_project_failed, &project_data/2}
 
   defp signal_for(Ichor.Gateway.WebhookDelivery, :enqueue),
     do: {:webhook_delivery_enqueued, &webhook_data/2}

@@ -198,3 +198,16 @@
 - Registry Consolidation + ETS Migration (2026-03-13) -- COMPLETE
 - Signals Convention Migration (2026-03-11) -- COMPLETE
 - Credo Strict Cleanup (2026-03-11) -- COMPLETE
+
+## Namespace Consolidation: Genesis+Mes+Dag → Ichor.Projects (2026-03-19) -- COMPLETE
+- [x] Created Projects.PlanSupervisor, LifecycleSupervisor, ExecutionSupervisor
+- [x] Created Projects.PlanRunner, BuildRunner, Catalog, DagAnalysis, DagPrompts, RoadmapTask
+- [x] Mechanical renames for all 87 files (55 modules, perl script)
+- [x] Fixed multi-alias forms in 10+ files (perl blind spot)
+- [x] Fixed internal alias ambiguity in runtime.ex, actions.ex (Catalog/DagAnalysis)
+- [x] Fixed scheduler.ex RunProcess -> BuildRunner
+- [x] Fixed team_cleanup.ex default run_process_module
+- [x] Fixed RoadmapTask has_many :subtasks destination_attribute: :task_id
+- [x] Fixed 6 credo alias ordering issues
+- [x] mix compile --warnings-as-errors: clean
+- [x] mix credo --strict: 0 issues
