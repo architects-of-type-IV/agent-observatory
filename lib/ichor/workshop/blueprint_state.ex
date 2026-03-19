@@ -162,9 +162,9 @@ defmodule Ichor.Workshop.BlueprintState do
 
   @spec apply_blueprint(t(), map()) :: t()
   def apply_blueprint(state, blueprint) do
-    agents = Enum.map(blueprint.agent_blueprints, &ash_to_agent/1)
-    links = Enum.map(blueprint.spawn_links, &ash_to_link/1)
-    rules = Enum.map(blueprint.comm_rules, &ash_to_rule/1)
+    agents = safe_list(blueprint.agent_blueprints) |> Enum.map(&ash_to_agent/1)
+    links = safe_list(blueprint.spawn_links) |> Enum.map(&ash_to_link/1)
+    rules = safe_list(blueprint.comm_rules) |> Enum.map(&ash_to_rule/1)
     max_slot = agents |> Enum.map(& &1.id) |> Enum.max(fn -> 0 end)
 
     state
@@ -268,4 +268,7 @@ defmodule Ichor.Workshop.BlueprintState do
 
   defp ash_to_rule(rule),
     do: %{from: rule.from_slot, to: rule.to_slot, policy: rule.policy, via: rule.via_slot}
+
+  defp safe_list(list) when is_list(list), do: list
+  defp safe_list(_), do: []
 end

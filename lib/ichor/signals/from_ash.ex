@@ -87,7 +87,7 @@ defmodule Ichor.Signals.FromAsh do
       |> Module.split()
       |> List.last()
       |> Macro.underscore()
-      |> String.to_atom()
+      |> String.to_existing_atom()
 
     node_id = Map.get(data, :node_id) || Map.get(data, :genesis_node_id)
     %{id: data.id, node_id: node_id, type: resource_type}
