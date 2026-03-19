@@ -5,6 +5,10 @@ defmodule Ichor.MixProject do
     [
       app: :ichor,
       version: "0.1.0",
+      build_path: "../../_build",
+      config_path: "../../config/config.exs",
+      deps_path: "../../deps",
+      lockfile: "../../mix.lock",
       elixir: "~> 1.15",
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
@@ -77,10 +81,6 @@ defmodule Ichor.MixProject do
       # Code quality
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
-      {:ichor_tmux_runtime, in_umbrella: true},
-      {:ichor_signals, in_umbrella: true},
-      {:ichor_data, in_umbrella: true},
-      {:ichor_dag, in_umbrella: true},
       # Subsystem contracts
       {:ichor_contracts, path: "../../subsystems/ichor_contracts"}
     ]
@@ -95,7 +95,7 @@ defmodule Ichor.MixProject do
   defp aliases do
     [
       setup: ["deps.get", "ecto.setup", "assets.setup", "assets.build"],
-      "ecto.setup": ["ecto.create", "ecto.migrate", "run ../ichor_data/priv/repo/seeds.exs"],
+      "ecto.setup": ["ecto.create", "ecto.migrate", "run priv/repo/seeds.exs"],
       "ecto.reset": ["ecto.drop", "ecto.setup"],
       test: ["ecto.create --quiet", "ecto.migrate --quiet", "test"],
       "assets.setup": ["tailwind.install --if-missing", "esbuild.install --if-missing"],

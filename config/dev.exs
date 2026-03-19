@@ -1,7 +1,7 @@
 import Config
 
 # Configure your database
-config :ichor_data, Ichor.Repo,
+config :ichor, Ichor.Repo,
   database: Path.expand("../ichor_dev.db", __DIR__),
   pool_size: 5,
   stacktrace: true,
@@ -56,12 +56,12 @@ config :ichor, IchorWeb.Endpoint,
     web_console_logger: false,
     patterns: [
       # Static assets, except user uploads
-      ~r"apps/ichor/priv/static/(?!uploads/).*\.(js|css|png|jpeg|jpg|gif|svg)$"E,
+      ~r"priv/static/(?!uploads/).*\.(js|css|png|jpeg|jpg|gif|svg)$"E,
       # Gettext translations
-      ~r"apps/ichor/priv/gettext/.*\.po$"E,
+      ~r"priv/gettext/.*\.po$"E,
       # Router, Controllers, LiveViews and LiveComponents
-      ~r"apps/ichor/lib/ichor_web/router\.ex$"E,
-      ~r"apps/ichor/lib/ichor_web/(controllers|live|components)/.*\.(ex|heex)$"E
+      ~r"lib/ichor_web/router\.ex$"E,
+      ~r"lib/ichor_web/(controllers|live|components)/.*\.(ex|heex)$"E
     ]
   ]
 

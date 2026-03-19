@@ -32,7 +32,6 @@ Depends on all umbrella siblings:
 - `ichor_data` -- shared Ecto Repo (SQLite)
 - `ichor_signals` -- PubSub transport and signal catalog
 - `ichor_fleet` -- Agent/Team Ash domain
-- `ichor_dag` -- DAG Run/Job Ash domain
 - `ichor_tmux_runtime` -- tmux session and window lifecycle
 - `ichor_contracts` -- shared Signals behaviour contract
 

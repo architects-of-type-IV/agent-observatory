@@ -9,6 +9,7 @@ import Config
 
 config :ichor,
   generators: [timestamp_type: :utc_datetime],
+  ecto_repos: [Ichor.Repo],
   ash_domains: [
     Ichor.Activity,
     Ichor.AgentTools,
@@ -16,24 +17,16 @@ config :ichor,
     Ichor.Archon.Tools,
     Ichor.Events,
     Ichor.Fleet,
+    Ichor.Dag,
     Ichor.Genesis,
     Ichor.Mes,
     Ichor.Workshop,
     Ichor.Signals.Domain
   ]
 
-config :ichor_data,
-  ecto_repos: [Ichor.Repo]
-
-config :ichor_dag,
-  ash_domains: [
-    Ichor.Dag
-  ]
-
-config :ichor_signals,
-  ash_domains: [
-    Ichor.Signals.Domain
-  ]
+config :ichor, Ichor.Repo,
+  database: Path.expand("../ichor_dev.db", __DIR__),
+  pool_size: 5
 
 # Ichor Contracts -- signals runtime implementation
 config :ichor_contracts, :signals_impl, Ichor.Signals.Runtime
@@ -64,7 +57,7 @@ config :esbuild,
   ichor: [
     args:
       ~w(js/app.js --bundle --target=es2022 --outdir=../priv/static/assets/js --external:/fonts/* --external:/images/* --alias:@=.),
-    cd: Path.expand("../apps/ichor/assets", __DIR__),
+    cd: Path.expand("../assets", __DIR__),
     env: %{"NODE_PATH" => [Path.expand("../deps", __DIR__), Mix.Project.build_path()]}
   ]
 
@@ -76,7 +69,7 @@ config :tailwind,
       --input=assets/css/app.css
       --output=priv/static/assets/css/app.css
     ),
-    cd: Path.expand("../apps/ichor", __DIR__)
+    cd: Path.expand("..", __DIR__)
   ]
 
 # Configure Elixir's Logger
