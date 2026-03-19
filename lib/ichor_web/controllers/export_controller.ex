@@ -1,12 +1,12 @@
 defmodule IchorWeb.ExportController do
   use IchorWeb, :controller
-  alias Ichor.Events
+  alias Ichor.Observability
 
   def index(conn, params) do
     format = params["format"] || "json"
 
     events =
-      Events.list_events()
+      Observability.list_events()
       |> apply_filters(params)
       |> Enum.sort_by(& &1.inserted_at, DateTime)
 

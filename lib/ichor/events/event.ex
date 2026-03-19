@@ -1,7 +1,7 @@
 defmodule Ichor.Events.Event do
   @moduledoc false
   use Ash.Resource,
-    domain: Ichor.Events,
+    domain: Ichor.Observability,
     data_layer: AshSqlite.DataLayer
 
   sqlite do

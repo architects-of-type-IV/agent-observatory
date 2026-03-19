@@ -11,16 +11,16 @@ config :ichor,
   generators: [timestamp_type: :utc_datetime],
   ecto_repos: [Ichor.Repo],
   ash_domains: [
-    Ichor.Activity,
     Ichor.AgentTools,
     Ichor.Archon.Tools,
-    Ichor.Events,
+    Ichor.Control,
     Ichor.Fleet,
     Ichor.Dag,
     Ichor.Genesis,
     Ichor.Mes,
-    Ichor.Workshop,
-    Ichor.Signals.Domain
+    Ichor.Observability,
+    Ichor.Projects,
+    Ichor.Workshop
   ]
 
 config :ichor, Ichor.Repo,

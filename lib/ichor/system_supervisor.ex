@@ -7,7 +7,7 @@ defmodule Ichor.SystemSupervisor do
   exists between them, so one_for_one is appropriate.
 
   Children (in start order):
-    Core:    Events.Janitor, MemoryStore, EventBuffer
+    Core:    Observability.Janitor, MemoryStore, EventBuffer
     Gateway: TmuxDiscovery, EntropyTracker, HeartbeatManager, CronScheduler,
              WebhookRouter, HITLRelay, OutputCapture
     Monitor: AgentWatchdog, Dag.Runtime, ProtocolTracker, QualityGate,
@@ -23,7 +23,7 @@ defmodule Ichor.SystemSupervisor do
   def init(_opts) do
     children = [
       # Core infrastructure services
-      {Ichor.Events.Janitor, []},
+      {Ichor.Observability.Janitor, []},
       {Ichor.MemoryStore, []},
       {Ichor.EventBuffer, []},
 

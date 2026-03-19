@@ -9,7 +9,6 @@ defmodule IchorWeb.DashboardState do
   import IchorWeb.DashboardTeamHelpers, only: [all_team_sids: 1]
   import IchorWeb.DashboardFeedHelpers, only: [build_feed_groups: 2]
 
-  alias Ichor.Activity
   alias Ichor.Dag.Status
   alias Ichor.Fleet
   alias Ichor.Fleet.Analysis.Queries, as: FQ
@@ -19,6 +18,7 @@ defmodule IchorWeb.DashboardState do
   alias Ichor.Gateway.HITLRelay
   alias Ichor.Gateway.TmuxDiscovery
   alias Ichor.Notes
+  alias Ichor.Observability
 
   def default_assigns(disk_teams) do
     %{
@@ -136,10 +136,10 @@ defmodule IchorWeb.DashboardState do
     teams = Fleet.list_alive_teams()
     all_teams = Fleet.list_teams()
     agents = Fleet.list_agents()
-    messages = Activity.list_recent_messages()
-    event_tasks = Activity.list_current_tasks() |> Enum.map(&task_to_map/1)
-    errors = Activity.list_recent_errors()
-    error_groups = Activity.list_error_groups()
+    messages = Observability.list_recent_messages()
+    event_tasks = Observability.list_current_tasks() |> Enum.map(&task_to_map/1)
+    errors = Observability.list_recent_errors()
+    error_groups = Observability.list_error_groups()
 
     # Session derivation (Fleet.Queries)
     all_sessions =

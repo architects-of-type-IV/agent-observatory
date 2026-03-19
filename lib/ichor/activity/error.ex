@@ -4,7 +4,7 @@ defmodule Ichor.Activity.Error do
   Uses Ash.DataLayer.Simple -- data is loaded by preparations, not persisted.
   """
 
-  use Ash.Resource, domain: Ichor.Activity
+  use Ash.Resource, domain: Ichor.Observability
 
   alias Ichor.Activity.Preparations.LoadErrors
 

@@ -11,12 +11,12 @@ defmodule IchorWeb.SignalFeed.Renderers.Gateway do
   attr :message, :any, required: true
 
   def render(%{message: %Message{name: :decision_log, data: data}} = assigns) do
-    log = data[:log] || %{}
+    log = data[:log]
 
     assigns =
       assign(assigns,
-        from: Primitives.short(log[:from] || log["from"]),
-        to: Primitives.short(log[:to] || log["to"])
+        from: Primitives.short(log && log.identity && log.identity.agent_id),
+        to: Primitives.short(log && log.meta && log.meta.trace_id)
       )
 
     ~H"""

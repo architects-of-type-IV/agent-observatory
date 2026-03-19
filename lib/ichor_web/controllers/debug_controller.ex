@@ -2,12 +2,12 @@ defmodule IchorWeb.DebugController do
   @moduledoc "System diagnostics endpoint for quick debugging."
   use IchorWeb, :controller
 
-  alias Ichor.Activity
   alias Ichor.EventBuffer
   alias Ichor.Fleet
   alias Ichor.Fleet.AgentProcess
   alias Ichor.Gateway.Channels.Tmux
   alias Ichor.Gateway.HITLRelay
+  alias Ichor.Observability
   alias Ichor.ProtocolTracker
   alias Ichor.Signals.Buffer
 
@@ -123,7 +123,7 @@ defmodule IchorWeb.DebugController do
 
   def mailboxes(conn, _params) do
     messages =
-      Activity.list_recent_messages()
+      Observability.list_recent_messages()
       |> Enum.take(50)
       |> Enum.map(fn m ->
         %{

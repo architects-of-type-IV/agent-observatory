@@ -5,7 +5,7 @@ defmodule Ichor.Activity.Task do
   """
 
   use Ash.Resource,
-    domain: Ichor.Activity,
+    domain: Ichor.Observability,
     simple_notifiers: [Ichor.Signals.FromAsh]
 
   attributes do

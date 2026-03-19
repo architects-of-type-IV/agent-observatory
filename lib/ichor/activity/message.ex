@@ -4,7 +4,7 @@ defmodule Ichor.Activity.Message do
   Uses Ash.DataLayer.Simple -- data is loaded by preparations, not persisted.
   """
 
-  use Ash.Resource, domain: Ichor.Activity
+  use Ash.Resource, domain: Ichor.Observability
 
   attributes do
     attribute(:id, :string, primary_key?: true, allow_nil?: false, public?: true)
