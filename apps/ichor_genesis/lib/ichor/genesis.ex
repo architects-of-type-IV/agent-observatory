@@ -12,7 +12,7 @@ defmodule Ichor.Genesis do
   for future sync but operates standalone.
   """
 
-  use Ash.Domain
+  use Ash.Domain, validate_config_inclusion?: false
 
   resources do
     resource(Ichor.Genesis.Node)

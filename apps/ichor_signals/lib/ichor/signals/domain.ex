@@ -4,7 +4,7 @@ defmodule Ichor.Signals.Domain do
   Separated from the public Ichor.Signals facade which lives in ichor_contracts.
   """
 
-  use Ash.Domain
+  use Ash.Domain, validate_config_inclusion?: false
 
   resources do
     resource(Ichor.Signals.Event)

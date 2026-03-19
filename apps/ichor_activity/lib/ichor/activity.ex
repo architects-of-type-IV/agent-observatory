@@ -1,5 +1,5 @@
 defmodule Ichor.Activity do
-  use Ash.Domain
+  use Ash.Domain, validate_config_inclusion?: false
   @moduledoc false
 
   resources do

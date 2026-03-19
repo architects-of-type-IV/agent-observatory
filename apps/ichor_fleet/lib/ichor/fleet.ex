@@ -1,5 +1,5 @@
 defmodule Ichor.Fleet do
-  use Ash.Domain
+  use Ash.Domain, validate_config_inclusion?: false
   @moduledoc false
 
   resources do
@@ -15,6 +15,9 @@ defmodule Ichor.Fleet do
 
   @spec list_alive_teams() :: list(Ichor.Fleet.Team.t())
   def list_alive_teams, do: Ichor.Fleet.Team.alive!()
+
+  @spec list_teams() :: list(Ichor.Fleet.Team.t())
+  def list_teams, do: Ichor.Fleet.Team.all!()
 
   @spec get_unread(String.t()) :: {:ok, list(map())}
   def get_unread(agent_id), do: Ichor.Fleet.Agent.get_unread(agent_id)
