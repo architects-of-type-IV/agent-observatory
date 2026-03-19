@@ -1,5 +1,20 @@
 # ICHOR IV Progress
 
+## Code Quality + Signals Audit (2026-03-19) -- IN PROGRESS
+- [x] MessageRouter: single delivery authority (10 paths -> 1), 14 callers rewired
+- [x] send_message arity fix: Messaging called /3 but AgentProcess had /2 (critical bug)
+- [x] Credo cleanup: all 71 issues from umbrella restructure fixed
+- [x] Banner removal: 255 decorative banners across 71 files
+- [x] REFACTOR.md: deep analysis for all 13 umbrella apps
+- [x] Parameter ordering rule: dispatch params first, unused last
+- [x] @spec policy rule: required on public API, skip GenServer callbacks
+- [x] Signals bypass audit: 37 actions identified (15 HIGH, 14 MEDIUM, 8 LOW)
+- [x] @spec/@doc audit: 1,149 missing specs, 400+ missing docs, 11 missing moduledocs
+- [x] Ash AI article: constraint system for LLM types, description strings load-bearing
+- [ ] Wire missing signals (15 HIGH items)
+- [ ] Add @spec to highest-impact modules
+- [ ] E2E test: Build PulseMonitor with boundary enforcement
+
 ## ichor_contracts Refactor (2026-03-18) -- COMPLETE
 - [x] Created ichor_contracts shared library (facade + behaviour + config dispatch)
 - [x] Ichor.Signals split: facade (contracts) + Runtime (host) + Domain (Ash, host)

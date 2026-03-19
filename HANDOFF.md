@@ -1,47 +1,52 @@
 # ICHOR IV - Handoff
 
-## Current Status: ichor_contracts Refactor Complete (2026-03-18)
+## Current Status: Code Quality + Signals Audit Complete (2026-03-19)
 
 ### Session Summary
 
-Major architectural refactor: extracted `ichor_contracts` shared library from the observatory host app. Subsystems now depend on a canonical contract surface instead of stubs. Signal system split into facade (contracts) + runtime (host) + Ash domain (host). All credo --strict issues resolved.
+Major session covering architecture, messaging consolidation, code quality, and signals coverage audit.
 
-### Architecture
+### Completed This Session
 
-**ichor_contracts (subsystems/ichor_contracts/)**
-- `Ichor.Signals` -- facade, dispatches to configured impl via `Application.get_env(:ichor_contracts, :signals_impl)`
-- `Ichor.Signals.Behaviour` -- callback contract for signal implementations
-- `Ichor.Signals.Noop` -- default no-op implementation (standalone compilation)
-- `Ichor.Signals.Message` -- canonical envelope struct (owned here, not in host)
-- `Ichor.Signals.Topics` -- pure topic string builder (owned here)
-- `Ichor.Mes.Subsystem` -- behaviour (info/start/handle_signal/stop)
-- `Ichor.Mes.Subsystem.Info` -- manifest struct
-- `Ichor.PubSub` -- name atom stub
-- `Phoenix.PubSub` -- conditional stub
+1. **DAG Build on standalone Mix libraries** -- Workers build in `subsystems/{name}/`, not host app
+2. **ichor_contracts shared library** -- Facade + behaviour + config dispatch for Signals
+3. **Signal system split** -- Signals (facade) + Runtime (host impl) + Domain (Ash)
+4. **Catalog split** -- 550L -> 5 bounded modules + 76L aggregator
+5. **MessageRouter** -- Single delivery authority replacing 10 redundant messaging paths
+6. **Credo cleanup** -- All 71+17 issues fixed, zero remaining
+7. **Banner removal** -- 255 decorative comment banners removed across 71 files
+8. **send_message arity fix** -- Critical bug: Messaging called send_message/3 but AgentProcess only had /2
+9. **REFACTOR.md** -- Deep analysis for all 13 umbrella apps
+10. **Parameter ordering rule** -- Dispatch params first, unused last
 
-**Host app (lib/ichor/)**
-- `Ichor.Signals.Runtime` -- implements `Ichor.Signals.Behaviour`, owns PubSub transport, catalog validation
-- `Ichor.Signals.Domain` -- Ash Domain, owns `Ichor.Signals.Event` resource
-- `Ichor.Signals.Catalog` -- signal definitions (split into 5 bounded modules)
-- `Ichor.Signals.Bus` -- PubSub broadcast
-- `Ichor.Signals.Buffer` -- ETS signal buffer
-- Config: `config :ichor_contracts, :signals_impl, Ichor.Signals.Runtime`
-- Config: `ash_domains` uses `Ichor.Signals.Domain` (not `Ichor.Signals`)
+### Audit Results (Research Complete, Not Yet Implemented)
 
-**Subsystem build pipeline**
-- `Mes.SubsystemScaffold` creates `subsystems/{name}/` with mix.exs (dep on ichor_contracts), README.md, integration.md
-- Workers build inside `subsystems/{name}/` only -- never edit host files
-- `Mes.CompletionHandler` reacts to `:dag_run_completed` -> `SubsystemLoader.compile_and_load`
-- `SubsystemLoader` hot-loads only `Ichor.Subsystems.*` modules into BEAM
+**Signals bypass audit** -- 37 actions bypass the Signal stream:
+- 15 HIGH: DAG run lifecycle, Genesis pipeline gates, MES transitions, agent eviction, Channels shadow layer
+- 14 MEDIUM: All Genesis artifacts, Fleet team ops, HITL approve/reject
+- 8 LOW: Workshop canvas, blueprint CRUD
+
+**@spec/@doc audit** -- Systemic gap:
+- 1,149 public functions missing @spec across 158 files
+- 400+ public functions missing @doc across 136 files
+- 11 modules missing @moduledoc
+
+**Ash AI article** -- Key takeaway: Ash constraint system is primary for LLM type exposure, not @spec. Action `description` strings are load-bearing for MCP tools.
+
+### Architecture Decisions
+
+- **MessageRouter**: Plain module (Iron Law: no process needed). One `send/1` API.
+- **ichor_contracts**: Facade + behaviour + config dispatch. Host configures `:signals_impl`.
+- **Subsystem boundary**: Workers FORBIDDEN from touching host files. Jobs referencing host files get failed.
+- **Parameter ordering**: Dispatch params first, accumulators first in recursion, unused last.
+- **@spec policy**: Required on public API functions. Skip GenServer callbacks, Ash DSL anonymous fns.
+- **No decorative banners**: No `# ═══` or `# ── Label ──`. Use @doc and module structure.
 
 ### Build Status
 - `mix compile --warnings-as-errors` -- CLEAN
-- `mix dialyzer` -- CLEAN
-- `mix credo --strict` -- 1 intentional FIXME only (was 17 issues before)
-- `subsystems/ichor_contracts` -- compiles standalone
-- `subsystems/pulse_monitor` -- compiles standalone against ichor_contracts
+- `mix credo --strict` -- CLEAN (0 issues)
 
-### What's Next
-1. Press Build on PulseMonitor -- test the full pipeline with ichor_contracts
-2. Catalog split for Dag.Prompts (260L -> per-role modules)
-3. SwarmMonitor migration (deferred)
+### What's Next (Priority Order)
+1. Wire missing signals (15 HIGH items from audit)
+2. Add @spec to highest-impact modules (MessageRouter, Dag, Fleet, Genesis domains)
+3. E2E test: Build PulseMonitor with new boundary enforcement
