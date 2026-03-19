@@ -21,7 +21,7 @@ defmodule Ichor.Projects.BuildRunner do
   use GenServer, restart: :temporary
 
   alias Ichor.Gateway.Channels.Tmux
-  alias Ichor.Projects.{Janitor, TeamLifecycle}
+  alias Ichor.Projects.{Janitor, RunnerRegistry, TeamLifecycle}
   alias Ichor.Signals
   alias Ichor.Signals.Message
 
@@ -49,24 +49,15 @@ defmodule Ichor.Projects.BuildRunner do
 
   @doc "Returns the via-tuple for Registry-based name lookup."
   @spec via(String.t()) :: {:via, Registry, {Ichor.Registry, {:run, String.t()}}}
-  def via(run_id), do: {:via, Registry, {Ichor.Registry, {:run, run_id}}}
+  def via(run_id), do: RunnerRegistry.via(:run, run_id)
 
   @doc "Returns the pid for run_id if alive, or nil."
   @spec lookup(String.t()) :: pid() | nil
-  def lookup(run_id) do
-    case Registry.lookup(Ichor.Registry, {:run, run_id}) do
-      [{pid, _}] -> pid
-      [] -> nil
-    end
-  end
+  def lookup(run_id), do: RunnerRegistry.lookup(:run, run_id)
 
   @doc "Lists all active MES run IDs and their process PIDs."
   @spec list_all() :: [{String.t(), pid()}]
-  def list_all do
-    Registry.select(Ichor.Registry, [
-      {{{:run, :"$1"}, :"$2", :_}, [], [{{:"$1", :"$2"}}]}
-    ])
-  end
+  def list_all, do: RunnerRegistry.list_all(:run)
 
   @doc "Returns only runs that haven't passed their deadline (for Scheduler concurrency limit)."
   @spec list_active() :: [{String.t(), pid()}]

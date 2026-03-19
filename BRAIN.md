@@ -35,6 +35,7 @@
 ## Known Anti-Patterns (from deep audit + codex review)
 - Domain modules (control.ex, projects.ex) are 100% pass-through wrappers -- should use Ash `define`
 - 3 lifecycle GenServers share boilerplate but are NOT structurally equivalent (BuildRunner differs)
+- RunnerRegistry (runner_registry.ex): shared via/2, lookup/2, list_all/1 for all runner GenServers. Kinds: :run (BuildRunner), :genesis_run (PlanRunner), :dag_run (RunProcess).
 - 3 spawn chains (MES, Genesis, DAG) should converge to Workshop presets + TeamLaunch
 - GenesisFormatter.to_map emits signals (impure side effect)
 - Virtual Task resource with FromAsh notifier = dead code

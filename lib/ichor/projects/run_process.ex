@@ -18,7 +18,7 @@ defmodule Ichor.Projects.RunProcess do
   alias Ichor.Control.Lifecycle.TeamLaunch
   alias Ichor.Control.Lifecycle.TeamSpec
   alias Ichor.Control.Lifecycle.TmuxLauncher
-  alias Ichor.Projects.{Exporter, HealthChecker, Job, Run, RuntimeSignals}
+  alias Ichor.Projects.{Exporter, HealthChecker, Job, Run, RunnerRegistry, RuntimeSignals}
   alias Ichor.Signals
   alias Ichor.Signals.Message
 
@@ -44,7 +44,7 @@ defmodule Ichor.Projects.RunProcess do
 
   @doc "Returns the via-tuple for Registry-based name lookup."
   @spec via(String.t()) :: {:via, Registry, {Ichor.Registry, {:dag_run, String.t()}}}
-  def via(run_id), do: {:via, Registry, {Ichor.Registry, {:dag_run, run_id}}}
+  def via(run_id), do: RunnerRegistry.via(:dag_run, run_id)
 
   @doc "Enqueues a job for write-through sync to the project tasks.jsonl file."
   @spec sync_job(String.t(), struct() | map()) :: :ok

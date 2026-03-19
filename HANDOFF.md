@@ -20,19 +20,15 @@ Coordinator-driven session. Codex (GPT-5.4) consulted as equal architectural par
    - Phase 6: Domain wrapper removal (Ash define)
 4. **Nested module extraction** -- 11 modules extracted from 3 parent files into own files. Build clean.
 5. **Oban candidate audit** -- 5 strong candidates (webhook_router, cron_scheduler, quality_gate, memories ingest, janitor), 5 maybe candidates. 2 bugs found (Task.start wrapping synchronous Signals.emit).
+6. **RunnerRegistry extracted** -- Duplicated `via/1`, `lookup/1`, `list_all/0` across BuildRunner, PlanRunner, RunProcess extracted into `Ichor.Projects.RunnerRegistry`. All three runners updated. Build + credo clean.
 
 ### Build Status
 - `mix compile --warnings-as-errors` -- CLEAN
-- `mix credo --strict` -- CLEAN
+- `mix credo --strict` -- 2 pre-existing issues in mode_spawner.ex (out of scope, not touched)
 - Git: clean on main
 
-### Uncommitted Changes
-- 11 new files (nested module extractions)
-- 3 parent files modified (memories_client.ex, causal_dag.ex, decision_log.ex)
-- CLAUDE.md updated with ground rules
-
 ### Active Plan
-- `~/.claude/plans/tender-giggling-nebula.md` -- approved, Phase 0-1 next
+- `~/.claude/plans/tender-giggling-nebula.md` -- approved, Phase 1 next
 
 ### Key Architectural Decisions
 - All teams are equal. Workshop is the single authority for team topology.
@@ -40,8 +36,10 @@ Coordinator-driven session. Codex (GPT-5.4) consulted as equal architectural par
 - Behaviour is wrong for runner consolidation. Use shared helper/macro instead.
 - Codex is an equal partner, not a validator. Give it raw data, let it form conclusions.
 - Oban installation planned for background job processing.
+- RunnerRegistry is the canonical registry boilerplate helper for all runner GenServers.
 
 ### Key Files
 - `~/.claude/plans/tender-giggling-nebula.md` -- session 3 plan (codex-reviewed)
 - docs/plans/audit-*.md -- 4 deep audit reports (still relevant)
 - docs/plans/INDEX.md -- all plans indexed
+- `lib/ichor/projects/runner_registry.ex` -- NEW: shared registry helpers for runners

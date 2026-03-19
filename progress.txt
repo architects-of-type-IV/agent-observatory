@@ -42,7 +42,8 @@
 - [ ] Phase 1: Quick wins (dead notifier, unsafe atoms, EventBuffer, team.ex, termination)
 - [ ] Phase 2: Spawn convergence (all teams through Workshop + TeamLaunch)
 - [ ] Phase 3: Runner helper extraction (use macro, not behaviour)
-- [ ] Phase 4: Registry cleanup (stale deps + helper extraction)
+- [x] Phase 4 (partial): RunnerRegistry extracted -- via/1, lookup/1, list_all/0 deduplicated across 3 runners
+- [ ] Phase 4 (remaining): stale deps cleanup
 - [ ] Phase 5: Safety sweep (impure formatter, validate_config, async write-through)
 - [ ] Phase 6: Domain wrapper removal (Ash define on resources)
 - [ ] Oban installation + migration of 5 strong candidates

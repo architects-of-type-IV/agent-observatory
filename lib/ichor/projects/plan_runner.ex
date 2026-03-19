@@ -6,7 +6,7 @@ defmodule Ichor.Projects.PlanRunner do
     1. Spawned by ModeSpawner after team creation
     2. Monitors tmux session liveness (30s poll)
     3. Listens for coordinator -> operator delivery (completion signal)
-    4. Kills tmux session + disbands fleet team + cleans prompt files
+    4. Tears down team via TeamLaunch (kills session + disbands fleet + cleans prompt files)
 
   Registered in Ichor.Registry via `{:genesis_run, run_id}`.
   Supervised under Ichor.Projects.PlanRunSupervisor (DynamicSupervisor).
@@ -14,21 +14,22 @@ defmodule Ichor.Projects.PlanRunner do
 
   use GenServer, restart: :temporary
 
-  alias Ichor.Control.FleetSupervisor
+  alias Ichor.Control.Lifecycle.TeamLaunch
+  alias Ichor.Control.Lifecycle.TeamSpec
   alias Ichor.Gateway.Channels.Tmux
-  alias Ichor.Projects.ModeRunner
+  alias Ichor.Projects.RunnerRegistry
   alias Ichor.Signals
   alias Ichor.Signals.Message
 
   @liveness_interval_ms :timer.seconds(30)
 
-  @enforce_keys [:run_id, :mode, :session]
-  defstruct [:run_id, :mode, :session, :node_id]
+  @enforce_keys [:run_id, :mode, :team_spec]
+  defstruct [:run_id, :mode, :team_spec, :node_id]
 
   @type t :: %__MODULE__{
           run_id: String.t(),
-          mode: atom(),
-          session: String.t(),
+          mode: String.t(),
+          team_spec: TeamSpec.t(),
           node_id: String.t() | nil
         }
 
@@ -41,36 +42,27 @@ defmodule Ichor.Projects.PlanRunner do
 
   @doc "Returns the via-tuple for Registry-based name lookup."
   @spec via(String.t()) :: {:via, Registry, {Ichor.Registry, {:genesis_run, String.t()}}}
-  def via(run_id), do: {:via, Registry, {Ichor.Registry, {:genesis_run, run_id}}}
+  def via(run_id), do: RunnerRegistry.via(:genesis_run, run_id)
 
   @doc "Returns the pid for run_id if alive, or nil."
   @spec lookup(String.t()) :: pid() | nil
-  def lookup(run_id) do
-    case Registry.lookup(Ichor.Registry, {:genesis_run, run_id}) do
-      [{pid, _}] -> pid
-      [] -> nil
-    end
-  end
+  def lookup(run_id), do: RunnerRegistry.lookup(:genesis_run, run_id)
 
   @doc "Lists all active genesis run IDs and their process PIDs."
   @spec list_all() :: [{String.t(), pid()}]
-  def list_all do
-    Registry.select(Ichor.Registry, [
-      {{{:genesis_run, :"$1"}, :"$2", :_}, [], [{{:"$1", :"$2"}}]}
-    ])
-  end
+  def list_all, do: RunnerRegistry.list_all(:genesis_run)
 
   @impl true
   def init(opts) do
     run_id = Keyword.fetch!(opts, :run_id)
     mode = Keyword.fetch!(opts, :mode)
-    session = Keyword.fetch!(opts, :session)
+    team_spec = Keyword.fetch!(opts, :team_spec)
     node_id = Keyword.get(opts, :node_id)
 
     state = %__MODULE__{
       run_id: run_id,
       mode: mode,
-      session: session,
+      team_spec: team_spec,
       node_id: node_id
     }
 
@@ -80,7 +72,7 @@ defmodule Ichor.Projects.PlanRunner do
     Signals.emit(:genesis_run_init, %{
       run_id: run_id,
       mode: mode,
-      session: session
+      session: team_spec.session
     })
 
     {:ok, state}
@@ -88,7 +80,7 @@ defmodule Ichor.Projects.PlanRunner do
 
   @impl true
   def handle_info(:check_liveness, state) do
-    case Tmux.available?(state.session) do
+    case Tmux.available?(state.team_spec.session) do
       true ->
         schedule_liveness_check()
         {:noreply, state}
@@ -96,7 +88,7 @@ defmodule Ichor.Projects.PlanRunner do
       false ->
         Signals.emit(:genesis_tmux_gone, %{
           run_id: state.run_id,
-          session: state.session
+          session: state.team_spec.session
         })
 
         cleanup(state)
@@ -112,12 +104,12 @@ defmodule Ichor.Projects.PlanRunner do
         state
       )
       when is_binary(from) do
-    case String.starts_with?(from, state.session) do
+    case String.starts_with?(from, state.team_spec.session) do
       true ->
         Signals.emit(:genesis_run_complete, %{
           run_id: state.run_id,
           mode: state.mode,
-          session: state.session,
+          session: state.team_spec.session,
           delivered_by: from
         })
 
@@ -138,8 +130,7 @@ defmodule Ichor.Projects.PlanRunner do
   end
 
   defp cleanup(state) do
-    ModeRunner.kill_session(state.session, state.run_id, state.mode)
-    FleetSupervisor.disband_team(state.session)
+    TeamLaunch.teardown(state.team_spec)
   end
 
   defp schedule_liveness_check do
