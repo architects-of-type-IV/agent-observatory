@@ -388,23 +388,6 @@ defmodule Ichor.MemoryStore do
     end
   end
 
-  defp do_replace(block, old_text, new_text, state) do
-    if String.contains?(block.value, old_text) do
-      new_value = String.replace(block.value, old_text, new_text, global: false)
-
-      case Blocks.save_value(block, new_value) do
-        {:ok, updated} ->
-          {:reply, {:ok, updated},
-           %{state | dirty_blocks: MapSet.put(state.dirty_blocks, block.id)}}
-
-        error ->
-          {:reply, error, state}
-      end
-    else
-      {:reply, {:error, :text_not_found}, state}
-    end
-  end
-
   def handle_call({:memory_insert, agent_name, block_label, position, text}, _from, state) do
     with {:ok, block} <- Blocks.find_agent_block(agent_name, block_label),
          :ok <- Blocks.writable?(block) do
@@ -500,4 +483,21 @@ defmodule Ichor.MemoryStore do
   # ═══════════════════════════════════════════════════════
 
   defp schedule_flush, do: Process.send_after(self(), :flush_to_disk, 10_000)
+
+  defp do_replace(block, old_text, new_text, state) do
+    if String.contains?(block.value, old_text) do
+      new_value = String.replace(block.value, old_text, new_text, global: false)
+
+      case Blocks.save_value(block, new_value) do
+        {:ok, updated} ->
+          {:reply, {:ok, updated},
+           %{state | dirty_blocks: MapSet.put(state.dirty_blocks, block.id)}}
+
+        error ->
+          {:reply, error, state}
+      end
+    else
+      {:reply, {:error, :text_not_found}, state}
+    end
+  end
 end
