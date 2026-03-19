@@ -109,9 +109,13 @@ defmodule IchorWeb.DashboardLive do
       Phoenix.PubSub.subscribe(Ichor.PubSub, "signals:feed")
     end
 
-    socket
-    |> stream_configure(:signals, dom_id: fn {seq, _msg} -> "signal-#{seq}" end)
-    |> stream(:signals, Buffer.recent(200), reset: true)
+    socket =
+      case socket.assigns do
+        %{streams: %{signals: _}} -> socket
+        _ -> stream_configure(socket, :signals, dom_id: fn {seq, _msg} -> "signal-#{seq}" end)
+      end
+
+    stream(socket, :signals, Buffer.recent(200), reset: true)
   end
 
   defp apply_nav_view(:mes, socket) do
