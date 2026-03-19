@@ -12,7 +12,8 @@ defmodule Ichor.MixProject do
       deps: deps(),
       listeners: [Phoenix.CodeReloader],
       dialyzer: [plt_add_apps: [:mix, :ex_unit]],
-      xref: [exclude: xref_excludes()]
+      xref: [exclude: xref_excludes()],
+      consolidate_protocols: Mix.env() != :dev
     ]
   end
 
