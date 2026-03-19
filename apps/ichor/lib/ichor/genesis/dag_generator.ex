@@ -7,17 +7,14 @@ defmodule Ichor.Genesis.DagGenerator do
   Dotted IDs: "{phase_num}.{section_num}.{task_num}.{subtask_num}"
   """
 
-  alias Ichor.Genesis.Phase
-
   @hierarchy_load [sections: [tasks: :subtasks]]
   @compile_gate "mix compile --warnings-as-errors"
 
   @spec generate(String.t()) :: {:ok, [map()]} | {:error, term()}
   def generate(node_id) do
-    with {:ok, phases} <- Phase.by_node(node_id),
-         {:ok, loaded} <- Ash.load(phases, @hierarchy_load) do
+    with {:ok, node} <- Ichor.Genesis.load_node(node_id, phases: @hierarchy_load) do
       tasks =
-        loaded
+        node.phases
         |> flatten_hierarchy()
         |> build_uuid_to_dotted_map()
         |> convert_to_jsonl()

@@ -7,9 +7,9 @@ defmodule IchorWeb.DashboardWorkshopHandlers do
 
   import Phoenix.Component, only: [assign: 3]
 
+  alias Ichor.Workshop
   alias Ichor.Workshop.BlueprintState
   alias Ichor.Workshop.Launcher
-  alias Ichor.Workshop.AgentType
   alias Ichor.Workshop.Persistence, as: WorkshopPersistence
   alias IchorWeb.WorkshopPersistence, as: WP
   alias IchorWeb.WorkshopPresets
@@ -35,7 +35,7 @@ defmodule IchorWeb.DashboardWorkshopHandlers do
   end
 
   def handle_event("ws_add_agent_from_type", %{"id" => id}, socket) do
-    case AgentType.by_id(id) do
+    case Workshop.agent_type(id) do
       {:ok, type} ->
         state =
           socket.assigns

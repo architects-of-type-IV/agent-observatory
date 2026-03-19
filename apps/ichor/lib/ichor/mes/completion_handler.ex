@@ -8,9 +8,9 @@ defmodule Ichor.Mes.CompletionHandler do
 
   require Logger
 
-  alias Ichor.Dag.Run
-  alias Ichor.Genesis.Node
-  alias Ichor.Mes.{Project, SubsystemLoader}
+  alias Ichor.Dag
+  alias Ichor.Mes
+  alias Ichor.Mes.SubsystemLoader
   alias Ichor.Signals
 
   @spec start_link(keyword()) :: GenServer.on_start()
@@ -33,7 +33,7 @@ defmodule Ichor.Mes.CompletionHandler do
   # ── Private ──────────────────────────────────────────────────────
 
   defp handle_completion(%{run_id: run_id}) do
-    with {:ok, run} <- Run.get(run_id),
+    with {:ok, run} <- Dag.get_run(run_id),
          {:ok, node} <- resolve_node(run.node_id),
          {:ok, project} <- resolve_project(node.mes_project_id) do
       compile_and_load(project, run_id)
@@ -56,7 +56,7 @@ defmodule Ichor.Mes.CompletionHandler do
   defp resolve_node(nil), do: {:error, :no_node}
 
   defp resolve_node(node_id) do
-    case Node.get(node_id) do
+    case Ichor.Genesis.get_node(node_id) do
       {:ok, nil} -> {:error, :no_node}
       {:ok, node} -> {:ok, node}
       error -> error
@@ -66,7 +66,7 @@ defmodule Ichor.Mes.CompletionHandler do
   defp resolve_project(nil), do: {:error, :no_project}
 
   defp resolve_project(project_id) do
-    case Project.get(project_id) do
+    case Mes.get_project(project_id) do
       {:ok, nil} -> {:error, :no_project}
       {:ok, project} -> {:ok, project}
       error -> error
@@ -76,14 +76,14 @@ defmodule Ichor.Mes.CompletionHandler do
   defp compile_and_load(project, run_id) do
     case SubsystemLoader.compile_and_load(project) do
       {:ok, modules} ->
-        Project.mark_loaded(project)
+        Mes.mark_loaded(project)
 
         Logger.info(
           "[MES.CompletionHandler] Loaded #{length(modules)} modules for #{project.subsystem}"
         )
 
       {:error, reason} ->
-        Project.mark_failed(project, inspect(reason))
+        Mes.mark_failed(project, inspect(reason))
 
         Signals.emit(:mes_subsystem_compile_failed, %{
           run_id: run_id,

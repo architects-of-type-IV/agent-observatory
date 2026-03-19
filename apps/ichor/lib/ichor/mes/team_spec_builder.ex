@@ -6,9 +6,9 @@ defmodule Ichor.Mes.TeamSpecBuilder do
   alias Ichor.Fleet.Lifecycle.AgentSpec
   alias Ichor.Fleet.Lifecycle.TeamSpec
   alias Ichor.Mes.TeamPrompts
+  alias Ichor.Workshop
   alias Ichor.Workshop.BlueprintState
   alias Ichor.Workshop.Presets, as: WorkshopPresets
-  alias Ichor.Workshop.TeamBlueprint
   alias Ichor.Workshop.TeamSpecBuilder, as: WorkshopTeamSpecBuilder
 
   @spec build_team_spec(String.t(), String.t()) :: TeamSpec.t()
@@ -76,7 +76,7 @@ defmodule Ichor.Mes.TeamSpecBuilder do
   defp project_root, do: File.cwd!()
 
   defp blueprint_state(team_name) do
-    case TeamBlueprint.by_name(blueprint_name()) do
+    case Workshop.blueprint_by_name(blueprint_name()) do
       {:ok, blueprint} ->
         BlueprintState.apply_blueprint(BlueprintState.defaults(), blueprint)
         |> Map.put(:ws_team_name, team_name)

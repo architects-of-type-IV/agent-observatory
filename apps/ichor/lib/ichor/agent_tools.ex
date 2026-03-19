@@ -4,7 +4,7 @@ defmodule Ichor.AgentTools do
   Agents connect to Ichor's MCP server to check inbox,
   send messages, and manage tasks.
   """
-  use Ash.Domain, extensions: [AshAi]
+  use Ash.Domain, extensions: [AshAi], validate_config_inclusion?: false
 
   alias Ichor.AgentTools.{
     Agents,

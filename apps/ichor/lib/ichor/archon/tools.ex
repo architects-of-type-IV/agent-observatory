@@ -3,7 +3,7 @@ defmodule Ichor.Archon.Tools do
   Tool domain for Archon. Exposes fleet, messaging, and system
   query tools via AshAi for LLM tool-use integration.
   """
-  use Ash.Domain, extensions: [AshAi]
+  use Ash.Domain, extensions: [AshAi], validate_config_inclusion?: false
   alias Ichor.Archon.Tools.Agents
   alias Ichor.Archon.Tools.Control
   alias Ichor.Archon.Tools.Events

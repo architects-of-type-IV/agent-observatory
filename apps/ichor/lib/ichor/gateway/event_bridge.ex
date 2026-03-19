@@ -1,7 +1,7 @@
 defmodule Ichor.Gateway.EventBridge do
   @moduledoc """
   Bridges the events:stream into gateway:messages by transforming
-  Ichor.Events.Event structs into DecisionLog format.
+  persisted event records into DecisionLog format.
 
   Subscribes to "events:stream" and broadcasts the transformed
   DecisionLog on "gateway:messages" so the dashboard's gateway

@@ -127,7 +127,7 @@ defmodule Ichor.Mes.SubsystemScaffold.Templates do
     After build, load into the running BEAM:
 
     ```elixir
-    project = Ichor.Mes.Project.get!(project_id)
+    {:ok, project} = Ichor.Mes.get_project(project_id)
     Ichor.Mes.SubsystemLoader.compile_and_load(project)
     ```
 

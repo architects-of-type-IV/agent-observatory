@@ -39,7 +39,7 @@ defmodule Ichor.Dag.RunProcess do
   @spec via(String.t()) :: {:via, Registry, {Ichor.Registry, {:dag_run, String.t()}}}
   def via(run_id), do: {:via, Registry, {Ichor.Registry, {:dag_run, run_id}}}
 
-  @spec sync_job(String.t(), Ichor.Dag.Job.t()) :: :ok
+  @spec sync_job(String.t(), struct() | map()) :: :ok
   def sync_job(run_id, job), do: GenServer.cast(via(run_id), {:sync_job, job})
 
   # ── GenServer Callbacks ───────────────────────────────────────────────

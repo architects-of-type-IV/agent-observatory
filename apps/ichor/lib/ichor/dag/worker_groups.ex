@@ -4,7 +4,7 @@ defmodule Ichor.Dag.WorkerGroups do
   Produces named worker groups for upfront agent spawning.
   """
 
-  @spec group([Ichor.Dag.Job.t()]) :: [map()]
+  @spec group([struct() | map()]) :: [map()]
   def group([]), do: []
 
   def group(jobs) do

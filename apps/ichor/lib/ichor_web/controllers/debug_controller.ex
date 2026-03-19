@@ -2,9 +2,10 @@ defmodule IchorWeb.DebugController do
   @moduledoc "System diagnostics endpoint for quick debugging."
   use IchorWeb, :controller
 
-  alias Ichor.Activity.Message
+  alias Ichor.Activity
   alias Ichor.EventBuffer
-  alias Ichor.Fleet.{Agent, AgentProcess, Team}
+  alias Ichor.Fleet
+  alias Ichor.Fleet.AgentProcess
   alias Ichor.Gateway.Channels.Tmux
   alias Ichor.Gateway.HITLRelay
   alias Ichor.ProtocolTracker
@@ -60,7 +61,7 @@ defmodule IchorWeb.DebugController do
   end
 
   defp check_team_watcher do
-    teams = Team.alive!()
+    teams = Fleet.list_alive_teams()
     team_names = Enum.map(teams, & &1.name)
     member_count = Enum.reduce(teams, 0, fn t, acc -> acc + t.member_count end)
     %{ok: true, teams: team_names, member_count: member_count}
@@ -122,7 +123,7 @@ defmodule IchorWeb.DebugController do
 
   def mailboxes(conn, _params) do
     messages =
-      Message.recent!()
+      Activity.list_recent_messages()
       |> Enum.take(50)
       |> Enum.map(fn m ->
         %{
@@ -139,7 +140,7 @@ defmodule IchorWeb.DebugController do
   end
 
   def fleet_agents(conn, _params) do
-    agents = Agent.all!()
+    agents = Fleet.list_agents()
 
     events = EventBuffer.list_events()
     event_sessions = events |> Enum.map(& &1.session_id) |> Enum.uniq()

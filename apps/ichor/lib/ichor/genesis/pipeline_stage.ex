@@ -1,10 +1,10 @@
 defmodule Ichor.Genesis.PipelineStage do
   @moduledoc """
   Derives pipeline stage from a Genesis Node's loaded associations.
-  Queries Ichor.Dag.Run for :building stage detection (cross-domain read).
+  Queries the DAG domain for :building stage detection.
   """
 
-  alias Ichor.Dag.Run
+  alias Ichor.Dag
 
   @type stage ::
           :ideation
@@ -129,10 +129,7 @@ defmodule Ichor.Genesis.PipelineStage do
   defp has_active_dag_run?(nil), do: false
 
   defp has_active_dag_run?(%{id: node_id}) when is_binary(node_id) do
-    case Run.by_node(node_id) do
-      {:ok, [_ | _]} -> true
-      _ -> false
-    end
+    Dag.runs_by_node(node_id) != []
   end
 
   defp has_active_dag_run?(_), do: false

@@ -10,11 +10,9 @@ defmodule Ichor.Dag.Exporter do
     No-op if run has no project_path.
   """
 
-  alias Ichor.Dag.Job
-
   @spec to_file(String.t(), String.t()) :: :ok | {:error, term()}
   def to_file(run_id, output_path) do
-    with {:ok, jobs} <- Job.by_run(run_id) do
+    with {:ok, jobs} <- Ichor.Dag.fetch_jobs_for_run(run_id) do
       jsonl = Enum.map_join(jobs, "\n", &job_to_jsonl/1)
       File.write!(output_path, jsonl <> "\n")
       :ok
@@ -23,12 +21,12 @@ defmodule Ichor.Dag.Exporter do
 
   @spec to_jsonl(String.t()) :: {:ok, String.t()} | {:error, term()}
   def to_jsonl(run_id) do
-    with {:ok, jobs} <- Job.by_run(run_id) do
+    with {:ok, jobs} <- Ichor.Dag.fetch_jobs_for_run(run_id) do
       {:ok, Enum.map_join(jobs, "\n", &job_to_jsonl/1)}
     end
   end
 
-  @spec sync_to_file(Ichor.Dag.Job.t(), String.t() | nil) :: :ok | {:error, term()}
+  @spec sync_to_file(struct() | map(), String.t() | nil) :: :ok | {:error, term()}
   def sync_to_file(_job, nil), do: :ok
   def sync_to_file(_job, ""), do: :ok
 

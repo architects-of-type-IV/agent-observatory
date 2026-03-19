@@ -3,7 +3,7 @@ defmodule Ichor.Dag.Loader do
 
   alias Ichor.Dag.{Graph, Job, Run, RuntimeSignals}
   alias Ichor.Genesis.DagGenerator
-  alias Ichor.Genesis.Node, as: GenesisNode
+  alias Ichor.Genesis
 
   @spec from_file(String.t(), keyword()) :: {:ok, Run.t()} | {:error, term()}
   def from_file(tasks_jsonl_path, opts \\ []) do
@@ -122,7 +122,7 @@ defmodule Ichor.Dag.Loader do
   end
 
   defp derive_label(node_id) do
-    case GenesisNode.get(node_id) do
+    case Genesis.get_node(node_id) do
       {:ok, node} -> node.title
       _ -> "DAG Run"
     end

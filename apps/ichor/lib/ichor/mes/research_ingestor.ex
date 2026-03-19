@@ -12,7 +12,7 @@ defmodule Ichor.Mes.ResearchIngestor do
   require Logger
 
   alias Ichor.Archon.MemoriesClient
-  alias Ichor.Mes.Project
+  alias Ichor.Mes
   alias Ichor.Signals
   alias Ichor.Signals.Message
 
@@ -78,7 +78,7 @@ defmodule Ichor.Mes.ResearchIngestor do
   end
 
   defp load_project(project_id) do
-    case Project.get(project_id) do
+    case Mes.get_project(project_id) do
       {:ok, project} -> project
       _ -> nil
     end

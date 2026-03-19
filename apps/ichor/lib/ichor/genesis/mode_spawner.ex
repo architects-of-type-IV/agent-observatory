@@ -12,8 +12,7 @@ defmodule Ichor.Genesis.ModeSpawner do
   """
 
   alias Ichor.Genesis.{ModePrompts, ModeRunner, RunProcess}
-  alias Ichor.Genesis.Node, as: GenesisNode
-  alias Ichor.Mes.Project, as: MesProject
+  alias Ichor.Mes
   alias Ichor.Signals
 
   @spec spawn_mode(String.t(), String.t(), String.t() | nil) ::
@@ -59,14 +58,14 @@ defmodule Ichor.Genesis.ModeSpawner do
   def ensure_genesis_node(node_id, _project), do: {:ok, node_id}
 
   defp find_existing_node(project_id) do
-    case GenesisNode.by_project(project_id) do
+    case Ichor.Genesis.node_by_project(project_id) do
       {:ok, [node | _]} -> {:ok, node.id}
       _ -> :not_found
     end
   end
 
   defp create_genesis_node(project) do
-    case GenesisNode.create(%{
+    case Ichor.Genesis.create_node(%{
            title: project.title,
            description: project.description,
            brief: project.description,
@@ -155,7 +154,7 @@ defmodule Ichor.Genesis.ModeSpawner do
   end
 
   def load_project_brief(project_id) do
-    case MesProject.get(project_id) do
+    case Mes.get_project(project_id) do
       {:ok, project} ->
         """
         PROJECT BRIEF: #{project.title}

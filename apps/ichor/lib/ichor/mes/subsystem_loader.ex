@@ -14,7 +14,7 @@ defmodule Ichor.Mes.SubsystemLoader do
 
   # ── Public API ──────────────────────────────────────────────────────
 
-  @spec compile_and_load(Ichor.Mes.Project.t()) :: {:ok, [module()]} | {:error, String.t()}
+  @spec compile_and_load(struct() | map()) :: {:ok, [module()]} | {:error, String.t()}
   def compile_and_load(project) do
     path = project.path || Path.join(@subsystems_dir, project.subsystem)
 

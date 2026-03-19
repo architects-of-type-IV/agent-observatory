@@ -33,7 +33,7 @@ defmodule Ichor.Dag.HealthChecker do
     end
   end
 
-  @spec analyze([Ichor.Dag.Job.t()], DateTime.t()) :: report()
+  @spec analyze([struct() | map()], DateTime.t()) :: report()
   def analyze(jobs, now) do
     nodes = Enum.map(jobs, &Graph.to_graph_node/1)
     stats = Graph.pipeline_stats(nodes)

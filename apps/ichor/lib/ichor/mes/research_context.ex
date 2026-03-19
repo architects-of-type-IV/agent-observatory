@@ -11,7 +11,7 @@ defmodule Ichor.Mes.ResearchContext do
   Pure function module. No state, no process, no cache.
   """
 
-  alias Ichor.Mes.Project
+  alias Ichor.Mes
 
   @core_subsystems [
     {"HITLRelay", "human-in-the-loop pause/resume gating"},
@@ -92,17 +92,11 @@ defmodule Ichor.Mes.ResearchContext do
   # ── Private: Data Queries ───────────────────────────────────────────
 
   defp loaded_projects do
-    case Project.by_status(:loaded) do
-      {:ok, projects} -> projects
-      _ -> []
-    end
+    Mes.loaded_projects()
   end
 
   defp all_projects do
-    case Project.list_all() do
-      {:ok, projects} -> projects
-      _ -> []
-    end
+    Mes.all_projects()
   end
 
   # ── Private: Subsystems ─────────────────────────────────────────────

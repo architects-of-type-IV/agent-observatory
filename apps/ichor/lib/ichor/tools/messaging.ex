@@ -55,7 +55,7 @@ defmodule Ichor.Tools.Messaging do
   end
 
   defp fleet_agent_module do
-    Application.get_env(:ichor, :tools_messaging_fleet_agent_module, Ichor.Fleet.Agent)
+    Application.get_env(:ichor, :tools_messaging_fleet_agent_module, Ichor.Fleet)
   end
 
   defp router_module do
