@@ -382,23 +382,26 @@ defmodule Ichor.MemoryStore do
   def handle_call({:memory_replace, agent_name, block_label, old_text, new_text}, _from, state) do
     with {:ok, block} <- Blocks.find_agent_block(agent_name, block_label),
          :ok <- Blocks.writable?(block) do
-      if String.contains?(block.value, old_text) do
-        case Blocks.save_value(
-               block,
-               String.replace(block.value, old_text, new_text, global: false)
-             ) do
-          {:ok, updated} ->
-            {:reply, {:ok, updated},
-             %{state | dirty_blocks: MapSet.put(state.dirty_blocks, block.id)}}
-
-          error ->
-            {:reply, error, state}
-        end
-      else
-        {:reply, {:error, :text_not_found}, state}
-      end
+      do_replace(block, old_text, new_text, state)
     else
       error -> {:reply, error, state}
+    end
+  end
+
+  defp do_replace(block, old_text, new_text, state) do
+    if String.contains?(block.value, old_text) do
+      new_value = String.replace(block.value, old_text, new_text, global: false)
+
+      case Blocks.save_value(block, new_value) do
+        {:ok, updated} ->
+          {:reply, {:ok, updated},
+           %{state | dirty_blocks: MapSet.put(state.dirty_blocks, block.id)}}
+
+        error ->
+          {:reply, error, state}
+      end
+    else
+      {:reply, {:error, :text_not_found}, state}
     end
   end
 
