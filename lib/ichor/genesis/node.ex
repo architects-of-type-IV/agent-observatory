@@ -10,7 +10,8 @@ defmodule Ichor.Genesis.Node do
 
   use Ash.Resource,
     domain: Ichor.Genesis,
-    data_layer: AshSqlite.DataLayer
+    data_layer: AshSqlite.DataLayer,
+    simple_notifiers: [Ichor.Signals.FromAsh]
 
   sqlite do
     repo(Ichor.Repo)

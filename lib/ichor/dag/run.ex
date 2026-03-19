@@ -6,7 +6,8 @@ defmodule Ichor.Dag.Run do
 
   use Ash.Resource,
     domain: Ichor.Dag,
-    data_layer: AshSqlite.DataLayer
+    data_layer: AshSqlite.DataLayer,
+    simple_notifiers: [Ichor.Signals.FromAsh]
 
   sqlite do
     repo(Ichor.Repo)

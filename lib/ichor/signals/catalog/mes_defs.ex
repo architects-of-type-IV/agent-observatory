@@ -175,6 +175,16 @@ defmodule Ichor.Signals.Catalog.MesDefs do
         keys: [:run_id, :reason],
         doc: "Research brief ingest to knowledge graph failed"
       },
+      mes_project_compiled: %{
+        category: :mes,
+        keys: [:project_id, :title],
+        doc: "MES project marked as compiled"
+      },
+      mes_project_failed: %{
+        category: :mes,
+        keys: [:project_id, :title],
+        doc: "MES project marked as failed"
+      },
       mes_subsystem_compile_failed: %{
         category: :mes,
         keys: [:run_id, :project_id, :reason],

@@ -38,10 +38,20 @@ defmodule Ichor.Signals.Catalog.GenesisDagDefs do
         keys: [:run_id, :mode],
         doc: "RunProcess GenServer terminated"
       },
+      genesis_node_created: %{
+        category: :genesis,
+        keys: [:id, :node_id, :title, :type],
+        doc: "Genesis Node created"
+      },
+      genesis_node_advanced: %{
+        category: :genesis,
+        keys: [:id, :node_id, :title, :type],
+        doc: "Genesis Node advanced to next pipeline stage"
+      },
       genesis_artifact_created: %{
         category: :genesis,
         keys: [:id, :node_id, :type],
-        doc: "Genesis artifact created via MCP tool (ADR, Feature, UseCase, Checkpoint, etc.)"
+        doc: "Genesis artifact created (ADR, Feature, UseCase, Phase, etc.)"
       },
       dag_run_created: %{
         category: :dag,
