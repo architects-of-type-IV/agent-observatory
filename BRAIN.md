@@ -11,39 +11,53 @@
 - **Ichor.Tools** -- MCP surfaces, 21 resources, capability-based with Profiles
 - **Signals bus** -- infrastructure/nervous system. Not a domain.
 
+## File Structure (post-reorg, 214 files)
+- control/ -- 39 modules (agent lifecycle, fleet, workshop)
+- projects/ -- 64 modules (genesis planning, MES lifecycle, DAG execution)
+- observability/ -- 12 modules (events, activity, preparations)
+- tools/agent/ -- 12 MCP tool resources for agents
+- tools/archon/ -- 9 MCP tool resources for archon
+- gateway/ -- 20 modules (transport infrastructure)
+- archon/ -- 13 modules (chat, signal_manager, team_watchdog)
+- signals/ -- 7 modules (bus, buffer, catalog, from_ash)
+- Infrastructure: memory_store/, mesh/, tasks/, plugs/, architecture/
+
 ## Core Principles
 - Domain is the ONLY public API. Resources NEVER called directly.
 - Ash DSL replaces custom helpers (calculations, aggregates, preparations, generic actions).
 - No raw Ecto.Schema/Changeset/Repo (exception: DecisionLog transport envelope).
 - Module exists only if it owns: process, framework callback, or multi-caller contract.
-- Same data shape = same module. Single caller = private function.
 - Signals is the nervous system -- mass decoupling and chaining.
 
-## AshAi Tool Scoping
-- Ichor.Tools.Profiles: agent/0 and archon/0 tool lists
-- Router: /mcp (agent tools), /mcp/archon (archon tools)
-- Ash.can? policies for secondary filtering
+## Known Anti-Patterns (from deep audit)
+- Domain modules (control.ex, projects.ex) are 100% pass-through wrappers -- should use Ash `define` on resources
+- 3 lifecycle GenServers share 60 lines of identical boilerplate
+- 3 spawn chains (MES, Genesis, DAG) should converge to Workshop presets
+- Spawn links ≠ comm rules (spawn links must be DAG, comm rules can cycle)
+- GenesisFormatter.to_map emits signals (impure side effect in projection function)
+- Virtual resources with FromAsh notifiers never fire (dead code)
 
-## Signal-First Architecture
-- Buffer stores {seq, %Message{}}. LiveView streams (at: 0, limit: 200).
-- Per-category renderers. EntryFormatter removed from hot path.
-- 13 Ash.Type.Enums for constraint enforcement.
+## MES Team Topology (restored to original)
+- Coordinator → Lead → (Researcher-1 + Researcher-2 parallel) → Lead → Planner → Lead → Coordinator → Operator
+- Lead is ACTIVE DISPATCHER (assigns topics, collects results, forwards to planner)
+- Spawn links are a tree (coordinator spawns all). Comm rules are cyclic (message flow).
 
-## What's Next
-- Physical file reorganization: move files to match 4-domain directory structure
-- RunProcess lifecycle consolidation
-- Component library
+## Workshop Presets
+- 5 presets: dag, solo, research, review, mes
+- UI buttons generated from Presets.ui_list/0 (data-driven, not hardcoded)
+- MES uses preset as fallback when no DB blueprint named "mes" exists
+- Genesis and DAG bypass Workshop entirely (separate spawn chains -- consolidation target)
+
+## Dependency Cycles (5 found via mix xref)
+- Control: 14-node compile cycle (biggest problem)
+- Projects: 6-node cycle through exporter/health_checker/job/run_process
+- Projects lifecycle: 4-node cycle (build_runner/janitor/team_cleanup/team_lifecycle)
+- Archon chat: 2-node mutual dependency
+- Web: 13-node standard Phoenix router cycle
 
 ## User Preferences
-- Always consult codex. All agents ash-elixir-expert. Coordinate and delegate.
-- No backward compat. Surgical edits. Frontend must work. Split work evenly.
-- Tests during refactor: delete, don't adapt. Resources always through domain.
-
-## Namespace Consolidation (2026-03-19)
-- Genesis + Mes + Dag all merged into Ichor.Projects
-- Supervisors get semantic names: PlanSupervisor, LifecycleSupervisor, ExecutionSupervisor
-- RunProcess instances: PlanRunner (genesis), BuildRunner (mes), RunProcess (dag)
-- Dag.Projects -> Catalog; Dag.Analysis -> DagAnalysis; Dag.Prompts -> DagPrompts
-- Genesis.Task -> RoadmapTask (collision avoidance with Ash.Type concepts)
-- Multi-alias forms (alias Mod.{A,B}) not handled by perl s/// -- require manual grep+fix
-- `has_many` relationship destination_attribute must be explicit when FK name != resource_snake_case + "_id"
+- Always consult codex (direct `codex exec --full-auto` for advisory, run.sh for code)
+- All implementation agents: ash-elixir-expert. Research agents: code-explorer.
+- Coordinate and delegate. No direct code edits from coordinator.
+- No backward compat. Surgical edits. Frontend must work. Split work evenly by file count.
+- Tests during refactor: delete, don't adapt.

@@ -6,34 +6,15 @@ tree = wc.spawn_tree_html(@ws_agents, @ws_spawn_links) %>
   <div class="flex items-center px-2 py-1 border-b border-border gap-2 shrink-0">
     <div class="flex items-center rounded overflow-hidden border border-border-subtle/60">
       <span class="text-[10px] text-muted px-1.5 py-1 bg-raised/80">Presets</span>
-      <button
-        phx-click="ws_preset"
-        phx-value-name="dag"
-        class="text-[10px] px-2 py-1 bg-cyan/10 text-cyan hover:bg-cyan/20 transition cursor-pointer"
-      >
-        DAG Pipeline
-      </button>
-      <button
-        phx-click="ws_preset"
-        phx-value-name="solo"
-        class="text-[10px] px-2 py-1 bg-success/10 text-success hover:bg-success/20 transition cursor-pointer"
-      >
-        Solo Builder
-      </button>
-      <button
-        phx-click="ws_preset"
-        phx-value-name="research"
-        class="text-[10px] px-2 py-1 bg-violet/10 text-violet hover:bg-violet/20 transition cursor-pointer"
-      >
-        Research Squad
-      </button>
-      <button
-        phx-click="ws_preset"
-        phx-value-name="review"
-        class="text-[10px] px-2 py-1 bg-brand/10 text-brand hover:bg-brand/20 transition cursor-pointer"
-      >
-        Review Chain
-      </button>
+      <%= for p <- Ichor.Control.Presets.ui_list() do %>
+        <button
+          phx-click="ws_preset"
+          phx-value-name={p.name}
+          class={"text-[10px] px-2 py-1 bg-#{p.color}/10 text-#{p.color} hover:bg-#{p.color}/20 transition cursor-pointer"}
+        >
+          <%= p.label %>
+        </button>
+      <% end %>
       <button
         phx-click="ws_clear"
         class="text-[10px] px-2 py-1 bg-error/10 text-error hover:bg-error/20 transition cursor-pointer"

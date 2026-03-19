@@ -28,8 +28,15 @@
 - [x] Tool name mismatches fixed (4, per codex review)
 - [x] 7 stale tests/stubs removed
 - [x] Doc/spec sweep dispatched (5 parallel agents)
-- [ ] Physical file reorganization (move files to match 4-domain structure)
-- [ ] RunProcess lifecycle consolidation
+- [x] Physical file reorganization (136 modules renamed, 4 batches, committed 34fe9ee)
+- [x] Deep codebase audit (4 reports: control, projects, obs+tools, infrastructure)
+- [x] MES team topology restored (lead as active dispatcher)
+- [x] Stream crash fix (stream_configure guard)
+- [x] Workshop presets data-driven (loop, not hardcoded buttons)
+- [x] MES spawn fix (cyclic spawn links → tree)
+- [ ] Remove ~100 domain wrapper functions (use Ash define on resources)
+- [ ] RunProcess lifecycle consolidation (3 GenServers → shared behaviour)
+- [ ] Spawn chain consolidation (3 paths → 1 Workshop-based)
 - [ ] Component library implementation
 
 ## Domain Centralization + Signal Feed + Consolidation (2026-03-19) -- COMPLETE

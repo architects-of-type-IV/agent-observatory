@@ -5,6 +5,8 @@ defmodule Ichor.Control.Presets do
 
   @presets %{
     "dag" => %{
+      label: "DAG Pipeline",
+      color: "cyan",
       team_name: "dag-execution",
       strategy: "one_for_one",
       model: "sonnet",
@@ -44,6 +46,8 @@ defmodule Ichor.Control.Presets do
       ]
     },
     "solo" => %{
+      label: "Solo Builder",
+      color: "success",
       team_name: "solo",
       strategy: "one_for_one",
       model: "opus",
@@ -66,6 +70,8 @@ defmodule Ichor.Control.Presets do
       rules: []
     },
     "research" => %{
+      label: "Research Squad",
+      color: "violet",
       team_name: "research-squad",
       strategy: "one_for_all",
       model: "sonnet",
@@ -128,6 +134,8 @@ defmodule Ichor.Control.Presets do
         )
     },
     "review" => %{
+      label: "Review Chain",
+      color: "brand",
       team_name: "review-chain",
       strategy: "rest_for_one",
       model: "sonnet",
@@ -193,7 +201,9 @@ defmodule Ichor.Control.Presets do
       ]
     },
     "mes" => %{
-      team_name: "mes-template",
+      label: "MES Factory",
+      color: "warning",
+      team_name: "mes",
       strategy: "one_for_one",
       model: "sonnet",
       agents: [
@@ -261,12 +271,9 @@ defmodule Ichor.Control.Presets do
       next_id: 6,
       links: [
         %{from: 1, to: 2},
-        %{from: 2, to: 4},
-        %{from: 2, to: 5},
-        %{from: 4, to: 2},
-        %{from: 5, to: 2},
-        %{from: 2, to: 3},
-        %{from: 3, to: 1}
+        %{from: 1, to: 3},
+        %{from: 1, to: 4},
+        %{from: 1, to: 5}
       ],
       rules: [
         %{from: 1, to: 2, policy: "allow", via: nil},
@@ -284,6 +291,16 @@ defmodule Ichor.Control.Presets do
   @doc "Return the list of all preset names."
   @spec names() :: [String.t()]
   def names, do: Map.keys(@presets)
+
+  @doc "Return preset metadata for UI rendering: [{name, label, color}]."
+  @spec ui_list() :: [%{name: String.t(), label: String.t(), color: String.t()}]
+  def ui_list do
+    @presets
+    |> Enum.map(fn {name, preset} ->
+      %{name: name, label: preset.label, color: preset.color}
+    end)
+    |> Enum.sort_by(& &1.name)
+  end
 
   @doc "Fetch a preset by name."
   @spec fetch(String.t()) :: {:ok, map()} | :error
