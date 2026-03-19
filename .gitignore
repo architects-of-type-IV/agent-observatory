@@ -42,3 +42,4 @@ npm-debug.log
 .env
 bin/
 _build_xref/
+.expert
