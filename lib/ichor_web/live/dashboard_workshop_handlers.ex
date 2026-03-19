@@ -8,9 +8,10 @@ defmodule IchorWeb.DashboardWorkshopHandlers do
   import Phoenix.Component, only: [assign: 3]
 
   alias Ichor.Control
+  alias Ichor.Fleet.Lifecycle
   alias Ichor.Workshop.BlueprintState
-  alias Ichor.Workshop.Launcher
   alias Ichor.Workshop.Persistence, as: WorkshopPersistence
+  alias Ichor.Workshop.TeamSpecBuilder
   alias IchorWeb.WorkshopPersistence, as: WP
   alias IchorWeb.WorkshopPresets
   alias Phoenix.LiveView
@@ -130,7 +131,7 @@ defmodule IchorWeb.DashboardWorkshopHandlers do
   end
 
   def handle_event("ws_launch_team", _, socket) do
-    case Launcher.launch(socket.assigns) do
+    case launch_team(socket.assigns) do
       {:ok, result} ->
         {:noreply,
          flash(
@@ -141,6 +142,20 @@ defmodule IchorWeb.DashboardWorkshopHandlers do
 
       {:error, reason} ->
         {:noreply, flash(socket, :error, "Failed to launch team: #{inspect(reason)}")}
+    end
+  end
+
+  defp launch_team(state) do
+    spec = TeamSpecBuilder.build_from_state(state)
+
+    with {:ok, session} <- Lifecycle.launch_team(spec) do
+      {:ok,
+       %{
+         team_name: spec.team_name,
+         session: session,
+         launched: length(spec.agents),
+         total: length(spec.agents)
+       }}
     end
   end
 

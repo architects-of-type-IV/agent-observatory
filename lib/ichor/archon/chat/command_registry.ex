@@ -3,7 +3,6 @@ defmodule Ichor.Archon.Chat.CommandRegistry do
   Maps parsed Archon slash commands to Ash actions and typed responses.
   """
 
-  alias Ichor.Archon.Chat.ActionRunner
   alias Ichor.Archon.CommandManifest
   alias Ichor.Archon.Tools.Agents
   alias Ichor.Archon.Tools.Control
@@ -145,12 +144,11 @@ defmodule Ichor.Archon.Chat.CommandRegistry do
   end
 
   defp run(type, resource, action, params) do
-    action_runner().run(type, resource, action, params)
+    case Ash.ActionInput.for_action(resource, action, params) |> Ash.run_action() do
+      {:ok, result} -> {:ok, %{type: type, data: result}}
+      {:error, reason} -> {:error, reason}
+    end
   end
 
   defp usage_error(usage), do: %{type: :error, data: "Usage: #{usage}"}
-
-  defp action_runner do
-    Application.get_env(:ichor, :archon_chat_action_runner_module, ActionRunner)
-  end
 end

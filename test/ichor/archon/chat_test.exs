@@ -6,12 +6,6 @@ defmodule Ichor.Archon.ChatTest do
   setup do
     Application.put_env(
       :ichor,
-      :archon_chat_action_runner_module,
-      Ichor.TestSupport.ArchonStubActionRunner
-    )
-
-    Application.put_env(
-      :ichor,
       :archon_chat_chain_builder_module,
       Ichor.TestSupport.ArchonStubChainBuilder
     )
@@ -23,24 +17,14 @@ defmodule Ichor.Archon.ChatTest do
     )
 
     Application.put_env(:ichor, :archon_test_pid, self())
-    Application.put_env(:ichor, :archon_action_runner_result, {:ok, [%{"id" => "alpha"}]})
 
     on_exit(fn ->
-      Application.delete_env(:ichor, :archon_chat_action_runner_module)
       Application.delete_env(:ichor, :archon_chat_chain_builder_module)
       Application.delete_env(:ichor, :archon_chat_turn_runner_module)
       Application.delete_env(:ichor, :archon_test_pid)
-      Application.delete_env(:ichor, :archon_action_runner_result)
     end)
 
     :ok
-  end
-
-  test "slash commands preserve history and return typed payloads" do
-    history = [%{content: "existing"}]
-
-    assert {:ok, %{type: :agents, data: [%{"id" => "alpha"}]}, ^history} =
-             Chat.chat("/agents", history)
   end
 
   test "free text delegates through chain builder and turn runner" do

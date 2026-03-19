@@ -13,15 +13,104 @@ defmodule Ichor.Signals.Catalog do
           doc: String.t()
         }
 
-  alias Ichor.Signals.Catalog.CoreDefs
   alias Ichor.Signals.Catalog.GatewayAgentDefs
   alias Ichor.Signals.Catalog.GenesisDagDefs
   alias Ichor.Signals.Catalog.MesDefs
-  alias Ichor.Signals.Catalog.TeamMonitoringDefs
 
-  @signals CoreDefs.definitions()
+  @core_defs %{
+    agent_started: %{
+      category: :fleet,
+      keys: [:session_id, :role, :team],
+      doc: "AgentProcess init"
+    },
+    agent_paused: %{category: :fleet, keys: [:session_id], doc: "Agent paused via HITL"},
+    agent_resumed: %{category: :fleet, keys: [:session_id], doc: "Agent resumed"},
+    agent_stopped: %{
+      category: :fleet,
+      keys: [:session_id, :reason],
+      doc: "AgentProcess terminated"
+    },
+    team_created: %{category: :fleet, keys: [:name, :project, :strategy], doc: "New team started"},
+    team_disbanded: %{category: :fleet, keys: [:team_name], doc: "Team removed"},
+    hosts_changed: %{category: :fleet, keys: [], doc: "Cluster node joined/departed"},
+    fleet_changed: %{category: :fleet, keys: [:agent_id], doc: "Agent Registry metadata changed"},
+    heartbeat: %{category: :system, keys: [:count], doc: "Monotonic counter every 5s"},
+    registry_changed: %{category: :system, keys: [], doc: "Agent registry modified"},
+    dashboard_command: %{
+      category: :system,
+      keys: [:command],
+      doc: "External command to dashboard"
+    },
+    new_event: %{category: :events, keys: [:event], doc: "Hook event ingested by EventController"},
+    message_delivered: %{
+      category: :messages,
+      keys: [:agent_id, :msg_map],
+      doc: "Message delivered to agent"
+    },
+    block_changed: %{category: :memory, keys: [:block_id, :label], doc: "Memory block modified"},
+    memory_changed: %{
+      category: :memory,
+      keys: [:agent_name, :event],
+      dynamic: true,
+      doc: "Per-agent memory change"
+    },
+    agent_evicted: %{
+      category: :fleet,
+      keys: [:session_id],
+      doc: "Agent evicted due to missed heartbeats"
+    },
+    agent_reaped: %{
+      category: :fleet,
+      keys: [:session_id],
+      doc: "Dead agent reaped by TmuxDiscovery"
+    },
+    agent_discovered: %{
+      category: :fleet,
+      keys: [:session_id],
+      doc: "Agent discovered via tmux session scan"
+    }
+  }
+
+  @team_monitoring_defs %{
+    task_created: %{category: :team, keys: [:task], dynamic: true, doc: "New task added"},
+    task_updated: %{category: :team, keys: [:task], dynamic: true, doc: "Task status changed"},
+    task_deleted: %{category: :team, keys: [:task_id], dynamic: true, doc: "Task removed"},
+    tasks_updated: %{category: :team, keys: [:team_name], doc: "Team task list changed"},
+    protocol_update: %{
+      category: :monitoring,
+      keys: [:stats_map],
+      doc: "Protocol stats recomputed"
+    },
+    gate_passed: %{
+      category: :monitoring,
+      keys: [:session_id, :task_id],
+      doc: "Quality gate passed"
+    },
+    gate_failed: %{
+      category: :monitoring,
+      keys: [:session_id, :task_id, :output],
+      doc: "Quality gate failed"
+    },
+    agent_done: %{
+      category: :monitoring,
+      keys: [:session_id, :summary],
+      doc: "Agent signalled DONE"
+    },
+    agent_blocked: %{
+      category: :monitoring,
+      keys: [:session_id, :reason],
+      doc: "Agent signalled BLOCKED"
+    },
+    watchdog_sweep: %{
+      category: :monitoring,
+      keys: [:orphaned_count],
+      doc: "TeamWatchdog periodic sweep completed"
+    }
+  }
+
+  @signals @core_defs
            |> Map.merge(GatewayAgentDefs.definitions())
-           |> Map.merge(TeamMonitoringDefs.definitions())
+           |> Map.merge(@team_monitoring_defs)
            |> Map.merge(MesDefs.definitions())
            |> Map.merge(GenesisDagDefs.definitions())
 

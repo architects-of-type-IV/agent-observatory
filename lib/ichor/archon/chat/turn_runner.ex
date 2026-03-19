@@ -4,7 +4,6 @@ defmodule Ichor.Archon.Chat.TurnRunner do
   """
 
   alias Ichor.Archon.Chat.ContextBuilder
-  alias Ichor.Archon.Chat.ResponseFormatter
   alias LangChain.Chains.LLMChain
   alias LangChain.Message
 
@@ -39,7 +38,7 @@ defmodule Ichor.Archon.Chat.TurnRunner do
   defp execute_turn(chain) do
     case llm_chain_module().run(chain, mode: :while_needs_response) do
       {:ok, updated_chain} ->
-        {:ok, response_formatter_module().extract(updated_chain), updated_chain.messages}
+        {:ok, extract_response(updated_chain), updated_chain.messages}
 
       {:error, _chain, error} ->
         Logger.warning("Archon chat failed: #{inspect(error)}")
@@ -47,12 +46,20 @@ defmodule Ichor.Archon.Chat.TurnRunner do
     end
   end
 
-  defp context_builder_module do
-    Application.get_env(:ichor, :archon_chat_context_builder_module, ContextBuilder)
+  defp extract_response(%{last_message: %{content: content}}) when is_binary(content), do: content
+
+  defp extract_response(%{last_message: %{content: parts}}) when is_list(parts) do
+    Enum.map_join(parts, "\n", &content_part_text/1)
   end
 
-  defp response_formatter_module do
-    Application.get_env(:ichor, :archon_chat_response_formatter_module, ResponseFormatter)
+  defp extract_response(_), do: "No response."
+
+  defp content_part_text(%{content: text}) when is_binary(text), do: text
+  defp content_part_text(text) when is_binary(text), do: text
+  defp content_part_text(other), do: inspect(other)
+
+  defp context_builder_module do
+    Application.get_env(:ichor, :archon_chat_context_builder_module, ContextBuilder)
   end
 
   defp llm_chain_module do

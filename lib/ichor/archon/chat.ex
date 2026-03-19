@@ -8,7 +8,7 @@ defmodule Ichor.Archon.Chat do
   """
 
   alias Ichor.Archon.Chat.ChainBuilder
-  alias Ichor.Archon.Chat.Commands
+  alias Ichor.Archon.Chat.CommandRegistry
   alias Ichor.Archon.Chat.TurnRunner
 
   @doc """
@@ -18,7 +18,7 @@ defmodule Ichor.Archon.Chat do
   """
   @spec chat(String.t(), list()) :: {:ok, String.t() | map(), list()} | {:error, term()}
   def chat("/" <> _ = input, messages) do
-    case commands_module().run(input) do
+    case run_command(input) do
       {:ok, response} -> {:ok, response, messages}
       {:error, reason} -> {:ok, %{type: :error, data: inspect(reason)}, messages}
     end
@@ -30,8 +30,18 @@ defmodule Ichor.Archon.Chat do
     end
   end
 
-  defp commands_module do
-    Application.get_env(:ichor, :archon_chat_commands_module, Commands)
+  defp run_command(input) do
+    with {:ok, command} <- parse_command(input) do
+      CommandRegistry.dispatch(command)
+    end
+  end
+
+  defp parse_command(input) when is_binary(input) do
+    trimmed = String.trim(input)
+    [command | rest] = String.split(trimmed, " ", parts: 2)
+    remainder = List.first(rest)
+
+    {:ok, %{raw: trimmed, command: command, remainder: remainder}}
   end
 
   defp chain_builder_module do
