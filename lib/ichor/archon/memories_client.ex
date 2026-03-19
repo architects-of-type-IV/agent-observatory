@@ -10,8 +10,6 @@ defmodule Ichor.Archon.MemoriesClient do
   with a `{"data": {args}}` envelope.
   """
 
-  import Ichor.MapHelpers, only: [maybe_put: 3]
-
   require Logger
 
   defmodule IngestResult do
@@ -108,7 +106,7 @@ defmodule Ichor.Archon.MemoriesClient do
         type: type,
         source: source
       }
-      |> maybe_put(:space, space)
+      |> then(fn map -> if space, do: Map.put(map, :space, space), else: map end)
 
     with {:ok, resp} <- post("/api/episodes/ingest", body) do
       {:ok, to_ingest_result(resp)}
