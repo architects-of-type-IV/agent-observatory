@@ -10,7 +10,7 @@
 - [x] Phase 3c: DAG → Projects (2 resources, 3 callers)
 - [x] Phase 4: AgentTools + Archon.Tools → Tools (4 tool name collisions resolved, 21 resources)
 - [x] Codex architecture review: PASS
-- [x] validate_config_inclusion? re-enabled on all domains
+- [x] validate_config_inclusion? re-enabled on all domains EXCEPT Tools (tools.ex:8 still false)
 
 ## Ecto→Ash Resource Conversion (2026-03-19) -- COMPLETE
 - [x] WebhookDelivery → Ash Resource in Control (8 Repo calls eliminated, DeliveryStatus enum)
@@ -34,10 +34,19 @@
 - [x] Stream crash fix (stream_configure guard)
 - [x] Workshop presets data-driven (loop, not hardcoded buttons)
 - [x] MES spawn fix (cyclic spawn links → tree)
-- [ ] Remove ~100 domain wrapper functions (use Ash define on resources)
-- [ ] RunProcess lifecycle consolidation (3 GenServers → shared behaviour)
-- [ ] Spawn chain consolidation (3 paths → 1 Workshop-based)
-- [ ] Component library implementation
+- [x] Nested module extraction (11 modules from 3 parents into own files)
+- [x] CLAUDE.md ground rules (coordinator model, agent routing, codex patterns)
+- [x] Session 3 plan: codex-reviewed twice (14+6 findings), approved
+- [x] Oban candidate audit (5 strong, 5 maybe, 2 bugs found)
+- [x] State document audit (9 stale claims identified and fixed)
+- [ ] Phase 1: Quick wins (dead notifier, unsafe atoms, EventBuffer, team.ex, termination)
+- [ ] Phase 2: Spawn convergence (all teams through Workshop + TeamLaunch)
+- [ ] Phase 3: Runner helper extraction (use macro, not behaviour)
+- [ ] Phase 4: Registry cleanup (stale deps + helper extraction)
+- [ ] Phase 5: Safety sweep (impure formatter, validate_config, async write-through)
+- [ ] Phase 6: Domain wrapper removal (Ash define on resources)
+- [ ] Oban installation + migration of 5 strong candidates
+- [ ] Component library (deferred)
 
 ## Domain Centralization + Signal Feed + Consolidation (2026-03-19) -- COMPLETE
 - [x] Genesis domain: 27 new functions for 9 sub-resources, 3 agent tools rewired
@@ -49,8 +58,7 @@
 - [x] AgentWatchdog: 4 GenServers merged -> 1 + 3 pure helpers (EventState, NudgePolicy, PaneParser)
 - [x] Module consolidation: deleted archon.ex, mailer.ex; moved event_janitor, heartbeat
 - [x] Ash.Type.Enum: 5 HIGH extracted (HookEventType, AgentStatus, HealthStatus, NodeStatus, ProjectStatus)
-- [x] Build fix: consolidate_protocols: false in dev
-- [ ] Ash.Type.Enum: 6 MEDIUM/LOW remaining (JobPriority, JobStatus, RunStatus, RunSource, SessionStatus, WorkStatus)
+- [x] Ash.Type.Enum: 6 MEDIUM/LOW extracted (JobPriority, JobStatus, RunStatus, RunSource, SessionStatus, WorkStatus)
 - [ ] Comprehensive usage_rules.search_docs validation
 
 ## Ash DSL + Code Interface Audit (2026-03-19) -- COMPLETE
@@ -88,7 +96,7 @@
 - [x] Dead code removal: 18 modules deleted, 20+ dead functions, 410 -> 392 files
 - [x] 6 consolidation audits (gateway, fleet, core, dag, mes/archon, web helpers)
 - [x] Ash enum candidates identified (11, saved to memory)
-- [ ] Ash.Type.Enum extraction (11 candidates)
+- [x] Ash.Type.Enum extraction (11 candidates -- done, types/ dirs exist)
 - [ ] @spec coverage on remaining public functions
 - [ ] E2E test: Build PulseMonitor with boundary enforcement
 - [ ] Boundary violation fixes (web helpers imported by core)
