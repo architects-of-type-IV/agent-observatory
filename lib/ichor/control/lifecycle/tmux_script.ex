@@ -30,6 +30,17 @@ defmodule Ichor.Control.Lifecycle.TmuxScript do
     :ok
   end
 
+  @doc "Remove the .txt and .sh files for a single agent from `base_dir`. Idempotent."
+  @spec cleanup_agent_files(String.t(), String.t()) :: :ok
+  def cleanup_agent_files(base_dir, file_name) do
+    for ext <- [".txt", ".sh"] do
+      path = Path.join(base_dir, "#{file_name}#{ext}")
+      if File.exists?(path), do: File.rm(path)
+    end
+
+    :ok
+  end
+
   @doc "Render the shell script that launches Claude with the given prompt, model, and capability."
   @spec render_script(String.t(), String.t(), String.t()) :: String.t()
   def render_script(prompt_path, model, capability) do

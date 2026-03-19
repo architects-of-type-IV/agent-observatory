@@ -11,7 +11,18 @@ defmodule Ichor.Control.Lifecycle.TeamLaunch do
 
   @doc "Launch a full multi-agent team: creates tmux session, all windows, and registers all agents."
   @spec launch(TeamSpec.t()) :: {:ok, String.t()} | {:error, term()}
-  def launch(%TeamSpec{agents: [first | rest]} = spec) do
+  def launch(%TeamSpec{} = spec) do
+    case do_launch(spec) do
+      {:ok, session} ->
+        {:ok, session}
+
+      {:error, reason} ->
+        teardown(spec)
+        {:error, reason}
+    end
+  end
+
+  defp do_launch(%TeamSpec{agents: [first | rest]} = spec) do
     with {:ok, scripts} <- write_agent_files(spec),
          :ok <-
            TmuxLauncher.create_session(
@@ -90,11 +101,17 @@ defmodule Ichor.Control.Lifecycle.TeamLaunch do
   """
   @spec teardown(TeamSpec.t()) :: :ok
   def teardown(%TeamSpec{} = spec) do
-    _ = TmuxLauncher.kill_session(spec.session)
-    _ = FleetSupervisor.disband_team(spec.team_name)
+    teardown(spec.session, spec.team_name, spec.prompt_dir)
+  end
 
-    if spec.prompt_dir do
-      TmuxScript.cleanup_dir(spec.prompt_dir)
+  @doc "Tear down by explicit parts rather than a spec struct. Same idempotent semantics."
+  @spec teardown(String.t(), String.t(), String.t() | nil) :: :ok
+  def teardown(session, team_name, prompt_dir) do
+    _ = TmuxLauncher.kill_session(session)
+    _ = FleetSupervisor.disband_team(team_name)
+
+    if prompt_dir do
+      TmuxScript.cleanup_dir(prompt_dir)
     end
 
     :ok
