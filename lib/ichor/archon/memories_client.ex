@@ -12,62 +12,10 @@ defmodule Ichor.Archon.MemoriesClient do
 
   require Logger
 
-  defmodule IngestResult do
-    @moduledoc "Response from a single-episode ingest."
-
-    @type t :: %__MODULE__{
-            episode_id: String.t(),
-            group_id: String.t(),
-            status: String.t(),
-            sync_status: String.t()
-          }
-
-    @enforce_keys [:episode_id, :group_id, :status, :sync_status]
-    defstruct [:episode_id, :group_id, :status, :sync_status]
-  end
-
-  defmodule ChunkedIngestResult do
-    @moduledoc "Response from a chunked-episode ingest (content >4KB)."
-
-    alias Ichor.Archon.MemoriesClient.IngestResult
-
-    @type t :: %__MODULE__{
-            chunked: boolean(),
-            chunk_count: non_neg_integer(),
-            episodes: [IngestResult.t()]
-          }
-
-    @enforce_keys [:chunked, :chunk_count, :episodes]
-    defstruct [:chunked, :chunk_count, :episodes]
-  end
-
-  defmodule SearchResult do
-    @moduledoc "A single edge/node result from a graph search."
-
-    @type t :: %__MODULE__{
-            uuid: String.t() | nil,
-            fact: String.t() | nil,
-            name: String.t() | nil,
-            source: String.t() | nil,
-            target: String.t() | nil,
-            score: float() | nil,
-            created_at: String.t() | nil
-          }
-
-    defstruct [:uuid, :fact, :name, :source, :target, :score, :created_at]
-  end
-
-  defmodule QueryResult do
-    @moduledoc "Response from a memory query (retrieval-augmented answer)."
-
-    @type t :: %__MODULE__{
-            answer: String.t() | nil,
-            citations: [map()] | nil,
-            context: map() | nil
-          }
-
-    defstruct [:answer, :citations, :context]
-  end
+  alias Ichor.Archon.MemoriesClient.ChunkedIngestResult
+  alias Ichor.Archon.MemoriesClient.IngestResult
+  alias Ichor.Archon.MemoriesClient.QueryResult
+  alias Ichor.Archon.MemoriesClient.SearchResult
 
   defp memories_config, do: Application.fetch_env!(:ichor, :memories)
   defp memories_url, do: Keyword.fetch!(memories_config(), :url)
