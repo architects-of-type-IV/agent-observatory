@@ -12,6 +12,7 @@ defmodule Ichor.Observability do
   alias Ichor.Activity.Task, as: ActivityTask
   alias Ichor.Events.Event
   alias Ichor.Events.Session
+  alias Ichor.Gateway.HITLInterventionEvent
   alias Ichor.Signals.Event, as: SignalEvent
 
   resources do
@@ -21,6 +22,7 @@ defmodule Ichor.Observability do
     resource(ActivityTask)
     resource(Error)
     resource(SignalEvent)
+    resource(HITLInterventionEvent)
   end
 
   @doc "Returns events, optionally filtered by opts passed to the read action."
@@ -42,4 +44,18 @@ defmodule Ichor.Observability do
   @doc "Returns errors grouped by tool name with occurrence counts."
   @spec list_error_groups() :: list(map())
   def list_error_groups, do: Error.by_tool!()
+
+  @doc "Records a HITL operator intervention in the audit trail."
+  @spec record_hitl_intervention(map()) ::
+          {:ok, HITLInterventionEvent.t()} | {:error, Ash.Error.t()}
+  def record_hitl_intervention(attrs), do: HITLInterventionEvent.record(attrs)
+
+  @doc "Returns HITL intervention events for a given session."
+  @spec list_hitl_interventions_by_session(String.t()) :: list(HITLInterventionEvent.t())
+  def list_hitl_interventions_by_session(session_id),
+    do: HITLInterventionEvent.by_session!(session_id)
+
+  @doc "Returns recent HITL intervention events across all operators."
+  @spec list_recent_hitl_interventions() :: list(HITLInterventionEvent.t())
+  def list_recent_hitl_interventions, do: HITLInterventionEvent.recent!()
 end

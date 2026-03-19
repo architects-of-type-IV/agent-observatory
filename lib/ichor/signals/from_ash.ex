@@ -63,6 +63,24 @@ defmodule Ichor.Signals.FromAsh do
   defp signal_for(Ichor.Mes.Project, :mark_loaded), do: {:mes_subsystem_loaded, &project_data/2}
   defp signal_for(Ichor.Mes.Project, :mark_failed), do: {:mes_project_failed, &project_data/2}
 
+  defp signal_for(Ichor.Gateway.WebhookDelivery, :enqueue),
+    do: {:webhook_delivery_enqueued, &webhook_data/2}
+
+  defp signal_for(Ichor.Gateway.WebhookDelivery, :mark_delivered),
+    do: {:webhook_delivery_delivered, &webhook_data/2}
+
+  defp signal_for(Ichor.Gateway.WebhookDelivery, :mark_dead),
+    do: {:dead_letter, &webhook_data/2}
+
+  defp signal_for(Ichor.Gateway.HITLInterventionEvent, :record),
+    do: {:hitl_intervention_recorded, &hitl_data/2}
+
+  defp signal_for(Ichor.Gateway.CronJob, :schedule_once),
+    do: {:cron_job_scheduled, &cron_data/2}
+
+  defp signal_for(Ichor.Gateway.CronJob, :reschedule),
+    do: {:cron_job_rescheduled, &cron_data/2}
+
   defp signal_for(_, _), do: nil
 
   defp task_data(data, _action) do
@@ -95,5 +113,30 @@ defmodule Ichor.Signals.FromAsh do
 
   defp project_data(data, _action) do
     %{project_id: data.id, title: data.title, session_id: Map.get(data, :picked_up_by)}
+  end
+
+  defp webhook_data(data, _action) do
+    %{
+      delivery_id: data.id,
+      agent_id: data.agent_id,
+      target_url: data.target_url,
+      status: data.status,
+      attempt_count: data.attempt_count
+    }
+  end
+
+  defp hitl_data(data, _action) do
+    %{
+      event_id: data.id,
+      session_id: data.session_id,
+      agent_id: data.agent_id,
+      operator_id: data.operator_id,
+      action: data.action,
+      details: data.details
+    }
+  end
+
+  defp cron_data(data, _action) do
+    %{job_id: data.id, agent_id: data.agent_id, next_fire_at: data.next_fire_at}
   end
 end

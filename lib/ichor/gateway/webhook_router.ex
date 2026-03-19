@@ -8,67 +8,57 @@ defmodule Ichor.Gateway.WebhookRouter do
 
   require Logger
 
-  import Ecto.Query
-
-  alias Ichor.Gateway.WebhookDelivery
-  alias Ichor.Repo
+  alias Ichor.Control
 
   @retry_schedule_seconds [30, 120, 600, 3600, 21_600]
   @poll_interval_ms 5_000
   @max_attempts 5
 
-  def start_link(opts) do
-    GenServer.start_link(__MODULE__, opts, name: __MODULE__)
-  end
-
   @doc "Enqueue a webhook delivery with HMAC-SHA256 signature."
+  @spec enqueue(String.t(), String.t(), String.t(), String.t()) ::
+          {:ok, String.t()} | {:error, term()}
   def enqueue(agent_id, target_url, payload, secret) do
     signature = compute_signature(payload, secret)
-    now = DateTime.utc_now() |> DateTime.truncate(:second)
 
-    attrs = %{
-      agent_id: agent_id,
-      target_url: target_url,
-      payload: payload,
-      signature: signature,
-      status: "pending",
-      attempt_count: 0,
-      next_retry_at: now,
-      inserted_at: now
-    }
-
-    case Repo.insert(WebhookDelivery.changeset(%WebhookDelivery{}, attrs)) do
+    case Control.enqueue_webhook_delivery(%{
+           agent_id: agent_id,
+           target_url: target_url,
+           payload: payload,
+           signature: signature
+         }) do
       {:ok, delivery} -> {:ok, delivery.id}
-      {:error, changeset} -> {:error, changeset}
+      {:error, reason} -> {:error, reason}
     end
   end
 
   @doc "List all dead-letter deliveries for an agent."
-  def list_dead_letters(agent_id) do
-    WebhookDelivery
-    |> where([d], d.agent_id == ^agent_id and d.status == "dead")
-    |> Repo.all()
-  end
+  @spec list_dead_letters(String.t()) :: [Ichor.Gateway.WebhookDelivery.t()]
+  def list_dead_letters(agent_id), do: Control.list_dead_letters_for_agent(agent_id)
 
   @doc "List all dead-letter deliveries across all agents."
+  @spec list_all_dead_letters() :: [Ichor.Gateway.WebhookDelivery.t()]
   def list_all_dead_letters do
-    WebhookDelivery
-    |> where([d], d.status == "dead")
-    |> Repo.all()
+    Control.list_all_dead_letters()
   rescue
     _ -> []
   end
 
   @doc "Compute HMAC-SHA256 signature for payload verification."
+  @spec compute_signature(String.t(), String.t()) :: String.t()
   def compute_signature(payload, secret) do
     "sha256=" <>
       (:crypto.mac(:hmac, :sha256, secret, payload) |> Base.encode16(case: :lower))
   end
 
   @doc "Timing-safe signature verification."
+  @spec verify_signature(String.t(), String.t(), String.t()) :: boolean()
   def verify_signature(payload, secret, provided_signature) do
     expected = compute_signature(payload, secret)
     Plug.Crypto.secure_compare(expected, provided_signature)
+  end
+
+  def start_link(opts) do
+    GenServer.start_link(__MODULE__, opts, name: __MODULE__)
   end
 
   @impl true
@@ -87,15 +77,8 @@ defmodule Ichor.Gateway.WebhookRouter do
   @impl true
   def handle_info(:poll, state) do
     try do
-      now = DateTime.utc_now()
-
-      deliveries =
-        WebhookDelivery
-        |> where([d], d.status in ["pending", "failed"] and d.next_retry_at <= ^now)
-        |> limit(5)
-        |> Repo.all()
-
-      Enum.each(deliveries, &attempt_delivery/1)
+      Control.list_due_webhook_deliveries()
+      |> Enum.each(&attempt_delivery/1)
     catch
       kind, reason ->
         Logger.debug("WebhookRouter: DB error during poll (#{kind}: #{inspect(reason)})")
@@ -110,12 +93,10 @@ defmodule Ichor.Gateway.WebhookRouter do
 
     case delivery_fn().(delivery.target_url, body: delivery.payload, headers: headers) do
       {:ok, %{status: status}} when status >= 200 and status < 300 ->
-        delivery
-        |> WebhookDelivery.changeset(%{status: "delivered"})
-        |> Repo.update()
+        Control.mark_webhook_delivered(delivery)
 
       _error ->
-        schedule_retry(delivery)
+        do_schedule_retry(delivery)
     end
   end
 
@@ -123,34 +104,36 @@ defmodule Ichor.Gateway.WebhookRouter do
     Application.get_env(:ichor, :webhook_delivery_fn, &Req.post/2)
   end
 
-  defp schedule_retry(delivery) do
+  defp do_schedule_retry(delivery) do
     new_attempt_count = delivery.attempt_count + 1
 
     if new_attempt_count >= @max_attempts do
-      delivery
-      |> WebhookDelivery.changeset(%{status: "dead", attempt_count: new_attempt_count})
-      |> Repo.update()
-
+      Control.mark_webhook_dead(delivery, %{attempt_count: new_attempt_count})
       Ichor.Signals.emit(:dead_letter, %{delivery: delivery})
     else
       delay_seconds = Enum.at(@retry_schedule_seconds, new_attempt_count - 1, 21_600)
-      next_retry = DateTime.utc_now() |> DateTime.add(delay_seconds) |> DateTime.truncate(:second)
 
-      delivery
-      |> WebhookDelivery.changeset(%{
-        status: "failed",
+      next_retry =
+        DateTime.utc_now()
+        |> DateTime.add(delay_seconds)
+        |> DateTime.truncate(:second)
+
+      Control.schedule_webhook_retry(delivery, %{
         attempt_count: new_attempt_count,
         next_retry_at: next_retry
       })
-      |> Repo.update()
     end
   end
 
   defp requeue_undelivered do
     now = DateTime.utc_now() |> DateTime.truncate(:second)
 
-    WebhookDelivery
-    |> where([d], d.status in ["pending", "failed"])
-    |> Repo.update_all(set: [next_retry_at: now])
+    Control.list_due_webhook_deliveries()
+    |> Enum.each(fn delivery ->
+      Control.schedule_webhook_retry(delivery, %{
+        attempt_count: delivery.attempt_count,
+        next_retry_at: now
+      })
+    end)
   end
 end

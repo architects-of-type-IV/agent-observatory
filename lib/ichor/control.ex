@@ -21,6 +21,8 @@ defmodule Ichor.Control do
     resource(Ichor.Workshop.AgentType)
     resource(Ichor.Workshop.SpawnLink)
     resource(Ichor.Workshop.CommRule)
+    resource(Ichor.Gateway.WebhookDelivery)
+    resource(Ichor.Gateway.CronJob)
   end
 
   @doc "Returns all registered agents."
@@ -92,4 +94,76 @@ defmodule Ichor.Control do
   @doc "Destroys an agent type record."
   @spec destroy_agent_type(AgentType.t()) :: :ok | {:error, term()}
   def destroy_agent_type(agent_type), do: AgentType.destroy(agent_type)
+
+  alias Ichor.Gateway.WebhookDelivery
+
+  @doc "Enqueues a webhook delivery for the given agent and target."
+  @spec enqueue_webhook_delivery(map()) :: {:ok, WebhookDelivery.t()} | {:error, term()}
+  def enqueue_webhook_delivery(
+        %{target_url: target_url, payload: payload, signature: signature, agent_id: agent_id} =
+          attrs
+      ) do
+    WebhookDelivery.enqueue(target_url, payload, signature, agent_id,
+      webhook_id: Map.get(attrs, :webhook_id)
+    )
+  end
+
+  @doc "Returns webhook deliveries that are due for immediate delivery."
+  @spec list_due_webhook_deliveries() :: [WebhookDelivery.t()]
+  def list_due_webhook_deliveries, do: WebhookDelivery.due_for_delivery!()
+
+  @doc "Returns dead-letter webhook deliveries for the given agent."
+  @spec list_dead_letters_for_agent(String.t()) :: [WebhookDelivery.t()]
+  def list_dead_letters_for_agent(agent_id), do: WebhookDelivery.dead_letters_for_agent!(agent_id)
+
+  @doc "Returns all dead-letter webhook deliveries across all agents."
+  @spec list_all_dead_letters() :: [WebhookDelivery.t()]
+  def list_all_dead_letters, do: WebhookDelivery.all_dead_letters!()
+
+  @doc "Marks a webhook delivery as successfully delivered."
+  @spec mark_webhook_delivered(WebhookDelivery.t()) ::
+          {:ok, WebhookDelivery.t()} | {:error, term()}
+  def mark_webhook_delivered(delivery), do: WebhookDelivery.mark_delivered(delivery)
+
+  @doc "Schedules a retry for a failed webhook delivery."
+  @spec schedule_webhook_retry(WebhookDelivery.t(), map()) ::
+          {:ok, WebhookDelivery.t()} | {:error, term()}
+  def schedule_webhook_retry(delivery, attrs), do: WebhookDelivery.schedule_retry(delivery, attrs)
+
+  @doc "Moves a webhook delivery to the dead-letter queue."
+  @spec mark_webhook_dead(WebhookDelivery.t(), map()) ::
+          {:ok, WebhookDelivery.t()} | {:error, term()}
+  def mark_webhook_dead(delivery, attrs \\ %{}), do: WebhookDelivery.mark_dead(delivery, attrs)
+
+  alias Ichor.Gateway.CronJob
+
+  @doc "Schedules a one-time cron job for the given agent."
+  @spec schedule_cron_once(String.t(), String.t(), DateTime.t()) ::
+          {:ok, CronJob.t()} | {:error, term()}
+  def schedule_cron_once(agent_id, payload, next_fire_at),
+    do: CronJob.schedule_once(agent_id, payload, next_fire_at)
+
+  @doc "Returns all cron jobs for the given agent."
+  @spec list_cron_jobs_for_agent(String.t()) :: [CronJob.t()]
+  def list_cron_jobs_for_agent(agent_id), do: CronJob.for_agent!(agent_id)
+
+  @doc "Returns all scheduled cron jobs sorted by next_fire_at asc."
+  @spec list_all_cron_jobs() :: [CronJob.t()]
+  def list_all_cron_jobs, do: CronJob.all_scheduled!()
+
+  @doc "Returns cron jobs due at or before the given datetime."
+  @spec list_due_cron_jobs(DateTime.t()) :: [CronJob.t()]
+  def list_due_cron_jobs(now), do: CronJob.due!(now)
+
+  @doc "Fetches a single cron job by id."
+  @spec get_cron_job(String.t()) :: {:ok, CronJob.t()} | {:error, term()}
+  def get_cron_job(id), do: CronJob.get(id)
+
+  @doc "Reschedules a cron job to the given datetime."
+  @spec reschedule_cron_job(CronJob.t(), DateTime.t()) :: {:ok, CronJob.t()} | {:error, term()}
+  def reschedule_cron_job(job, next_fire_at), do: CronJob.reschedule(job, next_fire_at)
+
+  @doc "Completes (destroys) a cron job after firing."
+  @spec complete_cron_job(CronJob.t()) :: :ok | {:error, term()}
+  def complete_cron_job(job), do: CronJob.complete(job)
 end

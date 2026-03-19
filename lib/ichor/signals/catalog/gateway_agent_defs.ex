@@ -102,6 +102,16 @@ defmodule Ichor.Signals.Catalog.GatewayAgentDefs do
         dynamic: true,
         doc: "Cron job fired"
       },
+      cron_job_scheduled: %{
+        category: :gateway,
+        keys: [:job_id, :agent_id, :next_fire_at],
+        doc: "Cron job created via Ash action"
+      },
+      cron_job_rescheduled: %{
+        category: :gateway,
+        keys: [:job_id, :agent_id, :next_fire_at],
+        doc: "Cron job rescheduled via Ash action"
+      },
       gate_open: %{
         category: :hitl,
         keys: [:session_id],

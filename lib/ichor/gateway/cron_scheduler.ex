@@ -3,18 +3,15 @@ defmodule Ichor.Gateway.CronScheduler do
   GenServer that manages scheduled one-time and recurring jobs.
 
   On startup, recovers all persisted `cron_jobs` rows and schedules timers.
-  Jobs fire by broadcasting to `"agent:{agent_id}:scheduled"` via PubSub.
-  One-time jobs are deleted after firing; recurring jobs reschedule.
+  Jobs fire by emitting a `:scheduled_job` signal for `agent_id`.
+  One-time jobs are completed (destroyed) after firing; recurring jobs reschedule.
   """
 
   use GenServer
 
   require Logger
 
-  alias Ichor.Gateway.CronJob
-  alias Ichor.Repo
-
-  import Ecto.Query
+  alias Ichor.Control
 
   def start_link(opts) do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
@@ -26,18 +23,19 @@ defmodule Ichor.Gateway.CronScheduler do
   Returns `:ok` on success or `{:error, :invalid_delay}` if `delay_ms` is not
   a positive integer.
   """
+  @spec schedule_once(String.t(), pos_integer(), term()) :: :ok | {:error, :invalid_delay}
   def schedule_once(agent_id, delay_ms, payload) do
     GenServer.call(__MODULE__, {:schedule_once, agent_id, delay_ms, payload})
   end
 
   @doc "Returns all jobs for the given `agent_id`."
-  def list_jobs(agent_id) do
-    Repo.all(from(j in CronJob, where: j.agent_id == ^agent_id))
-  end
+  @spec list_jobs(String.t()) :: [Ichor.Gateway.CronJob.t()]
+  def list_jobs(agent_id), do: Control.list_cron_jobs_for_agent(agent_id)
 
   @doc "Returns all scheduled jobs across all agents."
+  @spec list_all_jobs() :: [Ichor.Gateway.CronJob.t()]
   def list_all_jobs do
-    Repo.all(CronJob)
+    Control.list_all_cron_jobs()
   rescue
     _ -> []
   end
@@ -45,7 +43,7 @@ defmodule Ichor.Gateway.CronScheduler do
   @impl true
   def init(_opts) do
     try do
-      jobs = Repo.all(CronJob)
+      jobs = Control.list_all_cron_jobs()
 
       Enum.each(jobs, fn job ->
         delay = DateTime.diff(job.next_fire_at, DateTime.utc_now(), :millisecond)
@@ -56,7 +54,7 @@ defmodule Ichor.Gateway.CronScheduler do
         Logger.debug("CronScheduler: skipping job recovery (#{kind}: #{inspect(reason)})")
     end
 
-    {:ok, %{jobs: %{}}}
+    {:ok, %{}}
   end
 
   @impl true
@@ -71,22 +69,15 @@ defmodule Ichor.Gateway.CronScheduler do
       |> DateTime.add(delay_ms, :millisecond)
       |> DateTime.truncate(:second)
 
-    attrs = %{
-      agent_id: agent_id,
-      payload: Jason.encode!(payload),
-      next_fire_at: next_fire_at,
-      is_one_time: true
-    }
+    encoded = Jason.encode!(payload)
 
-    changeset = CronJob.changeset(%CronJob{}, attrs)
-
-    case Repo.insert(changeset) do
+    case Control.schedule_cron_once(agent_id, encoded, next_fire_at) do
       {:ok, job} ->
         Process.send_after(self(), {:fire_job, job.id, job.agent_id, job.payload}, delay_ms)
         {:reply, :ok, state}
 
-      {:error, changeset} ->
-        Logger.warning("CronScheduler: failed to insert job: #{inspect(changeset.errors)}")
+      {:error, reason} ->
+        Logger.warning("CronScheduler: failed to insert job: #{inspect(reason)}")
         {:reply, {:error, :insert_failed}, state}
     end
   end
@@ -98,24 +89,32 @@ defmodule Ichor.Gateway.CronScheduler do
     Ichor.Signals.emit(:scheduled_job, agent_id, %{agent_id: agent_id, payload: payload})
 
     try do
-      case Repo.get(CronJob, job_id) do
-        nil ->
-          :ok
+      case Control.get_cron_job(job_id) do
+        {:ok, %{is_one_time: true} = job} ->
+          Control.complete_cron_job(job)
 
-        %CronJob{is_one_time: true} = job ->
-          Repo.delete(job)
-
-        %CronJob{} = job ->
+        {:ok, job} ->
           next_fire_at =
             DateTime.utc_now()
             |> DateTime.add(60_000, :millisecond)
             |> DateTime.truncate(:second)
 
-          job
-          |> Ecto.Changeset.change(next_fire_at: next_fire_at)
-          |> Repo.update()
+          case Control.reschedule_cron_job(job, next_fire_at) do
+            {:ok, _} ->
+              Process.send_after(
+                self(),
+                {:fire_job, job.id, job.agent_id, job.payload},
+                60_000
+              )
 
-          Process.send_after(self(), {:fire_job, job.id, job.agent_id, job.payload}, 60_000)
+            {:error, reason} ->
+              Logger.warning(
+                "CronScheduler: failed to reschedule job #{job_id}: #{inspect(reason)}"
+              )
+          end
+
+        {:error, _} ->
+          :ok
       end
     catch
       kind, reason ->
