@@ -133,15 +133,6 @@ defmodule IchorWeb.DashboardFormatHelpers do
   end
 
   @doc """
-  Format permission mode as short badge text.
-  """
-  def format_permission_mode(nil), do: nil
-  def format_permission_mode("bypassPermissions"), do: "bypass"
-  def format_permission_mode("ask"), do: "ask"
-  def format_permission_mode(mode) when is_binary(mode), do: mode
-  def format_permission_mode(_), do: nil
-
-  @doc """
   Generate human-readable summary for an event.
   """
   def event_summary(%{hook_event_type: :PreToolUse} = event) do

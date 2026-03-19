@@ -11,19 +11,8 @@ defmodule Ichor.Gateway.SchemaInterceptor do
 
   require Logger
 
-  alias Ichor.Gateway.{CronScheduler, EntropyTracker, Envelope, HITLRelay}
+  alias Ichor.Gateway.{EntropyTracker, Envelope}
   alias Ichor.Mesh.DecisionLog
-
-  @spec validate(map()) :: {:ok, DecisionLog.t()} | {:error, Ecto.Changeset.t()}
-  def validate(params) when is_map(params) do
-    changeset = DecisionLog.changeset(%DecisionLog{}, params)
-
-    if changeset.valid? do
-      {:ok, Ecto.Changeset.apply_changes(changeset)}
-    else
-      {:error, changeset}
-    end
-  end
 
   @doc """
   Validates params and enriches the resulting DecisionLog with a Gateway-computed entropy score.
@@ -47,16 +36,6 @@ defmodule Ichor.Gateway.SchemaInterceptor do
     end
   end
 
-  @doc false
-  @spec deduplicate_alert(map(), map()) :: map()
-  def deduplicate_alert(alerts, %{session_id: sid, entropy_score: score} = event) do
-    if Map.has_key?(alerts, sid) do
-      Map.update!(alerts, sid, fn existing -> %{existing | entropy_score: score} end)
-    else
-      Map.put(alerts, sid, event)
-    end
-  end
-
   @spec build_violation_event(Ecto.Changeset.t(), map(), binary() | nil) :: map()
   def build_violation_event(changeset, params, raw_body) do
     agent_id = get_in(params, ["identity", "agent_id"]) || "unknown"
@@ -74,55 +53,6 @@ defmodule Ichor.Gateway.SchemaInterceptor do
       "raw_payload_hash" => raw_payload_hash
     }
   end
-
-  @doc "Auto-pauses the session if the DecisionLog has control.hitl_required == true."
-  @spec maybe_auto_pause(DecisionLog.t()) ::
-          {:paused, DecisionLog.t()} | {:normal, DecisionLog.t()}
-  def maybe_auto_pause(%DecisionLog{control: %{hitl_required: true}} = log) do
-    session_id = if log.meta, do: log.meta.trace_id, else: nil
-    agent_id = if log.identity, do: log.identity.agent_id, else: "unknown"
-
-    if session_id do
-      HITLRelay.pause(session_id, agent_id, "system", "hitl_required_flag")
-      HITLRelay.buffer_message(session_id, log)
-    end
-
-    {:paused, log}
-  end
-
-  def maybe_auto_pause(%DecisionLog{} = log), do: {:normal, log}
-
-  @doc """
-  Checks if a DecisionLog action contains a `schedule_reminder` tool call.
-
-  If the action's `tool_call` is `"schedule_reminder"` and `tool_input` is valid JSON
-  containing `"agent_id"` and `"delay_ms"`, schedules a one-time reminder via CronScheduler.
-
-  Returns `:ok` if a reminder was scheduled, `:noop` if the action is not a schedule_reminder,
-  or `{:error, reason}` on failure.
-  """
-  @spec maybe_schedule_reminder(DecisionLog.t()) :: :ok | :noop | {:error, term()}
-  def maybe_schedule_reminder(%DecisionLog{action: nil}), do: :noop
-
-  def maybe_schedule_reminder(%DecisionLog{action: %{tool_call: "schedule_reminder"} = action}) do
-    case Jason.decode(action.tool_input || "") do
-      {:ok, %{"agent_id" => agent_id, "delay_ms" => delay_ms} = input} ->
-        payload = Map.get(input, "payload", %{})
-
-        case CronScheduler.schedule_once(agent_id, delay_ms, payload) do
-          :ok -> :ok
-          {:error, reason} -> {:error, reason}
-        end
-
-      {:ok, _} ->
-        {:error, :missing_required_fields}
-
-      {:error, _} ->
-        {:error, :invalid_tool_input}
-    end
-  end
-
-  def maybe_schedule_reminder(%DecisionLog{}), do: :noop
 
   @doc """
   Validate a Gateway Envelope for broadcast.
@@ -157,6 +87,16 @@ defmodule Ichor.Gateway.SchemaInterceptor do
   end
 
   # Private
+
+  defp validate(params) when is_map(params) do
+    changeset = DecisionLog.changeset(%DecisionLog{}, params)
+
+    if changeset.valid? do
+      {:ok, Ecto.Changeset.apply_changes(changeset)}
+    else
+      {:error, changeset}
+    end
+  end
 
   defp enrich_with_entropy(log) do
     case extract_entropy_fields(log) do

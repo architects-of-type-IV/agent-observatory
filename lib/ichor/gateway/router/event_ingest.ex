@@ -21,9 +21,7 @@ defmodule Ichor.Gateway.Router.EventIngest do
     :ok
   end
 
-  defp handle_channel_events(%{hook_event_type: :SessionStart} = event) do
-    Ichor.Channels.create_agent_channel(event.session_id)
-  end
+  defp handle_channel_events(%{hook_event_type: :SessionStart} = _event), do: :ok
 
   defp handle_channel_events(%{hook_event_type: :PreToolUse} = event) do
     input = (event.payload || %{})["tool_input"] || %{}
@@ -40,7 +38,6 @@ defmodule Ichor.Gateway.Router.EventIngest do
 
   defp handle_team_create(input) do
     if team_name = input["team_name"] do
-      Ichor.Channels.create_team_channel(team_name, [])
       ensure_team_supervisor(team_name)
     end
   end

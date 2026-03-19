@@ -66,9 +66,6 @@ defmodule Ichor.Mes.TeamCleanup do
     :ok
   end
 
-  @spec cleanup_orphaned_team_resources() :: :ok
-  def cleanup_orphaned_team_resources, do: cleanup_orphaned_teams()
-
   @spec active_team_names() :: MapSet.t(String.t())
   def active_team_names do
     run_process_module().list_all()

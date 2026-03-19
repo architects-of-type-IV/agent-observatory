@@ -4,8 +4,6 @@ defmodule IchorWeb.DashboardTeamHelpers do
   Handles merging event-based teams with disk-persisted teams.
   """
 
-  alias IchorWeb.Presentation
-
   alias Ichor.Gateway.AgentRegistry.AgentEntry
 
   @doc """
@@ -122,55 +120,4 @@ defmodule IchorWeb.DashboardTeamHelpers do
           else: :member
     end
   end
-
-  @doc """
-  Aggregate team health from all member health statuses.
-  Priority: :critical > :warning > :healthy > :unknown
-  """
-  def team_health(team) do
-    healths = Enum.map(Map.get(team, :members, []), & &1[:health])
-
-    cond do
-      :critical in healths -> :critical
-      :warning in healths -> :warning
-      :healthy in healths -> :healthy
-      true -> :unknown
-    end
-  end
-
-  @doc """
-  Calculate task progress (completed vs total).
-  """
-  def task_progress(team) do
-    tasks = Map.get(team, :tasks, [])
-    total = length(tasks)
-
-    completed =
-      Enum.count(tasks, fn t -> t["status"] == "completed" || t[:status] == "completed" end)
-
-    {completed, total}
-  end
-
-  @doc """
-  Generate a team summary with aggregated metrics.
-  """
-  def team_summary(team) do
-    {completed, total} = task_progress(team)
-
-    %{
-      health: team_health(team),
-      progress: {completed, total},
-      member_count: length(Map.get(team, :members, [])),
-      active_count: Enum.count(Map.get(team, :members, []), fn m -> m[:status] == :active end)
-    }
-  end
-
-  @doc """
-  Get color class for member status indicator (now health-based).
-  """
-  def member_status_color(member) when is_map(member) do
-    Presentation.member_status_dot_class(member)
-  end
-
-  def member_status_color(status), do: Presentation.member_status_dot_class(status)
 end

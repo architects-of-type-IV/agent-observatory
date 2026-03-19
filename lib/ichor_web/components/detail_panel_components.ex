@@ -7,7 +7,8 @@ defmodule IchorWeb.Components.DetailPanelComponents do
   use Phoenix.Component
   import IchorWeb.DashboardFormatHelpers
   import IchorWeb.DashboardAgentHelpers, only: [agent_recent_events: 3, agent_tasks: 2]
-  import IchorWeb.DashboardTeamHelpers, only: [member_status_color: 1]
+
+  alias IchorWeb.Presentation
 
   embed_templates "detail_panel_components/*"
 
@@ -22,6 +23,8 @@ defmodule IchorWeb.Components.DetailPanelComponents do
     </svg>
     """
   end
+
+  defp member_status_color(agent), do: Presentation.member_status_dot_class(agent)
 
   defp task_status_badge("pending"), do: "bg-highlight text-default"
   defp task_status_badge("in_progress"), do: "bg-info/20 text-info"

@@ -2,22 +2,12 @@ defmodule Ichor.Dag.Exporter do
   @moduledoc """
   Exports Dag.Job records to tasks.jsonl format.
 
-  Three modes:
-  - `to_file/2` -- full export of all jobs for a run
-  - `to_string/1` -- returns JSONL string (for MCP tool response)
+  Two modes:
+  - `to_jsonl/1` -- returns JSONL string (for MCP tool response)
   - `sync_to_file/2` -- single-item write-through via jq atomic swap
     Called by RunProcess (serialized) after job state mutations.
     No-op if run has no project_path.
   """
-
-  @spec to_file(String.t(), String.t()) :: :ok | {:error, term()}
-  def to_file(run_id, output_path) do
-    with {:ok, jobs} <- Ichor.Dag.fetch_jobs_for_run(run_id) do
-      jsonl = Enum.map_join(jobs, "\n", &job_to_jsonl/1)
-      File.write!(output_path, jsonl <> "\n")
-      :ok
-    end
-  end
 
   @spec to_jsonl(String.t()) :: {:ok, String.t()} | {:error, term()}
   def to_jsonl(run_id) do

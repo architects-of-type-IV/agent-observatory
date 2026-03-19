@@ -9,7 +9,7 @@ defmodule IchorWeb.DashboardTmuxHandlers do
   import Phoenix.LiveView, only: [push_event: 3]
   import IchorWeb.DashboardToast, only: [push_toast: 3]
 
-  alias Ichor.AgentSpawner
+  alias Ichor.Fleet.Lifecycle.AgentLaunch
   alias Ichor.Gateway.Channels.Tmux
 
   def dispatch("connect_tmux", p, s), do: handle_connect_tmux(p, s)
@@ -142,7 +142,7 @@ defmodule IchorWeb.DashboardTmuxHandlers do
   end
 
   def handle_launch_session(%{"cwd" => cwd} = _params, socket) when cwd != "" do
-    case AgentSpawner.spawn_agent(%{cwd: cwd}) do
+    case AgentLaunch.spawn(%{cwd: cwd}) do
       {:ok, result} ->
         push_event(socket, "toast", %{
           message: "Launched #{result.name} in #{Path.basename(cwd)}",

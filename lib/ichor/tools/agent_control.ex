@@ -3,12 +3,12 @@ defmodule Ichor.Tools.AgentControl do
   Shared runtime control actions used by tool-facing Ash resources.
   """
 
-  alias Ichor.AgentSpawner
+  alias Ichor.Fleet.Lifecycle.AgentLaunch
   alias Ichor.Fleet.Lookup
   alias Ichor.Gateway.HITLRelay
 
   def spawn(opts) when is_map(opts) do
-    case AgentSpawner.spawn_agent(opts) do
+    case AgentLaunch.spawn(opts) do
       {:ok, result} ->
         {:ok,
          %{
@@ -32,7 +32,7 @@ defmodule Ichor.Tools.AgentControl do
 
       agent ->
         session = agent.tmux_session || agent.agent_id
-        AgentSpawner.stop_agent(session)
+        AgentLaunch.stop(session)
         {:ok, %{stopped: true, session: session, name: agent.name}}
     end
   end

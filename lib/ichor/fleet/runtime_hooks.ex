@@ -3,10 +3,10 @@ defmodule Ichor.Fleet.RuntimeHooks do
   Product-side runtime adapter used by the extracted Fleet view app.
   """
 
-  alias Ichor.AgentSpawner
   alias Ichor.EventBuffer
   alias Ichor.Fleet.AgentProcess
   alias Ichor.Fleet.Analysis.AgentHealth
+  alias Ichor.Fleet.Lifecycle.AgentLaunch
   alias Ichor.Fleet.Runtime
 
   def list_agents, do: AgentProcess.list_all()
@@ -20,7 +20,7 @@ defmodule Ichor.Fleet.RuntimeHooks do
     AgentProcess.send_message(agent_id, payload)
   end
 
-  def launch_agent(opts), do: AgentSpawner.spawn_agent(opts)
+  def launch_agent(opts), do: AgentLaunch.spawn(opts)
   def spawn_standalone_agent(opts), do: Runtime.spawn_standalone_agent(opts)
   def terminate_standalone_agent(agent_id), do: Runtime.terminate_standalone_agent(agent_id)
   def team_exists?(team_name), do: Runtime.team_exists?(team_name)

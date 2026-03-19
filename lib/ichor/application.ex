@@ -5,11 +5,13 @@ defmodule Ichor.Application do
 
   use Application
 
+  alias Ichor.Fleet.Lifecycle.AgentLaunch
+
   @impl true
   def start(_type, _args) do
     ensure_tmux_server()
-    Ichor.AgentSpawner.init_counter()
-    Ichor.Operator.start_message_log()
+    AgentLaunch.init_counter()
+    Ichor.MessageRouter.start_message_log()
 
     children = [
       # Infrastructure (must start first -- everything depends on these)

@@ -51,19 +51,12 @@ defmodule Ichor.Dag.Analysis do
     end
   end
 
-  def compute_pipeline(tasks),
-    do: tasks |> Enum.map(&Graph.to_graph_node/1) |> Graph.pipeline_stats()
-
-  def compute_dag(tasks), do: tasks |> Enum.map(&Graph.to_graph_node/1) |> Graph.dag()
-
   def find_stale_tasks(tasks, now), do: stale_tasks(tasks, now)
 
-  def find_file_conflicts(tasks), do: file_conflicts(tasks)
-
-  def empty_pipeline,
+  defp empty_pipeline,
     do: %{total: 0, pending: 0, in_progress: 0, completed: 0, failed: 0, blocked: 0}
 
-  def empty_dag, do: %{waves: [], edges: [], critical_path: []}
+  defp empty_dag, do: %{waves: [], edges: [], critical_path: []}
 
   defp decode_task_line(line) do
     case Jason.decode(String.trim(line)) do

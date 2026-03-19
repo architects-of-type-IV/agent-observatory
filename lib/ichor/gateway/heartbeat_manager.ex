@@ -1,15 +1,13 @@
 defmodule Ichor.Gateway.HeartbeatManager do
   @moduledoc """
   Tracks agent liveness via periodic heartbeats. Agents that fail to ping
-  within `@eviction_threshold_seconds` are evicted and removed from the
-  CapabilityMap.
+  within `@eviction_threshold_seconds` are evicted.
   """
 
   use GenServer
 
   require Logger
 
-  alias Ichor.Gateway.CapabilityMap
   alias Ichor.Signals
 
   @eviction_threshold_seconds 90
@@ -24,16 +22,6 @@ defmodule Ichor.Gateway.HeartbeatManager do
     GenServer.call(__MODULE__, {:heartbeat, agent_id, cluster_id})
   end
 
-  @doc "Returns all tracked agents as a map of `%{agent_id => %{last_seen, cluster_id}}`."
-  def list_agents do
-    GenServer.call(__MODULE__, :list_agents)
-  end
-
-  @doc "Returns agents past the eviction threshold that haven't been evicted yet."
-  def list_zombies do
-    GenServer.call(__MODULE__, :list_zombies)
-  end
-
   @impl true
   def init(_opts) do
     :timer.send_interval(@check_interval_ms, :check_heartbeats)
@@ -44,23 +32,6 @@ defmodule Ichor.Gateway.HeartbeatManager do
   def handle_call({:heartbeat, agent_id, cluster_id}, _from, state) do
     entry = %{last_seen: DateTime.utc_now(), cluster_id: cluster_id}
     {:reply, :ok, Map.put(state, agent_id, entry)}
-  end
-
-  def handle_call(:list_agents, _from, state) do
-    {:reply, state, state}
-  end
-
-  def handle_call(:list_zombies, _from, state) do
-    now = DateTime.utc_now()
-
-    zombies =
-      state
-      |> Enum.filter(fn {_id, %{last_seen: last_seen}} ->
-        DateTime.diff(now, last_seen, :second) > @eviction_threshold_seconds
-      end)
-      |> Map.new()
-
-    {:reply, zombies, state}
   end
 
   @impl true
@@ -75,7 +46,6 @@ defmodule Ichor.Gateway.HeartbeatManager do
       |> Enum.map(fn {id, _entry} -> id end)
 
     Enum.each(evicted_ids, fn agent_id ->
-      CapabilityMap.remove_agent(agent_id)
       Signals.emit(:agent_evicted, %{session_id: agent_id})
       Logger.info("Evicted stale agent #{agent_id}")
     end)

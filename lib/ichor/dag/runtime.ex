@@ -12,7 +12,6 @@ defmodule Ichor.Dag.Runtime do
   alias Ichor.Dag.Discovery
   alias Ichor.Dag.HealthReport
   alias Ichor.Dag.Projects
-  alias Ichor.Dag.StateBus
   alias Ichor.Signals.Message
 
   @tasks_poll_interval 3_000
@@ -179,5 +178,5 @@ defmodule Ichor.Dag.Runtime do
 
   defp scan_archives, do: Discovery.scan_archives()
 
-  defp broadcast(state), do: StateBus.broadcast(state)
+  defp broadcast(state), do: Ichor.Signals.emit(:dag_status, %{state_map: state})
 end

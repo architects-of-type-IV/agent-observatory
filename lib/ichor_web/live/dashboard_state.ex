@@ -177,7 +177,7 @@ defmodule IchorWeb.DashboardState do
 
     # Template-layer data
     paused_sessions = safe_paused_sessions()
-    operator_messages = Ichor.Operator.recent_messages(50)
+    operator_messages = Ichor.MessageRouter.recent_messages(50)
     hook_messages = load_messages(messages, 50)
 
     mailbox_messages =

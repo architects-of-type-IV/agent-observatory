@@ -74,7 +74,7 @@ defmodule IchorWeb.DashboardMessagingHandlers do
 
   def subscribe_to_mailboxes(sessions) do
     Enum.each(sessions, fn s ->
-      Ichor.Channels.subscribe_agent(s.session_id)
+      Phoenix.PubSub.subscribe(Ichor.PubSub, "agent:#{s.session_id}")
     end)
   end
 

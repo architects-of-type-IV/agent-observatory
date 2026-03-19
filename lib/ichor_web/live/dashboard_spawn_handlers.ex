@@ -4,6 +4,8 @@ defmodule IchorWeb.DashboardSpawnHandlers do
   Each dispatch/3 clause returns the updated socket (caller wraps in {:noreply, ...}).
   """
 
+  alias Ichor.Fleet.Lifecycle.AgentLaunch
+
   def dispatch("spawn_agent", params, socket) do
     opts =
       %{
@@ -16,7 +18,7 @@ defmodule IchorWeb.DashboardSpawnHandlers do
       |> Enum.reject(fn {_k, v} -> is_nil(v) || v == "" end)
       |> Map.new()
 
-    case Ichor.Operator.spawn_agent(opts) do
+    case AgentLaunch.spawn(opts) do
       {:ok, info} ->
         Phoenix.LiveView.push_event(socket, "toast", %{
           message: "Spawned #{info.name}",
@@ -32,7 +34,7 @@ defmodule IchorWeb.DashboardSpawnHandlers do
   end
 
   def dispatch("stop_spawned_agent", %{"session" => session_name}, socket) do
-    :ok = Ichor.Operator.stop_agent(session_name)
+    :ok = AgentLaunch.stop(session_name)
 
     Phoenix.LiveView.push_event(socket, "toast", %{
       message: "Stopping #{session_name}",

@@ -23,16 +23,4 @@ defmodule Ichor.Dag.Status do
     state()
     |> Map.get(:health, %{})
   end
-
-  @spec projects() :: map()
-  def projects do
-    state()
-    |> Map.get(:watched_projects, %{})
-  end
-
-  @spec active_project() :: String.t() | nil
-  def active_project do
-    state()
-    |> Map.get(:active_project)
-  end
 end

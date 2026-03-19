@@ -1,7 +1,7 @@
 defmodule Ichor.GatewaySupervisor do
   @moduledoc """
-  Supervises gateway services: entropy tracker, capability map,
-  heartbeat manager, cron scheduler, webhook router, and HITL relay.
+  Supervises gateway services: entropy tracker, heartbeat manager,
+  cron scheduler, webhook router, and HITL relay.
 
   Uses one_for_one: services are independent. Agent lifecycle is owned by
   Ichor.Registry (via FleetSupervisor/TeamSupervisor), not this supervisor.
@@ -17,7 +17,6 @@ defmodule Ichor.GatewaySupervisor do
     children = [
       {Ichor.Gateway.TmuxDiscovery, []},
       {Ichor.Gateway.EntropyTracker, []},
-      {Ichor.Gateway.CapabilityMap, []},
       {Ichor.Gateway.HeartbeatManager, []},
       {Ichor.Gateway.CronScheduler, []},
       {Ichor.Gateway.WebhookRouter, []},
