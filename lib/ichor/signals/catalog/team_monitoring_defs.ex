@@ -32,7 +32,6 @@ defmodule Ichor.Signals.Catalog.TeamMonitoringDefs do
         keys: [:session_id, :reason],
         doc: "Agent signalled BLOCKED"
       },
-      swarm_state: %{category: :monitoring, keys: [:state_map], doc: "Swarm pipeline recomputed"},
       watchdog_sweep: %{
         category: :monitoring,
         keys: [:orphaned_count],

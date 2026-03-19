@@ -1,6 +1,6 @@
 defmodule Ichor.Architecture.BoundaryAudit do
   @moduledoc """
-  Non-mutating host-app boundary audit used to track de-umbrella readiness.
+  Non-mutating application boundary audit used to track post-umbrella cleanliness.
   """
 
   @host_globs ["lib/**/*.ex", "test/**/*.exs"]

@@ -2,7 +2,7 @@ defmodule Mix.Tasks.Ichor.BoundaryAudit do
   @shortdoc "Audit host-app de-umbrella boundary violations"
 
   @moduledoc """
-  Runs a non-mutating audit over `apps/ichor` to surface:
+  Runs a non-mutating audit over the main app source tree to surface:
 
   - direct `Ash.*` usage
   - direct resource-module references from host code
