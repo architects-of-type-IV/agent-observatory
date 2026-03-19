@@ -10,9 +10,11 @@ import Config
 config :ichor,
   generators: [timestamp_type: :utc_datetime],
   ash_domains: [
+    Ichor.Activity,
     Ichor.AgentTools,
     Ichor.Archon,
     Ichor.Archon.Tools,
+    Ichor.Events,
     Ichor.Signals.Domain
   ]
 
@@ -32,16 +34,6 @@ config :ichor_mes,
 config :ichor_fleet,
   ash_domains: [
     Ichor.Fleet
-  ]
-
-config :ichor_events,
-  ash_domains: [
-    Ichor.Events
-  ]
-
-config :ichor_activity,
-  ash_domains: [
-    Ichor.Activity
   ]
 
 config :ichor_genesis,

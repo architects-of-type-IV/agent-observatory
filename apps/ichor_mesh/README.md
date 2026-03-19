@@ -26,7 +26,8 @@ indexed into the CausalDAG.
 
 ## Architecture Role
 
-`ichor_mesh` is the observation backbone. The gateway (`ichor`) validates incoming
+`ichor_mesh` is internal observation infrastructure, not a user-facing product domain.
+The gateway (`ichor`) validates incoming
 HTTP payloads as `DecisionLog` structs and inserts them into `CausalDAG`. The
 session drilldown LiveView subscribes to `session:dag:<session_id>` to render
 live causal trees of agent decisions.
