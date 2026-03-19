@@ -6,7 +6,7 @@ defmodule Ichor.Control do
   Fleet is all agents. Teams are agents with the same group name.
   Blueprints are agent configurations with instructions.
   """
-  use Ash.Domain, validate_config_inclusion?: false
+  use Ash.Domain
 
   alias Ichor.Fleet.Agent
   alias Ichor.Fleet.Team

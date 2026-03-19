@@ -1,38 +1,61 @@
 # ICHOR IV - Handoff
 
-## Current Status: Domain Centralization + Signal Feed Refactor (2026-03-19)
+## Current Status: Domain Consolidation (2026-03-19) -- Phase 3 Complete, Phase 4 In Progress
 
 ### Session Summary
 
-Coordinator-driven session. All code work delegated to ash-elixir-expert agents. Codex (GPT-5.4) consulted for signal feed architecture. Major changes across domains, signals, module consolidation, and LiveView streaming.
+Coordinator-driven session with ash-elixir-expert agents and codex (GPT-5.4) as architecture partner. Massive domain consolidation: 10 Ash Domains → 5 (target: 4). Plus signal livefeed refactor, AgentWatchdog merge, module consolidation, and quality fixes.
 
-### Completed This Session
+### Domain Consolidation Progress
 
-1. **Build fix** -- `consolidate_protocols: Mix.env() != :dev` (3 Ash Inspect warnings)
-2. **Genesis domain centralization** -- 27 new domain functions for 9 sub-resources, 3 agent tools rewired
-3. **Workshop domain centralization** -- 6 new domain functions, Persistence module rewired
-4. **MES domain centralization** -- 3 new domain functions (pick_up_project, projects_by_status, projects_by_status!), handler + archon tools rewired
-5. **Workshop delegation chain collapse** -- 4-hop chain reduced to direct domain calls, dead defdelegate removed from WorkshopPresets
-6. **Fleet RuntimeHooks/Runtime removal** -- 2 wrapper modules deleted, 22 call sites rewired to actual implementations
-7. **Signal livefeed refactor (codex-designed):**
-   - Buffer stores `{seq, %Message{}}` raw tuples (removed EntryFormatter from hot path)
-   - LiveView uses `stream/stream_insert` with `at: 0, limit: 200` (no list assigns)
-   - PubSub topic: `"signals:feed"` with `{:signal, seq, message}` shape
-   - 10 new per-category renderer components (agent, core, gateway, genesis, dag, mes, monitoring, fallback + primitives + dispatcher)
-8. **AgentWatchdog merge** -- 4 GenServers (heartbeat, agent_monitor, nudge_escalator, pane_monitor) -> 1 GenServer + 3 pure helpers (EventState, NudgePolicy, PaneParser). Fixed inverted `return_if_no_team` bug.
-9. **Module consolidation** -- Deleted archon.ex (empty domain), mailer.ex (dead stub). Moved event_janitor -> events/janitor.ex, heartbeat -> signals/heartbeat.ex
-10. **Ash.Type.Enum extraction** -- 5 HIGH priority enums created (HookEventType, AgentStatus, HealthStatus, NodeStatus, ProjectStatus), 6 resource attributes updated
-11. **Stale tmux agents cleaned** -- Killed disconnected genesis team + researcher sessions
+| Phase | What | Status |
+|-------|------|--------|
+| Phase 0 | Bootstrap empty Control, Projects, Observability | Done |
+| Phase 1 | Events + Activity + Signals.Domain → Observability (6 resources) | Done |
+| Phase 2 | Fleet + Workshop → Control (7 resources) | Done |
+| Phase 3 | Genesis + MES + DAG → Projects (13 resources) | Done |
+| Phase 4 | AgentTools + Archon.Tools → Tools | In Progress (tool name collision audit done, codex naming consultation pending) |
+
+### Current ash_domains (5):
+- Ichor.AgentTools
+- Ichor.Archon.Tools
+- Ichor.Control (7 resources: Fleet.Agent, Fleet.Team, Workshop.*)
+- Ichor.Observability (6 resources: Events.*, Activity.*, Signals.Event)
+- Ichor.Projects (13 resources: Genesis.*, Mes.Project, Dag.Run, Dag.Job)
+
+### Phase 4 Tool Name Collisions (must resolve before merge)
+4 collisions found between AgentTools and Archon.Tools:
+- :list_agents -- different semantics (memory registry vs live fleet)
+- :spawn_agent -- same backend, different strictness
+- :stop_agent -- same backend, different return shapes
+- :send_message -- different caller semantics (agent-to-agent vs operator-to-agent)
+
+Codex naming consultation dispatched. Approach: merge domains but not meanings. Scoped MCP endpoints (/mcp/agent, /mcp/archon).
+
+### Other Session Accomplishments
+
+1. **Signal livefeed refactor** -- Buffer stores {seq, %Message{}}, LiveView streams (not list assigns), 10 per-category renderer components, filtering via stream reset
+2. **AgentWatchdog merge** -- 4 GenServers → 1 + 3 pure helpers
+3. **Module consolidation** -- deleted archon.ex, mailer.ex, RuntimeHooks, Runtime. Moved janitor, heartbeat. Collapsed 4-hop delegation chains.
+4. **Ash.Type.Enum** -- 5 HIGH priority enums extracted
+5. **Quality fixes** -- banners removed, @enforce_keys on 6 structs, @type t on 5 modules, validate_config_inclusion? re-enabled
+6. **Domain centralization** -- Genesis (27 functions), Workshop (6), MES (3) all centralized earlier in session
+7. **Codex review** -- PASS with one fix (stale template string)
 
 ### Build Status
 - `mix compile --warnings-as-errors` -- CLEAN
 - `mix credo --strict` -- CLEAN (0 issues)
-- File count: 398 (was 387, net +11 from new renderer/enum/watchdog files minus deleted modules)
+- `validate_config_inclusion?` re-enabled on all 3 new domains
+- Server needs restart to pick up domain changes
 
-### What's Next (Priority Order)
-1. Ash.Type.Enum extraction -- 6 remaining MEDIUM/LOW candidates (JobPriority, JobStatus, RunStatus, RunSource, SessionStatus, WorkStatus)
-2. Comprehensive Ash DSL audit against `mix usage_rules.search_docs`
-3. @spec coverage on remaining public functions
-4. E2E test: Build PulseMonitor with boundary enforcement
-5. Boundary violation fixes (web helpers imported by core)
-6. EntryFormatter -- decide: keep for export/debug, or delete entirely
+### What's Next
+1. Complete Phase 4 (Tools merge -- resolve naming, create Ichor.Tools, split MCP router)
+2. Phase 5: Module inlining (51 files identified)
+3. Ecto→Ash migration (4 areas: DecisionLog, WebhookDelivery, CronJob, HITLInterventionEvent)
+4. RunProcess lifecycle consolidation (3 parallel implementations → shared)
+5. Component library (variant-based primitives -- research done, docs/plans/2026-03-19-component-library-research.md)
+
+### Research Documents Created
+- docs/plans/2026-03-19-domain-consolidation.md
+- docs/plans/2026-03-19-component-library-research.md
+- docs/plans/2026-03-19-quality-audit.md

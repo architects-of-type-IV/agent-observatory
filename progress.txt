@@ -1,5 +1,18 @@
 # ICHOR IV Progress
 
+## Domain Consolidation: 10 → 5 Ash Domains (2026-03-19) -- Phase 3 COMPLETE, Phase 4 IN PROGRESS
+- [x] Phase 0: Bootstrap Ichor.Control, Ichor.Projects, Ichor.Observability
+- [x] Phase 1: Events + Activity + Signals.Domain → Observability (6 resources, 11 callers)
+- [x] Phase 2a: Workshop → Control (5 resources, 5 callers)
+- [x] Phase 2b: Fleet → Control (2 resources, 10 callers)
+- [x] Phase 3a: MES → Projects (1 resource, 9 callers)
+- [x] Phase 3b: Genesis → Projects (10 resources, 14 callers)
+- [x] Phase 3c: DAG → Projects (2 resources, 3 callers)
+- [x] Codex architecture review: PASS (1 fix applied -- stale template string)
+- [x] validate_config_inclusion? re-enabled on all new domains
+- [ ] Phase 4: AgentTools + Archon.Tools → Tools (4 tool name collisions to resolve)
+- [ ] Phase 5: Module inlining (51 files identified)
+
 ## Domain Centralization + Signal Feed + Consolidation (2026-03-19) -- COMPLETE
 - [x] Genesis domain: 27 new functions for 9 sub-resources, 3 agent tools rewired
 - [x] Workshop domain: 6 new functions, Persistence rewired, 4-hop delegation chain collapsed

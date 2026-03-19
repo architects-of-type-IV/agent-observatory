@@ -5,7 +5,7 @@ defmodule Ichor.Observability do
   Events are durable facts. Activity provides runtime projections.
   All events flow through the Signals nervous system first.
   """
-  use Ash.Domain, validate_config_inclusion?: false
+  use Ash.Domain
 
   alias Ichor.Activity.Error
   alias Ichor.Activity.Message

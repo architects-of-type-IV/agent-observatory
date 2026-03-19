@@ -6,7 +6,7 @@ defmodule Ichor.Projects do
   MES is the project lifecycle container. A swarm is coordinated agents
   executing wave-ready tasks.
   """
-  use Ash.Domain, validate_config_inclusion?: false
+  use Ash.Domain
 
   alias Ichor.Dag.Job
   alias Ichor.Dag.Run
