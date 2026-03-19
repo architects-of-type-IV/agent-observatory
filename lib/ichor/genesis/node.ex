@@ -85,17 +85,13 @@ defmodule Ichor.Genesis.Node do
 
     update :advance do
       accept([])
-      require_atomic?(false)
 
       argument :status, :atom do
         allow_nil?(false)
         constraints(one_of: [:discover, :define, :build, :complete])
       end
 
-      change(fn changeset, _context ->
-        status = Ash.Changeset.get_argument(changeset, :status)
-        Ash.Changeset.change_attribute(changeset, :status, status)
-      end)
+      change(set_attribute(:status, arg(:status)))
     end
 
     read :list_all do

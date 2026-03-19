@@ -157,7 +157,6 @@ defmodule Ichor.Mes.Project do
 
     update :pick_up do
       accept([])
-      require_atomic?(false)
 
       argument :session_id, :string do
         allow_nil?(false)
@@ -165,27 +164,18 @@ defmodule Ichor.Mes.Project do
 
       change(set_attribute(:status, :in_progress))
       change(set_attribute(:picked_up_at, &DateTime.utc_now/0))
-
-      change(fn changeset, _context ->
-        session_id = Ash.Changeset.get_argument(changeset, :session_id)
-        Ash.Changeset.change_attribute(changeset, :picked_up_by, session_id)
-      end)
+      change(set_attribute(:picked_up_by, arg(:session_id)))
     end
 
     update :mark_compiled do
       accept([])
-      require_atomic?(false)
 
       argument :path, :string do
         allow_nil?(false)
       end
 
       change(set_attribute(:status, :compiled))
-
-      change(fn changeset, _context ->
-        path = Ash.Changeset.get_argument(changeset, :path)
-        Ash.Changeset.change_attribute(changeset, :path, path)
-      end)
+      change(set_attribute(:path, arg(:path)))
     end
 
     update :mark_loaded do
@@ -195,18 +185,13 @@ defmodule Ichor.Mes.Project do
 
     update :mark_failed do
       accept([])
-      require_atomic?(false)
 
       argument :build_log, :string do
         allow_nil?(false)
       end
 
       change(set_attribute(:status, :failed))
-
-      change(fn changeset, _context ->
-        log = Ash.Changeset.get_argument(changeset, :build_log)
-        Ash.Changeset.change_attribute(changeset, :build_log, log)
-      end)
+      change(set_attribute(:build_log, arg(:build_log)))
     end
 
     read :list_all do
