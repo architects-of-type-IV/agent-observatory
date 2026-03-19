@@ -1,47 +1,51 @@
 # ICHOR IV - Handoff
 
-## Current Status: Major Code Quality + Dead Code Removal Session (2026-03-19)
+## Current Status: Major Codebase Quality Overhaul (2026-03-19)
 
 ### Session Summary
 
-Massive architecture and quality session. Consolidated messaging, wired signals, removed dead code, fixed performance hot paths. Codebase went from 410 to 392 files with zero warnings and zero credo issues.
+Two-session codebase overhaul covering architecture, messaging, signals, performance, dead code, and Ash idiom fixes. The codebase is significantly cleaner, faster, and more maintainable.
 
-### Key Achievements
+### Completed
 
-1. **MessageRouter** -- Single delivery authority replacing 10 redundant messaging paths
+1. **MessageRouter** -- 10 messaging paths -> 1 single `send/1` API
 2. **ichor_contracts** -- Facade + behaviour + config dispatch for Signals
-3. **Signal system** -- 13 resources wired to FromAsh notifier, 9 GenServer/LiveView emissions added, 5 broken subscribers fixed (events:stream ghost topic)
+3. **Signal wiring** -- 13 resources via FromAsh notifier, 9 GenServer/LiveView emissions, 5 broken subscribers fixed
 4. **StreamEntry struct** -- Common type for signal livefeed with per-signal formatting
-5. **Performance** -- 8 hot-path ETS/Enum fixes (select_delete, single-pass reduces, :ets.info)
-6. **Dead code removal** -- 18 modules deleted, 20+ dead functions removed
-7. **Banner removal** -- 255 decorative comments removed across 71 files
-8. **Safety fixes** -- String.to_atom on HTTP input, Ash NotLoaded guards
-9. **Credo cleanup** -- All issues resolved across entire codebase
+5. **Performance** -- 8 hot-path ETS/Enum fixes (select_delete, single-pass reduces)
+6. **Dead code** -- 21 modules deleted, 20+ dead functions, 410 -> 387 files
+7. **Supervisors** -- 4 -> 2 (SystemSupervisor + ObservationSupervisor)
+8. **Notes** -- GenServer demoted to plain ETS module
+9. **Ash DSL** -- 4 manual changeset fns replaced with set_attribute(arg(...)), redundant identity removed
+10. **Banners** -- 255 decorative comments removed
+11. **Credo** -- All issues resolved, zero remaining
+12. **Safety** -- String.to_atom on HTTP input, Ash NotLoaded guards, struct truncation
 
-### Architecture Decisions
+### Audit Results (Research Complete, Implementation Pending)
 
-- **Signal-first**: ALL meaningful actions emit signals. FromAsh notifier for Ash resources.
-- **MessageRouter**: Plain module (Iron Law). One send/1 API. No process.
-- **ichor_contracts**: Facade + behaviour + config dispatch. Host configures :signals_impl.
-- **StreamEntry struct**: Common type contract for Buffer, PubSub, LiveView.
-- **EntryFormatter**: Per-signal summarizers via pattern matching. Catalog-driven fallback.
-- **Parameter ordering**: Dispatch params first, accumulators first, unused last.
-- **No decorative banners**: @doc and module structure for organization.
+**Ash code_interface centralization** (saved to memory/project/ash_code_interface_audit.md):
+- Genesis domain only wraps Node, 9 sub-resources accessed directly by AgentTools (HIGH)
+- LiveView calls Mes.Project directly (HIGH)
+- Workshop.Persistence bypasses Workshop domain (HIGH)
 
-### Audit Results (Research Complete)
+**Ash enum candidates** (saved to memory/project/ash_enum_candidates.md):
+- 11 inline one_of lists should be Ash.Type.Enum
 
-- **Ash enum candidates**: 11 inline one_of lists should be Ash.Type.Enum (saved to memory)
-- **@spec gap**: 1,149 public functions missing specs across 158 files (policy defined, not yet implemented)
-- **Enum->Stream**: 16 findings, 8 HIGH fixed. Remaining are bounded or cold-path.
-- **Consolidation audits**: 6 areas audited (gateway, fleet, core, dag, mes/archon, web helpers). All HIGH items executed.
+**AgentWatchdog merge** (codex design complete):
+- heartbeat + agent_monitor + nudge_escalator + pane_monitor -> 1 GenServer + 3 pure helpers
+
+**User's latest question**: Do all validations/calculations/transforms/aggregations/changes/actions/preparations follow the Ash docs examples from `mix usage_rules.search_docs`? The macro audit found 4 HIGH violations (already fixed) but a comprehensive docs-driven audit has not been done.
 
 ### Build Status
 - `mix compile --warnings-as-errors` -- CLEAN
 - `mix credo --strict` -- CLEAN (0 issues)
-- File count: 392 (was 410)
+- File count: 387 (was 410)
+- Top-level modules: 26 (was 31)
 
-### What's Next
-1. Ash.Type.Enum extraction (11 candidates identified)
-2. @spec coverage on remaining 1,149 functions
-3. E2E test: Build PulseMonitor with ichor_contracts + boundary enforcement
-4. Boundary violation fixes (web helpers imported by core modules)
+### What's Next (Priority Order)
+1. Ash code_interface centralization (extend Genesis, Mes, Workshop domains)
+2. Ash.Type.Enum extraction (11 candidates)
+3. AgentWatchdog merge (4 GenServers -> 1 + 3 helpers)
+4. Comprehensive Ash DSL audit against usage_rules docs
+5. @spec coverage on remaining functions
+6. E2E test: Build PulseMonitor
