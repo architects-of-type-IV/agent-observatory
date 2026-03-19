@@ -22,8 +22,8 @@ defmodule IchorWeb.Components.SignalComponents do
 
         Enum.filter(assigns.stream_events, fn e ->
           String.contains?(String.downcase(e.topic), f) or
-            String.contains?(String.downcase(e.summary), f) or
-            String.contains?(String.downcase(e.shape), f)
+            String.contains?(String.downcase(e.summary.text), f) or
+            String.contains?(String.downcase(Atom.to_string(e.name)), f)
         end)
       end
 
@@ -113,9 +113,9 @@ defmodule IchorWeb.Components.SignalComponents do
             <thead class="sticky top-0 bg-base/95 backdrop-blur z-10">
               <tr class="text-left text-[9px] text-muted uppercase tracking-wider">
                 <th class="px-2 py-1 w-16">Time</th>
+                <th class="px-2 py-1 w-24">Category</th>
                 <th class="px-2 py-1 w-40">Signal</th>
-                <th class="px-2 py-1 w-36">Shape</th>
-                <th class="px-2 py-1">Data</th>
+                <th class="px-2 py-1">Summary</th>
               </tr>
             </thead>
             <tbody>
@@ -124,7 +124,12 @@ defmodule IchorWeb.Components.SignalComponents do
                 class={"border-t border-border/20 hover:bg-raised/40 transition #{topic_row_class(event.topic)}"}
               >
                 <td class="px-2 py-0.5 font-mono text-muted whitespace-nowrap">
-                  {format_time(event.at)}
+                  {format_time(event.captured_at)}
+                </td>
+                <td class="px-2 py-0.5">
+                  <span class={"text-[9px] font-bold uppercase tracking-widest #{category_color(event.category)}"}>
+                    {event.category}
+                  </span>
                 </td>
                 <td class="px-2 py-0.5">
                   <button
@@ -132,11 +137,10 @@ defmodule IchorWeb.Components.SignalComponents do
                     phx-value-topic={event.topic}
                     class={"font-mono cursor-pointer hover:underline #{topic_text_color(event.topic)}"}
                   >
-                    {event.topic}
+                    {event.name}
                   </button>
                 </td>
-                <td class="px-2 py-0.5 font-mono text-default">{event.shape}</td>
-                <td class="px-2 py-0.5 text-high truncate max-w-[400px]">{event.summary}</td>
+                <td class="px-2 py-0.5 text-high truncate max-w-[400px]">{event.summary.text}</td>
               </tr>
             </tbody>
           </table>

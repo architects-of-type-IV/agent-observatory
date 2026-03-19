@@ -6,9 +6,9 @@ defmodule Ichor.Signals.Buffer do
   """
   use GenServer
 
-  alias Ichor.Signals.{Catalog, Message}
+  alias Ichor.Signals.{Catalog, EntryFormatter, Message}
 
-  @max_events 500
+  @max_events 200
   @table :signal_buffer
 
   def start_link(opts), do: GenServer.start_link(__MODULE__, opts, name: __MODULE__)
@@ -35,21 +35,7 @@ defmodule Ichor.Signals.Buffer do
   @impl true
   def handle_info(%Message{} = sig, %{seq: seq} = state) do
     next = seq + 1
-
-    summary =
-      sig.data
-      |> Map.drop([:scope_id])
-      |> Enum.map_join(" ", fn {k, v} -> "#{k}=#{short_val(v)}" end)
-
-    entry = %{
-      seq: next,
-      topic: "#{sig.domain}:#{sig.name}",
-      shape: ":#{sig.name}",
-      summary: summary,
-      at: DateTime.utc_now(),
-      raw: inspect(sig.data, limit: 300, printable_limit: 300) |> String.slice(0, 500)
-    }
-
+    entry = EntryFormatter.format(sig, next)
     :ets.insert(@table, {next, entry})
     maybe_evict(next)
     Phoenix.PubSub.broadcast(Ichor.PubSub, "stream:feed", {:stream_event, entry})
@@ -57,10 +43,6 @@ defmodule Ichor.Signals.Buffer do
   end
 
   def handle_info(_msg, state), do: {:noreply, state}
-
-  defp short_val(v) when is_binary(v) and byte_size(v) > 20, do: String.slice(v, 0, 16) <> ".."
-  defp short_val(v) when is_binary(v), do: v
-  defp short_val(v), do: inspect(v, limit: 5)
 
   defp maybe_evict(seq) when seq > @max_events do
     cutoff = seq - @max_events
