@@ -14,7 +14,7 @@ defmodule IchorWeb.DashboardInfoHandlers do
 
   alias Ichor.Archon.SignalManager
   alias Ichor.Gateway.HITLRelay
-  alias Ichor.Mes
+  alias Ichor.Projects
   alias Ichor.Signals.Message
   alias IchorWeb.{DashboardArchonHandlers, DashboardMesHandlers}
 
@@ -124,7 +124,7 @@ defmodule IchorWeb.DashboardInfoHandlers do
     do: {:noreply, IchorWeb.DashboardToast.dismiss_toast(socket, id)}
 
   def dispatch(%Message{name: :mes_project_created}, socket) do
-    {:noreply, assign(socket, :mes_projects, Mes.list_projects())}
+    {:noreply, assign(socket, :mes_projects, Projects.list_projects())}
   end
 
   def dispatch(%Message{name: name}, socket)
@@ -134,7 +134,7 @@ defmodule IchorWeb.DashboardInfoHandlers do
          assign(socket, :mes_scheduler_status, DashboardMesHandlers.fetch_scheduler_status())}
 
   def dispatch(%Message{name: :mes_subsystem_loaded}, socket) do
-    {:noreply, assign(socket, :mes_projects, Mes.list_projects())}
+    {:noreply, assign(socket, :mes_projects, Projects.list_projects())}
   end
 
   def dispatch(%Message{name: name}, socket)
@@ -172,7 +172,7 @@ defmodule IchorWeb.DashboardInfoHandlers do
 
   defp reload_genesis_node(socket) do
     node =
-      case Ichor.Genesis.node_by_project(socket.assigns.selected_mes_project.id,
+      case Ichor.Projects.node_by_project(socket.assigns.selected_mes_project.id,
              load: @genesis_loads
            ) do
         {:ok, [n | _]} -> n

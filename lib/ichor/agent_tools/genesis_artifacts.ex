@@ -5,7 +5,7 @@ defmodule Ichor.AgentTools.GenesisArtifacts do
   """
   use Ash.Resource, domain: Ichor.AgentTools
 
-  alias Ichor.Genesis
+  alias Ichor.Projects
   alias Ichor.Tools.GenesisFormatter
 
   @valid_statuses %{
@@ -34,7 +34,7 @@ defmodule Ichor.AgentTools.GenesisArtifacts do
         args = input.arguments
         status = GenesisFormatter.parse_enum(args[:status], :pending, @valid_statuses)
 
-        Genesis.create_adr(%{
+        Projects.create_adr(%{
           code: args.code,
           title: args.title,
           content: args[:content],
@@ -53,7 +53,7 @@ defmodule Ichor.AgentTools.GenesisArtifacts do
       argument(:content, :string, allow_nil?: true, description: "Updated body text")
 
       run(fn input, _context ->
-        with {:ok, adr} <- Genesis.get_adr(input.arguments.adr_id) do
+        with {:ok, adr} <- Projects.get_adr(input.arguments.adr_id) do
           attrs = %{}
 
           attrs =
@@ -64,7 +64,7 @@ defmodule Ichor.AgentTools.GenesisArtifacts do
             )
 
           attrs = GenesisFormatter.put_if(attrs, :content, input.arguments[:content])
-          Genesis.update_adr(adr, attrs) |> to_map()
+          Projects.update_adr(adr, attrs) |> to_map()
         end
       end)
     end
@@ -75,7 +75,7 @@ defmodule Ichor.AgentTools.GenesisArtifacts do
       argument(:node_id, :string, allow_nil?: false, description: "Genesis Node UUID")
 
       run(fn input, _context ->
-        with {:ok, adrs} <- Genesis.adrs_by_node(input.arguments.node_id) do
+        with {:ok, adrs} <- Projects.adrs_by_node(input.arguments.node_id) do
           {:ok, Enum.map(adrs, &summarize_adr/1)}
         end
       end)
@@ -94,7 +94,7 @@ defmodule Ichor.AgentTools.GenesisArtifacts do
         args = input.arguments
         adr_codes = GenesisFormatter.split_csv(args[:adr_codes])
 
-        Genesis.create_feature(%{
+        Projects.create_feature(%{
           code: args.code,
           title: args.title,
           content: args[:content],
@@ -111,7 +111,7 @@ defmodule Ichor.AgentTools.GenesisArtifacts do
       argument(:node_id, :string, allow_nil?: false, description: "Genesis Node UUID")
 
       run(fn input, _context ->
-        with {:ok, features} <- Genesis.features_by_node(input.arguments.node_id) do
+        with {:ok, features} <- Projects.features_by_node(input.arguments.node_id) do
           {:ok, Enum.map(features, &GenesisFormatter.summarize(&1, [:code, :title, :adr_codes]))}
         end
       end)
@@ -133,7 +133,7 @@ defmodule Ichor.AgentTools.GenesisArtifacts do
       run(fn input, _context ->
         args = input.arguments
 
-        Genesis.create_use_case(%{
+        Projects.create_use_case(%{
           code: args.code,
           title: args.title,
           content: args[:content],
@@ -150,7 +150,7 @@ defmodule Ichor.AgentTools.GenesisArtifacts do
       argument(:node_id, :string, allow_nil?: false, description: "Genesis Node UUID")
 
       run(fn input, _context ->
-        with {:ok, ucs} <- Genesis.use_cases_by_node(input.arguments.node_id) do
+        with {:ok, ucs} <- Projects.use_cases_by_node(input.arguments.node_id) do
           {:ok, Enum.map(ucs, &GenesisFormatter.summarize(&1, [:code, :title, :feature_code]))}
         end
       end)

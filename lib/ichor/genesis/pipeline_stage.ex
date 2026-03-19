@@ -4,7 +4,7 @@ defmodule Ichor.Genesis.PipelineStage do
   Queries the DAG domain for :building stage detection.
   """
 
-  alias Ichor.Dag
+  alias Ichor.Projects
 
   @type stage ::
           :ideation
@@ -127,7 +127,7 @@ defmodule Ichor.Genesis.PipelineStage do
   defp has_active_dag_run?(nil), do: false
 
   defp has_active_dag_run?(%{id: node_id}) when is_binary(node_id) do
-    Dag.runs_by_node(node_id) != []
+    Projects.runs_by_node(node_id) != []
   end
 
   defp has_active_dag_run?(_), do: false

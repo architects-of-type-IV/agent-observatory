@@ -4,7 +4,7 @@ defmodule Ichor.AgentTools.GenesisGates do
   """
   use Ash.Resource, domain: Ichor.AgentTools
 
-  alias Ichor.Genesis
+  alias Ichor.Projects
   alias Ichor.Tools.GenesisFormatter
 
   @valid_modes %{
@@ -30,7 +30,7 @@ defmodule Ichor.AgentTools.GenesisGates do
         args = input.arguments
         mode = Map.fetch!(@valid_modes, args.mode)
 
-        Genesis.create_checkpoint(%{
+        Projects.create_checkpoint(%{
           title: args.title,
           mode: mode,
           content: args[:content],
@@ -53,7 +53,7 @@ defmodule Ichor.AgentTools.GenesisGates do
         args = input.arguments
         mode = Map.fetch!(@valid_modes, args.mode)
 
-        Genesis.create_conversation(%{
+        Projects.create_conversation(%{
           title: args.title,
           mode: mode,
           content: args[:content],
@@ -69,7 +69,7 @@ defmodule Ichor.AgentTools.GenesisGates do
       argument(:node_id, :string, allow_nil?: false, description: "Genesis Node UUID")
 
       run(fn input, _context ->
-        case Genesis.conversations_by_node(input.arguments.node_id) do
+        case Projects.conversations_by_node(input.arguments.node_id) do
           {:ok, convs} -> {:ok, Enum.map(convs, &GenesisFormatter.summarize(&1, [:title, :mode]))}
           error -> error
         end

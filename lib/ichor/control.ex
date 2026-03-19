@@ -23,27 +23,29 @@ defmodule Ichor.Control do
     resource(Ichor.Workshop.CommRule)
   end
 
-  # -- Fleet functions --
-
+  @doc "Returns all registered agents."
   @spec list_agents() :: list(Agent.t())
   def list_agents, do: Agent.all!()
 
+  @doc "Returns agents in :active status."
   @spec list_active_agents() :: list(Agent.t())
   def list_active_agents, do: Agent.active!()
 
+  @doc "Returns teams that are currently alive."
   @spec list_alive_teams() :: list(Team.t())
   def list_alive_teams, do: Team.alive!()
 
+  @doc "Returns all registered teams."
   @spec list_teams() :: list(Team.t())
   def list_teams, do: Team.all!()
 
+  @doc "Returns unread messages for the given agent."
   @spec get_unread(String.t()) :: {:ok, list(map())}
   def get_unread(agent_id), do: Agent.get_unread(agent_id)
 
+  @doc "Marks a specific message as read for the given agent."
   @spec mark_read(String.t(), String.t()) :: {:ok, map()}
   def mark_read(agent_id, message_id), do: Agent.mark_read(agent_id, message_id)
-
-  # -- Workshop functions --
 
   @doc "Returns all blueprints with agent_blueprints, spawn_links, and comm_rules loaded."
   @spec list_blueprints() :: [TeamBlueprint.t()]

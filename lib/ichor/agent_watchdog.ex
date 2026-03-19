@@ -86,8 +86,6 @@ defmodule Ichor.AgentWatchdog do
   @impl true
   def handle_info(_msg, state), do: {:noreply, state}
 
-  # --- Crash detection -----------------------------------------------------------
-
   defp detect_and_handle_crashes(state) do
     now = DateTime.utc_now()
 
@@ -194,8 +192,6 @@ defmodule Ichor.AgentWatchdog do
         Logger.error("AgentWatchdog: Failed to write inbox notification: #{inspect(reason)}")
     end
   end
-
-  # --- Escalation ---------------------------------------------------------------
 
   defp run_escalation_check(state) do
     now = DateTime.utc_now()
@@ -309,8 +305,6 @@ defmodule Ichor.AgentWatchdog do
 
   defp do_escalate(_level, _session_id, _agent_name), do: :ok
 
-  # --- Pane scanning ------------------------------------------------------------
-
   defp scan_all_panes(state) do
     AgentProcess.list_all()
     |> Enum.reduce(state, fn
@@ -397,8 +391,6 @@ defmodule Ichor.AgentWatchdog do
 
     state
   end
-
-  # --- Config / Timer -----------------------------------------------------------
 
   defp config(key, default) do
     Application.get_env(:ichor, __MODULE__, [])

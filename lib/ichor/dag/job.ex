@@ -6,7 +6,7 @@ defmodule Ichor.Dag.Job do
   """
 
   use Ash.Resource,
-    domain: Ichor.Dag,
+    domain: Ichor.Projects,
     data_layer: AshSqlite.DataLayer
 
   alias Ichor.Dag.RuntimeCallbacks

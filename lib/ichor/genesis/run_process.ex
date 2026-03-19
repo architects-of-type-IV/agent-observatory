@@ -22,7 +22,15 @@ defmodule Ichor.Genesis.RunProcess do
 
   @liveness_interval_ms :timer.seconds(30)
 
+  @enforce_keys [:run_id, :mode, :session]
   defstruct [:run_id, :mode, :session, :node_id]
+
+  @type t :: %__MODULE__{
+          run_id: String.t(),
+          mode: atom(),
+          session: String.t(),
+          node_id: String.t() | nil
+        }
 
   @spec start_link(keyword()) :: GenServer.on_start()
   def start_link(opts) do

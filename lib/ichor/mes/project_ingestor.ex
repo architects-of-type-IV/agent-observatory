@@ -16,7 +16,7 @@ defmodule Ichor.Mes.ProjectIngestor do
 
   require Logger
 
-  alias Ichor.Mes
+  alias Ichor.Projects
   alias Ichor.Signals
 
   @required_keys ~w(title description subsystem signal_interface)
@@ -204,7 +204,7 @@ defmodule Ichor.Mes.ProjectIngestor do
       |> maybe_put(:signals_emitted, payload["signals_emitted"])
       |> maybe_put(:signals_subscribed, payload["signals_subscribed"])
 
-    case Mes.create_project(attrs) do
+    case Projects.create_project(attrs) do
       {:ok, project} ->
         Logger.info("[MES.ProjectIngestor] Ingested project: #{project.title} (#{project.id})")
 

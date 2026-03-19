@@ -12,7 +12,7 @@ defmodule Ichor.Genesis.DagGenerator do
 
   @spec generate(String.t()) :: {:ok, [map()]} | {:error, term()}
   def generate(node_id) do
-    with {:ok, node} <- Ichor.Genesis.load_node(node_id, phases: @hierarchy_load) do
+    with {:ok, node} <- Ichor.Projects.load_node(node_id, phases: @hierarchy_load) do
       tasks =
         node.phases
         |> flatten_hierarchy()

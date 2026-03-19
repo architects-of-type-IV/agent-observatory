@@ -32,6 +32,7 @@ defmodule Ichor.Fleet.AgentProcess do
           unread: [map()]
         }
 
+  @enforce_keys [:id, :role, :status]
   defstruct [
     :id,
     :pid,

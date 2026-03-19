@@ -4,7 +4,7 @@ defmodule Ichor.AgentTools.GenesisNodes do
   """
   use Ash.Resource, domain: Ichor.AgentTools
 
-  alias Ichor.Genesis
+  alias Ichor.Projects
 
   actions do
     action :create_genesis_node, :map do
@@ -34,7 +34,7 @@ defmodule Ichor.AgentTools.GenesisNodes do
         args = input.arguments
 
         with {:ok, node} <-
-               Genesis.create_node(
+               Projects.create_node(
                  Map.take(args, [:title, :description, :brief, :mes_project_id])
                ) do
           {:ok, summarize_node(node)}
@@ -56,9 +56,9 @@ defmodule Ichor.AgentTools.GenesisNodes do
       end
 
       run(fn input, _context ->
-        with {:ok, node} <- Genesis.get_node(input.arguments.node_id),
+        with {:ok, node} <- Projects.get_node(input.arguments.node_id),
              status <- String.to_existing_atom(input.arguments.status),
-             {:ok, updated} <- Genesis.advance_node(node.id, status) do
+             {:ok, updated} <- Projects.advance_node(node.id, status) do
           {:ok, summarize_node(updated)}
         end
       end)
@@ -68,7 +68,7 @@ defmodule Ichor.AgentTools.GenesisNodes do
       description("List all Genesis Nodes with their current pipeline status.")
 
       run(fn _input, _context ->
-        case Genesis.list_nodes() do
+        case Projects.list_nodes() do
           {:ok, nodes} ->
             {:ok, Enum.map(nodes, &summarize_node/1)}
 
@@ -88,7 +88,7 @@ defmodule Ichor.AgentTools.GenesisNodes do
 
       run(fn input, _context ->
         with {:ok, loaded} <-
-               Genesis.load_node(input.arguments.node_id, [
+               Projects.load_node(input.arguments.node_id, [
                  :adrs,
                  :features,
                  :use_cases,
@@ -113,7 +113,7 @@ defmodule Ichor.AgentTools.GenesisNodes do
 
       run(fn input, _context ->
         with {:ok, loaded} <-
-               Genesis.load_node(input.arguments.node_id, [
+               Projects.load_node(input.arguments.node_id, [
                  :adrs,
                  :features,
                  :use_cases,

@@ -5,7 +5,7 @@ defmodule Ichor.Dag.Run do
   """
 
   use Ash.Resource,
-    domain: Ichor.Dag,
+    domain: Ichor.Projects,
     data_layer: AshSqlite.DataLayer,
     simple_notifiers: [Ichor.Signals.FromAsh]
 

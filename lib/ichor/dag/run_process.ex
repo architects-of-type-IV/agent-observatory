@@ -26,7 +26,14 @@ defmodule Ichor.Dag.RunProcess do
   @health_interval_ms :timer.seconds(30)
   @liveness_interval_ms :timer.seconds(60)
 
+  @enforce_keys [:run_id, :tmux_session]
   defstruct [:run_id, :tmux_session, :project_path]
+
+  @type t :: %__MODULE__{
+          run_id: String.t(),
+          tmux_session: String.t(),
+          project_path: String.t() | nil
+        }
 
   @spec start_link(keyword()) :: GenServer.on_start()
   def start_link(opts) do

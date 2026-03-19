@@ -483,11 +483,38 @@ defmodule IchorWeb.SignalFeed.Renderers.Mes do
     """
   end
 
-  def render(assigns) do
+  def render(%{message: %Message{data: data}} = assigns) do
+    assigns = assign(assigns, :pairs, data_to_pairs(data))
+
     ~H"""
-    <span class="text-[10px] text-muted font-mono">{@message.name}</span>
+    <span class="text-[10px] text-muted font-mono mr-1">{@message.name}</span>
+    <span :for={p <- @pairs} class="mr-1">
+      <Primitives.kv key={p.key} value={p.val} />
+    </span>
     """
   end
+
+  defp data_to_pairs(nil), do: []
+
+  defp data_to_pairs(data) when is_map(data) do
+    data
+    |> Enum.map(fn {k, v} -> %{key: to_string(k), val: format_val(v)} end)
+    |> Enum.sort_by(& &1.key)
+  end
+
+  defp data_to_pairs(_), do: []
+
+  defp format_val(nil), do: "nil"
+  defp format_val(v) when is_binary(v) and byte_size(v) > 60, do: String.slice(v, 0, 57) <> "..."
+  defp format_val(v) when is_binary(v), do: v
+  defp format_val(v) when is_atom(v), do: Atom.to_string(v)
+  defp format_val(v) when is_number(v), do: to_string(v)
+  defp format_val(v) when is_list(v), do: "[#{length(v)} items]"
+
+  defp format_val(v) when is_map(v),
+    do: inspect(v, limit: 3, pretty: false) |> String.slice(0, 60)
+
+  defp format_val(v), do: inspect(v, limit: 3, printable_limit: 20) |> String.slice(0, 60)
 
   defp scheduler_label(:mes_scheduler_init), do: "scheduler init"
   defp scheduler_label(:mes_scheduler_paused), do: "scheduler paused"

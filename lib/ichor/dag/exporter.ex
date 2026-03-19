@@ -11,7 +11,7 @@ defmodule Ichor.Dag.Exporter do
 
   @spec to_jsonl(String.t()) :: {:ok, String.t()} | {:error, term()}
   def to_jsonl(run_id) do
-    with {:ok, jobs} <- Ichor.Dag.fetch_jobs_for_run(run_id) do
+    with {:ok, jobs} <- Ichor.Projects.fetch_jobs_for_run(run_id) do
       {:ok, Enum.map_join(jobs, "\n", &job_to_jsonl/1)}
     end
   end

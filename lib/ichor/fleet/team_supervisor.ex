@@ -13,7 +13,16 @@ defmodule Ichor.Fleet.TeamSupervisor do
   @team_registry Ichor.Registry
   @pg_scope :ichor_agents
 
+  @enforce_keys [:name]
   defstruct [:name, :project, :strategy, :lead_id, metadata: %{}]
+
+  @type t :: %__MODULE__{
+          name: String.t(),
+          project: String.t() | nil,
+          strategy: atom() | nil,
+          lead_id: String.t() | nil,
+          metadata: map()
+        }
 
   @doc "Start a team supervisor and register it in the team registry."
   @spec start_link(keyword()) :: Supervisor.on_start()

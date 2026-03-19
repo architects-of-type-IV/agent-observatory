@@ -28,7 +28,17 @@ defmodule Ichor.Mes.RunProcess do
   @deadline_ms :timer.minutes(10)
   @liveness_interval_ms :timer.seconds(30)
 
+  @enforce_keys [:run_id, :team_name, :session, :deadline_passed]
   defstruct [:run_id, :team_name, :session, :deadline_passed, agents: [], gate_failures: 0]
+
+  @type t :: %__MODULE__{
+          run_id: String.t(),
+          team_name: String.t(),
+          session: String.t(),
+          deadline_passed: boolean(),
+          agents: [map()],
+          gate_failures: non_neg_integer()
+        }
 
   @spec start_link(keyword()) :: GenServer.on_start()
   def start_link(opts) do

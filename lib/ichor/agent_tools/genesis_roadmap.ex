@@ -2,7 +2,7 @@ defmodule Ichor.AgentTools.GenesisRoadmap do
   @moduledoc "MCP tools for Mode C roadmap hierarchy: Phase, Section, Task, Subtask."
   use Ash.Resource, domain: Ichor.AgentTools
 
-  alias Ichor.Genesis
+  alias Ichor.Projects
   alias Ichor.Tools.GenesisFormatter
 
   actions do
@@ -22,7 +22,7 @@ defmodule Ichor.AgentTools.GenesisRoadmap do
       run(fn input, _context ->
         args = input.arguments
 
-        Genesis.create_phase(%{
+        Projects.create_phase(%{
           number: args.number,
           title: args.title,
           goals: GenesisFormatter.split_csv(args[:goals]),
@@ -44,7 +44,7 @@ defmodule Ichor.AgentTools.GenesisRoadmap do
       run(fn input, _context ->
         args = input.arguments
 
-        Genesis.create_section(%{
+        Projects.create_section(%{
           number: args.number,
           title: args.title,
           goal: args[:goal],
@@ -71,7 +71,7 @@ defmodule Ichor.AgentTools.GenesisRoadmap do
       run(fn input, _context ->
         args = input.arguments
 
-        Genesis.create_task(%{
+        Projects.create_task(%{
           number: args.number,
           title: args.title,
           governed_by: GenesisFormatter.split_csv(args[:governed_by]),
@@ -107,7 +107,7 @@ defmodule Ichor.AgentTools.GenesisRoadmap do
       run(fn input, _context ->
         args = input.arguments
 
-        Genesis.create_subtask(%{
+        Projects.create_subtask(%{
           number: args.number,
           title: args.title,
           goal: args[:goal],
@@ -139,7 +139,7 @@ defmodule Ichor.AgentTools.GenesisRoadmap do
       argument(:node_id, :string, allow_nil?: false, description: "Genesis Node UUID")
 
       run(fn input, _context ->
-        with {:ok, phases} <- Genesis.phases_by_node(input.arguments.node_id) do
+        with {:ok, phases} <- Projects.phases_by_node(input.arguments.node_id) do
           summaries =
             Enum.map(phases, fn phase ->
               {:ok, p} = Ash.load(phase, sections: [tasks: [:subtasks]])

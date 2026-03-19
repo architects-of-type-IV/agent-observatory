@@ -14,9 +14,6 @@ config :ichor,
     Ichor.AgentTools,
     Ichor.Archon.Tools,
     Ichor.Control,
-    Ichor.Dag,
-    Ichor.Genesis,
-    Ichor.Mes,
     Ichor.Observability,
     Ichor.Projects
   ]

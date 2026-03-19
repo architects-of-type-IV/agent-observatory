@@ -7,7 +7,7 @@ defmodule Ichor.Genesis.Checkpoint do
   """
 
   use Ash.Resource,
-    domain: Ichor.Genesis,
+    domain: Ichor.Projects,
     data_layer: AshSqlite.DataLayer,
     simple_notifiers: [Ichor.Signals.FromAsh]
 

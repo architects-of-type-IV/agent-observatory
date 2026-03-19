@@ -17,8 +17,6 @@ defmodule Ichor.Gateway.EntropyTracker do
 
   require Logger
 
-  # -- Public API --
-
   def start_link(opts \\ []) do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
   end
@@ -58,8 +56,6 @@ defmodule Ichor.Gateway.EntropyTracker do
   def reset do
     GenServer.call(__MODULE__, :reset)
   end
-
-  # -- GenServer Callbacks --
 
   @impl true
   def init(_opts) do
@@ -126,8 +122,6 @@ defmodule Ichor.Gateway.EntropyTracker do
 
     {:noreply, state}
   end
-
-  # -- Private Functions --
 
   defp slide_window(window, max_size) when length(window) > max_size do
     List.delete_at(window, 0)

@@ -12,8 +12,6 @@ defmodule Ichor.Gateway.HITLRelay do
   @sweep_interval :timer.minutes(30)
   @abandoned_ttl_seconds 1_800
 
-  # --- Public API ---
-
   def start_link(opts) do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
   end
@@ -74,8 +72,6 @@ defmodule Ichor.Gateway.HITLRelay do
   def reject(session_id, agent_id, operator_id) do
     GenServer.call(__MODULE__, {:reject, session_id, agent_id, operator_id})
   end
-
-  # --- GenServer callbacks ---
 
   @impl true
   def init(_opts) do
@@ -198,8 +194,6 @@ defmodule Ichor.Gateway.HITLRelay do
   end
 
   def handle_info(_msg, state), do: {:noreply, state}
-
-  # --- Private ---
 
   defp schedule_sweep do
     Process.send_after(self(), :sweep, @sweep_interval)

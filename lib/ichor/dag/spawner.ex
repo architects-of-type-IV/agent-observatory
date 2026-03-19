@@ -29,7 +29,7 @@ defmodule Ichor.Dag.Spawner do
     cwd = File.cwd!()
     brief = ModeSpawner.load_project_brief(project_id)
 
-    with {:ok, node} <- Ichor.Genesis.get_node(node_id),
+    with {:ok, node} <- Ichor.Projects.get_node(node_id),
          {app_name, module_name} = SubsystemScaffold.derive_names(node.title),
          subsystem_dir = SubsystemScaffold.subsystem_path(app_name),
          {:ok, _path} <- SubsystemScaffold.scaffold(app_name, module_name),

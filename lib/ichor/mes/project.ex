@@ -7,7 +7,7 @@ defmodule Ichor.Mes.Project do
   """
 
   use Ash.Resource,
-    domain: Ichor.Mes,
+    domain: Ichor.Projects,
     data_layer: AshSqlite.DataLayer,
     simple_notifiers: [Ichor.Signals.FromAsh]
 
