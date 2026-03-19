@@ -63,7 +63,16 @@ Coordinator-driven session continuing from session 1. All work delegated to ash-
 7. **5 dependency cycles** (14-node control cycle is biggest)
 8. **Triplicated EventBuffer reader** in 3 preparation modules
 
+### Plan Validation Summary (docs/plans/VALIDATION.md)
+| Status | Count | Plans |
+|--------|-------|-------|
+| COMPLETED | 7 | genesis-nodes-design, mes-unified-design, genesis-smoketest, de-umbrella, domain-consolidation, ash-ai-tool-scoping, merge-back-gates |
+| SUPERSEDED | 4 | genesis-tab-design, genesis-tab-plan, umbrella-architecture, module-classification |
+| PARTIALLY DONE | 3 | registry-redesign (AgentRegistry refs remain), quality-audit (banner/enforce_keys gaps), next-session-prompt (RunProcess/component deferred) |
+| NOT STARTED | 1 | component-library-research (12 duplicated badge patterns) |
+
 ### Key Files
 - docs/plans/INDEX.md -- all plans indexed with timestamps
-- docs/plans/VALIDATION.md -- plan status validation (being generated)
+- docs/plans/VALIDATION.md -- plan status validation (complete)
 - docs/plans/ash-idioms-reference.md -- correct Ash patterns
+- docs/plans/audit-*.md -- 4 deep audit reports
