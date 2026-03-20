@@ -9,15 +9,18 @@ defmodule IchorWeb.DashboardState do
   import IchorWeb.DashboardTeamHelpers, only: [all_team_sids: 1]
   import IchorWeb.DashboardFeedHelpers, only: [build_feed_groups: 2]
 
-  alias Ichor.Control
+  alias Ichor.Control.Agent
   alias Ichor.Control.Analysis.Queries, as: FQ
   alias Ichor.Control.Analysis.SessionEviction
   alias Ichor.Control.RuntimeView
+  alias Ichor.Control.Team
   alias Ichor.Gateway.Channels.Tmux
   alias Ichor.Gateway.HITLRelay
   alias Ichor.Gateway.TmuxDiscovery
   alias Ichor.Notes
-  alias Ichor.Observability
+  alias Ichor.Observability.Error
+  alias Ichor.Observability.Message
+  alias Ichor.Observability.Task, as: ObservabilityTask
   alias Ichor.Projects.Status
 
   def default_assigns(disk_teams) do
@@ -133,13 +136,13 @@ defmodule IchorWeb.DashboardState do
     assigns = socket.assigns
 
     # Ash domain queries
-    teams = Control.list_alive_teams()
-    all_teams = Control.list_teams()
-    agents = Control.list_agents()
-    messages = Observability.list_recent_messages()
-    event_tasks = Observability.list_current_tasks() |> Enum.map(&task_to_map/1)
-    errors = Observability.list_recent_errors()
-    error_groups = Observability.list_error_groups()
+    teams = Team.alive!()
+    all_teams = Team.all!()
+    agents = Agent.all!()
+    messages = Message.recent!()
+    event_tasks = ObservabilityTask.current!() |> Enum.map(&task_to_map/1)
+    errors = Error.recent!()
+    error_groups = Error.by_tool!()
 
     # Session derivation (Fleet.Queries)
     all_sessions =

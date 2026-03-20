@@ -88,6 +88,10 @@ defmodule Ichor.Control.TeamBlueprint do
       filter(expr(name == ^arg(:name)))
       prepare(build(load: [:agent_blueprints, :spawn_links, :comm_rules]))
     end
+
+    read :list_with_relationships do
+      prepare(build(load: [:agent_blueprints, :spawn_links, :comm_rules]))
+    end
   end
 
   code_interface do
@@ -97,6 +101,7 @@ defmodule Ichor.Control.TeamBlueprint do
     define(:destroy)
     define(:by_id, args: [:id])
     define(:by_name, args: [:name])
+    define(:list_with_relationships)
   end
 
   identities do

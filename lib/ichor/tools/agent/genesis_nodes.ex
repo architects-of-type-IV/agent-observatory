@@ -4,7 +4,7 @@ defmodule Ichor.Tools.Agent.GenesisNodes do
   """
   use Ash.Resource, domain: Ichor.Tools
 
-  alias Ichor.Projects
+  alias Ichor.Projects.Node
 
   @node_status_map %{
     "discover" => :discover,
@@ -41,9 +41,7 @@ defmodule Ichor.Tools.Agent.GenesisNodes do
         args = input.arguments
 
         with {:ok, node} <-
-               Projects.create_node(
-                 Map.take(args, [:title, :description, :brief, :mes_project_id])
-               ) do
+               Node.create(Map.take(args, [:title, :description, :brief, :mes_project_id])) do
           {:ok, summarize_node(node)}
         end
       end)
@@ -63,9 +61,9 @@ defmodule Ichor.Tools.Agent.GenesisNodes do
       end
 
       run(fn input, _context ->
-        with {:ok, node} <- Projects.get_node(input.arguments.node_id),
+        with {:ok, node} <- Node.get(input.arguments.node_id),
              {:ok, status} <- Map.fetch(@node_status_map, input.arguments.status),
-             {:ok, updated} <- Projects.advance_node(node.id, status) do
+             {:ok, updated} <- Node.advance(node, status) do
           {:ok, summarize_node(updated)}
         else
           :error -> {:error, "invalid status: #{input.arguments.status}"}
@@ -78,7 +76,7 @@ defmodule Ichor.Tools.Agent.GenesisNodes do
       description("List all Genesis Nodes with their current pipeline status.")
 
       run(fn _input, _context ->
-        case Projects.list_nodes() do
+        case Node.list_all() do
           {:ok, nodes} ->
             {:ok, Enum.map(nodes, &summarize_node/1)}
 
@@ -98,14 +96,9 @@ defmodule Ichor.Tools.Agent.GenesisNodes do
 
       run(fn input, _context ->
         with {:ok, loaded} <-
-               Projects.load_node(input.arguments.node_id, [
-                 :adrs,
-                 :features,
-                 :use_cases,
-                 :checkpoints,
-                 :conversations,
-                 :phases
-               ]) do
+               Node.get(input.arguments.node_id,
+                 load: [:adrs, :features, :use_cases, :checkpoints, :conversations, :phases]
+               ) do
           {:ok, detail_node(loaded)}
         end
       end)
@@ -123,13 +116,9 @@ defmodule Ichor.Tools.Agent.GenesisNodes do
 
       run(fn input, _context ->
         with {:ok, loaded} <-
-               Projects.load_node(input.arguments.node_id, [
-                 :adrs,
-                 :features,
-                 :use_cases,
-                 :checkpoints,
-                 :phases
-               ]) do
+               Node.get(input.arguments.node_id,
+                 load: [:adrs, :features, :use_cases, :checkpoints, :phases]
+               ) do
           {:ok, gate_report(loaded)}
         end
       end)

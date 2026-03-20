@@ -9,8 +9,8 @@ defmodule IchorWeb.HITLController do
 
   use IchorWeb, :controller
 
+  alias Ichor.Gateway.HITLInterventionEvent
   alias Ichor.Gateway.HITLRelay
-  alias Ichor.Observability
 
   def pause(conn, %{"agent_id" => agent_id, "reason" => reason} = _params)
       when is_binary(agent_id) and agent_id != "" and is_binary(reason) and reason != "" do
@@ -106,7 +106,7 @@ defmodule IchorWeb.HITLController do
 
   defp audit!(session_id, agent_id, operator_id, action, details) do
     {:ok, _} =
-      Observability.record_hitl_intervention(%{
+      HITLInterventionEvent.record(%{
         session_id: session_id,
         agent_id: agent_id,
         operator_id: operator_id,

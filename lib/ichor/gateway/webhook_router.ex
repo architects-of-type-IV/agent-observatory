@@ -8,7 +8,7 @@ defmodule Ichor.Gateway.WebhookRouter do
 
   require Logger
 
-  alias Ichor.Control
+  alias Ichor.Gateway.WebhookDelivery
 
   @retry_schedule_seconds [30, 120, 600, 3600, 21_600]
   @poll_interval_ms 5_000
@@ -20,12 +20,7 @@ defmodule Ichor.Gateway.WebhookRouter do
   def enqueue(agent_id, target_url, payload, secret) do
     signature = compute_signature(payload, secret)
 
-    case Control.enqueue_webhook_delivery(%{
-           agent_id: agent_id,
-           target_url: target_url,
-           payload: payload,
-           signature: signature
-         }) do
+    case WebhookDelivery.enqueue(target_url, payload, signature, agent_id) do
       {:ok, delivery} -> {:ok, delivery.id}
       {:error, reason} -> {:error, reason}
     end
@@ -33,12 +28,12 @@ defmodule Ichor.Gateway.WebhookRouter do
 
   @doc "List all dead-letter deliveries for an agent."
   @spec list_dead_letters(String.t()) :: [Ichor.Gateway.WebhookDelivery.t()]
-  def list_dead_letters(agent_id), do: Control.list_dead_letters_for_agent(agent_id)
+  def list_dead_letters(agent_id), do: WebhookDelivery.dead_letters_for_agent!(agent_id)
 
   @doc "List all dead-letter deliveries across all agents."
   @spec list_all_dead_letters() :: [Ichor.Gateway.WebhookDelivery.t()]
   def list_all_dead_letters do
-    Control.list_all_dead_letters()
+    WebhookDelivery.all_dead_letters!()
   rescue
     _ -> []
   end
@@ -79,7 +74,7 @@ defmodule Ichor.Gateway.WebhookRouter do
   @impl true
   def handle_info(:poll, state) do
     try do
-      Control.list_due_webhook_deliveries()
+      WebhookDelivery.due_for_delivery!()
       |> Enum.each(&attempt_delivery/1)
     catch
       kind, reason ->
@@ -95,7 +90,7 @@ defmodule Ichor.Gateway.WebhookRouter do
 
     case delivery_fn().(delivery.target_url, body: delivery.payload, headers: headers) do
       {:ok, %{status: status}} when status >= 200 and status < 300 ->
-        Control.mark_webhook_delivered(delivery)
+        WebhookDelivery.mark_delivered(delivery)
 
       _error ->
         do_schedule_retry(delivery)
@@ -110,7 +105,7 @@ defmodule Ichor.Gateway.WebhookRouter do
     new_attempt_count = delivery.attempt_count + 1
 
     if new_attempt_count >= @max_attempts do
-      Control.mark_webhook_dead(delivery, %{attempt_count: new_attempt_count})
+      WebhookDelivery.mark_dead(delivery, %{attempt_count: new_attempt_count})
       Ichor.Signals.emit(:dead_letter, %{delivery: delivery})
     else
       delay_seconds = Enum.at(@retry_schedule_seconds, new_attempt_count - 1, 21_600)
@@ -120,7 +115,7 @@ defmodule Ichor.Gateway.WebhookRouter do
         |> DateTime.add(delay_seconds)
         |> DateTime.truncate(:second)
 
-      Control.schedule_webhook_retry(delivery, %{
+      WebhookDelivery.schedule_retry(delivery, %{
         attempt_count: new_attempt_count,
         next_retry_at: next_retry
       })
@@ -130,9 +125,9 @@ defmodule Ichor.Gateway.WebhookRouter do
   defp requeue_undelivered do
     now = DateTime.utc_now() |> DateTime.truncate(:second)
 
-    Control.list_due_webhook_deliveries()
+    WebhookDelivery.due_for_delivery!()
     |> Enum.each(fn delivery ->
-      Control.schedule_webhook_retry(delivery, %{
+      WebhookDelivery.schedule_retry(delivery, %{
         attempt_count: delivery.attempt_count,
         next_retry_at: now
       })

@@ -9,6 +9,8 @@ defmodule Ichor.Projects.Spawner do
 
   alias Ichor.Control.Lifecycle.TeamLaunch
 
+  alias Ichor.Projects.Node, as: ProjectNode
+
   alias Ichor.Projects.{
     DagTeamSpecBuilder,
     Graph,
@@ -30,7 +32,7 @@ defmodule Ichor.Projects.Spawner do
     session = "dag-#{short_id()}"
     brief = ModeSpawner.load_project_brief(project_id)
 
-    with {:ok, node} <- Ichor.Projects.get_node(node_id),
+    with {:ok, node} <- ProjectNode.get(node_id),
          {app_name, module_name} = SubsystemScaffold.derive_names(node.title),
          subsystem_dir = SubsystemScaffold.subsystem_path(app_name),
          {:ok, _path} <- SubsystemScaffold.scaffold(app_name, module_name),
@@ -85,19 +87,16 @@ defmodule Ichor.Projects.Spawner do
   end
 
   defp validate(run_id) do
-    case Job.by_run(run_id) do
-      {:ok, jobs} ->
-        items = Enum.map(jobs, &Graph.to_graph_node/1)
-        cycles = Validator.detect_cycles(items)
-        missing = Validator.flat_dag_check(items)
+    with {:ok, jobs} <- Job.by_run(run_id) do
+      items = Enum.map(jobs, &Graph.to_graph_node/1)
+      cycles = Validator.detect_cycles(items)
+      missing = Validator.flat_dag_check(items)
 
-        case {cycles, missing} do
-          {[], []} -> {:ok, %{cycles: [], missing_refs: []}}
-          _ -> {:error, %{cycles: cycles, missing_refs: missing}}
-        end
-
-      error ->
-        error
+      if cycles == [] and missing == [] do
+        {:ok, %{cycles: [], missing_refs: []}}
+      else
+        {:error, %{cycles: cycles, missing_refs: missing}}
+      end
     end
   end
 

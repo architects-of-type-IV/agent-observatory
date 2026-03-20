@@ -117,7 +117,7 @@ defmodule Ichor.Projects.BuildRunner do
   end
 
   def handle_info(:check_liveness, state) do
-    if tmux_session_alive?(state.session) do
+    if Tmux.available?(state.session) do
       schedule_liveness_check()
       {:noreply, state}
     else
@@ -162,10 +162,6 @@ defmodule Ichor.Projects.BuildRunner do
 
   defp schedule_liveness_check do
     Process.send_after(self(), :check_liveness, @liveness_interval_ms)
-  end
-
-  defp tmux_session_alive?(session) do
-    Tmux.available?(session)
   end
 
   defp team_lifecycle do

@@ -1,45 +1,55 @@
 # ICHOR IV - Handoff
 
-## Current Status: Session 3 -- Consolidation + Safety (2026-03-19)
+## Current Status: Session 4 -- Domain Facade Removal (2026-03-20)
 
 ### Session Summary
 
-Coordinator-driven session. Codex (GPT-5.4) consulted as equal architectural partner. All implementation delegated to ash-elixir-expert agents. Build/credo/dialyzer delegated to agents to protect context window.
+Deleted all 31 pass-through wrapper functions from `Ichor.Control` (the domain facade).
+Resources already had `define` in their `code_interface` — callers now use resource interfaces directly.
 
 ### What Was Done This Session
 
-1. **Ground rules established** -- CLAUDE.md updated with coordinator operating model, agent routing table, codex invocation patterns, elixir skills requirement
-2. **State document audit** -- codex verified progress.txt, BRAIN.md, HANDOFF.md against codebase. Found 9 stale claims.
-3. **Consolidation plan** -- 6-phase plan written, codex-reviewed twice (14+6 findings incorporated):
-   - Phase 0: Fix stale document claims
-   - Phase 1: Quick wins (dead notifier, unsafe atoms, EventBuffer dedup, team.ex, termination)
-   - Phase 2: Spawn convergence (all teams through Workshop presets + TeamLaunch)
-   - Phase 3: Runner helper extraction (use macro, not behaviour)
-   - Phase 4: Registry cleanup (scoped: stale deps + helper extraction)
-   - Phase 5: Safety sweep (impure formatter, validate_config, async write-through)
-   - Phase 6: Domain wrapper removal (Ash define)
-4. **Nested module extraction** -- 11 modules extracted from 3 parent files into own files. Build clean.
-5. **Oban candidate audit** -- 5 strong candidates (webhook_router, cron_scheduler, quality_gate, memories ingest, janitor), 5 maybe candidates. 2 bugs found (Task.start wrapping synchronous Signals.emit).
-6. **RunnerRegistry extracted** -- Duplicated `via/1`, `lookup/1`, `list_all/0` across BuildRunner, PlanRunner, RunProcess extracted into `Ichor.Projects.RunnerRegistry`. All three runners updated. Build + credo clean.
+1. **Pre-requisite added** — `TeamBlueprint.list_with_relationships` read action + code_interface define.
+   Before: `list_blueprints/0` wrapper called `TeamBlueprint.read!(load: [...])` with a runtime load option.
+   After: named action encodes the load, callers call `TeamBlueprint.list_with_relationships!()`.
+
+2. **Facade stripped** — `lib/ichor/control.ex` reduced from 169 LOC to 22 LOC. Only `use Ash.Domain` and `resources do` block remain. All 31 wrapper functions deleted.
+
+3. **Callers migrated (9 files):**
+   - `lib/ichor/control/lookup.ex` → `Agent.all!()`
+   - `lib/ichor/control/persistence.ex` → `TeamBlueprint.{by_id,create,update,destroy}`
+   - `lib/ichor/gateway/cron_scheduler.ex` → `CronJob.{for_agent!,all_scheduled!,schedule_once,get,complete,reschedule}`
+   - `lib/ichor/gateway/webhook_router.ex` → `WebhookDelivery.{enqueue,due_for_delivery!,...}`
+   - `lib/ichor_web/controllers/debug_controller.ex` → `Agent.all!(), Team.alive!()`
+   - `lib/ichor_web/live/dashboard_state.ex` → `Agent.all!(), Team.{alive!,all!}`
+   - `lib/ichor_web/live/dashboard_workshop_handlers.ex` → `TeamBlueprint.list_with_relationships!(), AgentType.*`
+   - `lib/ichor_web/live/workshop_persistence.ex` → `TeamBlueprint.list_with_relationships!(), AgentType.sorted!()`
+   - `lib/ichor_web/live/workshop_types.ex` → `AgentType.{by_id,create,update,destroy,sorted!}`
+   - `lib/ichor/projects/team_spec_builder.ex` → `TeamBlueprint.by_name`
+
+4. **Pre-existing issues fixed:**
+   - `spawner.ex`: `Node` alias shadowing Elixir built-in → `ProjectNode`
+   - `dashboard_mes_handlers.ex`: same Node alias issue → `ProjectNode`
+   - `exporter.ex`: inline full module ref → `Job` alias
+   - `dashboard_state.ex`: alias ordering
 
 ### Build Status
-- `mix compile --warnings-as-errors` -- CLEAN
-- `mix credo --strict` -- 2 pre-existing issues in mode_spawner.ex (out of scope, not touched)
+- `mix compile --warnings-as-errors` — CLEAN
+- `mix credo --strict` — CLEAN (0 issues)
 - Git: clean on main
 
 ### Active Plan
-- `~/.claude/plans/tender-giggling-nebula.md` -- approved, Phase 1 next
+- `~/.claude/plans/tender-giggling-nebula.md` — Phase 6 (Domain Wrapper Removal) is now COMPLETE
+- Next phases: Per plan, Phase 5 (Safety sweep) was last remaining
 
 ### Key Architectural Decisions
 - All teams are equal. Workshop is the single authority for team topology.
-- Workshop owns topology. Prompt content is flow-specific (prompt_builder function).
-- Behaviour is wrong for runner consolidation. Use shared helper/macro instead.
+- Ash resources use `code_interface define` — callers go directly to resource, never through a domain facade.
+- `Ichor.Control` is now a pure Ash.Domain declaration (resources only).
 - Codex is an equal partner, not a validator. Give it raw data, let it form conclusions.
-- Oban installation planned for background job processing.
 - RunnerRegistry is the canonical registry boilerplate helper for all runner GenServers.
 
 ### Key Files
-- `~/.claude/plans/tender-giggling-nebula.md` -- session 3 plan (codex-reviewed)
-- docs/plans/audit-*.md -- 4 deep audit reports (still relevant)
-- docs/plans/INDEX.md -- all plans indexed
-- `lib/ichor/projects/runner_registry.ex` -- NEW: shared registry helpers for runners
+- `lib/ichor/control.ex` — stripped to domain declaration only (22 LOC)
+- `lib/ichor/control/team_blueprint.ex` — new `list_with_relationships` action
+- `~/.claude/plans/tender-giggling-nebula.md` — session 3 plan (codex-reviewed)

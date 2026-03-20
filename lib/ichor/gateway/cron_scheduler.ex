@@ -11,7 +11,7 @@ defmodule Ichor.Gateway.CronScheduler do
 
   require Logger
 
-  alias Ichor.Control
+  alias Ichor.Gateway.CronJob
 
   @doc "Start the CronScheduler GenServer."
   @spec start_link(keyword()) :: GenServer.on_start()
@@ -32,12 +32,12 @@ defmodule Ichor.Gateway.CronScheduler do
 
   @doc "Returns all jobs for the given `agent_id`."
   @spec list_jobs(String.t()) :: [Ichor.Gateway.CronJob.t()]
-  def list_jobs(agent_id), do: Control.list_cron_jobs_for_agent(agent_id)
+  def list_jobs(agent_id), do: CronJob.for_agent!(agent_id)
 
   @doc "Returns all scheduled jobs across all agents."
   @spec list_all_jobs() :: [Ichor.Gateway.CronJob.t()]
   def list_all_jobs do
-    Control.list_all_cron_jobs()
+    CronJob.all_scheduled!()
   rescue
     _ -> []
   end
@@ -71,7 +71,7 @@ defmodule Ichor.Gateway.CronScheduler do
 
     encoded = Jason.encode!(payload)
 
-    case Control.schedule_cron_once(agent_id, encoded, next_fire_at) do
+    case CronJob.schedule_once(agent_id, encoded, next_fire_at) do
       {:ok, job} ->
         Process.send_after(self(), {:fire_job, job.id, job.agent_id, job.payload}, delay_ms)
         {:reply, :ok, state}
@@ -89,9 +89,9 @@ defmodule Ichor.Gateway.CronScheduler do
     Ichor.Signals.emit(:scheduled_job, agent_id, %{agent_id: agent_id, payload: payload})
 
     try do
-      case Control.get_cron_job(job_id) do
+      case CronJob.get(job_id) do
         {:ok, %{is_one_time: true} = job} ->
-          Control.complete_cron_job(job)
+          CronJob.complete(job)
 
         {:ok, job} ->
           next_fire_at =
@@ -99,7 +99,7 @@ defmodule Ichor.Gateway.CronScheduler do
             |> DateTime.add(60_000, :millisecond)
             |> DateTime.truncate(:second)
 
-          case Control.reschedule_cron_job(job, next_fire_at) do
+          case CronJob.reschedule(job, next_fire_at) do
             {:ok, _} ->
               Process.send_after(
                 self(),

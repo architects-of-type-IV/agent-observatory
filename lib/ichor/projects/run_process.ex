@@ -104,15 +104,13 @@ defmodule Ichor.Projects.RunProcess do
   end
 
   def handle_info(:check_liveness, state) do
-    case TmuxLauncher.available?(state.team_spec.session) do
-      true ->
-        schedule_liveness_check()
-        {:noreply, state}
-
-      false ->
-        RuntimeSignals.emit_tmux_gone(state.run_id, state.team_spec.session)
-        cleanup(state)
-        {:stop, :normal, state}
+    if TmuxLauncher.available?(state.team_spec.session) do
+      schedule_liveness_check()
+      {:noreply, state}
+    else
+      RuntimeSignals.emit_tmux_gone(state.run_id, state.team_spec.session)
+      cleanup(state)
+      {:stop, :normal, state}
     end
   end
 

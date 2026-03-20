@@ -9,10 +9,12 @@ defmodule Ichor.Projects.Exporter do
     No-op if run has no project_path.
   """
 
+  alias Ichor.Projects.Job
+
   @doc "Returns all jobs for run_id as a JSONL string, one job per line."
   @spec to_jsonl(String.t()) :: {:ok, String.t()} | {:error, term()}
   def to_jsonl(run_id) do
-    with {:ok, jobs} <- Ichor.Projects.fetch_jobs_for_run(run_id) do
+    with {:ok, jobs} <- Job.by_run(run_id) do
       {:ok, Enum.map_join(jobs, "\n", &job_to_jsonl/1)}
     end
   end

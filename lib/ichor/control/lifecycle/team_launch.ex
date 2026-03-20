@@ -12,13 +12,9 @@ defmodule Ichor.Control.Lifecycle.TeamLaunch do
   @doc "Launch a full multi-agent team: creates tmux session, all windows, and registers all agents."
   @spec launch(TeamSpec.t()) :: {:ok, String.t()} | {:error, term()}
   def launch(%TeamSpec{} = spec) do
-    case do_launch(spec) do
-      {:ok, session} ->
-        {:ok, session}
-
-      {:error, reason} ->
-        teardown(spec)
-        {:error, reason}
+    with {:error, reason} <- do_launch(spec) do
+      teardown(spec)
+      {:error, reason}
     end
   end
 

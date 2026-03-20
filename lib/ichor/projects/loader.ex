@@ -1,9 +1,8 @@
 defmodule Ichor.Projects.Loader do
   @moduledoc "Loads tasks into Dag.Run + Dag.Job records from tasks.jsonl or Genesis hierarchy."
 
-  alias Ichor.Projects
   alias Ichor.Projects.DagGenerator
-  alias Ichor.Projects.{Graph, Job, Run, RuntimeSignals}
+  alias Ichor.Projects.{Graph, Job, Node, Run, RuntimeSignals}
 
   @doc "Creates a Run and Jobs from a tasks.jsonl file path."
   @spec from_file(String.t(), keyword()) :: {:ok, Run.t()} | {:error, term()}
@@ -122,7 +121,7 @@ defmodule Ichor.Projects.Loader do
   end
 
   defp derive_label(node_id) do
-    case Projects.get_node(node_id) do
+    case Node.get(node_id) do
       {:ok, node} -> node.title
       _ -> "DAG Run"
     end

@@ -3,11 +3,11 @@ defmodule Ichor.Projects.TeamSpecBuilder do
   Pure builder for MES `TeamSpec` and `AgentSpec` runtime contracts.
   """
 
-  alias Ichor.Control
   alias Ichor.Control.BlueprintState
   alias Ichor.Control.Lifecycle.AgentSpec
   alias Ichor.Control.Lifecycle.TeamSpec
   alias Ichor.Control.Presets, as: WorkshopPresets
+  alias Ichor.Control.TeamBlueprint
   alias Ichor.Control.TeamSpecBuilder, as: WorkshopTeamSpecBuilder
   alias Ichor.Projects.TeamPrompts
 
@@ -76,7 +76,7 @@ defmodule Ichor.Projects.TeamSpecBuilder do
   defp project_root, do: File.cwd!()
 
   defp blueprint_state(team_name) do
-    case Control.blueprint_by_name(blueprint_name()) do
+    case TeamBlueprint.by_name(blueprint_name()) do
       {:ok, blueprint} ->
         BlueprintState.apply_blueprint(BlueprintState.defaults(), blueprint)
         |> Map.put(:ws_team_name, team_name)

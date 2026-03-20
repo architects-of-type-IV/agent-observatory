@@ -4,7 +4,7 @@ defmodule Ichor.Tools.Archon.Messages do
   """
   use Ash.Resource, domain: Ichor.Tools
 
-  alias Ichor.Observability
+  alias Ichor.Observability.Message
 
   actions do
     action :recent_messages, {:array, :map} do
@@ -22,7 +22,7 @@ defmodule Ichor.Tools.Archon.Messages do
         limit = input.arguments[:limit] || 20
 
         messages =
-          Observability.list_recent_messages()
+          Message.recent!()
           |> Enum.take(limit)
           |> Enum.map(fn m ->
             %{

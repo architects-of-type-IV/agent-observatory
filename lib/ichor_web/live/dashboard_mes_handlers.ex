@@ -4,8 +4,17 @@ defmodule IchorWeb.DashboardMesHandlers do
   import Phoenix.Component, only: [assign: 3]
   import Phoenix.LiveView, only: [put_flash: 3]
 
-  alias Ichor.Projects
-  alias Ichor.Projects.{DagGenerator, ModeSpawner, Scheduler, Spawner, SubsystemLoader}
+  alias Ichor.Projects.Node, as: ProjectNode
+
+  alias Ichor.Projects.{
+    DagGenerator,
+    ModeSpawner,
+    Project,
+    Scheduler,
+    Spawner,
+    SubsystemLoader
+  }
+
   alias Ichor.Signals
 
   @spec dispatch(String.t(), map(), Phoenix.LiveView.Socket.t()) :: Phoenix.LiveView.Socket.t()
@@ -85,10 +94,10 @@ defmodule IchorWeb.DashboardMesHandlers do
   def dispatch("mes_pick_up", %{"id" => id}, socket) do
     project = Enum.find(socket.assigns.mes_projects, &(&1.id == id))
 
-    case Projects.pick_up_project(project, "manual") do
+    case Project.pick_up(project, "manual") do
       {:ok, _} ->
         Signals.emit(:mes_project_picked_up, %{project_id: id, session_id: "manual"})
-        assign(socket, :mes_projects, Projects.list_projects())
+        assign(socket, :mes_projects, Project.list_all!())
 
       {:error, reason} ->
         put_flash(socket, :error, "Failed to pick up: #{inspect(reason)}")
@@ -129,17 +138,17 @@ defmodule IchorWeb.DashboardMesHandlers do
 
     case SubsystemLoader.compile_and_load(project) do
       {:ok, modules} ->
-        Projects.mark_loaded(project)
+        Project.mark_loaded(project)
 
         socket
-        |> assign(:mes_projects, Projects.list_projects())
+        |> assign(:mes_projects, Project.list_all!())
         |> put_flash(:info, "Loaded #{length(modules)} modules")
 
       {:error, reason} ->
-        Projects.mark_failed(project, reason)
+        Project.mark_failed(project, reason)
 
         socket
-        |> assign(:mes_projects, Projects.list_projects())
+        |> assign(:mes_projects, Project.list_all!())
         |> put_flash(:error, reason)
     end
   end
@@ -165,7 +174,7 @@ defmodule IchorWeb.DashboardMesHandlers do
   ]
 
   defp load_genesis_node_by_id(node_id) do
-    case Projects.get_node(node_id, load: @genesis_loads) do
+    case ProjectNode.get(node_id, load: @genesis_loads) do
       {:ok, node} -> node
       _ -> nil
     end
@@ -174,14 +183,14 @@ defmodule IchorWeb.DashboardMesHandlers do
   defp load_genesis_node(nil), do: nil
 
   defp load_genesis_node(project) do
-    case Projects.node_by_project(project.id, load: @genesis_loads) do
+    case ProjectNode.by_project(project.id, load: @genesis_loads) do
       {:ok, [node | _]} -> node
       _ -> nil
     end
   end
 
   defp run_gate_check(node_id) do
-    case Projects.get_node(node_id, load: @genesis_loads) do
+    case ProjectNode.get(node_id, load: @genesis_loads) do
       {:ok, loaded} -> build_gate_report(loaded)
       _ -> nil
     end

@@ -9,12 +9,10 @@ defmodule Ichor.Projects.ModeSpawner do
 
   Delegates tmux/BEAM infrastructure to TeamLaunch.
   Delegates team spec construction to GenesisTeamSpecBuilder.
-  Delegates prompt generation to ModePrompts.
   """
 
   alias Ichor.Control.Lifecycle.TeamLaunch
-  alias Ichor.Projects
-  alias Ichor.Projects.{GenesisTeamSpecBuilder, PlanRunner}
+  alias Ichor.Projects.{GenesisTeamSpecBuilder, Node, PlanRunner, Project}
   alias Ichor.Signals
 
   @doc "Spawns a Genesis mode team (a/b/c) inside a new tmux session."
@@ -65,7 +63,7 @@ defmodule Ichor.Projects.ModeSpawner do
   @doc "Loads a formatted project brief string for injection into agent prompts."
   @spec load_project_brief(String.t()) :: String.t()
   def load_project_brief(project_id) do
-    case Projects.get_project(project_id) do
+    case Project.get(project_id) do
       {:ok, project} ->
         """
         PROJECT BRIEF: #{project.title}
@@ -86,14 +84,14 @@ defmodule Ichor.Projects.ModeSpawner do
   end
 
   defp find_existing_node(project_id) do
-    case Ichor.Projects.node_by_project(project_id) do
+    case Node.by_project(project_id) do
       {:ok, [node | _]} -> {:ok, node.id}
       _ -> :not_found
     end
   end
 
   defp create_genesis_node(project) do
-    case Ichor.Projects.create_node(%{
+    case Node.create(%{
            title: project.title,
            description: project.description,
            brief: project.description,

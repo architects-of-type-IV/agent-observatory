@@ -57,12 +57,14 @@ defmodule Ichor.Projects.GenesisTeamSpecBuilder do
   end
 
   defp build_roster(session, mode) do
-    names = agent_names_for_mode(mode)
-    ids = Enum.map_join(names, "\n", fn name -> "  - #{name}: #{session}-#{name}" end)
+    entries =
+      mode
+      |> agent_names_for_mode()
+      |> Enum.map_join("\n", fn name -> "  - #{name}: #{session}-#{name}" end)
 
     """
     TEAM ROSTER (use EXACT IDs with send_message/check_inbox):
-    #{ids}
+    #{entries}
       - operator: operator
     Your session ID is: #{session}-YOUR_NAME
     """

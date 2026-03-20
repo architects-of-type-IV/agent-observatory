@@ -11,7 +11,7 @@ defmodule Ichor.Projects.ResearchContext do
   Pure function module. No state, no process, no cache.
   """
 
-  alias Ichor.Projects
+  alias Ichor.Projects.Project
 
   @core_subsystems [
     {"HITLRelay", "human-in-the-loop pause/resume gating"},
@@ -88,11 +88,17 @@ defmodule Ichor.Projects.ResearchContext do
   def pain_points, do: render_lines(@pain_points)
 
   defp loaded_projects do
-    Projects.loaded_projects()
+    case Project.by_status(:loaded) do
+      {:ok, projects} -> projects
+      _ -> []
+    end
   end
 
   defp all_projects do
-    Projects.all_projects()
+    case Project.list_all() do
+      {:ok, projects} -> projects
+      _ -> []
+    end
   end
 
   defp build_subsystem_list(loaded) do
