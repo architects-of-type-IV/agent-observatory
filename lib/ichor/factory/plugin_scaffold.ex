@@ -1,16 +1,16 @@
-defmodule Ichor.Factory.SubsystemScaffold do
+defmodule Ichor.Factory.PluginScaffold do
   @moduledoc """
-  Creates standalone Mix project directories for subsystems.
+  Creates standalone Mix project directories for plugins.
   Side-effect boundary: isolates File I/O here; template rendering is private.
   Idempotent: skips if mix.exs already exists.
   """
 
-  @subsystems_dir "subsystems"
+  @plugins_dir "subsystems"
 
   @doc "Creates a standalone Mix project for app_name/module_name; idempotent."
   @spec scaffold(String.t(), String.t()) :: {:ok, String.t()} | {:error, String.t()}
   def scaffold(app_name, module_name) do
-    path = subsystem_path(app_name)
+    path = plugin_path(app_name)
     mix_exs = Path.join(path, "mix.exs")
 
     case File.exists?(mix_exs) do
@@ -28,13 +28,13 @@ defmodule Ichor.Factory.SubsystemScaffold do
       |> String.replace(~r/[^a-z0-9]+/, "_")
       |> String.trim("_")
 
-    module_name = "Ichor.Subsystems.#{Macro.camelize(app_name)}"
+    module_name = "Ichor.Plugins.#{Macro.camelize(app_name)}"
     {app_name, module_name}
   end
 
-  @doc "Returns the filesystem path for a subsystem by its app name."
-  @spec subsystem_path(String.t()) :: String.t()
-  def subsystem_path(app_name), do: Path.join(@subsystems_dir, app_name)
+  @doc "Returns the filesystem path for a plugin by its app name."
+  @spec plugin_path(String.t()) :: String.t()
+  def plugin_path(app_name), do: Path.join(@plugins_dir, app_name)
 
   # Private -- file creation
 
@@ -93,7 +93,7 @@ defmodule Ichor.Factory.SubsystemScaffold do
 
       defp deps do
         [
-          {:ichor_contracts, path: "../ichor_contracts"}
+          {:ichor_contracts, path: "../../contracts/ichor_contracts"}
         ]
       end
     end
@@ -104,19 +104,19 @@ defmodule Ichor.Factory.SubsystemScaffold do
     """
     defmodule #{module_name} do
       @moduledoc \"\"\"
-      #{humanize(app_name)} subsystem.
-      Implements the Ichor.Mes.Subsystem behaviour for hot-loading into the BEAM.
+      #{humanize(app_name)} plugin.
+      Implements the Ichor.Plugin behaviour for hot-loading into the BEAM.
       \"\"\"
 
-      @behaviour Ichor.Mes.Subsystem
+      @behaviour Ichor.Plugin
 
       @impl true
       def info do
-        %Ichor.Mes.Subsystem.Info{
+        %Ichor.Plugin.Info{
           name: "#{humanize(app_name)}",
           module: __MODULE__,
-          description: "#{humanize(app_name)} subsystem",
-          topic: "subsystem:#{app_name}",
+          description: "#{humanize(app_name)} plugin",
+          topic: "plugin:#{app_name}",
           version: "0.1.0",
           signals_emitted: [],
           signals_subscribed: [],
@@ -158,7 +158,7 @@ defmodule Ichor.Factory.SubsystemScaffold do
     """
     # #{humanize(app_name)}
 
-    Standalone ICHOR subsystem. Implements `Ichor.Mes.Subsystem` behaviour.
+    Standalone ICHOR plugin. Implements `Ichor.Plugin` behaviour.
 
     ## Build
 
@@ -168,11 +168,11 @@ defmodule Ichor.Factory.SubsystemScaffold do
 
     ## Module
 
-    `#{module_name}` -- hot-loaded into the ICHOR BEAM via `SubsystemLoader`.
+    `#{module_name}` -- hot-loaded into the ICHOR BEAM via `PluginLoader`.
 
     ## Signals
 
-    This subsystem communicates with the host via the Signal bus.
+    This plugin communicates with the host via the Signal bus.
     No compile-time dependency on the host app.
     Stubs in `lib/ichor/` provide the behaviour and struct definitions for standalone compilation.
     """
@@ -188,30 +188,30 @@ defmodule Ichor.Factory.SubsystemScaffold do
 
     ```elixir
     {:ok, project} = Ichor.Factory.Project.get(project_id)
-    Ichor.Factory.SubsystemLoader.compile_and_load(project)
+    Ichor.Factory.PluginLoader.compile_and_load(project)
     ```
 
     ## Signal Interface
 
-    Subscribe to: `subsystem:#{app_name}`
+    Subscribe to: `plugin:#{app_name}`
 
     ```elixir
-    Phoenix.PubSub.subscribe(Ichor.PubSub, "subsystem:#{app_name}")
+    Phoenix.PubSub.subscribe(Ichor.PubSub, "plugin:#{app_name}")
     ```
 
     ## Module API
 
     ```elixir
-    #{module_name}.info()   # Returns %Ichor.Mes.Subsystem.Info{}
-    #{module_name}.start()  # Starts the subsystem GenServer
-    #{module_name}.stop()   # Stops the subsystem
+    #{module_name}.info()   # Returns %Ichor.Plugin.Info{}
+    #{module_name}.start()  # Starts the plugin GenServer
+    #{module_name}.stop()   # Stops the plugin
     ```
 
     ## Dashboard Integration
 
-    To mount this subsystem's UI in the observatory dashboard,
+    To mount this plugin's UI in the observatory dashboard,
     add the appropriate LiveView route or component mount point.
-    This is a host app concern -- not part of the subsystem build.
+    This is a host app concern -- not part of the plugin build.
     """
   end
 

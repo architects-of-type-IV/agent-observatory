@@ -205,7 +205,7 @@ defmodule Ichor.Factory.Runtime do
     {:noreply, next_state}
   end
 
-  defp broadcast(state), do: Ichor.Signals.emit(:dag_status, %{state_map: state})
+  defp broadcast(state), do: Ichor.Signals.emit(:pipeline_status, %{state_map: state})
 
   # ---------------------------------------------------------------------------
   # Catalog (formerly Ichor.Projects.Catalog)

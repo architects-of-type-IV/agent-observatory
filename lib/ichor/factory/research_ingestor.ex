@@ -108,7 +108,7 @@ defmodule Ichor.Factory.ResearchIngestor do
 
   defp project_section(project) do
     fields = [
-      {"Proposed subsystem", project.subsystem},
+      {"Proposed plugin", project.plugin},
       {"Description", project.description},
       {"Topic", project.topic},
       {"Version", project.version},

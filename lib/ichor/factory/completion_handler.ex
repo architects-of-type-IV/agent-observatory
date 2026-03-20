@@ -1,6 +1,6 @@
 defmodule Ichor.Factory.CompletionHandler do
   @moduledoc """
-  Reacts to DAG run completion by compiling and hot-loading the subsystem.
+  Reacts to pipeline completion and dispatches the appropriate build output flow.
   Follows the ProjectIngestor pattern: subscribe to signal, call domain APIs.
   """
 
@@ -8,8 +8,8 @@ defmodule Ichor.Factory.CompletionHandler do
 
   require Logger
 
-  alias Ichor.Factory.{Node, Project, Run}
-  alias Ichor.Factory.SubsystemLoader
+  alias Ichor.Factory.{Pipeline, Project}
+  alias Ichor.Factory.PluginLoader
   alias Ichor.Signals
 
   @doc false
@@ -18,12 +18,12 @@ defmodule Ichor.Factory.CompletionHandler do
 
   @impl true
   def init(_opts) do
-    Signals.subscribe(:dag)
+    Signals.subscribe(:pipeline)
     {:ok, %{}}
   end
 
   @impl true
-  def handle_info(%Signals.Message{name: :dag_run_completed, data: data}, state) do
+  def handle_info(%Signals.Message{name: :pipeline_completed, data: data}, state) do
     handle_completion(data)
     {:noreply, state}
   end
@@ -31,16 +31,12 @@ defmodule Ichor.Factory.CompletionHandler do
   def handle_info(%Signals.Message{}, state), do: {:noreply, state}
 
   defp handle_completion(%{run_id: run_id}) do
-    with {:ok, run} <- Run.get(run_id),
-         {:ok, node} <- resolve_node(run.node_id),
-         {:ok, project} <- resolve_project(node.mes_project_id) do
-      compile_and_load(project, run_id)
+    with {:ok, pipeline} <- Pipeline.get(run_id),
+         {:ok, project} <- resolve_project(pipeline.project_id) do
+      handle_output(project, run_id)
     else
-      {:error, :no_node} ->
-        Logger.debug("[MES.CompletionHandler] DAG run #{run_id} has no genesis node, skipping")
-
       {:error, :no_project} ->
-        Logger.debug("[MES.CompletionHandler] Genesis node has no MES project, skipping")
+        Logger.debug("[MES.CompletionHandler] Pipeline run #{run_id} has no project, skipping")
 
       {:error, reason} ->
         Logger.warning(
@@ -50,16 +46,6 @@ defmodule Ichor.Factory.CompletionHandler do
   end
 
   defp handle_completion(_data), do: :ok
-
-  defp resolve_node(nil), do: {:error, :no_node}
-
-  defp resolve_node(node_id) do
-    case Node.get(node_id) do
-      {:ok, nil} -> {:error, :no_node}
-      {:ok, node} -> {:ok, node}
-      error -> error
-    end
-  end
 
   defp resolve_project(nil), do: {:error, :no_project}
 
@@ -71,27 +57,39 @@ defmodule Ichor.Factory.CompletionHandler do
     end
   end
 
-  defp compile_and_load(project, run_id) do
-    case SubsystemLoader.compile_and_load(project) do
+  defp handle_output(%{output_kind: "plugin"} = project, run_id) do
+    case PluginLoader.compile_and_load(project) do
       {:ok, modules} ->
         Project.mark_loaded(project)
 
         Logger.info(
-          "[MES.CompletionHandler] Loaded #{length(modules)} modules for #{project.subsystem}"
+          "[MES.CompletionHandler] Loaded #{length(modules)} modules for #{project.plugin}"
         )
 
       {:error, reason} ->
         Project.mark_failed(project, inspect(reason))
 
-        Signals.emit(:mes_subsystem_compile_failed, %{
+        Signals.emit(:mes_plugin_compile_failed, %{
           run_id: run_id,
           project_id: project.id,
           reason: inspect(reason)
         })
 
         Logger.warning(
-          "[MES.CompletionHandler] Failed to load #{project.subsystem}: #{inspect(reason)}"
+          "[MES.CompletionHandler] Failed to load #{project.plugin}: #{inspect(reason)}"
         )
     end
+  end
+
+  defp handle_output(project, run_id) do
+    Signals.emit(:mes_output_unhandled, %{
+      run_id: run_id,
+      project_id: project.id,
+      output_kind: project.output_kind
+    })
+
+    Logger.info(
+      "[MES.CompletionHandler] No output handler for project #{project.id} kind=#{project.output_kind}"
+    )
   end
 end

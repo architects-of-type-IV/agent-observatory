@@ -2,27 +2,27 @@ defmodule Ichor.Factory.Runner do
   @moduledoc """
   Unified GenServer representing a single run lifecycle.
 
-  Replaces the former BuildRunner (MES), PlanRunner (Genesis), and RunProcess
-  (DAG) with a single data-driven implementation. Behavioral differences are
+  Replaces the former BuildRunner (MES), PlanRunner (Planning), and pipeline
+  runner with a single data-driven implementation. Behavioral differences are
   expressed through `%Runner.Mode{}` config structs and hook functions.
 
   Registry keys by kind:
     - :mes     -> {:run, run_id}
-    - :genesis -> {:genesis_run, run_id}
-    - :dag     -> {:dag_run, run_id}
+    - :planning -> {:planning_run, run_id}
+    - :pipeline -> {:pipeline_run, run_id}
   """
 
   use GenServer, restart: :temporary
 
   alias Ichor.Control.Lifecycle.{TeamLaunch, TmuxLauncher}
-  alias Ichor.Factory.{Graph, Job, Run}
+  alias Ichor.Factory.{Graph, Pipeline, PipelineTask}
   alias Ichor.Factory.Workers.RunCleanupWorker
   alias Ichor.Signals
   alias Ichor.Signals.Message
   alias Ichor.Workshop.TeamSpec
 
   @liveness_ms :timer.seconds(30)
-  @liveness_dag_ms :timer.seconds(60)
+  @liveness_pipeline_ms :timer.seconds(60)
   @deadline_ms :timer.minutes(10)
   @stale_check_ms :timer.seconds(60)
   @health_check_ms :timer.seconds(30)
@@ -46,14 +46,14 @@ defmodule Ichor.Factory.Runner do
       :cleanup,
       # %{ready: atom, completed: atom, tmux_gone: atom, terminated: atom}
       :signals,
-      # %{sync_job: fun | nil}
+      # %{sync_task: fun | nil}
       :commands,
       # %{on_signal: fun | nil, on_complete: fun | nil}
       :hooks
     ]
 
     @type t :: %__MODULE__{
-            kind: :mes | :genesis | :dag,
+            kind: :mes | :planning | :pipeline,
             subscriptions: [atom()],
             timers: map() | nil,
             completion: map() | nil,
@@ -74,7 +74,7 @@ defmodule Ichor.Factory.Runner do
       :kind,
       :session,
       :team_spec,
-      :node_id,
+      :project_id,
       :project_path,
       :config,
       :status,
@@ -86,10 +86,10 @@ defmodule Ichor.Factory.Runner do
 
     @type t :: %__MODULE__{
             run_id: String.t(),
-            kind: :mes | :genesis | :dag,
+            kind: :mes | :planning | :pipeline,
             session: String.t(),
             team_spec: struct() | nil,
-            node_id: String.t() | nil,
+            project_id: String.t() | nil,
             project_path: String.t() | nil,
             config: Ichor.Factory.Runner.Mode.t(),
             status: atom() | nil,
@@ -113,12 +113,12 @@ defmodule Ichor.Factory.Runner do
   end
 
   @doc "Returns the via-tuple for Registry-based name lookup."
-  @spec via(:mes | :genesis | :dag, String.t()) ::
+  @spec via(:mes | :planning | :pipeline, String.t()) ::
           {:via, Registry, {Ichor.Registry, {atom(), String.t()}}}
   def via(kind, run_id), do: {:via, Registry, {Ichor.Registry, {registry_key(kind), run_id}}}
 
   @doc "Returns the pid for the given kind and run_id if alive, or nil."
-  @spec lookup(:mes | :genesis | :dag, String.t()) :: pid() | nil
+  @spec lookup(:mes | :planning | :pipeline, String.t()) :: pid() | nil
   def lookup(kind, run_id) do
     case Registry.lookup(Ichor.Registry, {registry_key(kind), run_id}) do
       [{pid, _}] -> pid
@@ -127,7 +127,7 @@ defmodule Ichor.Factory.Runner do
   end
 
   @doc "Lists all active run IDs and PIDs for the given kind."
-  @spec list_all(:mes | :genesis | :dag) :: [{String.t(), pid()}]
+  @spec list_all(:mes | :planning | :pipeline) :: [{String.t(), pid()}]
   def list_all(kind) do
     key = registry_key(kind)
 
@@ -137,19 +137,20 @@ defmodule Ichor.Factory.Runner do
   end
 
   @doc "Starts a new Runner under the appropriate DynamicSupervisor."
-  @spec start(:mes | :genesis | :dag, keyword()) ::
+  @spec start(:mes | :planning | :pipeline, keyword()) ::
           {:ok, pid()} | {:error, term()}
   def start(kind, opts) do
     supervisor = supervisor_for(kind)
     DynamicSupervisor.start_child(supervisor, {__MODULE__, [kind: kind] ++ opts})
   end
 
-  @doc "Enqueues a write-through sync job. DAG-kind only."
-  @spec sync_job(String.t(), struct() | map()) :: :ok
-  def sync_job(run_id, job), do: GenServer.cast(via(:dag, run_id), {:command, :sync_job, [job]})
+  @doc "Enqueues a write-through sync task. Pipeline-kind only."
+  @spec sync_task(String.t(), struct() | map()) :: :ok
+  def sync_task(run_id, task),
+    do: GenServer.cast(via(:pipeline, run_id), {:command, :sync_task, [task]})
 
   @doc "Returns a status map for the given kind and run_id."
-  @spec status(:mes | :genesis | :dag, String.t()) :: map() | nil
+  @spec status(:mes | :planning | :pipeline, String.t()) :: map() | nil
   def status(kind, run_id) do
     case lookup(kind, run_id) do
       nil -> nil
@@ -172,7 +173,7 @@ defmodule Ichor.Factory.Runner do
       kind: kind,
       session: session_for(kind, run_id, opts),
       team_spec: Keyword.get(opts, :team_spec),
-      node_id: Keyword.get(opts, :node_id),
+      project_id: Keyword.get(opts, :project_id),
       project_path: Keyword.get(opts, :project_path),
       config: config,
       started_at: DateTime.utc_now()
@@ -308,29 +309,29 @@ defmodule Ichor.Factory.Runner do
     }
   end
 
-  defp build_mode_config(:genesis, _run_id, opts) do
+  defp build_mode_config(:planning, _run_id, opts) do
     mode_label = Keyword.get(opts, :mode, "unknown")
 
     %Mode{
-      kind: :genesis,
+      kind: :planning,
       subscriptions: [:messages],
       timers: %{liveness_ms: @liveness_ms},
       completion: %{
         source: :message_delivered,
-        coordinator_id_fn: &genesis_coordinator_id/1
+        coordinator_id_fn: &planning_coordinator_id/1
       },
       checks: nil,
       cleanup: %{policy: :teardown},
       signals: %{
-        ready: :genesis_run_init,
-        completed: :genesis_run_complete,
-        tmux_gone: :genesis_tmux_gone,
-        terminated: :genesis_run_terminated
+        ready: :planning_run_init,
+        completed: :planning_run_complete,
+        tmux_gone: :planning_tmux_gone,
+        terminated: :planning_run_terminated
       },
       commands: nil,
       hooks: %{
         on_complete: fn state ->
-          Signals.emit(:genesis_run_complete, %{
+          Signals.emit(:planning_run_complete, %{
             run_id: state.run_id,
             mode: mode_label,
             session: state.session,
@@ -341,37 +342,37 @@ defmodule Ichor.Factory.Runner do
     }
   end
 
-  defp build_mode_config(:dag, _run_id, _opts) do
+  defp build_mode_config(:pipeline, _run_id, _opts) do
     %Mode{
-      kind: :dag,
+      kind: :pipeline,
       subscriptions: [:messages],
-      timers: %{liveness_ms: @liveness_dag_ms},
+      timers: %{liveness_ms: @liveness_pipeline_ms},
       completion: %{
         source: :message_delivered,
-        coordinator_id_fn: &dag_coordinator_id/1
+        coordinator_id_fn: &pipeline_coordinator_id/1
       },
       checks: [
-        %{id: :stale, every_ms: @stale_check_ms, callback: &dag_check_stale/1},
-        %{id: :health, every_ms: @health_check_ms, callback: &dag_check_health/1}
+        %{id: :stale, every_ms: @stale_check_ms, callback: &pipeline_check_stale/1},
+        %{id: :health, every_ms: @health_check_ms, callback: &pipeline_check_health/1}
       ],
       cleanup: %{policy: :teardown},
       signals: %{
-        ready: :dag_run_ready,
-        completed: :dag_run_completed,
-        tmux_gone: :dag_tmux_gone,
-        terminated: :dag_run_terminated
+        ready: :pipeline_ready,
+        completed: :pipeline_completed,
+        tmux_gone: :pipeline_tmux_gone,
+        terminated: :pipeline_terminated
       },
       commands: %{
-        sync_job: &dag_sync_job/2
+        sync_task: &pipeline_sync_task/2
       },
       hooks: %{
-        on_complete: &dag_on_complete/1
+        on_complete: &pipeline_on_complete/1
       }
     }
   end
 
-  defp genesis_coordinator_id(%{session: session}), do: session
-  defp dag_coordinator_id(%{session: session}), do: "#{session}-coordinator"
+  defp planning_coordinator_id(%{session: session}), do: session
+  defp pipeline_coordinator_id(%{session: session}), do: "#{session}-coordinator"
 
   # ---------------------------------------------------------------------------
   # MES hook implementations (replaces Runner.Hooks.MES)
@@ -442,27 +443,27 @@ defmodule Ichor.Factory.Runner do
   end
 
   # ---------------------------------------------------------------------------
-  # DAG hook implementations (replaces Runner.Hooks.DAG)
+  # Pipeline hook implementations
   # ---------------------------------------------------------------------------
 
-  defp dag_check_stale(state) do
-    with {:ok, jobs} <- Job.by_run(state.run_id) do
+  defp pipeline_check_stale(state) do
+    with {:ok, pipeline_tasks} <- PipelineTask.by_run(state.run_id) do
       now = DateTime.utc_now()
 
-      jobs
-      |> Enum.filter(&(to_string(&1.status) == "in_progress" and dag_stale?(&1, now)))
-      |> Enum.each(&Job.reset/1)
+      pipeline_tasks
+      |> Enum.filter(&(to_string(&1.status) == "in_progress" and pipeline_stale?(&1, now)))
+      |> Enum.each(&PipelineTask.reset/1)
     end
 
     :ok
   end
 
-  defp dag_check_health(state) do
-    with {:ok, jobs} <- Job.by_run(state.run_id) do
-      nodes = Enum.map(jobs, &Graph.to_graph_node/1)
+  defp pipeline_check_health(state) do
+    with {:ok, pipeline_tasks} <- PipelineTask.by_run(state.run_id) do
+      nodes = Enum.map(pipeline_tasks, &Graph.to_graph_node/1)
       issues = health_issues(nodes, DateTime.utc_now())
 
-      Signals.emit(:dag_health_report, %{
+      Signals.emit(:pipeline_health_report, %{
         run_id: state.run_id,
         healthy: issues == [],
         issue_count: length(issues)
@@ -472,23 +473,23 @@ defmodule Ichor.Factory.Runner do
     :ok
   end
 
-  defp dag_sync_job(state, job) do
-    Task.start(fn -> sync_job_to_file(job, state.project_path) end)
+  defp pipeline_sync_task(state, task) do
+    Task.start(fn -> sync_task_to_file(task, state.project_path) end)
     {:noreply, state}
   end
 
-  defp dag_on_complete(state) do
-    with {:ok, run} <- Run.get(state.run_id) do
-      Run.complete(run)
-      Signals.emit(:dag_run_completed, %{run_id: state.run_id, label: run.label})
+  defp pipeline_on_complete(state) do
+    with {:ok, pipeline} <- Pipeline.get(state.run_id) do
+      Pipeline.complete(pipeline)
+      Signals.emit(:pipeline_completed, %{run_id: state.run_id, label: pipeline.label})
     end
 
     :ok
   end
 
-  defp dag_stale?(%{updated_at: nil}, _now), do: true
+  defp pipeline_stale?(%{updated_at: nil}, _now), do: true
 
-  defp dag_stale?(%{updated_at: ts}, now) do
+  defp pipeline_stale?(%{updated_at: ts}, now) do
     DateTime.diff(now, ts, :minute) > @stale_threshold_min
   end
 
@@ -509,12 +510,12 @@ defmodule Ichor.Factory.Runner do
   # ---------------------------------------------------------------------------
 
   defp registry_key(:mes), do: :run
-  defp registry_key(:genesis), do: :genesis_run
-  defp registry_key(:dag), do: :dag_run
+  defp registry_key(:planning), do: :planning_run
+  defp registry_key(:pipeline), do: :pipeline_run
 
   defp supervisor_for(:mes), do: Ichor.Factory.BuildRunSupervisor
-  defp supervisor_for(:genesis), do: Ichor.Factory.PlanRunSupervisor
-  defp supervisor_for(:dag), do: Ichor.Factory.DynRunSupervisor
+  defp supervisor_for(:planning), do: Ichor.Factory.PlanRunSupervisor
+  defp supervisor_for(:pipeline), do: Ichor.Factory.DynRunSupervisor
 
   defp session_for(:mes, run_id, _opts), do: "mes-#{run_id}"
 
@@ -660,11 +661,11 @@ defmodule Ichor.Factory.Runner do
     %{run_id: state.run_id}
   end
 
-  defp build_terminate_payload(%{kind: :genesis} = state) do
+  defp build_terminate_payload(%{kind: :planning} = state) do
     %{run_id: state.run_id, mode: Map.get(state.runtime, :mode)}
   end
 
-  defp build_terminate_payload(%{kind: :dag} = state) do
+  defp build_terminate_payload(%{kind: :pipeline} = state) do
     %{run_id: state.run_id, session: state.session}
   end
 
@@ -690,7 +691,7 @@ defmodule Ichor.Factory.Runner do
         severity: :warning,
         external_id: node.id,
         description:
-          "Job #{node.id} has been in_progress for over #{@stale_threshold_min} minutes"
+          "Task execution #{node.id} has been in_progress for over #{@stale_threshold_min} minutes"
       }
     end)
   end
@@ -703,7 +704,7 @@ defmodule Ichor.Factory.Runner do
         type: :file_conflict,
         severity: :error,
         external_id: "#{a}+#{b}",
-        description: "Jobs #{a} and #{b} share files: #{Enum.join(files, ", ")}"
+        description: "Tasks #{a} and #{b} share files: #{Enum.join(files, ", ")}"
       }
     end)
   end
@@ -722,7 +723,7 @@ defmodule Ichor.Factory.Runner do
         severity: :error,
         external_id: node.id,
         description:
-          "Job #{node.id} is blocked by failed job(s): #{Enum.join(node.blocked_by, ", ")}"
+          "Pipeline task #{node.id} is blocked by failed dependency tasks: #{Enum.join(node.blocked_by, ", ")}"
       }
     end)
   end
@@ -741,7 +742,7 @@ defmodule Ichor.Factory.Runner do
         type: :orphaned,
         severity: :warning,
         external_id: node.id,
-        description: "Job #{node.id} is pending but all blockers have failed"
+        description: "Pipeline task #{node.id} is pending but all blockers have failed"
       }
     end)
   end
@@ -750,12 +751,12 @@ defmodule Ichor.Factory.Runner do
   # Exporter (formerly Ichor.Projects.Exporter)
   # ---------------------------------------------------------------------------
 
-  defp sync_job_to_file(_job, nil), do: :ok
-  defp sync_job_to_file(_job, ""), do: :ok
+  defp sync_task_to_file(_task, nil), do: :ok
+  defp sync_task_to_file(_task, ""), do: :ok
 
-  defp sync_job_to_file(job, project_path) do
+  defp sync_task_to_file(task, project_path) do
     tasks_path = Path.join(project_path, "tasks.jsonl")
-    jq_update_item(tasks_path, job.external_id, to_string(job.status), job.owner || "")
+    jq_update_item(tasks_path, task.external_id, to_string(task.status), task.owner || "")
   end
 
   defp jq_update_item(path, external_id, new_status, new_owner) do
@@ -781,7 +782,7 @@ defmodule Ichor.Factory.Runner do
   end
 
   defp jq_in_place(path, expr, extra_args) do
-    tmp = path <> ".dag_tmp"
+    tmp = path <> ".pipeline_tmp"
 
     case System.cmd("jq", ["-c"] ++ extra_args ++ [expr, path], stderr_to_stdout: true) do
       {output, 0} ->

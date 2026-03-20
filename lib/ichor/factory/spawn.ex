@@ -1,108 +1,118 @@
 defmodule Ichor.Factory.Spawn do
   @moduledoc """
-  Spawns execution teams for DAG and Genesis runs.
+  Spawns execution teams for pipeline and planning runs.
 
-  Consolidates DAG spawn (formerly Spawner) and Genesis mode spawn (formerly
+  Consolidates pipeline spawn (formerly Spawner) and planning mode spawn (formerly
   ModeSpawner) into a single module. Per-mode differences are expressed as
   data: session prefix, spec builder args, pre-launch steps.
 
   Incorporates: Loader, Validator, WorkerGroups.
 
   Public API:
-    - spawn(:dag, node_id, project_id)
-    - spawn(:genesis, mode, project_id, genesis_node_id)
-    - ensure_genesis_node(node_id_or_nil, project)
+    - spawn(:pipeline, project_id, project_id)
+    - spawn(:planning, mode, project_id, project_id)
+    - ensure_planning_project(project_id_or_nil, project)
     - load_project_brief(project_id)
     - from_file/2
-    - from_genesis/2
+    - from_project/2
   """
 
   alias Ichor.Control.Lifecycle.TeamLaunch
 
-  alias Ichor.Factory.Node, as: ProjectNode
-
   alias Ichor.Factory.{
     DagGenerator,
     Graph,
-    Job,
+    Pipeline,
+    PipelineTask,
     Project,
-    Run,
     Runner
   }
 
-  alias Ichor.Factory.SubsystemScaffold
+  alias Ichor.Factory.PluginScaffold
   alias Ichor.Signals
   alias Ichor.Workshop.TeamSpec
 
   # ---------------------------------------------------------------------------
-  # DAG spawn
+  # Pipeline spawn
   # ---------------------------------------------------------------------------
 
-  @doc "Spawns a full DAG execution team for the given genesis node and project."
-  @spec spawn(:dag, String.t(), String.t()) ::
+  @doc "Spawns a full pipeline execution team for the given project."
+  @spec spawn(:pipeline, String.t(), String.t()) ::
           {:ok, %{session: String.t(), run: map()}} | {:error, term()}
-  def spawn(:dag, node_id, project_id) do
-    session = "dag-#{short_id()}"
+  def spawn(:pipeline, project_id, _selected_project_id) do
+    session = "pipeline-#{short_id()}"
     brief = load_project_brief(project_id)
 
-    with {:ok, node} <- ProjectNode.get(node_id),
-         {app_name, module_name} = SubsystemScaffold.derive_names(node.title),
-         subsystem_dir = SubsystemScaffold.subsystem_path(app_name),
-         {:ok, _path} <- SubsystemScaffold.scaffold(app_name, module_name),
-         {:ok, run} <- from_genesis(node_id, tmux_session: session),
-         {:ok, _report} <- validate_dag(run.id),
-         {:ok, jobs} <- Job.by_run(run.id),
-         worker_groups = build_worker_groups(jobs),
-         prompt_ctx = %{subsystem_dir: subsystem_dir, module_name: module_name},
-         spec = TeamSpec.build(:dag, run, session, brief, jobs, worker_groups, prompt_ctx),
+    with {:ok, project} <- Project.get(project_id),
+         {app_name, module_name} = PluginScaffold.derive_names(project.title),
+         plugin_dir = PluginScaffold.plugin_path(app_name),
+         {:ok, _path} <- PluginScaffold.scaffold(app_name, module_name),
+         {:ok, pipeline} <- from_project(project_id, tmux_session: session),
+         {:ok, _report} <- validate_pipeline(pipeline.id),
+         {:ok, pipeline_tasks} <- PipelineTask.by_run(pipeline.id),
+         worker_groups = build_worker_groups(pipeline_tasks),
+         prompt_ctx = %{plugin_dir: plugin_dir, module_name: module_name},
+         spec =
+           TeamSpec.build(
+             :pipeline,
+             pipeline,
+             session,
+             brief,
+             pipeline_tasks,
+             worker_groups,
+             prompt_ctx
+           ),
          {:ok, ^session} <- TeamLaunch.launch(spec) do
-      Runner.start(:dag, run_id: run.id, team_spec: spec, project_path: run.project_path)
+      Runner.start(:pipeline,
+        run_id: pipeline.id,
+        team_spec: spec,
+        project_path: pipeline.project_path
+      )
 
-      Signals.emit(:dag_run_ready, %{
-        run_id: run.id,
+      Signals.emit(:pipeline_ready, %{
+        run_id: pipeline.id,
         session: session,
-        node_id: node_id,
+        project_id: project_id,
         agent_count: length(spec.agents),
         worker_count: length(worker_groups)
       })
 
-      {:ok, %{session: session, run: run}}
+      {:ok, %{session: session, run: pipeline}}
     end
   end
 
   # ---------------------------------------------------------------------------
-  # Genesis spawn
+  # Planning spawn
   # ---------------------------------------------------------------------------
 
-  @doc "Spawns a Genesis mode team (a/b/c) inside a new tmux session."
-  @spec spawn(:genesis, String.t(), String.t(), String.t() | nil) ::
+  @doc "Spawns a planning mode team (a/b/c) inside a new tmux session."
+  @spec spawn(:planning, String.t(), String.t(), String.t() | nil) ::
           {:ok, String.t()} | {:error, term()}
-  def spawn(:genesis, mode, project_id, genesis_node_id) do
+  def spawn(:planning, mode, project_id, planning_project_id) do
     run_id = short_id()
     brief = load_project_brief(project_id)
-    spec = TeamSpec.build(:genesis, run_id, mode, project_id, genesis_node_id, brief)
+    spec = TeamSpec.build(:planning, run_id, mode, project_id, planning_project_id, brief)
 
     case TeamLaunch.launch(spec) do
       {:ok, _session} ->
-        Runner.start(:genesis,
+        Runner.start(:planning,
           run_id: run_id,
           mode: mode,
           team_spec: spec,
-          node_id: genesis_node_id
+          project_id: planning_project_id
         )
 
-        Signals.emit(:genesis_team_ready, %{
+        Signals.emit(:planning_team_ready, %{
           session: spec.session,
           mode: mode,
           project_id: project_id,
-          genesis_node_id: genesis_node_id,
           agent_count: length(spec.agents)
         })
 
         {:ok, spec.session}
 
       {:error, reason} ->
-        Signals.emit(:genesis_team_spawn_failed, %{
+        Signals.emit(:planning_team_spawn_failed, %{
           session: spec.session,
           reason: inspect(reason)
         })
@@ -115,34 +125,18 @@ defmodule Ichor.Factory.Spawn do
   # Shared helpers (used by callers)
   # ---------------------------------------------------------------------------
 
-  @doc "Returns an existing genesis node ID or creates one for the project."
-  @spec ensure_genesis_node(String.t() | nil, map()) :: {:ok, String.t()} | {:error, term()}
-  def ensure_genesis_node(nil, project) do
-    case find_existing_node(project.id) do
-      {:ok, node_id} -> {:ok, node_id}
-      :not_found -> create_genesis_node(project)
-    end
-  end
+  @doc "Returns the project ID to use for MES planning actions."
+  @spec ensure_planning_project(String.t() | nil, map()) :: {:ok, String.t()} | {:error, term()}
+  def ensure_planning_project(nil, project), do: {:ok, project.id}
 
-  def ensure_genesis_node(node_id, _project), do: {:ok, node_id}
+  def ensure_planning_project(project_id, _project), do: {:ok, project_id}
 
   @doc "Loads a formatted project brief string for injection into agent prompts."
   @spec load_project_brief(String.t()) :: String.t()
   def load_project_brief(project_id) do
     case Project.get(project_id) do
       {:ok, project} ->
-        """
-        PROJECT BRIEF: #{project.title}
-        Subsystem: #{project.subsystem}
-        Description: #{project.description}
-        Features: #{Enum.join(project.features || [], ", ")}
-        Use Cases: #{Enum.join(project.use_cases || [], ", ")}
-        Signal Interface: #{project.signal_interface}
-        Signals Emitted: #{Enum.join(project.signals_emitted || [], ", ")}
-        Signals Subscribed: #{Enum.join(project.signals_subscribed || [], ", ")}
-        Architecture: #{project.architecture}
-        Dependencies: #{Enum.join(project.dependencies || [], ", ")}
-        """
+        Project.latest_brief_text(project) || render_project_fallback_brief(project)
 
       _ ->
         "PROJECT BRIEF: (not available)"
@@ -244,67 +238,70 @@ defmodule Ichor.Factory.Spawn do
   # Loader (formerly Ichor.Projects.Loader)
   # ---------------------------------------------------------------------------
 
-  @doc "Creates a Run and Jobs from a tasks.jsonl file path."
-  @spec from_file(String.t(), keyword()) :: {:ok, Run.t()} | {:error, term()}
+  @doc "Creates a pipeline and pipeline tasks from a tasks.jsonl file path."
+  @spec from_file(String.t(), keyword()) :: {:ok, Pipeline.t()} | {:error, term()}
   def from_file(tasks_jsonl_path, opts \\ []) do
     label = Keyword.get(opts, :label, Path.basename(Path.dirname(tasks_jsonl_path)))
     tmux_session = Keyword.get(opts, :tmux_session)
     raw_items = parse_jsonl(tasks_jsonl_path)
 
-    create_run_with_jobs(raw_items, label, :imported, tmux_session, %{
+    create_pipeline_with_tasks(raw_items, label, :imported, tmux_session, %{
       project_path: Path.dirname(tasks_jsonl_path)
     })
   end
 
-  @doc "Creates a Run and Jobs from a Genesis node hierarchy, archiving prior runs first."
-  @spec from_genesis(String.t(), keyword()) :: {:ok, Run.t()} | {:error, term()}
-  def from_genesis(node_id, opts \\ []) do
+  @doc "Creates a pipeline and pipeline tasks from a project roadmap hierarchy, archiving prior runs first."
+  @spec from_project(String.t(), keyword()) :: {:ok, Pipeline.t()} | {:error, term()}
+  def from_project(project_id, opts \\ []) do
     tmux_session = Keyword.get(opts, :tmux_session)
-    archive_existing_runs_for_node(node_id)
+    archive_existing_runs_for_project(project_id)
 
-    with {:ok, task_maps} <- DagGenerator.generate(node_id) do
-      label = derive_label(node_id)
-      raw_items = Enum.map(task_maps, &normalize_genesis_map/1)
-      create_run_with_jobs(raw_items, label, :genesis, tmux_session, %{node_id: node_id})
+    with {:ok, task_maps} <- DagGenerator.generate(project_id) do
+      label = derive_label(project_id)
+      raw_items = Enum.map(task_maps, &normalize_planning_map/1)
+
+      create_pipeline_with_tasks(raw_items, label, :project, tmux_session, %{
+        project_id: project_id
+      })
     end
   end
 
-  defp create_run_with_jobs(raw_items, label, source, tmux_session, extra_attrs) do
+  defp create_pipeline_with_tasks(raw_items, label, source, tmux_session, extra_attrs) do
     nodes = Enum.map(raw_items, &Graph.to_graph_node/1)
     waves = Graph.waves(nodes)
     wave_map = build_wave_map(waves)
 
-    run_attrs =
+    pipeline_attrs =
       Map.merge(extra_attrs, %{
         label: label,
         source: source,
         tmux_session: tmux_session,
-        job_count: length(raw_items)
+        task_count: length(raw_items)
       })
 
-    with {:ok, run} <- Run.create(run_attrs),
-         :ok <- create_jobs(raw_items, run.id, wave_map) do
-      Signals.emit(:dag_run_created, %{
-        run_id: run.id,
+    with {:ok, pipeline} <- Pipeline.create(pipeline_attrs),
+         :ok <- create_pipeline_tasks(raw_items, pipeline.id, wave_map) do
+      Signals.emit(:pipeline_created, %{
+        run_id: pipeline.id,
         source: source,
         label: label,
-        job_count: length(raw_items)
+        task_count: length(raw_items)
       })
 
-      {:ok, run}
+      {:ok, pipeline}
     end
   end
 
-  defp create_jobs(raw_items, run_id, wave_map) do
-    results = Enum.map(raw_items, &Job.create(to_job_attrs(&1, run_id, wave_map)))
+  defp create_pipeline_tasks(raw_items, run_id, wave_map) do
+    results = Enum.map(raw_items, &PipelineTask.create(to_task_attrs(&1, run_id, wave_map)))
 
     case Enum.find(results, &match?({:error, _}, &1)) do
       nil -> :ok
-      {:error, reason} -> {:error, {:job_create_failed, reason}}
+      {:error, reason} -> {:error, {:pipeline_task_create_failed, reason}}
     end
   end
 
-  defp to_job_attrs(item, run_id, wave_map) do
+  defp to_task_attrs(item, run_id, wave_map) do
     %{
       run_id: run_id,
       external_id: item["id"],
@@ -325,7 +322,7 @@ defmodule Ichor.Factory.Spawn do
     }
   end
 
-  defp normalize_genesis_map(m), do: Map.put(m, "subtask_id", m["subtask_id"])
+  defp normalize_planning_map(m), do: Map.put(m, "subtask_id", m["subtask_id"])
 
   defp parse_jsonl(path) do
     path
@@ -356,17 +353,17 @@ defmodule Ichor.Factory.Spawn do
   defp parse_priority("low"), do: :low
   defp parse_priority(_), do: :medium
 
-  defp archive_existing_runs_for_node(node_id) do
-    case Run.by_node(node_id) do
-      {:ok, runs} -> Enum.each(runs, &Run.archive/1)
+  defp archive_existing_runs_for_project(project_id) do
+    case Pipeline.by_project(project_id) do
+      {:ok, pipelines} -> Enum.each(pipelines, &Pipeline.archive/1)
       _ -> :ok
     end
   end
 
-  defp derive_label(node_id) do
-    case ProjectNode.get(node_id) do
-      {:ok, node} -> node.title
-      _ -> "DAG Run"
+  defp derive_label(project_id) do
+    case Project.get(project_id) do
+      {:ok, project} -> project.title
+      _ -> "Pipeline"
     end
   end
 
@@ -374,11 +371,11 @@ defmodule Ichor.Factory.Spawn do
   # Validator (formerly Ichor.Projects.Validator)
   # ---------------------------------------------------------------------------
 
-  defp validate_dag(run_id) do
-    with {:ok, jobs} <- Job.by_run(run_id) do
-      items = Enum.map(jobs, &Graph.to_graph_node/1)
+  defp validate_pipeline(run_id) do
+    with {:ok, pipeline_tasks} <- PipelineTask.by_run(run_id) do
+      items = Enum.map(pipeline_tasks, &Graph.to_graph_node/1)
       cycles = detect_cycles(items)
-      missing = flat_dag_check(items)
+      missing = flat_pipeline_check(items)
 
       if cycles == [] and missing == [] do
         {:ok, %{cycles: [], missing_refs: []}}
@@ -397,7 +394,7 @@ defmodule Ichor.Factory.Spawn do
         do: {a, b}
   end
 
-  defp flat_dag_check(items) do
+  defp flat_pipeline_check(items) do
     known_ids = MapSet.new(items, & &1.id)
 
     items
@@ -481,23 +478,19 @@ defmodule Ichor.Factory.Spawn do
   # Genesis internals
   # ---------------------------------------------------------------------------
 
-  defp find_existing_node(project_id) do
-    case ProjectNode.by_project(project_id) do
-      {:ok, [node | _]} -> {:ok, node.id}
-      _ -> :not_found
-    end
-  end
-
-  defp create_genesis_node(project) do
-    case ProjectNode.create(%{
-           title: project.title,
-           description: project.description,
-           brief: project.description,
-           mes_project_id: project.id
-         }) do
-      {:ok, node} -> {:ok, node.id}
-      error -> error
-    end
+  defp render_project_fallback_brief(project) do
+    """
+    PROJECT BRIEF: #{project.title}
+    Plugin: #{project.plugin}
+    Description: #{project.description}
+    Features: #{Enum.join(project.features || [], ", ")}
+    Use Cases: #{Enum.join(project.use_cases || [], ", ")}
+    Signal Interface: #{project.signal_interface}
+    Signals Emitted: #{Enum.join(project.signals_emitted || [], ", ")}
+    Signals Subscribed: #{Enum.join(project.signals_subscribed || [], ", ")}
+    Architecture: #{project.architecture}
+    Dependencies: #{Enum.join(project.dependencies || [], ", ")}
+    """
   end
 
   # ---------------------------------------------------------------------------

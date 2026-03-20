@@ -1,6 +1,6 @@
 defmodule Ichor.Factory.LifecycleSupervisor do
   @moduledoc """
-  Top-level supervisor for the MES subsystem.
+  Top-level supervisor for the MES pipeline.
 
   Supervision tree:
 
@@ -20,7 +20,7 @@ defmodule Ichor.Factory.LifecycleSupervisor do
   coordinator agents can send_message to "operator" and have it land in
   a real BEAM mailbox (triggering :message_delivered for ProjectIngestor).
   """
-
+  # todo: moduledoc needs to be updated and understand it is not a diary/logbook
   use Supervisor
 
   alias Ichor.Control.{AgentProcess, FleetSupervisor}
@@ -50,8 +50,10 @@ defmodule Ichor.Factory.LifecycleSupervisor do
 
   defp ensure_operator_process do
     if AgentProcess.alive?("operator") do
+      # todo: mes_operator_ensured must be renamed, operator is more generic
       Ichor.Signals.emit(:mes_operator_ensured, %{status: "already_alive"})
     else
+      # todo: tricky, FleetSupervisor must be started before this can succeed
       case FleetSupervisor.spawn_agent(
              id: "operator",
              role: :operator,
@@ -72,8 +74,9 @@ defmodule Ichor.Factory.LifecycleSupervisor do
 
   defp ensure_orphan_sweep do
     active_runs = length(Ichor.Factory.Runner.list_all(:mes))
+    # todo: janitor rename. This emit should trigger a oban job.
     Ichor.Signals.emit(:mes_janitor_init, %{monitored: active_runs})
-
+    # todo: oban needs to be configured else where
     unless oban_inline_testing?() do
       case OrphanSweepWorker.schedule(10) do
         {:ok, _job} -> :ok

@@ -1,5 +1,5 @@
-defmodule Ichor.Factory.Job.Changes.SyncRunProcess do
-  @moduledoc "After a job state transition, notifies the RunProcess GenServer to sync its state."
+defmodule Ichor.Factory.PipelineTask.Changes.SyncPipelineProcess do
+  @moduledoc "After a pipeline task state transition, notifies the Runner GenServer to sync its state."
 
   use Ash.Resource.Change
 
@@ -17,9 +17,9 @@ defmodule Ichor.Factory.Job.Changes.SyncRunProcess do
     end)
   end
 
-  defp maybe_sync(run_id, job) do
-    if Code.ensure_loaded?(Runner) and function_exported?(Runner, :sync_job, 2) do
-      Runner.sync_job(run_id, job)
+  defp maybe_sync(run_id, task) do
+    if Code.ensure_loaded?(Runner) and function_exported?(Runner, :sync_task, 2) do
+      Runner.sync_task(run_id, task)
     end
   end
 end

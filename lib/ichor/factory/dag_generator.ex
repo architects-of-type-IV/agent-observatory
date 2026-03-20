@@ -1,20 +1,22 @@
 defmodule Ichor.Factory.DagGenerator do
   @moduledoc """
-  Converts a Genesis Node's RoadmapItem hierarchy (phases -> sections -> tasks -> subtasks)
+  Converts a project's embedded roadmap hierarchy (phases -> sections -> tasks -> subtasks)
   into tasks.jsonl format with blocked_by chains.
 
   Output: list of JSONL-compatible maps, one per subtask.
   Dotted IDs: "{phase_num}.{section_num}.{task_num}.{subtask_num}"
   """
 
-  alias Ichor.Factory.RoadmapItem
+  alias Ichor.Factory.Project
 
   @compile_gate "mix compile --warnings-as-errors"
 
-  @doc "Generates a tasks.jsonl-compatible list of maps from a Genesis node hierarchy."
+  @doc "Generates a tasks.jsonl-compatible list of maps from a project's roadmap."
   @spec generate(String.t()) :: {:ok, [map()]} | {:error, term()}
-  def generate(node_id) do
-    with {:ok, phases} <- RoadmapItem.phases_with_hierarchy(node_id) do
+  def generate(project_id) do
+    with {:ok, project} <- Project.get(project_id) do
+      phases = Project.hierarchy(project.roadmap_items || [])
+
       tasks =
         phases
         |> flatten_hierarchy()
@@ -58,7 +60,6 @@ defmodule Ichor.Factory.DagGenerator do
   defp convert_to_jsonl({entries, uuid_map}) do
     Enum.map(entries, fn entry ->
       subtask = entry.subtask
-      ts = format_date(subtask.inserted_at)
 
       blocked_by =
         (subtask.blocked_by || [])
@@ -83,8 +84,8 @@ defmodule Ichor.Factory.DagGenerator do
           "section-#{entry.section.number}"
         ],
         "roadmap_ref" => "#{entry.phase.number}.#{entry.section.number}",
-        "created" => ts,
-        "updated" => ts,
+        "created" => "",
+        "updated" => "",
         "notes" => ""
       }
     end)
@@ -99,8 +100,4 @@ defmodule Ichor.Factory.DagGenerator do
   defp build_acceptance_criteria(nil), do: [@compile_gate]
   defp build_acceptance_criteria(@compile_gate), do: [@compile_gate]
   defp build_acceptance_criteria(done_when), do: [@compile_gate, done_when]
-
-  defp format_date(nil), do: ""
-  defp format_date(%DateTime{} = dt), do: Calendar.strftime(dt, "%Y-%m-%dT%H:%M:%SZ")
-  defp format_date(_), do: ""
 end

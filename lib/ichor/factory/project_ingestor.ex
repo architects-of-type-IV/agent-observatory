@@ -6,12 +6,12 @@ defmodule Ichor.Factory.ProjectIngestor do
 
   Accepts two formats:
     1. JSON with `{"action":"create_mes_project",...}` (structured)
-    2. Plain text with `TITLE:`, `SUBSYSTEM:`, etc. key-value lines (agent output)
+    2. Plain text with `TITLE:`, `PLUGIN:`, etc. key-value lines (agent output)
 
   Messages arrive with atom keys from Delivery.normalize/2.
   Only processes messages sent TO "operator" FROM "mes-*" sessions.
   """
-
+  # todo: maybe remove all mes_ references.
   use GenServer
 
   require Logger
@@ -19,9 +19,9 @@ defmodule Ichor.Factory.ProjectIngestor do
   alias Ichor.Factory.Project
   alias Ichor.Signals
 
-  @required_keys ~w(title description subsystem signal_interface)
-  @all_keys ~w(title description subsystem signal_interface topic version
-               features use_cases architecture dependencies
+  @required_keys ~w(title description plugin signal_interface)
+  @all_keys ~w(title description plugin signal_interface topic version
+               output_kind features use_cases architecture dependencies
                signals_emitted signals_subscribed)
 
   @doc false
@@ -191,7 +191,16 @@ defmodule Ichor.Factory.ProjectIngestor do
       %{
         title: payload["title"],
         description: payload["description"],
-        subsystem: payload["subsystem"],
+        artifacts: [
+          %{
+            id: Ash.UUID.generate(),
+            kind: :brief,
+            title: payload["title"],
+            content: render_brief(payload)
+          }
+        ],
+        output_kind: payload["output_kind"] || "plugin",
+        plugin: payload["plugin"],
         signal_interface: payload["signal_interface"],
         run_id: run_id,
         team_name: "mes-#{run_id}"
@@ -215,7 +224,7 @@ defmodule Ichor.Factory.ProjectIngestor do
           run_id: run_id
         })
 
-      {:error, :duplicate_subsystem} ->
+      {:error, :duplicate_plugin} ->
         :ok
 
       {:error, reason} ->
@@ -231,11 +240,38 @@ defmodule Ichor.Factory.ProjectIngestor do
   end
 
   defp check_and_create(existing, attrs) do
-    if Enum.any?(existing, &(&1.subsystem == attrs.subsystem && &1.status != :failed)) do
-      Logger.warning("[MES.ProjectIngestor] Duplicate subsystem rejected: #{attrs.subsystem}")
-      {:error, :duplicate_subsystem}
+    if Enum.any?(existing, &(&1.plugin == attrs.plugin && &1.status != :failed)) do
+      Logger.warning("[MES.ProjectIngestor] Duplicate plugin rejected: #{attrs.plugin}")
+      {:error, :duplicate_plugin}
     else
       Project.create(attrs)
     end
   end
+
+  defp render_brief(payload) do
+    sections =
+      [
+        {"Title", payload["title"]},
+        {"Description", payload["description"]},
+        {"Plugin", payload["plugin"]},
+        {"Signal Interface", payload["signal_interface"]},
+        {"Topic", payload["topic"]},
+        {"Version", payload["version"]},
+        {"Features", render_list(payload["features"])},
+        {"Use Cases", render_list(payload["use_cases"])},
+        {"Architecture", payload["architecture"]},
+        {"Dependencies", render_list(payload["dependencies"])},
+        {"Signals Emitted", render_list(payload["signals_emitted"])},
+        {"Signals Subscribed", render_list(payload["signals_subscribed"])}
+      ]
+
+    sections
+    |> Enum.reject(fn {_label, value} -> is_nil(value) or value == "" end)
+    |> Enum.map_join("\n", fn {label, value} -> "#{label}: #{value}" end)
+  end
+
+  defp render_list(nil), do: nil
+  defp render_list([]), do: nil
+  defp render_list(items) when is_list(items), do: Enum.join(items, ", ")
+  defp render_list(value), do: value
 end

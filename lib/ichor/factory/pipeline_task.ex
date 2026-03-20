@@ -1,8 +1,8 @@
-defmodule Ichor.Factory.Job do
+defmodule Ichor.Factory.PipelineTask do
   @moduledoc """
-  Claimable execution unit in a DAG run. One per subtask or tasks.jsonl entry.
+  Claimable execution unit in a pipeline. One per roadmap task or tasks.jsonl entry.
   Status lifecycle: pending -> in_progress -> completed/failed.
-  Reset returns failed/stale jobs to pending.
+  Reset returns failed or stale pipeline tasks to pending.
   """
 
   use Ash.Resource,
@@ -12,7 +12,7 @@ defmodule Ichor.Factory.Job do
 
   sqlite do
     repo(Ichor.Repo)
-    table("dag_jobs")
+    table("pipeline_tasks")
   end
 
   identities do
@@ -30,7 +30,7 @@ defmodule Ichor.Factory.Job do
 
     attribute :subtask_id, :string do
       public?(true)
-      description("Genesis.Subtask UUID (nullable, genesis runs only)")
+      description("Roadmap subtask UUID (nullable, project-derived runs only)")
     end
 
     attribute :subject, :string do
@@ -44,7 +44,7 @@ defmodule Ichor.Factory.Job do
     attribute :allowed_files, {:array, :string} do
       default([])
       public?(true)
-      description("File paths this job is scoped to")
+      description("File paths this task is scoped to")
     end
 
     attribute :steps, {:array, :string} do
@@ -107,8 +107,9 @@ defmodule Ichor.Factory.Job do
   end
 
   relationships do
-    belongs_to :run, Ichor.Factory.Run do
+    belongs_to :pipeline, Ichor.Factory.Pipeline do
       allow_nil?(false)
+      source_attribute(:run_id)
       attribute_public?(true)
     end
   end
@@ -156,7 +157,7 @@ defmodule Ichor.Factory.Job do
       end
 
       filter(expr(run_id == ^arg(:run_id) and status == :pending and is_nil(owner)))
-      prepare(Ichor.Factory.Job.Preparations.FilterAvailable)
+      prepare(Ichor.Factory.PipelineTask.Preparations.FilterAvailable)
     end
 
     update :claim do
@@ -173,7 +174,7 @@ defmodule Ichor.Factory.Job do
       change(set_attribute(:status, :in_progress))
       change(set_attribute(:claimed_at, &__MODULE__.now/0))
       change(atomic_update(:owner, expr(^arg(:owner))))
-      change(Ichor.Factory.Job.Changes.SyncRunProcess)
+      change(Ichor.Factory.PipelineTask.Changes.SyncPipelineProcess)
     end
 
     update :complete do
@@ -181,14 +182,14 @@ defmodule Ichor.Factory.Job do
       accept([:notes])
       change(set_attribute(:status, :completed))
       change(set_attribute(:completed_at, &__MODULE__.now/0))
-      change(Ichor.Factory.Job.Changes.SyncRunProcess)
+      change(Ichor.Factory.PipelineTask.Changes.SyncPipelineProcess)
     end
 
     update :fail do
       require_atomic?(false)
       accept([:notes])
       change(set_attribute(:status, :failed))
-      change(Ichor.Factory.Job.Changes.SyncRunProcess)
+      change(Ichor.Factory.PipelineTask.Changes.SyncPipelineProcess)
     end
 
     update :reset do
@@ -197,7 +198,7 @@ defmodule Ichor.Factory.Job do
       change(set_attribute(:status, :pending))
       change(set_attribute(:owner, nil))
       change(set_attribute(:claimed_at, nil))
-      change(Ichor.Factory.Job.Changes.SyncRunProcess)
+      change(Ichor.Factory.PipelineTask.Changes.SyncPipelineProcess)
     end
 
     update :reassign do
@@ -208,6 +209,83 @@ defmodule Ichor.Factory.Job do
       end
 
       change(atomic_update(:owner, expr(^arg(:owner))))
+    end
+
+    action :next_tasks, {:array, :map} do
+      description("List available tasks for a pipeline.")
+
+      argument(:run_id, :string, allow_nil?: false)
+
+      run(fn input, _context ->
+        with {:ok, tasks} <- __MODULE__.available(input.arguments.run_id) do
+          {:ok, Enum.map(tasks, &task_to_map/1)}
+        end
+      end)
+    end
+
+    action :claim_task, :map do
+      description("Claim a pending task and return the full task spec.")
+
+      argument(:task_id, :string, allow_nil?: false)
+      argument(:owner, :string, allow_nil?: false)
+
+      run(fn input, _context ->
+        with {:ok, task} <- __MODULE__.get(input.arguments.task_id),
+             {:ok, claimed} <- __MODULE__.claim(task, input.arguments.owner) do
+          {:ok, task_to_map(claimed)}
+        else
+          {:error, %Ash.Error.Invalid{} = err} ->
+            {:error, "Cannot claim task: #{format_ash_error(err)}"}
+
+          {:error, reason} ->
+            {:error, "Claim failed: #{inspect(reason)}"}
+        end
+      end)
+    end
+
+    action :complete_task, :map do
+      description("Mark a task as completed and report newly unblocked tasks.")
+
+      argument(:task_id, :string, allow_nil?: false)
+      argument(:notes, :string, allow_nil?: false, default: "")
+
+      run(fn input, _context ->
+        with {:ok, task} <- __MODULE__.get(input.arguments.task_id),
+             {:ok, completed} <-
+               __MODULE__.complete(
+                 task,
+                 %{notes: blank_to_nil(input.arguments.notes)}
+               ),
+             {:ok, available} <- __MODULE__.available(completed.run_id),
+             {:ok, all_tasks} <- __MODULE__.by_run(completed.run_id) do
+          {:ok,
+           %{
+             "completed" => task_to_map(completed),
+             "newly_unblocked" => Enum.map(available, &task_to_map/1),
+             "all_done" => Enum.all?(all_tasks, &(&1.status == :completed))
+           }}
+        else
+          {:error, reason} ->
+            {:error, "Complete failed: #{inspect(reason)}"}
+        end
+      end)
+    end
+
+    action :fail_task, :map do
+      description("Mark a task as failed.")
+
+      argument(:task_id, :string, allow_nil?: false)
+      argument(:notes, :string, allow_nil?: false)
+
+      run(fn input, _context ->
+        with {:ok, task} <- __MODULE__.get(input.arguments.task_id),
+             {:ok, failed} <- __MODULE__.fail(task, %{notes: input.arguments.notes}) do
+          {:ok, task_to_map(failed)}
+        else
+          {:error, reason} ->
+            {:error, "Fail action failed: #{inspect(reason)}"}
+        end
+      end)
     end
   end
 
@@ -221,8 +299,38 @@ defmodule Ichor.Factory.Job do
     define(:fail)
     define(:reset)
     define(:reassign, args: [:owner])
+    define(:next_tasks, args: [:run_id])
+    define(:claim_task, args: [:task_id, :owner])
+    define(:complete_task, args: [:task_id])
+    define(:fail_task, args: [:task_id, :notes])
   end
 
   @doc false
   def now, do: DateTime.utc_now()
+
+  defp task_to_map(task) do
+    %{
+      "id" => task.id,
+      "external_id" => task.external_id,
+      "subject" => task.subject,
+      "goal" => task.goal,
+      "description" => task.description,
+      "allowed_files" => task.allowed_files || [],
+      "steps" => task.steps || [],
+      "done_when" => task.done_when,
+      "blocked_by" => task.blocked_by || [],
+      "wave" => task.wave,
+      "priority" => to_string(task.priority),
+      "status" => to_string(task.status),
+      "owner" => task.owner,
+      "notes" => task.notes
+    }
+  end
+
+  defp format_ash_error(%Ash.Error.Invalid{errors: errors}) do
+    Enum.map_join(errors, "; ", fn e -> Map.get(e, :message, inspect(e)) end)
+  end
+
+  defp blank_to_nil(""), do: nil
+  defp blank_to_nil(value), do: value
 end

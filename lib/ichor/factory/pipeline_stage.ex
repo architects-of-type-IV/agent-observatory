@@ -1,10 +1,10 @@
 defmodule Ichor.Factory.PipelineStage do
   @moduledoc """
-  Derives pipeline stage from a Genesis Node's loaded associations.
+  Derives pipeline stage from a project's embedded planning state.
   Queries the DAG domain for :building stage detection.
   """
 
-  alias Ichor.Factory.Run
+  alias Ichor.Factory.Pipeline
 
   @type stage ::
           :ideation
@@ -19,15 +19,15 @@ defmodule Ichor.Factory.PipelineStage do
           | :compiled
           | :running
 
-  @doc "Derive the pipeline stage from a loaded genesis node. Returns stage atom and display label."
+  @doc "Derive the pipeline stage from a loaded project. Returns stage atom and display label."
   @spec derive(map() | nil) :: {stage(), String.t()}
   def derive(nil), do: {:ideation, "Ideation"}
 
-  def derive(node) do
+  def derive(project) do
     stage =
-      case has_active_dag_run?(node) do
+      case has_active_pipeline?(project) do
         true -> :building
-        false -> classify(node)
+        false -> classify(project)
       end
 
     {stage, label(stage)}
@@ -88,30 +88,23 @@ defmodule Ichor.Factory.PipelineStage do
   def stage_color(:compiled), do: {"text-success", "bg-success/15"}
   def stage_color(:running), do: {"text-success", "bg-success/15"}
 
-  defp classify(%{phases: phases} = node) when is_list(phases) and phases != [] do
-    case gate_c_checkpoint?(node.checkpoints) do
-      true -> :ready_for_dag
-      false -> :pre_gate_c
+  defp classify(project) do
+    cond do
+      roadmap_count(project, :phase) > 0 ->
+        if gate_c_checkpoint?(artifacts(project, :checkpoint)),
+          do: :ready_for_dag,
+          else: :pre_gate_c
+
+      artifact_count(project, :feature) > 0 or artifact_count(project, :use_case) > 0 ->
+        if gate_b_checkpoint?(artifacts(project, :checkpoint)), do: :mode_c, else: :pre_gate_b
+
+      artifact_count(project, :adr) > 0 ->
+        if gate_a_checkpoint?(artifacts(project, :checkpoint)), do: :mode_b, else: :pre_gate_a
+
+      true ->
+        :mode_a
     end
   end
-
-  defp classify(%{features: features, use_cases: use_cases} = node)
-       when (is_list(features) and features != []) or
-              (is_list(use_cases) and use_cases != []) do
-    case gate_b_checkpoint?(node.checkpoints) do
-      true -> :mode_c
-      false -> :pre_gate_b
-    end
-  end
-
-  defp classify(%{adrs: adrs} = node) when is_list(adrs) and adrs != [] do
-    case gate_a_checkpoint?(node.checkpoints) do
-      true -> :mode_b
-      false -> :pre_gate_a
-    end
-  end
-
-  defp classify(_node), do: :mode_a
 
   defp gate_a_checkpoint?(checkpoints), do: has_checkpoint_mode?(checkpoints, :gate_a)
   defp gate_b_checkpoint?(checkpoints), do: has_checkpoint_mode?(checkpoints, :gate_b)
@@ -124,13 +117,21 @@ defmodule Ichor.Factory.PipelineStage do
     Enum.any?(checkpoints, fn cp -> cp.mode == mode or cp.mode == to_string(mode) end)
   end
 
-  defp has_active_dag_run?(nil), do: false
+  defp has_active_pipeline?(nil), do: false
 
-  defp has_active_dag_run?(%{id: node_id}) when is_binary(node_id) do
-    Run.by_node!(node_id) != []
+  defp has_active_pipeline?(%{id: project_id}) when is_binary(project_id) do
+    Pipeline.by_project!(project_id) != []
   end
 
-  defp has_active_dag_run?(_), do: false
+  defp has_active_pipeline?(_), do: false
+
+  defp artifacts(node, kind), do: Enum.filter(Map.get(node, :artifacts, []), &(&1.kind == kind))
+
+  defp artifact_count(node, kind),
+    do: Enum.count(Map.get(node, :artifacts, []), &(&1.kind == kind))
+
+  defp roadmap_count(node, kind),
+    do: Enum.count(Map.get(node, :roadmap_items, []), &(&1.kind == kind))
 
   @labels %{
     ideation: "Ideation",

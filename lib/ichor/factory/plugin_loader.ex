@@ -1,6 +1,6 @@
-defmodule Ichor.Factory.SubsystemLoader do
+defmodule Ichor.Factory.PluginLoader do
   @moduledoc """
-  Compiles a subsystem Mix project and hot-loads its BEAM modules
+  Compiles a plugin Mix project and hot-loads its BEAM modules
   into the running VM without restart.
 
   Pipeline: compile -> add ebin to code path -> load modules -> call start/0.
@@ -10,29 +10,29 @@ defmodule Ichor.Factory.SubsystemLoader do
 
   alias Ichor.Signals
 
-  @subsystems_dir Path.expand("subsystems")
+  @plugins_dir Path.expand("subsystems")
 
   @spec compile_and_load(struct() | map()) :: {:ok, [module()]} | {:error, String.t()}
   def compile_and_load(project) do
-    path = project.path || Path.join(@subsystems_dir, project.subsystem)
+    path = project.path || Path.join(@plugins_dir, project.plugin)
 
     with :ok <- validate_path(path),
          {:ok, _output} <- compile_project(path),
          {:ok, ebin_dir} <- find_ebin(path),
          {:ok, modules} <- load_modules(ebin_dir) do
-      Signals.emit(:mes_subsystem_loaded, %{
+      Signals.emit(:mes_plugin_loaded, %{
         project_id: project.id,
-        subsystem: project.subsystem,
+        plugin: project.plugin,
         modules: Enum.map(modules, &inspect/1)
       })
 
-      Logger.info("[MES.SubsystemLoader] Loaded #{length(modules)} modules from #{path}")
+      Logger.info("[MES.PluginLoader] Loaded #{length(modules)} modules from #{path}")
       {:ok, modules}
     end
   end
 
-  @spec subsystems_dir() :: String.t()
-  def subsystems_dir, do: @subsystems_dir
+  @spec plugins_dir() :: String.t()
+  def plugins_dir, do: @plugins_dir
 
   defp validate_path(path) do
     cond do
@@ -102,6 +102,6 @@ defmodule Ichor.Factory.SubsystemLoader do
   end
 
   defp host_module_name?(name_str) do
-    not String.starts_with?(name_str, "Elixir.Ichor.Subsystems.")
+    not String.starts_with?(name_str, "Elixir.Ichor.Plugins.")
   end
 end

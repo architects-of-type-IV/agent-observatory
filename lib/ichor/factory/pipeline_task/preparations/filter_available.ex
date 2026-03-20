@@ -1,7 +1,7 @@
-defmodule Ichor.Factory.Job.Preparations.FilterAvailable do
+defmodule Ichor.Factory.PipelineTask.Preparations.FilterAvailable do
   @moduledoc """
   Post-query filter for the :available read action.
-  Removes jobs whose blocked_by dependencies are not all completed.
+  Removes pipeline tasks whose blocked_by dependencies are not all completed.
 
   Two-query pattern: SQLite cannot filter JSON arrays via Ash expressions.
   1. The action's SQL filter handles: status == :pending AND owner IS NULL
@@ -10,7 +10,7 @@ defmodule Ichor.Factory.Job.Preparations.FilterAvailable do
 
   use Ash.Resource.Preparation
 
-  alias Ichor.Factory.Job
+  alias Ichor.Factory.PipelineTask
 
   @impl true
   def prepare(query, _opts, _context) do
@@ -19,8 +19,8 @@ defmodule Ichor.Factory.Job.Preparations.FilterAvailable do
       completed_ids = completed_external_ids(run_id)
 
       available =
-        Enum.filter(results, fn job ->
-          Enum.all?(job.blocked_by, &MapSet.member?(completed_ids, &1))
+        Enum.filter(results, fn task ->
+          Enum.all?(task.blocked_by, &MapSet.member?(completed_ids, &1))
         end)
 
       {:ok, available}
@@ -28,9 +28,9 @@ defmodule Ichor.Factory.Job.Preparations.FilterAvailable do
   end
 
   defp completed_external_ids(run_id) do
-    case Job.by_run(run_id) do
-      {:ok, jobs} ->
-        jobs
+    case PipelineTask.by_run(run_id) do
+      {:ok, tasks} ->
+        tasks
         |> Enum.filter(&(&1.status == :completed))
         |> MapSet.new(& &1.external_id)
 

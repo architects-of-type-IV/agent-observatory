@@ -1,10 +1,10 @@
 defmodule Ichor.Factory.ModePrompts do
   @moduledoc """
-  Prompt templates for Genesis mode teams.
+  Prompt templates for Planning mode teams.
   Each mode has 3 agents with scoped instructions and MCP tool references.
   """
 
-  @mcp_tools_discover "create_genesis_node, create_adr, update_adr, list_adrs, create_checkpoint, create_conversation, gate_check"
+  @mcp_tools_discover "create_project_draft, create_adr, update_adr, list_adrs, create_checkpoint, create_conversation, gate_check"
   @mcp_tools_define "create_feature, create_use_case, list_features, list_use_cases, create_checkpoint, create_conversation, gate_check"
   @mcp_tools_build "list_features, list_use_cases, create_phase, create_section, create_task, create_subtask, create_checkpoint, create_conversation, gate_check"
 
@@ -12,13 +12,13 @@ defmodule Ichor.Factory.ModePrompts do
   @spec mode_a_coordinator(String.t(), String.t(), String.t() | nil, String.t()) :: String.t()
   def mode_a_coordinator(run_id, roster, node_id, brief) do
     """
-    You are the Genesis Mode A Coordinator for run #{run_id}.
-    Your session_id is: genesis-a-#{run_id}-coordinator
+    You are the Planning Mode A Coordinator for run #{run_id}.
+    Your session_id is: planning-a-#{run_id}-coordinator
     Mode: DISCOVER -- produce Architecture Decision Records (ADRs).
 
     #{roster}
 
-    GENESIS NODE ID: #{node_id || "NONE -- create one first via create_genesis_node"}
+    PROJECT ID: #{node_id || "NONE -- create one first via create_project_draft"}
 
     #{brief}
 
@@ -41,8 +41,8 @@ defmodule Ichor.Factory.ModePrompts do
 
     Call send_message ONCE to announce you are ready:
 
-      from: "genesis-a-#{run_id}-coordinator"
-      to: "genesis-a-#{run_id}-coordinator"
+      from: "planning-a-#{run_id}-coordinator"
+      to: "planning-a-#{run_id}-coordinator"
       content: "COORDINATOR READY"
 
     This self-message is a protocol smoke test. Your parent is the Scheduler --
@@ -52,12 +52,12 @@ defmodule Ichor.Factory.ModePrompts do
     PHASE 1: WAIT FOR WORKER READY SIGNALS
     ============================================================
 
-    Call check_inbox with session_id "genesis-a-#{run_id}-coordinator".
+    Call check_inbox with session_id "planning-a-#{run_id}-coordinator".
     If empty, wait 20 seconds, call check_inbox again. REPEAT.
 
     You are waiting for READY messages from BOTH:
-    - "genesis-a-#{run_id}-architect"
-    - "genesis-a-#{run_id}-reviewer"
+    - "planning-a-#{run_id}-architect"
+    - "planning-a-#{run_id}-reviewer"
 
     Do NOT dispatch any work until you receive READY from both workers.
 
@@ -72,7 +72,7 @@ defmodule Ichor.Factory.ModePrompts do
     PHASE 3: WAIT FOR ARCHITECT DRAFTS
     ============================================================
 
-    Call check_inbox with session_id "genesis-a-#{run_id}-coordinator".
+    Call check_inbox with session_id "planning-a-#{run_id}-coordinator".
     If empty, wait 20 seconds, call check_inbox again. REPEAT.
     Be patient. The architect needs time to read code and draft. Wait up to 8 minutes.
 
@@ -86,7 +86,7 @@ defmodule Ichor.Factory.ModePrompts do
     PHASE 5: WAIT FOR REVIEWER VERDICTS
     ============================================================
 
-    Call check_inbox with session_id "genesis-a-#{run_id}-coordinator".
+    Call check_inbox with session_id "planning-a-#{run_id}-coordinator".
     If empty, wait 20 seconds, call check_inbox again. REPEAT.
     Wait up to 3 minutes.
 
@@ -128,13 +128,13 @@ defmodule Ichor.Factory.ModePrompts do
   @spec mode_a_architect(String.t(), String.t(), String.t() | nil, String.t()) :: String.t()
   def mode_a_architect(run_id, roster, node_id, brief) do
     """
-    You are the Genesis Mode A Architect for run #{run_id}.
-    Your session_id is: genesis-a-#{run_id}-architect
+    You are the Planning Mode A Architect for run #{run_id}.
+    Your session_id is: planning-a-#{run_id}-architect
     Mode: DISCOVER -- draft Architecture Decision Records.
 
     #{roster}
 
-    GENESIS NODE ID: #{node_id}
+    PROJECT ID: #{node_id}
 
     #{brief}
 
@@ -153,14 +153,14 @@ defmodule Ichor.Factory.ModePrompts do
     STEP 0: ANNOUNCE READY TO COORDINATOR (do this FIRST)
     ============================================================
     Call send_message ONCE:
-      from: "genesis-a-#{run_id}-architect"
-      to: "genesis-a-#{run_id}-coordinator"
+      from: "planning-a-#{run_id}-architect"
+      to: "planning-a-#{run_id}-coordinator"
       content: "READY"
 
     ============================================================
     STEP 1: WAIT FOR COORDINATOR ASSIGNMENT
     ============================================================
-    Call check_inbox with session_id "genesis-a-#{run_id}-architect".
+    Call check_inbox with session_id "planning-a-#{run_id}-architect".
     If empty, wait 20 seconds, call check_inbox again. REPEAT.
 
     ============================================================
@@ -175,8 +175,8 @@ defmodule Ichor.Factory.ModePrompts do
     STEP 3: SEND DRAFTS TO COORDINATOR (THIS IS THE MOST IMPORTANT STEP)
     ============================================================
     Call send_message:
-      from: "genesis-a-#{run_id}-architect"
-      to: "genesis-a-#{run_id}-coordinator"
+      from: "planning-a-#{run_id}-architect"
+      to: "planning-a-#{run_id}-coordinator"
       content: all 3 ADR drafts
 
     YOU MUST CALL send_message. Printing text to your terminal does NOT deliver it.
@@ -184,7 +184,7 @@ defmodule Ichor.Factory.ModePrompts do
     ============================================================
     STEP 4: ITERATE ON FEEDBACK
     ============================================================
-    Call check_inbox with session_id "genesis-a-#{run_id}-architect".
+    Call check_inbox with session_id "planning-a-#{run_id}-architect".
     If empty, wait 20 seconds, call check_inbox again. REPEAT.
     If revisions requested, iterate and resend via send_message.
 
@@ -198,13 +198,13 @@ defmodule Ichor.Factory.ModePrompts do
   @spec mode_a_reviewer(String.t(), String.t(), String.t() | nil, String.t()) :: String.t()
   def mode_a_reviewer(run_id, roster, node_id, brief) do
     """
-    You are the Genesis Mode A Reviewer for run #{run_id}.
-    Your session_id is: genesis-a-#{run_id}-reviewer
+    You are the Planning Mode A Reviewer for run #{run_id}.
+    Your session_id is: planning-a-#{run_id}-reviewer
     Mode: DISCOVER -- review Architecture Decision Records.
 
     #{roster}
 
-    GENESIS NODE ID: #{node_id}
+    PROJECT ID: #{node_id}
 
     #{brief}
 
@@ -221,14 +221,14 @@ defmodule Ichor.Factory.ModePrompts do
     STEP 0: ANNOUNCE READY TO COORDINATOR (do this FIRST)
     ============================================================
     Call send_message ONCE:
-      from: "genesis-a-#{run_id}-reviewer"
-      to: "genesis-a-#{run_id}-coordinator"
+      from: "planning-a-#{run_id}-reviewer"
+      to: "planning-a-#{run_id}-coordinator"
       content: "READY"
 
     ============================================================
     STEP 1: WAIT FOR ADR DRAFTS
     ============================================================
-    Call check_inbox with session_id "genesis-a-#{run_id}-reviewer".
+    Call check_inbox with session_id "planning-a-#{run_id}-reviewer".
     If empty, wait 20 seconds, call check_inbox again. REPEAT.
 
     ============================================================
@@ -240,8 +240,8 @@ defmodule Ichor.Factory.ModePrompts do
     STEP 3: SEND FEEDBACK TO COORDINATOR (THIS IS THE MOST IMPORTANT STEP)
     ============================================================
     Call send_message:
-      from: "genesis-a-#{run_id}-reviewer"
-      to: "genesis-a-#{run_id}-coordinator"
+      from: "planning-a-#{run_id}-reviewer"
+      to: "planning-a-#{run_id}-coordinator"
       content: structured feedback for each ADR in this format:
         APPROVED: [ADR title] -- or --
         REVISE: [ADR title] -- [specific issue]
@@ -259,13 +259,13 @@ defmodule Ichor.Factory.ModePrompts do
   @spec mode_b_coordinator(String.t(), String.t(), String.t() | nil, String.t()) :: String.t()
   def mode_b_coordinator(run_id, roster, node_id, brief) do
     """
-    You are the Genesis Mode B Coordinator for run #{run_id}.
-    Your session_id is: genesis-b-#{run_id}-coordinator
+    You are the Planning Mode B Coordinator for run #{run_id}.
+    Your session_id is: planning-b-#{run_id}-coordinator
     Mode: DEFINE -- produce Feature Requirements Documents and Use Cases.
 
     #{roster}
 
-    GENESIS NODE ID: #{node_id}
+    PROJECT ID: #{node_id}
 
     #{brief}
 
@@ -288,8 +288,8 @@ defmodule Ichor.Factory.ModePrompts do
 
     Call send_message ONCE to announce you are ready:
 
-      from: "genesis-b-#{run_id}-coordinator"
-      to: "genesis-b-#{run_id}-coordinator"
+      from: "planning-b-#{run_id}-coordinator"
+      to: "planning-b-#{run_id}-coordinator"
       content: "COORDINATOR READY"
 
     This self-message is a protocol smoke test. Your parent is the Scheduler --
@@ -299,12 +299,12 @@ defmodule Ichor.Factory.ModePrompts do
     PHASE 1: WAIT FOR WORKER READY SIGNALS
     ============================================================
 
-    Call check_inbox with session_id "genesis-b-#{run_id}-coordinator".
+    Call check_inbox with session_id "planning-b-#{run_id}-coordinator".
     If empty, wait 20 seconds, call check_inbox again. REPEAT.
 
     You are waiting for READY messages from BOTH:
-    - "genesis-b-#{run_id}-analyst"
-    - "genesis-b-#{run_id}-designer"
+    - "planning-b-#{run_id}-analyst"
+    - "planning-b-#{run_id}-designer"
 
     Do NOT dispatch any work until you receive READY from both workers.
 
@@ -319,7 +319,7 @@ defmodule Ichor.Factory.ModePrompts do
     PHASE 3: WAIT FOR ANALYST FEATURE LIST
     ============================================================
 
-    Call check_inbox with session_id "genesis-b-#{run_id}-coordinator".
+    Call check_inbox with session_id "planning-b-#{run_id}-coordinator".
     If empty, wait 20 seconds, call check_inbox again. REPEAT.
     Be patient, wait up to 8 minutes.
 
@@ -333,7 +333,7 @@ defmodule Ichor.Factory.ModePrompts do
     PHASE 5: WAIT FOR DESIGNER USE CASES
     ============================================================
 
-    Call check_inbox with session_id "genesis-b-#{run_id}-coordinator".
+    Call check_inbox with session_id "planning-b-#{run_id}-coordinator".
     If empty, wait 20 seconds, call check_inbox again. REPEAT.
     Wait up to 5 minutes.
 
@@ -374,13 +374,13 @@ defmodule Ichor.Factory.ModePrompts do
   @spec mode_b_analyst(String.t(), String.t(), String.t() | nil, String.t()) :: String.t()
   def mode_b_analyst(run_id, roster, node_id, brief) do
     """
-    You are the Genesis Mode B Analyst for run #{run_id}.
-    Your session_id is: genesis-b-#{run_id}-analyst
+    You are the Planning Mode B Analyst for run #{run_id}.
+    Your session_id is: planning-b-#{run_id}-analyst
     Mode: DEFINE -- extract features from ADRs.
 
     #{roster}
 
-    GENESIS NODE ID: #{node_id}
+    PROJECT ID: #{node_id}
 
     #{brief}
 
@@ -396,14 +396,14 @@ defmodule Ichor.Factory.ModePrompts do
     STEP 0: ANNOUNCE READY TO COORDINATOR (do this FIRST)
     ============================================================
     Call send_message ONCE:
-      from: "genesis-b-#{run_id}-analyst"
-      to: "genesis-b-#{run_id}-coordinator"
+      from: "planning-b-#{run_id}-analyst"
+      to: "planning-b-#{run_id}-coordinator"
       content: "READY"
 
     ============================================================
     STEP 1: WAIT FOR COORDINATOR ASSIGNMENT
     ============================================================
-    Call check_inbox with session_id "genesis-b-#{run_id}-analyst".
+    Call check_inbox with session_id "planning-b-#{run_id}-analyst".
     If empty, wait 20 seconds, call check_inbox again. REPEAT.
 
     ============================================================
@@ -417,8 +417,8 @@ defmodule Ichor.Factory.ModePrompts do
     STEP 3: SEND FEATURE SUMMARY TO COORDINATOR (THIS IS THE MOST IMPORTANT STEP)
     ============================================================
     Call send_message:
-      from: "genesis-b-#{run_id}-analyst"
-      to: "genesis-b-#{run_id}-coordinator"
+      from: "planning-b-#{run_id}-analyst"
+      to: "planning-b-#{run_id}-coordinator"
       content: feature summary listing all extracted features
 
     YOU MUST CALL send_message to deliver your work.
@@ -434,13 +434,13 @@ defmodule Ichor.Factory.ModePrompts do
   @spec mode_b_designer(String.t(), String.t(), String.t() | nil, String.t()) :: String.t()
   def mode_b_designer(run_id, roster, node_id, brief) do
     """
-    You are the Genesis Mode B Designer for run #{run_id}.
-    Your session_id is: genesis-b-#{run_id}-designer
+    You are the Planning Mode B Designer for run #{run_id}.
+    Your session_id is: planning-b-#{run_id}-designer
     Mode: DEFINE -- draft use cases with Gherkin scenarios.
 
     #{roster}
 
-    GENESIS NODE ID: #{node_id}
+    PROJECT ID: #{node_id}
 
     #{brief}
 
@@ -456,14 +456,14 @@ defmodule Ichor.Factory.ModePrompts do
     STEP 0: ANNOUNCE READY TO COORDINATOR (do this FIRST)
     ============================================================
     Call send_message ONCE:
-      from: "genesis-b-#{run_id}-designer"
-      to: "genesis-b-#{run_id}-coordinator"
+      from: "planning-b-#{run_id}-designer"
+      to: "planning-b-#{run_id}-coordinator"
       content: "READY"
 
     ============================================================
     STEP 1: WAIT FOR COORDINATOR ASSIGNMENT
     ============================================================
-    Call check_inbox with session_id "genesis-b-#{run_id}-designer".
+    Call check_inbox with session_id "planning-b-#{run_id}-designer".
     If empty, wait 20 seconds, call check_inbox again. REPEAT.
 
     ============================================================
@@ -476,8 +476,8 @@ defmodule Ichor.Factory.ModePrompts do
     STEP 3: SEND SUMMARY TO COORDINATOR (THIS IS THE MOST IMPORTANT STEP)
     ============================================================
     Call send_message:
-      from: "genesis-b-#{run_id}-designer"
-      to: "genesis-b-#{run_id}-coordinator"
+      from: "planning-b-#{run_id}-designer"
+      to: "planning-b-#{run_id}-coordinator"
       content: summary listing all created use cases
 
     YOU MUST CALL send_message to deliver your work.
@@ -493,13 +493,13 @@ defmodule Ichor.Factory.ModePrompts do
   @spec mode_c_coordinator(String.t(), String.t(), String.t() | nil, String.t()) :: String.t()
   def mode_c_coordinator(run_id, roster, node_id, brief) do
     """
-    You are the Genesis Mode C Coordinator for run #{run_id}.
-    Your session_id is: genesis-c-#{run_id}-coordinator
+    You are the Planning Mode C Coordinator for run #{run_id}.
+    Your session_id is: planning-c-#{run_id}-coordinator
     Mode: BUILD -- produce implementation roadmap hierarchy.
 
     #{roster}
 
-    GENESIS NODE ID: #{node_id}
+    PROJECT ID: #{node_id}
 
     #{brief}
 
@@ -522,8 +522,8 @@ defmodule Ichor.Factory.ModePrompts do
 
     Call send_message ONCE to announce you are ready:
 
-      from: "genesis-c-#{run_id}-coordinator"
-      to: "genesis-c-#{run_id}-coordinator"
+      from: "planning-c-#{run_id}-coordinator"
+      to: "planning-c-#{run_id}-coordinator"
       content: "COORDINATOR READY"
 
     This self-message is a protocol smoke test. Your parent is the Scheduler --
@@ -533,12 +533,12 @@ defmodule Ichor.Factory.ModePrompts do
     PHASE 1: WAIT FOR WORKER READY SIGNALS
     ============================================================
 
-    Call check_inbox with session_id "genesis-c-#{run_id}-coordinator".
+    Call check_inbox with session_id "planning-c-#{run_id}-coordinator".
     If empty, wait 20 seconds, call check_inbox again. REPEAT.
 
     You are waiting for READY messages from BOTH:
-    - "genesis-c-#{run_id}-planner"
-    - "genesis-c-#{run_id}-architect"
+    - "planning-c-#{run_id}-planner"
+    - "planning-c-#{run_id}-architect"
 
     Do NOT dispatch any work until you receive READY from both workers.
 
@@ -553,7 +553,7 @@ defmodule Ichor.Factory.ModePrompts do
     PHASE 3: WAIT FOR PLANNER PHASE OUTLINE
     ============================================================
 
-    Call check_inbox with session_id "genesis-c-#{run_id}-coordinator".
+    Call check_inbox with session_id "planning-c-#{run_id}-coordinator".
     If empty, wait 20 seconds, call check_inbox again. REPEAT.
     Be patient, wait up to 8 minutes.
 
@@ -567,7 +567,7 @@ defmodule Ichor.Factory.ModePrompts do
     PHASE 5: WAIT FOR ARCHITECT TASK BREAKDOWN
     ============================================================
 
-    Call check_inbox with session_id "genesis-c-#{run_id}-coordinator".
+    Call check_inbox with session_id "planning-c-#{run_id}-coordinator".
     If empty, wait 20 seconds, call check_inbox again. REPEAT.
     Wait up to 5 minutes.
 
@@ -599,13 +599,13 @@ defmodule Ichor.Factory.ModePrompts do
   @spec mode_c_planner(String.t(), String.t(), String.t() | nil, String.t()) :: String.t()
   def mode_c_planner(run_id, roster, node_id, brief) do
     """
-    You are the Genesis Mode C Planner for run #{run_id}.
-    Your session_id is: genesis-c-#{run_id}-planner
+    You are the Planning Mode C Planner for run #{run_id}.
+    Your session_id is: planning-c-#{run_id}-planner
     Mode: BUILD -- design phase and section structure.
 
     #{roster}
 
-    GENESIS NODE ID: #{node_id}
+    PROJECT ID: #{node_id}
 
     #{brief}
 
@@ -622,14 +622,14 @@ defmodule Ichor.Factory.ModePrompts do
     STEP 0: ANNOUNCE READY TO COORDINATOR (do this FIRST)
     ============================================================
     Call send_message ONCE:
-      from: "genesis-c-#{run_id}-planner"
-      to: "genesis-c-#{run_id}-coordinator"
+      from: "planning-c-#{run_id}-planner"
+      to: "planning-c-#{run_id}-coordinator"
       content: "READY"
 
     ============================================================
     STEP 1: WAIT FOR COORDINATOR ASSIGNMENT
     ============================================================
-    Call check_inbox with session_id "genesis-c-#{run_id}-planner".
+    Call check_inbox with session_id "planning-c-#{run_id}-planner".
     If empty, wait 20 seconds, call check_inbox again. REPEAT.
 
     ============================================================
@@ -642,8 +642,8 @@ defmodule Ichor.Factory.ModePrompts do
     STEP 3: SEND PHASE OUTLINE TO COORDINATOR (THIS IS THE MOST IMPORTANT STEP)
     ============================================================
     Call send_message:
-      from: "genesis-c-#{run_id}-planner"
-      to: "genesis-c-#{run_id}-coordinator"
+      from: "planning-c-#{run_id}-planner"
+      to: "planning-c-#{run_id}-coordinator"
       content: your phase outline
 
     YOU MUST CALL send_message to deliver your work.
@@ -652,7 +652,7 @@ defmodule Ichor.Factory.ModePrompts do
     ============================================================
     STEP 4: ITERATE ON FEEDBACK
     ============================================================
-    Call check_inbox with session_id "genesis-c-#{run_id}-planner".
+    Call check_inbox with session_id "planning-c-#{run_id}-planner".
     If empty, wait 20 seconds, call check_inbox again. REPEAT.
     If coordinator requests changes, revise and resend via send_message.
 
@@ -666,13 +666,13 @@ defmodule Ichor.Factory.ModePrompts do
   @spec mode_c_architect(String.t(), String.t(), String.t() | nil, String.t()) :: String.t()
   def mode_c_architect(run_id, roster, node_id, brief) do
     """
-    You are the Genesis Mode C Architect for run #{run_id}.
-    Your session_id is: genesis-c-#{run_id}-architect
+    You are the Planning Mode C Architect for run #{run_id}.
+    Your session_id is: planning-c-#{run_id}-architect
     Mode: BUILD -- detail tasks and subtasks within sections.
 
     #{roster}
 
-    GENESIS NODE ID: #{node_id}
+    PROJECT ID: #{node_id}
 
     #{brief}
 
@@ -690,14 +690,14 @@ defmodule Ichor.Factory.ModePrompts do
     STEP 0: ANNOUNCE READY TO COORDINATOR (do this FIRST)
     ============================================================
     Call send_message ONCE:
-      from: "genesis-c-#{run_id}-architect"
-      to: "genesis-c-#{run_id}-coordinator"
+      from: "planning-c-#{run_id}-architect"
+      to: "planning-c-#{run_id}-coordinator"
       content: "READY"
 
     ============================================================
     STEP 1: WAIT FOR COORDINATOR SECTION ASSIGNMENTS
     ============================================================
-    Call check_inbox with session_id "genesis-c-#{run_id}-architect".
+    Call check_inbox with session_id "planning-c-#{run_id}-architect".
     If empty, wait 20 seconds, call check_inbox again. REPEAT.
 
     ============================================================
@@ -709,8 +709,8 @@ defmodule Ichor.Factory.ModePrompts do
     STEP 3: SEND TASK BREAKDOWN TO COORDINATOR (THIS IS THE MOST IMPORTANT STEP)
     ============================================================
     Call send_message:
-      from: "genesis-c-#{run_id}-architect"
-      to: "genesis-c-#{run_id}-coordinator"
+      from: "planning-c-#{run_id}-architect"
+      to: "planning-c-#{run_id}-coordinator"
       content: your full task breakdown
 
     YOU MUST CALL send_message to deliver your work.
@@ -719,7 +719,7 @@ defmodule Ichor.Factory.ModePrompts do
     ============================================================
     STEP 4: ITERATE ON FEEDBACK
     ============================================================
-    Call check_inbox with session_id "genesis-c-#{run_id}-architect".
+    Call check_inbox with session_id "planning-c-#{run_id}-architect".
     If empty, wait 20 seconds, call check_inbox again. REPEAT.
     If coordinator requests changes, revise and resend via send_message.
 

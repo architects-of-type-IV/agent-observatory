@@ -1,9 +1,10 @@
 defmodule Ichor.Factory.Project do
   @moduledoc """
-  A subsystem project brief produced by an MES agent team.
+  The durable MES project record.
 
-  Lifecycle: proposed -> in_progress -> compiled -> loaded (or failed at any stage).
-  Once loaded, the subsystem's BEAM modules are live in the running VM.
+  Project planning content lives inside the project as embedded data:
+  briefs, SDLC artifacts, and roadmap items. It is not modeled as peer
+  top-level resources.
   """
 
   use Ash.Resource,
@@ -11,9 +12,29 @@ defmodule Ichor.Factory.Project do
     data_layer: AshSqlite.DataLayer,
     simple_notifiers: [Ichor.Signals.FromAsh]
 
+  alias Ichor.Factory.{Artifact, RoadmapItem}
+  alias Ichor.Signals
+
+  @project_status_map %{
+    "proposed" => :proposed,
+    "in_progress" => :in_progress,
+    "compiled" => :compiled,
+    "loaded" => :loaded,
+    "failed" => :failed
+  }
+
+  @planning_stage_map %{
+    "discover" => :discover,
+    "define" => :define,
+    "build" => :build,
+    "complete" => :complete
+  }
+
+  @artifact_fields ~w(id code title status content mode summary feature_code adr_codes kind)a
+
   sqlite do
     repo(Ichor.Repo)
-    table("mes_projects")
+    table("projects")
   end
 
   attributes do
@@ -29,62 +50,76 @@ defmodule Ichor.Factory.Project do
       public?(true)
     end
 
-    attribute :subsystem, :string do
-      allow_nil?(false)
+    attribute :stakeholders, {:array, :string} do
       public?(true)
-      description("Technical module/component name")
+      default([])
+    end
+
+    attribute :constraints, {:array, :string} do
+      public?(true)
+      default([])
+    end
+
+    attribute :planning_stage, :atom do
+      allow_nil?(false)
+      constraints(one_of: [:discover, :define, :build, :complete])
+      default(:discover)
+      public?(true)
+    end
+
+    attribute :output_kind, :string do
+      allow_nil?(false)
+      default("plugin")
+      public?(true)
+      description("What this MES project is expected to build")
+    end
+
+    attribute :plugin, :string do
+      public?(true)
+      description("Plugin module name")
     end
 
     attribute :signal_interface, :string do
-      allow_nil?(false)
       public?(true)
-      description("How this subsystem is controlled through Signals")
+      description("How this plugin is controlled through Signals")
     end
 
     attribute :topic, :string do
       public?(true)
-      description("Unique PubSub topic (e.g. subsystem:correlator)")
     end
 
     attribute :version, :string do
       public?(true)
       default("0.1.0")
-      description("SemVer version string")
     end
 
     attribute :features, {:array, :string} do
       public?(true)
       default([])
-      description("List of capability descriptions")
     end
 
     attribute :use_cases, {:array, :string} do
       public?(true)
       default([])
-      description("Concrete scenarios where this subsystem is useful")
     end
 
     attribute :architecture, :string do
       public?(true)
-      description("Internal structure: processes, ETS tables, supervision")
     end
 
     attribute :dependencies, {:array, :string} do
       public?(true)
       default([])
-      description("Ichor modules this subsystem requires")
     end
 
     attribute :signals_emitted, {:array, :string} do
       public?(true)
       default([])
-      description("Signal atoms this subsystem emits")
     end
 
     attribute :signals_subscribed, {:array, :string} do
       public?(true)
       default([])
-      description("Signal atoms or categories this subsystem subscribes to")
     end
 
     attribute :status, :atom do
@@ -96,17 +131,14 @@ defmodule Ichor.Factory.Project do
 
     attribute :team_name, :string do
       public?(true)
-      description("MES team that produced this brief")
     end
 
     attribute :run_id, :string do
       public?(true)
-      description("Scheduler run UUID grouping agents from same cycle")
     end
 
     attribute :picked_up_by, :string do
       public?(true)
-      description("Agent session that claimed this for implementation")
     end
 
     attribute :picked_up_at, :utc_datetime_usec do
@@ -115,12 +147,20 @@ defmodule Ichor.Factory.Project do
 
     attribute :path, :string do
       public?(true)
-      description("Filesystem path to the built Mix project in subsystems/")
     end
 
     attribute :build_log, :string do
       public?(true)
-      description("Last build output or error message")
+    end
+
+    attribute :artifacts, {:array, Artifact} do
+      public?(true)
+      default([])
+    end
+
+    attribute :roadmap_items, {:array, RoadmapItem} do
+      public?(true)
+      default([])
     end
 
     timestamps()
@@ -135,7 +175,11 @@ defmodule Ichor.Factory.Project do
       accept([
         :title,
         :description,
-        :subsystem,
+        :stakeholders,
+        :constraints,
+        :planning_stage,
+        :output_kind,
+        :plugin,
         :signal_interface,
         :topic,
         :version,
@@ -145,14 +189,60 @@ defmodule Ichor.Factory.Project do
         :dependencies,
         :signals_emitted,
         :signals_subscribed,
+        :status,
         :team_name,
-        :run_id
+        :run_id,
+        :picked_up_by,
+        :picked_up_at,
+        :path,
+        :build_log,
+        :artifacts,
+        :roadmap_items
       ])
     end
 
     update :update do
       primary?(true)
-      accept([:status, :path, :build_log])
+      require_atomic?(false)
+
+      accept([
+        :title,
+        :description,
+        :stakeholders,
+        :constraints,
+        :planning_stage,
+        :output_kind,
+        :plugin,
+        :signal_interface,
+        :topic,
+        :version,
+        :features,
+        :use_cases,
+        :architecture,
+        :dependencies,
+        :signals_emitted,
+        :signals_subscribed,
+        :status,
+        :team_name,
+        :run_id,
+        :picked_up_by,
+        :picked_up_at,
+        :path,
+        :build_log,
+        :artifacts,
+        :roadmap_items
+      ])
+    end
+
+    update :advance do
+      accept([])
+
+      argument :planning_stage, :atom do
+        allow_nil?(false)
+        constraints(one_of: [:discover, :define, :build, :complete])
+      end
+
+      change(set_attribute(:planning_stage, arg(:planning_stage)))
     end
 
     update :pick_up do
@@ -194,6 +284,618 @@ defmodule Ichor.Factory.Project do
       change(set_attribute(:build_log, arg(:build_log)))
     end
 
+    action :create_project_draft, :map do
+      description("Create a new project from a plugin proposal.")
+
+      argument(:title, :string, allow_nil?: false)
+      argument(:description, :string, allow_nil?: false)
+      argument(:brief, :string, allow_nil?: false, default: "")
+      argument(:output_kind, :string, allow_nil?: false, default: "plugin")
+      argument(:plugin, :string, allow_nil?: false, default: "")
+      argument(:signal_interface, :string, allow_nil?: false, default: "")
+      argument(:topic, :string, allow_nil?: false, default: "")
+      argument(:run_id, :string, allow_nil?: false, default: "")
+      argument(:team_name, :string, allow_nil?: false, default: "")
+
+      run(fn input, _context ->
+        args = input.arguments
+
+        attrs =
+          %{
+            title: args.title,
+            description: args.description,
+            artifacts: brief_artifacts(args.title, blank_to_nil(args.brief)),
+            output_kind: args.output_kind
+          }
+          |> maybe_put(:plugin, blank_to_nil(args.plugin))
+          |> maybe_put(:signal_interface, blank_to_nil(args.signal_interface))
+          |> maybe_put(:topic, blank_to_nil(args.topic))
+          |> maybe_put(:run_id, blank_to_nil(args.run_id))
+          |> maybe_put(:team_name, blank_to_nil(args.team_name))
+
+        with {:ok, project} <- __MODULE__.create(attrs) do
+          {:ok, summarize_project(project)}
+        end
+      end)
+    end
+
+    action :advance_project, :map do
+      description("Advance a project to the next planning stage.")
+
+      argument(:project_id, :string, allow_nil?: false)
+      argument(:status, :string, allow_nil?: false)
+
+      run(fn input, _context ->
+        with {:ok, project} <- __MODULE__.get(input.arguments.project_id),
+             {:ok, planning_stage} <- Map.fetch(@planning_stage_map, input.arguments.status),
+             {:ok, updated} <- __MODULE__.advance(project, planning_stage) do
+          {:ok, summarize_project(updated)}
+        else
+          :error -> {:error, "invalid planning stage: #{input.arguments.status}"}
+          error -> error
+        end
+      end)
+    end
+
+    action :list_project_overviews, {:array, :map} do
+      description("List all projects with their current planning stage.")
+
+      run(fn _input, _context ->
+        with {:ok, projects} <- __MODULE__.list_all() do
+          {:ok, Enum.map(projects, &summarize_project/1)}
+        end
+      end)
+    end
+
+    action :get_project_overview, :map do
+      description("Get a project with artifact and roadmap counts.")
+
+      argument(:project_id, :string, allow_nil?: false)
+
+      run(fn input, _context ->
+        with {:ok, project} <- __MODULE__.get(input.arguments.project_id) do
+          {:ok, detail_project(project)}
+        end
+      end)
+    end
+
+    action :gate_check, :map do
+      description("Get readiness signals for advancing the project.")
+
+      argument(:project_id, :string, allow_nil?: false)
+
+      run(fn input, _context ->
+        with {:ok, project} <- __MODULE__.get(input.arguments.project_id) do
+          {:ok, gate_report(project)}
+        end
+      end)
+    end
+
+    action :list_projects, {:array, :map} do
+      description("List MES projects. Optionally filter by lifecycle status.")
+
+      argument :status, :string do
+        allow_nil?(false)
+        default("")
+      end
+
+      run(fn input, _context ->
+        projects =
+          case input.arguments.status do
+            "" ->
+              __MODULE__.list_all!()
+
+            status_str ->
+              case Map.fetch(@project_status_map, status_str) do
+                {:ok, status} -> __MODULE__.by_status!(status)
+                :error -> []
+              end
+          end
+
+        {:ok, Enum.map(projects, &project_to_map/1)}
+      end)
+    end
+
+    action :create_project, :map do
+      description("Create a MES project and initialize its brief artifact.")
+
+      argument(:title, :string, allow_nil?: false)
+      argument(:description, :string, allow_nil?: false)
+      argument(:output_kind, :string, allow_nil?: false, default: "plugin")
+      argument(:plugin, :string, allow_nil?: false)
+      argument(:signal_interface, :string, allow_nil?: false)
+      argument(:topic, :string, allow_nil?: false, default: "")
+      argument(:version, :string, allow_nil?: false, default: "")
+      argument(:features, {:array, :string}, allow_nil?: false, default: [])
+      argument(:use_cases, {:array, :string}, allow_nil?: false, default: [])
+      argument(:architecture, :string, allow_nil?: false, default: "")
+      argument(:dependencies, {:array, :string}, allow_nil?: false, default: [])
+      argument(:signals_emitted, {:array, :string}, allow_nil?: false, default: [])
+      argument(:signals_subscribed, {:array, :string}, allow_nil?: false, default: [])
+      argument(:run_id, :string, allow_nil?: false, default: "")
+      argument(:team_name, :string, allow_nil?: false, default: "")
+
+      run(fn input, _context ->
+        args = input.arguments
+
+        attrs =
+          %{
+            title: args.title,
+            description: args.description,
+            output_kind: args.output_kind,
+            plugin: args.plugin,
+            signal_interface: args.signal_interface,
+            artifacts: brief_artifacts(args.title, render_project_brief(args))
+          }
+          |> maybe_put(:topic, blank_to_nil(args.topic))
+          |> maybe_put(:version, blank_to_nil(args.version))
+          |> maybe_put(:features, empty_to_nil(args.features))
+          |> maybe_put(:use_cases, empty_to_nil(args.use_cases))
+          |> maybe_put(:architecture, blank_to_nil(args.architecture))
+          |> maybe_put(:dependencies, empty_to_nil(args.dependencies))
+          |> maybe_put(:signals_emitted, empty_to_nil(args.signals_emitted))
+          |> maybe_put(:signals_subscribed, empty_to_nil(args.signals_subscribed))
+          |> maybe_put(:run_id, blank_to_nil(args.run_id))
+          |> maybe_put(:team_name, blank_to_nil(args.team_name))
+
+        case __MODULE__.create(attrs) do
+          {:ok, project} -> {:ok, project_to_map(project)}
+          {:error, reason} -> {:error, reason}
+        end
+      end)
+    end
+
+    action :create_adr, :map do
+      description("Create an architecture decision record for a project.")
+
+      argument(:project_id, :string, allow_nil?: false)
+      argument(:code, :string, allow_nil?: false)
+      argument(:title, :string, allow_nil?: false)
+      argument(:content, :string, allow_nil?: false, default: "")
+      argument(:status, :string, allow_nil?: false, default: "pending")
+
+      run(fn input, _context ->
+        args = input.arguments
+
+        with {:ok, project} <- __MODULE__.get(args.project_id),
+             artifact <-
+               artifact(
+                 attrs: %{
+                   kind: :adr,
+                   code: args.code,
+                   title: args.title,
+                   content: blank_to_nil(args.content),
+                   status: parse_artifact_status(args.status)
+                 }
+               ),
+             {:ok, updated} <- put_artifact(project, artifact) do
+          Signals.emit(:project_artifact_created, %{
+            id: artifact.id,
+            project_id: project.id,
+            type: :adr
+          })
+
+          {:ok,
+           summarize_artifact(find_embedded!(updated.artifacts, artifact.id), @artifact_fields)}
+        end
+      end)
+    end
+
+    action :update_adr, :map do
+      description("Update an ADR status or content.")
+
+      argument(:adr_id, :string, allow_nil?: false)
+      argument(:status, :string, allow_nil?: false, default: "")
+      argument(:content, :string, allow_nil?: false, default: "")
+
+      run(fn input, _context ->
+        with {:ok, project} <- find_project_by_artifact(input.arguments.adr_id),
+             {:ok, updated} <-
+               replace_artifact(project, input.arguments.adr_id, fn artifact ->
+                 artifact
+                 |> maybe_put(
+                   :status,
+                   parse_artifact_status(blank_to_nil(input.arguments.status))
+                 )
+                 |> maybe_put(:content, blank_to_nil(input.arguments.content))
+               end) do
+          {:ok,
+           summarize_artifact(
+             find_embedded!(updated.artifacts, input.arguments.adr_id),
+             @artifact_fields
+           )}
+        end
+      end)
+    end
+
+    action :list_adrs, {:array, :map} do
+      description("List ADRs for a project.")
+
+      argument(:project_id, :string, allow_nil?: false)
+
+      run(fn input, _context ->
+        with {:ok, project} <- __MODULE__.get(input.arguments.project_id) do
+          {:ok,
+           project.artifacts
+           |> filter_artifacts(:adr)
+           |> Enum.map(&summarize_artifact(&1, [:code, :title, :status]))}
+        end
+      end)
+    end
+
+    action :create_feature, :map do
+      description("Create a feature artifact for a project.")
+
+      argument(:project_id, :string, allow_nil?: false)
+      argument(:code, :string, allow_nil?: false)
+      argument(:title, :string, allow_nil?: false)
+      argument(:content, :string, allow_nil?: false, default: "")
+      argument(:adr_codes, :string, allow_nil?: false, default: "")
+
+      run(fn input, _context ->
+        args = input.arguments
+
+        with {:ok, project} <- __MODULE__.get(args.project_id),
+             artifact <-
+               artifact(
+                 attrs: %{
+                   kind: :feature,
+                   code: args.code,
+                   title: args.title,
+                   content: blank_to_nil(args.content),
+                   adr_codes: split_csv(args.adr_codes)
+                 }
+               ),
+             {:ok, updated} <- put_artifact(project, artifact) do
+          Signals.emit(:project_artifact_created, %{
+            id: artifact.id,
+            project_id: project.id,
+            type: :feature
+          })
+
+          {:ok,
+           summarize_artifact(find_embedded!(updated.artifacts, artifact.id), @artifact_fields)}
+        end
+      end)
+    end
+
+    action :list_features, {:array, :map} do
+      description("List features for a project.")
+
+      argument(:project_id, :string, allow_nil?: false)
+
+      run(fn input, _context ->
+        with {:ok, project} <- __MODULE__.get(input.arguments.project_id) do
+          {:ok,
+           project.artifacts
+           |> filter_artifacts(:feature)
+           |> Enum.map(&summarize_artifact(&1, [:code, :title, :adr_codes]))}
+        end
+      end)
+    end
+
+    action :create_use_case, :map do
+      description("Create a use case artifact for a project.")
+
+      argument(:project_id, :string, allow_nil?: false)
+      argument(:code, :string, allow_nil?: false)
+      argument(:title, :string, allow_nil?: false)
+      argument(:content, :string, allow_nil?: false, default: "")
+      argument(:feature_code, :string, allow_nil?: false, default: "")
+
+      run(fn input, _context ->
+        args = input.arguments
+
+        with {:ok, project} <- __MODULE__.get(args.project_id),
+             artifact <-
+               artifact(
+                 attrs: %{
+                   kind: :use_case,
+                   code: args.code,
+                   title: args.title,
+                   content: blank_to_nil(args.content),
+                   feature_code: blank_to_nil(args.feature_code)
+                 }
+               ),
+             {:ok, updated} <- put_artifact(project, artifact) do
+          Signals.emit(:project_artifact_created, %{
+            id: artifact.id,
+            project_id: project.id,
+            type: :use_case
+          })
+
+          {:ok,
+           summarize_artifact(find_embedded!(updated.artifacts, artifact.id), @artifact_fields)}
+        end
+      end)
+    end
+
+    action :list_use_cases, {:array, :map} do
+      description("List use cases for a project.")
+
+      argument(:project_id, :string, allow_nil?: false)
+
+      run(fn input, _context ->
+        with {:ok, project} <- __MODULE__.get(input.arguments.project_id) do
+          {:ok,
+           project.artifacts
+           |> filter_artifacts(:use_case)
+           |> Enum.map(&summarize_artifact(&1, [:code, :title, :feature_code]))}
+        end
+      end)
+    end
+
+    action :create_checkpoint, :map do
+      description("Create a gate checkpoint artifact.")
+
+      argument(:project_id, :string, allow_nil?: false)
+      argument(:title, :string, allow_nil?: false)
+      argument(:mode, :string, allow_nil?: false)
+      argument(:content, :string, allow_nil?: false, default: "")
+      argument(:summary, :string, allow_nil?: false, default: "")
+
+      run(fn input, _context ->
+        args = input.arguments
+
+        with {:ok, project} <- __MODULE__.get(args.project_id),
+             artifact <-
+               artifact(
+                 attrs: %{
+                   kind: :checkpoint,
+                   title: args.title,
+                   mode: parse_mode(args.mode),
+                   content: blank_to_nil(args.content),
+                   summary: blank_to_nil(args.summary)
+                 }
+               ),
+             {:ok, updated} <- put_artifact(project, artifact) do
+          Signals.emit(:project_artifact_created, %{
+            id: artifact.id,
+            project_id: project.id,
+            type: :checkpoint
+          })
+
+          {:ok,
+           summarize_artifact(find_embedded!(updated.artifacts, artifact.id), [
+             :kind,
+             :title,
+             :mode,
+             :content,
+             :summary
+           ])}
+        end
+      end)
+    end
+
+    action :create_conversation, :map do
+      description("Create a design conversation artifact.")
+
+      argument(:project_id, :string, allow_nil?: false)
+      argument(:title, :string, allow_nil?: false)
+      argument(:mode, :string, allow_nil?: false)
+      argument(:content, :string, allow_nil?: false, default: "")
+
+      run(fn input, _context ->
+        args = input.arguments
+
+        with {:ok, project} <- __MODULE__.get(args.project_id),
+             artifact <-
+               artifact(
+                 attrs: %{
+                   kind: :conversation,
+                   title: args.title,
+                   mode: parse_mode(args.mode),
+                   content: blank_to_nil(args.content)
+                 }
+               ),
+             {:ok, updated} <- put_artifact(project, artifact) do
+          Signals.emit(:project_artifact_created, %{
+            id: artifact.id,
+            project_id: project.id,
+            type: :conversation
+          })
+
+          {:ok,
+           summarize_artifact(find_embedded!(updated.artifacts, artifact.id), [
+             :kind,
+             :title,
+             :mode,
+             :content
+           ])}
+        end
+      end)
+    end
+
+    action :list_conversations, {:array, :map} do
+      description("List design conversations for a project.")
+
+      argument(:project_id, :string, allow_nil?: false)
+
+      run(fn input, _context ->
+        with {:ok, project} <- __MODULE__.get(input.arguments.project_id) do
+          {:ok,
+           project.artifacts
+           |> filter_artifacts(:conversation)
+           |> Enum.map(&summarize_artifact(&1, [:title, :mode]))}
+        end
+      end)
+    end
+
+    action :create_phase, :map do
+      description("Create a roadmap phase for a project.")
+
+      argument(:project_id, :string, allow_nil?: false)
+      argument(:number, :integer, allow_nil?: false)
+      argument(:title, :string, allow_nil?: false)
+      argument(:goals, :string, allow_nil?: false, default: "")
+      argument(:governed_by, :string, allow_nil?: false, default: "")
+
+      run(fn input, _context ->
+        args = input.arguments
+
+        with {:ok, project} <- __MODULE__.get(args.project_id),
+             item <-
+               roadmap_item(%{
+                 kind: :phase,
+                 number: args.number,
+                 title: args.title,
+                 goals: split_csv(args.goals),
+                 governed_by: split_csv(args.governed_by)
+               }),
+             {:ok, updated} <- put_roadmap_item(project, item) do
+          Signals.emit(:project_artifact_created, %{
+            id: item.id,
+            project_id: project.id,
+            type: :phase
+          })
+
+          {:ok,
+           summarize_roadmap_item(find_embedded!(updated.roadmap_items, item.id), [
+             :kind,
+             :number,
+             :title,
+             :status,
+             :goals,
+             :governed_by
+           ])}
+        end
+      end)
+    end
+
+    action :create_section, :map do
+      description("Create a section within a phase.")
+
+      argument(:phase_id, :string, allow_nil?: false)
+      argument(:project_id, :string, allow_nil?: false)
+      argument(:number, :integer, allow_nil?: false)
+      argument(:title, :string, allow_nil?: false)
+      argument(:goal, :string, allow_nil?: false, default: "")
+
+      run(fn input, _context ->
+        args = input.arguments
+
+        with {:ok, project} <- __MODULE__.get(args.project_id),
+             item <-
+               roadmap_item(%{
+                 kind: :section,
+                 number: args.number,
+                 title: args.title,
+                 goal: blank_to_nil(args.goal),
+                 parent_id: args.phase_id
+               }),
+             {:ok, updated} <- put_roadmap_item(project, item) do
+          {:ok,
+           summarize_roadmap_item(find_embedded!(updated.roadmap_items, item.id), [
+             :kind,
+             :number,
+             :title,
+             :goal,
+             :parent_id
+           ])}
+        end
+      end)
+    end
+
+    action :create_task, :map do
+      description("Create a task within a section.")
+
+      argument(:section_id, :string, allow_nil?: false)
+      argument(:project_id, :string, allow_nil?: false)
+      argument(:number, :integer, allow_nil?: false)
+      argument(:title, :string, allow_nil?: false)
+      argument(:governed_by, :string, allow_nil?: false, default: "")
+      argument(:parent_uc, :string, allow_nil?: false, default: "")
+
+      run(fn input, _context ->
+        args = input.arguments
+
+        with {:ok, project} <- __MODULE__.get(args.project_id),
+             item <-
+               roadmap_item(%{
+                 kind: :task,
+                 number: args.number,
+                 title: args.title,
+                 governed_by: split_csv(args.governed_by),
+                 parent_uc: blank_to_nil(args.parent_uc),
+                 parent_id: args.section_id
+               }),
+             {:ok, updated} <- put_roadmap_item(project, item) do
+          {:ok,
+           summarize_roadmap_item(find_embedded!(updated.roadmap_items, item.id), [
+             :kind,
+             :number,
+             :title,
+             :status,
+             :governed_by,
+             :parent_uc,
+             :parent_id
+           ])}
+        end
+      end)
+    end
+
+    action :create_subtask, :map do
+      description("Create a subtask within a task.")
+
+      argument(:task_id, :string, allow_nil?: false)
+      argument(:project_id, :string, allow_nil?: false)
+      argument(:number, :integer, allow_nil?: false)
+      argument(:title, :string, allow_nil?: false)
+      argument(:goal, :string, allow_nil?: false, default: "")
+      argument(:allowed_files, :string, allow_nil?: false, default: "")
+      argument(:blocked_by, :string, allow_nil?: false, default: "")
+      argument(:steps, :string, allow_nil?: false, default: "")
+      argument(:done_when, :string, allow_nil?: false, default: "")
+      argument(:owner, :string, allow_nil?: false, default: "")
+
+      run(fn input, _context ->
+        args = input.arguments
+
+        with {:ok, project} <- __MODULE__.get(args.project_id),
+             item <-
+               roadmap_item(%{
+                 kind: :subtask,
+                 number: args.number,
+                 title: args.title,
+                 goal: blank_to_nil(args.goal),
+                 allowed_files: split_csv(args.allowed_files),
+                 blocked_by: split_csv(args.blocked_by),
+                 steps: split_lines(args.steps),
+                 done_when: blank_to_nil(args.done_when),
+                 owner: blank_to_nil(args.owner),
+                 parent_id: args.task_id
+               }),
+             {:ok, updated} <- put_roadmap_item(project, item) do
+          {:ok,
+           summarize_roadmap_item(find_embedded!(updated.roadmap_items, item.id), [
+             :kind,
+             :number,
+             :title,
+             :status,
+             :goal,
+             :allowed_files,
+             :blocked_by,
+             :steps,
+             :done_when,
+             :owner,
+             :parent_id
+           ])}
+        end
+      end)
+    end
+
+    action :list_phases, {:array, :map} do
+      description("List roadmap phases for a project.")
+
+      argument(:project_id, :string, allow_nil?: false)
+
+      run(fn input, _context ->
+        with {:ok, project} <- __MODULE__.get(input.arguments.project_id) do
+          {:ok, project.roadmap_items |> hierarchy() |> Enum.map(&summarize_tree/1)}
+        end
+      end)
+    end
+
     read :list_all do
       prepare(build(sort: [inserted_at: :desc]))
     end
@@ -213,11 +915,295 @@ defmodule Ichor.Factory.Project do
     define(:create)
     define(:update)
     define(:get, action: :read, get_by: [:id])
+    define(:advance, args: [:planning_stage])
     define(:pick_up, args: [:session_id])
     define(:mark_compiled, args: [:path])
     define(:mark_loaded)
     define(:mark_failed, args: [:build_log])
     define(:list_all)
     define(:by_status, args: [:status])
+    define(:create_project_draft, args: [:title, :description])
+    define(:advance_project, args: [:project_id, :status])
+    define(:list_project_overviews)
+    define(:get_project_overview, args: [:project_id])
+    define(:gate_check, args: [:project_id])
+    define(:list_projects, args: [:status])
+
+    define(:create_project,
+      args: [:title, :description, :output_kind, :plugin, :signal_interface]
+    )
+
+    define(:create_adr, args: [:project_id, :code, :title])
+    define(:update_adr, args: [:adr_id])
+    define(:list_adrs, args: [:project_id])
+    define(:create_feature, args: [:project_id, :code, :title])
+    define(:list_features, args: [:project_id])
+    define(:create_use_case, args: [:project_id, :code, :title])
+    define(:list_use_cases, args: [:project_id])
+    define(:create_checkpoint, args: [:project_id, :title, :mode])
+    define(:create_conversation, args: [:project_id, :title, :mode])
+    define(:list_conversations, args: [:project_id])
+    define(:create_phase, args: [:project_id, :number, :title])
+    define(:create_section, args: [:phase_id, :project_id, :number, :title])
+    define(:create_task, args: [:section_id, :project_id, :number, :title])
+    define(:create_subtask, args: [:task_id, :project_id, :number, :title])
+    define(:list_phases, args: [:project_id])
   end
+
+  def hierarchy(items) do
+    by_parent = Enum.group_by(items, & &1.parent_id)
+    Enum.map(by_parent[nil] || [], &attach_children(&1, by_parent))
+  end
+
+  def latest_brief_text(%{artifacts: artifacts}), do: latest_brief_text(artifacts)
+
+  def latest_brief_text(artifacts) when is_list(artifacts) do
+    artifacts
+    |> filter_artifacts(:brief)
+    |> List.last()
+    |> case do
+      nil -> nil
+      artifact -> artifact.content
+    end
+  end
+
+  defp attach_children(item, by_parent) do
+    Map.put(item, :children, Enum.map(by_parent[item.id] || [], &attach_children(&1, by_parent)))
+  end
+
+  defp summarize_project(project) do
+    %{
+      "id" => project.id,
+      "title" => project.title,
+      "output_kind" => project.output_kind,
+      "planning_stage" => to_string(project.planning_stage),
+      "status" => to_string(project.status),
+      "description" => project.description
+    }
+  end
+
+  defp project_to_map(project) do
+    %{
+      "id" => project.id,
+      "title" => project.title,
+      "description" => project.description,
+      "output_kind" => project.output_kind,
+      "plugin" => project.plugin,
+      "signal_interface" => project.signal_interface,
+      "topic" => project.topic,
+      "version" => project.version,
+      "features" => project.features,
+      "use_cases" => project.use_cases,
+      "architecture" => project.architecture,
+      "dependencies" => project.dependencies,
+      "signals_emitted" => project.signals_emitted,
+      "signals_subscribed" => project.signals_subscribed,
+      "status" => to_string(project.status),
+      "team_name" => project.team_name,
+      "run_id" => project.run_id,
+      "created_at" => project.inserted_at
+    }
+  end
+
+  defp detail_project(project) do
+    phases_count = Enum.count(project.roadmap_items, &(&1.kind == :phase))
+
+    %{
+      "id" => project.id,
+      "title" => project.title,
+      "output_kind" => project.output_kind,
+      "planning_stage" => to_string(project.planning_stage),
+      "status" => to_string(project.status),
+      "description" => project.description,
+      "briefs" => Enum.count(project.artifacts, &(&1.kind == :brief)),
+      "adrs" => Enum.count(project.artifacts, &(&1.kind == :adr)),
+      "features" => Enum.count(project.artifacts, &(&1.kind == :feature)),
+      "use_cases" => Enum.count(project.artifacts, &(&1.kind == :use_case)),
+      "checkpoints" => Enum.count(project.artifacts, &(&1.kind == :checkpoint)),
+      "conversations" => Enum.count(project.artifacts, &(&1.kind == :conversation)),
+      "phases" => phases_count
+    }
+  end
+
+  defp gate_report(project) do
+    adrs = filter_artifacts(project.artifacts, :adr)
+    accepted_adrs = Enum.count(adrs, &(&1.status == :accepted))
+    features = Enum.count(project.artifacts, &(&1.kind == :feature))
+    use_cases = Enum.count(project.artifacts, &(&1.kind == :use_case))
+    checkpoints = Enum.count(project.artifacts, &(&1.kind == :checkpoint))
+    phases = Enum.count(project.roadmap_items, &(&1.kind == :phase))
+
+    %{
+      "project_id" => project.id,
+      "output_kind" => project.output_kind,
+      "planning_stage" => to_string(project.planning_stage),
+      "adrs" => Enum.count(adrs),
+      "accepted_adrs" => accepted_adrs,
+      "features" => features,
+      "use_cases" => use_cases,
+      "checkpoints" => checkpoints,
+      "phases" => phases,
+      "ready_for_define" => adrs != [] and accepted_adrs > 0,
+      "ready_for_build" => features > 0 and use_cases > 0,
+      "ready_for_complete" => phases > 0
+    }
+  end
+
+  defp put_artifact(project, artifact) do
+    __MODULE__.update(project, %{artifacts: (project.artifacts || []) ++ [artifact]})
+  end
+
+  defp replace_artifact(project, artifact_id, updater) do
+    updated =
+      Enum.map(project.artifacts || [], fn artifact ->
+        if artifact.id == artifact_id, do: updater.(artifact), else: artifact
+      end)
+
+    __MODULE__.update(project, %{artifacts: updated})
+  end
+
+  defp put_roadmap_item(project, item) do
+    __MODULE__.update(project, %{roadmap_items: (project.roadmap_items || []) ++ [item]})
+  end
+
+  defp find_project_by_artifact(artifact_id) do
+    with {:ok, projects} <- __MODULE__.list_all(),
+         project when not is_nil(project) <-
+           Enum.find(
+             projects,
+             &Enum.any?(&1.artifacts || [], fn artifact -> artifact.id == artifact_id end)
+           ) do
+      {:ok, project}
+    else
+      nil -> {:error, :artifact_not_found}
+      error -> error
+    end
+  end
+
+  defp filter_artifacts(artifacts, kind), do: Enum.filter(artifacts || [], &(&1.kind == kind))
+
+  defp brief_artifacts(_title, nil), do: []
+
+  defp brief_artifacts(title, content) do
+    [artifact(attrs: %{kind: :brief, title: title, content: content})]
+  end
+
+  defp artifact(attrs: attrs), do: Map.merge(%{id: Ash.UUID.generate()}, attrs)
+
+  defp roadmap_item(attrs), do: Map.merge(%{id: Ash.UUID.generate(), status: :pending}, attrs)
+
+  defp summarize_artifact(artifact, fields) do
+    Map.new([:id | fields], fn field ->
+      {to_string(field), stringify(Map.get(artifact, field))}
+    end)
+  end
+
+  defp summarize_roadmap_item(item, fields) do
+    Map.new([:id | fields], fn field ->
+      {to_string(field), stringify(Map.get(item, field))}
+    end)
+  end
+
+  defp summarize_tree(item) do
+    base =
+      item
+      |> Map.take([
+        :id,
+        :kind,
+        :number,
+        :title,
+        :status,
+        :goal,
+        :goals,
+        :governed_by,
+        :parent_uc,
+        :allowed_files,
+        :blocked_by,
+        :steps,
+        :done_when,
+        :owner,
+        :parent_id
+      ])
+      |> Enum.reject(fn {_key, value} -> is_nil(value) or value == [] end)
+      |> Map.new(fn {key, value} -> {to_string(key), stringify(value)} end)
+
+    case Map.get(item, :children, []) do
+      [] -> base
+      children -> Map.put(base, "children", Enum.map(children, &summarize_tree/1))
+    end
+  end
+
+  defp find_embedded!(items, id) do
+    Enum.find(items || [], &(&1.id == id))
+  end
+
+  defp parse_artifact_status(nil), do: nil
+  defp parse_artifact_status(""), do: nil
+  defp parse_artifact_status(value) when is_atom(value), do: value
+  defp parse_artifact_status("pending"), do: :pending
+  defp parse_artifact_status("proposed"), do: :proposed
+  defp parse_artifact_status("accepted"), do: :accepted
+  defp parse_artifact_status("rejected"), do: :rejected
+  defp parse_artifact_status(_value), do: :pending
+
+  defp parse_mode("discover"), do: :discover
+  defp parse_mode("define"), do: :define
+  defp parse_mode("build"), do: :build
+  defp parse_mode("gate_a"), do: :gate_a
+  defp parse_mode("gate_b"), do: :gate_b
+  defp parse_mode("gate_c"), do: :gate_c
+  defp parse_mode(value), do: raise("unknown mode: #{value}")
+
+  defp stringify(value) when is_atom(value), do: to_string(value)
+  defp stringify(value) when is_list(value), do: Enum.map(value, &stringify/1)
+  defp stringify(value), do: value
+
+  defp split_csv(nil), do: []
+
+  defp split_csv(value) when is_binary(value) do
+    value
+    |> String.split(",")
+    |> Enum.map(&String.trim/1)
+    |> Enum.reject(&(&1 == ""))
+  end
+
+  defp split_lines(nil), do: []
+
+  defp split_lines(value) when is_binary(value) do
+    value
+    |> String.split("\n")
+    |> Enum.map(&String.trim/1)
+    |> Enum.reject(&(&1 == ""))
+  end
+
+  defp blank_to_nil(""), do: nil
+  defp blank_to_nil(value), do: value
+  defp empty_to_nil([]), do: nil
+  defp empty_to_nil(value), do: value
+
+  defp maybe_put(map, _key, nil), do: map
+  defp maybe_put(map, key, value), do: Map.put(map, key, value)
+
+  defp render_project_brief(args) do
+    [
+      {"Title", args.title},
+      {"Description", args.description},
+      {"Plugin", args.plugin},
+      {"Signal Interface", args.signal_interface},
+      {"Topic", blank_to_nil(args.topic)},
+      {"Version", blank_to_nil(args.version)},
+      {"Features", render_list(args.features)},
+      {"Use Cases", render_list(args.use_cases)},
+      {"Architecture", blank_to_nil(args.architecture)},
+      {"Dependencies", render_list(args.dependencies)},
+      {"Signals Emitted", render_list(args.signals_emitted)},
+      {"Signals Subscribed", render_list(args.signals_subscribed)}
+    ]
+    |> Enum.reject(fn {_label, value} -> is_nil(value) or value == "" end)
+    |> Enum.map_join("\n", fn {label, value} -> "#{label}: #{value}" end)
+  end
+
+  defp render_list([]), do: nil
+  defp render_list(items) when is_list(items), do: Enum.join(items, ", ")
+  defp render_list(value), do: value
 end

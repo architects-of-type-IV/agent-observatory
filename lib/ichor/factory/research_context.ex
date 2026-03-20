@@ -2,9 +2,9 @@ defmodule Ichor.Factory.ResearchContext do
   @moduledoc """
   Generates dynamic research context for MES researcher prompts.
 
-  Queries the Project database and core subsystem list at call time
+  Queries the Project database and core plugin list at call time
   to produce three prompt sections:
-    - Existing subsystems (what is already built)
+    - Existing plugins (what is already built)
     - Open gaps (what the system cannot do yet)
     - Dead zones (concepts that have been tried and failed repeatedly)
 
@@ -13,7 +13,7 @@ defmodule Ichor.Factory.ResearchContext do
 
   alias Ichor.Factory.Project
 
-  @core_subsystems [
+  @core_plugins [
     {"HITLRelay", "human-in-the-loop pause/resume gating"},
     {"NudgeEscalator", "stale agent detection + progressive nudging"}
   ]
@@ -49,18 +49,18 @@ defmodule Ichor.Factory.ResearchContext do
     ~s("I want a webhook to a self-hosted endpoint when an agent crashes"),
     ~s("I want signals forwarded to a local logging service"),
     ~s("I want a cron-like scheduler that emits signals on a schedule"),
-    ~s("I want to replay a signal to test a subsystem"),
+    ~s("I want to replay a signal to test a plugin"),
     ~s("I want dead tmux sessions auto-cleaned after N minutes"),
     ~s("I want to tag signals with metadata before they reach subscribers"),
     ~s("I want to throttle noisy signal categories"),
-    ~s("I want a subsystem that bridges MQTT/AMQP/Redis into Signals")
+    ~s("I want a plugin that bridges MQTT/AMQP/Redis into Signals")
   ]
 
-  @doc "Rendered existing subsystems section for prompt interpolation."
-  @spec existing_subsystems() :: String.t()
-  def existing_subsystems do
+  @doc "Rendered existing plugins section for prompt interpolation."
+  @spec existing_plugins() :: String.t()
+  def existing_plugins do
     loaded_projects()
-    |> build_subsystem_list()
+    |> build_plugin_list()
     |> render_lines()
   end
 
@@ -101,23 +101,23 @@ defmodule Ichor.Factory.ResearchContext do
     end
   end
 
-  defp build_subsystem_list(loaded) do
-    core_lines = Enum.map(@core_subsystems, fn {name, desc} -> "#{name}: #{desc} (CORE)" end)
+  defp build_plugin_list(loaded) do
+    core_lines = Enum.map(@core_plugins, fn {name, desc} -> "#{name}: #{desc} (CORE)" end)
 
     project_lines =
       loaded
       |> Enum.take(15)
-      |> Enum.map(fn p -> "#{p.subsystem || p.title}: #{p.description}" end)
+      |> Enum.map(fn p -> "#{p.plugin || p.title}: #{p.description}" end)
 
     core_lines ++ project_lines
   end
 
   defp reject_filled(gaps, loaded) do
-    subsystem_names = Enum.map(loaded, fn p -> p.subsystem || p.title || "" end)
+    plugin_names = Enum.map(loaded, fn p -> p.plugin || p.title || "" end)
 
     Enum.reject(gaps, fn {_desc, markers} ->
       Enum.any?(markers, fn marker ->
-        Enum.any?(subsystem_names, &String.contains?(&1, marker))
+        Enum.any?(plugin_names, &String.contains?(&1, marker))
       end)
     end)
     |> Enum.map(fn {desc, _markers} -> desc end)

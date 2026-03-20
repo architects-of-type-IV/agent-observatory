@@ -2,7 +2,7 @@ defmodule Ichor.Factory do
   @moduledoc """
   Ash Domain: MES planning and pipeline execution.
 
-  Owns MES projects, planning artifacts, DAG runs, jobs, and the execution
+  Owns MES projects, planning artifacts, pipelines, pipeline tasks, and the execution
   lifecycle that turns planned work into wave-based delivery.
   """
 
@@ -10,10 +10,8 @@ defmodule Ichor.Factory do
 
   resources do
     resource(Ichor.Factory.Project)
-    resource(Ichor.Factory.Node)
-    resource(Ichor.Factory.Artifact)
-    resource(Ichor.Factory.RoadmapItem)
-    resource(Ichor.Factory.Run)
-    resource(Ichor.Factory.Job)
+    resource(Ichor.Factory.Floor)
+    resource(Ichor.Factory.Pipeline)
+    resource(Ichor.Factory.PipelineTask)
   end
 end
