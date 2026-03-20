@@ -1,4 +1,4 @@
-defmodule Ichor.Control.Analysis.Queries do
+defmodule Ichor.Workshop.Analysis.Queries do
   @moduledoc """
   Pure query functions for fleet data derivation.
   Operates on raw events, teams, and sessions.
@@ -7,7 +7,7 @@ defmodule Ichor.Control.Analysis.Queries do
   import IchorWeb.DashboardFormatHelpers, only: [session_duration_sec: 1]
   import IchorWeb.DashboardSessionHelpers, only: [short_model_name: 1]
 
-  alias Ichor.Gateway.AgentRegistry.AgentEntry
+  alias Ichor.Workshop.AgentEntry
 
   @doc """
   Derive active sessions from raw events and tmux sessions.

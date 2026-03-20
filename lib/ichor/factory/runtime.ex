@@ -11,11 +11,11 @@ defmodule Ichor.Factory.Runtime do
 
   require Logger
 
-  alias Ichor.Control.Lifecycle.Cleanup
-  alias Ichor.Signals.EventStream, as: EventBuffer
   alias Ichor.Factory.{DateUtils, Graph}
-  alias Ichor.Signals.Message
   alias Ichor.Factory.JsonlStore
+  alias Ichor.Infrastructure.Cleanup
+  alias Ichor.Signals.EventStream, as: EventBuffer
+  alias Ichor.Signals.Message
 
   @tasks_poll_interval 3_000
   @health_poll_interval 30_000

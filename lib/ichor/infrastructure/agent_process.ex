@@ -1,4 +1,4 @@
-defmodule Ichor.Control.AgentProcess do
+defmodule Ichor.Infrastructure.AgentProcess do
   @moduledoc """
   A living agent in the fleet. Each agent is a GenServer process with a native
   BEAM mailbox. The process IS the agent -- its PID is the canonical identity,
@@ -10,9 +10,10 @@ defmodule Ichor.Control.AgentProcess do
 
   use GenServer
 
-  alias Ichor.Gateway.Channels.WebhookAdapter
   alias Ichor.Infrastructure.Tmux
   alias Ichor.Infrastructure.Tmux.Ssh, as: SshTmux
+  alias Ichor.Infrastructure.WebhookAdapter
+  alias Ichor.Signals.EventStream
 
   @type_iv_registry Ichor.Registry
   @pg_scope :ichor_agents
@@ -237,7 +238,7 @@ defmodule Ichor.Control.AgentProcess do
   def terminate(:tmux_gone, state) do
     # Tmux window already dead -- skip kill, just clean up BEAM-side registrations.
     # Ichor.Registry auto-deregisters when the process exits -- no explicit remove needed.
-    Ichor.Signals.EventStream.tombstone_session(state.id)
+    EventStream.tombstone_session(state.id)
     broadcast_lifecycle({:agent_stopped, state.id, :tmux_gone})
     :ok
   end
@@ -245,7 +246,7 @@ defmodule Ichor.Control.AgentProcess do
   def terminate(reason, state) do
     terminate_backend(state.backend)
     # Ichor.Registry auto-deregisters when the process exits -- no explicit remove needed.
-    Ichor.Signals.EventStream.tombstone_session(state.id)
+    EventStream.tombstone_session(state.id)
     broadcast_lifecycle({:agent_stopped, state.id, reason})
     :ok
   end

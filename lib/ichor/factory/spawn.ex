@@ -17,7 +17,7 @@ defmodule Ichor.Factory.Spawn do
     - from_project/2
   """
 
-  alias Ichor.Control.Lifecycle.TeamLaunch
+  alias Ichor.Infrastructure.TeamLaunch
 
   alias Ichor.Factory.{
     DagGenerator,
@@ -507,11 +507,11 @@ defmodule Ichor.Factory.Spawn do
   end
 
   defp team_entries do
-    Application.get_env(:ichor, :mes_team_supervisor_module, Ichor.Control.TeamSupervisor).list_all()
+    Application.get_env(:ichor, :mes_team_supervisor_module, Ichor.Infrastructure.TeamSupervisor).list_all()
   end
 
   defp cleanup_module do
-    Application.get_env(:ichor, :mes_cleanup_module, Ichor.Control.Lifecycle.Cleanup)
+    Application.get_env(:ichor, :mes_cleanup_module, Ichor.Infrastructure.Cleanup)
   end
 
   defp tmux_launcher do

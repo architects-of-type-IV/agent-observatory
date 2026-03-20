@@ -1,4 +1,4 @@
-defmodule Ichor.Control.Analysis.AgentHealth do
+defmodule Ichor.Workshop.Analysis.AgentHealth do
   @moduledoc """
   Agent health computation: failure rate, stuck detection, and loop detection.
   Pure functions operating on event lists.

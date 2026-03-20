@@ -14,14 +14,14 @@ defmodule Ichor.AgentWatchdog do
   use GenServer
   require Logger
 
-  alias Ichor.Control.AgentProcess
-  alias Ichor.Gateway.AgentRegistry.AgentEntry
-  alias Ichor.Gateway.HITLRelay
+  alias Ichor.Factory.Board
+  alias Ichor.Infrastructure.AgentProcess
+  alias Ichor.Infrastructure.HITLRelay
   alias Ichor.Infrastructure.Tmux
   alias Ichor.Infrastructure.Tmux.Ssh, as: SshTmux
-  alias Ichor.Factory.Board
   alias Ichor.Signals.Bus
   alias Ichor.Signals.Message
+  alias Ichor.Workshop.AgentEntry
 
   @interval 5_000
   @crash_threshold_sec 120

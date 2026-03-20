@@ -1,4 +1,4 @@
-defmodule Ichor.Control.FleetSupervisor do
+defmodule Ichor.Infrastructure.FleetSupervisor do
   @moduledoc """
   Top-level DynamicSupervisor for the fleet. Holds team supervisors and
   standalone agent processes (agents not assigned to any team).
@@ -16,7 +16,7 @@ defmodule Ichor.Control.FleetSupervisor do
 
   use DynamicSupervisor
 
-  alias Ichor.Control.{AgentProcess, TeamSupervisor}
+  alias Ichor.Infrastructure.{AgentProcess, TeamSupervisor}
 
   @doc "Start the fleet supervisor."
   @spec start_link(keyword()) :: Supervisor.on_start()

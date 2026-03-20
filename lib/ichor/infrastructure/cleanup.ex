@@ -1,12 +1,12 @@
-defmodule Ichor.Control.Lifecycle.Cleanup do
+defmodule Ichor.Infrastructure.Cleanup do
   @moduledoc """
   Lifecycle cleanup operations for agents, teams, and tmux-backed sessions.
   """
 
-  alias Ichor.Control.FleetSupervisor
-  alias Ichor.Control.Lifecycle.Registration
+  alias Ichor.Infrastructure.FleetSupervisor
+  alias Ichor.Infrastructure.Registration
+  alias Ichor.Infrastructure.TeamSupervisor
   alias Ichor.Infrastructure.Tmux.{Launcher, Script}
-  alias Ichor.Control.TeamSupervisor
   alias Ichor.Signals.EventStream, as: EventBuffer
 
   @gc_script Path.expand("~/.claude/skills/dag/scripts/gc.sh")

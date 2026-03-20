@@ -6,6 +6,7 @@ defmodule Ichor.Factory.Floor do
   use Ash.Resource, domain: Ichor.Factory
 
   alias Ichor.Factory.{Board, Runner, Scheduler, Spawn}
+  alias Ichor.Workshop.ActiveTeam
 
   actions do
     action :get_tasks, {:array, :map} do
@@ -134,6 +135,35 @@ defmodule Ichor.Factory.Floor do
         end
       end)
     end
+
+    action :fleet_tasks, {:array, :map} do
+      description("List board tasks across all active teams, or for a specific team.")
+
+      argument :team_name, :string do
+        allow_nil?(false)
+        default("")
+      end
+
+      run(fn input, _context ->
+        team_filter = Map.get(input.arguments, :team_name)
+
+        teams =
+          if team_filter in [nil, ""] do
+            ActiveTeam.alive!()
+          else
+            ActiveTeam.alive!()
+            |> Enum.filter(fn team -> team.name == team_filter end)
+          end
+
+        tasks =
+          Enum.flat_map(teams, fn team ->
+            Board.list_tasks(team.name)
+            |> Enum.map(&Map.put(&1, "team", team.name))
+          end)
+
+        {:ok, tasks}
+      end)
+    end
   end
 
   code_interface do
@@ -141,5 +171,6 @@ defmodule Ichor.Factory.Floor do
     define(:update_task_status, args: [:team_name, :task_id, :status])
     define(:mes_status)
     define(:cleanup_mes)
+    define(:fleet_tasks, args: [:team_name])
   end
 end

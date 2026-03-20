@@ -1,4 +1,4 @@
-defmodule Ichor.Control.Views.Preparations.LoadTeams do
+defmodule Ichor.Workshop.Preparations.LoadTeams do
   @moduledoc """
   Loads team view records from runtime registry state and recent events.
   """
@@ -6,11 +6,10 @@ defmodule Ichor.Control.Views.Preparations.LoadTeams do
   use Ash.Resource.Preparation
 
   alias Ash.DataLayer.Simple
-  alias Ichor.Control.AgentProcess
-  alias Ichor.Control.Analysis.AgentHealth
-  alias Ichor.Control.Team
-  alias Ichor.Control.TeamSupervisor
+  alias Ichor.Infrastructure.AgentProcess
+  alias Ichor.Infrastructure.TeamSupervisor
   alias Ichor.Signals.EventStream, as: EventBuffer
+  alias Ichor.Workshop.Analysis.AgentHealth
 
   @dead_team_threshold_sec 300
 

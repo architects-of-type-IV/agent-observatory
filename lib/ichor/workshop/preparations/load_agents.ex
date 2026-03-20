@@ -1,4 +1,4 @@
-defmodule Ichor.Control.Views.Preparations.LoadAgents do
+defmodule Ichor.Workshop.Preparations.LoadAgents do
   @moduledoc """
   Loads agent view records from the live runtime registry.
   """
@@ -6,8 +6,8 @@ defmodule Ichor.Control.Views.Preparations.LoadAgents do
   use Ash.Resource.Preparation
 
   alias Ash.DataLayer.Simple
-  alias Ichor.Control.Agent
-  alias Ichor.Control.AgentProcess
+  alias Ichor.Infrastructure.AgentProcess
+  alias Ichor.Workshop.Agent
 
   @impl true
   def prepare(query, _opts, _context) do

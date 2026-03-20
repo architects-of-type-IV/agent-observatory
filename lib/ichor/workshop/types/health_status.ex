@@ -1,4 +1,4 @@
-defmodule Ichor.Control.Types.HealthStatus do
+defmodule Ichor.Workshop.Types.HealthStatus do
   @moduledoc """
   Ash enum type for agent and team health status.
 

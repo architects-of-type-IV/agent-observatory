@@ -7,9 +7,9 @@ defmodule Ichor.Observability do
   """
   use Ash.Domain
 
-  alias Ichor.Gateway.HITLInterventionEvent
   alias Ichor.Observability.Error
   alias Ichor.Observability.Event
+  alias Ichor.Observability.HITLInterventionEvent
   alias Ichor.Observability.Message
   alias Ichor.Observability.Session
   alias Ichor.Observability.Task, as: ObservabilityTask

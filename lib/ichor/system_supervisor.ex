@@ -29,12 +29,12 @@ defmodule Ichor.SystemSupervisor do
       {Ichor.Signals.EventStream, []},
 
       # Gateway services
-      {Ichor.Gateway.TmuxDiscovery, []},
-      {Ichor.Gateway.EntropyTracker, []},
-      {Ichor.Gateway.CronScheduler, []},
-      {Ichor.Gateway.WebhookRouter, []},
-      {Ichor.Gateway.HITLRelay, []},
-      {Ichor.Gateway.OutputCapture, []},
+      {Ichor.Infrastructure.TmuxDiscovery, []},
+      {Ichor.Signals.EntropyTracker, []},
+      {Ichor.Infrastructure.CronScheduler, []},
+      {Ichor.Infrastructure.WebhookRouter, []},
+      {Ichor.Infrastructure.HITLRelay, []},
+      {Ichor.Infrastructure.OutputCapture, []},
 
       # Monitoring and observability services
       {Ichor.AgentWatchdog, []},

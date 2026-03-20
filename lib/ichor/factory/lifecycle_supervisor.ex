@@ -23,8 +23,10 @@ defmodule Ichor.Factory.LifecycleSupervisor do
   # todo: moduledoc needs to be updated and understand it is not a diary/logbook
   use Supervisor
 
-  alias Ichor.Control.{AgentProcess, FleetSupervisor}
+  alias Ichor.Factory.Runner
   alias Ichor.Factory.Workers.OrphanSweepWorker
+  alias Ichor.Infrastructure.{AgentProcess, FleetSupervisor}
+  alias Ichor.Signals
 
   @doc false
   @spec start_link(keyword()) :: Supervisor.on_start()
@@ -73,9 +75,9 @@ defmodule Ichor.Factory.LifecycleSupervisor do
   end
 
   defp ensure_orphan_sweep do
-    active_runs = length(Ichor.Factory.Runner.list_all(:mes))
+    active_runs = length(Runner.list_all(:mes))
     # todo: janitor rename. This emit should trigger a oban job.
-    Ichor.Signals.emit(:mes_janitor_init, %{monitored: active_runs})
+    Signals.emit(:mes_janitor_init, %{monitored: active_runs})
     # todo: oban needs to be configured else where
     unless oban_inline_testing?() do
       case OrphanSweepWorker.schedule(10) do

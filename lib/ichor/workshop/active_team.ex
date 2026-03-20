@@ -1,4 +1,4 @@
-defmodule Ichor.Control.Team do
+defmodule Ichor.Workshop.ActiveTeam do
   @moduledoc """
   A team of agents. The Ash resource provides both read access (via preparations
   that load from Registry/events/disk) and write operations (via generic actions
@@ -9,8 +9,8 @@ defmodule Ichor.Control.Team do
 
   use Ash.Resource, domain: Ichor.Workshop
 
-  alias Ichor.Control.FleetSupervisor
-  alias Ichor.Control.TeamSupervisor
+  alias Ichor.Infrastructure.FleetSupervisor
+  alias Ichor.Infrastructure.TeamSupervisor
 
   attributes do
     attribute(:name, :string, primary_key?: true, allow_nil?: false, public?: true)
@@ -23,7 +23,7 @@ defmodule Ichor.Control.Team do
     attribute(:dead?, :boolean, default: false, public?: true)
     attribute(:member_count, :integer, default: 0, public?: true)
 
-    attribute(:health, Ichor.Control.Types.HealthStatus,
+    attribute(:health, Ichor.Workshop.Types.HealthStatus,
       default: :unknown,
       public?: true
     )
@@ -31,12 +31,37 @@ defmodule Ichor.Control.Team do
 
   actions do
     read :all do
-      prepare({Ichor.Control.Views.Preparations.LoadTeams, []})
+      prepare({Ichor.Workshop.Preparations.LoadTeams, []})
     end
 
     read :alive do
-      prepare({Ichor.Control.Views.Preparations.LoadTeams, []})
+      prepare({Ichor.Workshop.Preparations.LoadTeams, []})
       filter(expr(dead? == false))
+    end
+
+    action :list_teams, {:array, :map} do
+      description("List all active teams with their members and health status.")
+
+      run(fn _input, _context ->
+        {:ok,
+         alive!()
+         |> Enum.map(fn team ->
+           %{
+             "name" => team.name,
+             "members" =>
+               Enum.map(team.members, fn member ->
+                 %{
+                   "session_id" => member[:agent_id] || member[:session_id],
+                   "role" => member[:role] || member[:name],
+                   "status" => member[:status]
+                 }
+               end),
+             "member_count" => team.member_count,
+             "health" => team.health,
+             "source" => team.source
+           }
+         end)}
+      end)
     end
 
     action :create_team, :map do
@@ -107,6 +132,7 @@ defmodule Ichor.Control.Team do
     # Reads
     define(:all)
     define(:alive)
+    define(:list_teams)
     # Lifecycle
     define(:create_team, args: [:name])
     define(:disband, args: [:name])

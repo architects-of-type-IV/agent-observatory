@@ -8,8 +8,8 @@ defmodule Ichor.Factory.Workers.RunCleanupWorker do
     max_attempts: 5,
     unique: [period: 60, fields: [:worker, :args], keys: [:run_id]]
 
-  alias Ichor.Control.FleetSupervisor
   alias Ichor.Factory.Spawn
+  alias Ichor.Infrastructure.FleetSupervisor
   alias Ichor.Infrastructure.Tmux
   alias Ichor.Signals
 

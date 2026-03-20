@@ -1,4 +1,4 @@
-defmodule Ichor.Control.Agent do
+defmodule Ichor.Workshop.Agent do
   @moduledoc """
   An agent in the fleet. The Ash resource provides both read access (via preparations
   that load from Registry/events) and write operations (via generic actions that
@@ -9,11 +9,12 @@ defmodule Ichor.Control.Agent do
 
   use Ash.Resource, domain: Ichor.Workshop
 
-  alias Ichor.Control.AgentProcess
-  alias Ichor.Control.FleetSupervisor
-  alias Ichor.Control.Lifecycle.AgentLaunch
-  alias Ichor.Control.Lifecycle.Registration
-  alias Ichor.Control.TeamSupervisor
+  alias Ichor.Infrastructure.AgentLaunch
+  alias Ichor.Infrastructure.AgentProcess
+  alias Ichor.Infrastructure.FleetSupervisor
+  alias Ichor.Infrastructure.Registration
+  alias Ichor.Infrastructure.TeamSupervisor
+  alias Ichor.Infrastructure.Tmux
   alias Ichor.Signals.Bus
 
   attributes do
@@ -27,7 +28,7 @@ defmodule Ichor.Control.Agent do
       public?(true)
     end
 
-    attribute(:health, Ichor.Control.Types.HealthStatus,
+    attribute(:health, Ichor.Workshop.Types.HealthStatus,
       default: :unknown,
       public?: true
     )
@@ -53,18 +54,81 @@ defmodule Ichor.Control.Agent do
 
   actions do
     read :all do
-      prepare({Ichor.Control.Views.Preparations.LoadAgents, []})
+      prepare({Ichor.Workshop.Preparations.LoadAgents, []})
     end
 
     read :active do
-      prepare({Ichor.Control.Views.Preparations.LoadAgents, []})
+      prepare({Ichor.Workshop.Preparations.LoadAgents, []})
       filter(expr(status != :ended))
     end
 
     read :in_team do
       argument(:team_name, :string, allow_nil?: false)
-      prepare({Ichor.Control.Views.Preparations.LoadAgents, []})
+      prepare({Ichor.Workshop.Preparations.LoadAgents, []})
       filter(expr(team_name == ^arg(:team_name)))
+    end
+
+    action :list_live_agents, {:array, :map} do
+      description("List all live agents with their current runtime status.")
+
+      run(fn _input, _context ->
+        {:ok,
+         active!()
+         |> Enum.map(fn agent ->
+           %{
+             "id" => agent.agent_id,
+             "name" => agent.short_name || agent.name || agent.agent_id,
+             "session_id" => agent.session_id,
+             "team" => agent.team_name,
+             "role" => agent.role,
+             "status" => agent.status,
+             "model" => agent.model,
+             "cwd" => agent.cwd,
+             "current_tool" => agent.current_tool,
+             "last_event_at" => agent.last_event_at
+           }
+         end)}
+      end)
+    end
+
+    action :agent_status, :map do
+      description("Get detailed runtime status for a specific agent by name or session ID.")
+
+      argument(:agent_id, :string, allow_nil?: false)
+
+      run(fn input, _context ->
+        query = input.arguments.agent_id
+
+        case find_agent(query) do
+          nil ->
+            {:ok, %{"found" => false, "query" => query}}
+
+          agent ->
+            tmux_target = agent.channels[:tmux] || agent.tmux_session
+
+            tmux_ok =
+              if is_binary(tmux_target),
+                do: Tmux.available?(tmux_target),
+                else: false
+
+            {:ok,
+             %{
+               "id" => agent.agent_id,
+               "name" => agent.short_name || agent.name || agent.agent_id,
+               "session_id" => agent.session_id,
+               "team" => agent.team_name,
+               "role" => agent.role,
+               "status" => agent.status,
+               "model" => agent.model,
+               "cwd" => agent.cwd,
+               "current_tool" => agent.current_tool,
+               "last_event_at" => agent.last_event_at,
+               "found" => true,
+               "tmux" => tmux_target,
+               "tmux_available" => tmux_ok
+             }}
+        end
+      end)
     end
 
     action :spawn, :map do
@@ -190,6 +254,101 @@ defmodule Ichor.Control.Agent do
       end)
     end
 
+    action :spawn_agent, :map do
+      description("Spawn a new agent in tmux with full fleet observability.")
+
+      argument(:prompt, :string, allow_nil?: false)
+      argument(:capability, :string, allow_nil?: false, default: "builder")
+      argument(:model, :string, allow_nil?: false, default: "sonnet")
+      argument(:name, :string, allow_nil?: false, default: "")
+      argument(:team_name, :string, allow_nil?: false, default: "")
+      argument(:cwd, :string, allow_nil?: false, default: "")
+      argument(:file_scope, {:array, :string}, allow_nil?: false, default: [])
+      argument(:extra_instructions, :string, allow_nil?: false, default: "")
+
+      run(fn input, _context ->
+        args = input.arguments
+
+        opts =
+          %{capability: args[:capability] || "builder", model: args[:model] || "sonnet"}
+          |> maybe_put(:name, args[:name])
+          |> maybe_put(:team_name, args[:team_name])
+          |> maybe_put(:cwd, args[:cwd])
+          |> maybe_put(:file_scope, args[:file_scope])
+          |> maybe_put(:extra_instructions, args[:extra_instructions])
+          |> Map.put(:task, %{"subject" => "Agent task", "description" => args.prompt})
+
+        case AgentLaunch.spawn(opts) do
+          {:ok, result} ->
+            {:ok,
+             %{
+               "status" => "spawned",
+               "agent_id" => result[:agent_id],
+               "name" => result[:name],
+               "session" => result[:session_name],
+               "cwd" => result[:cwd],
+               "team" => args[:team_name],
+               "model" => args[:model] || "sonnet"
+             }}
+
+          {:error, {:session_exists, session}} ->
+            {:error, "Session already exists: #{session}. Choose a different name."}
+
+          {:error, {:cwd_not_found, path}} ->
+            {:error, "Directory not found: #{path}"}
+
+          {:error, reason} ->
+            {:error, "Spawn failed: #{inspect(reason)}"}
+        end
+      end)
+    end
+
+    action :spawn_archon_agent, :map do
+      description("Spawn a new agent from Archon control surfaces.")
+
+      argument(:prompt, :string, allow_nil?: false)
+      argument(:name, :string, allow_nil?: false, default: "")
+      argument(:capability, :string, allow_nil?: false, default: "builder")
+      argument(:model, :string, allow_nil?: false, default: "sonnet")
+      argument(:team_name, :string, allow_nil?: false, default: "")
+      argument(:cwd, :string, allow_nil?: false, default: "")
+      argument(:extra_instructions, :string, allow_nil?: false, default: "")
+
+      run(fn input, _context ->
+        case AgentLaunch.spawn(input.arguments) do
+          {:ok, result} ->
+            {:ok,
+             %{
+               "session_id" => result[:agent_id] || result[:session_name],
+               "session_name" => result[:session_name],
+               "name" => result[:name],
+               "team" => result[:team_name]
+             }}
+
+          {:error, reason} ->
+            {:error, inspect(reason)}
+        end
+      end)
+    end
+
+    action :stop_agent, :map do
+      description("Stop an agent by name or session ID.")
+
+      argument(:agent_id, :string, allow_nil?: false)
+
+      run(fn input, _context ->
+        case find_agent(input.arguments.agent_id) do
+          nil ->
+            {:error, "agent not found: #{input.arguments.agent_id}"}
+
+          agent ->
+            agent_id = agent.tmux_session || agent.agent_id
+            _ = AgentLaunch.stop(agent_id)
+            {:ok, %{"stopped" => true, "session" => agent_id, "name" => agent.name}}
+        end
+      end)
+    end
+
     action :send_message, :map do
       description("Send a message to an agent.")
 
@@ -271,11 +430,20 @@ defmodule Ichor.Control.Agent do
     define(:all)
     define(:active)
     define(:in_team, args: [:team_name])
+    define(:list_live_agents)
+    define(:agent_status, args: [:agent_id])
     # Lifecycle
     define(:launch, args: [])
+    define(:spawn_agent, args: [:prompt])
+
+    define(:spawn_archon_agent,
+      args: [:prompt, :name, :capability, :model, :team_name, :cwd, :extra_instructions]
+    )
+
     define(:spawn, args: [:id])
     define(:pause_agent, args: [:agent_id])
     define(:resume_agent, args: [:agent_id])
+    define(:stop_agent, args: [:agent_id])
     define(:terminate_agent, args: [:agent_id])
     # Messaging
     define(:get_unread, args: [:agent_id])
@@ -299,4 +467,12 @@ defmodule Ichor.Control.Agent do
 
   defp maybe_put(map, _key, nil), do: map
   defp maybe_put(map, key, value), do: Map.put(map, key, value)
+
+  defp find_agent(query) when is_binary(query) do
+    all!()
+    |> Enum.find(fn agent ->
+      agent.agent_id == query or agent.session_id == query or
+        agent.short_name == query or agent.name == query
+    end)
+  end
 end

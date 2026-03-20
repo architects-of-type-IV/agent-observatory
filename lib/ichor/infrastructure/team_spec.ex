@@ -1,9 +1,9 @@
-defmodule Ichor.Control.Lifecycle.TeamSpec do
+defmodule Ichor.Infrastructure.TeamSpec do
   @moduledoc """
   Explicit runtime spec for launching a multi-agent team session.
   """
 
-  alias Ichor.Control.Lifecycle.AgentSpec
+  alias Ichor.Infrastructure.AgentSpec
 
   @enforce_keys [:team_name, :session, :cwd, :agents, :prompt_dir]
   defstruct [:team_name, :session, :cwd, :agents, :prompt_dir, metadata: %{}]

@@ -1,4 +1,4 @@
-defmodule Ichor.Control.Analysis.SessionEviction do
+defmodule Ichor.Workshop.Analysis.SessionEviction do
   @moduledoc """
   Evicts events from stale sessions that have not produced
   new activity within the TTL window. Agent-agnostic: works

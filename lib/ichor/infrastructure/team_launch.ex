@@ -1,11 +1,11 @@
-defmodule Ichor.Control.Lifecycle.TeamLaunch do
+defmodule Ichor.Infrastructure.TeamLaunch do
   @moduledoc """
   Lifecycle operations for launching and tearing down multi-agent tmux-backed teams.
   """
 
-  alias Ichor.Control.FleetSupervisor
-  alias Ichor.Control.Lifecycle.Registration
-  alias Ichor.Control.Lifecycle.TeamSpec
+  alias Ichor.Infrastructure.FleetSupervisor
+  alias Ichor.Infrastructure.Registration
+  alias Ichor.Infrastructure.TeamSpec
   alias Ichor.Infrastructure.Tmux.{Launcher, Script}
 
   @doc "Launch a full multi-agent team: creates tmux session, all windows, and registers all agents."

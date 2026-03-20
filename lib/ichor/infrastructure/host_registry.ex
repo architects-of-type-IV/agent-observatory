@@ -1,4 +1,4 @@
-defmodule Ichor.Control.HostRegistry do
+defmodule Ichor.Infrastructure.HostRegistry do
   @moduledoc """
   Tracks available BEAM nodes in the fleet. Each node represents a host
   that can run tmux sessions and AgentProcesses.

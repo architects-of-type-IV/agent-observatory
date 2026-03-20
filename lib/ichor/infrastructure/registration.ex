@@ -1,14 +1,14 @@
-defmodule Ichor.Control.Lifecycle.Registration do
+defmodule Ichor.Infrastructure.Registration do
   @moduledoc """
   Shared process registration for tmux-backed agents and teams.
   """
 
   require Logger
 
-  alias Ichor.Control.AgentProcess
-  alias Ichor.Control.FleetSupervisor
-  alias Ichor.Control.Lifecycle.AgentSpec
-  alias Ichor.Control.TeamSupervisor
+  alias Ichor.Infrastructure.AgentProcess
+  alias Ichor.Infrastructure.AgentSpec
+  alias Ichor.Infrastructure.FleetSupervisor
+  alias Ichor.Infrastructure.TeamSupervisor
   alias Ichor.Infrastructure.Tmux.Helpers
 
   @doc "Ensure a TeamSupervisor exists for `name`, creating it if absent."

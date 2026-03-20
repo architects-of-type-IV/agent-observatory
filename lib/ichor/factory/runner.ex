@@ -14,9 +14,9 @@ defmodule Ichor.Factory.Runner do
 
   use GenServer, restart: :temporary
 
-  alias Ichor.Control.Lifecycle.{TeamLaunch, TmuxLauncher}
   alias Ichor.Factory.{Graph, Pipeline, PipelineTask}
   alias Ichor.Factory.Workers.RunCleanupWorker
+  alias Ichor.Infrastructure.{TeamLaunch, TmuxLauncher}
   alias Ichor.Signals
   alias Ichor.Signals.Message
   alias Ichor.Workshop.TeamSpec

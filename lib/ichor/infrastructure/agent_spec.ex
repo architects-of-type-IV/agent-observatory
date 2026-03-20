@@ -1,4 +1,4 @@
-defmodule Ichor.Control.Lifecycle.AgentSpec do
+defmodule Ichor.Infrastructure.AgentSpec do
   @moduledoc """
   Explicit runtime spec for launching a single tmux-backed agent.
   """
