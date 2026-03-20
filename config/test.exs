@@ -30,3 +30,6 @@ config :phoenix_live_view,
 # Sort query params output of verified routes for robust url comparisons
 config :phoenix,
   sort_verified_routes_query_params: true
+
+# Oban inline testing -- jobs run synchronously, no queues needed
+config :ichor, Oban, testing: :inline

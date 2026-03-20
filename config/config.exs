@@ -68,6 +68,17 @@ config :ichor, :memories,
   group_id: "0f8eae17-15fc-5af1-8761-0093dc9b5027",
   user_id: "8fe50fd6-f0da-5adc-9251-6417dc3092e8"
 
+# Oban background job processing
+config :ichor, Oban,
+  repo: Ichor.Repo,
+  queues: [
+    webhooks: 10,
+    quality_gate: 4,
+    memories: 2,
+    maintenance: 1,
+    scheduled: 2
+  ]
+
 # Use Jason for JSON parsing in Phoenix
 config :phoenix, :json_library, Jason
 

@@ -69,7 +69,8 @@ defmodule Ichor.MixProject do
       {:earmark, "~> 1.4"},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
-      {:ichor_contracts, path: "subsystems/ichor_contracts"}
+      {:ichor_contracts, path: "subsystems/ichor_contracts"},
+      {:oban, "~> 2.18"}
     ]
   end
 

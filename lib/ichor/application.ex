@@ -18,6 +18,7 @@ defmodule Ichor.Application do
       # Infrastructure (must start first -- everything depends on these)
       IchorWeb.Telemetry,
       Ichor.Repo,
+      {Oban, Application.fetch_env!(:ichor, Oban)},
       {Ecto.Migrator,
        repos: Application.fetch_env!(:ichor, :ecto_repos), skip: skip_migrations?()},
       {DNSCluster, query: Application.get_env(:ichor, :dns_cluster_query) || :ignore},
