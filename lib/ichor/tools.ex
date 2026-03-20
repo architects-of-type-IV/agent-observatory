@@ -7,24 +7,18 @@ defmodule Ichor.Tools do
   """
   use Ash.Domain, extensions: [AshAi], validate_config_inclusion?: true
 
-  alias Ichor.Tools.Agent.GenesisArtifacts
-  alias Ichor.Tools.Agent.GenesisGates
-  alias Ichor.Tools.Agent.GenesisNodes
-  alias Ichor.Tools.Agent.GenesisRoadmap
   alias Ichor.Tools.AgentMemory
+  alias Ichor.Tools.Genesis
   alias Ichor.Tools.ProjectExecution
   alias Ichor.Tools.RuntimeOps
 
   alias Ichor.Tools.Archon.Memory, as: ArchonMemory
 
   resources do
-    # Agent tools (7)
+    # Agent tools (5)
     resource(RuntimeOps)
     resource(AgentMemory)
-    resource(GenesisNodes)
-    resource(GenesisArtifacts)
-    resource(GenesisGates)
-    resource(GenesisRoadmap)
+    resource(Genesis)
     resource(ProjectExecution)
     # Archon-only tools (1)
     resource(ArchonMemory)
@@ -56,29 +50,29 @@ defmodule Ichor.Tools do
     tool(:spawn_agent, RuntimeOps, :spawn_agent)
     tool(:stop_agent, RuntimeOps, :stop_agent)
     # Genesis nodes
-    tool(:create_genesis_node, GenesisNodes, :create_genesis_node)
-    tool(:advance_node, GenesisNodes, :advance_node)
-    tool(:list_genesis_nodes, GenesisNodes, :list_genesis_nodes)
-    tool(:get_genesis_node, GenesisNodes, :get_genesis_node)
-    tool(:gate_check, GenesisNodes, :gate_check)
+    tool(:create_genesis_node, Genesis, :create_genesis_node)
+    tool(:advance_node, Genesis, :advance_node)
+    tool(:list_genesis_nodes, Genesis, :list_genesis_nodes)
+    tool(:get_genesis_node, Genesis, :get_genesis_node)
+    tool(:gate_check, Genesis, :gate_check)
     # Genesis artifacts
-    tool(:create_adr, GenesisArtifacts, :create_adr)
-    tool(:update_adr, GenesisArtifacts, :update_adr)
-    tool(:list_adrs, GenesisArtifacts, :list_adrs)
-    tool(:create_feature, GenesisArtifacts, :create_feature)
-    tool(:list_features, GenesisArtifacts, :list_features)
-    tool(:create_use_case, GenesisArtifacts, :create_use_case)
-    tool(:list_use_cases, GenesisArtifacts, :list_use_cases)
+    tool(:create_adr, Genesis, :create_adr)
+    tool(:update_adr, Genesis, :update_adr)
+    tool(:list_adrs, Genesis, :list_adrs)
+    tool(:create_feature, Genesis, :create_feature)
+    tool(:list_features, Genesis, :list_features)
+    tool(:create_use_case, Genesis, :create_use_case)
+    tool(:list_use_cases, Genesis, :list_use_cases)
     # Genesis gates
-    tool(:create_checkpoint, GenesisGates, :create_checkpoint)
-    tool(:create_conversation, GenesisGates, :create_conversation)
-    tool(:list_conversations, GenesisGates, :list_conversations)
+    tool(:create_checkpoint, Genesis, :create_checkpoint)
+    tool(:create_conversation, Genesis, :create_conversation)
+    tool(:list_conversations, Genesis, :list_conversations)
     # Genesis roadmap (Mode C)
-    tool(:create_phase, GenesisRoadmap, :create_phase)
-    tool(:create_section, GenesisRoadmap, :create_section)
-    tool(:create_task, GenesisRoadmap, :create_task)
-    tool(:create_subtask, GenesisRoadmap, :create_subtask)
-    tool(:list_phases, GenesisRoadmap, :list_phases)
+    tool(:create_phase, Genesis, :create_phase)
+    tool(:create_section, Genesis, :create_section)
+    tool(:create_task, Genesis, :create_task)
+    tool(:create_subtask, Genesis, :create_subtask)
+    tool(:list_phases, Genesis, :list_phases)
     # DAG execution
     tool(:next_jobs, ProjectExecution, :next_jobs)
     tool(:claim_job, ProjectExecution, :claim_job)

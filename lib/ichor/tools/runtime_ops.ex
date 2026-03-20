@@ -48,7 +48,8 @@ defmodule Ichor.Tools.RuntimeOps do
       end
 
       argument :capability, :string do
-        allow_nil?(true)
+        allow_nil?(false)
+        default("builder")
 
         description(
           "Agent role: builder (read+write), scout (read-only), lead (full), reviewer (read+write). Defaults to builder."
@@ -56,36 +57,42 @@ defmodule Ichor.Tools.RuntimeOps do
       end
 
       argument :model, :string do
-        allow_nil?(true)
+        allow_nil?(false)
+        default("sonnet")
         description("Claude model: opus, sonnet, haiku. Defaults to sonnet.")
       end
 
       argument :name, :string do
-        allow_nil?(true)
-        description("Agent name. Auto-generated if omitted.")
+        allow_nil?(false)
+        default("")
+        description("Agent name. Auto-generated if empty.")
       end
 
       argument :team_name, :string do
-        allow_nil?(true)
+        allow_nil?(false)
+        default("")
 
         description(
-          "Team to join. Creates the team if it doesn't exist. Omit for standalone agent."
+          "Team to join. Creates the team if it doesn't exist. Empty for standalone agent."
         )
       end
 
       argument :cwd, :string do
-        allow_nil?(true)
-        description("Working directory. Defaults to the current project root.")
+        allow_nil?(false)
+        default("")
+        description("Working directory. Defaults to the current project root if empty.")
       end
 
       argument :file_scope, {:array, :string} do
-        allow_nil?(true)
-        description("List of file paths the agent should focus on.")
+        allow_nil?(false)
+        default([])
+        description("List of file paths the agent should focus on. Empty for no restriction.")
       end
 
       argument :extra_instructions, :string do
-        allow_nil?(true)
-        description("Additional instructions appended to the agent's overlay.")
+        allow_nil?(false)
+        default("")
+        description("Additional instructions appended to the agent's overlay. Empty for none.")
       end
 
       run(fn input, _context ->

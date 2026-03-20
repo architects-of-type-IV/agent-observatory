@@ -29,11 +29,8 @@ defmodule Ichor.MemoryStore do
   """
   use GenServer
 
-  alias Ichor.MemoryStore.Archival
-  alias Ichor.MemoryStore.Blocks
   alias Ichor.MemoryStore.Persistence
-  alias Ichor.MemoryStore.Recall
-  alias Ichor.MemoryStore.Tables
+  alias Ichor.MemoryStore.Storage
 
   # Client API -- Blocks
 
@@ -162,12 +159,17 @@ defmodule Ichor.MemoryStore do
   end
 
   @doc "Search recall memory by date range. Letta's conversation_search_date."
-  @spec conversation_search_date(String.t(), DateTime.t(), DateTime.t(), keyword()) ::
+  @spec conversation_search_date(
+          String.t(),
+          DateTime.t() | String.t(),
+          DateTime.t() | String.t(),
+          keyword()
+        ) ::
           {:ok, [map()]}
   def conversation_search_date(agent_name, start_date, end_date, opts \\ []) do
     GenServer.call(
       __MODULE__,
-      {:conversation_search_date, agent_name, start_date, end_date, opts}
+      {:conversation_search_date, agent_name, to_iso(start_date), to_iso(end_date), opts}
     )
   end
 
@@ -199,16 +201,16 @@ defmodule Ichor.MemoryStore do
 
   @doc "Data directory path."
   @spec data_dir() :: String.t()
-  def data_dir, do: Tables.data_dir()
+  def data_dir, do: Storage.data_dir()
 
   # Server -- Init
 
   @impl true
   def init(_opts) do
-    :ets.new(Tables.blocks_table(), [:named_table, :public, :set])
-    :ets.new(Tables.agents_table(), [:named_table, :public, :set])
-    :ets.new(Tables.recall_table(), [:named_table, :public, :set])
-    :ets.new(Tables.archival_table(), [:named_table, :public, :set])
+    :ets.new(Storage.blocks_table(), [:named_table, :public, :set])
+    :ets.new(Storage.agents_table(), [:named_table, :public, :set])
+    :ets.new(Storage.recall_table(), [:named_table, :public, :set])
+    :ets.new(Storage.archival_table(), [:named_table, :public, :set])
     Persistence.load_from_disk()
     schedule_flush()
     {:ok, %{dirty_blocks: MapSet.new(), dirty_agents: MapSet.new()}}
@@ -218,20 +220,20 @@ defmodule Ichor.MemoryStore do
 
   @impl true
   def handle_call({:create_block, attrs}, _from, state) do
-    if Blocks.max_blocks_reached?() do
+    if Storage.max_blocks_reached?() do
       {:reply, {:error, :max_blocks_reached}, state}
     else
-      {:ok, block} = Blocks.create(attrs)
+      {:ok, block} = Storage.create_block(attrs)
       {:reply, {:ok, block}, %{state | dirty_blocks: MapSet.put(state.dirty_blocks, block.id)}}
     end
   end
 
   def handle_call({:get_block, block_id}, _from, state) do
-    {:reply, Blocks.get(block_id), state}
+    {:reply, Storage.get_block(block_id), state}
   end
 
   def handle_call({:update_block, block_id, changes}, _from, state) do
-    case Blocks.update(block_id, changes) do
+    case Storage.update_block(block_id, changes) do
       {:ok, updated} ->
         {:reply, {:ok, updated},
          %{state | dirty_blocks: MapSet.put(state.dirty_blocks, block_id)}}
@@ -242,26 +244,34 @@ defmodule Ichor.MemoryStore do
   end
 
   def handle_call({:delete_block, block_id}, _from, state) do
-    :ok = Blocks.delete(block_id)
-    {:reply, :ok, %{state | dirty_blocks: MapSet.put(state.dirty_blocks, block_id)}}
+    # Bug 3a fix: dirty affected agents so their block_ids lists are persisted.
+    {dirtied_agents, :ok} = Storage.delete_block(block_id)
+
+    new_state = %{
+      state
+      | dirty_blocks: MapSet.put(state.dirty_blocks, block_id),
+        dirty_agents: Enum.reduce(dirtied_agents, state.dirty_agents, &MapSet.put(&2, &1))
+    }
+
+    {:reply, :ok, new_state}
   end
 
   def handle_call({:list_blocks, opts}, _from, state) do
-    {:reply, {:ok, Blocks.list(opts)}, state}
+    {:reply, {:ok, Storage.list_blocks(opts)}, state}
   end
 
   # Server -- Agent Handlers
 
   def handle_call({:create_agent, name, memory_blocks, extra_block_ids}, _from, state) do
     cond do
-      :ets.info(Tables.agents_table(), :size) >= Tables.max_agents() ->
+      Storage.max_agents_reached?() ->
         {:reply, {:error, :max_agents_reached}, state}
 
-      :ets.lookup(Tables.agents_table(), name) != [] ->
+      Storage.agent_exists?(name) ->
         {:reply, {:error, :already_exists}, state}
 
       true ->
-        {created_ids, dirty} = Blocks.create_many(memory_blocks)
+        {created_ids, dirty} = Storage.create_blocks(memory_blocks)
         dirty = MapSet.union(state.dirty_blocks, dirty)
 
         all_block_ids = Enum.reverse(created_ids) ++ extra_block_ids
@@ -273,7 +283,7 @@ defmodule Ichor.MemoryStore do
           updated_at: DateTime.to_iso8601(DateTime.utc_now())
         }
 
-        :ets.insert(Tables.agents_table(), {name, agent})
+        {:ok, _} = Storage.insert_agent(agent)
         Ichor.Signals.emit(:memory_changed, name, %{agent_name: name, event: :created})
 
         {:reply, {:ok, agent},
@@ -282,15 +292,12 @@ defmodule Ichor.MemoryStore do
   end
 
   def handle_call({:get_agent, name}, _from, state) do
-    case :ets.lookup(Tables.agents_table(), name) do
-      [{^name, agent}] -> {:reply, {:ok, agent}, state}
-      [] -> {:reply, {:error, :not_found}, state}
-    end
+    {:reply, Storage.get_agent(name), state}
   end
 
   def handle_call({:attach_block, agent_name, block_id}, _from, state) do
-    with [{^agent_name, agent}] <- :ets.lookup(Tables.agents_table(), agent_name),
-         {:ok, _block} <- Blocks.get(block_id) do
+    with {:ok, agent} <- Storage.get_agent(agent_name),
+         {:ok, _block} <- Storage.get_block(block_id) do
       if block_id in agent.block_ids do
         {:reply, {:ok, agent}, state}
       else
@@ -300,7 +307,7 @@ defmodule Ichor.MemoryStore do
             updated_at: DateTime.to_iso8601(DateTime.utc_now())
         }
 
-        :ets.insert(Tables.agents_table(), {agent_name, updated})
+        {:ok, _} = Storage.insert_agent(updated)
 
         {:reply, {:ok, updated},
          %{state | dirty_agents: MapSet.put(state.dirty_agents, agent_name)}}
@@ -311,32 +318,32 @@ defmodule Ichor.MemoryStore do
   end
 
   def handle_call({:detach_block, agent_name, block_id}, _from, state) do
-    case :ets.lookup(Tables.agents_table(), agent_name) do
-      [{^agent_name, agent}] ->
+    case Storage.get_agent(agent_name) do
+      {:ok, agent} ->
         updated = %{
           agent
           | block_ids: List.delete(agent.block_ids, block_id),
             updated_at: DateTime.to_iso8601(DateTime.utc_now())
         }
 
-        :ets.insert(Tables.agents_table(), {agent_name, updated})
+        {:ok, _} = Storage.insert_agent(updated)
 
         {:reply, {:ok, updated},
          %{state | dirty_agents: MapSet.put(state.dirty_agents, agent_name)}}
 
-      [] ->
+      {:error, :not_found} ->
         {:reply, {:error, :not_found}, state}
     end
   end
 
   def handle_call(:list_agents, _from, state) do
     agents =
-      :ets.tab2list(Tables.agents_table())
-      |> Enum.map(fn {_name, agent} ->
-        blocks = Blocks.resolve(agent.block_ids)
+      Storage.list_agents()
+      |> Enum.map(fn agent ->
+        blocks = Storage.resolve_blocks(agent.block_ids)
         block_labels = Enum.map(blocks, & &1.label)
-        recall_count = length(Recall.get(agent.name))
-        archival_count = Archival.count(agent.name)
+        recall_count = length(Storage.get_recall(agent.name))
+        archival_count = Storage.count_archival(agent.name)
 
         Map.merge(agent, %{
           block_labels: block_labels,
@@ -344,15 +351,14 @@ defmodule Ichor.MemoryStore do
           archival_count: archival_count
         })
       end)
-      |> Enum.sort_by(& &1.created_at)
 
     {:reply, {:ok, agents}, state}
   end
 
   def handle_call({:read_core_memory, agent_name}, _from, state) do
-    case :ets.lookup(Tables.agents_table(), agent_name) do
-      [{^agent_name, agent}] ->
-        blocks = Blocks.resolve(agent.block_ids)
+    case Storage.get_agent(agent_name) do
+      {:ok, agent} ->
+        blocks = Storage.resolve_blocks(agent.block_ids)
 
         result = %{
           agent: agent_name,
@@ -365,23 +371,24 @@ defmodule Ichor.MemoryStore do
                 read_only: b.read_only
               }
             end),
-          recall_count: length(Recall.get(agent_name)),
-          archival_count: Archival.count(agent_name)
+          recall_count: length(Storage.get_recall(agent_name)),
+          archival_count: Storage.count_archival(agent_name)
         }
 
         {:reply, {:ok, result}, state}
 
-      [] ->
+      {:error, :not_found} ->
         {:reply, {:error, :not_found}, state}
     end
   end
 
   def handle_call({:compile_memory, agent_name}, _from, state) do
-    case :ets.lookup(Tables.agents_table(), agent_name) do
-      [{^agent_name, agent}] ->
-        {:reply, {:ok, agent.block_ids |> Blocks.resolve() |> Blocks.compile()}, state}
+    case Storage.get_agent(agent_name) do
+      {:ok, agent} ->
+        compiled = agent.block_ids |> Storage.resolve_blocks() |> Storage.compile_blocks()
+        {:reply, {:ok, compiled}, state}
 
-      [] ->
+      {:error, :not_found} ->
         {:reply, {:error, :not_found}, state}
     end
   end
@@ -389,8 +396,8 @@ defmodule Ichor.MemoryStore do
   # Server -- Memory Tool Handlers (V2 line-aware)
 
   def handle_call({:memory_replace, agent_name, block_label, old_text, new_text}, _from, state) do
-    with {:ok, block} <- Blocks.find_agent_block(agent_name, block_label),
-         :ok <- Blocks.writable?(block) do
+    with {:ok, block} <- Storage.find_agent_block(agent_name, block_label),
+         :ok <- Storage.writable?(block) do
       do_replace(block, old_text, new_text, state)
     else
       error -> {:reply, error, state}
@@ -398,13 +405,13 @@ defmodule Ichor.MemoryStore do
   end
 
   def handle_call({:memory_insert, agent_name, block_label, position, text}, _from, state) do
-    with {:ok, block} <- Blocks.find_agent_block(agent_name, block_label),
-         :ok <- Blocks.writable?(block) do
+    with {:ok, block} <- Storage.find_agent_block(agent_name, block_label),
+         :ok <- Storage.writable?(block) do
       lines = String.split(block.value, "\n")
       pos = min(max(position, 0), length(lines))
       {before, after_lines} = Enum.split(lines, pos)
 
-      case Blocks.save_value(block, Enum.join(before ++ [text] ++ after_lines, "\n")) do
+      case Storage.save_block_value(block, Enum.join(before ++ [text] ++ after_lines, "\n")) do
         {:ok, updated} ->
           {:reply, {:ok, updated},
            %{state | dirty_blocks: MapSet.put(state.dirty_blocks, block.id)}}
@@ -418,9 +425,9 @@ defmodule Ichor.MemoryStore do
   end
 
   def handle_call({:memory_rethink, agent_name, block_label, new_value}, _from, state) do
-    with {:ok, block} <- Blocks.find_agent_block(agent_name, block_label),
-         :ok <- Blocks.writable?(block) do
-      case Blocks.save_value(block, new_value) do
+    with {:ok, block} <- Storage.find_agent_block(agent_name, block_label),
+         :ok <- Storage.writable?(block) do
+      case Storage.save_block_value(block, new_value) do
         {:ok, updated} ->
           {:reply, {:ok, updated},
            %{state | dirty_blocks: MapSet.put(state.dirty_blocks, block.id)}}
@@ -436,12 +443,12 @@ defmodule Ichor.MemoryStore do
   # Server -- Recall Memory Handlers
 
   def handle_call({:add_recall, agent_name, role, content, metadata}, _from, state) do
-    {:ok, entry} = Recall.add(agent_name, role, content, metadata)
+    {:ok, entry} = Storage.add_recall(agent_name, role, content, metadata)
     {:reply, {:ok, entry}, %{state | dirty_agents: MapSet.put(state.dirty_agents, agent_name)}}
   end
 
   def handle_call({:conversation_search, agent_name, query, opts}, _from, state) do
-    {:reply, {:ok, Recall.search(agent_name, query, opts)}, state}
+    {:reply, {:ok, Storage.search_recall(agent_name, query, opts)}, state}
   end
 
   def handle_call(
@@ -449,27 +456,33 @@ defmodule Ichor.MemoryStore do
         _from,
         state
       ) do
-    {:reply, {:ok, Recall.search_by_date(agent_name, start_date, end_date, opts)}, state}
+    {:reply, {:ok, Storage.search_recall_by_date(agent_name, start_date, end_date, opts)}, state}
   end
 
   # Server -- Archival Memory Handlers
 
   def handle_call({:archival_insert, agent_name, content, tags}, _from, state) do
-    {:ok, passage} = Archival.insert(agent_name, content, tags)
+    {:ok, passage} = Storage.insert_archival(agent_name, content, tags)
+
+    Ichor.Signals.emit(:memory_changed, agent_name, %{
+      agent_name: agent_name,
+      event: :archival_insert
+    })
+
     {:reply, {:ok, passage}, %{state | dirty_agents: MapSet.put(state.dirty_agents, agent_name)}}
   end
 
   def handle_call({:archival_search, agent_name, query, opts}, _from, state) do
-    {:reply, {:ok, Archival.search(agent_name, query, opts)}, state}
+    {:reply, {:ok, Storage.search_archival(agent_name, query, opts)}, state}
   end
 
   def handle_call({:archival_delete, agent_name, passage_id}, _from, state) do
-    :ok = Archival.delete(agent_name, passage_id)
+    :ok = Storage.delete_archival(agent_name, passage_id)
     {:reply, :ok, %{state | dirty_agents: MapSet.put(state.dirty_agents, agent_name)}}
   end
 
   def handle_call({:archival_list, agent_name, opts}, _from, state) do
-    {:reply, {:ok, Archival.list(agent_name, opts)}, state}
+    {:reply, {:ok, Storage.list_archival(agent_name, opts)}, state}
   end
 
   # Server -- Flush
@@ -485,11 +498,16 @@ defmodule Ichor.MemoryStore do
 
   defp schedule_flush, do: Process.send_after(self(), :flush_to_disk, 10_000)
 
+  # Bug 3d fix: parse string dates to ISO strings at the public boundary.
+  # Storage.search_recall_by_date receives plain ISO strings throughout.
+  defp to_iso(%DateTime{} = dt), do: DateTime.to_iso8601(dt)
+  defp to_iso(s) when is_binary(s), do: s
+
   defp do_replace(block, old_text, new_text, state) do
     if String.contains?(block.value, old_text) do
       new_value = String.replace(block.value, old_text, new_text, global: false)
 
-      case Blocks.save_value(block, new_value) do
+      case Storage.save_block_value(block, new_value) do
         {:ok, updated} ->
           {:reply, {:ok, updated},
            %{state | dirty_blocks: MapSet.put(state.dirty_blocks, block.id)}}

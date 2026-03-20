@@ -61,13 +61,15 @@ defmodule Ichor.Tools.Genesis do
       end
 
       argument :brief, :string do
-        allow_nil?(true)
-        description("Original MES brief content")
+        allow_nil?(false)
+        default("")
+        description("Original MES brief content. Empty if not from MES.")
       end
 
       argument :mes_project_id, :string do
-        allow_nil?(true)
-        description("MES Project UUID that spawned this node")
+        allow_nil?(false)
+        default("")
+        description("MES Project UUID that spawned this node. Empty if standalone.")
       end
 
       run(fn input, _context ->

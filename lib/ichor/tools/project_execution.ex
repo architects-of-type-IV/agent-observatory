@@ -216,8 +216,9 @@ defmodule Ichor.Tools.ProjectExecution do
       end
 
       argument :team_name, :string do
-        allow_nil?(true)
-        description("Filter tasks by team name (optional)")
+        allow_nil?(false)
+        default("")
+        description("Filter tasks by team name. Empty for all teams.")
       end
 
       run(fn input, _context ->

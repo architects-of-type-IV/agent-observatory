@@ -5,12 +5,12 @@ defmodule Ichor.MemoryStore.Persistence do
 
   require Logger
 
-  alias Ichor.MemoryStore.Tables
+  alias Ichor.MemoryStore.Storage
 
   @doc "Load all blocks and agents from the configured data directory into ETS."
   @spec load_from_disk() :: :ok
   def load_from_disk do
-    dir = Tables.data_dir()
+    dir = Storage.data_dir()
     load_blocks_from_dir(Path.join(dir, "blocks"))
     load_agents_from_dir(Path.join(dir, "agents"))
   end
@@ -34,7 +34,7 @@ defmodule Ichor.MemoryStore.Persistence do
   @doc "Flush dirty blocks and agents from state to disk."
   @spec flush_dirty(map()) :: :ok
   def flush_dirty(state) do
-    dir = Tables.data_dir()
+    dir = Storage.data_dir()
     flush_dirty_blocks(state, dir)
     flush_dirty_agents(state, dir)
   rescue
@@ -71,13 +71,13 @@ defmodule Ichor.MemoryStore.Persistence do
         label: data["label"],
         description: data["description"] || "",
         value: data["value"] || "",
-        limit: data["limit"] || Tables.default_block_limit(),
+        limit: data["limit"] || Storage.default_block_limit(),
         read_only: data["read_only"] || false,
         created_at: data["created_at"],
         updated_at: data["updated_at"]
       }
 
-      :ets.insert(Tables.blocks_table(), {block.id, block})
+      :ets.insert(Storage.blocks_table(), {block.id, block})
     else
       _ -> Logger.warning("MemoryStore: failed to load block #{path}")
     end
@@ -96,7 +96,7 @@ defmodule Ichor.MemoryStore.Persistence do
           updated_at: data["updated_at"]
         }
 
-        :ets.insert(Tables.agents_table(), {name, agent})
+        :ets.insert(Storage.agents_table(), {name, agent})
       else
         _ -> Logger.warning("MemoryStore: corrupt agent.json for #{name}")
       end
@@ -105,19 +105,29 @@ defmodule Ichor.MemoryStore.Persistence do
     recall_path = Path.join(agent_dir, "recall.jsonl")
 
     if File.exists?(recall_path) do
-      entries = load_jsonl(recall_path)
+      # Bug 3c fix: JSONL is written oldest-first (reversed at flush). Loading
+      # reverses back so the newest entry sits at the head, matching runtime
+      # insert order where [newest | rest].
+      entries =
+        recall_path
+        |> load_jsonl()
+        |> Enum.reverse()
+        |> Enum.take(Storage.recall_limit())
 
-      :ets.insert(
-        Tables.recall_table(),
-        {name, Enum.reverse(entries) |> Enum.take(Tables.recall_limit())}
-      )
+      :ets.insert(Storage.recall_table(), {name, entries})
     end
 
     archival_path = Path.join(agent_dir, "archival.jsonl")
 
     if File.exists?(archival_path) do
-      entries = load_jsonl(archival_path) |> Enum.take(Tables.archival_ets_limit())
-      :ets.insert(Tables.archival_table(), {name, entries})
+      # Bug 3c fix: same reversal for archival -- newest first in ETS.
+      entries =
+        archival_path
+        |> load_jsonl()
+        |> Enum.reverse()
+        |> Enum.take(Storage.archival_ets_limit())
+
+      :ets.insert(Storage.archival_table(), {name, entries})
     end
 
     Logger.debug("MemoryStore: loaded agent #{name}")
@@ -134,7 +144,7 @@ defmodule Ichor.MemoryStore.Persistence do
   defp flush_single_block(block_id, blocks_dir) do
     path = Path.join(blocks_dir, "#{block_id}.json")
 
-    case :ets.lookup(Tables.blocks_table(), block_id) do
+    case :ets.lookup(Storage.blocks_table(), block_id) do
       [{^block_id, block}] -> File.write!(path, Jason.encode!(block, pretty: true))
       [] -> if File.exists?(path), do: File.rm(path)
     end
@@ -151,7 +161,7 @@ defmodule Ichor.MemoryStore.Persistence do
   end
 
   defp flush_agent_config(agent_name, agent_dir) do
-    case :ets.lookup(Tables.agents_table(), agent_name) do
+    case :ets.lookup(Storage.agents_table(), agent_name) do
       [{^agent_name, agent}] ->
         File.write!(Path.join(agent_dir, "agent.json"), Jason.encode!(agent, pretty: true))
 
@@ -162,12 +172,14 @@ defmodule Ichor.MemoryStore.Persistence do
 
   defp flush_agent_recall(agent_name, agent_dir) do
     recall =
-      case :ets.lookup(Tables.recall_table(), agent_name) do
+      case :ets.lookup(Storage.recall_table(), agent_name) do
         [{^agent_name, entries}] -> entries
         [] -> []
       end
 
     if recall != [] do
+      # ETS stores newest-first; write oldest-first to JSONL so load order is
+      # oldest → newest, matching chronological append convention.
       lines = recall |> Enum.reverse() |> Enum.map_join("\n", &Jason.encode!/1)
       File.write!(Path.join(agent_dir, "recall.jsonl"), lines <> "\n")
     end
@@ -175,38 +187,17 @@ defmodule Ichor.MemoryStore.Persistence do
 
   defp flush_agent_archival(agent_name, agent_dir) do
     archival =
-      case :ets.lookup(Tables.archival_table(), agent_name) do
+      case :ets.lookup(Storage.archival_table(), agent_name) do
         [{^agent_name, entries}] -> entries
         [] -> []
       end
 
+    # Bug 3b fix: full rewrite of current ETS state rather than append-only.
+    # Deleted passages would otherwise remain in the JSONL file indefinitely.
     if archival != [] do
       archival_path = Path.join(agent_dir, "archival.jsonl")
-      existing_ids = load_existing_archival_ids(archival_path)
-      new_entries = Enum.reject(archival, fn entry -> MapSet.member?(existing_ids, entry.id) end)
-
-      if new_entries != [] do
-        append_lines = new_entries |> Enum.reverse() |> Enum.map_join("\n", &Jason.encode!/1)
-        File.write!(archival_path, append_lines <> "\n", [:append])
-      end
-    end
-  end
-
-  defp load_existing_archival_ids(path) do
-    if File.exists?(path) do
-      path
-      |> File.stream!()
-      |> Stream.map(&String.trim/1)
-      |> Stream.reject(&(&1 == ""))
-      |> Stream.map(&Jason.decode/1)
-      |> Stream.filter(fn
-        {:ok, _} -> true
-        _ -> false
-      end)
-      |> Stream.map(fn {:ok, data} -> data["id"] end)
-      |> MapSet.new()
-    else
-      MapSet.new()
+      lines = archival |> Enum.reverse() |> Enum.map_join("\n", &Jason.encode!/1)
+      File.write!(archival_path, lines <> "\n")
     end
   end
 

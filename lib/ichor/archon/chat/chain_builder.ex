@@ -3,14 +3,9 @@ defmodule Ichor.Archon.Chat.ChainBuilder do
   Builds the Archon LLM chain and mounts the AshAi toolset.
   """
 
-  alias Ichor.Tools.Archon.Agents
-  alias Ichor.Tools.Archon.Control
-  alias Ichor.Tools.Archon.Events
   alias Ichor.Tools.Archon.Memory
-  alias Ichor.Tools.Archon.Mes
-  alias Ichor.Tools.Archon.Messages
-  alias Ichor.Tools.Archon.System, as: SystemTools
-  alias Ichor.Tools.Archon.Teams
+  alias Ichor.Tools.ProjectExecution
+  alias Ichor.Tools.RuntimeOps
   alias LangChain.Chains.LLMChain
   alias LangChain.ChatModels.ChatOpenAI
   alias LangChain.Message
@@ -53,14 +48,9 @@ defmodule Ichor.Archon.Chat.ChainBuilder do
           |> AshAi.setup_ash_ai(
             otp_app: :ichor,
             actions: [
-              {Agents, :*},
-              {Teams, :*},
-              {Messages, :*},
-              {SystemTools, :*},
-              {Control, :*},
-              {Events, :*},
-              {Memory, [:remember]},
-              {Mes, :*}
+              {RuntimeOps, :*},
+              {ProjectExecution, :*},
+              {Memory, [:remember]}
             ]
           )
 

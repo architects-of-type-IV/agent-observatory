@@ -73,7 +73,7 @@ defmodule Ichor.Projects.TeamCleanup do
   @doc "Returns a MapSet of tmux session names for all active RunProcesses."
   @spec active_team_names() :: MapSet.t(String.t())
   def active_team_names do
-    run_process_module().list_all()
+    run_process_module().list_all(:mes)
     |> Enum.map(fn {run_id, _pid} -> TeamSpecBuilder.session_name(run_id) end)
     |> MapSet.new()
   end
@@ -117,6 +117,6 @@ defmodule Ichor.Projects.TeamCleanup do
   end
 
   defp run_process_module do
-    Application.get_env(:ichor, :mes_run_process_module, Ichor.Projects.BuildRunner)
+    Application.get_env(:ichor, :mes_run_process_module, Ichor.Projects.Runner)
   end
 end

@@ -247,11 +247,8 @@ Internal helpers behind the local memory system.
 
 | Module | Type | Responsibilities |
 | --- | --- | --- |
-| `Ichor.MemoryStore.Archival` | Plain Module | Archives and searches long-term memory passages. |
-| `Ichor.MemoryStore.Blocks` | Plain Module | Shapes core memory blocks and performs ETS operations. |
 | `Ichor.MemoryStore.Persistence` | Plain Module | Saves and loads memory snapshots to disk. |
-| `Ichor.MemoryStore.Recall` | Plain Module | Performs conversation recall/search. |
-| `Ichor.MemoryStore.Tables` | Plain Module | Centralizes ETS table names and limits. |
+| `Ichor.MemoryStore.Storage` | Plain Module | All ETS operations: block CRUD, agent CRUD, recall, and archival. |
 
 ## `/lib/ichor/mesh`
 

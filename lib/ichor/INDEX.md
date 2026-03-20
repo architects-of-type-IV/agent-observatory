@@ -151,11 +151,8 @@ Quick reference for the `lib/ichor` tree. This index is intentionally terse; see
 
 ## `memory_store`
 
-- `Ichor.MemoryStore.Archival` - Archival-memory operations over ETS/disk-backed storage.
-- `Ichor.MemoryStore.Blocks` - Core memory block shaping and ETS access helpers.
 - `Ichor.MemoryStore.Persistence` - Disk persistence helpers for memory snapshots.
-- `Ichor.MemoryStore.Recall` - Recall/search operations over stored memory.
-- `Ichor.MemoryStore.Tables` - Shared ETS table names and limits.
+- `Ichor.MemoryStore.Storage` - All ETS operations: block CRUD, agent CRUD, recall, and archival.
 
 ## `mesh`
 

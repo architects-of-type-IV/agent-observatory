@@ -4,44 +4,39 @@ defmodule Ichor.Archon.Chat.CommandRegistry do
   """
 
   alias Ichor.Archon.CommandManifest
-  alias Ichor.Tools.Archon.Agents
-  alias Ichor.Tools.Archon.Control
-  alias Ichor.Tools.Archon.Events
-  alias Ichor.Tools.Archon.Manager
-  alias Ichor.Tools.Archon.Memory
-  alias Ichor.Tools.Archon.Mes
-  alias Ichor.Tools.Archon.Messages
-  alias Ichor.Tools.Archon.System, as: SystemTools
-  alias Ichor.Tools.Archon.Teams
+  alias Ichor.Tools.ArchonMemory
+  alias Ichor.Tools.ProjectExecution
+  alias Ichor.Tools.RuntimeOps
 
   @doc "Dispatch a parsed command map to its corresponding Ash action."
   @spec dispatch(map()) :: {:ok, %{type: atom(), data: term()}} | {:error, term()}
-  def dispatch(%{command: "/agents"}), do: run(:agents, Agents, :list_live_agents, %{})
-  def dispatch(%{command: "/teams"}), do: run(:teams, Teams, :list_teams, %{})
-  def dispatch(%{command: "/inbox"}), do: run(:inbox, Messages, :recent_messages, %{})
-  def dispatch(%{command: "/health"}), do: run(:health, SystemTools, :system_health, %{})
-  def dispatch(%{command: "/sessions"}), do: run(:sessions, SystemTools, :tmux_sessions, %{})
+  def dispatch(%{command: "/agents"}), do: run(:agents, RuntimeOps, :list_live_agents, %{})
+  def dispatch(%{command: "/teams"}), do: run(:teams, RuntimeOps, :list_teams, %{})
+  def dispatch(%{command: "/inbox"}), do: run(:inbox, RuntimeOps, :recent_messages, %{})
+  def dispatch(%{command: "/health"}), do: run(:health, RuntimeOps, :system_health, %{})
+  def dispatch(%{command: "/sessions"}), do: run(:sessions, RuntimeOps, :tmux_sessions, %{})
 
   def dispatch(%{command: "/manager"}),
-    do: run(:manager_snapshot, Manager, :manager_snapshot, %{})
+    do: run(:manager_snapshot, RuntimeOps, :manager_snapshot, %{})
 
   def dispatch(%{command: "/attention"}),
-    do: run(:attention_queue, Manager, :attention_queue, %{})
+    do: run(:attention_queue, RuntimeOps, :attention_queue, %{})
 
   def dispatch(%{command: "/tasks", remainder: nil}),
-    do: run(:fleet_tasks, Events, :fleet_tasks, %{})
+    do: run(:fleet_tasks, RuntimeOps, :fleet_tasks, %{})
 
-  def dispatch(%{command: "/sweep"}), do: run(:sweep, Control, :sweep, %{})
+  def dispatch(%{command: "/sweep"}), do: run(:sweep, RuntimeOps, :sweep, %{})
 
   def dispatch(%{command: "/projects", remainder: nil}),
-    do: run(:projects, Mes, :list_projects, %{})
+    do: run(:projects, ProjectExecution, :list_projects, %{})
 
-  def dispatch(%{command: "/mes"}), do: run(:mes_status, Mes, :mes_status, %{})
+  def dispatch(%{command: "/mes"}), do: run(:mes_status, ProjectExecution, :mes_status, %{})
 
   def dispatch(%{command: "/operator-inbox"}),
-    do: run(:operator_inbox, Mes, :check_operator_inbox, %{})
+    do: run(:operator_inbox, ProjectExecution, :check_operator_inbox, %{})
 
-  def dispatch(%{command: "/cleanup-mes"}), do: run(:cleanup_mes, Mes, :cleanup_mes, %{})
+  def dispatch(%{command: "/cleanup-mes"}),
+    do: run(:cleanup_mes, ProjectExecution, :cleanup_mes, %{})
 
   def dispatch(%{command: "/msg", remainder: nil}),
     do: {:ok, %{type: :error, data: "Usage: /msg <target> <message>"}}
@@ -66,7 +61,7 @@ defmodule Ichor.Archon.Chat.CommandRegistry do
   def dispatch(%{command: "/query", remainder: nil}), do: {:ok, usage_error("/query <question>")}
 
   def dispatch(%{command: "/status", remainder: agent_id}) when is_binary(agent_id) do
-    run(:agent_status, Agents, :agent_status, %{agent_id: String.trim(agent_id)})
+    run(:agent_status, RuntimeOps, :agent_status, %{agent_id: String.trim(agent_id)})
   end
 
   def dispatch(%{command: "/events", remainder: rest}) when is_binary(rest) do
@@ -74,50 +69,53 @@ defmodule Ichor.Archon.Chat.CommandRegistry do
       [agent_id, limit] ->
         case Integer.parse(String.trim(limit)) do
           {n, ""} ->
-            run(:agent_events, Events, :agent_events, %{agent_id: String.trim(agent_id), limit: n})
+            run(:agent_events, RuntimeOps, :agent_events, %{
+              agent_id: String.trim(agent_id),
+              limit: n
+            })
 
           _ ->
-            run(:agent_events, Events, :agent_events, %{agent_id: String.trim(agent_id)})
+            run(:agent_events, RuntimeOps, :agent_events, %{agent_id: String.trim(agent_id)})
         end
 
       [agent_id] ->
-        run(:agent_events, Events, :agent_events, %{agent_id: String.trim(agent_id)})
+        run(:agent_events, RuntimeOps, :agent_events, %{agent_id: String.trim(agent_id)})
     end
   end
 
   def dispatch(%{command: "/tasks", remainder: team_name}) when is_binary(team_name) do
-    run(:fleet_tasks, Events, :fleet_tasks, %{team_name: String.trim(team_name)})
+    run(:fleet_tasks, RuntimeOps, :fleet_tasks, %{team_name: String.trim(team_name)})
   end
 
   def dispatch(%{command: "/stop", remainder: agent_id}) when is_binary(agent_id) do
-    run(:stop_agent, Control, :stop_agent, %{agent_id: String.trim(agent_id)})
+    run(:stop_agent, RuntimeOps, :stop_agent, %{agent_id: String.trim(agent_id)})
   end
 
   def dispatch(%{command: "/pause", remainder: rest}) when is_binary(rest) do
     case String.split(rest, " ", parts: 2) do
       [agent_id, reason] ->
-        run(:pause_agent, Control, :pause_agent, %{
+        run(:pause_agent, RuntimeOps, :pause_agent, %{
           agent_id: String.trim(agent_id),
           reason: String.trim(reason)
         })
 
       [agent_id] ->
-        run(:pause_agent, Control, :pause_agent, %{agent_id: String.trim(agent_id)})
+        run(:pause_agent, RuntimeOps, :pause_agent, %{agent_id: String.trim(agent_id)})
     end
   end
 
   def dispatch(%{command: "/resume", remainder: agent_id}) when is_binary(agent_id) do
-    run(:resume_agent, Control, :resume_agent, %{agent_id: String.trim(agent_id)})
+    run(:resume_agent, RuntimeOps, :resume_agent, %{agent_id: String.trim(agent_id)})
   end
 
   def dispatch(%{command: "/spawn", remainder: prompt}) when is_binary(prompt) do
-    run(:spawn_agent, Control, :spawn_agent, %{prompt: String.trim(prompt)})
+    run(:spawn_agent, RuntimeOps, :spawn_archon_agent, %{prompt: String.trim(prompt)})
   end
 
   def dispatch(%{command: "/msg", remainder: rest}) when is_binary(rest) do
     case String.split(rest, " ", parts: 2) do
       [to, content] ->
-        run(:msg_sent, Messages, :operator_send_message, %{to: to, content: content})
+        run(:msg_sent, RuntimeOps, :operator_send_message, %{to: to, content: content})
 
       [_to_only] ->
         {:ok, %{type: :error, data: "Usage: /msg <target> <message>"}}
@@ -125,19 +123,19 @@ defmodule Ichor.Archon.Chat.CommandRegistry do
   end
 
   def dispatch(%{command: "/projects", remainder: status}) when is_binary(status) do
-    run(:projects, Mes, :list_projects, %{status: String.trim(status)})
+    run(:projects, ProjectExecution, :list_projects, %{status: String.trim(status)})
   end
 
   def dispatch(%{command: "/remember", remainder: content}) when is_binary(content) do
-    run(:remember, Memory, :remember, %{content: String.trim(content)})
+    run(:remember, ArchonMemory, :remember, %{content: String.trim(content)})
   end
 
   def dispatch(%{command: "/recall", remainder: query}) when is_binary(query) do
-    run(:recall, Memory, :search_memory, %{query: String.trim(query)})
+    run(:recall, ArchonMemory, :search_memory, %{query: String.trim(query)})
   end
 
   def dispatch(%{command: "/query", remainder: question}) when is_binary(question) do
-    run(:query, Memory, :query_memory, %{query: String.trim(question)})
+    run(:query, ArchonMemory, :query_memory, %{query: String.trim(question)})
   end
 
   def dispatch(%{command: command}) do
