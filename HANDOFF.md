@@ -1,85 +1,41 @@
 # ICHOR IV - Handoff
 
-## Current Status: Session 5 -- Phase 4 Tool Collapse + MES Fixes (2026-03-20)
+## Current Status: Session 3 Complete (2026-03-20)
 
-### What Was Done: Phase 4 Tool Surface Collapse (21 modules → 6)
+### Summary
+All 5 simplification phases complete. 228 → 195 files. Build/credo/dialyzer clean. Pushed to origin.
 
-**New consolidated tool modules:**
-- `RuntimeOps` -- 18 actions merged from 9 modules
-- `AgentMemory` -- 10 actions merged from 4 modules
-- `ProjectExecution` -- 14 actions merged from 3 modules
-- `Genesis` -- 18 actions merged from 4 modules + formatter
-- `ArchonMemory` -- stays as-is (already single file)
-- 20 tool modules deleted, all tool names preserved
+### What Was Done
+1. **Phase 1** -- Deleted trivial wrappers (12 modules)
+2. **Phase 2** -- Events.Runtime + Messages.Bus (unified event/messaging)
+3. **Phase 3** -- Unified Runner GenServer (replaced 3 runners)
+4. **Phase 4** -- Tool surface 21→6 modules
+5. **Phase 5** -- MemoryStore 6→3 modules + 5 bug fixes
+6. **37 audit findings** fixed
+7. **Oban installed** (SQLite, 5 queues, no workers yet)
+8. **All team prompts** unified (READY handshake, CRITICAL RULES)
+9. **MES fixes** -- duplicate brief guard, coordinator patience, scheduler tick
+10. **UI** -- transport badge, message dedup, MES sidebar wider
+11. **OpenAI schema** -- all tool args made required with defaults
+12. **Mode A button** -- completed state now clickable
 
-**MES duplicate briefs fix:**
-- Planner prompt updated
-- ResearchContext broadened
-- ProjectIngestor guard added
+### Build
+- `mix compile --warnings-as-errors` CLEAN
+- `mix credo --strict` CLEAN
+- `mix dialyzer` CLEAN
 
-**MES UI:**
-- Sidebar wider (300px)
-- Font sizes increased
-- Subsystem list capped
+### File Count: 195 (target 60)
 
-**Build**: `mix compile --warnings-as-errors` EXIT:0, `mix credo --strict` 0 issues
+### Next Steps (codex analysed)
+**Level 1 (195→~155):** Fold private children into parents (~30-40 files)
+**Level 2 (~155→~60):** Domain model consolidation:
+- 5 Genesis artifacts → 1 `Artifact` with `kind`
+- 4 roadmap items → 1 `RoadmapItem` with `kind` + `parent_id`
+- 4 workshop blueprint resources → 1 embedded blueprint model
 
----
-
-## Previous: Session 5 -- MES Team Launch Regression Fix (2026-03-20)
-
-### What Was Done: Bugfix -- MES team not starting after unified Runner
-
-**Root cause**: `Scheduler.spawn_run/0` calls `Runner.start(:mes, ...)` but never calls
-`TeamLaunch.launch(spec)` to start the tmux team. DAG and Genesis both call
-`TeamLaunch.launch(spec)` BEFORE starting their Runner. MES's `on_init` hook only registered
-with the Janitor -- it did NOT launch the team. The launch call was missing entirely.
-
-**Fix**: `Hooks.MES.on_init/1` now builds the spec via `TeamSpecBuilder.build_team_spec/2`
-and calls `team_launch().launch(spec)` before calling `Janitor.monitor_run/2`. Errors are
-emitted as `:mes_cycle_failed` signals.
-
-**File changed**: `lib/ichor/projects/runner/hooks/mes.ex`
-
-**Build**: `mix compile --warnings-as-errors` EXIT:0
-
----
-
-## Previous: Session 5 -- Phase 2 Simplification Steps 4-5 (2026-03-20)
-
-### What Was Done: Phase 2 Steps 4-5 (Message Bus)
-
-**Step 4: Created `lib/ichor/messages/bus.ex`** (`Ichor.Messages.Bus`)
-- Replaces `Ichor.MessageRouter` as single delivery authority
-- `resolve_target/1` promoted to public `resolve/1` (tagged tuples)
-- API: `send/1`, `recent_messages/1`, `start_message_log/0`, `resolve/1`
-
-**Step 5: Repointed 10 callers to `Bus`**
-- `application.ex`, `agent_watchdog.ex`, `control/agent.ex`, `quality_gate.ex`
-- `tools/archon/messages.ex`, `tools/agent/inbox.ex`
-- `dashboard_messaging_handlers.ex`, `dashboard_dag_handlers.ex`
-- `dashboard_session_control_handlers.ex`, `dashboard_state.ex`
-- Trashed: `lib/ichor/message_router.ex` → `tmp/trash/`
-
-**Build**: `mix compile --warnings-as-errors` EXIT:0, `mix credo --strict` EXIT:0
-
-### What Remains (Steps 6-8)
-- Step 6: `event_bridge.ex` (do NOT touch yet)
-- Step 7: `protocol_tracker.ex` (do NOT touch yet)
-- Step 8: Full `gateway/router.ex` consolidation (do NOT touch yet)
-
----
-
-## Previous: Session 5 -- Projects Domain Simplification Phase 1 (2026-03-20)
-
-**Modules trashed:**
-- `PlanSupervisor`, `ExecutionSupervisor` -- single-child DynamicSupervisor wrappers
-- `RunSupervisor` -- facade over `DynRunSupervisor`
-- `RunnerRegistry` -- convenience rename over Registry calls
-- `TeamLifecycle` -- thin orchestration wrapper around `TeamCleanup`
-
-**TeamCleanup kept** -- real logic: signal emissions, file cleanup, orphan detection.
-
-### Build Status
-- `mix compile --warnings-as-errors`: EXIT 0
-- `mix credo --strict`: 0 issues
+### Key Files
+- `lib/ichor/projects/runner.ex` -- unified Runner
+- `lib/ichor/messages/bus.ex` -- single delivery authority
+- `lib/ichor/events/runtime.ex` -- canonical event pipeline
+- `docs/plans/2026-03-20-0927-phased-plan.md` -- 5-phase plan
+- `docs/plans/2026-03-20-0916-audit-simplify.md` -- codex deep analysis

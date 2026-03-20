@@ -19,7 +19,7 @@
 - `resolve/1` is public (was private `resolve_target/1` in MessageRouter)
 - Gateway.Router still has its own private `resolve/1` returning recipient maps (different shape)
 
-## File Structure (309 files checked, tool surface collapsed)
+## File Structure (195 files, target 60)
 - control/ -- agent lifecycle, fleet, workshop, lifecycle/
 - projects/ -- genesis planning, MES lifecycle, DAG execution
 - observability/ -- events, activity, preparations
@@ -54,8 +54,26 @@
 - MES coordinator waits for READY handshake before dispatching. No deadline/fallback.
 - Scheduler resume triggers immediate tick (no 60s wait).
 
-## Oban Candidates (identified, not yet installed)
-- Strong: webhook_router, cron_scheduler, quality_gate, memories ingest, janitor
+## Oban (installed, no workers yet)
+- SQLite-compatible, 5 queues: webhooks:10, quality_gate:4, memories:2, maintenance:1, scheduled:2
+- Strong migration candidates: webhook_router, cron_scheduler, quality_gate, memories ingest, janitor
+
+## Unified Runner
+- One GenServer: `Ichor.Projects.Runner` with data-driven `%Mode{}` config
+- MES/Genesis/DAG are mode configs, not separate process stacks
+- Hooks for truly different behavior: MES (quality gate, corrective agents), DAG (health, stale jobs)
+- Genesis is purely config-driven (no hooks)
+
+## MemoryStore (consolidated)
+- 3 modules: MemoryStore (GenServer), Storage (ETS ops), Persistence (disk I/O)
+- 5 bugs fixed: block delete dirtying, archival rewrite, load order, DateTime parsing, signal centralization
+
+## Next Reduction Path (codex analysed)
+- Level 1: fold private children into parents (~30-40 files, 195→~155)
+- Level 2: domain model consolidation (~155→~60):
+  - 5 Genesis artifacts → 1 Artifact with kind
+  - 4 roadmap items → 1 RoadmapItem with kind + parent_id
+  - 4 workshop blueprints → 1 embedded blueprint model
 
 ## User Preferences
 - Codex is an equal architectural partner. Give raw data, let it form conclusions.
