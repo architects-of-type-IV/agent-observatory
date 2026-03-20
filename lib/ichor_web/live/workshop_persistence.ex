@@ -9,7 +9,6 @@ defmodule IchorWeb.WorkshopPersistence do
 
   alias Ichor.Control.AgentType
   alias Ichor.Control.BlueprintState
-  alias Ichor.Control.Persistence
   alias Ichor.Control.TeamBlueprint
 
   @spec list_blueprints() :: [map()]
@@ -42,14 +41,14 @@ defmodule IchorWeb.WorkshopPersistence do
   end
 
   def handle_event("ws_load_blueprint", %{"id" => id}, socket) do
-    case Persistence.load_blueprint(socket.assigns, id) do
+    case load_blueprint(socket.assigns, id) do
       {:ok, state} -> {:noreply, socket |> assign_workshop_state(state) |> push_ws_state()}
       {:error, _} -> {:noreply, flash(socket, :error, "Blueprint not found")}
     end
   end
 
   def handle_event("ws_delete_blueprint", %{"id" => id}, socket) do
-    case Persistence.delete_blueprint(id) do
+    case delete_blueprint(id) do
       :ok ->
         socket =
           if socket.assigns[:ws_blueprint_id] == id,
@@ -74,12 +73,37 @@ defmodule IchorWeb.WorkshopPersistence do
 
   @spec auto_save(Phoenix.LiveView.Socket.t()) :: Phoenix.LiveView.Socket.t()
   def auto_save(socket) do
-    case Persistence.save_blueprint(socket.assigns[:ws_blueprint_id], socket.assigns) do
+    case save_blueprint(socket.assigns[:ws_blueprint_id], socket.assigns) do
       {:ok, bp} ->
         socket |> assign(:ws_blueprint_id, bp.id) |> assign(:ws_blueprints, list_blueprints())
 
       {:error, _} ->
         socket
+    end
+  end
+
+  defp save_blueprint(nil, state) do
+    TeamBlueprint.create(BlueprintState.to_persistence_params(state))
+  end
+
+  defp save_blueprint(id, state) do
+    params = BlueprintState.to_persistence_params(state)
+
+    case TeamBlueprint.by_id(id) do
+      {:ok, blueprint} -> TeamBlueprint.update(blueprint, params)
+      {:error, _} -> TeamBlueprint.create(params)
+    end
+  end
+
+  defp load_blueprint(state, id) do
+    with {:ok, blueprint} <- TeamBlueprint.by_id(id) do
+      {:ok, BlueprintState.apply_blueprint(state, blueprint)}
+    end
+  end
+
+  defp delete_blueprint(id) do
+    with {:ok, blueprint} <- TeamBlueprint.by_id(id) do
+      TeamBlueprint.destroy(blueprint)
     end
   end
 

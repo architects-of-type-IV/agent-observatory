@@ -250,3 +250,14 @@
 - [x] Fixed 6 credo alias ordering issues
 - [x] mix compile --warnings-as-errors: clean
 - [x] mix credo --strict: 0 issues
+
+## Projects Domain Simplification Phase 1 (2026-03-20) -- COMPLETE
+- [x] Deleted PlanSupervisor (single-child DynamicSupervisor wrapper)
+- [x] Deleted ExecutionSupervisor (single-child DynamicSupervisor wrapper)
+- [x] Both DynamicSupervisors now started directly in application.ex
+- [x] Deleted RunSupervisor (DynRunSupervisor facade) -- inlined in spawner.ex
+- [x] Deleted RunnerRegistry (Registry convenience wrapper) -- Registry calls inlined in BuildRunner, PlanRunner, RunProcess
+- [x] Deleted TeamLifecycle (thin orchestration wrapper) -- spawn logic inlined into BuildRunner with config injection preserved
+- [x] TeamCleanup KEPT (real logic: signals, file cleanup, orphan detection) -- called directly by Janitor + Mes tool (removing TeamLifecycle layer)
+- [x] mix compile --warnings-as-errors: CLEAN (322 files)
+- [x] mix credo --strict: 0 issues

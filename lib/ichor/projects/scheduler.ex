@@ -1,7 +1,7 @@
 defmodule Ichor.Projects.Scheduler do
   @moduledoc """
   Fires every 60 seconds. Spawns one MES run per tick as a RunProcess
-  under the Mes.RunSupervisor DynamicSupervisor.
+  under Ichor.Projects.BuildRunSupervisor (DynamicSupervisor).
 
   Active run count is derived from Ichor.Registry (no local state tracking).
   RunProcess owns its own kill timer. Cleanup is handled by Mes.Janitor.

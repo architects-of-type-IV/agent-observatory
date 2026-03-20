@@ -17,7 +17,6 @@ defmodule Ichor.Projects.PlanRunner do
   alias Ichor.Control.Lifecycle.TeamLaunch
   alias Ichor.Control.Lifecycle.TeamSpec
   alias Ichor.Control.Lifecycle.TmuxLauncher
-  alias Ichor.Projects.RunnerRegistry
   alias Ichor.Signals
   alias Ichor.Signals.Message
 
@@ -42,15 +41,24 @@ defmodule Ichor.Projects.PlanRunner do
 
   @doc "Returns the via-tuple for Registry-based name lookup."
   @spec via(String.t()) :: {:via, Registry, {Ichor.Registry, {:genesis_run, String.t()}}}
-  def via(run_id), do: RunnerRegistry.via(:genesis_run, run_id)
+  def via(run_id), do: {:via, Registry, {Ichor.Registry, {:genesis_run, run_id}}}
 
   @doc "Returns the pid for run_id if alive, or nil."
   @spec lookup(String.t()) :: pid() | nil
-  def lookup(run_id), do: RunnerRegistry.lookup(:genesis_run, run_id)
+  def lookup(run_id) do
+    case Registry.lookup(Ichor.Registry, {:genesis_run, run_id}) do
+      [{pid, _}] -> pid
+      [] -> nil
+    end
+  end
 
   @doc "Lists all active genesis run IDs and their process PIDs."
   @spec list_all() :: [{String.t(), pid()}]
-  def list_all, do: RunnerRegistry.list_all(:genesis_run)
+  def list_all do
+    Registry.select(Ichor.Registry, [
+      {{{:genesis_run, :"$1"}, :"$2", :_}, [], [{{:"$1", :"$2"}}]}
+    ])
+  end
 
   @impl true
   def init(opts) do

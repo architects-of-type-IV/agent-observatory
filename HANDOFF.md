@@ -1,34 +1,33 @@
 # ICHOR IV - Handoff
 
-## Current Status: Session 4 -- Audit Fixes + Commit (2026-03-20)
+## Current Status: Session 5 -- Projects Domain Simplification Phase 1 (2026-03-20)
 
 ### What Was Done This Session
 
-Multiple concurrent agents resolved 37 audit findings across 4 audit reports:
+Phase 1 simplification: deleted 5 trivial wrapper modules in the Projects domain (TeamCleanup kept).
 
-1. **Job after_action hooks → FromAsh notifier** — Replaced imperative hooks with declarative Ash.Notifier pattern on the Job resource.
-2. **QualityGate dead :TaskCompleted handler removed** — Dead handler eliminated.
-3. **GenesisGates Map.fetch! crash fixed** — Safe access pattern, no more KeyError.
-4. **maybe_put/3 deduplicated → MapUtils** — Shared utility, callers updated.
-5. **strip_ansi extracted → AnsiUtils** — Single canonical implementation.
-6. **map_intent extracted → IntentMapper** — Pure transformation module.
-7. **parse_timestamp deduplicated → DateUtils** — Single canonical implementation.
-8. **WebhookRouter wrappers removed** — Direct resource calls.
-9. **Session/Event code_interface added** — Resources now expose direct call API.
-10. **Phase with_hierarchy action added** — Composite read action for nested data.
-11. **Error.by_tool self-referential call fixed** — Was calling itself recursively.
-12. **SyncRunProcess change module added** — New Ash change for sync run wiring.
-13. **Architecture docs: INDEX.md, ARCHITECTURE.md, MODULES.md** — Added project docs.
+**Modules trashed (moved to tmp/trash/):**
+- `PlanSupervisor` -- single-child DynamicSupervisor wrapper. Now `{DynamicSupervisor, name: Ichor.Projects.PlanRunSupervisor, ...}` directly in `application.ex`
+- `ExecutionSupervisor` -- same pattern. Now `{DynamicSupervisor, name: Ichor.Projects.DynRunSupervisor, ...}` directly in `application.ex`
+- `RunSupervisor` -- facade over `DynRunSupervisor`. `DynamicSupervisor.start_child` inlined directly in `spawner.ex`
+- `RunnerRegistry` -- convenience rename over Registry calls. `Registry.lookup/select` + via-tuple inlined into `BuildRunner`, `PlanRunner`, `RunProcess`
+- `TeamLifecycle` -- thin orchestration wrapper around `TeamCleanup`. Spawn logic moved into `BuildRunner` directly, with config injection preserved (`:mes_team_spec_builder_module`, `:mes_team_launch_module`, `:mes_team_cleanup_module`)
+
+**TeamCleanup kept** -- it has real implementation: signal emissions, file cleanup, orphan detection. `Janitor` and `Ichor.Tools.Archon.Mes` now call `TeamCleanup` directly (one fewer indirection hop).
+
+### Files Changed
+- `lib/ichor/application.ex` -- removed PlanSupervisor + ExecutionSupervisor, DynamicSupervisors inline
+- `lib/ichor/projects/spawner.ex` -- RunSupervisor.start_run → DynamicSupervisor.start_child inline
+- `lib/ichor/projects/plan_runner.ex` -- RunnerRegistry calls → Registry inline
+- `lib/ichor/projects/run_process.ex` -- RunnerRegistry calls → Registry inline
+- `lib/ichor/projects/build_runner.ex` -- RunnerRegistry + TeamLifecycle inlined, 3 config helpers added
+- `lib/ichor/projects/janitor.ex` -- TeamLifecycle → TeamCleanup direct
+- `lib/ichor/tools/archon/mes.ex` -- TeamLifecycle → TeamCleanup direct
+- `lib/ichor/projects/scheduler.ex` -- stale comment updated
 
 ### Build Status
-- `mix compile --warnings-as-errors` — CLEAN
-- `mix credo --strict` — CLEAN (0 issues, 331 files checked)
-- Git: pending commit
+- `mix compile --warnings-as-errors`: EXIT 0 (322 files)
+- `mix credo --strict`: 0 issues
 
-### Key Files Changed
-- `lib/ichor/control/map_utils.ex` — new shared MapUtils
-- `lib/ichor/control/ansi_utils.ex` — new AnsiUtils
-- `lib/ichor/projects/intent_mapper.ex` — new IntentMapper
-- `lib/ichor/control/date_utils.ex` — new DateUtils
-- `lib/ichor/control/sync_run_process.ex` — new SyncRunProcess change
-- Architecture: `INDEX.md`, `ARCHITECTURE.md`, `MODULES.md`
+### Next Steps
+Continue with additional simplification passes as directed.

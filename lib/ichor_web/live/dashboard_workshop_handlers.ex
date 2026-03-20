@@ -9,8 +9,7 @@ defmodule IchorWeb.DashboardWorkshopHandlers do
 
   alias Ichor.Control.AgentType
   alias Ichor.Control.BlueprintState
-  alias Ichor.Control.Lifecycle
-  alias Ichor.Control.Persistence, as: WorkshopPersistence
+  alias Ichor.Control.Lifecycle.TeamLaunch
   alias Ichor.Control.Presets
   alias Ichor.Control.TeamBlueprint
   alias Ichor.Control.TeamSpecBuilder
@@ -125,7 +124,7 @@ defmodule IchorWeb.DashboardWorkshopHandlers do
 
   def handle_event("ws_clear", _, socket) do
     if bp_id = socket.assigns[:ws_blueprint_id] do
-      _ = WorkshopPersistence.delete_blueprint(bp_id)
+      with {:ok, blueprint} <- TeamBlueprint.by_id(bp_id), do: TeamBlueprint.destroy(blueprint)
     end
 
     {:noreply, socket |> WP.clear_canvas() |> assign(:ws_blueprint_id, nil) |> push_ws_state()}
@@ -149,7 +148,7 @@ defmodule IchorWeb.DashboardWorkshopHandlers do
   defp launch_team(state) do
     spec = TeamSpecBuilder.build_from_state(state)
 
-    with {:ok, session} <- Lifecycle.launch_team(spec) do
+    with {:ok, session} <- TeamLaunch.launch(spec) do
       {:ok,
        %{
          team_name: spec.team_name,

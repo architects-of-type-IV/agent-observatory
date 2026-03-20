@@ -5,8 +5,9 @@ defmodule Ichor.Tools.Agent.Spawn do
   can receive messages, and are traceable.
   """
   use Ash.Resource, domain: Ichor.Tools
-  alias Ichor.Tools.AgentControl
-  alias Ichor.Tools.MapUtils
+
+  alias Ichor.Control.Lifecycle.AgentLaunch
+  alias Ichor.Control.Lookup
 
   actions do
     action :spawn_agent, :map do
@@ -68,14 +69,14 @@ defmodule Ichor.Tools.Agent.Spawn do
 
         opts =
           %{capability: args[:capability] || "builder", model: args[:model] || "sonnet"}
-          |> MapUtils.maybe_put(:name, args[:name])
-          |> MapUtils.maybe_put(:team_name, args[:team_name])
-          |> MapUtils.maybe_put(:cwd, args[:cwd])
-          |> MapUtils.maybe_put(:file_scope, args[:file_scope])
-          |> MapUtils.maybe_put(:extra_instructions, args[:extra_instructions])
+          |> maybe_put(:name, args[:name])
+          |> maybe_put(:team_name, args[:team_name])
+          |> maybe_put(:cwd, args[:cwd])
+          |> maybe_put(:file_scope, args[:file_scope])
+          |> maybe_put(:extra_instructions, args[:extra_instructions])
           |> Map.put(:task, %{"subject" => "Agent task", "description" => args.prompt})
 
-        case AgentControl.spawn(opts) do
+        case do_spawn(opts) do
           {:ok, result} ->
             {:ok,
              %{
@@ -115,7 +116,7 @@ defmodule Ichor.Tools.Agent.Spawn do
       run(fn input, _context ->
         agent_id = input.arguments.agent_id
 
-        case AgentControl.stop(agent_id) do
+        case do_stop(agent_id) do
           {:ok, _} ->
             {:ok, %{"status" => "stopped", "agent_id" => agent_id}}
 
@@ -125,4 +126,39 @@ defmodule Ichor.Tools.Agent.Spawn do
       end)
     end
   end
+
+  defp do_spawn(opts) when is_map(opts) do
+    case AgentLaunch.spawn(opts) do
+      {:ok, result} ->
+        {:ok,
+         %{
+           session_id: result[:agent_id] || result[:session_name],
+           session_name: result[:session_name],
+           agent_id: result[:agent_id],
+           name: result[:name],
+           team: result[:team_name],
+           cwd: result[:cwd]
+         }}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp do_stop(query) when is_binary(query) do
+    case Lookup.find_agent(query) do
+      nil ->
+        {:error, "agent not found: #{query}"}
+
+      agent ->
+        session = agent.tmux_session || agent.agent_id
+        AgentLaunch.stop(session)
+        {:ok, %{stopped: true, session: session, name: agent.name}}
+    end
+  end
+
+  defp maybe_put(map, _key, nil), do: map
+  defp maybe_put(map, _key, ""), do: map
+  defp maybe_put(map, _key, []), do: map
+  defp maybe_put(map, key, value), do: Map.put(map, key, value)
 end

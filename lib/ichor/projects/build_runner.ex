@@ -20,8 +20,9 @@ defmodule Ichor.Projects.BuildRunner do
 
   use GenServer, restart: :temporary
 
+  alias Ichor.Control.Lifecycle.TeamLaunch
   alias Ichor.Gateway.Channels.Tmux
-  alias Ichor.Projects.{Janitor, RunnerRegistry, TeamLifecycle}
+  alias Ichor.Projects.{Janitor, TeamCleanup, TeamSpecBuilder}
   alias Ichor.Signals
   alias Ichor.Signals.Message
 
@@ -49,15 +50,24 @@ defmodule Ichor.Projects.BuildRunner do
 
   @doc "Returns the via-tuple for Registry-based name lookup."
   @spec via(String.t()) :: {:via, Registry, {Ichor.Registry, {:run, String.t()}}}
-  def via(run_id), do: RunnerRegistry.via(:run, run_id)
+  def via(run_id), do: {:via, Registry, {Ichor.Registry, {:run, run_id}}}
 
   @doc "Returns the pid for run_id if alive, or nil."
   @spec lookup(String.t()) :: pid() | nil
-  def lookup(run_id), do: RunnerRegistry.lookup(:run, run_id)
+  def lookup(run_id) do
+    case Registry.lookup(Ichor.Registry, {:run, run_id}) do
+      [{pid, _}] -> pid
+      [] -> nil
+    end
+  end
 
   @doc "Lists all active MES run IDs and their process PIDs."
   @spec list_all() :: [{String.t(), pid()}]
-  def list_all, do: RunnerRegistry.list_all(:run)
+  def list_all do
+    Registry.select(Ichor.Registry, [
+      {{{:run, :"$1"}, :"$2", :_}, [], [{{:"$1", :"$2"}}]}
+    ])
+  end
 
   @doc "Returns only runs that haven't passed their deadline (for Scheduler concurrency limit)."
   @spec list_active() :: [{String.t(), pid()}]
@@ -91,8 +101,13 @@ defmodule Ichor.Projects.BuildRunner do
 
   @impl true
   def handle_continue(:spawn_team, state) do
-    case team_lifecycle().spawn_run(state.run_id, state.team_name) do
-      {:ok, session} ->
+    builder = team_spec_builder()
+    spec = builder.build_team_spec(state.run_id, state.team_name)
+    session = spec.session
+
+    case team_launch().launch(spec) do
+      {:ok, ^session} ->
+        Signals.emit(:mes_team_ready, %{session: session, agent_count: length(spec.agents)})
         Janitor.monitor_run(state.run_id, self())
         Process.send_after(self(), :deadline, @deadline_ms)
         schedule_liveness_check()
@@ -100,6 +115,7 @@ defmodule Ichor.Projects.BuildRunner do
         {:noreply, %{state | session: session}}
 
       {:error, reason} ->
+        Signals.emit(:mes_team_spawn_failed, %{session: session, reason: inspect(reason)})
         Signals.emit(:mes_cycle_failed, %{run_id: state.run_id, reason: inspect(reason)})
         {:stop, :normal, state}
     end
@@ -131,7 +147,7 @@ defmodule Ichor.Projects.BuildRunner do
         %{run_id: run_id} = state
       ) do
     failures = state.gate_failures + 1
-    team_lifecycle().spawn_corrective_agent(state.run_id, state.session, data[:reason], failures)
+    spawn_corrective_agent(state.run_id, state.session, data[:reason], failures)
     {:noreply, %{state | gate_failures: failures}}
   end
 
@@ -146,7 +162,7 @@ defmodule Ichor.Projects.BuildRunner do
         %Message{name: :mes_project_created, data: %{run_id: run_id}},
         %{run_id: run_id} = state
       ) do
-    team_lifecycle().kill_session(state.session)
+    team_cleanup().kill_session(state.session)
     {:stop, :normal, state}
   end
 
@@ -160,11 +176,29 @@ defmodule Ichor.Projects.BuildRunner do
     :ok
   end
 
+  defp spawn_corrective_agent(run_id, session, reason, attempt) do
+    builder = team_spec_builder()
+    spec = builder.build_corrective_team_spec(run_id, session, reason, attempt)
+
+    case team_launch().launch_into_existing_session(spec, session) do
+      :ok -> :ok
+      {:error, err} -> {:error, err}
+    end
+  end
+
   defp schedule_liveness_check do
     Process.send_after(self(), :check_liveness, @liveness_interval_ms)
   end
 
-  defp team_lifecycle do
-    Application.get_env(:ichor, :mes_team_lifecycle_module, TeamLifecycle)
+  defp team_spec_builder do
+    Application.get_env(:ichor, :mes_team_spec_builder_module, TeamSpecBuilder)
+  end
+
+  defp team_launch do
+    Application.get_env(:ichor, :mes_team_launch_module, TeamLaunch)
+  end
+
+  defp team_cleanup do
+    Application.get_env(:ichor, :mes_team_cleanup_module, TeamCleanup)
   end
 end

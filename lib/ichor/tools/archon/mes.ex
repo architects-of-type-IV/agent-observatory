@@ -6,8 +6,7 @@ defmodule Ichor.Tools.Archon.Mes do
   use Ash.Resource, domain: Ichor.Tools
 
   alias Ichor.Control.AgentProcess
-  alias Ichor.Projects.{BuildRunner, Project, Scheduler, TeamLifecycle}
-  alias Ichor.Tools.MapUtils
+  alias Ichor.Projects.{BuildRunner, Project, Scheduler, TeamCleanup}
 
   @project_status_map %{
     "proposed" => :proposed,
@@ -139,16 +138,16 @@ defmodule Ichor.Tools.Archon.Mes do
             subsystem: args.subsystem,
             signal_interface: args.signal_interface
           }
-          |> MapUtils.maybe_put(:topic, args[:topic])
-          |> MapUtils.maybe_put(:version, args[:version])
-          |> MapUtils.maybe_put(:features, args[:features])
-          |> MapUtils.maybe_put(:use_cases, args[:use_cases])
-          |> MapUtils.maybe_put(:architecture, args[:architecture])
-          |> MapUtils.maybe_put(:dependencies, args[:dependencies])
-          |> MapUtils.maybe_put(:signals_emitted, args[:signals_emitted])
-          |> MapUtils.maybe_put(:signals_subscribed, args[:signals_subscribed])
-          |> MapUtils.maybe_put(:run_id, args[:run_id])
-          |> MapUtils.maybe_put(:team_name, args[:team_name])
+          |> maybe_put(:topic, args[:topic])
+          |> maybe_put(:version, args[:version])
+          |> maybe_put(:features, args[:features])
+          |> maybe_put(:use_cases, args[:use_cases])
+          |> maybe_put(:architecture, args[:architecture])
+          |> maybe_put(:dependencies, args[:dependencies])
+          |> maybe_put(:signals_emitted, args[:signals_emitted])
+          |> maybe_put(:signals_subscribed, args[:signals_subscribed])
+          |> maybe_put(:run_id, args[:run_id])
+          |> maybe_put(:team_name, args[:team_name])
 
         case Project.create(attrs) do
           {:ok, project} -> {:ok, project_to_map(project)}
@@ -235,7 +234,7 @@ defmodule Ichor.Tools.Archon.Mes do
 
       run(fn _input, _context ->
         try do
-          TeamLifecycle.cleanup_orphaned_teams()
+          TeamCleanup.cleanup_orphaned_teams()
           {:ok, %{"status" => "cleanup_complete"}}
         rescue
           e -> {:ok, %{"status" => "error", "reason" => Exception.message(e)}}
@@ -243,6 +242,11 @@ defmodule Ichor.Tools.Archon.Mes do
       end)
     end
   end
+
+  defp maybe_put(map, _key, nil), do: map
+  defp maybe_put(map, _key, ""), do: map
+  defp maybe_put(map, _key, []), do: map
+  defp maybe_put(map, key, value), do: Map.put(map, key, value)
 
   defp project_to_map(project) do
     %{

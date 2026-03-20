@@ -18,7 +18,7 @@ defmodule Ichor.Projects.RunProcess do
   alias Ichor.Control.Lifecycle.TeamLaunch
   alias Ichor.Control.Lifecycle.TeamSpec
   alias Ichor.Control.Lifecycle.TmuxLauncher
-  alias Ichor.Projects.{Exporter, HealthChecker, Job, Run, RunnerRegistry, RuntimeSignals}
+  alias Ichor.Projects.{Exporter, HealthChecker, Job, Run, RuntimeSignals}
   alias Ichor.Signals
   alias Ichor.Signals.Message
 
@@ -44,15 +44,24 @@ defmodule Ichor.Projects.RunProcess do
 
   @doc "Returns the via-tuple for Registry-based name lookup."
   @spec via(String.t()) :: {:via, Registry, {Ichor.Registry, {:dag_run, String.t()}}}
-  def via(run_id), do: RunnerRegistry.via(:dag_run, run_id)
+  def via(run_id), do: {:via, Registry, {Ichor.Registry, {:dag_run, run_id}}}
 
   @doc "Returns the pid for run_id if alive, or nil."
   @spec lookup(String.t()) :: pid() | nil
-  def lookup(run_id), do: RunnerRegistry.lookup(:dag_run, run_id)
+  def lookup(run_id) do
+    case Registry.lookup(Ichor.Registry, {:dag_run, run_id}) do
+      [{pid, _}] -> pid
+      [] -> nil
+    end
+  end
 
   @doc "Lists all active DAG run IDs and their process PIDs."
   @spec list_all() :: [{String.t(), pid()}]
-  def list_all, do: RunnerRegistry.list_all(:dag_run)
+  def list_all do
+    Registry.select(Ichor.Registry, [
+      {{{:dag_run, :"$1"}, :"$2", :_}, [], [{{:"$1", :"$2"}}]}
+    ])
+  end
 
   @doc "Enqueues a job for write-through sync to the project tasks.jsonl file."
   @spec sync_job(String.t(), struct() | map()) :: :ok

@@ -49,10 +49,10 @@ defmodule Ichor.Application do
       Ichor.Projects.LifecycleSupervisor,
 
       # Genesis pipeline (DynamicSupervisor for mode RunProcesses)
-      Ichor.Projects.PlanSupervisor,
+      {DynamicSupervisor, name: Ichor.Projects.PlanRunSupervisor, strategy: :one_for_one},
 
       # DAG execution subsystem (DynamicSupervisor for RunProcesses)
-      Ichor.Projects.ExecutionSupervisor,
+      {DynamicSupervisor, name: Ichor.Projects.DynRunSupervisor, strategy: :one_for_one},
 
       # Memories bridge (signals -> knowledge graph)
       Ichor.MemoriesBridge,

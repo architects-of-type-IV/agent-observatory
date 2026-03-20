@@ -7,8 +7,9 @@ defmodule Ichor.Tools.Archon.Control do
 
   alias Ash.Error.Unknown
 
-  alias Ichor.Tools.AgentControl
-  alias Ichor.Tools.MapUtils
+  alias Ichor.Control.Lifecycle.AgentLaunch
+  alias Ichor.Control.Lookup
+  alias Ichor.Gateway.HITLRelay
 
   actions do
     action :spawn_agent, :map do
@@ -59,13 +60,13 @@ defmodule Ichor.Tools.Archon.Control do
 
         opts =
           %{prompt: args.prompt, capability: Map.get(args, :capability) || "builder"}
-          |> MapUtils.maybe_put(:name, Map.get(args, :name))
-          |> MapUtils.maybe_put(:model, Map.get(args, :model))
-          |> MapUtils.maybe_put(:team_name, Map.get(args, :team_name))
-          |> MapUtils.maybe_put(:cwd, Map.get(args, :cwd) || File.cwd!())
-          |> MapUtils.maybe_put(:extra_instructions, Map.get(args, :extra_instructions))
+          |> maybe_put(:name, Map.get(args, :name))
+          |> maybe_put(:model, Map.get(args, :model))
+          |> maybe_put(:team_name, Map.get(args, :team_name))
+          |> maybe_put(:cwd, Map.get(args, :cwd) || File.cwd!())
+          |> maybe_put(:extra_instructions, Map.get(args, :extra_instructions))
 
-        case AgentControl.spawn(opts) do
+        case do_spawn(opts) do
           {:ok, result} ->
             {:ok,
              %{
@@ -94,7 +95,7 @@ defmodule Ichor.Tools.Archon.Control do
       run(fn input, _context ->
         query = input.arguments.agent_id
 
-        case AgentControl.stop(query) do
+        case do_stop(query) do
           {:ok, result} ->
             {:ok,
              %{
@@ -126,7 +127,7 @@ defmodule Ichor.Tools.Archon.Control do
         query = input.arguments.agent_id
         reason = Map.get(input.arguments, :reason) || "Paused by Archon"
 
-        case AgentControl.pause(query, reason) do
+        case do_pause(query, reason) do
           {:ok, result} ->
             {:ok,
              %{
@@ -151,7 +152,7 @@ defmodule Ichor.Tools.Archon.Control do
       run(fn input, _context ->
         query = input.arguments.agent_id
 
-        case AgentControl.resume(query) do
+        case do_resume(query) do
           {:ok, result} ->
             {:ok,
              %{
@@ -173,4 +174,75 @@ defmodule Ichor.Tools.Archon.Control do
       end)
     end
   end
+
+  defp do_spawn(opts) when is_map(opts) do
+    case AgentLaunch.spawn(opts) do
+      {:ok, result} ->
+        {:ok,
+         %{
+           session_id: result[:agent_id] || result[:session_name],
+           session_name: result[:session_name],
+           agent_id: result[:agent_id],
+           name: result[:name],
+           team: result[:team_name],
+           cwd: result[:cwd]
+         }}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp do_stop(query) when is_binary(query) do
+    case Lookup.find_agent(query) do
+      nil ->
+        {:error, "agent not found: #{query}"}
+
+      agent ->
+        session = agent.tmux_session || agent.agent_id
+        AgentLaunch.stop(session)
+        {:ok, %{stopped: true, session: session, name: agent.name}}
+    end
+  end
+
+  defp do_pause(query, reason) when is_binary(query) do
+    case Lookup.find_agent(query) do
+      nil ->
+        {:ok, %{paused: false, reason: "agent not found: #{query}"}}
+
+      agent ->
+        sid = Lookup.agent_session_id(agent)
+
+        case HITLRelay.pause(sid, sid, "archon", reason) do
+          :ok ->
+            {:ok, %{paused: true, session_id: sid, name: agent.name}}
+
+          {:ok, :already_paused} ->
+            {:ok, %{paused: true, already_paused: true, session_id: sid}}
+        end
+    end
+  end
+
+  defp do_resume(query) when is_binary(query) do
+    case Lookup.find_agent(query) do
+      nil ->
+        {:ok, %{resumed: false, reason: "agent not found: #{query}"}}
+
+      agent ->
+        sid = Lookup.agent_session_id(agent)
+
+        case HITLRelay.unpause(sid, sid, "archon") do
+          {:ok, :not_paused} ->
+            {:ok, %{resumed: false, reason: "agent was not paused"}}
+
+          {:ok, flushed} ->
+            {:ok, %{resumed: true, flushed_messages: flushed, session_id: sid}}
+        end
+    end
+  end
+
+  defp maybe_put(map, _key, nil), do: map
+  defp maybe_put(map, _key, ""), do: map
+  defp maybe_put(map, _key, []), do: map
+  defp maybe_put(map, key, value), do: Map.put(map, key, value)
 end

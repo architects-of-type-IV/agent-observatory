@@ -71,6 +71,9 @@ config :ichor, :memories,
 # Oban background job processing
 config :ichor, Oban,
   repo: Ichor.Repo,
+  notifier: Oban.Notifiers.PG,
+  peer: Oban.Peers.Global,
+  prefix: false,
   queues: [
     webhooks: 10,
     quality_gate: 4,
