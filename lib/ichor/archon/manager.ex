@@ -6,6 +6,7 @@ defmodule Ichor.Archon.Manager do
   use Ash.Resource, domain: Ichor.Archon
 
   alias Ichor.Archon.SignalManager
+  alias Ichor.Discovery
 
   actions do
     action :manager_snapshot, :map do
@@ -23,6 +24,32 @@ defmodule Ichor.Archon.Manager do
 
       run(fn _input, _context ->
         {:ok, SignalManager.attention()}
+      end)
+    end
+
+    action :discovery_catalog, {:array, :map} do
+      description("Enumerate discoverable Ash workflow steps across all domains.")
+
+      run(fn _input, _context ->
+        {:ok, Discovery.available_steps()}
+      end)
+    end
+
+    action :discovery_domain, {:array, :map} do
+      description("Enumerate discoverable Ash workflow steps for a single domain.")
+      argument(:domain, :string, allow_nil?: false)
+
+      run(fn input, _context ->
+        domain_name = Ash.ActionInput.get_argument(input, :domain)
+
+        case Discovery.domain(domain_name) do
+          {:ok, domain} ->
+            steps = Enum.filter(Discovery.available_steps(), &(&1.domain == domain.name))
+            {:ok, steps}
+
+          {:error, :unknown_domain} ->
+            {:error, "unknown domain: #{domain_name}"}
+        end
       end)
     end
   end
