@@ -6,7 +6,7 @@ defmodule Ichor.Gateway.Channels.WebhookAdapter do
 
   @behaviour Ichor.Gateway.Channel
 
-  alias Ichor.Gateway.WebhookRouter
+  alias Ichor.Gateway.{WebhookDelivery, WebhookRouter}
 
   @impl true
   def channel_key, do: :webhook
@@ -19,8 +19,10 @@ defmodule Ichor.Gateway.Channels.WebhookAdapter do
     body =
       Jason.encode!(Map.drop(payload, [:webhook_secret, "webhook_secret", :agent_id, "agent_id"]))
 
-    case WebhookRouter.enqueue(agent_id, webhook_url, body, secret) do
-      {:ok, _delivery_id} -> :ok
+    signature = WebhookRouter.compute_signature(body, secret)
+
+    case WebhookDelivery.enqueue(webhook_url, body, signature, agent_id) do
+      {:ok, delivery} -> {:ok, delivery.id}
       {:error, reason} -> {:error, reason}
     end
   end

@@ -58,6 +58,10 @@ defmodule Ichor.Projects.Section do
       accept([:title, :goal])
     end
 
+    read :list_all do
+      prepare(build(sort: [inserted_at: :asc]))
+    end
+
     read :by_phase do
       argument :phase_id, :uuid do
         allow_nil?(false)
@@ -72,6 +76,7 @@ defmodule Ichor.Projects.Section do
     define(:create)
     define(:update)
     define(:get, action: :read, get_by: [:id])
+    define(:list_all)
     define(:by_phase, args: [:phase_id])
   end
 end

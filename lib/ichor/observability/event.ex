@@ -86,6 +86,7 @@ defmodule Ichor.Observability.Event do
   end
 
   code_interface do
+    define(:create)
     define(:read)
   end
 end

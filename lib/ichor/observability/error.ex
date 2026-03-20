@@ -6,7 +6,7 @@ defmodule Ichor.Observability.Error do
 
   use Ash.Resource, domain: Ichor.Observability
 
-  alias Ichor.Observability.Preparations.LoadErrors
+  alias Ichor.Observability.Preparations.{EventBufferReader, LoadErrors}
 
   attributes do
     attribute(:id, :string, primary_key?: true, allow_nil?: false, public?: true)
@@ -27,22 +27,8 @@ defmodule Ichor.Observability.Error do
 
     action :by_tool, {:array, :map} do
       run(fn _input, _context ->
-        errors = __MODULE__.recent!()
-
-        grouped =
-          errors
-          |> Enum.group_by(& &1.tool_name)
-          |> Enum.map(fn {tool, errs} ->
-            %{
-              tool: tool,
-              count: length(errs),
-              latest: List.first(Enum.sort_by(errs, & &1.timestamp, {:desc, DateTime})),
-              errors: errs
-            }
-          end)
-          |> Enum.sort_by(& &1.count, :desc)
-
-        {:ok, grouped}
+        errors = load_recent_errors()
+        {:ok, group_by_tool(errors)}
       end)
     end
   end
@@ -50,5 +36,37 @@ defmodule Ichor.Observability.Error do
   code_interface do
     define(:recent)
     define(:by_tool)
+  end
+
+  defp load_recent_errors do
+    EventBufferReader.list_events()
+    |> Enum.filter(&(&1.hook_event_type == :PostToolUseFailure))
+    |> Enum.map(fn e ->
+      struct!(__MODULE__, %{
+        id: e.id,
+        tool_name: e.tool_name,
+        session_id: e.session_id,
+        source_app: e.source_app,
+        error: (e.payload || %{})["error"] || "Unknown error",
+        timestamp: e.inserted_at,
+        tool_use_id: e.tool_use_id,
+        cwd: e.cwd,
+        hook_event_type: e.hook_event_type
+      })
+    end)
+  end
+
+  defp group_by_tool(errors) do
+    errors
+    |> Enum.group_by(& &1.tool_name)
+    |> Enum.map(fn {tool, errs} ->
+      %{
+        tool: tool,
+        count: length(errs),
+        latest: List.first(Enum.sort_by(errs, & &1.timestamp, {:desc, DateTime})),
+        errors: errs
+      }
+    end)
+    |> Enum.sort_by(& &1.count, :desc)
   end
 end

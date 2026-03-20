@@ -257,10 +257,6 @@ defmodule Ichor.ProtocolTracker do
       mailbox: %{
         agents: length(agent_processes),
         total_unread: 0
-      },
-      command_queue: %{
-        sessions: 0,
-        total_pending: 0
       }
     }
   end

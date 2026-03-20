@@ -6,6 +6,7 @@ defmodule Ichor.Tools.Agent.Spawn do
   """
   use Ash.Resource, domain: Ichor.Tools
   alias Ichor.Tools.AgentControl
+  alias Ichor.Tools.MapUtils
 
   actions do
     action :spawn_agent, :map do
@@ -67,11 +68,11 @@ defmodule Ichor.Tools.Agent.Spawn do
 
         opts =
           %{capability: args[:capability] || "builder", model: args[:model] || "sonnet"}
-          |> maybe_put(:name, args[:name])
-          |> maybe_put(:team_name, args[:team_name])
-          |> maybe_put(:cwd, args[:cwd])
-          |> maybe_put(:file_scope, args[:file_scope])
-          |> maybe_put(:extra_instructions, args[:extra_instructions])
+          |> MapUtils.maybe_put(:name, args[:name])
+          |> MapUtils.maybe_put(:team_name, args[:team_name])
+          |> MapUtils.maybe_put(:cwd, args[:cwd])
+          |> MapUtils.maybe_put(:file_scope, args[:file_scope])
+          |> MapUtils.maybe_put(:extra_instructions, args[:extra_instructions])
           |> Map.put(:task, %{"subject" => "Agent task", "description" => args.prompt})
 
         case AgentControl.spawn(opts) do
@@ -115,18 +116,13 @@ defmodule Ichor.Tools.Agent.Spawn do
         agent_id = input.arguments.agent_id
 
         case AgentControl.stop(agent_id) do
-          {:ok, %{stopped: true}} ->
+          {:ok, _} ->
             {:ok, %{"status" => "stopped", "agent_id" => agent_id}}
 
-          {:ok, %{reason: reason}} ->
-            {:error, "Stop failed: #{reason}"}
+          {:error, reason} ->
+            {:error, reason}
         end
       end)
     end
   end
-
-  defp maybe_put(map, _key, nil), do: map
-  defp maybe_put(map, _key, ""), do: map
-  defp maybe_put(map, _key, []), do: map
-  defp maybe_put(map, key, value), do: Map.put(map, key, value)
 end

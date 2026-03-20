@@ -27,6 +27,11 @@ defmodule Ichor.Signals.FromAsh do
   defp signal_for(Ichor.Projects.Run, :fail), do: {:dag_run_completed, &run_data/2}
   defp signal_for(Ichor.Projects.Run, :archive), do: {:dag_run_archived, &run_archive_data/2}
 
+  defp signal_for(Ichor.Projects.Job, :claim), do: {:job_claimed, &job_data/2}
+  defp signal_for(Ichor.Projects.Job, :complete), do: {:job_completed, &job_data/2}
+  defp signal_for(Ichor.Projects.Job, :fail), do: {:job_failed, &job_data/2}
+  defp signal_for(Ichor.Projects.Job, :reset), do: {:job_reset, &job_data/2}
+
   defp signal_for(Ichor.Projects.Node, :create), do: {:genesis_node_created, &node_data/2}
   defp signal_for(Ichor.Projects.Node, :advance), do: {:genesis_node_advanced, &node_data/2}
 
@@ -86,6 +91,17 @@ defmodule Ichor.Signals.FromAsh do
     do: {:cron_job_rescheduled, &cron_data/2}
 
   defp signal_for(_, _), do: nil
+
+  defp job_data(data, _action) do
+    %{
+      job_id: data.id,
+      run_id: data.run_id,
+      external_id: data.external_id,
+      subject: data.subject,
+      status: data.status,
+      owner: data.owner
+    }
+  end
 
   defp run_data(data, _action) do
     %{run_id: data.id, label: data.label, source: data.source, job_count: data.job_count}

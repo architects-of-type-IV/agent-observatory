@@ -7,9 +7,8 @@ defmodule Ichor.Projects.Job do
 
   use Ash.Resource,
     domain: Ichor.Projects,
-    data_layer: AshSqlite.DataLayer
-
-  alias Ichor.Projects.RuntimeCallbacks
+    data_layer: AshSqlite.DataLayer,
+    simple_notifiers: [Ichor.Signals.FromAsh]
 
   sqlite do
     repo(Ichor.Repo)
@@ -174,12 +173,7 @@ defmodule Ichor.Projects.Job do
       change(set_attribute(:status, :in_progress))
       change(set_attribute(:claimed_at, &__MODULE__.now/0))
       change(atomic_update(:owner, expr(^arg(:owner))))
-
-      change(
-        after_action(fn _changeset, result, _context ->
-          RuntimeCallbacks.after_job_transition(result, :job_claimed)
-        end)
-      )
+      change(Ichor.Projects.Job.Changes.SyncRunProcess)
     end
 
     update :complete do
@@ -187,24 +181,14 @@ defmodule Ichor.Projects.Job do
       accept([:notes])
       change(set_attribute(:status, :completed))
       change(set_attribute(:completed_at, &__MODULE__.now/0))
-
-      change(
-        after_action(fn _changeset, result, _context ->
-          RuntimeCallbacks.after_job_transition(result, :job_completed)
-        end)
-      )
+      change(Ichor.Projects.Job.Changes.SyncRunProcess)
     end
 
     update :fail do
       require_atomic?(false)
       accept([:notes])
       change(set_attribute(:status, :failed))
-
-      change(
-        after_action(fn _changeset, result, _context ->
-          RuntimeCallbacks.after_job_transition(result, :job_failed)
-        end)
-      )
+      change(Ichor.Projects.Job.Changes.SyncRunProcess)
     end
 
     update :reset do
@@ -213,12 +197,7 @@ defmodule Ichor.Projects.Job do
       change(set_attribute(:status, :pending))
       change(set_attribute(:owner, nil))
       change(set_attribute(:claimed_at, nil))
-
-      change(
-        after_action(fn _changeset, result, _context ->
-          RuntimeCallbacks.after_job_transition(result, :job_reset)
-        end)
-      )
+      change(Ichor.Projects.Job.Changes.SyncRunProcess)
     end
 
     update :reassign do

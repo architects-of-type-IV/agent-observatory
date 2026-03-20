@@ -18,6 +18,8 @@ defmodule Ichor.Projects.ExecutionSupervisor do
 
   @impl true
   def init(_opts) do
+    # Intentional thin wrapper: provides a named, supervised entry point for
+    # DynRunSupervisor. The extra supervisor level is acceptable overhead.
     children = [
       {DynamicSupervisor, name: Ichor.Projects.DynRunSupervisor, strategy: :one_for_one}
     ]

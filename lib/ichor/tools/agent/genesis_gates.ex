@@ -28,16 +28,21 @@ defmodule Ichor.Tools.Agent.GenesisGates do
 
       run(fn input, _context ->
         args = input.arguments
-        mode = Map.fetch!(@valid_modes, args.mode)
 
-        Checkpoint.create(%{
-          title: args.title,
-          mode: mode,
-          content: args[:content],
-          summary: args[:summary],
-          node_id: args.node_id
-        })
-        |> to_map()
+        case Map.fetch(@valid_modes, args.mode) do
+          {:ok, mode} ->
+            Checkpoint.create(%{
+              title: args.title,
+              mode: mode,
+              content: args[:content],
+              summary: args[:summary],
+              node_id: args.node_id
+            })
+            |> to_map()
+
+          :error ->
+            {:error, "unknown mode: #{args.mode}"}
+        end
       end)
     end
 
@@ -51,15 +56,20 @@ defmodule Ichor.Tools.Agent.GenesisGates do
 
       run(fn input, _context ->
         args = input.arguments
-        mode = Map.fetch!(@valid_modes, args.mode)
 
-        Conversation.create(%{
-          title: args.title,
-          mode: mode,
-          content: args[:content],
-          node_id: args.node_id
-        })
-        |> to_map()
+        case Map.fetch(@valid_modes, args.mode) do
+          {:ok, mode} ->
+            Conversation.create(%{
+              title: args.title,
+              mode: mode,
+              content: args[:content],
+              node_id: args.node_id
+            })
+            |> to_map()
+
+          :error ->
+            {:error, "unknown mode: #{args.mode}"}
+        end
       end)
     end
 

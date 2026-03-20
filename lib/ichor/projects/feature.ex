@@ -64,6 +64,10 @@ defmodule Ichor.Projects.Feature do
       accept([:title, :content, :adr_codes])
     end
 
+    read :list_all do
+      prepare(build(sort: [inserted_at: :asc]))
+    end
+
     read :by_node do
       argument :node_id, :uuid do
         allow_nil?(false)
@@ -78,6 +82,7 @@ defmodule Ichor.Projects.Feature do
     define(:create)
     define(:update)
     define(:get, action: :read, get_by: [:id])
+    define(:list_all)
     define(:by_node, args: [:node_id])
   end
 end

@@ -28,6 +28,7 @@ defmodule Ichor.Observability.Janitor do
     try do
       cutoff = DateTime.add(DateTime.utc_now(), -@retention_days, :day)
 
+      # Intentional Ecto bypass: bulk purge of expired rows, Ash notifiers not needed for delete-all
       {events, _} =
         from(e in "events", where: e.inserted_at < ^cutoff)
         |> Ichor.Repo.delete_all()

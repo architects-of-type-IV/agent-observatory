@@ -7,6 +7,13 @@ defmodule Ichor.Signals.Event do
 
   alias Ichor.Signals.{Buffer, Catalog}
 
+  code_interface do
+    define(:emit, args: [:name])
+    define(:emit_scoped, args: [:name, :scope_id])
+    define(:recent)
+    define(:catalog)
+  end
+
   actions do
     action :emit, :map do
       description("Emit a signal into the ICHOR nervous system.")

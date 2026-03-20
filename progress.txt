@@ -83,6 +83,23 @@
 - [x] Fixed MemoriesClient compile error from MapHelpers deletion
 - [x] Module count: 31 -> 26. File count: 392 -> 387. Build clean, credo clean.
 
+## Audit Fixes: 37 Findings (2026-03-20) -- COMPLETE
+- [x] Job after_action hooks converted to FromAsh notifier
+- [x] QualityGate dead :TaskCompleted handler removed
+- [x] GenesisGates Map.fetch! crash fixed
+- [x] maybe_put/3 deduplicated into MapUtils
+- [x] strip_ansi extracted to AnsiUtils
+- [x] map_intent extracted to IntentMapper
+- [x] parse_timestamp deduplicated into DateUtils
+- [x] WebhookRouter wrappers removed
+- [x] Session/Event code_interface added
+- [x] Phase with_hierarchy action added
+- [x] Error.by_tool self-referential call fixed
+- [x] SyncRunProcess change module added
+- [x] Architecture docs: INDEX.md, ARCHITECTURE.md, MODULES.md
+- [x] mix compile --warnings-as-errors: CLEAN
+- [x] mix credo --strict: CLEAN (331 files, 0 issues)
+
 ## Code Quality + Signals Audit (2026-03-19) -- IN PROGRESS
 - [x] MessageRouter: single delivery authority (10 paths -> 1), 14 callers rewired
 - [x] send_message arity fix: Messaging called /3 but AgentProcess had /2 (critical bug)

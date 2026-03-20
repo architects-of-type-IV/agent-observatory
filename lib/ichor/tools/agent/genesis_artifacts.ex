@@ -8,12 +8,13 @@ defmodule Ichor.Tools.Agent.GenesisArtifacts do
   alias Ichor.Projects.{Adr, Feature, UseCase}
   alias Ichor.Tools.GenesisFormatter
 
+  # Derived from Ichor.Projects.Adr status attribute constraints(one_of: [...]).
+  # Keep in sync with the Adr resource if statuses change.
   @valid_statuses %{
     "pending" => :pending,
     "proposed" => :proposed,
     "accepted" => :accepted,
-    "rejected" => :rejected,
-    "draft" => :draft
+    "rejected" => :rejected
   }
 
   actions do

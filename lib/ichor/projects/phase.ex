@@ -72,6 +72,14 @@ defmodule Ichor.Projects.Phase do
       accept([:title, :goals, :status, :governed_by])
     end
 
+    read :list_all do
+      prepare(build(sort: [inserted_at: :asc]))
+    end
+
+    read :with_hierarchy do
+      prepare(build(load: [sections: [tasks: [:subtasks]]]))
+    end
+
     read :by_node do
       argument :node_id, :uuid do
         allow_nil?(false)
@@ -86,6 +94,8 @@ defmodule Ichor.Projects.Phase do
     define(:create)
     define(:update)
     define(:get, action: :read, get_by: [:id])
+    define(:list_all)
+    define(:with_hierarchy, action: :with_hierarchy, get_by: [:id])
     define(:by_node, args: [:node_id])
   end
 end

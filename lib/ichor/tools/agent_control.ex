@@ -28,11 +28,11 @@ defmodule Ichor.Tools.AgentControl do
   end
 
   @doc "Stop an agent by agent_id or session query."
-  @spec stop(String.t()) :: {:ok, map()}
+  @spec stop(String.t()) :: {:ok, map()} | {:error, String.t()}
   def stop(query) when is_binary(query) do
     case Lookup.find_agent(query) do
       nil ->
-        {:ok, %{stopped: false, reason: "agent not found: #{query}"}}
+        {:error, "agent not found: #{query}"}
 
       agent ->
         session = agent.tmux_session || agent.agent_id

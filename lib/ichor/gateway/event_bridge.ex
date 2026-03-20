@@ -10,7 +10,7 @@ defmodule Ichor.Gateway.EventBridge do
 
   use GenServer
 
-  alias Ichor.Gateway.{EntropyTracker, TopologyBuilder}
+  alias Ichor.Gateway.{EntropyTracker, IntentMapper, TopologyBuilder}
   alias Ichor.Mesh.CausalDAG
   alias Ichor.Mesh.DecisionLog
   alias Ichor.Signals.Message
@@ -94,80 +94,8 @@ defmodule Ichor.Gateway.EventBridge do
   end
 
   defp map_intent(event) do
-    map_intent(event.hook_event_type, event.tool_name, event.payload)
+    IntentMapper.map_intent(event.hook_event_type, event.tool_name, event.payload)
   end
-
-  defp map_intent(:PreToolUse, "TeamCreate", payload) do
-    team = get_in(payload, ["tool_input", "team_name"]) || "unknown"
-    "team_create:#{team}"
-  end
-
-  defp map_intent(:PostToolUse, "TeamCreate", payload) do
-    team = get_in(payload, ["tool_input", "team_name"]) || "unknown"
-    "team_created:#{team}"
-  end
-
-  defp map_intent(:PreToolUse, "TeamDelete", _payload), do: "team_delete"
-  defp map_intent(:PostToolUse, "TeamDelete", _payload), do: "team_deleted"
-
-  defp map_intent(:PreToolUse, "SendMessage", payload) do
-    recipient = get_in(payload, ["tool_input", "recipient"]) || "all"
-    msg_type = get_in(payload, ["tool_input", "type"]) || "message"
-    "send_#{msg_type}:#{recipient}"
-  end
-
-  defp map_intent(:PostToolUse, "SendMessage", payload) do
-    recipient = get_in(payload, ["tool_input", "recipient"]) || "all"
-    msg_type = get_in(payload, ["tool_input", "type"]) || "message"
-    "sent_#{msg_type}:#{recipient}"
-  end
-
-  defp map_intent(:PreToolUse, "Task", payload) do
-    agent_type = get_in(payload, ["tool_input", "subagent_type"]) || "general"
-    "spawn_agent:#{agent_type}"
-  end
-
-  defp map_intent(:PostToolUse, "Task", payload) do
-    agent_type = get_in(payload, ["tool_input", "subagent_type"]) || "general"
-    "agent_spawned:#{agent_type}"
-  end
-
-  defp map_intent(:PreToolUse, "TaskCreate", _payload), do: "task_create"
-  defp map_intent(:PostToolUse, "TaskCreate", _payload), do: "task_created"
-
-  defp map_intent(:PreToolUse, "TaskUpdate", payload) do
-    case get_in(payload, ["tool_input", "status"]) do
-      nil -> "task_update"
-      status -> "task_update:#{status}"
-    end
-  end
-
-  defp map_intent(:PostToolUse, "TaskUpdate", payload) do
-    case get_in(payload, ["tool_input", "status"]) do
-      nil -> "task_updated"
-      status -> "task_updated:#{status}"
-    end
-  end
-
-  defp map_intent(:PreToolUse, "TaskList", _payload), do: "task_list"
-  defp map_intent(:PreToolUse, "TaskGet", _payload), do: "task_get"
-  defp map_intent(:PreToolUse, "EnterWorktree", _payload), do: "enter_worktree"
-  defp map_intent(:PostToolUse, "EnterWorktree", _payload), do: "worktree_entered"
-  defp map_intent(:PreToolUse, "EnterPlanMode", _payload), do: "enter_plan_mode"
-  defp map_intent(:PreToolUse, "ExitPlanMode", _payload), do: "exit_plan_mode"
-  defp map_intent(:PreToolUse, tool, _payload), do: "tool_call:#{tool || "unknown"}"
-  defp map_intent(:PostToolUse, tool, _payload), do: "tool_result:#{tool || "unknown"}"
-  defp map_intent(:PostToolUseFailure, tool, _payload), do: "tool_failure:#{tool || "unknown"}"
-  defp map_intent(:UserPromptSubmit, _tool, _payload), do: "user_prompt"
-  defp map_intent(:SessionStart, _tool, _payload), do: "session_start"
-  defp map_intent(:SessionEnd, _tool, _payload), do: "session_end"
-  defp map_intent(:SubagentStart, _tool, _payload), do: "subagent_start"
-  defp map_intent(:SubagentStop, _tool, _payload), do: "subagent_stop"
-  defp map_intent(:PermissionRequest, _tool, _payload), do: "permission_request"
-  defp map_intent(:Notification, _tool, _payload), do: "notification"
-  defp map_intent(:Stop, _tool, _payload), do: "session_stop"
-  defp map_intent(:PreCompact, _tool, _payload), do: "pre_compact"
-  defp map_intent(other, _tool, _payload), do: to_string(other)
 
   defp extract_team_name(event) do
     # Try multiple payload locations for team context

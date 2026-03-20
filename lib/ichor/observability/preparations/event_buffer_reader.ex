@@ -5,7 +5,7 @@ defmodule Ichor.Observability.Preparations.EventBufferReader do
   def list_events do
     event_buffer_module =
       Application.get_env(
-        :ichor_activity,
+        :ichor,
         :event_buffer_module,
         Module.concat([Ichor, EventBuffer])
       )

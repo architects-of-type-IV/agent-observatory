@@ -14,30 +14,6 @@ defmodule Ichor.Gateway.WebhookRouter do
   @poll_interval_ms 5_000
   @max_attempts 5
 
-  @doc "Enqueue a webhook delivery with HMAC-SHA256 signature."
-  @spec enqueue(String.t(), String.t(), String.t(), String.t()) ::
-          {:ok, String.t()} | {:error, term()}
-  def enqueue(agent_id, target_url, payload, secret) do
-    signature = compute_signature(payload, secret)
-
-    case WebhookDelivery.enqueue(target_url, payload, signature, agent_id) do
-      {:ok, delivery} -> {:ok, delivery.id}
-      {:error, reason} -> {:error, reason}
-    end
-  end
-
-  @doc "List all dead-letter deliveries for an agent."
-  @spec list_dead_letters(String.t()) :: [Ichor.Gateway.WebhookDelivery.t()]
-  def list_dead_letters(agent_id), do: WebhookDelivery.dead_letters_for_agent!(agent_id)
-
-  @doc "List all dead-letter deliveries across all agents."
-  @spec list_all_dead_letters() :: [Ichor.Gateway.WebhookDelivery.t()]
-  def list_all_dead_letters do
-    WebhookDelivery.all_dead_letters!()
-  rescue
-    _ -> []
-  end
-
   @doc "Compute HMAC-SHA256 signature for payload verification."
   @spec compute_signature(String.t(), String.t()) :: String.t()
   def compute_signature(payload, secret) do

@@ -8,6 +8,7 @@ defmodule Ichor.Tools.Archon.Control do
   alias Ash.Error.Unknown
 
   alias Ichor.Tools.AgentControl
+  alias Ichor.Tools.MapUtils
 
   actions do
     action :spawn_agent, :map do
@@ -57,17 +58,12 @@ defmodule Ichor.Tools.Archon.Control do
         args = input.arguments
 
         opts =
-          %{
-            prompt: args.prompt,
-            name: Map.get(args, :name),
-            capability: Map.get(args, :capability) || "builder",
-            model: Map.get(args, :model),
-            team_name: Map.get(args, :team_name),
-            cwd: Map.get(args, :cwd) || File.cwd!(),
-            extra_instructions: Map.get(args, :extra_instructions)
-          }
-          |> Enum.reject(fn {_k, v} -> is_nil(v) or v == "" end)
-          |> Map.new()
+          %{prompt: args.prompt, capability: Map.get(args, :capability) || "builder"}
+          |> MapUtils.maybe_put(:name, Map.get(args, :name))
+          |> MapUtils.maybe_put(:model, Map.get(args, :model))
+          |> MapUtils.maybe_put(:team_name, Map.get(args, :team_name))
+          |> MapUtils.maybe_put(:cwd, Map.get(args, :cwd) || File.cwd!())
+          |> MapUtils.maybe_put(:extra_instructions, Map.get(args, :extra_instructions))
 
         case AgentControl.spawn(opts) do
           {:ok, result} ->
@@ -104,9 +100,11 @@ defmodule Ichor.Tools.Archon.Control do
              %{
                "stopped" => result.stopped,
                "session" => result[:session],
-               "name" => result[:name],
-               "reason" => result[:reason]
+               "name" => result[:name]
              }}
+
+          {:error, reason} ->
+            {:error, reason}
         end
       end)
     end
@@ -171,7 +169,7 @@ defmodule Ichor.Tools.Archon.Control do
 
       run(fn _input, _context ->
         # Ichor.Registry auto-cleans on process death -- no explicit sweep needed.
-        {:ok, %{"swept" => true}}
+        {:ok, %{"swept" => false, "message" => "no sweep needed"}}
       end)
     end
   end

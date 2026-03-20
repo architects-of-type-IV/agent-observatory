@@ -142,7 +142,7 @@ defmodule Ichor.Tools.Agent.GenesisRoadmap do
         with {:ok, phases} <- Phase.by_node(input.arguments.node_id) do
           summaries =
             Enum.map(phases, fn phase ->
-              {:ok, p} = Ash.load(phase, sections: [tasks: [:subtasks]])
+              {:ok, p} = Phase.with_hierarchy(phase.id)
               summarize_phase(p)
             end)
 

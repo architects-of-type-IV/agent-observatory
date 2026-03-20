@@ -65,4 +65,9 @@ defmodule Ichor.Observability.Session do
   identities do
     identity(:unique_session, [:session_id, :source_app])
   end
+
+  code_interface do
+    define(:create)
+    define(:mark_ended)
+  end
 end

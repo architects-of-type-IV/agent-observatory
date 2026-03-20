@@ -6,6 +6,7 @@ defmodule Ichor.Projects.Actions do
   alias Ichor.Control.Lifecycle.Cleanup
   alias Ichor.Projects.Catalog
   alias Ichor.Projects.DagAnalysis, as: Analysis
+  alias Ichor.Projects.DateUtils
   alias Ichor.Tasks.JsonlStore
 
   @doc "Resets a stale task in the active project's tasks.jsonl."
@@ -71,28 +72,9 @@ defmodule Ichor.Projects.Actions do
   end
 
   defp stale_with_threshold?(task, now, threshold_min) do
-    case parse_timestamp(task.updated) do
+    case DateUtils.parse_timestamp(task.updated) do
       nil -> true
       timestamp -> DateTime.diff(now, timestamp, :minute) > threshold_min
     end
   end
-
-  defp parse_timestamp(""), do: nil
-
-  defp parse_timestamp(str) when is_binary(str) do
-    str = String.replace(str, "Z", "")
-
-    case DateTime.from_iso8601(str <> "Z") do
-      {:ok, datetime, _} ->
-        datetime
-
-      _ ->
-        case NaiveDateTime.from_iso8601(str) do
-          {:ok, naive_datetime} -> DateTime.from_naive!(naive_datetime, "Etc/UTC")
-          _ -> nil
-        end
-    end
-  end
-
-  defp parse_timestamp(_), do: nil
 end

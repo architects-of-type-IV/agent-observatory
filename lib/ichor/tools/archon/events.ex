@@ -32,8 +32,7 @@ defmodule Ichor.Tools.Archon.Events do
         sid = Lookup.agent_session_id(agent) || query
 
         events =
-          EventBuffer.list_events()
-          |> Enum.filter(fn e -> e.session_id == sid end)
+          EventBuffer.events_for_session(sid)
           |> Enum.take(limit)
           |> Enum.map(&format_event/1)
 

@@ -2,17 +2,14 @@ defmodule Ichor.QualityGate do
   @moduledoc """
   Enforces quality gates when agents report task completion.
 
-  Listens for TaskCompleted hook events and runs the task's `done_when`
-  command. If the gate fails, sends a nudge back to the agent via
-  tmux/mailbox with the failure output.
+  Exposes `check/3` for direct quality gate invocation. The `done_when`
+  command is run in a subprocess; on failure, a nudge is sent to the agent
+  via tmux/mailbox.
 
   Inspired by Overstory's quality gate enforcement system.
   """
   use GenServer
   require Logger
-
-  alias Ichor.Projects.Runtime
-  alias Ichor.Signals.Message
 
   @default_timeout 60_000
 
@@ -28,62 +25,16 @@ defmodule Ichor.QualityGate do
 
   @impl true
   def init(_opts) do
-    Ichor.Signals.subscribe(:events)
     {:ok, %{}}
   end
 
   @impl true
-  def handle_info(
-        %Message{name: :new_event, data: %{event: %{hook_event_type: :TaskCompleted} = event}},
-        state
-      ) do
-    handle_task_completed(event)
-    {:noreply, state}
-  end
-
-  def handle_info(%Message{}, state), do: {:noreply, state}
   def handle_info(_msg, state), do: {:noreply, state}
 
   @impl true
   def handle_call({:check, session_id, command, opts}, _from, state) do
     result = run_gate(session_id, command, opts)
     {:reply, result, state}
-  end
-
-  defp handle_task_completed(event) do
-    session_id = event.session_id
-    payload = event.payload || %{}
-
-    # Try to find the task's done_when from the DAG runtime state
-    task_id = payload["task_id"]
-    done_when = find_done_when(task_id, event)
-
-    if done_when && done_when != "" do
-      Task.start(fn ->
-        run_gate_async(session_id, task_id, done_when, event.cwd || File.cwd!())
-      end)
-    end
-  end
-
-  defp run_gate_async(session_id, task_id, done_when, cwd) do
-    case run_gate_command(done_when, cwd) do
-      {:ok, :passed} ->
-        Logger.info("QualityGate: Gate passed for session #{session_id}, task #{task_id}")
-        Ichor.Signals.emit(:gate_passed, %{session_id: session_id, task_id: task_id})
-
-      {:error, output} ->
-        Logger.warning(
-          "QualityGate: Gate FAILED for session #{session_id}, task #{task_id}: #{String.slice(output, 0, 200)}"
-        )
-
-        nudge_agent(session_id, task_id, done_when, output)
-
-        Ichor.Signals.emit(:gate_failed, %{
-          session_id: session_id,
-          task_id: task_id,
-          output: output
-        })
-    end
   end
 
   defp run_gate(session_id, command, opts) do
@@ -130,17 +81,5 @@ defmodule Ichor.QualityGate do
       })
 
     :ok
-  end
-
-  defp find_done_when(nil, _event), do: nil
-
-  defp find_done_when(task_id, event) do
-    dag_state = Runtime.state()
-    tasks = dag_state[:tasks] || []
-
-    case Enum.find(tasks, fn t -> to_string(t["id"]) == to_string(task_id) end) do
-      %{"done_when" => done_when} when is_binary(done_when) -> done_when
-      _ -> event.payload["done_when"]
-    end
   end
 end

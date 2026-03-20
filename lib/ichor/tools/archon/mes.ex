@@ -7,6 +7,7 @@ defmodule Ichor.Tools.Archon.Mes do
 
   alias Ichor.Control.AgentProcess
   alias Ichor.Projects.{BuildRunner, Project, Scheduler, TeamLifecycle}
+  alias Ichor.Tools.MapUtils
 
   @project_status_map %{
     "proposed" => :proposed,
@@ -138,16 +139,16 @@ defmodule Ichor.Tools.Archon.Mes do
             subsystem: args.subsystem,
             signal_interface: args.signal_interface
           }
-          |> maybe_put(:topic, args[:topic])
-          |> maybe_put(:version, args[:version])
-          |> maybe_put(:features, args[:features])
-          |> maybe_put(:use_cases, args[:use_cases])
-          |> maybe_put(:architecture, args[:architecture])
-          |> maybe_put(:dependencies, args[:dependencies])
-          |> maybe_put(:signals_emitted, args[:signals_emitted])
-          |> maybe_put(:signals_subscribed, args[:signals_subscribed])
-          |> maybe_put(:run_id, args[:run_id])
-          |> maybe_put(:team_name, args[:team_name])
+          |> MapUtils.maybe_put(:topic, args[:topic])
+          |> MapUtils.maybe_put(:version, args[:version])
+          |> MapUtils.maybe_put(:features, args[:features])
+          |> MapUtils.maybe_put(:use_cases, args[:use_cases])
+          |> MapUtils.maybe_put(:architecture, args[:architecture])
+          |> MapUtils.maybe_put(:dependencies, args[:dependencies])
+          |> MapUtils.maybe_put(:signals_emitted, args[:signals_emitted])
+          |> MapUtils.maybe_put(:signals_subscribed, args[:signals_subscribed])
+          |> MapUtils.maybe_put(:run_id, args[:run_id])
+          |> MapUtils.maybe_put(:team_name, args[:team_name])
 
         case Project.create(attrs) do
           {:ok, project} -> {:ok, project_to_map(project)}
@@ -176,7 +177,10 @@ defmodule Ichor.Tools.Archon.Mes do
 
           {:ok, formatted}
         rescue
-          _ -> {:ok, []}
+          e in [RuntimeError, ArgumentError, KeyError] ->
+            require Logger
+            Logger.warning("check_operator_inbox failed: #{Exception.message(e)}")
+            {:ok, []}
         end
       end)
     end
@@ -239,11 +243,6 @@ defmodule Ichor.Tools.Archon.Mes do
       end)
     end
   end
-
-  defp maybe_put(map, _key, nil), do: map
-  defp maybe_put(map, _key, ""), do: map
-  defp maybe_put(map, _key, []), do: map
-  defp maybe_put(map, key, value), do: Map.put(map, key, value)
 
   defp project_to_map(project) do
     %{

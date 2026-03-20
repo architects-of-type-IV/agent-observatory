@@ -13,6 +13,8 @@ defmodule Ichor.Gateway.Channels.Tmux do
 
   require Logger
 
+  alias Ichor.Gateway.Channels.AnsiUtils
+
   @impl true
   def channel_key, do: :tmux
 
@@ -66,7 +68,7 @@ defmodule Ichor.Gateway.Channels.Tmux do
     lines = Keyword.get(opts, :lines, 50)
 
     case try_tmux(["capture-pane", "-t", session_name, "-p", "-S", "-#{lines}"]) do
-      {:ok, output} -> {:ok, strip_ansi(output)}
+      {:ok, output} -> {:ok, AnsiUtils.strip_ansi(output)}
       {:error, reason} -> {:error, {:capture_failed, reason}}
     end
   end
@@ -163,9 +165,5 @@ defmodule Ichor.Gateway.Channels.Tmux do
       _ ->
         nil
     end
-  end
-
-  defp strip_ansi(text) do
-    Regex.replace(~r/\e\[[0-9;]*[a-zA-Z]/, text, "")
   end
 end

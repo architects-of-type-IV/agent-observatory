@@ -60,6 +60,12 @@ defmodule Ichor.MessageRouter do
     ArgumentError -> []
   end
 
+  # NOTE: Ichor.Gateway.Router.resolve/1 matches the same prefix strings.
+  # The two are intentionally separate: this function returns tagged tuples
+  # (used for agent/team dispatch), while Gateway.Router returns recipient maps
+  # (used for channel delivery). A shared module would add indirection without
+  # eliminating the shape difference.
+
   defp resolve_target("team:" <> name), do: {:team, name}
   defp resolve_target("fleet:all"), do: {:fleet, :all}
   defp resolve_target("role:" <> role), do: {:role, role}

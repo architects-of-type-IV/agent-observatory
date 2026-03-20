@@ -39,11 +39,7 @@ defmodule Ichor.Gateway.WebhookDelivery do
       accept([:target_url, :payload, :signature, :agent_id, :webhook_id])
       change(set_attribute(:status, :pending))
       change(set_attribute(:attempt_count, 0))
-
-      change(fn changeset, _context ->
-        now = DateTime.utc_now() |> DateTime.truncate(:second)
-        Ash.Changeset.force_change_attribute(changeset, :next_retry_at, now)
-      end)
+      change(set_attribute(:next_retry_at, &__MODULE__.now/0))
     end
 
     read :due_for_delivery do
@@ -84,4 +80,7 @@ defmodule Ichor.Gateway.WebhookDelivery do
     define(:schedule_retry)
     define(:mark_dead)
   end
+
+  @doc false
+  def now, do: DateTime.utc_now() |> DateTime.truncate(:second)
 end

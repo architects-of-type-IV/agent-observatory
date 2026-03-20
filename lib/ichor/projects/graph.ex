@@ -1,6 +1,8 @@
 defmodule Ichor.Projects.Graph do
   @moduledoc "Pure DAG computation on normalized graph node maps."
 
+  alias Ichor.Projects.DateUtils
+
   @doc "Normalize to graph node map. Accepts Job structs or string-key maps."
   @spec to_graph_node(struct() | map()) :: map()
   def to_graph_node(%{external_id: _external_id} = job) do
@@ -200,30 +202,11 @@ defmodule Ichor.Projects.Graph do
   end
 
   defp stale?(item, now, threshold_min) do
-    case parse_timestamp(item.updated_at) do
+    case DateUtils.parse_timestamp(item.updated_at) do
       nil -> true
       ts -> DateTime.diff(now, ts, :minute) > threshold_min
     end
   end
-
-  defp parse_timestamp(""), do: nil
-
-  defp parse_timestamp(str) when is_binary(str) do
-    str = String.replace(str, "Z", "")
-
-    case DateTime.from_iso8601(str <> "Z") do
-      {:ok, dt, _} ->
-        dt
-
-      _ ->
-        case NaiveDateTime.from_iso8601(str) do
-          {:ok, ndt} -> DateTime.from_naive!(ndt, "Etc/UTC")
-          _ -> nil
-        end
-    end
-  end
-
-  defp parse_timestamp(_), do: nil
 
   @doc "Returns `{id_a, id_b, shared_files}` triples for in_progress items sharing files."
   @spec file_conflicts([map()]) :: [{String.t(), String.t(), [String.t()]}]

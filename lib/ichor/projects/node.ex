@@ -109,7 +109,7 @@ defmodule Ichor.Projects.Node do
     end
 
     read :by_project do
-      argument :mes_project_id, :uuid_v7 do
+      argument :mes_project_id, :uuid do
         allow_nil?(false)
       end
 
