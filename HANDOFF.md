@@ -1,36 +1,46 @@
 # ICHOR IV - Handoff
 
-## Current Status: Lifecycle Audit + Empty Dir Cleanup (2026-03-20)
+## Current Status: Session Complete (2026-03-20)
 
 ### Summary
-Control lifecycle audit complete -- all 5 candidate modules (AgentSpec, Cleanup, Registration,
-TmuxLauncher, TmuxScript) are multi-caller and were kept. No folds performed. 8 empty directories
-removed from lib/ichor.
+Massive simplification session. 228 → 127 files. All 5 phased plan phases complete. Build/credo/dialyzer clean.
 
-### What Was Done (This Session)
-1. **Lifecycle audit** -- read all 8 lifecycle files, grepped callers for all 5 candidates:
-   - `AgentSpec` -- 6 callers (agent_launch, registration, team_spec, team_spec_builder, projects/team_spec, itself) → KEPT
-   - `Cleanup` -- 5 callers (agent_launch, projects/runner, projects/spawn, projects/runtime, itself) → KEPT
-   - `Registration` -- 5 callers (agent_launch, team_launch, control/agent, itself, cleanup) → KEPT
-   - `TmuxLauncher` -- 5 callers (agent_launch, team_launch, cleanup, projects/spawn, itself) → KEPT
-   - `TmuxScript` -- 4 callers (agent_launch, team_launch, cleanup, itself) → KEPT
-   - All 8 lifecycle files correctly sized and focused -- no folds needed.
-2. **Empty directory removal** -- 9 empty directories removed:
-   - `lib/ichor/mesh/causal_dag`
-   - `lib/ichor/projects/runner/hooks`
-   - `lib/ichor/projects/runner` (parent, became empty after hooks removed)
-   - `lib/ichor/projects/subsystem_scaffold`
-   - `lib/ichor/signals/catalog`
-   - `lib/ichor/observability/types`
-   - `lib/ichor/gateway/types`
-   - `lib/ichor/gateway/router`
-3. **Build**: `mix compile --warnings-as-errors` EXIT:0, `mix credo --strict` 0 issues (239 files)
+### What Was Done
+1. All 5 simplification phases (wrappers, events, runners, tools, memory)
+2. 37 audit findings fixed
+3. Level 1+2 module reduction (child folding + domain consolidation)
+4. 9 Ash resources collapsed (5 artifacts→1, 4 roadmap→1, 4 blueprints→1)
+5. Zombie module cleanup (old spawners, builders, gateway router)
+6. Observation stack consolidation (TopologyBuilder→EventBridge)
+7. Archon Chat 5→1, Tasks 3→2
+8. EventBuffer + HeartbeatManager absorbed into Events.Runtime
+9. Control wrappers fully inlined (lookup, runtime_query, runtime_view)
+10. Oban installed (SQLite, 5 queues)
+11. All team prompts unified (READY handshake protocol)
+12. MES fixes (duplicate brief guard, scheduler tick, spawn bugfix)
+13. UI improvements (transport badge, message dedup, sidebar, ANSI rendering)
+14. Comprehensive docs: 5 page feature docs, annotated TREE.md, redesign blueprint
 
 ### Build
-- `mix compile --warnings-as-errors` CLEAN (EXIT:0)
-- `mix credo --strict` 0 issues (239 files)
+- `mix compile --warnings-as-errors` CLEAN
+- `mix credo --strict` CLEAN
+- Server starts on 4005
 
-### Next Steps
-- task 71: Misc ParenthesesOnZeroArityDefs + CondStatements (in_progress)
-- task 216: Thin SwarmMonitor to use Dag.Graph (pending, blocked by 205/202)
-- PulseMonitor implementation tasks (many pending subtasks)
+### File Count: 127 (target ~55-60)
+
+### Key Documentation
+- `docs/plans/2026-03-20-1430-redesign-blueprint.md` -- combined architect+codex vision for target state
+- `docs/plans/2026-03-20-1354-target-structure.md` -- codex target folder structure
+- `docs/plans/2026-03-20-1354-audit-simplify.md` -- codex round 3 audit
+- `docs/pages/*.md` -- comprehensive feature docs for all 5 pages
+- `lib/ichor/TREE.md` -- annotated module tree
+
+### Next: Redesign Phase
+The remaining reduction (127→~55) requires redesign, not folding:
+- Vertical slices aligned to Ash Domains
+- Fleet = Workshop (agents, teams, blueprints, prompts, launcher)
+- Prompts belong to fleet, not projects
+- Ash config over code: 90% should be declared in DSL
+- Delete ephemeral Ash resources → plain query modules
+- Move signals contracts from ichor_contracts into main app
+- 6 boundaries: events, fleet, projects, memory, transport, tools

@@ -90,7 +90,17 @@
 - [x] MES duplicate brief fix (3-layer: planner prompt, ResearchContext broadened, ProjectIngestor guard)
 - [x] All team prompts unified (MES/Genesis/DAG share READY + CRITICAL RULES protocol)
 - [x] MES sidebar wider + font sizes increased
-- [ ] Simplification Phase 5: Memory store cleanup
+- [x] Simplification Phase 5: Memory store 6→3, 5 bugs fixed
+- [x] Level 1+2: 23 children folded + 9 resources collapsed (artifacts+roadmap+blueprints)
+- [x] Zombie cleanup: 8 old modules deleted, gateway router absorbed
+- [x] EventBuffer + HeartbeatManager absorbed into Events.Runtime
+- [x] Control wrappers fully inlined (lookup, runtime_query, runtime_view)
+- [x] Observation stack: TopologyBuilder→EventBridge, dead files purged
+- [x] Archon Chat 5→1, Tasks 3→2
+- [x] 12 project helpers folded into runtime/runner/spawn
+- [x] Comprehensive docs: 5 page features, TREE.md, redesign blueprint
+- [x] File count: 228→127 (101 files eliminated)
+- [ ] Redesign: vertical slices + Ash domains (target ~55 files)
 - [ ] Oban worker migration (5 strong candidates)
 - [ ] Component library (deferred)
 

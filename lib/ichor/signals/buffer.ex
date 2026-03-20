@@ -6,7 +6,8 @@ defmodule Ichor.Signals.Buffer do
   """
   use GenServer
 
-  alias Ichor.Signals.{Catalog, Message}
+  alias Ichor.Signals.Catalog
+  alias Ichor.Signals.Message
 
   @max_events 200
   @table :signal_buffer
