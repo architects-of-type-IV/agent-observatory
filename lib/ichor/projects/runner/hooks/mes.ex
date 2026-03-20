@@ -11,10 +11,24 @@ defmodule Ichor.Projects.Runner.Hooks.MES do
   alias Ichor.Signals
   alias Ichor.Signals.Message
 
-  @doc "Called from Mode timer on_init. Registers the run with the Janitor for OTP-safe cleanup."
+  @doc "Called from Mode timer on_init. Launches the MES tmux team and registers with the Janitor."
   @spec on_init(struct()) :: :ok
   def on_init(state) do
     pid = self()
+
+    team_name =
+      get_in(state.config, [Access.key(:hooks), Access.key(:team_name)]) || state.session
+
+    spec = team_spec_builder().build_team_spec(state.run_id, team_name)
+
+    case team_launch().launch(spec) do
+      {:ok, _session} ->
+        :ok
+
+      {:error, reason} ->
+        Signals.emit(:mes_cycle_failed, %{run_id: state.run_id, reason: inspect(reason)})
+    end
+
     Janitor.monitor_run(state.run_id, pid)
     :ok
   end

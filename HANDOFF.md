@@ -1,6 +1,25 @@
 # ICHOR IV - Handoff
 
-## Current Status: Session 5 -- Phase 2 Simplification Steps 4-5 (2026-03-20)
+## Current Status: Session 5 -- MES Team Launch Regression Fix (2026-03-20)
+
+### What Was Done: Bugfix -- MES team not starting after unified Runner
+
+**Root cause**: `Scheduler.spawn_run/0` calls `Runner.start(:mes, ...)` but never calls
+`TeamLaunch.launch(spec)` to start the tmux team. DAG and Genesis both call
+`TeamLaunch.launch(spec)` BEFORE starting their Runner. MES's `on_init` hook only registered
+with the Janitor — it did NOT launch the team. The launch call was missing entirely.
+
+**Fix**: `Hooks.MES.on_init/1` now builds the spec via `TeamSpecBuilder.build_team_spec/2`
+and calls `team_launch().launch(spec)` before calling `Janitor.monitor_run/2`. Errors are
+emitted as `:mes_cycle_failed` signals.
+
+**File changed**: `lib/ichor/projects/runner/hooks/mes.ex`
+
+**Build**: `mix compile --warnings-as-errors` EXIT:0
+
+---
+
+## Previous: Session 5 -- Phase 2 Simplification Steps 4-5 (2026-03-20)
 
 ### What Was Done: Phase 2 Steps 4-5 (Message Bus)
 

@@ -259,6 +259,11 @@
 - [x] mix compile --warnings-as-errors: CLEAN
 - [x] mix credo --strict: 0 issues
 
+## Bugfix: MES team not starting after unified Runner (2026-03-20) -- COMPLETE
+- [x] Root cause: on_init hook only called Janitor.monitor_run, never TeamLaunch.launch
+- [x] Fix: Hooks.MES.on_init/1 now builds spec + launches team before Janitor registration
+- [x] mix compile --warnings-as-errors: CLEAN
+
 ## Projects Domain Simplification Phase 1 (2026-03-20) -- COMPLETE
 - [x] Deleted PlanSupervisor (single-child DynamicSupervisor wrapper)
 - [x] Deleted ExecutionSupervisor (single-child DynamicSupervisor wrapper)
