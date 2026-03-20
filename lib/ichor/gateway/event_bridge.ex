@@ -84,7 +84,12 @@ defmodule Ichor.Gateway.EventBridge do
     schedule_sweep()
 
     {:noreply,
-     %{state | last_event: new_last_event, last_seen: new_last_seen, dag_sessions: new_dag_sessions}}
+     %{
+       state
+       | last_event: new_last_event,
+         last_seen: new_last_seen,
+         dag_sessions: new_dag_sessions
+     }}
   end
 
   def handle_info(_msg, state), do: {:noreply, state}

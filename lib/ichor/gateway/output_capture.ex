@@ -8,7 +8,7 @@ defmodule Ichor.Gateway.OutputCapture do
   require Logger
 
   alias Ichor.Control.AgentProcess
-  alias Ichor.Gateway.Channels.Tmux
+  alias Ichor.Infrastructure.Tmux
 
   @capture_poll_interval 1_500
 

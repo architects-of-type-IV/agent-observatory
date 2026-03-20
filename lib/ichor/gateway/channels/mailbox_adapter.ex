@@ -28,7 +28,7 @@ defmodule Ichor.Gateway.Channels.MailboxAdapter do
     }
 
     AgentProcess.send_message(session_id, message)
-    Ichor.ProtocolTracker.track_mailbox_delivery(message.id, session_id, from)
+    Ichor.Signals.ProtocolTracker.track_mailbox_delivery(message.id, session_id, from)
     :ok
   end
 

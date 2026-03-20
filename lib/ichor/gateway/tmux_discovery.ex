@@ -12,7 +12,7 @@ defmodule Ichor.Gateway.TmuxDiscovery do
 
   alias Ichor.Control.AgentProcess
   alias Ichor.Control.FleetSupervisor
-  alias Ichor.Gateway.Channels.Tmux
+  alias Ichor.Infrastructure.Tmux
   alias Ichor.Signals
 
   @poll_interval 5_000
