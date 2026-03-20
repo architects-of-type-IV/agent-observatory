@@ -17,7 +17,7 @@ defmodule Ichor.Projects.Spawner do
     Job,
     Loader,
     ModeSpawner,
-    RunProcess,
+    Runner,
     RuntimeSignals,
     Validator,
     WorkerGroups
@@ -51,10 +51,7 @@ defmodule Ichor.Projects.Spawner do
              prompt_ctx
            ),
          {:ok, ^session} <- TeamLaunch.launch(spec) do
-      DynamicSupervisor.start_child(
-        Ichor.Projects.DynRunSupervisor,
-        {RunProcess, run_id: run.id, team_spec: spec, project_path: run.project_path}
-      )
+      Runner.start(:dag, run_id: run.id, team_spec: spec, project_path: run.project_path)
 
       RuntimeSignals.emit_run_ready(
         run.id,

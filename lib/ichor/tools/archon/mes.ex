@@ -6,7 +6,7 @@ defmodule Ichor.Tools.Archon.Mes do
   use Ash.Resource, domain: Ichor.Tools
 
   alias Ichor.Control.AgentProcess
-  alias Ichor.Projects.{BuildRunner, Project, Scheduler, TeamCleanup}
+  alias Ichor.Projects.{Project, Runner, Scheduler, TeamCleanup}
 
   @project_status_map %{
     "proposed" => :proposed,
@@ -190,8 +190,7 @@ defmodule Ichor.Tools.Archon.Mes do
       )
 
       run(fn _input, _context ->
-        all_runs = BuildRunner.list_all()
-        active_runs = BuildRunner.list_active()
+        all_runs = Runner.list_all(:mes)
 
         run_details =
           Enum.map(all_runs, fn {run_id, pid} ->
@@ -210,6 +209,8 @@ defmodule Ichor.Tools.Archon.Mes do
             }
           end)
 
+        active_count = Enum.count(run_details, fn r -> not r["past_deadline"] end)
+
         scheduler_status =
           try do
             Scheduler.status()
@@ -219,7 +220,7 @@ defmodule Ichor.Tools.Archon.Mes do
 
         {:ok,
          %{
-           "active_runs" => length(active_runs),
+           "active_runs" => active_count,
            "total_runs" => length(all_runs),
            "runs" => run_details,
            "scheduler" => scheduler_status

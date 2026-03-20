@@ -12,7 +12,7 @@ defmodule Ichor.Projects.ModeSpawner do
   """
 
   alias Ichor.Control.Lifecycle.TeamLaunch
-  alias Ichor.Projects.{GenesisTeamSpecBuilder, Node, PlanRunner, Project}
+  alias Ichor.Projects.{GenesisTeamSpecBuilder, Node, Project, Runner}
   alias Ichor.Signals
 
   @doc "Spawns a Genesis mode team (a/b/c) inside a new tmux session."
@@ -103,10 +103,7 @@ defmodule Ichor.Projects.ModeSpawner do
   end
 
   defp start_run_process(run_id, mode, spec, node_id) do
-    DynamicSupervisor.start_child(
-      Ichor.Projects.PlanRunSupervisor,
-      {PlanRunner, run_id: run_id, mode: mode, team_spec: spec, node_id: node_id}
-    )
+    Runner.start(:genesis, run_id: run_id, mode: mode, team_spec: spec, node_id: node_id)
   end
 
   defp short_id, do: :crypto.strong_rand_bytes(4) |> Base.encode16(case: :lower)

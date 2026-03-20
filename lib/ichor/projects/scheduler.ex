@@ -1,6 +1,6 @@
 defmodule Ichor.Projects.Scheduler do
   @moduledoc """
-  Fires every 60 seconds. Spawns one MES run per tick as a RunProcess
+  Fires every 60 seconds. Spawns one MES run per tick as a Runner (:mes kind)
   under Ichor.Projects.BuildRunSupervisor (DynamicSupervisor).
 
   Active run count is derived from Ichor.Registry (no local state tracking).
@@ -12,7 +12,7 @@ defmodule Ichor.Projects.Scheduler do
 
   use GenServer
 
-  alias Ichor.Projects.BuildRunner
+  alias Ichor.Projects.Runner
   alias Ichor.Signals
 
   @tick_interval :timer.minutes(1)
@@ -55,7 +55,7 @@ defmodule Ichor.Projects.Scheduler do
   end
 
   def handle_info(:tick, state) do
-    all = BuildRunner.list_all()
+    all = Runner.list_all(:mes)
     total = length(all)
 
     active =
@@ -99,7 +99,7 @@ defmodule Ichor.Projects.Scheduler do
   end
 
   def handle_call(:status, _from, state) do
-    all = BuildRunner.list_all()
+    all = Runner.list_all(:mes)
 
     active_count =
       Enum.count(all, fn {_run_id, pid} ->
@@ -126,10 +126,7 @@ defmodule Ichor.Projects.Scheduler do
     run_id = generate_run_id()
     team_name = "mes-#{run_id}"
 
-    case DynamicSupervisor.start_child(
-           Ichor.Projects.BuildRunSupervisor,
-           {BuildRunner, run_id: run_id, team_name: team_name}
-         ) do
+    case Runner.start(:mes, run_id: run_id, team_name: team_name) do
       {:ok, _pid} ->
         Signals.emit(:mes_cycle_started, %{run_id: run_id, team_name: team_name})
 

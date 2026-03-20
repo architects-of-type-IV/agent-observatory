@@ -18,7 +18,7 @@ defmodule Ichor.Projects.Janitor do
 
   alias Ichor.Control.FleetSupervisor
   alias Ichor.Gateway.Channels.Tmux
-  alias Ichor.Projects.{BuildRunner, TeamCleanup}
+  alias Ichor.Projects.{Runner, TeamCleanup}
   alias Ichor.Signals
 
   @sweep_interval :timer.minutes(2)
@@ -103,7 +103,7 @@ defmodule Ichor.Projects.Janitor do
   end
 
   defp rebuild_monitors do
-    BuildRunner.list_all()
+    Runner.list_all(:mes)
     |> Enum.reduce(%{}, fn {run_id, pid}, acc ->
       ref = Process.monitor(pid)
       Map.put(acc, ref, run_id)

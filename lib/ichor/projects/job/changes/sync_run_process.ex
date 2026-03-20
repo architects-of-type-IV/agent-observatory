@@ -3,7 +3,7 @@ defmodule Ichor.Projects.Job.Changes.SyncRunProcess do
 
   use Ash.Resource.Change
 
-  alias Ichor.Projects.RunProcess
+  alias Ichor.Projects.Runner
 
   @impl true
   def change(changeset, _opts, _context) do
@@ -18,8 +18,8 @@ defmodule Ichor.Projects.Job.Changes.SyncRunProcess do
   end
 
   defp maybe_sync(run_id, job) do
-    if Code.ensure_loaded?(RunProcess) and function_exported?(RunProcess, :sync_job, 2) do
-      RunProcess.sync_job(run_id, job)
+    if Code.ensure_loaded?(Runner) and function_exported?(Runner, :sync_job, 2) do
+      Runner.sync_job(run_id, job)
     end
   end
 end

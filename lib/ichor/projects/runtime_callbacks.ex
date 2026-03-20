@@ -3,7 +3,7 @@ defmodule Ichor.Projects.RuntimeCallbacks do
   Boundary for runtime side effects triggered by DAG state transitions.
   """
 
-  alias Ichor.Projects.RunProcess
+  alias Ichor.Projects.Runner
   alias Ichor.Projects.RuntimeSignals
 
   @type transition ::
@@ -28,8 +28,8 @@ defmodule Ichor.Projects.RuntimeCallbacks do
   end
 
   defp maybe_sync_run_process(run_id, result) do
-    if Code.ensure_loaded?(RunProcess) and function_exported?(RunProcess, :sync_job, 2) do
-      RunProcess.sync_job(run_id, result)
+    if Code.ensure_loaded?(Runner) and function_exported?(Runner, :sync_job, 2) do
+      Runner.sync_job(run_id, result)
     end
   end
 end

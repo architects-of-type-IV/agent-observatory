@@ -49,7 +49,7 @@ defmodule Ichor.Projects.TeamCleanup do
     :ok
   end
 
-  @doc "Disbands fleet teams and kills tmux sessions not backed by an active RunProcess."
+  @doc "Disbands fleet teams and kills tmux sessions not backed by an active Runner."
   @spec cleanup_orphaned_teams() :: :ok
   def cleanup_orphaned_teams do
     active_teams = active_team_names()
