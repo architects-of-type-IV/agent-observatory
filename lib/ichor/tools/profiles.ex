@@ -31,11 +31,11 @@ defmodule Ichor.Tools.Profiles do
       :conversation_search_date,
       :archival_memory_insert,
       :archival_memory_search,
-      # Genesis
-      :create_genesis_node,
-      :advance_node,
-      :list_genesis_nodes,
-      :get_genesis_node,
+      # Project planning
+      :create_project_draft,
+      :advance_project,
+      :list_project_overviews,
+      :get_project_overview,
       :gate_check,
       :create_adr,
       :update_adr,
@@ -53,10 +53,10 @@ defmodule Ichor.Tools.Profiles do
       :create_subtask,
       :list_phases,
       # DAG execution
-      :next_jobs,
-      :claim_job,
-      :complete_job,
-      :fail_job,
+      :next_tasks,
+      :claim_task,
+      :complete_task,
+      :fail_task,
       :get_run_status,
       :load_jsonl,
       :export_jsonl

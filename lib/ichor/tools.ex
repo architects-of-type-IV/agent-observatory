@@ -7,9 +7,9 @@ defmodule Ichor.Tools do
   """
   use Ash.Domain, extensions: [AshAi], validate_config_inclusion?: true
 
+  alias Ichor.Factory.{Floor, Project}
+  alias Ichor.Signals.Mailbox
   alias Ichor.Tools.AgentMemory
-  alias Ichor.Tools.Genesis
-  alias Ichor.Tools.ProjectExecution
   alias Ichor.Tools.RuntimeOps
 
   alias Ichor.Tools.Archon.Memory, as: ArchonMemory
@@ -18,8 +18,6 @@ defmodule Ichor.Tools do
     # Agent tools (5)
     resource(RuntimeOps)
     resource(AgentMemory)
-    resource(Genesis)
-    resource(ProjectExecution)
     # Archon-only tools (1)
     resource(ArchonMemory)
   end
@@ -30,8 +28,8 @@ defmodule Ichor.Tools do
     tool(:acknowledge_message, RuntimeOps, :acknowledge_message)
     tool(:send_message, RuntimeOps, :agent_send_message)
     # Tasks
-    tool(:get_tasks, ProjectExecution, :get_tasks)
-    tool(:update_task_status, ProjectExecution, :update_task_status)
+    tool(:get_tasks, Floor, :get_tasks)
+    tool(:update_task_status, Floor, :update_task_status)
     # Core memory
     tool(:read_memory, AgentMemory, :read_memory)
     tool(:memory_replace, AgentMemory, :memory_replace)
@@ -49,38 +47,38 @@ defmodule Ichor.Tools do
     # Fleet spawning (agent-facing)
     tool(:spawn_agent, RuntimeOps, :spawn_agent)
     tool(:stop_agent, RuntimeOps, :stop_agent)
-    # Genesis nodes
-    tool(:create_genesis_node, Genesis, :create_genesis_node)
-    tool(:advance_node, Genesis, :advance_node)
-    tool(:list_genesis_nodes, Genesis, :list_genesis_nodes)
-    tool(:get_genesis_node, Genesis, :get_genesis_node)
-    tool(:gate_check, Genesis, :gate_check)
-    # Genesis artifacts
-    tool(:create_adr, Genesis, :create_adr)
-    tool(:update_adr, Genesis, :update_adr)
-    tool(:list_adrs, Genesis, :list_adrs)
-    tool(:create_feature, Genesis, :create_feature)
-    tool(:list_features, Genesis, :list_features)
-    tool(:create_use_case, Genesis, :create_use_case)
-    tool(:list_use_cases, Genesis, :list_use_cases)
-    # Genesis gates
-    tool(:create_checkpoint, Genesis, :create_checkpoint)
-    tool(:create_conversation, Genesis, :create_conversation)
-    tool(:list_conversations, Genesis, :list_conversations)
-    # Genesis roadmap (Mode C)
-    tool(:create_phase, Genesis, :create_phase)
-    tool(:create_section, Genesis, :create_section)
-    tool(:create_task, Genesis, :create_task)
-    tool(:create_subtask, Genesis, :create_subtask)
-    tool(:list_phases, Genesis, :list_phases)
+    # Project planning
+    tool(:create_project_draft, Project, :create_project_draft)
+    tool(:advance_project, Project, :advance_project)
+    tool(:list_project_overviews, Project, :list_project_overviews)
+    tool(:get_project_overview, Project, :get_project_overview)
+    tool(:gate_check, Project, :gate_check)
+    # Project artifacts
+    tool(:create_adr, Project, :create_adr)
+    tool(:update_adr, Project, :update_adr)
+    tool(:list_adrs, Project, :list_adrs)
+    tool(:create_feature, Project, :create_feature)
+    tool(:list_features, Project, :list_features)
+    tool(:create_use_case, Project, :create_use_case)
+    tool(:list_use_cases, Project, :list_use_cases)
+    # Project gates
+    tool(:create_checkpoint, Project, :create_checkpoint)
+    tool(:create_conversation, Project, :create_conversation)
+    tool(:list_conversations, Project, :list_conversations)
+    # Project roadmap (Mode C)
+    tool(:create_phase, Project, :create_phase)
+    tool(:create_section, Project, :create_section)
+    tool(:create_task, Project, :create_task)
+    tool(:create_subtask, Project, :create_subtask)
+    tool(:list_phases, Project, :list_phases)
     # DAG execution
-    tool(:next_jobs, ProjectExecution, :next_jobs)
-    tool(:claim_job, ProjectExecution, :claim_job)
-    tool(:complete_job, ProjectExecution, :complete_job)
-    tool(:fail_job, ProjectExecution, :fail_job)
-    tool(:get_run_status, ProjectExecution, :get_run_status)
-    tool(:load_jsonl, ProjectExecution, :load_jsonl)
-    tool(:export_jsonl, ProjectExecution, :export_jsonl)
+    tool(:next_tasks, Ichor.Factory.PipelineTask, :next_tasks)
+    tool(:claim_task, Ichor.Factory.PipelineTask, :claim_task)
+    tool(:complete_task, Ichor.Factory.PipelineTask, :complete_task)
+    tool(:fail_task, Ichor.Factory.PipelineTask, :fail_task)
+    tool(:get_run_status, Ichor.Factory.Pipeline, :get_run_status)
+    tool(:load_jsonl, Ichor.Factory.Pipeline, :load_jsonl)
+    tool(:export_jsonl, Ichor.Factory.Pipeline, :export_jsonl)
     # Fleet observation (Archon)
     tool(:list_archon_agents, RuntimeOps, :list_live_agents)
     tool(:agent_status, RuntimeOps, :agent_status)
@@ -107,10 +105,10 @@ defmodule Ichor.Tools do
     tool(:remember, ArchonMemory, :remember)
     tool(:query_memory, ArchonMemory, :query_memory)
     # MES floor management (Archon)
-    tool(:list_projects, ProjectExecution, :list_projects)
-    tool(:create_project, ProjectExecution, :create_project)
-    tool(:check_operator_inbox, ProjectExecution, :check_operator_inbox)
-    tool(:mes_status, ProjectExecution, :mes_status)
-    tool(:cleanup_mes, ProjectExecution, :cleanup_mes)
+    tool(:list_projects, Project, :list_projects)
+    tool(:create_project, Project, :create_project)
+    tool(:check_operator_inbox, Mailbox, :check_operator_inbox)
+    tool(:mes_status, Floor, :mes_status)
+    tool(:cleanup_mes, Floor, :cleanup_mes)
   end
 end
