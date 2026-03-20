@@ -1,5 +1,14 @@
 # ICHOR IV Progress
 
+## ANSI Terminal Rendering (2026-03-20) -- COMPLETE
+- [x] ExTerm evaluated: full-page LiveView, not embeddable -- rejected
+- [x] `AnsiUtils.to_html/1` implemented: SGR codes → HTML spans with inline CSS
+- [x] `Tmux.capture_pane/2` returns raw ANSI (no longer strips)
+- [x] 3 `<pre>` blocks in dashboard_live.html.heex use `raw(AnsiUtils.to_html(...))`
+- [x] Covers: 16 standard colors (fg+bg), bright variants, bold/dim/italic/underline
+- [x] mix compile --warnings-as-errors: CLEAN
+- [x] mix credo --strict: 0 issues
+
 ## Phase 4 Tool Surface Collapse (2026-03-20) -- COMPLETE
 - [x] RuntimeOps: 18 actions from 9 modules
 - [x] AgentMemory: 10 actions from 4 modules

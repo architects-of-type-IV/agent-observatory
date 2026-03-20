@@ -1,10 +1,13 @@
 # ICHOR IV - Handoff
 
-## Current Status: Session 5 Complete (2026-03-20)
+## Current Status: Session 6 Complete (2026-03-20)
 
 ### Summary
 Project orchestration collapsed from 6 modules to 2: `Spawn` + `TeamSpec`.
 Compile clean, credo clean, server starts.
+
+### What Was Done (Session 6)
+1. **ANSI terminal rendering for tmux/slideout panels** -- ExTerm evaluated and rejected (full-page LiveView, not embeddable). Implemented `AnsiUtils.to_html/1` converting ANSI SGR codes to HTML spans with inline styles. `Tmux.capture_pane/2` now returns raw ANSI output. Three `<pre>` terminal blocks in `dashboard_live.html.heex` use `raw(AnsiUtils.to_html(...))`. Colors: standard 16 fg/bg + bright variants + bold/dim/italic/underline. Build clean, credo clean.
 
 ### What Was Done (Session 5)
 1. **Created `lib/ichor/projects/team_spec.ex`** -- unified spec builder replacing `TeamSpecBuilder`, `DagTeamSpecBuilder`, `GenesisTeamSpecBuilder`. API: `build(:mes, run_id, team_name)`, `build(:dag, ...)`, `build(:genesis, ...)`, `build_corrective/4`, `session_name/1`, `prompt_dir/2-3`, `prompt_root_dir/1`.
