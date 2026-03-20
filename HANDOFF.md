@@ -1,30 +1,27 @@
 # ICHOR IV - Handoff
 
-## Current Status: Session 7 Complete (2026-03-20)
+## Current Status: Phase 1 Inline Complete (2026-03-20)
 
 ### Summary
-Level 2 domain consolidation: 4 workshop blueprint resources collapsed into 1 embedded Blueprint resource. 3 child tables eliminated.
+Phase 1 control wrapper inline is complete. All 3 remaining wrapper modules (Lookup, RuntimeQuery, RuntimeView) have been inlined into their callers and deleted.
 
-### What Was Done (Session 7)
-1. **Created `lib/ichor/control/blueprint.ex`** -- replaces TeamBlueprint. Agents, spawn_links, and comm_rules are `{:array, :map}` embedded JSON attributes instead of separate DB tables.
-2. **Wrote migration `20260320150000_consolidate_blueprints.exs`** -- creates `workshop_blueprints`, migrates existing rows (JSON re-encoding), drops 4 old tables. Migration ran clean.
-3. **Updated `lib/ichor/control/blueprint_state.ex`** -- `apply_blueprint/2` reads `blueprint.agents` (was `blueprint.agent_blueprints`). All conversion helpers use string keys (SQLite JSON loads with string keys).
-4. **Updated `lib/ichor/control.ex`** -- 9 resources → 6. TeamBlueprint, AgentBlueprint, SpawnLink, CommRule removed.
-5. **Updated callers**: `workshop_persistence.ex`, `dashboard_workshop_handlers.ex`, `team_spec.ex`, `workshop_view.html.heex` (bp.agents instead of bp.agent_blueprints).
-6. **Moved 4 old files to tmp/trash/**: team_blueprint.ex, agent_blueprint.ex, comm_rule.ex, spawn_link.ex.
+### What Was Done (This Session)
+1. **Inlined `Ichor.Control.Lookup`** into:
+   - `lib/ichor/tools/runtime_ops.ex` -- `find_agent/1` private defp, `agent_session_id` inlined directly
+2. **Inlined `Ichor.Control.RuntimeQuery`** into:
+   - `lib/ichor/tools/runtime_ops.ex` -- `format_team/1`, `list_tasks_for_teams/1` private defps
+   - `lib/ichor_web/live/dashboard_selection_handlers.ex` -- `find_team_member/2` private defp
+   - `lib/ichor_web/live/dashboard_dag_handlers.ex` -- `find_agent_entry/3`, `find_session_name/2`, `fallback_session_name/1`, `find_agent_by_id/1` private defps
+3. **Inlined `Ichor.Control.RuntimeView`** into:
+   - `lib/ichor_web/live/dashboard_state.ex` -- `resolve_selected_team/2`, `find_team/2`, `merge_display_teams/3`, `build_agent_lookup/1`, `agent_in_tmux_session?/2`, `agent_to_team_member/1`, `inferred_team_health/1`, `dedup_by_status/1` private defps
+4. **Moved 3 files to tmp/trash/**: lookup.ex, runtime_query.ex, runtime_view.ex
+5. **Note**: format hook replaced `Ichor.EventBuffer` with `Ichor.Events.Runtime, as: EventRuntime` in runtime_ops.ex -- this was a pre-existing alias state, preserved.
 
 ### Build
 - `mix compile --warnings-as-errors` CLEAN
 - `mix credo --strict` 0 issues
-- `mix ecto.migrate` CLEAN
-- Server boots (port conflict only -- app itself clean)
-
-### Key Design Notes
-- SQLite deserializes `{:array, :map}` JSON back with string keys -- never dot-access these maps
-- Canvas state uses atom-key maps; `persisted_to_*` / `*_to_persisted` are the string/atom boundary
-- `list_all` replaces `list_with_relationships` (no joins needed)
 
 ### Next Steps
-- Simplification Phase 5: Memory store cleanup
-- Oban worker migration (5 strong candidates)
-- More GenServer → plain function demotions
+- Phase 2 (if any) or other pending tasks from tasks.jsonl
+- task 216: Thin SwarmMonitor to use Dag.Graph (pending)
+- task 71: ParenthesesOnZeroArityDefs + CondStatements (in_progress)

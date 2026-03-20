@@ -1,26 +1,19 @@
-# BRAIN - What I've Learned
+# BRAIN -- Session Knowledge
 
-## Pattern: Collapsing Parallel Builders into One Module
+## Inline Pattern (Control Wrappers)
 
-When 3 modules share the same call structure (apply preset, build roster, build prompt map, call WorkshopBuilder.build_from_state), they collapse cleanly into one module with a dispatch atom as the first argument. The key is: **per-mode differences are data, not separate modules**.
+When inlining a module that is itself used by another module being inlined (e.g., Lookup used by RuntimeQuery), handle the dependency chain in the right order:
+1. Inline the leaf (Lookup) first into its non-deleted callers
+2. When inlining the intermediate (RuntimeQuery), re-inline the leaf's logic directly into the intermediate's private helpers
 
-## Pattern: Embedded JSON vs has_many for Co-Loaded Children (2026-03-20)
+## format hook / alias sorting side-effect
 
-When child records are always loaded together, written together, and never queried independently, `{:array, :map}` embedded JSON is better than has_many + separate tables:
-- No joins, no relationship loading, single-row reads/writes
-- Simpler resource (no manage_relationship changes, no direct_control)
-- Migration: `create table` + `flush()` (DDL must commit before DML), raw SQL data migration, then `DROP TABLE IF EXISTS` for old tables
+The mix format hook re-sorts aliases alphabetically when it fires after an Edit. If the existing codebase uses `Ichor.Events.Runtime, as: EventRuntime` but you write `alias Ichor.EventBuffer`, the hook may restore the original alias and update callsites. Trust the file state after hook fires -- check grep before overriding.
 
-## Ash `{:array, :map}` Key Behavior
+## Private defp naming in DashboardDagHandlers
 
-- SQLite stores as JSON TEXT; on load, maps come back **string-keyed**
-- Write time: atom or string keys both accepted
-- Read time: always string keys -- use `Map.get(map, "key")` not `map.key`
-- Keep a clear boundary: canvas state = atom keys, persisted maps = string keys
+`find_agent_entry` calls `find_session_name` which calls `fallback_session_name` which calls `find_agent_by_id`. Named `find_agent_by_id` (not `find_agent`) to avoid collision with existing names.
 
-## Migration Infrastructure
+## RuntimeQuery.fallback_session_name agent field access
 
-- `mix ash.codegen` with no prior snapshots generates bad "create all" migration -- write manual migrations only
-- `flush()` is required between DDL (`create table`) and DML (`repo().query!`) in Ecto migrations
-- `repo()` is available in migration modules for raw SQL data migrations
-- SQLite FK drop: not supported via ALTER TABLE; just `DROP TABLE IF EXISTS` child tables before parent
+Original code used both `agent[:name]` (bracket) and `agent["name"]` (string bracket) to cover both atom and string key maps. This was already in the source -- preserved as-is.

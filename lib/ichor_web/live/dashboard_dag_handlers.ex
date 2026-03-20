@@ -7,9 +7,10 @@ defmodule IchorWeb.DashboardDagHandlers do
 
   import Phoenix.Component, only: [assign: 3]
 
-  alias Ichor.Control.RuntimeQuery
+  alias Ichor.Control.Agent, as: ControlAgent
   alias Ichor.Messages.Bus
   alias Ichor.Projects.Runtime
+  alias IchorWeb.Presentation
 
   def dispatch("select_dag_project", p, s), do: handle_select_project(p, s)
   def dispatch("heal_dag_task", p, s), do: handle_heal_task(p, s)
@@ -82,7 +83,7 @@ defmodule IchorWeb.DashboardDagHandlers do
     if current && (current[:agent_id] == id || current[:name] == id) do
       assign(socket, :selected_command_agent, nil)
     else
-      selected = RuntimeQuery.find_agent_entry(id, socket.assigns.teams, socket.assigns.events)
+      selected = find_agent_entry(id, socket.assigns.teams, socket.assigns.events)
       assign(socket, :selected_command_agent, selected)
     end
   end
@@ -117,5 +118,40 @@ defmodule IchorWeb.DashboardDagHandlers do
     else
       socket
     end
+  end
+
+  defp find_agent_entry(id, teams, events) do
+    team_agent =
+      teams
+      |> Enum.flat_map(& &1.members)
+      |> Enum.find(fn member -> member[:agent_id] == id || member[:name] == id end)
+
+    team_agent || %{agent_id: id, name: find_session_name(events, id), session_id: id}
+  end
+
+  defp find_session_name(events, session_id) do
+    case Enum.find(events, &(&1.session_id == session_id)) do
+      nil -> fallback_session_name(session_id)
+      event -> event.tmux_session || fallback_session_name(session_id)
+    end
+  end
+
+  defp fallback_session_name(session_id) do
+    case find_agent_by_id(session_id) do
+      nil ->
+        Presentation.short_id(session_id)
+
+      agent ->
+        agent[:name] || agent["name"] || agent.session_id || agent.agent_id ||
+          Presentation.short_id(session_id)
+    end
+  end
+
+  defp find_agent_by_id(query) when is_binary(query) do
+    ControlAgent.all!()
+    |> Enum.find(fn agent ->
+      agent.agent_id == query or agent.session_id == query or
+        agent.short_name == query or agent.name == query
+    end)
   end
 end

@@ -19,15 +19,14 @@ defmodule Ichor.Tools.RuntimeOps do
   alias Ichor.Archon.SignalManager
   alias Ichor.Control.Agent, as: ControlAgent
   alias Ichor.Control.Lifecycle.AgentLaunch
-  alias Ichor.Control.Lookup
-  alias Ichor.Control.RuntimeQuery
   alias Ichor.Control.Team, as: ControlTeam
-  alias Ichor.EventBuffer
+  alias Ichor.Events.Runtime, as: EventRuntime
   alias Ichor.Gateway.Channels.Tmux
   alias Ichor.Gateway.HITLRelay
   alias Ichor.Messages.Bus, as: MessageBus
   alias Ichor.Observability.Message
   alias Ichor.ProtocolTracker
+  alias Ichor.Tasks.TeamStore
 
   # ---------------------------------------------------------------------------
   # Agent.Spawn actions (agent-facing)
@@ -485,7 +484,7 @@ defmodule Ichor.Tools.RuntimeOps do
       run(fn input, _context ->
         query = input.arguments.agent_id
 
-        case Lookup.find_agent(query) do
+        case find_agent(query) do
           nil ->
             {:ok, %{"found" => false, "query" => query}}
 
@@ -518,7 +517,7 @@ defmodule Ichor.Tools.RuntimeOps do
       run(fn _input, _context ->
         teams =
           ControlTeam.alive!()
-          |> Enum.map(&RuntimeQuery.format_team/1)
+          |> Enum.map(&format_team/1)
 
         {:ok, teams}
       end)
@@ -545,11 +544,11 @@ defmodule Ichor.Tools.RuntimeOps do
         query = input.arguments.agent_id
         limit = Map.get(input.arguments, :limit) || 30
 
-        agent = Lookup.find_agent(query)
-        sid = Lookup.agent_session_id(agent) || query
+        agent = find_agent(query)
+        sid = (agent && (agent.session_id || agent.agent_id)) || query
 
         events =
-          EventBuffer.events_for_session(sid)
+          EventRuntime.events_for_session(sid)
           |> Enum.take(limit)
           |> Enum.map(&format_event/1)
 
@@ -576,7 +575,7 @@ defmodule Ichor.Tools.RuntimeOps do
             |> Enum.filter(fn t -> t.name == team_filter end)
           end
 
-        tasks = RuntimeQuery.list_tasks_for_teams(teams)
+        tasks = list_tasks_for_teams(teams)
 
         {:ok, tasks}
       end)
@@ -598,7 +597,7 @@ defmodule Ichor.Tools.RuntimeOps do
            "agents" => length(agents),
            "active_agents" => Enum.count(agents, fn a -> a.status == :active end),
            "teams" => length(teams),
-           "event_buffer" => alive?(EventBuffer),
+           "event_buffer" => alive?(EventRuntime),
            "heartbeat" => alive?(AgentWatchdog),
            "protocol_tracker" => alive?(ProtocolTracker)
          }}
@@ -681,7 +680,7 @@ defmodule Ichor.Tools.RuntimeOps do
   end
 
   defp do_stop(query) when is_binary(query) do
-    case Lookup.find_agent(query) do
+    case find_agent(query) do
       nil ->
         {:error, "agent not found: #{query}"}
 
@@ -693,12 +692,12 @@ defmodule Ichor.Tools.RuntimeOps do
   end
 
   defp do_pause(query, reason) when is_binary(query) do
-    case Lookup.find_agent(query) do
+    case find_agent(query) do
       nil ->
         {:ok, %{paused: false, reason: "agent not found: #{query}"}}
 
       agent ->
-        sid = Lookup.agent_session_id(agent)
+        sid = agent.session_id || agent.agent_id
 
         case HITLRelay.pause(sid, sid, "archon", reason) do
           :ok ->
@@ -711,12 +710,12 @@ defmodule Ichor.Tools.RuntimeOps do
   end
 
   defp do_resume(query) when is_binary(query) do
-    case Lookup.find_agent(query) do
+    case find_agent(query) do
       nil ->
         {:ok, %{resumed: false, reason: "agent not found: #{query}"}}
 
       agent ->
-        sid = Lookup.agent_session_id(agent)
+        sid = agent.session_id || agent.agent_id
 
         case HITLRelay.unpause(sid, sid, "archon") do
           {:ok, :not_paused} ->
@@ -759,4 +758,37 @@ defmodule Ichor.Tools.RuntimeOps do
   defp maybe_put(map, _key, ""), do: map
   defp maybe_put(map, _key, []), do: map
   defp maybe_put(map, key, value), do: Map.put(map, key, value)
+
+  defp find_agent(query) when is_binary(query) do
+    ControlAgent.all!()
+    |> Enum.find(fn agent ->
+      agent.agent_id == query or agent.session_id == query or
+        agent.short_name == query or agent.name == query
+    end)
+  end
+
+  defp format_team(team) do
+    %{
+      "name" => team.name,
+      "members" =>
+        Enum.map(team.members, fn member ->
+          %{
+            "session_id" => member[:agent_id] || member[:session_id],
+            "role" => member[:role] || member[:name],
+            "status" => member[:status]
+          }
+        end),
+      "member_count" => team.member_count,
+      "health" => team.health,
+      "source" => team.source
+    }
+  end
+
+  defp list_tasks_for_teams(teams) do
+    Enum.flat_map(teams, fn team ->
+      team.name
+      |> TeamStore.list_tasks()
+      |> Enum.map(&Map.put(&1, "team", team.name))
+    end)
+  end
 end

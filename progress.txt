@@ -339,3 +339,15 @@
 - [x] mix compile --warnings-as-errors: CLEAN (0 warnings)
 - [x] mix credo --strict: 0 new issues in new files
 - [x] Server smoke test: no errors on startup
+
+## Phase 1 Final: Inline Last 3 Control Wrappers (2026-03-20) -- COMPLETE
+- [x] Grepped callers of Lookup, RuntimeQuery, RuntimeView
+- [x] Inlined Lookup.find_agent/1 + agent_session_id into RuntimeOps (5 callsites) and DashboardDagHandlers
+- [x] Inlined RuntimeQuery.format_team/1 + list_tasks_for_teams/1 into RuntimeOps
+- [x] Inlined RuntimeQuery.find_team_member/2 into DashboardSelectionHandlers
+- [x] Inlined RuntimeQuery.find_agent_entry/3 + helpers into DashboardDagHandlers
+- [x] Inlined RuntimeView.resolve_selected_team/2 + find_team/2 into DashboardState
+- [x] Inlined RuntimeView.merge_display_teams/3 + build_agent_lookup/1 + 4 private helpers into DashboardState
+- [x] Moved lookup.ex, runtime_query.ex, runtime_view.ex to tmp/trash/
+- [x] mix compile --warnings-as-errors: CLEAN
+- [x] mix credo --strict: 0 issues
