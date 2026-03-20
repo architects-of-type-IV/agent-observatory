@@ -47,7 +47,7 @@ defmodule Ichor.Application do
       # Task supervisor for fire-and-forget tasks
       {Task.Supervisor, name: Ichor.TaskSupervisor},
 
-      # MES subsystem (Registry + DynamicSupervisor + ProjectIngestor + Scheduler)
+      # MES pipeline (Registry + DynamicSupervisor + ProjectIngestor + Scheduler)
       Ichor.Factory.LifecycleSupervisor,
 
       # Workshop runtime launch listener (signal-driven team spawns)
@@ -56,7 +56,7 @@ defmodule Ichor.Application do
       # Genesis pipeline (DynamicSupervisor for mode RunProcesses)
       {DynamicSupervisor, name: Ichor.Factory.PlanRunSupervisor, strategy: :one_for_one},
 
-      # DAG execution subsystem (DynamicSupervisor for RunProcesses)
+      # DAG execution pipeline (DynamicSupervisor for RunProcesses)
       {DynamicSupervisor, name: Ichor.Factory.DynRunSupervisor, strategy: :one_for_one},
 
       # Memories bridge (signals -> knowledge graph)

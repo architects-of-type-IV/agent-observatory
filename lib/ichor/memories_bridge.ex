@@ -32,7 +32,7 @@ defmodule Ichor.MemoriesBridge do
     :heartbeat,
     :terminal_output,
     :protocol_update,
-    :dag_status,
+    :pipeline_status,
     :topology_snapshot,
     :registry_changed
   ]
@@ -158,7 +158,7 @@ defmodule Ichor.MemoriesBridge do
   end
 
   # Produce natural language so the Memories extraction LLM can
-  # identify entities (agents, teams, subsystems) and facts (relationships,
+  # identify entities (agents, teams, plugins) and facts (relationships,
   # state changes, causal events) from the episode content.
 
   defp narrate(:agent_started, %{session_id: sid, role: role, team: team}),
@@ -237,8 +237,8 @@ defmodule Ichor.MemoriesBridge do
     do:
       "MES project #{AgentEntry.short_id(pid)} was claimed by agent \"#{sid}\" for implementation."
 
-  defp narrate(:mes_subsystem_loaded, %{subsystem: sub, modules: mods}),
-    do: "Subsystem #{sub} was hot-loaded into the BEAM VM (#{length(mods)} modules)."
+  defp narrate(:mes_plugin_loaded, %{plugin: plugin, modules: mods}),
+    do: "Plugin #{plugin} was hot-loaded into the BEAM VM (#{length(mods)} modules)."
 
   defp narrate(:mes_janitor_cleaned, %{run_id: rid, trigger: trigger}),
     do: "MES janitor cleaned up run #{rid} (trigger: #{trigger})."

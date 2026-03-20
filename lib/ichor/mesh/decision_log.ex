@@ -3,12 +3,9 @@ defmodule Ichor.Mesh.DecisionLog do
   Universal message envelope transmitted by every agent in the Hypervisor network.
 
   Implemented as an Ash embedded resource (not a database table). DecisionLog
-  instances are received as HTTP payloads, validated in memory, and forwarded over
-  PubSub. They are never persisted directly to Postgres.
+  instances are received as HTTP payloads, validated in memory, and forwarded over PubSub. They are never persisted directly to Postgres.
 
-  Each section (meta, identity, cognition, action, state_delta, control) is stored
-  as a plain `:map` field. These are internal transport envelopes; field-level
-  validation is not required.
+  Each section (meta, identity, cognition, action, state_delta, control) is stored as a plain `:map` field. These are internal transport envelopes; field-level validation is not required.
 
   See ADR-014 and FRD-006 for the full specification.
   """

@@ -2,13 +2,13 @@ defmodule Ichor.Archon.TeamWatchdog do
   @moduledoc """
   Signal-driven team lifecycle monitor. No timers, no polling.
   Reacts to fleet and run signals to detect unexpected deaths,
-  archive runs, reset jobs, and notify operator.
+  archive runs, reset pipeline tasks, and notify operator.
   """
 
   use GenServer
 
   alias Ichor.Control.FleetSupervisor
-  alias Ichor.Factory.{Job, Run}
+  alias Ichor.Factory.{Pipeline, PipelineTask}
   alias Ichor.Signals
   alias Ichor.Signals.Message
 
@@ -16,7 +16,7 @@ defmodule Ichor.Archon.TeamWatchdog do
 
   @type action ::
           {:archive_run, String.t()}
-          | {:reset_jobs, String.t()}
+          | {:reset_tasks, String.t()}
           | {:notify_operator, String.t()}
           | {:disband_team, String.t()}
           | :noop
@@ -30,8 +30,8 @@ defmodule Ichor.Archon.TeamWatchdog do
   @impl true
   def init(_opts) do
     Signals.subscribe(:fleet)
-    Signals.subscribe(:dag)
-    Signals.subscribe(:genesis)
+    Signals.subscribe(:pipeline)
+    Signals.subscribe(:planning)
     Signals.subscribe(:monitoring)
     {:ok, %{completed_runs: MapSet.new()}}
   end
@@ -46,86 +46,94 @@ defmodule Ichor.Archon.TeamWatchdog do
   def handle_info(_, state), do: {:noreply, state}
 
   # Clean completion -- record it so we don't false-positive on disband
-  defp react(:dag_run_completed, %{run_id: run_id}, state) do
+  defp react(:pipeline_completed, %{run_id: run_id}, state) do
     {[:noop], %{state | completed_runs: MapSet.put(state.completed_runs, run_id)}}
   end
 
-  # DAG tmux session died -- RunProcess detected it and emitted this signal
-  defp react(:dag_tmux_gone, %{run_id: run_id, session: session}, state) do
+  # Pipeline tmux session died -- Runner detected it and emitted this signal
+  defp react(:pipeline_tmux_gone, %{run_id: run_id, session: session}, state) do
     case MapSet.member?(state.completed_runs, run_id) do
       true -> {[:noop], state}
-      false -> {dag_cleanup_actions(run_id, session, "tmux session died"), state}
+      false -> {pipeline_cleanup_actions(run_id, session, "tmux session died"), state}
     end
   end
 
-  # Fleet team disbanded -- check if it was a DAG team that didn't complete
-  defp react(:team_disbanded, %{team_name: "dag-" <> _ = session}, state) do
+  # Fleet team disbanded -- check if it was a pipeline team that didn't complete
+  defp react(:team_disbanded, %{team_name: "pipeline-" <> _ = session}, state) do
     case Enum.any?(state.completed_runs, &String.contains?(session, &1)) do
-      true -> {[:noop], state}
-      false -> {[{:notify_operator, "DAG team #{session} disbanded without completion."}], state}
+      true ->
+        {[:noop], state}
+
+      false ->
+        {[{:notify_operator, "Pipeline team #{session} disbanded without completion."}], state}
     end
   end
 
   # Genesis tmux session died
-  defp react(:genesis_tmux_gone, %{session: session}, state) do
+  defp react(:planning_tmux_gone, %{session: session}, state) do
     {[
        {:disband_team, session},
-       {:notify_operator, "Genesis session #{session} died. Fleet disbanded."}
+       {:notify_operator, "Planning session #{session} died. Fleet disbanded."}
      ], state}
   end
 
   # Agent stopped -- if it's a coordinator/lead, the team is headless
   defp react(:agent_stopped, %{session_id: id, role: role}, state)
        when role in [:coordinator, :lead] do
-    case extract_dag_session(id) do
+    case extract_pipeline_session(id) do
       nil ->
         {[:noop], state}
 
       session ->
-        {[{:notify_operator, "DAG #{role} #{id} stopped. Team #{session} may be headless."}],
+        {[{:notify_operator, "Pipeline #{role} #{id} stopped. Team #{session} may be headless."}],
          state}
     end
   end
 
   defp react(_signal, _data, state), do: {[:noop], state}
 
-  defp dag_cleanup_actions(run_id, session, reason) do
+  defp pipeline_cleanup_actions(run_id, session, reason) do
     [
       {:archive_run, run_id},
-      {:reset_jobs, run_id},
+      {:reset_tasks, run_id},
       {:disband_team, session},
-      {:notify_operator, "DAG run #{run_id} cleaned up: #{reason}. Jobs reset."}
+      {:notify_operator, "Pipeline run #{run_id} cleaned up: #{reason}. Tasks reset."}
     ]
   end
 
-  defp extract_dag_session("dag-" <> _ = id) do
+  defp extract_pipeline_session("pipeline-" <> _ = id) do
     case String.split(id, "-", parts: 3) do
-      ["dag", hex, _role] -> "dag-#{hex}"
+      ["pipeline", hex, _role] -> "pipeline-#{hex}"
       _ -> nil
     end
   end
 
-  defp extract_dag_session(_), do: nil
+  defp extract_pipeline_session(_), do: nil
 
   defp dispatch(:noop), do: :ok
 
   defp dispatch({:archive_run, run_id}) do
-    case Run.get(run_id) do
-      {:ok, %{status: :active} = run} ->
-        Run.archive(run)
-        Signals.emit(:dag_run_archived, %{run_id: run_id, label: run.label, reason: "watchdog"})
+    case Pipeline.get(run_id) do
+      {:ok, %{status: :active} = pipeline} ->
+        Pipeline.archive(pipeline)
+
+        Signals.emit(:pipeline_archived, %{
+          run_id: run_id,
+          label: pipeline.label,
+          reason: "watchdog"
+        })
 
       _ ->
         :ok
     end
   end
 
-  defp dispatch({:reset_jobs, run_id}) do
-    case Job.by_run(run_id) do
-      {:ok, jobs} ->
-        jobs
+  defp dispatch({:reset_tasks, run_id}) do
+    case PipelineTask.by_run(run_id) do
+      {:ok, pipeline_tasks} ->
+        pipeline_tasks
         |> Enum.filter(&(&1.status == :in_progress))
-        |> Enum.each(&Job.reset/1)
+        |> Enum.each(&PipelineTask.reset/1)
 
       _ ->
         :ok

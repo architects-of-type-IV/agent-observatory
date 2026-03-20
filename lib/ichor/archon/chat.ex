@@ -11,8 +11,9 @@ defmodule Ichor.Archon.Chat do
 
   alias Ichor.Archon.CommandManifest
   alias Ichor.Archon.MemoriesClient
+  alias Ichor.Factory.{Floor, Project}
+  alias Ichor.Signals.Mailbox
   alias Ichor.Tools.ArchonMemory
-  alias Ichor.Tools.ProjectExecution
   alias Ichor.Tools.RuntimeOps
   alias LangChain.Chains.LLMChain
   alias LangChain.ChatModels.ChatOpenAI
@@ -114,16 +115,16 @@ defmodule Ichor.Archon.Chat do
   defp dispatch_command(%{command: "/sweep"}), do: run_action(:sweep, RuntimeOps, :sweep, %{})
 
   defp dispatch_command(%{command: "/projects", remainder: nil}),
-    do: run_action(:projects, ProjectExecution, :list_projects, %{})
+    do: run_action(:projects, Project, :list_projects, %{})
 
   defp dispatch_command(%{command: "/mes"}),
-    do: run_action(:mes_status, ProjectExecution, :mes_status, %{})
+    do: run_action(:mes_status, Floor, :mes_status, %{})
 
   defp dispatch_command(%{command: "/operator-inbox"}),
-    do: run_action(:operator_inbox, ProjectExecution, :check_operator_inbox, %{})
+    do: run_action(:operator_inbox, Mailbox, :check_operator_inbox, %{})
 
   defp dispatch_command(%{command: "/cleanup-mes"}),
-    do: run_action(:cleanup_mes, ProjectExecution, :cleanup_mes, %{})
+    do: run_action(:cleanup_mes, Floor, :cleanup_mes, %{})
 
   defp dispatch_command(%{command: "/msg", remainder: nil}),
     do: {:ok, %{type: :error, data: "Usage: /msg <target> <message>"}}
@@ -214,7 +215,7 @@ defmodule Ichor.Archon.Chat do
   end
 
   defp dispatch_command(%{command: "/projects", remainder: status}) when is_binary(status),
-    do: run_action(:projects, ProjectExecution, :list_projects, %{status: String.trim(status)})
+    do: run_action(:projects, Project, :list_projects, %{status: String.trim(status)})
 
   defp dispatch_command(%{command: "/remember", remainder: content}) when is_binary(content),
     do: run_action(:remember, ArchonMemory, :remember, %{content: String.trim(content)})
@@ -252,7 +253,9 @@ defmodule Ichor.Archon.Chat do
             otp_app: :ichor,
             actions: [
               {RuntimeOps, :*},
-              {ProjectExecution, :*},
+              {Project, [:list_projects, :create_project]},
+              {Floor, [:mes_status, :cleanup_mes]},
+              {Mailbox, [:check_operator_inbox]},
               {Ichor.Tools.Archon.Memory, [:remember]}
             ]
           )

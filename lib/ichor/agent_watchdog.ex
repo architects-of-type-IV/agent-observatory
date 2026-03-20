@@ -65,7 +65,7 @@ defmodule Ichor.AgentWatchdog do
   def handle_info(:beat, state) do
     next = state.count + 1
 
-    Ichor.Signals.emit(:heartbeat, %{count: next})
+    safe_emit(:heartbeat, %{count: next})
 
     state =
       state
@@ -144,14 +144,20 @@ defmodule Ichor.AgentWatchdog do
 
   defp handle_crash(session_id, nil) do
     Logger.warning("AgentWatchdog: Detected crash for session #{session_id} (standalone)")
-    Ichor.Signals.emit(:agent_crashed, %{session_id: session_id, team_name: nil})
+    safe_emit(:agent_crashed, %{session_id: session_id, team_name: nil})
   end
 
   defp handle_crash(session_id, team_name) do
     Logger.warning("AgentWatchdog: Detected crash for session #{session_id} (#{team_name})")
     reassigned_count = reassign_agent_tasks(session_id, team_name)
-    Ichor.Signals.emit(:agent_crashed, %{session_id: session_id, team_name: team_name})
+    safe_emit(:agent_crashed, %{session_id: session_id, team_name: team_name})
     write_inbox_notification(session_id, team_name, reassigned_count)
+  end
+
+  defp safe_emit(name, data) do
+    Ichor.Signals.emit(name, data)
+  rescue
+    UndefinedFunctionError -> :ok
   end
 
   defp reassign_agent_tasks(session_id, team_name) do

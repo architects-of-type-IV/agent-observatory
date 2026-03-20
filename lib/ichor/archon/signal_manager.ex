@@ -108,11 +108,11 @@ defmodule Ichor.Archon.SignalManager do
   defp resolve_attention(state, %Message{name: name, data: data}) do
     keys =
       case {name, data} do
-        {:dag_run_completed, %{run_id: run_id}} ->
-          ["dag:run:#{run_id}"]
+        {:pipeline_completed, %{run_id: run_id}} ->
+          ["pipeline:run:#{run_id}"]
 
-        {:dag_run_archived, %{run_id: run_id}} ->
-          ["dag:run:#{run_id}"]
+        {:pipeline_archived, %{run_id: run_id}} ->
+          ["pipeline:run:#{run_id}"]
 
         {:mes_quality_gate_passed, %{run_id: run_id, gate: gate}} ->
           ["mes:gate:#{run_id}:#{gate}"]
@@ -156,10 +156,11 @@ defmodule Ichor.Archon.SignalManager do
     end
   end
 
-  defp attention_meta(:dag_tmux_gone, %{run_id: run_id}),
-    do: {:ok, :critical, "dag:run:#{run_id}"}
+  defp attention_meta(:pipeline_tmux_gone, %{run_id: run_id}),
+    do: {:ok, :critical, "pipeline:run:#{run_id}"}
 
-  defp attention_meta(:dag_job_failed, %{run_id: run_id}), do: {:ok, :high, "dag:run:#{run_id}"}
+  defp attention_meta(:pipeline_task_failed, %{run_id: run_id}),
+    do: {:ok, :high, "pipeline:run:#{run_id}"}
 
   defp attention_meta(:mes_cycle_failed, %{run_id: run_id}),
     do: {:ok, :critical, "mes:run:#{run_id}"}
@@ -173,11 +174,11 @@ defmodule Ichor.Archon.SignalManager do
   defp attention_meta(:mes_quality_gate_failed, %{run_id: run_id, gate: gate}),
     do: {:ok, :high, "mes:gate:#{run_id}:#{gate}"}
 
-  defp attention_meta(:genesis_team_spawn_failed, %{session: session}),
-    do: {:ok, :high, "genesis:session:#{session}"}
+  defp attention_meta(:planning_team_spawn_failed, %{session: session}),
+    do: {:ok, :high, "planning:session:#{session}"}
 
-  defp attention_meta(:genesis_tmux_gone, %{run_id: run_id}),
-    do: {:ok, :critical, "genesis:run:#{run_id}"}
+  defp attention_meta(:planning_tmux_gone, %{run_id: run_id}),
+    do: {:ok, :critical, "planning:run:#{run_id}"}
 
   defp attention_meta(:agent_crashed, %{session_id: session_id}),
     do: {:ok, :critical, "agent:#{session_id}"}
@@ -195,12 +196,12 @@ defmodule Ichor.Archon.SignalManager do
   defp attention_meta(:dead_letter, _data), do: {:ok, :high, "gateway:dead_letter"}
   defp attention_meta(_, _), do: :ignore
 
-  defp signal_summary(:dag_tmux_gone, %{run_id: run_id, session: session}) do
-    "DAG run #{run_id} lost tmux session #{session}"
+  defp signal_summary(:pipeline_tmux_gone, %{run_id: run_id, session: session}) do
+    "Pipeline run #{run_id} lost tmux session #{session}"
   end
 
-  defp signal_summary(:dag_job_failed, %{external_id: external_id, run_id: run_id}) do
-    "DAG job #{external_id} failed in run #{run_id}"
+  defp signal_summary(:pipeline_task_failed, %{external_id: external_id, run_id: run_id}) do
+    "Task #{external_id} failed in pipeline #{run_id}"
   end
 
   defp signal_summary(:mes_quality_gate_failed, %{run_id: run_id, gate: gate, reason: reason}) do
