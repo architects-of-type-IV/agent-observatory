@@ -340,6 +340,14 @@
 - [x] mix credo --strict: 0 new issues in new files
 - [x] Server smoke test: no errors on startup
 
+## Lifecycle Audit + Empty Dir Cleanup (2026-03-20) -- COMPLETE
+- [x] Audited all 8 control/lifecycle/ files for fold candidates
+- [x] Grepped callers for AgentSpec, Cleanup, Registration, TmuxLauncher, TmuxScript
+- [x] All 5 candidates are multi-caller -- no folds performed, all 8 files kept
+- [x] Removed 9 empty directories from lib/ichor (causal_dag, runner/hooks, runner, subsystem_scaffold, signals/catalog, observability/types, gateway/types, gateway/router)
+- [x] mix compile --warnings-as-errors: CLEAN
+- [x] mix credo --strict: 0 issues (239 files)
+
 ## Phase 1 Final: Inline Last 3 Control Wrappers (2026-03-20) -- COMPLETE
 - [x] Grepped callers of Lookup, RuntimeQuery, RuntimeView
 - [x] Inlined Lookup.find_agent/1 + agent_session_id into RuntimeOps (5 callsites) and DashboardDagHandlers

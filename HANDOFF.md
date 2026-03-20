@@ -1,27 +1,36 @@
 # ICHOR IV - Handoff
 
-## Current Status: Phase 1 Inline Complete (2026-03-20)
+## Current Status: Lifecycle Audit + Empty Dir Cleanup (2026-03-20)
 
 ### Summary
-Phase 1 control wrapper inline is complete. All 3 remaining wrapper modules (Lookup, RuntimeQuery, RuntimeView) have been inlined into their callers and deleted.
+Control lifecycle audit complete -- all 5 candidate modules (AgentSpec, Cleanup, Registration,
+TmuxLauncher, TmuxScript) are multi-caller and were kept. No folds performed. 8 empty directories
+removed from lib/ichor.
 
 ### What Was Done (This Session)
-1. **Inlined `Ichor.Control.Lookup`** into:
-   - `lib/ichor/tools/runtime_ops.ex` -- `find_agent/1` private defp, `agent_session_id` inlined directly
-2. **Inlined `Ichor.Control.RuntimeQuery`** into:
-   - `lib/ichor/tools/runtime_ops.ex` -- `format_team/1`, `list_tasks_for_teams/1` private defps
-   - `lib/ichor_web/live/dashboard_selection_handlers.ex` -- `find_team_member/2` private defp
-   - `lib/ichor_web/live/dashboard_dag_handlers.ex` -- `find_agent_entry/3`, `find_session_name/2`, `fallback_session_name/1`, `find_agent_by_id/1` private defps
-3. **Inlined `Ichor.Control.RuntimeView`** into:
-   - `lib/ichor_web/live/dashboard_state.ex` -- `resolve_selected_team/2`, `find_team/2`, `merge_display_teams/3`, `build_agent_lookup/1`, `agent_in_tmux_session?/2`, `agent_to_team_member/1`, `inferred_team_health/1`, `dedup_by_status/1` private defps
-4. **Moved 3 files to tmp/trash/**: lookup.ex, runtime_query.ex, runtime_view.ex
-5. **Note**: format hook replaced `Ichor.EventBuffer` with `Ichor.Events.Runtime, as: EventRuntime` in runtime_ops.ex -- this was a pre-existing alias state, preserved.
+1. **Lifecycle audit** -- read all 8 lifecycle files, grepped callers for all 5 candidates:
+   - `AgentSpec` -- 6 callers (agent_launch, registration, team_spec, team_spec_builder, projects/team_spec, itself) → KEPT
+   - `Cleanup` -- 5 callers (agent_launch, projects/runner, projects/spawn, projects/runtime, itself) → KEPT
+   - `Registration` -- 5 callers (agent_launch, team_launch, control/agent, itself, cleanup) → KEPT
+   - `TmuxLauncher` -- 5 callers (agent_launch, team_launch, cleanup, projects/spawn, itself) → KEPT
+   - `TmuxScript` -- 4 callers (agent_launch, team_launch, cleanup, itself) → KEPT
+   - All 8 lifecycle files correctly sized and focused -- no folds needed.
+2. **Empty directory removal** -- 9 empty directories removed:
+   - `lib/ichor/mesh/causal_dag`
+   - `lib/ichor/projects/runner/hooks`
+   - `lib/ichor/projects/runner` (parent, became empty after hooks removed)
+   - `lib/ichor/projects/subsystem_scaffold`
+   - `lib/ichor/signals/catalog`
+   - `lib/ichor/observability/types`
+   - `lib/ichor/gateway/types`
+   - `lib/ichor/gateway/router`
+3. **Build**: `mix compile --warnings-as-errors` EXIT:0, `mix credo --strict` 0 issues (239 files)
 
 ### Build
-- `mix compile --warnings-as-errors` CLEAN
-- `mix credo --strict` 0 issues
+- `mix compile --warnings-as-errors` CLEAN (EXIT:0)
+- `mix credo --strict` 0 issues (239 files)
 
 ### Next Steps
-- Phase 2 (if any) or other pending tasks from tasks.jsonl
-- task 216: Thin SwarmMonitor to use Dag.Graph (pending)
-- task 71: ParenthesesOnZeroArityDefs + CondStatements (in_progress)
+- task 71: Misc ParenthesesOnZeroArityDefs + CondStatements (in_progress)
+- task 216: Thin SwarmMonitor to use Dag.Graph (pending, blocked by 205/202)
+- PulseMonitor implementation tasks (many pending subtasks)
