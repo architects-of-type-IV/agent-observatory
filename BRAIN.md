@@ -68,12 +68,19 @@
 - 3 modules: MemoryStore (GenServer), Storage (ETS ops), Persistence (disk I/O)
 - 5 bugs fixed: block delete dirtying, archival rewrite, load order, DateTime parsing, signal centralization
 
-## Next Reduction Path (codex analysed)
-- Level 1: fold private children into parents (~30-40 files, 195→~155)
-- Level 2: domain model consolidation (~155→~60):
-  - 5 Genesis artifacts → 1 Artifact with kind
-  - 4 roadmap items → 1 RoadmapItem with kind + parent_id
-  - 4 workshop blueprints → 1 embedded blueprint model
+## Reduction Progress
+- Level 1+2 DONE (Session 4): 195→~163 files
+  - 23 child modules folded into parents
+  - 9 Ash resources collapsed: 5 artifacts→1 `Artifact` (kind discriminator), 4 roadmap→1 `RoadmapItem` (kind + parent_id)
+  - decision_log embedded schemas→maps
+  - Tables: `genesis_artifacts`, `genesis_roadmap_items` created via manual migration
+- Level 3 (next): 4 workshop blueprint resources → 1 embedded blueprint model; more GenServer→ETS demotions
+
+## Migration Lessons (Session 4)
+- `mix ash.codegen` with NO prior snapshots generates a "create everything" migration -> WRONG for partial-state DBs
+- Correct fix: trash the bad migration, write manual DDL for only the new tables, apply with `mix ecto.migrate`
+- Resource snapshots now exist for all resources in `priv/resource_snapshots/repo/`
+- `mix ash.migrate` silently skips; use `mix ecto.migrate` for reliable apply
 
 ## User Preferences
 - Codex is an equal architectural partner. Give raw data, let it form conclusions.

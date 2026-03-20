@@ -35,31 +35,11 @@ defmodule Ichor.Signals.FromAsh do
   defp signal_for(Ichor.Projects.Node, :create), do: {:genesis_node_created, &node_data/2}
   defp signal_for(Ichor.Projects.Node, :advance), do: {:genesis_node_advanced, &node_data/2}
 
-  defp signal_for(Ichor.Projects.Adr, :create), do: {:genesis_artifact_created, &artifact_data/2}
-
-  defp signal_for(Ichor.Projects.Feature, :create),
+  defp signal_for(Ichor.Projects.Artifact, :create),
     do: {:genesis_artifact_created, &artifact_data/2}
 
-  defp signal_for(Ichor.Projects.UseCase, :create),
-    do: {:genesis_artifact_created, &artifact_data/2}
-
-  defp signal_for(Ichor.Projects.Phase, :create),
-    do: {:genesis_artifact_created, &artifact_data/2}
-
-  defp signal_for(Ichor.Projects.Section, :create),
-    do: {:genesis_artifact_created, &artifact_data/2}
-
-  defp signal_for(Ichor.Projects.RoadmapTask, :create),
-    do: {:genesis_artifact_created, &artifact_data/2}
-
-  defp signal_for(Ichor.Projects.Subtask, :create),
-    do: {:genesis_artifact_created, &artifact_data/2}
-
-  defp signal_for(Ichor.Projects.Checkpoint, :create),
-    do: {:genesis_artifact_created, &artifact_data/2}
-
-  defp signal_for(Ichor.Projects.Conversation, :create),
-    do: {:genesis_artifact_created, &artifact_data/2}
+  defp signal_for(Ichor.Projects.RoadmapItem, :create),
+    do: {:genesis_artifact_created, &roadmap_item_data/2}
 
   defp signal_for(Ichor.Projects.Project, :pick_up), do: {:mes_project_picked_up, &project_data/2}
 
@@ -115,22 +95,12 @@ defmodule Ichor.Signals.FromAsh do
     %{id: data.id, node_id: data.id, title: data.title, type: action.name}
   end
 
-  @artifact_type_map %{
-    Ichor.Projects.Adr => :adr,
-    Ichor.Projects.Feature => :feature,
-    Ichor.Projects.UseCase => :use_case,
-    Ichor.Projects.Phase => :phase,
-    Ichor.Projects.Section => :section,
-    Ichor.Projects.RoadmapTask => :roadmap_task,
-    Ichor.Projects.Subtask => :subtask,
-    Ichor.Projects.Checkpoint => :checkpoint,
-    Ichor.Projects.Conversation => :conversation
-  }
-
   defp artifact_data(data, _action) do
-    resource_type = Map.get(@artifact_type_map, data.__struct__, :unknown)
-    node_id = Map.get(data, :node_id) || Map.get(data, :genesis_node_id)
-    %{id: data.id, node_id: node_id, type: resource_type}
+    %{id: data.id, node_id: data.node_id, type: data.kind}
+  end
+
+  defp roadmap_item_data(data, _action) do
+    %{id: data.id, node_id: data.node_id, type: data.kind}
   end
 
   defp project_data(data, _action) do

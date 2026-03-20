@@ -4,16 +4,18 @@ defmodule Ichor.Control.AgentProcess do
   BEAM mailbox. The process IS the agent -- its PID is the canonical identity,
   its mailbox is the delivery target, its supervision is its lifecycle.
 
-  Backend transport (tmux, SSH, webhook) is pluggable via the Delivery module.
+  Backend transport (tmux, SSH, webhook) is pluggable via the delivery helpers
+  defined in this module.
   """
 
   use GenServer
 
-  alias Ichor.Control.AgentProcess.Lifecycle
-  alias Ichor.Control.AgentProcess.Mailbox
-  alias Ichor.Control.AgentProcess.Registry, as: AgentRegistry
+  alias Ichor.Gateway.Channels.{SshTmux, Tmux, WebhookAdapter}
+
   @type_iv_registry Ichor.Registry
   @pg_scope :ichor_agents
+  @max_message_buffer 200
+  @liveness_interval :timer.seconds(15)
 
   @type status :: :initializing | :active | :paused | :terminating
 
@@ -161,13 +163,13 @@ defmodule Ichor.Control.AgentProcess do
     }
 
     meta = Keyword.get(opts, :metadata, %{})
-    AgentRegistry.update(id, AgentRegistry.build_initial_meta(id, state, meta))
+    registry_update(id, build_initial_meta(id, state, meta))
 
     Ichor.Signals.subscribe(:agent_event, id)
     :pg.join(@pg_scope, {:agent, id}, self())
-    if Keyword.get(opts, :liveness_poll, false), do: Lifecycle.schedule_liveness_check()
+    if Keyword.get(opts, :liveness_poll, false), do: schedule_liveness_check()
 
-    Lifecycle.broadcast({:agent_started, id, %{role: role, team: team}})
+    broadcast_lifecycle({:agent_started, id, %{role: role, team: team}})
     {:ok, state}
   end
 
@@ -179,20 +181,20 @@ defmodule Ichor.Control.AgentProcess do
   end
 
   def handle_call(:pause, _from, state) do
-    AgentRegistry.update(state.id, %{status: :paused})
-    Lifecycle.broadcast({:agent_paused, state.id})
+    registry_update(state.id, %{status: :paused})
+    broadcast_lifecycle({:agent_paused, state.id})
     {:reply, :ok, %{state | status: :paused}}
   end
 
   def handle_call(:resume, _from, state) do
-    AgentRegistry.update(state.id, %{status: :active})
-    Lifecycle.broadcast({:agent_resumed, state.id})
-    {:reply, :ok, Mailbox.deliver_unread(state)}
+    registry_update(state.id, %{status: :active})
+    broadcast_lifecycle({:agent_resumed, state.id})
+    {:reply, :ok, deliver_unread(state)}
   end
 
   @impl true
   def handle_cast({:message, message}, state) do
-    {:noreply, Mailbox.apply_incoming_message(state, message)}
+    {:noreply, apply_incoming_message(state, message)}
   end
 
   def handle_cast({:instructions, instructions}, state) do
@@ -204,16 +206,16 @@ defmodule Ichor.Control.AgentProcess do
   end
 
   def handle_cast({:update_fields, fields}, state) do
-    AgentRegistry.update(state.id, fields)
+    registry_update(state.id, fields)
     {:noreply, state}
   end
 
   @impl true
   def handle_info(:check_liveness, state) do
-    {alive?, tmux_target} = Lifecycle.tmux_alive?(state.backend)
+    {alive?, tmux_target} = tmux_alive?(state.backend)
 
     if alive? do
-      Lifecycle.schedule_liveness_check()
+      schedule_liveness_check()
       {:noreply, state}
     else
       Ichor.Signals.emit(:mes_agent_tmux_gone, %{agent_id: state.id, tmux: tmux_target})
@@ -222,7 +224,7 @@ defmodule Ichor.Control.AgentProcess do
   end
 
   def handle_info(%Ichor.Signals.Message{name: :agent_event, data: %{event: event}}, state) do
-    AgentRegistry.update(state.id, AgentRegistry.fields_from_event(event))
+    registry_update(state.id, fields_from_event(event))
     Ichor.Signals.emit(:fleet_changed, %{agent_id: state.id})
     {:noreply, state}
   end
@@ -234,17 +236,190 @@ defmodule Ichor.Control.AgentProcess do
     # Tmux window already dead -- skip kill, just clean up BEAM-side registrations.
     # Ichor.Registry auto-deregisters when the process exits -- no explicit remove needed.
     Ichor.EventBuffer.tombstone_session(state.id)
-    Lifecycle.broadcast({:agent_stopped, state.id, :tmux_gone})
+    broadcast_lifecycle({:agent_stopped, state.id, :tmux_gone})
     :ok
   end
 
   def terminate(reason, state) do
-    Lifecycle.terminate_backend(state.backend)
+    terminate_backend(state.backend)
     # Ichor.Registry auto-deregisters when the process exits -- no explicit remove needed.
     Ichor.EventBuffer.tombstone_session(state.id)
-    Lifecycle.broadcast({:agent_stopped, state.id, reason})
+    broadcast_lifecycle({:agent_stopped, state.id, reason})
     :ok
   end
+
+  # --- Lifecycle helpers (inlined from Lifecycle) ---
+
+  defp schedule_liveness_check do
+    Process.send_after(self(), :check_liveness, @liveness_interval)
+  end
+
+  defp tmux_alive?(backend) do
+    tmux_target = get_in(backend, [:session]) || ""
+    {Tmux.available?(tmux_target), tmux_target}
+  end
+
+  defp terminate_backend(%{type: :tmux, session: session}) when is_binary(session) do
+    if String.contains?(session, ":") do
+      Tmux.run_command(["kill-window", "-t", session])
+    else
+      Tmux.run_command(["kill-session", "-t", session])
+    end
+  end
+
+  defp terminate_backend(_backend), do: :ok
+
+  defp broadcast_lifecycle({:agent_started, id, %{role: role, team: team}}) do
+    Ichor.Signals.emit(:agent_started, %{session_id: id, role: role, team: team})
+  end
+
+  defp broadcast_lifecycle({:agent_paused, id}) do
+    Ichor.Signals.emit(:agent_paused, %{session_id: id})
+  end
+
+  defp broadcast_lifecycle({:agent_resumed, id}) do
+    Ichor.Signals.emit(:agent_resumed, %{session_id: id})
+  end
+
+  defp broadcast_lifecycle({:agent_stopped, id, reason}) do
+    Ichor.Signals.emit(:agent_stopped, %{session_id: id, reason: reason})
+  end
+
+  # --- Mailbox helpers (inlined from Mailbox) ---
+
+  defp apply_incoming_message(state, message) do
+    normalized = normalize_message(message, state.id)
+    messages = Enum.take([normalized | state.messages], @max_message_buffer)
+    broadcast_message_delivered(state.id, normalized)
+    route_message(normalized, %{state | messages: messages})
+  end
+
+  defp deliver_unread(state) do
+    state.unread |> Enum.reverse() |> Enum.each(&deliver_to_backend(state.backend, &1))
+    %{state | status: :active}
+  end
+
+  defp route_message(message, %{status: status} = state) when status != :active do
+    %{state | unread: [message | state.unread]}
+  end
+
+  defp route_message(message, state) do
+    if state.backend, do: deliver_to_backend(state.backend, message)
+    %{state | unread: [message | state.unread]}
+  end
+
+  # --- Delivery helpers (inlined from Delivery) ---
+
+  defp normalize_message(msg, to) when is_map(msg) do
+    Map.merge(
+      %{
+        id: Ecto.UUID.generate(),
+        to: to,
+        timestamp: DateTime.utc_now()
+      },
+      msg
+    )
+  end
+
+  defp normalize_message(content, to) when is_binary(content) do
+    %{
+      id: Ecto.UUID.generate(),
+      to: to,
+      from: "system",
+      content: content,
+      type: :message,
+      timestamp: DateTime.utc_now()
+    }
+  end
+
+  defp deliver_to_backend(nil, _msg), do: :ok
+
+  defp deliver_to_backend(%{type: :tmux, session: session}, msg) do
+    content = msg[:content] || inspect(msg)
+    Tmux.deliver(session, %{content: content})
+  end
+
+  defp deliver_to_backend(%{type: :ssh_tmux, address: address}, msg) do
+    content = msg[:content] || inspect(msg)
+    SshTmux.deliver(address, %{content: content})
+  end
+
+  defp deliver_to_backend(%{type: :ssh_tmux, session: session, host: host}, msg) do
+    content = msg[:content] || inspect(msg)
+    SshTmux.deliver("#{session}@#{host}", %{content: content})
+  end
+
+  defp deliver_to_backend(%{type: :webhook, url: url}, msg) do
+    WebhookAdapter.deliver(url, msg)
+  end
+
+  defp deliver_to_backend(%{type: _type}, _msg), do: :ok
+
+  defp broadcast_message_delivered(agent_id, msg) do
+    Ichor.Signals.emit(:message_delivered, %{agent_id: agent_id, msg_map: msg})
+  end
+
+  # --- Registry helpers (inlined from Registry) ---
+
+  defp build_initial_meta(id, state, meta) do
+    tmux_target = extract_tmux_target(state.backend)
+    tmux_session = extract_session_name(tmux_target)
+    short_name = meta[:short_name] || meta[:name] || id
+
+    %{
+      role: state.role,
+      team: state.team,
+      status: :active,
+      model: meta[:model],
+      cwd: meta[:cwd],
+      current_tool: nil,
+      channels: meta[:channels] || %{tmux: tmux_target, mailbox: id, webhook: nil},
+      os_pid: meta[:os_pid],
+      last_event_at: meta[:last_event_at] || DateTime.utc_now(),
+      short_name: short_name,
+      name: meta[:name] || id,
+      host: meta[:host] || "local",
+      parent_id: meta[:parent_id],
+      backend_type: backend_type(state.backend),
+      tmux_session: tmux_session,
+      tmux_target: tmux_target
+    }
+  end
+
+  defp fields_from_event(event) do
+    %{last_event_at: DateTime.utc_now(), status: :active}
+    |> maybe_merge(:model, Map.get(event, :model_name))
+    |> maybe_merge(:cwd, Map.get(event, :cwd))
+    |> maybe_merge(:os_pid, Map.get(event, :os_pid))
+    |> merge_current_tool(event)
+  end
+
+  defp registry_update(id, fields) do
+    Registry.update_value(@type_iv_registry, {:agent, id}, fn meta -> Map.merge(meta, fields) end)
+  end
+
+  defp extract_tmux_target(%{type: :tmux, session: session}), do: session
+  defp extract_tmux_target(_), do: nil
+
+  defp extract_session_name(nil), do: nil
+  defp extract_session_name(target), do: target |> String.split(":") |> hd()
+
+  defp backend_type(nil), do: nil
+  defp backend_type(%{type: type}), do: type
+  defp backend_type(_), do: :unknown
+
+  defp maybe_merge(map, _key, nil), do: map
+  defp maybe_merge(map, key, value), do: Map.put(map, key, value)
+
+  defp merge_current_tool(fields, %{hook_event_type: type, tool_name: tool})
+       when type in [:PreToolUse, "PreToolUse"] and not is_nil(tool),
+       do: Map.put(fields, :current_tool, tool)
+
+  defp merge_current_tool(fields, %{hook_event_type: type})
+       when type in [:PostToolUse, :PostToolUseFailure, "PostToolUse", "PostToolUseFailure"],
+       do: Map.put(fields, :current_tool, nil)
+
+  defp merge_current_tool(fields, _event), do: fields
 
   @spec via(String.t()) :: {:via, module(), tuple()}
   defp via(id), do: {:via, Registry, {@type_iv_registry, {:agent, id}, %{}}}

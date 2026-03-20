@@ -4,7 +4,7 @@ defmodule Ichor.Projects.Runner do
 
   Replaces BuildRunner (MES), PlanRunner (Genesis), and RunProcess (DAG)
   with a single data-driven implementation. Behavior differences are
-  expressed through `%Runner.Mode{}` config structs and hook modules.
+  expressed through `%Runner.Mode{}` config structs and hook functions.
 
   Registry keys by kind:
     - :mes     -> {:run, run_id}
@@ -18,9 +18,18 @@ defmodule Ichor.Projects.Runner do
 
   use GenServer, restart: :temporary
 
-  alias Ichor.Projects.Runner.{Hooks, Modes}
+  alias Ichor.Control.Lifecycle.{TeamLaunch, TmuxLauncher}
+  alias Ichor.Projects.{Exporter, HealthChecker, Janitor, Job, Run, RuntimeSignals}
+  alias Ichor.Projects.{TeamCleanup, TeamSpecBuilder}
   alias Ichor.Signals
   alias Ichor.Signals.Message
+
+  @liveness_ms :timer.seconds(30)
+  @liveness_dag_ms :timer.seconds(60)
+  @deadline_ms :timer.minutes(10)
+  @stale_check_ms :timer.seconds(60)
+  @health_check_ms :timer.seconds(30)
+  @stale_threshold_min 10
 
   defmodule Mode do
     @moduledoc "Data-driven configuration for a Runner kind."
@@ -159,7 +168,7 @@ defmodule Ichor.Projects.Runner do
   def init(opts) do
     kind = Keyword.fetch!(opts, :kind)
     run_id = Keyword.fetch!(opts, :run_id)
-    config = Modes.config(kind, run_id, opts)
+    config = build_mode_config(kind, run_id, opts)
 
     state = %State{
       run_id: run_id,
@@ -260,7 +269,254 @@ defmodule Ichor.Projects.Runner do
   end
 
   # ---------------------------------------------------------------------------
-  # Private helpers
+  # Mode configuration (replaces Runner.Modes)
+  # ---------------------------------------------------------------------------
+
+  defp build_mode_config(:mes, run_id, opts) do
+    team_name = Keyword.get(opts, :team_name, "mes-#{run_id}")
+
+    %Mode{
+      kind: :mes,
+      subscriptions: [:mes],
+      timers: %{
+        liveness_ms: @liveness_ms,
+        deadline_ms: @deadline_ms,
+        on_init: &mes_on_init/1
+      },
+      completion: %{
+        source: :signal,
+        signal: :mes_project_created
+      },
+      checks: nil,
+      cleanup: %{policy: :mes_janitor},
+      signals: %{
+        ready: :mes_run_started,
+        completed: :mes_run_complete,
+        tmux_gone: :mes_tmux_gone,
+        terminated: :mes_run_terminated,
+        deadline_reached: :mes_deadline_reached
+      },
+      commands: nil,
+      hooks: %{
+        on_signal: &mes_on_signal/2,
+        on_complete: fn state ->
+          Signals.emit(:mes_run_complete, %{
+            run_id: state.run_id,
+            session: state.session
+          })
+        end,
+        team_name: team_name
+      }
+    }
+  end
+
+  defp build_mode_config(:genesis, _run_id, opts) do
+    mode_label = Keyword.get(opts, :mode, "unknown")
+
+    %Mode{
+      kind: :genesis,
+      subscriptions: [:messages],
+      timers: %{liveness_ms: @liveness_ms},
+      completion: %{
+        source: :message_delivered,
+        coordinator_id_fn: &genesis_coordinator_id/1
+      },
+      checks: nil,
+      cleanup: %{policy: :teardown},
+      signals: %{
+        ready: :genesis_run_init,
+        completed: :genesis_run_complete,
+        tmux_gone: :genesis_tmux_gone,
+        terminated: :genesis_run_terminated
+      },
+      commands: nil,
+      hooks: %{
+        on_complete: fn state ->
+          Signals.emit(:genesis_run_complete, %{
+            run_id: state.run_id,
+            mode: mode_label,
+            session: state.session,
+            delivered_by: "operator"
+          })
+        end
+      }
+    }
+  end
+
+  defp build_mode_config(:dag, _run_id, _opts) do
+    %Mode{
+      kind: :dag,
+      subscriptions: [:messages],
+      timers: %{liveness_ms: @liveness_dag_ms},
+      completion: %{
+        source: :message_delivered,
+        coordinator_id_fn: &dag_coordinator_id/1
+      },
+      checks: [
+        %{id: :stale, every_ms: @stale_check_ms, callback: &dag_check_stale/1},
+        %{id: :health, every_ms: @health_check_ms, callback: &dag_check_health/1}
+      ],
+      cleanup: %{policy: :teardown},
+      signals: %{
+        ready: :dag_run_ready,
+        completed: :dag_run_completed,
+        tmux_gone: :dag_tmux_gone,
+        terminated: :dag_run_terminated
+      },
+      commands: %{
+        sync_job: &dag_sync_job/2
+      },
+      hooks: %{
+        on_complete: &dag_on_complete/1
+      }
+    }
+  end
+
+  defp genesis_coordinator_id(%{session: session}), do: session
+  defp dag_coordinator_id(%{session: session}), do: "#{session}-coordinator"
+
+  # ---------------------------------------------------------------------------
+  # MES hook implementations (replaces Runner.Hooks.MES)
+  # ---------------------------------------------------------------------------
+
+  defp mes_on_init(state) do
+    pid = self()
+
+    team_name =
+      get_in(state.config, [Access.key(:hooks), Access.key(:team_name)]) || state.session
+
+    spec = mes_team_spec_builder().build_team_spec(state.run_id, team_name)
+
+    case mes_team_launch().launch(spec) do
+      {:ok, _session} ->
+        :ok
+
+      {:error, reason} ->
+        Signals.emit(:mes_cycle_failed, %{run_id: state.run_id, reason: inspect(reason)})
+    end
+
+    Janitor.monitor_run(state.run_id, pid)
+    :ok
+  end
+
+  defp mes_on_signal(
+         %Message{name: :mes_quality_gate_failed, data: %{run_id: run_id} = data},
+         %{run_id: run_id} = state
+       ) do
+    failures = Map.get(state.runtime, :gate_failures, 0) + 1
+    mes_spawn_corrective_agent(state.run_id, state.session, data[:reason], failures)
+    put_in(state.runtime[:gate_failures], failures)
+  end
+
+  defp mes_on_signal(
+         %Message{name: :mes_quality_gate_escalated, data: %{run_id: run_id}},
+         %{run_id: run_id} = state
+       ) do
+    %{state | deadline_passed: true}
+  end
+
+  defp mes_on_signal(_msg, state), do: state
+
+  defp mes_spawn_corrective_agent(run_id, session, reason, attempt) do
+    builder = mes_team_spec_builder()
+    spec = builder.build_corrective_team_spec(run_id, session, reason, attempt)
+
+    case mes_team_launch().launch_into_existing_session(spec, session) do
+      :ok ->
+        Signals.emit(:mes_corrective_agent_spawned, %{
+          run_id: run_id,
+          session: session,
+          attempt: attempt
+        })
+
+      {:error, err} ->
+        Signals.emit(:mes_corrective_agent_failed, %{
+          run_id: run_id,
+          session: session,
+          reason: inspect(err)
+        })
+    end
+  end
+
+  defp mes_cleanup(state) do
+    mes_team_cleanup().kill_session(state.session)
+    :ok
+  end
+
+  defp mes_team_spec_builder do
+    Application.get_env(:ichor, :mes_team_spec_builder_module, TeamSpecBuilder)
+  end
+
+  defp mes_team_launch do
+    Application.get_env(:ichor, :mes_team_launch_module, TeamLaunch)
+  end
+
+  defp mes_team_cleanup do
+    Application.get_env(:ichor, :mes_team_cleanup_module, TeamCleanup)
+  end
+
+  # ---------------------------------------------------------------------------
+  # DAG hook implementations (replaces Runner.Hooks.DAG)
+  # ---------------------------------------------------------------------------
+
+  defp dag_check_stale(state) do
+    with {:ok, jobs} <- Job.by_run(state.run_id) do
+      now = DateTime.utc_now()
+
+      jobs
+      |> Enum.filter(&(to_string(&1.status) == "in_progress" and dag_stale?(&1, now)))
+      |> Enum.each(&Job.reset/1)
+    end
+
+    :ok
+  end
+
+  defp dag_check_health(state) do
+    case HealthChecker.check(state.run_id) do
+      {:ok, report} ->
+        RuntimeSignals.emit_health_report(state.run_id, report.healthy, length(report.issues))
+
+      _ ->
+        :ok
+    end
+
+    :ok
+  end
+
+  defp dag_sync_job(state, job) do
+    Task.start(fn -> Exporter.sync_to_file(job, state.project_path) end)
+    {:noreply, state}
+  end
+
+  defp dag_on_complete(state) do
+    with {:ok, run} <- Run.get(state.run_id) do
+      Run.complete(run)
+      RuntimeSignals.emit_run_completed(state.run_id, run.label)
+    end
+
+    :ok
+  end
+
+  defp dag_stale?(%{updated_at: nil}, _now), do: true
+
+  defp dag_stale?(%{updated_at: ts}, now) do
+    DateTime.diff(now, ts, :minute) > @stale_threshold_min
+  end
+
+  # ---------------------------------------------------------------------------
+  # Cleanup dispatch (replaces Runner.Hooks)
+  # ---------------------------------------------------------------------------
+
+  defp do_cleanup(:mes_janitor, state), do: mes_cleanup(state)
+  defp do_cleanup(:teardown, %{team_spec: nil}), do: :ok
+
+  defp do_cleanup(:teardown, state) do
+    TeamLaunch.teardown(state.team_spec)
+    :ok
+  end
+
+  # ---------------------------------------------------------------------------
+  # Core GenServer helpers
   # ---------------------------------------------------------------------------
 
   defp registry_key(:mes), do: :run
@@ -281,7 +537,7 @@ defmodule Ichor.Projects.Runner do
   end
 
   defp subscribe_all(subscriptions) do
-    Enum.each(subscriptions, &Ichor.Signals.subscribe/1)
+    Enum.each(subscriptions, &Signals.subscribe/1)
   end
 
   defp schedule_timers(timers, state) do
@@ -328,13 +584,13 @@ defmodule Ichor.Projects.Runner do
   end
 
   defp tmux_available?(session) do
-    mod = Application.get_env(:ichor, :tmux_launcher_module, Ichor.Control.Lifecycle.TmuxLauncher)
+    mod = Application.get_env(:ichor, :tmux_launcher_module, TmuxLauncher)
     mod.available?(session)
   end
 
   defp run_cleanup(state) do
     policy = state.config.cleanup.policy
-    Hooks.cleanup(policy, state)
+    do_cleanup(policy, state)
   end
 
   defp dispatch_to_hook(msg, state) do

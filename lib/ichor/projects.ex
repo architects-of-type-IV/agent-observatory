@@ -11,15 +11,8 @@ defmodule Ichor.Projects do
   resources do
     resource(Ichor.Projects.Project)
     resource(Ichor.Projects.Node)
-    resource(Ichor.Projects.Adr)
-    resource(Ichor.Projects.Feature)
-    resource(Ichor.Projects.UseCase)
-    resource(Ichor.Projects.Checkpoint)
-    resource(Ichor.Projects.Conversation)
-    resource(Ichor.Projects.Phase)
-    resource(Ichor.Projects.Section)
-    resource(Ichor.Projects.RoadmapTask)
-    resource(Ichor.Projects.Subtask)
+    resource(Ichor.Projects.Artifact)
+    resource(Ichor.Projects.RoadmapItem)
     resource(Ichor.Projects.Run)
     resource(Ichor.Projects.Job)
   end

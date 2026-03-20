@@ -5,18 +5,7 @@ defmodule Ichor.Tools.Genesis do
   """
   use Ash.Resource, domain: Ichor.Tools
 
-  alias Ichor.Projects.{
-    Adr,
-    Checkpoint,
-    Conversation,
-    Feature,
-    Phase,
-    RoadmapTask,
-    Section,
-    Subtask,
-    UseCase
-  }
-
+  alias Ichor.Projects.{Artifact, RoadmapItem}
   alias Ichor.Projects.Node
 
   @node_status_map %{
@@ -42,7 +31,7 @@ defmodule Ichor.Tools.Genesis do
     "gate_c" => :gate_c
   }
 
-  @artifact_fields ~w(id code title status content mode summary feature_code adr_codes node_id)a
+  @artifact_fields ~w(id code title status content mode summary feature_code adr_codes node_id kind)a
 
   actions do
     # ── Node lifecycle ──────────────────────────────────────────────────────────
@@ -129,7 +118,7 @@ defmodule Ichor.Tools.Genesis do
       run(fn input, _context ->
         with {:ok, loaded} <-
                Node.get(input.arguments.node_id,
-                 load: [:adrs, :features, :use_cases, :checkpoints, :conversations, :phases]
+                 load: [:artifacts, :roadmap_items]
                ) do
           {:ok, detail_node(loaded)}
         end
@@ -149,7 +138,7 @@ defmodule Ichor.Tools.Genesis do
       run(fn input, _context ->
         with {:ok, loaded} <-
                Node.get(input.arguments.node_id,
-                 load: [:adrs, :features, :use_cases, :checkpoints, :phases]
+                 load: [:artifacts, :roadmap_items]
                ) do
           {:ok, gate_report(loaded)}
         end
@@ -176,7 +165,8 @@ defmodule Ichor.Tools.Genesis do
         args = input.arguments
         status = parse_enum(args.status, :pending, @valid_adr_statuses)
 
-        Adr.create(%{
+        Artifact.create(%{
+          kind: :adr,
           code: args.code,
           title: args.title,
           content: if(args.content == "", do: nil, else: args.content),
@@ -200,7 +190,7 @@ defmodule Ichor.Tools.Genesis do
       )
 
       run(fn input, _context ->
-        with {:ok, adr} <- Adr.get(input.arguments.adr_id) do
+        with {:ok, adr} <- Artifact.get(input.arguments.adr_id) do
           status_str = if input.arguments.status == "", do: nil, else: input.arguments.status
           content_val = if input.arguments.content == "", do: nil, else: input.arguments.content
 
@@ -209,7 +199,7 @@ defmodule Ichor.Tools.Genesis do
             |> put_if(:status, parse_enum(status_str, nil, @valid_adr_statuses))
             |> put_if(:content, content_val)
 
-          Adr.update(adr, attrs) |> to_map(@artifact_fields)
+          Artifact.update(adr, attrs) |> to_map(@artifact_fields)
         end
       end)
     end
@@ -220,7 +210,7 @@ defmodule Ichor.Tools.Genesis do
       argument(:node_id, :string, allow_nil?: false, description: "Genesis Node UUID")
 
       run(fn input, _context ->
-        with {:ok, adrs} <- Adr.by_node(input.arguments.node_id) do
+        with {:ok, adrs} <- Artifact.by_node_and_kind(input.arguments.node_id, :adr) do
           {:ok, Enum.map(adrs, &summarize(&1, [:code, :title, :status]))}
         end
       end)
@@ -250,7 +240,8 @@ defmodule Ichor.Tools.Genesis do
       run(fn input, _context ->
         args = input.arguments
 
-        Feature.create(%{
+        Artifact.create(%{
+          kind: :feature,
           code: args.code,
           title: args.title,
           content: if(args.content == "", do: nil, else: args.content),
@@ -267,7 +258,7 @@ defmodule Ichor.Tools.Genesis do
       argument(:node_id, :string, allow_nil?: false, description: "Genesis Node UUID")
 
       run(fn input, _context ->
-        with {:ok, features} <- Feature.by_node(input.arguments.node_id) do
+        with {:ok, features} <- Artifact.by_node_and_kind(input.arguments.node_id, :feature) do
           {:ok, Enum.map(features, &summarize(&1, [:code, :title, :adr_codes]))}
         end
       end)
@@ -297,7 +288,8 @@ defmodule Ichor.Tools.Genesis do
       run(fn input, _context ->
         args = input.arguments
 
-        UseCase.create(%{
+        Artifact.create(%{
+          kind: :use_case,
           code: args.code,
           title: args.title,
           content: if(args.content == "", do: nil, else: args.content),
@@ -314,7 +306,7 @@ defmodule Ichor.Tools.Genesis do
       argument(:node_id, :string, allow_nil?: false, description: "Genesis Node UUID")
 
       run(fn input, _context ->
-        with {:ok, ucs} <- UseCase.by_node(input.arguments.node_id) do
+        with {:ok, ucs} <- Artifact.by_node_and_kind(input.arguments.node_id, :use_case) do
           {:ok, Enum.map(ucs, &summarize(&1, [:code, :title, :feature_code]))}
         end
       end)
@@ -342,14 +334,15 @@ defmodule Ichor.Tools.Genesis do
 
         case Map.fetch(@valid_modes, args.mode) do
           {:ok, mode} ->
-            Checkpoint.create(%{
+            Artifact.create(%{
+              kind: :checkpoint,
               title: args.title,
               mode: mode,
               content: if(args.content == "", do: nil, else: args.content),
               summary: if(args.summary == "", do: nil, else: args.summary),
               node_id: args.node_id
             })
-            |> to_map([:title, :mode, :content, :summary, :node_id])
+            |> to_map([:kind, :title, :mode, :content, :summary, :node_id])
 
           :error ->
             {:error, "unknown mode: #{args.mode}"}
@@ -377,13 +370,14 @@ defmodule Ichor.Tools.Genesis do
 
         case Map.fetch(@valid_modes, args.mode) do
           {:ok, mode} ->
-            Conversation.create(%{
+            Artifact.create(%{
+              kind: :conversation,
               title: args.title,
               mode: mode,
               content: if(args.content == "", do: nil, else: args.content),
               node_id: args.node_id
             })
-            |> to_map([:title, :mode, :content, :summary, :node_id])
+            |> to_map([:kind, :title, :mode, :content, :summary, :node_id])
 
           :error ->
             {:error, "unknown mode: #{args.mode}"}
@@ -397,7 +391,7 @@ defmodule Ichor.Tools.Genesis do
       argument(:node_id, :string, allow_nil?: false, description: "Genesis Node UUID")
 
       run(fn input, _context ->
-        case Conversation.by_node(input.arguments.node_id) do
+        case Artifact.by_node_and_kind(input.arguments.node_id, :conversation) do
           {:ok, convs} -> {:ok, Enum.map(convs, &summarize(&1, [:title, :mode]))}
           error -> error
         end
@@ -428,21 +422,23 @@ defmodule Ichor.Tools.Genesis do
       run(fn input, _context ->
         args = input.arguments
 
-        Phase.create(%{
+        RoadmapItem.create(%{
+          kind: :phase,
           number: args.number,
           title: args.title,
           goals: split_csv(args.goals),
           governed_by: split_csv(args.governed_by),
           node_id: args.node_id
         })
-        |> to_map([:number, :title, :status, :goals, :governed_by, :node_id])
+        |> to_map([:kind, :number, :title, :status, :goals, :governed_by, :node_id])
       end)
     end
 
     action :create_section, :map do
       description("Create a Section within a Phase.")
 
-      argument(:phase_id, :string, allow_nil?: false, description: "Phase UUID")
+      argument(:phase_id, :string, allow_nil?: false, description: "Phase RoadmapItem UUID")
+      argument(:node_id, :string, allow_nil?: false, description: "Genesis Node UUID")
       argument(:number, :integer, allow_nil?: false, description: "Section number")
       argument(:title, :string, allow_nil?: false, description: "Section title")
       argument(:goal, :string, allow_nil?: false, default: "", description: "Section goal")
@@ -450,20 +446,23 @@ defmodule Ichor.Tools.Genesis do
       run(fn input, _context ->
         args = input.arguments
 
-        Section.create(%{
+        RoadmapItem.create(%{
+          kind: :section,
           number: args.number,
           title: args.title,
           goal: if(args.goal == "", do: nil, else: args.goal),
-          phase_id: args.phase_id
+          node_id: args.node_id,
+          parent_id: args.phase_id
         })
-        |> to_map([:number, :title, :goal, :phase_id])
+        |> to_map([:kind, :number, :title, :goal, :node_id, :parent_id])
       end)
     end
 
     action :create_task, :map do
       description("Create a Task within a Section.")
 
-      argument(:section_id, :string, allow_nil?: false, description: "Section UUID")
+      argument(:section_id, :string, allow_nil?: false, description: "Section RoadmapItem UUID")
+      argument(:node_id, :string, allow_nil?: false, description: "Genesis Node UUID")
       argument(:number, :integer, allow_nil?: false, description: "Task number")
       argument(:title, :string, allow_nil?: false, description: "Task title")
 
@@ -482,21 +481,33 @@ defmodule Ichor.Tools.Genesis do
       run(fn input, _context ->
         args = input.arguments
 
-        RoadmapTask.create(%{
+        RoadmapItem.create(%{
+          kind: :task,
           number: args.number,
           title: args.title,
           governed_by: split_csv(args.governed_by),
           parent_uc: if(args.parent_uc == "", do: nil, else: args.parent_uc),
-          section_id: args.section_id
+          node_id: args.node_id,
+          parent_id: args.section_id
         })
-        |> to_map([:number, :title, :status, :governed_by, :parent_uc, :section_id])
+        |> to_map([
+          :kind,
+          :number,
+          :title,
+          :status,
+          :governed_by,
+          :parent_uc,
+          :node_id,
+          :parent_id
+        ])
       end)
     end
 
     action :create_subtask, :map do
       description("Create a Subtask within a Task. Subtasks are DAG-ready work units.")
 
-      argument(:task_id, :string, allow_nil?: false, description: "Task UUID")
+      argument(:task_id, :string, allow_nil?: false, description: "Task RoadmapItem UUID")
+      argument(:node_id, :string, allow_nil?: false, description: "Genesis Node UUID")
       argument(:number, :integer, allow_nil?: false, description: "Subtask number")
       argument(:title, :string, allow_nil?: false, description: "Subtask title")
 
@@ -533,7 +544,8 @@ defmodule Ichor.Tools.Genesis do
       run(fn input, _context ->
         args = input.arguments
 
-        Subtask.create(%{
+        RoadmapItem.create(%{
+          kind: :subtask,
           number: args.number,
           title: args.title,
           goal: if(args.goal == "", do: nil, else: args.goal),
@@ -541,9 +553,11 @@ defmodule Ichor.Tools.Genesis do
           blocked_by: split_csv(args.blocked_by),
           steps: split_csv(args.steps),
           done_when: if(args.done_when == "", do: nil, else: args.done_when),
-          task_id: args.task_id
+          node_id: args.node_id,
+          parent_id: args.task_id
         })
         |> to_map([
+          :kind,
           :number,
           :title,
           :status,
@@ -552,7 +566,8 @@ defmodule Ichor.Tools.Genesis do
           :blocked_by,
           :steps,
           :done_when,
-          :task_id
+          :node_id,
+          :parent_id
         ])
       end)
     end
@@ -565,14 +580,8 @@ defmodule Ichor.Tools.Genesis do
       argument(:node_id, :string, allow_nil?: false, description: "Genesis Node UUID")
 
       run(fn input, _context ->
-        with {:ok, phases} <- Phase.by_node(input.arguments.node_id) do
-          summaries =
-            Enum.map(phases, fn phase ->
-              {:ok, p} = Phase.with_hierarchy(phase.id)
-              summarize_phase(p)
-            end)
-
-          {:ok, summaries}
+        with {:ok, phases} <- RoadmapItem.phases_with_hierarchy(input.arguments.node_id) do
+          {:ok, Enum.map(phases, &summarize_phase/1)}
         end
       end)
     end
@@ -590,37 +599,40 @@ defmodule Ichor.Tools.Genesis do
   end
 
   defp detail_node(node) do
+    phases_count = Enum.count(node.roadmap_items, &(&1.kind == :phase))
+
     %{
       "id" => node.id,
       "title" => node.title,
       "status" => to_string(node.status),
       "description" => node.description,
-      "adrs" => length(node.adrs),
-      "features" => length(node.features),
-      "use_cases" => length(node.use_cases),
-      "checkpoints" => length(node.checkpoints),
-      "conversations" => length(node.conversations),
-      "phases" => length(node.phases)
+      "adrs" => Enum.count(node.artifacts, &(&1.kind == :adr)),
+      "features" => Enum.count(node.artifacts, &(&1.kind == :feature)),
+      "use_cases" => Enum.count(node.artifacts, &(&1.kind == :use_case)),
+      "checkpoints" => Enum.count(node.artifacts, &(&1.kind == :checkpoint)),
+      "conversations" => Enum.count(node.artifacts, &(&1.kind == :conversation)),
+      "phases" => phases_count
     }
   end
 
   defp gate_report(node) do
-    adrs = length(node.adrs)
-    accepted_adrs = Enum.count(node.adrs, &(&1.status == :accepted))
-    features = length(node.features)
-    use_cases = length(node.use_cases)
-    phases = length(node.phases)
+    adrs = Enum.filter(node.artifacts, &(&1.kind == :adr))
+    accepted_adrs = Enum.count(adrs, &(&1.status == :accepted))
+    features = Enum.count(node.artifacts, &(&1.kind == :feature))
+    use_cases = Enum.count(node.artifacts, &(&1.kind == :use_case))
+    checkpoints = Enum.count(node.artifacts, &(&1.kind == :checkpoint))
+    phases = Enum.count(node.roadmap_items, &(&1.kind == :phase))
 
     %{
       "node_id" => node.id,
       "current_status" => to_string(node.status),
-      "adrs" => adrs,
+      "adrs" => Enum.count(adrs),
       "accepted_adrs" => accepted_adrs,
       "features" => features,
       "use_cases" => use_cases,
-      "checkpoints" => length(node.checkpoints),
+      "checkpoints" => checkpoints,
       "phases" => phases,
-      "ready_for_define" => adrs > 0 and accepted_adrs > 0,
+      "ready_for_define" => adrs !== [] and accepted_adrs > 0,
       "ready_for_build" => features > 0 and use_cases > 0,
       "ready_for_complete" => phases > 0
     }
@@ -628,36 +640,36 @@ defmodule Ichor.Tools.Genesis do
 
   # ── Roadmap helpers ─────────────────────────────────────────────────────────
 
-  defp summarize_phase(p) do
+  defp summarize_phase(phase) do
     %{
-      "id" => p.id,
-      "number" => p.number,
-      "title" => p.title,
-      "status" => to_string(p.status),
-      "sections" => Enum.map(p.sections, &summarize_section/1)
+      "id" => phase.id,
+      "number" => phase.number,
+      "title" => phase.title,
+      "status" => to_string(phase.status),
+      "sections" => Enum.map(phase.children, &summarize_section/1)
     }
   end
 
-  defp summarize_section(s) do
+  defp summarize_section(section) do
     %{
-      "id" => s.id,
-      "number" => s.number,
-      "title" => s.title,
-      "tasks" => Enum.map(s.tasks, &summarize_task/1)
+      "id" => section.id,
+      "number" => section.number,
+      "title" => section.title,
+      "tasks" => Enum.map(section.children, &summarize_task/1)
     }
   end
 
-  defp summarize_task(t) do
+  defp summarize_task(task) do
     %{
-      "id" => t.id,
-      "number" => t.number,
-      "title" => t.title,
-      "status" => to_string(t.status),
-      "subtasks" => length(t.subtasks)
+      "id" => task.id,
+      "number" => task.number,
+      "title" => task.title,
+      "status" => to_string(task.status),
+      "subtasks" => length(task.children)
     }
   end
 
-  # ── Formatter helpers (inlined from GenesisFormatter) ──────────────────────
+  # ── Formatter helpers ───────────────────────────────────────────────────────
 
   defp to_map({:ok, record}, fields) do
     {:ok,

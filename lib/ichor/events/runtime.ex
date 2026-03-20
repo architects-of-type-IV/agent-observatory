@@ -15,8 +15,7 @@ defmodule Ichor.Events.Runtime do
 
   alias Ichor.EventBuffer
   alias Ichor.Events.Event
-  alias Ichor.Gateway.HeartbeatManager
-  alias Ichor.Gateway.Router.EventIngest
+  alias Ichor.Gateway.{HeartbeatManager, Router}
   alias Ichor.Signals
 
   @doc "Ingest a raw hook event map. Normalizes, stores, emits signals, and runs side effects."
@@ -24,7 +23,7 @@ defmodule Ichor.Events.Runtime do
   def ingest_raw(raw_map) when is_map(raw_map) do
     {:ok, event} = EventBuffer.ingest(raw_map)
     Signals.emit(:new_event, %{event: event})
-    EventIngest.ingest(event)
+    Router.ingest(event)
     {:ok, event}
   end
 

@@ -67,7 +67,7 @@ defmodule Ichor.Gateway.EventBridge do
 
   defp event_to_decision_log(event) do
     %DecisionLog{
-      meta: %DecisionLog.Meta{
+      meta: %{
         trace_id: event.session_id,
         timestamp: event.inserted_at,
         source_app: event.source_app,
@@ -76,13 +76,13 @@ defmodule Ichor.Gateway.EventBridge do
         parent_step_id: nil,
         cluster_id: extract_team_name(event)
       },
-      identity: %DecisionLog.Identity{
+      identity: %{
         agent_id: event.session_id,
         agent_type: event.source_app || "unknown",
         capability_version: "1.0.0",
         model_name: event.model_name
       },
-      cognition: %DecisionLog.Cognition{
+      cognition: %{
         intent: map_intent(event),
         hook_event_type: to_string(event.hook_event_type),
         summary: event.summary
@@ -107,7 +107,7 @@ defmodule Ichor.Gateway.EventBridge do
   defp build_action(event) do
     status = map_action_status(event.hook_event_type)
 
-    %DecisionLog.Action{
+    %{
       status: status,
       tool_call: event.tool_name,
       tool_input: truncate_tool_input(event.payload),
@@ -126,7 +126,7 @@ defmodule Ichor.Gateway.EventBridge do
   defp map_action_status(_), do: :success
 
   defp build_control(%{hook_event_type: type}) when type in [:Stop, :SessionEnd],
-    do: %DecisionLog.Control{is_terminal: true}
+    do: %{is_terminal: true}
 
   defp build_control(_event), do: nil
 
@@ -182,12 +182,15 @@ defmodule Ichor.Gateway.EventBridge do
       parent_step_id: parent_id,
       agent_id: agent_id,
       intent: intent,
-      confidence_score: (log.cognition && log.cognition.confidence_score) || 0.0,
-      entropy_score: (log.cognition && log.cognition.entropy_score) || 0.0,
-      action_status: (log.action && log.action.status) || :pending,
-      timestamp: (log.meta && log.meta.timestamp) || DateTime.utc_now()
+      confidence_score: get_nested(log.cognition, :confidence_score, 0.0),
+      entropy_score: get_nested(log.cognition, :entropy_score, 0.0),
+      action_status: get_nested(log.action, :status, :pending),
+      timestamp: get_nested(log.meta, :timestamp, DateTime.utc_now())
     }
   end
+
+  defp get_nested(nil, _key, default), do: default
+  defp get_nested(map, key, default) when is_map(map), do: Map.get(map, key, default)
 
   defp truncate_tool_input(%{"tool_input" => input}) when is_binary(input) do
     String.slice(input, 0, 500)

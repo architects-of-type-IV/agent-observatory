@@ -1,21 +1,22 @@
 defmodule Ichor.Projects.DagGenerator do
   @moduledoc """
-  Converts a Genesis Node's Phase/Section/Task/Subtask hierarchy
+  Converts a Genesis Node's RoadmapItem hierarchy (phases -> sections -> tasks -> subtasks)
   into tasks.jsonl format with blocked_by chains.
 
   Output: list of JSONL-compatible maps, one per subtask.
   Dotted IDs: "{phase_num}.{section_num}.{task_num}.{subtask_num}"
   """
 
-  @hierarchy_load [sections: [tasks: :subtasks]]
+  alias Ichor.Projects.RoadmapItem
+
   @compile_gate "mix compile --warnings-as-errors"
 
   @doc "Generates a tasks.jsonl-compatible list of maps from a Genesis node hierarchy."
   @spec generate(String.t()) :: {:ok, [map()]} | {:error, term()}
   def generate(node_id) do
-    with {:ok, node} <- Ichor.Projects.Node.get(node_id, load: [phases: @hierarchy_load]) do
+    with {:ok, phases} <- RoadmapItem.phases_with_hierarchy(node_id) do
       tasks =
-        node.phases
+        phases
         |> flatten_hierarchy()
         |> build_uuid_to_dotted_map()
         |> convert_to_jsonl()
@@ -32,9 +33,9 @@ defmodule Ichor.Projects.DagGenerator do
 
   defp flatten_hierarchy(phases) do
     for phase <- phases,
-        section <- Enum.sort_by(phase.sections, & &1.number),
-        task <- Enum.sort_by(section.tasks, & &1.number),
-        subtask <- Enum.sort_by(task.subtasks, & &1.number) do
+        section <- Enum.sort_by(phase.children, & &1.number),
+        task <- Enum.sort_by(section.children, & &1.number),
+        subtask <- Enum.sort_by(task.children, & &1.number) do
       %{
         phase: phase,
         section: section,

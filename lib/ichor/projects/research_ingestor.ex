@@ -140,9 +140,9 @@ defmodule Ichor.Projects.ResearchIngestor do
   defp join_list(items) when is_list(items), do: Enum.join(items, ", ")
   defp join_list(other), do: other
 
-  defp extract_episode_id(%MemoriesClient.IngestResult{episode_id: id}), do: id
+  defp extract_episode_id(%{episode_id: id}), do: id
 
-  defp extract_episode_id(%MemoriesClient.ChunkedIngestResult{episodes: [first | _]}),
+  defp extract_episode_id(%{chunked: true, episodes: [first | _]}),
     do: first.episode_id
 
   defp extract_episode_id(_), do: "unknown"

@@ -294,3 +294,14 @@
 - [x] TeamCleanup KEPT (real logic: signals, file cleanup, orphan detection) -- called directly by Janitor + Mes tool (removing TeamLifecycle layer)
 - [x] mix compile --warnings-as-errors: CLEAN (322 files)
 - [x] mix credo --strict: 0 issues
+
+## Post-Merge Cleanup: Level 1+2 Consolidation (2026-03-20) -- COMPLETE
+- [x] Detected duplicate migration timestamps: 2x `20260320120000` (artifacts + roadmap_items)
+- [x] Trashed both hand-written migrations to tmp/trash/
+- [x] Ran `mix ash.codegen consolidation_changes` -> generated resource snapshots for all resources
+- [x] Trashed bad consolidation migration (tried to recreate all already-up tables)
+- [x] Wrote manual migration `20260320121000_create_genesis_artifacts_and_roadmap_items.exs`
+- [x] Applied with `mix ecto.migrate` -- CLEAN
+- [x] mix compile --warnings-as-errors: CLEAN (0 warnings)
+- [x] mix credo --strict: 0 issues (283 files)
+- [x] Server starts clean on port 4005

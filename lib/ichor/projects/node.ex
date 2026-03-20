@@ -4,8 +4,8 @@ defmodule Ichor.Projects.Node do
   the Monad Method pipeline: discover -> define -> build -> complete.
 
   Created from an MES Project brief when Mode A is initiated.
-  Accumulates ADRs, Features, UseCases, Conversations, Checkpoints,
-  and eventually a Phase/Section/Task/Subtask roadmap hierarchy.
+  Accumulates Artifacts (ADRs, Features, UseCases, Checkpoints, Conversations)
+  and eventually a RoadmapItem hierarchy (phases, sections, tasks, subtasks).
   """
 
   use Ash.Resource,
@@ -62,12 +62,8 @@ defmodule Ichor.Projects.Node do
       allow_nil?(true)
     end
 
-    has_many :adrs, Ichor.Projects.Adr
-    has_many :features, Ichor.Projects.Feature
-    has_many :use_cases, Ichor.Projects.UseCase
-    has_many :checkpoints, Ichor.Projects.Checkpoint
-    has_many :conversations, Ichor.Projects.Conversation
-    has_many :phases, Ichor.Projects.Phase
+    has_many :artifacts, Ichor.Projects.Artifact
+    has_many :roadmap_items, Ichor.Projects.RoadmapItem
   end
 
   actions do
