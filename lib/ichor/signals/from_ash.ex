@@ -22,34 +22,34 @@ defmodule Ichor.Signals.FromAsh do
     :ok
   end
 
-  defp signal_for(Ichor.Projects.Run, :create), do: {:dag_run_created, &run_data/2}
-  defp signal_for(Ichor.Projects.Run, :complete), do: {:dag_run_completed, &run_data/2}
-  defp signal_for(Ichor.Projects.Run, :fail), do: {:dag_run_completed, &run_data/2}
-  defp signal_for(Ichor.Projects.Run, :archive), do: {:dag_run_archived, &run_archive_data/2}
+  defp signal_for(Ichor.Factory.Run, :create), do: {:dag_run_created, &run_data/2}
+  defp signal_for(Ichor.Factory.Run, :complete), do: {:dag_run_completed, &run_data/2}
+  defp signal_for(Ichor.Factory.Run, :fail), do: {:dag_run_completed, &run_data/2}
+  defp signal_for(Ichor.Factory.Run, :archive), do: {:dag_run_archived, &run_archive_data/2}
 
-  defp signal_for(Ichor.Projects.Job, :claim), do: {:job_claimed, &job_data/2}
-  defp signal_for(Ichor.Projects.Job, :complete), do: {:job_completed, &job_data/2}
-  defp signal_for(Ichor.Projects.Job, :fail), do: {:job_failed, &job_data/2}
-  defp signal_for(Ichor.Projects.Job, :reset), do: {:job_reset, &job_data/2}
+  defp signal_for(Ichor.Factory.Job, :claim), do: {:job_claimed, &job_data/2}
+  defp signal_for(Ichor.Factory.Job, :complete), do: {:job_completed, &job_data/2}
+  defp signal_for(Ichor.Factory.Job, :fail), do: {:job_failed, &job_data/2}
+  defp signal_for(Ichor.Factory.Job, :reset), do: {:job_reset, &job_data/2}
 
-  defp signal_for(Ichor.Projects.Node, :create), do: {:genesis_node_created, &node_data/2}
-  defp signal_for(Ichor.Projects.Node, :advance), do: {:genesis_node_advanced, &node_data/2}
+  defp signal_for(Ichor.Factory.Node, :create), do: {:genesis_node_created, &node_data/2}
+  defp signal_for(Ichor.Factory.Node, :advance), do: {:genesis_node_advanced, &node_data/2}
 
-  defp signal_for(Ichor.Projects.Artifact, :create),
+  defp signal_for(Ichor.Factory.Artifact, :create),
     do: {:genesis_artifact_created, &artifact_data/2}
 
-  defp signal_for(Ichor.Projects.RoadmapItem, :create),
+  defp signal_for(Ichor.Factory.RoadmapItem, :create),
     do: {:genesis_artifact_created, &roadmap_item_data/2}
 
-  defp signal_for(Ichor.Projects.Project, :pick_up), do: {:mes_project_picked_up, &project_data/2}
+  defp signal_for(Ichor.Factory.Project, :pick_up), do: {:mes_project_picked_up, &project_data/2}
 
-  defp signal_for(Ichor.Projects.Project, :mark_compiled),
+  defp signal_for(Ichor.Factory.Project, :mark_compiled),
     do: {:mes_project_compiled, &project_data/2}
 
-  defp signal_for(Ichor.Projects.Project, :mark_loaded),
+  defp signal_for(Ichor.Factory.Project, :mark_loaded),
     do: {:mes_subsystem_loaded, &project_data/2}
 
-  defp signal_for(Ichor.Projects.Project, :mark_failed),
+  defp signal_for(Ichor.Factory.Project, :mark_failed),
     do: {:mes_project_failed, &project_data/2}
 
   defp signal_for(Ichor.Gateway.WebhookDelivery, :enqueue),

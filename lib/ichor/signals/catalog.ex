@@ -28,6 +28,30 @@ defmodule Ichor.Signals.Catalog do
     },
     team_created: %{category: :fleet, keys: [:name, :project, :strategy], doc: "New team started"},
     team_disbanded: %{category: :fleet, keys: [:team_name], doc: "Team removed"},
+    team_spawn_requested: %{
+      category: :fleet,
+      keys: [:team_name, :spec, :source],
+      dynamic: true,
+      doc: "Team spawn requested; runtime should create tmux session and windows"
+    },
+    team_spawn_started: %{
+      category: :fleet,
+      keys: [:team_name, :agent_count, :source],
+      dynamic: true,
+      doc: "Spawn request accepted by runtime launch handler"
+    },
+    team_spawn_ready: %{
+      category: :fleet,
+      keys: [:session, :team_name, :agent_count, :source],
+      dynamic: true,
+      doc: "Requested team spawn completed successfully"
+    },
+    team_spawn_failed: %{
+      category: :fleet,
+      keys: [:team_name, :reason, :source],
+      dynamic: true,
+      doc: "Requested team spawn failed"
+    },
     hosts_changed: %{category: :fleet, keys: [], doc: "Cluster node joined/departed"},
     fleet_changed: %{category: :fleet, keys: [:agent_id], doc: "Agent Registry metadata changed"},
     heartbeat: %{category: :system, keys: [:count], doc: "Monotonic counter every 5s"},
