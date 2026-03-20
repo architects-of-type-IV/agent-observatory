@@ -41,15 +41,15 @@ defmodule IchorWeb.DashboardState do
       page_title: "ICHOR IV",
       view_mode: :command,
       activity_tab: :comms,
-      pipeline_tab: :dag,
+      pipeline_tab: :board,
       agent_slideout: nil,
       slideout_terminal: "",
       slideout_activity: [],
       expanded_sessions: MapSet.new(),
       disk_teams: disk_teams,
-      dag_state: Runtime.state(),
+      pipeline_state: runtime_state(),
       protocol_stats: %{},
-      selected_dag_task: nil,
+      selected_pipeline_task: nil,
       selected_command_agent: nil,
       show_add_project: false,
       selected_team: nil,
@@ -112,10 +112,10 @@ defmodule IchorWeb.DashboardState do
       # MES
       mes_projects: [],
       mes_scheduler_status: %{tick: 0, active_runs: 0, next_tick_in: 60_000, paused: false},
-      genesis_node: nil,
+      planning_project: nil,
       gate_report: nil,
-      genesis_sub_tab: :decisions,
-      genesis_selected: nil,
+      planning_sub_tab: :decisions,
+      planning_selected: nil,
       selected_mes_project: nil
     }
   end
@@ -125,6 +125,12 @@ defmodule IchorWeb.DashboardState do
     do_recompute(socket)
   rescue
     ArgumentError -> socket
+  end
+
+  defp runtime_state do
+    Runtime.state()
+  catch
+    :exit, _ -> %{}
   end
 
   defp do_recompute(socket) do

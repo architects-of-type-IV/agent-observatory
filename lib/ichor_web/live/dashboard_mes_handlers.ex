@@ -4,8 +4,6 @@ defmodule IchorWeb.DashboardMesHandlers do
   import Phoenix.Component, only: [assign: 3]
   import Phoenix.LiveView, only: [put_flash: 3]
 
-  alias Ichor.Factory.Node, as: ProjectNode
-
   alias Ichor.Factory.{
     DagGenerator,
     Project,
@@ -13,7 +11,7 @@ defmodule IchorWeb.DashboardMesHandlers do
     Spawn
   }
 
-  alias Ichor.Factory.SubsystemLoader
+  alias Ichor.Factory.PluginLoader
 
   alias Ichor.Signals
 
@@ -27,8 +25,8 @@ defmodule IchorWeb.DashboardMesHandlers do
   def dispatch("mes_deselect_project", _params, socket) do
     socket
     |> assign(:selected_mes_project, nil)
-    |> assign(:genesis_node, nil)
-    |> assign(:genesis_selected, nil)
+    |> assign(:planning_project, nil)
+    |> assign(:planning_selected, nil)
     |> assign(:gate_report, nil)
   end
 
@@ -37,18 +35,18 @@ defmodule IchorWeb.DashboardMesHandlers do
 
     socket
     |> assign(:selected_mes_project, project)
-    |> assign(:genesis_node, load_genesis_node(project))
+    |> assign(:planning_project, load_planning_project(project))
   end
 
   def dispatch("mes_start_mode", %{"mode" => mode, "project-id" => project_id}, socket) do
     project = Enum.find(socket.assigns.mes_projects, &(&1.id == project_id))
 
-    genesis_node_id = socket.assigns.genesis_node && socket.assigns.genesis_node.id
+    planning_project_id = socket.assigns.planning_project && socket.assigns.planning_project.id
 
-    with {:ok, node_id} <- Spawn.ensure_genesis_node(genesis_node_id, project),
-         {:ok, session} <- Spawn.spawn(:genesis, mode, project_id, node_id) do
+    with {:ok, target_project_id} <- Spawn.ensure_planning_project(planning_project_id, project),
+         {:ok, session} <- Spawn.spawn(:planning, mode, project_id, target_project_id) do
       socket
-      |> assign(:genesis_node, load_genesis_node_by_id(node_id))
+      |> assign(:planning_project, load_planning_project_by_id(target_project_id))
       |> put_flash(:info, "Mode #{String.upcase(mode)} team spawned: #{session}")
     else
       {:error, reason} ->
@@ -56,21 +54,21 @@ defmodule IchorWeb.DashboardMesHandlers do
     end
   end
 
-  def dispatch("mes_gate_check", %{"node-id" => node_id}, socket) do
-    report = run_gate_check(node_id)
+  def dispatch("mes_gate_check", %{"project-id" => project_id}, socket) do
+    report = run_gate_check(project_id)
     assign(socket, :gate_report, report)
   end
 
-  def dispatch("mes_generate_dag", %{"node-id" => node_id}, socket) do
-    case DagGenerator.generate(node_id) do
+  def dispatch("mes_generate_dag", %{"project-id" => project_id}, socket) do
+    case DagGenerator.generate(project_id) do
       {:ok, []} ->
         put_flash(socket, :info, "No subtasks found -- run Mode C first")
 
       {:ok, tasks} ->
         jsonl = DagGenerator.to_jsonl_string(tasks)
-        dag_path = Path.join(File.cwd!(), "tasks.jsonl")
-        File.write!(dag_path, jsonl <> "\n", [:append])
-        Signals.emit(:mes_dag_generated, %{node_id: node_id})
+        tasks_path = Path.join(File.cwd!(), "tasks.jsonl")
+        File.write!(tasks_path, jsonl <> "\n", [:append])
+        Signals.emit(:mes_pipeline_generated, %{project_id: project_id})
         put_flash(socket, :info, "DAG generated: #{length(tasks)} tasks appended to tasks.jsonl")
 
       {:error, reason} ->
@@ -78,13 +76,13 @@ defmodule IchorWeb.DashboardMesHandlers do
     end
   end
 
-  def dispatch("mes_launch_dag", %{"node-id" => node_id, "project-id" => project_id}, socket) do
-    case Spawn.spawn(:dag, node_id, project_id) do
+  def dispatch("mes_launch_dag", %{"project-id" => project_id}, socket) do
+    case Spawn.spawn(:pipeline, project_id, project_id) do
       {:ok, %{session: session}} ->
-        Signals.emit(:mes_dag_launched, %{node_id: node_id, session: session})
+        Signals.emit(:mes_pipeline_launched, %{project_id: project_id, session: session})
 
         socket
-        |> assign(:genesis_node, load_genesis_node_by_id(node_id))
+        |> assign(:planning_project, load_planning_project_by_id(project_id))
         |> put_flash(:info, "Build team launched: #{session}")
 
       {:error, reason} ->
@@ -105,7 +103,7 @@ defmodule IchorWeb.DashboardMesHandlers do
     end
   end
 
-  @genesis_sub_tabs %{
+  @planning_tabs %{
     "decisions" => :decisions,
     "requirements" => :requirements,
     "checkpoints" => :checkpoints,
@@ -120,24 +118,24 @@ defmodule IchorWeb.DashboardMesHandlers do
     "phase" => :phase
   }
 
-  def dispatch("genesis_switch_tab", %{"tab" => tab}, socket) do
+  def dispatch("planning_switch_tab", %{"tab" => tab}, socket) do
     socket
-    |> assign(:genesis_sub_tab, Map.get(@genesis_sub_tabs, tab, :decisions))
-    |> assign(:genesis_selected, nil)
+    |> assign(:planning_sub_tab, Map.get(@planning_tabs, tab, :decisions))
+    |> assign(:planning_selected, nil)
   end
 
-  def dispatch("genesis_select_artifact", %{"type" => type, "id" => id}, socket) do
-    assign(socket, :genesis_selected, {Map.get(@artifact_types, type, :adr), id})
+  def dispatch("planning_select_artifact", %{"type" => type, "id" => id}, socket) do
+    assign(socket, :planning_selected, {Map.get(@artifact_types, type, :adr), id})
   end
 
-  def dispatch("genesis_close_reader", _params, socket) do
-    assign(socket, :genesis_selected, nil)
+  def dispatch("planning_close_reader", _params, socket) do
+    assign(socket, :planning_selected, nil)
   end
 
-  def dispatch("mes_load_subsystem", %{"id" => id}, socket) do
+  def dispatch("mes_load_plugin", %{"id" => id}, socket) do
     project = Enum.find(socket.assigns.mes_projects, &(&1.id == id))
 
-    case SubsystemLoader.compile_and_load(project) do
+    case PluginLoader.compile_and_load(project) do
       {:ok, modules} ->
         Project.mark_loaded(project)
 
@@ -172,55 +170,44 @@ defmodule IchorWeb.DashboardMesHandlers do
     :exit, _ -> @scheduler_fallback
   end
 
-  @genesis_loads [
-    :adrs,
-    :features,
-    :use_cases,
-    :checkpoints,
-    :conversations,
-    phases: [sections: [tasks: [:subtasks]]]
-  ]
-
-  defp load_genesis_node_by_id(node_id) do
-    case ProjectNode.get(node_id, load: @genesis_loads) do
-      {:ok, node} -> node
+  defp load_planning_project_by_id(project_id) do
+    case Project.get(project_id) do
+      {:ok, project} -> project
       _ -> nil
     end
   end
 
-  defp load_genesis_node(nil), do: nil
+  defp load_planning_project(nil), do: nil
 
-  defp load_genesis_node(project) do
-    case ProjectNode.by_project(project.id, load: @genesis_loads) do
-      {:ok, [node | _]} -> node
-      _ -> nil
-    end
+  defp load_planning_project(project) do
+    load_planning_project_by_id(project.id)
   end
 
-  defp run_gate_check(node_id) do
-    case ProjectNode.get(node_id, load: @genesis_loads) do
+  defp run_gate_check(project_id) do
+    case Project.get(project_id) do
       {:ok, loaded} -> build_gate_report(loaded)
       _ -> nil
     end
   end
 
   defp build_gate_report(loaded) do
-    adrs = length(loaded.adrs)
-    accepted = Enum.count(loaded.adrs, &(&1.status == :accepted))
-    features = length(loaded.features)
-    use_cases = length(loaded.use_cases)
-    phases = length(loaded.phases)
+    adrs = Enum.filter(loaded.artifacts || [], &(&1.kind == :adr))
+    accepted = Enum.count(adrs, &(&1.status == :accepted))
+    features = Enum.count(loaded.artifacts || [], &(&1.kind == :feature))
+    use_cases = Enum.count(loaded.artifacts || [], &(&1.kind == :use_case))
+    phases = Enum.count(loaded.roadmap_items || [], &(&1.kind == :phase))
+    checkpoints = Enum.count(loaded.artifacts || [], &(&1.kind == :checkpoint))
 
     %{
-      node_id: loaded.id,
-      current_status: to_string(loaded.status),
-      adrs: adrs,
+      project_id: loaded.id,
+      current_status: to_string(loaded.planning_stage),
+      adrs: length(adrs),
       accepted_adrs: accepted,
       features: features,
       use_cases: use_cases,
-      checkpoints: length(loaded.checkpoints),
+      checkpoints: checkpoints,
       phases: phases,
-      ready_for_define: adrs > 0 and accepted > 0,
+      ready_for_define: adrs != [] and accepted > 0,
       ready_for_build: features > 0 and use_cases > 0,
       ready_for_complete: phases > 0
     }

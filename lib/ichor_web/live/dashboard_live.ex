@@ -27,7 +27,7 @@ defmodule IchorWeb.DashboardLive do
 
   alias IchorWeb.{
     DashboardArchonHandlers,
-    DashboardDagHandlers,
+    DashboardPipelineHandlers,
     DashboardFeedHandlers,
     DashboardFilterHandlers,
     DashboardFleetTreeHandlers,
@@ -62,14 +62,14 @@ defmodule IchorWeb.DashboardLive do
 
   @session_control_events ~w(pause_agent resume_agent shutdown_agent hitl_approve hitl_reject kill_switch_click kill_switch_first_confirm kill_switch_second_confirm kill_switch_cancel push_instructions_intent push_instructions_confirm push_instructions_cancel)
   @tmux_events ~w(connect_tmux disconnect_tmux close_all_tmux switch_tmux_tab toggle_tmux_layout send_tmux_keys kill_tmux_session kill_sidebar_tmux launch_session)
-  @dag_events ~w(select_dag_project heal_dag_task heal_task reset_dag_stale run_dag_health_check reassign_dag_task claim_dag_task trigger_dag_gc select_dag_node select_command_agent send_command_message clear_command_selection)
+  @pipeline_events ~w(select_pipeline_project heal_pipeline_task heal_task reset_pipeline_stale run_pipeline_health_check reassign_pipeline_task claim_pipeline_task trigger_pipeline_gc select_pipeline_task select_command_agent send_command_message clear_command_selection)
   @task_events ~w(update_task_status reassign_task delete_task)
   @note_events ~w(add_note delete_note)
   @feed_events ~w(toggle_session_collapse expand_all collapse_all)
   @fleet_events ~w(toggle_fleet_team set_comms_filter trace_agent clear_trace)
   @spawn_events ~w(spawn_agent stop_spawned_agent)
   @nav_events ~w(jump_to_agents restore_view_mode)
-  @mes_events ~w(mes_pick_up mes_load_subsystem toggle_mes_scheduler mes_select_project mes_deselect_project mes_start_mode mes_gate_check mes_generate_dag mes_launch_dag genesis_switch_tab genesis_select_artifact genesis_close_reader)
+  @mes_events ~w(mes_pick_up mes_load_plugin toggle_mes_scheduler mes_select_project mes_deselect_project mes_start_mode mes_gate_check mes_generate_dag mes_launch_dag planning_switch_tab planning_select_artifact planning_close_reader)
   @messaging_events ~w(set_message_target send_targeted_message)
 
   # Messaging events only need view recompute (thread/search state)
@@ -125,7 +125,7 @@ defmodule IchorWeb.DashboardLive do
       mes_projects: Project.list_all!(),
       mes_scheduler_status: DashboardMesHandlers.fetch_scheduler_status(),
       selected_mes_project: nil,
-      genesis_node: nil,
+      planning_project: nil,
       gate_report: nil
     )
   end
@@ -165,8 +165,8 @@ defmodule IchorWeb.DashboardLive do
   def handle_event(e, p, s) when e in @session_control_events,
     do: {:noreply, DashboardSessionControlHandlers.dispatch(e, p, s) |> recompute()}
 
-  def handle_event(e, p, s) when e in @dag_events,
-    do: {:noreply, DashboardDagHandlers.dispatch(e, p, s) |> recompute()}
+  def handle_event(e, p, s) when e in @pipeline_events,
+    do: {:noreply, DashboardPipelineHandlers.dispatch(e, p, s) |> recompute()}
 
   def handle_event(e, p, s) when e in @task_events,
     do: {:noreply, DashboardTaskHandlers.dispatch(e, p, s) |> recompute()}

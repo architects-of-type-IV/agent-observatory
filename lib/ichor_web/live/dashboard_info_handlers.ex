@@ -13,7 +13,7 @@ defmodule IchorWeb.DashboardInfoHandlers do
 
   alias Ichor.Archon.SignalManager
   alias Ichor.Gateway.HITLRelay
-  alias Ichor.Factory.{Node, Project}
+  alias Ichor.Factory.Project
   alias Ichor.Signals.Message
   alias IchorWeb.{DashboardArchonHandlers, DashboardMesHandlers}
 
@@ -71,11 +71,11 @@ defmodule IchorWeb.DashboardInfoHandlers do
   def dispatch(%Message{name: :mailbox_message, data: %{message: message}}, socket),
     do: handle_new_mailbox_message(message, socket)
 
-  def dispatch(%Message{name: :dag_status, data: %{state_map: state}}, socket),
+  def dispatch(%Message{name: :pipeline_status, data: %{state_map: state}}, socket),
     do:
       {:noreply,
        socket
-       |> assign(:dag_state, state)
+       |> assign(:pipeline_state, state)
        |> maybe_refresh_archon_manager()}
 
   def dispatch(%Message{name: :protocol_update, data: %{stats_map: stats}}, socket),
@@ -132,7 +132,7 @@ defmodule IchorWeb.DashboardInfoHandlers do
         {:noreply,
          assign(socket, :mes_scheduler_status, DashboardMesHandlers.fetch_scheduler_status())}
 
-  def dispatch(%Message{name: :mes_subsystem_loaded}, socket) do
+  def dispatch(%Message{name: :mes_plugin_loaded}, socket) do
     {:noreply, assign(socket, :mes_projects, Project.list_all!())}
   end
 
@@ -147,38 +147,27 @@ defmodule IchorWeb.DashboardInfoHandlers do
 
   def dispatch(%Message{name: name}, socket)
       when name in [
-             :genesis_artifact_created,
-             :genesis_team_ready,
-             :genesis_run_complete,
-             :genesis_team_killed
+             :project_artifact_created,
+             :planning_team_ready,
+             :planning_run_complete,
+             :planning_team_killed
            ] do
-    {:noreply, reload_genesis_node(socket)}
+    {:noreply, reload_planning_project(socket)}
   end
 
   # Catch-all: ignore unknown signals (new signals added to catalog won't crash)
   def dispatch(%Message{}, socket), do: {:noreply, maybe_refresh_archon_manager(socket)}
 
-  @genesis_loads [
-    :adrs,
-    :features,
-    :use_cases,
-    :checkpoints,
-    :conversations,
-    phases: [sections: [tasks: [:subtasks]]]
-  ]
+  defp reload_planning_project(%{assigns: %{selected_mes_project: nil}} = socket), do: socket
 
-  defp reload_genesis_node(%{assigns: %{selected_mes_project: nil}} = socket), do: socket
-
-  defp reload_genesis_node(socket) do
-    node =
-      case Node.by_project(socket.assigns.selected_mes_project.id,
-             load: @genesis_loads
-           ) do
-        {:ok, [n | _]} -> n
+  defp reload_planning_project(socket) do
+    project =
+      case Project.get(socket.assigns.selected_mes_project.id) do
+        {:ok, loaded_project} -> loaded_project
         _ -> nil
       end
 
-    assign(socket, :genesis_node, node)
+    assign(socket, :planning_project, project)
   end
 
   defp maybe_refresh_archon_manager(%{assigns: %{show_archon: true}} = socket) do

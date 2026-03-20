@@ -17,12 +17,12 @@ defmodule IchorWeb.DashboardUIHandlers do
   end
 
   def dispatch("add_project", p, s) do
-    IchorWeb.DashboardDagHandlers.handle_add_project(p, s)
+    IchorWeb.DashboardPipelineHandlers.handle_add_project(p, s)
     |> Phoenix.Component.assign(:show_add_project, false)
   end
 
   @activity_tab_map %{"comms" => :comms, "feed" => :feed}
-  @pipeline_tab_map %{"dag" => :dag, "runs" => :runs, "archive" => :archive}
+  @pipeline_tab_map %{"board" => :board, "runs" => :runs, "archive" => :archive}
 
   def dispatch("set_sub_tab", %{"screen" => screen, "tab" => tab}, s) do
     case screen do
