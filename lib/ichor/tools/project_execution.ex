@@ -10,10 +10,8 @@ defmodule Ichor.Tools.ProjectExecution do
   alias Ichor.Control.AgentProcess
 
   alias Ichor.Projects.{
-    Exporter,
     Graph,
     Job,
-    Loader,
     Project,
     Run,
     Runner,
@@ -32,7 +30,6 @@ defmodule Ichor.Tools.ProjectExecution do
   }
 
   actions do
-
     action :next_jobs, {:array, :map} do
       description("List available (unblocked, unclaimed) jobs for a run.")
       argument(:run_id, :string, allow_nil?: false, description: "Dag.Run UUID")
@@ -178,7 +175,7 @@ defmodule Ichor.Tools.ProjectExecution do
         args = input.arguments
         opts = if args.label != "", do: [label: args.label], else: []
 
-        case Loader.from_file(args.tasks_jsonl_path, opts) do
+        case Spawn.from_file(args.tasks_jsonl_path, opts) do
           {:ok, run} ->
             {:ok,
              %{
@@ -200,8 +197,9 @@ defmodule Ichor.Tools.ProjectExecution do
       argument(:run_id, :string, allow_nil?: false, description: "Dag.Run UUID")
 
       run(fn input, _context ->
-        case Exporter.to_jsonl(input.arguments.run_id) do
-          {:ok, jsonl} ->
+        case Job.by_run(input.arguments.run_id) do
+          {:ok, jobs} ->
+            jsonl = Enum.map_join(jobs, "\n", &job_to_jsonl/1)
             {:ok, %{"run_id" => input.arguments.run_id, "jsonl" => jsonl}}
 
           {:error, reason} ->
@@ -546,6 +544,34 @@ defmodule Ichor.Tools.ProjectExecution do
   defp maybe_put(map, _key, ""), do: map
   defp maybe_put(map, _key, []), do: map
   defp maybe_put(map, key, value), do: Map.put(map, key, value)
+
+  defp job_to_jsonl(job) do
+    %{
+      "id" => job.external_id,
+      "status" => Kernel.to_string(job.status),
+      "subject" => job.subject,
+      "description" => job.description,
+      "goal" => job.goal,
+      "files" => job.allowed_files,
+      "steps" => job.steps,
+      "done_when" => job.done_when,
+      "blocked_by" => job.blocked_by,
+      "owner" => job.owner || "",
+      "priority" => Kernel.to_string(job.priority),
+      "acceptance_criteria" => job.acceptance_criteria,
+      "feature" => job.phase_label,
+      "tags" => job.tags,
+      "notes" => job.notes || "",
+      "wave" => job.wave,
+      "created" => format_dt(job.inserted_at),
+      "updated" => format_dt(job.updated_at)
+    }
+    |> Jason.encode!()
+  end
+
+  defp format_dt(nil), do: ""
+  defp format_dt(%DateTime{} = dt), do: Calendar.strftime(dt, "%Y-%m-%dT%H:%M:%SZ")
+  defp format_dt(_), do: ""
 
   defp project_to_map(project) do
     %{

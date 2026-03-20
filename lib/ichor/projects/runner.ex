@@ -15,7 +15,7 @@ defmodule Ichor.Projects.Runner do
   use GenServer, restart: :temporary
 
   alias Ichor.Control.Lifecycle.{TeamLaunch, TmuxLauncher}
-  alias Ichor.Projects.{Exporter, HealthChecker, Janitor, Job, Run, RuntimeSignals}
+  alias Ichor.Projects.{Graph, Janitor, Job, Run}
   alias Ichor.Projects.{TeamCleanup, TeamSpecBuilder}
   alias Ichor.Signals
   alias Ichor.Signals.Message
@@ -468,26 +468,29 @@ defmodule Ichor.Projects.Runner do
   end
 
   defp dag_check_health(state) do
-    case HealthChecker.check(state.run_id) do
-      {:ok, report} ->
-        RuntimeSignals.emit_health_report(state.run_id, report.healthy, length(report.issues))
+    with {:ok, jobs} <- Job.by_run(state.run_id) do
+      nodes = Enum.map(jobs, &Graph.to_graph_node/1)
+      issues = health_issues(nodes, DateTime.utc_now())
 
-      _ ->
-        :ok
+      Signals.emit(:dag_health_report, %{
+        run_id: state.run_id,
+        healthy: issues == [],
+        issue_count: length(issues)
+      })
     end
 
     :ok
   end
 
   defp dag_sync_job(state, job) do
-    Task.start(fn -> Exporter.sync_to_file(job, state.project_path) end)
+    Task.start(fn -> sync_job_to_file(job, state.project_path) end)
     {:noreply, state}
   end
 
   defp dag_on_complete(state) do
     with {:ok, run} <- Run.get(state.run_id) do
       Run.complete(run)
-      RuntimeSignals.emit_run_completed(state.run_id, run.label)
+      Signals.emit(:dag_run_completed, %{run_id: state.run_id, label: run.label})
     end
 
     :ok
@@ -657,5 +660,137 @@ defmodule Ichor.Projects.Runner do
 
   defp build_terminate_payload(%{kind: :dag} = state) do
     %{run_id: state.run_id, session: state.session}
+  end
+
+  # ---------------------------------------------------------------------------
+  # HealthChecker (formerly Ichor.Projects.HealthChecker)
+  # ---------------------------------------------------------------------------
+
+  @stale_threshold_min 10
+
+  defp health_issues(nodes, now) do
+    stale_health_issues(nodes, now) ++
+      conflict_health_issues(nodes) ++
+      deadlock_health_issues(nodes) ++
+      orphan_health_issues(nodes)
+  end
+
+  defp stale_health_issues(nodes, now) do
+    nodes
+    |> Graph.stale_items(now, @stale_threshold_min)
+    |> Enum.map(fn node ->
+      %{
+        type: :stale_in_progress,
+        severity: :warning,
+        external_id: node.id,
+        description:
+          "Job #{node.id} has been in_progress for over #{@stale_threshold_min} minutes"
+      }
+    end)
+  end
+
+  defp conflict_health_issues(nodes) do
+    nodes
+    |> Graph.file_conflicts()
+    |> Enum.map(fn {a, b, files} ->
+      %{
+        type: :file_conflict,
+        severity: :error,
+        external_id: "#{a}+#{b}",
+        description: "Jobs #{a} and #{b} share files: #{Enum.join(files, ", ")}"
+      }
+    end)
+  end
+
+  defp deadlock_health_issues(nodes) do
+    failed = nodes |> Enum.filter(&(to_string(&1.status) == "failed")) |> MapSet.new(& &1.id)
+
+    nodes
+    |> Enum.filter(fn node ->
+      to_string(node.status) == "pending" and
+        Enum.any?(node.blocked_by, &MapSet.member?(failed, &1))
+    end)
+    |> Enum.map(fn node ->
+      %{
+        type: :deadlocked,
+        severity: :error,
+        external_id: node.id,
+        description:
+          "Job #{node.id} is blocked by failed job(s): #{Enum.join(node.blocked_by, ", ")}"
+      }
+    end)
+  end
+
+  defp orphan_health_issues(nodes) do
+    failed = nodes |> Enum.filter(&(to_string(&1.status) == "failed")) |> MapSet.new(& &1.id)
+
+    nodes
+    |> Enum.filter(fn node ->
+      to_string(node.status) == "pending" and
+        node.blocked_by != [] and
+        Enum.all?(node.blocked_by, &MapSet.member?(failed, &1))
+    end)
+    |> Enum.map(fn node ->
+      %{
+        type: :orphaned,
+        severity: :warning,
+        external_id: node.id,
+        description: "Job #{node.id} is pending but all blockers have failed"
+      }
+    end)
+  end
+
+  # ---------------------------------------------------------------------------
+  # Exporter (formerly Ichor.Projects.Exporter)
+  # ---------------------------------------------------------------------------
+
+  defp sync_job_to_file(_job, nil), do: :ok
+  defp sync_job_to_file(_job, ""), do: :ok
+
+  defp sync_job_to_file(job, project_path) do
+    tasks_path = Path.join(project_path, "tasks.jsonl")
+    jq_update_item(tasks_path, job.external_id, to_string(job.status), job.owner || "")
+  end
+
+  defp jq_update_item(path, external_id, new_status, new_owner) do
+    now = DateTime.utc_now() |> DateTime.to_iso8601()
+
+    jq_expr =
+      ~s(if .id == $eid then .status = $st | .owner = $ow | .updated = $ts else . end)
+
+    jq_in_place(path, jq_expr, [
+      "--arg",
+      "eid",
+      external_id,
+      "--arg",
+      "st",
+      new_status,
+      "--arg",
+      "ow",
+      new_owner,
+      "--arg",
+      "ts",
+      now
+    ])
+  end
+
+  defp jq_in_place(path, expr, extra_args) do
+    tmp = path <> ".dag_tmp"
+
+    case System.cmd("jq", ["-c"] ++ extra_args ++ [expr, path], stderr_to_stdout: true) do
+      {output, 0} ->
+        case File.write(tmp, output) do
+          :ok ->
+            File.rename!(tmp, path)
+            :ok
+
+          err ->
+            File.rm(tmp)
+            err
+        end
+
+      {err, _} ->
+        {:error, err}
+    end
   end
 end
