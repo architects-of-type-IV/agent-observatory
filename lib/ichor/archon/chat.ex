@@ -103,6 +103,12 @@ defmodule Ichor.Archon.Chat do
   defp dispatch_command(%{command: "/sessions"}),
     do: run_action(:sessions, InfrastructureOps, :tmux_sessions, %{})
 
+  defp dispatch_command(%{command: "/discovery", remainder: nil}),
+    do: run_action(:discovery_catalog, Manager, :discovery_catalog, %{})
+
+  defp dispatch_command(%{command: "/discovery", remainder: domain}) when is_binary(domain),
+    do: run_action(:discovery_domain, Manager, :discovery_domain, %{domain: String.trim(domain)})
+
   defp dispatch_command(%{command: "/manager"}),
     do: run_action(:manager_snapshot, Manager, :manager_snapshot, %{})
 
@@ -258,7 +264,8 @@ defmodule Ichor.Archon.Chat do
               {ActiveTeam, [:list_teams]},
               {SignalOps, [:recent_messages, :operator_send_message, :agent_events]},
               {InfrastructureOps, [:system_health, :tmux_sessions, :sweep]},
-              {Manager, [:manager_snapshot, :attention_queue]},
+              {Manager,
+               [:manager_snapshot, :attention_queue, :discovery_catalog, :discovery_domain]},
               {Project, [:list_projects, :create_project]},
               {Floor, [:mes_status, :cleanup_mes]},
               {Mailbox, [:check_operator_inbox]},
