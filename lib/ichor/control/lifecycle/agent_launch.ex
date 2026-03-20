@@ -15,6 +15,7 @@ defmodule Ichor.Control.Lifecycle.AgentLaunch do
   @agents_dir Path.expand("~/.ichor/agents")
 
   @type launch_opts :: %{
+          optional(:prompt) => String.t(),
           optional(:name) => String.t(),
           optional(:capability) => String.t(),
           optional(:model) => String.t(),

@@ -3,12 +3,10 @@ defmodule IchorWeb.HeartbeatController do
 
   use IchorWeb, :controller
 
-  require Logger
-
-  alias Ichor.Gateway.HeartbeatManager
+  alias Ichor.Events.Runtime, as: EventRuntime
 
   def create(conn, %{"agent_id" => agent_id, "cluster_id" => cluster_id}) do
-    HeartbeatManager.record_heartbeat(agent_id, cluster_id)
+    EventRuntime.record_heartbeat(agent_id, cluster_id)
 
     conn
     |> put_status(:ok)

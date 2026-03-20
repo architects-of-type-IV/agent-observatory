@@ -14,19 +14,15 @@ defmodule IchorWeb.DashboardNotesHandlers do
   end
 
   def handle_add_note(%{"event_id" => event_id, "text" => text}, socket) do
-    case Ichor.Notes.add_note(event_id, text) do
-      {:ok, _note} ->
-        socket =
-          Phoenix.LiveView.push_event(socket, "toast", %{
-            message: "Note added",
-            type: "success"
-          })
+    {:ok, _note} = Ichor.Notes.add_note(event_id, text)
 
-        {:noreply, socket}
+    socket =
+      Phoenix.LiveView.push_event(socket, "toast", %{
+        message: "Note added",
+        type: "success"
+      })
 
-      _ ->
-        {:noreply, socket}
-    end
+    {:noreply, socket}
   end
 
   def handle_delete_note(%{"event_id" => event_id}, socket) do

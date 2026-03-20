@@ -1,12 +1,11 @@
 defmodule IchorWeb.EventController do
   @moduledoc """
   Thin HTTP adapter for hook events.
-  All domain logic lives in EventBuffer and Gateway.Router.
+  All domain logic lives in Events.Runtime.
   """
   use IchorWeb, :controller
 
-  alias Ichor.EventBuffer
-  alias Ichor.Gateway.Router
+  alias Ichor.Events.Runtime, as: EventRuntime
 
   def create(conn, params) do
     {raw, hook_type, source_app, tmux_session, os_pid} = extract_envelope(params)
@@ -26,11 +25,7 @@ defmodule IchorWeb.EventController do
       os_pid: os_pid
     }
 
-    {:ok, event} = EventBuffer.ingest(event_attrs)
-
-    Ichor.Signals.emit(:new_event, %{event: event})
-
-    Router.ingest(event)
+    {:ok, event} = EventRuntime.ingest_raw(event_attrs)
 
     conn
     |> put_status(:created)

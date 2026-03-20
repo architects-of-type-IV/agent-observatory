@@ -25,6 +25,12 @@ defmodule Ichor.Gateway.HeartbeatManager do
     GenServer.call(__MODULE__, {:heartbeat, agent_id, cluster_id})
   end
 
+  @doc "Return the liveness state for `agent_id`, or `nil` if unknown."
+  @spec get_session_state(String.t()) :: map() | nil
+  def get_session_state(agent_id) do
+    GenServer.call(__MODULE__, {:get_session_state, agent_id})
+  end
+
   @impl true
   def init(_opts) do
     :timer.send_interval(@check_interval_ms, :check_heartbeats)
@@ -35,6 +41,11 @@ defmodule Ichor.Gateway.HeartbeatManager do
   def handle_call({:heartbeat, agent_id, cluster_id}, _from, state) do
     entry = %{last_seen: DateTime.utc_now(), cluster_id: cluster_id}
     {:reply, :ok, Map.put(state, agent_id, entry)}
+  end
+
+  @impl true
+  def handle_call({:get_session_state, agent_id}, _from, state) do
+    {:reply, Map.get(state, agent_id), state}
   end
 
   @impl true
