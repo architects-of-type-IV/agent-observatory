@@ -1,4 +1,4 @@
-defmodule Ichor.Factory.DagGenerator do
+defmodule Ichor.Factory.PipelineCompiler do
   @moduledoc """
   Converts a project's embedded roadmap hierarchy (phases -> sections -> tasks -> subtasks)
   into tasks.jsonl format with blocked_by chains.

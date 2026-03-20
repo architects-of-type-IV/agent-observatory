@@ -15,7 +15,6 @@ config :ichor,
     Ichor.Workshop,
     Ichor.Archon,
     Ichor.Infrastructure,
-    Ichor.Observability,
     Ichor.Factory
   ]
 

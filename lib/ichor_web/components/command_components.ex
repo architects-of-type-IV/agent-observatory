@@ -142,11 +142,13 @@ defmodule IchorWeb.Components.CommandComponents do
     active_tasks = assigns[:active_tasks] || []
     protocol_stats = assigns[:protocol_stats] || %{}
     pipeline_state = assigns[:pipeline_state] || %{}
+    pipeline = Map.get(pipeline_state, :pipeline, empty_pipeline())
+    health = Map.get(pipeline_state, :health, empty_health())
 
     assigns
     |> assign(:stats, fleet_stats(agents))
-    |> assign(:pipeline, Map.get(pipeline_state, :pipeline, %{}))
-    |> assign(:health, Map.get(pipeline_state, :health, %{}))
+    |> assign(:pipeline, Map.merge(empty_pipeline(), pipeline))
+    |> assign(:health, Map.merge(empty_health(), health))
     |> assign(:error_count, length(assigns[:errors] || []))
     |> assign(:msg_count, length(assigns[:messages] || []))
     |> assign(:task_count, length(active_tasks))
@@ -214,6 +216,14 @@ defmodule IchorWeb.Components.CommandComponents do
 
   defp progress_pct(%{total: 0}), do: 0
   defp progress_pct(%{total: t, completed: c}), do: round(c / t * 100)
+
+  defp empty_pipeline do
+    %{total: 0, pending: 0, in_progress: 0, completed: 0, failed: 0, blocked: 0}
+  end
+
+  defp empty_health do
+    %{healthy: true, issues: []}
+  end
 
   defp role_badge_class(role) when is_binary(role) do
     cond do

@@ -5,9 +5,9 @@ defmodule IchorWeb.DashboardMesHandlers do
   import Phoenix.LiveView, only: [put_flash: 3]
 
   alias Ichor.Factory.{
-    DagGenerator,
+    PipelineCompiler,
+    MesScheduler,
     Project,
-    Scheduler,
     Spawn
   }
 
@@ -18,7 +18,7 @@ defmodule IchorWeb.DashboardMesHandlers do
   @spec dispatch(String.t(), map(), Phoenix.LiveView.Socket.t()) :: Phoenix.LiveView.Socket.t()
   def dispatch("toggle_mes_scheduler", _params, socket) do
     socket
-    |> toggle_scheduler(Scheduler.paused?())
+    |> toggle_scheduler(MesScheduler.paused?())
     |> assign(:mes_scheduler_status, fetch_scheduler_status())
   end
 
@@ -60,12 +60,12 @@ defmodule IchorWeb.DashboardMesHandlers do
   end
 
   def dispatch("mes_generate_dag", %{"project-id" => project_id}, socket) do
-    case DagGenerator.generate(project_id) do
+    case PipelineCompiler.generate(project_id) do
       {:ok, []} ->
         put_flash(socket, :info, "No subtasks found -- run Mode C first")
 
       {:ok, tasks} ->
-        jsonl = DagGenerator.to_jsonl_string(tasks)
+        jsonl = PipelineCompiler.to_jsonl_string(tasks)
         tasks_path = Path.join(File.cwd!(), "tasks.jsonl")
         File.write!(tasks_path, jsonl <> "\n", [:append])
         Signals.emit(:mes_pipeline_generated, %{project_id: project_id})
@@ -153,19 +153,19 @@ defmodule IchorWeb.DashboardMesHandlers do
   end
 
   defp toggle_scheduler(socket, true) do
-    Scheduler.resume()
+    MesScheduler.resume()
     put_flash(socket, :info, "MES resumed")
   end
 
   defp toggle_scheduler(socket, false) do
-    Scheduler.pause()
+    MesScheduler.pause()
     put_flash(socket, :info, "MES paused")
   end
 
   @scheduler_fallback %{tick: 0, active_runs: 0, next_tick_in: 60_000, paused: false}
 
   def fetch_scheduler_status do
-    Scheduler.status()
+    MesScheduler.status()
   catch
     :exit, _ -> @scheduler_fallback
   end
@@ -184,32 +184,26 @@ defmodule IchorWeb.DashboardMesHandlers do
   end
 
   defp run_gate_check(project_id) do
-    case Project.get(project_id) do
-      {:ok, loaded} -> build_gate_report(loaded)
+    case Project.gate_check(project_id) do
+      {:ok, report} -> normalize_gate_report(report)
       _ -> nil
     end
   end
 
-  defp build_gate_report(loaded) do
-    adrs = Enum.filter(loaded.artifacts || [], &(&1.kind == :adr))
-    accepted = Enum.count(adrs, &(&1.status == :accepted))
-    features = Enum.count(loaded.artifacts || [], &(&1.kind == :feature))
-    use_cases = Enum.count(loaded.artifacts || [], &(&1.kind == :use_case))
-    phases = Enum.count(loaded.roadmap_items || [], &(&1.kind == :phase))
-    checkpoints = Enum.count(loaded.artifacts || [], &(&1.kind == :checkpoint))
-
+  defp normalize_gate_report(report) when is_map(report) do
     %{
-      project_id: loaded.id,
-      current_status: to_string(loaded.planning_stage),
-      adrs: length(adrs),
-      accepted_adrs: accepted,
-      features: features,
-      use_cases: use_cases,
-      checkpoints: checkpoints,
-      phases: phases,
-      ready_for_define: adrs != [] and accepted > 0,
-      ready_for_build: features > 0 and use_cases > 0,
-      ready_for_complete: phases > 0
+      project_id: report["project_id"],
+      current_status: report["planning_stage"],
+      output_kind: report["output_kind"],
+      adrs: report["adrs"] || 0,
+      accepted_adrs: report["accepted_adrs"] || 0,
+      features: report["features"] || 0,
+      use_cases: report["use_cases"] || 0,
+      checkpoints: report["checkpoints"] || 0,
+      phases: report["phases"] || 0,
+      ready_for_define: report["ready_for_define"] || false,
+      ready_for_build: report["ready_for_build"] || false,
+      ready_for_complete: report["ready_for_complete"] || false
     }
   end
 end

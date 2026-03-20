@@ -1,5 +1,5 @@
 Let me search for the MES page components and handlers.
-Now let me check the `PipelineStage` module used in the action bar, and look at the `mes_events` list and any remaining handler details.
+Now let me check the `ProjectStage` module used in the action bar, and look at the `mes_events` list and any remaining handler details.
 I now have a complete picture of the MES page. Here is the comprehensive feature description:
 
 ---
@@ -91,7 +91,7 @@ The page uses a three-column layout when a project is selected, collapsing to a 
 
 ## Pipeline Stage System
 
-`Ichor.Projects.PipelineStage.derive/1` computes the current stage from loaded Genesis node associations. Stages in order:
+`Ichor.Projects.ProjectStage.derive/1` computes the current stage from loaded Genesis node associations. Stages in order:
 
 | Stage | Label | Color |
 |---|---|---|
@@ -216,7 +216,7 @@ These buttons appear in the project list or detail context depending on status:
 ## "Generate DAG" Feature
 
 Accessible from `MesGenesisComponents.genesis_panel` (the older genesis panel component, used in contexts other than the main factory view). When a Genesis node exists:
-- `phx-click="mes_generate_dag"` with `phx-value-node-id` -- calls `DagGenerator.generate(node_id)`, converts result to JSONL, appends to `tasks.jsonl` in the cwd, emits `:mes_dag_generated` signal.
+- `phx-click="mes_generate_dag"` with `phx-value-node-id` -- calls `PipelineCompiler.generate(node_id)`, converts result to JSONL, appends to `tasks.jsonl` in the cwd, emits `:mes_dag_generated` signal.
 - Flash: "No subtasks found -- run Mode C first" if empty; "DAG generated: N tasks appended to tasks.jsonl" on success.
 
 ---

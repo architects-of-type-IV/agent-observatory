@@ -287,9 +287,9 @@ defmodule Ichor.Workshop.Presets do
       ]
     },
     "planning_a" => %{
-      label: "Genesis Mode A",
+      label: "Planning Mode A",
       color: "violet",
-      team_name: "genesis",
+      team_name: "planning",
       strategy: "one_for_one",
       model: "sonnet",
       agents: [
@@ -300,7 +300,7 @@ defmodule Ichor.Workshop.Presets do
           model: "sonnet",
           permission: "default",
           persona:
-            "Genesis Mode A coordinator. Mediates all communication between architect and reviewer.",
+            "Planning Mode A coordinator. Mediates all communication between architect and reviewer.",
           file_scope: "",
           quality_gates: "",
           x: 220,
@@ -341,9 +341,9 @@ defmodule Ichor.Workshop.Presets do
       ]
     },
     "planning_b" => %{
-      label: "Genesis Mode B",
+      label: "Planning Mode B",
       color: "violet",
-      team_name: "genesis",
+      team_name: "planning",
       strategy: "one_for_one",
       model: "sonnet",
       agents: [
@@ -354,7 +354,7 @@ defmodule Ichor.Workshop.Presets do
           model: "sonnet",
           permission: "default",
           persona:
-            "Genesis Mode B coordinator. Mediates all communication between analyst and designer.",
+            "Planning Mode B coordinator. Mediates all communication between analyst and designer.",
           file_scope: "",
           quality_gates: "",
           x: 220,
@@ -395,9 +395,9 @@ defmodule Ichor.Workshop.Presets do
       ]
     },
     "planning_c" => %{
-      label: "Genesis Mode C",
+      label: "Planning Mode C",
       color: "violet",
-      team_name: "genesis",
+      team_name: "planning",
       strategy: "one_for_one",
       model: "sonnet",
       agents: [
@@ -408,7 +408,7 @@ defmodule Ichor.Workshop.Presets do
           model: "sonnet",
           permission: "default",
           persona:
-            "Genesis Mode C coordinator. Mediates all communication between planner and architect.",
+            "Planning Mode C coordinator. Mediates all communication between planner and architect.",
           file_scope: "",
           quality_gates: "",
           x: 220,

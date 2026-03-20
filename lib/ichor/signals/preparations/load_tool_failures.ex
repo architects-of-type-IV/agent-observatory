@@ -1,4 +1,4 @@
-defmodule Ichor.Observability.Preparations.LoadErrors do
+defmodule Ichor.Signals.Preparations.LoadToolFailures do
   @moduledoc """
   Loads errors from PostToolUseFailure hook events in the EventBuffer.
   """
@@ -6,7 +6,7 @@ defmodule Ichor.Observability.Preparations.LoadErrors do
   use Ash.Resource.Preparation
 
   alias Ash.DataLayer.Simple
-  alias Ichor.Observability.Preparations.EventBufferReader
+  alias Ichor.Signals.Preparations.EventBufferReader
 
   @impl true
   def prepare(query, _opts, _context) do
@@ -14,7 +14,7 @@ defmodule Ichor.Observability.Preparations.LoadErrors do
       EventBufferReader.list_events()
       |> Enum.filter(&(&1.hook_event_type == :PostToolUseFailure))
       |> Enum.map(fn e ->
-        struct!(Ichor.Observability.Error, %{
+        struct!(Ichor.Signals.ToolFailure, %{
           id: e.id,
           tool_name: e.tool_name,
           session_id: e.session_id,

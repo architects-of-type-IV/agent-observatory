@@ -20,8 +20,8 @@ defmodule Ichor.Factory.Spawn do
   alias Ichor.Infrastructure.TeamLaunch
 
   alias Ichor.Factory.{
-    DagGenerator,
-    Graph,
+    PipelineCompiler,
+    PipelineGraph,
     Pipeline,
     PipelineTask,
     Project,
@@ -131,7 +131,7 @@ defmodule Ichor.Factory.Spawn do
 
   def ensure_planning_project(project_id, _project), do: {:ok, project_id}
 
-  @doc "Loads a formatted project brief string for injection into agent prompts."
+  @doc "Loads a formatted brief artifact string for injection into agent prompts."
   @spec load_project_brief(String.t()) :: String.t()
   def load_project_brief(project_id) do
     case Project.get(project_id) do
@@ -139,7 +139,7 @@ defmodule Ichor.Factory.Spawn do
         Project.latest_brief_text(project) || render_project_fallback_brief(project)
 
       _ ->
-        "PROJECT BRIEF: (not available)"
+        "BRIEF ARTIFACT: (not available)"
     end
   end
 
@@ -256,7 +256,7 @@ defmodule Ichor.Factory.Spawn do
     tmux_session = Keyword.get(opts, :tmux_session)
     archive_existing_runs_for_project(project_id)
 
-    with {:ok, task_maps} <- DagGenerator.generate(project_id) do
+    with {:ok, task_maps} <- PipelineCompiler.generate(project_id) do
       label = derive_label(project_id)
       raw_items = Enum.map(task_maps, &normalize_planning_map/1)
 
@@ -267,8 +267,8 @@ defmodule Ichor.Factory.Spawn do
   end
 
   defp create_pipeline_with_tasks(raw_items, label, source, tmux_session, extra_attrs) do
-    nodes = Enum.map(raw_items, &Graph.to_graph_node/1)
-    waves = Graph.waves(nodes)
+    nodes = Enum.map(raw_items, &PipelineGraph.to_graph_node/1)
+    waves = PipelineGraph.waves(nodes)
     wave_map = build_wave_map(waves)
 
     pipeline_attrs =
@@ -373,7 +373,7 @@ defmodule Ichor.Factory.Spawn do
 
   defp validate_pipeline(run_id) do
     with {:ok, pipeline_tasks} <- PipelineTask.by_run(run_id) do
-      items = Enum.map(pipeline_tasks, &Graph.to_graph_node/1)
+      items = Enum.map(pipeline_tasks, &PipelineGraph.to_graph_node/1)
       cycles = detect_cycles(items)
       missing = flat_pipeline_check(items)
 
@@ -475,7 +475,7 @@ defmodule Ichor.Factory.Spawn do
   end
 
   # ---------------------------------------------------------------------------
-  # Genesis internals
+  # Project brief fallback
   # ---------------------------------------------------------------------------
 
   defp render_project_fallback_brief(project) do
@@ -483,8 +483,8 @@ defmodule Ichor.Factory.Spawn do
     PROJECT BRIEF: #{project.title}
     Plugin: #{project.plugin}
     Description: #{project.description}
-    Features: #{Enum.join(project.features || [], ", ")}
-    Use Cases: #{Enum.join(project.use_cases || [], ", ")}
+    Features: #{Enum.join(Project.artifact_titles(project, :feature), ", ")}
+    Use Cases: #{Enum.join(Project.artifact_titles(project, :use_case), ", ")}
     Signal Interface: #{project.signal_interface}
     Signals Emitted: #{Enum.join(project.signals_emitted || [], ", ")}
     Signals Subscribed: #{Enum.join(project.signals_subscribed || [], ", ")}

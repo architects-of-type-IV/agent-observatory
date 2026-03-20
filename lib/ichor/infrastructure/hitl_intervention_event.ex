@@ -1,4 +1,4 @@
-defmodule Ichor.Observability.HITLInterventionEvent do
+defmodule Ichor.Infrastructure.HITLInterventionEvent do
   @moduledoc """
   Ash Resource for the `hitl_intervention_events` table.
 
@@ -7,7 +7,7 @@ defmodule Ichor.Observability.HITLInterventionEvent do
   """
 
   use Ash.Resource,
-    domain: Ichor.Observability,
+    domain: Ichor.Infrastructure,
     data_layer: AshSqlite.DataLayer,
     simple_notifiers: [Ichor.Signals.FromAsh]
 

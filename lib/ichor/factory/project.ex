@@ -955,6 +955,13 @@ defmodule Ichor.Factory.Project do
     Enum.map(by_parent[nil] || [], &attach_children(&1, by_parent))
   end
 
+  def artifact_titles(%{artifacts: artifacts}, kind) do
+    artifacts
+    |> filter_artifacts(kind)
+    |> Enum.map(& &1.title)
+    |> Enum.reject(&is_nil/1)
+  end
+
   def latest_brief_text(%{artifacts: artifacts}), do: latest_brief_text(artifacts)
 
   def latest_brief_text(artifacts) when is_list(artifacts) do
@@ -992,8 +999,8 @@ defmodule Ichor.Factory.Project do
       "signal_interface" => project.signal_interface,
       "topic" => project.topic,
       "version" => project.version,
-      "features" => project.features,
-      "use_cases" => project.use_cases,
+      "features" => artifact_titles(project, :feature),
+      "use_cases" => artifact_titles(project, :use_case),
       "architecture" => project.architecture,
       "dependencies" => project.dependencies,
       "signals_emitted" => project.signals_emitted,

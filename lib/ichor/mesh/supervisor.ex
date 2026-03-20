@@ -1,7 +1,6 @@
-defmodule Ichor.ObservationSupervisor do
+defmodule Ichor.Mesh.Supervisor do
   @moduledoc """
-  Supervises gateway observation services: the causal event DAG and
-  the event-to-observation bridge.
+  Supervises mesh topology services: the causal DAG and the event bridge.
 
   Uses rest_for_one: CausalDAG must start first (EventBridge inserts
   into DAG and subscribes to per-session DAG topics). If CausalDAG

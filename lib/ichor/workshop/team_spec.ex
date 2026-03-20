@@ -15,7 +15,7 @@ defmodule Ichor.Workshop.TeamSpec do
     - prompt_root_dir(:mes) | prompt_root_dir(:pipeline) | prompt_root_dir(:planning)
   """
 
-  alias Ichor.Factory.ModePrompts
+  alias Ichor.Factory.PlanningPrompts
   alias Ichor.Infrastructure.AgentSpec
   alias Ichor.Infrastructure.TeamSpec, as: Spec
   alias Ichor.Workshop.{CanvasState, PipelinePrompts, Presets, Team, TeamPrompts}
@@ -295,25 +295,25 @@ defmodule Ichor.Workshop.TeamSpec do
 
   defp planning_prompt_map("a", run_id, roster, project_id, brief) do
     %{
-      "coordinator" => ModePrompts.mode_a_coordinator(run_id, roster, project_id, brief),
-      "architect" => ModePrompts.mode_a_architect(run_id, roster, project_id, brief),
-      "reviewer" => ModePrompts.mode_a_reviewer(run_id, roster, project_id, brief)
+      "coordinator" => PlanningPrompts.mode_a_coordinator(run_id, roster, project_id, brief),
+      "architect" => PlanningPrompts.mode_a_architect(run_id, roster, project_id, brief),
+      "reviewer" => PlanningPrompts.mode_a_reviewer(run_id, roster, project_id, brief)
     }
   end
 
   defp planning_prompt_map("b", run_id, roster, project_id, brief) do
     %{
-      "coordinator" => ModePrompts.mode_b_coordinator(run_id, roster, project_id, brief),
-      "analyst" => ModePrompts.mode_b_analyst(run_id, roster, project_id, brief),
-      "designer" => ModePrompts.mode_b_designer(run_id, roster, project_id, brief)
+      "coordinator" => PlanningPrompts.mode_b_coordinator(run_id, roster, project_id, brief),
+      "analyst" => PlanningPrompts.mode_b_analyst(run_id, roster, project_id, brief),
+      "designer" => PlanningPrompts.mode_b_designer(run_id, roster, project_id, brief)
     }
   end
 
   defp planning_prompt_map("c", run_id, roster, project_id, brief) do
     %{
-      "coordinator" => ModePrompts.mode_c_coordinator(run_id, roster, project_id, brief),
-      "planner" => ModePrompts.mode_c_planner(run_id, roster, project_id, brief),
-      "architect" => ModePrompts.mode_c_architect(run_id, roster, project_id, brief)
+      "coordinator" => PlanningPrompts.mode_c_coordinator(run_id, roster, project_id, brief),
+      "planner" => PlanningPrompts.mode_c_planner(run_id, roster, project_id, brief),
+      "architect" => PlanningPrompts.mode_c_architect(run_id, roster, project_id, brief)
     }
   end
 

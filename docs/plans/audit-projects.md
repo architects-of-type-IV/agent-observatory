@@ -154,7 +154,7 @@ which is intentional but worth noting.
 | `Graph` | `[items] -> DAG structure` | Excellent pure module. Wave computation, critical path, file conflicts, pipeline stats. Zero DB calls. |
 | `Validator` | `[items] -> validation results` | Pure cycle detection + ref checks. |
 | `WorkerGroups` | `[jobs] -> [worker_groups]` | Pure file-overlap grouping. |
-| `DagGenerator` | `(node_id) -> [task_maps]` | Mixed: DB call to load hierarchy, then pure transformation. The DB load could be extracted. |
+| `PipelineCompiler` | `(node_id) -> [task_maps]` | Mixed: DB call to load hierarchy, then pure transformation. The DB load could be extracted. |
 | `SubsystemScaffold.Templates` | Template strings in -> String out | Perfectly pure. |
 
 ### 3.2 Orchestration (correct placement)
@@ -165,7 +165,7 @@ which is intentional but worth noting.
 | `ModeSpawner` | `(mode, project_id, genesis_node_id) -> {:ok, session}` | Correct orchestrator for genesis mode teams. |
 | `TeamLifecycle` | Facade over launch/cleanup modules | Thin delegation layer, correct. |
 | `Loader` | `(tasks_jsonl_path | node_id, opts) -> {:ok, Run.t()}` | Two entry points with same output shape -- correct. |
-| `DagGenerator` | `node_id -> {:ok, [task_maps]}` | Mixed-concern (DB + transformation) but acceptable. |
+| `PipelineCompiler` | `node_id -> {:ok, [task_maps]}` | Mixed-concern (DB + transformation) but acceptable. |
 
 ### 3.3 GenServer Lifecycle Processes (necessary concurrency)
 
@@ -234,11 +234,11 @@ Three pure prompt-building modules:
 | Module | Input | Output |
 |---|---|---|
 | `TeamPrompts` | `(run_id, roster)` | Strings for MES agent roles |
-| `ModePrompts` | `(run_id, roster, node_id, brief)` | Strings for Genesis mode agents |
+| `PlanningPrompts` | `(run_id, roster, node_id, brief)` | Strings for Genesis mode agents |
 | `DagPrompts` | `(map())` | Strings for DAG execution agents |
 
 **Structural observation:**
-- `TeamPrompts` and `ModePrompts` both build role-specific prompts with `run_id` + `roster`.
+- `TeamPrompts` and `PlanningPrompts` both build role-specific prompts with `run_id` + `roster`.
 - `DagPrompts` uses a map input (more flexible) but the same output contract.
 - All three contain private formatting helpers (`format_wave_summary`, `format_steps`, etc.)
   that do the same thing (format lists).
@@ -485,7 +485,7 @@ But if called in a hot path, it would be a problem.
 | GenServer registry lifecycle | `BuildRunner`, `PlanRunner`, `RunProcess` |
 | `{DynamicSupervisor}` single-child Supervisor | `PlanSupervisor`, `ExecutionSupervisor` |
 | Signal emit facade | `RuntimeSignals` (DAG), no equivalent for MES/Genesis |
-| Pure prompt builders | `TeamPrompts`, `ModePrompts`, `DagPrompts` |
+| Pure prompt builders | `TeamPrompts`, `PlanningPrompts`, `DagPrompts` |
 | Roster string builder | `ModeSpawner.team_roster/2`, `TeamPrompts.roster/1` (both compute the same format) |
 | `parse_timestamp/1` | `Graph`, `Actions` |
 | Project brief formatter | `ModeSpawner.load_project_brief/1` (only one -- but used by two modules) |

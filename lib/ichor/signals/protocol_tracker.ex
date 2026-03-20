@@ -31,24 +31,6 @@ defmodule Ichor.Signals.ProtocolTracker do
   @spec get_stats() :: map()
   def get_stats, do: GenServer.call(__MODULE__, :get_stats)
 
-  @doc "Track a mailbox delivery for the given message."
-  @spec track_mailbox_delivery(String.t(), String.t(), String.t()) :: :ok
-  def track_mailbox_delivery(message_id, to, from) do
-    GenServer.cast(__MODULE__, {:mailbox_delivery, message_id, to, from})
-  end
-
-  @doc "Track a command queue write for the given session."
-  @spec track_command_write(String.t(), String.t()) :: :ok
-  def track_command_write(session_id, command_id) do
-    GenServer.cast(__MODULE__, {:command_write, session_id, command_id})
-  end
-
-  @doc "Track a gateway broadcast through the pipeline."
-  @spec track_gateway_broadcast(map()) :: :ok
-  def track_gateway_broadcast(data) do
-    GenServer.cast(__MODULE__, {:gateway_broadcast, data})
-  end
-
   # Server
 
   @impl true
@@ -81,66 +63,6 @@ defmodule Ichor.Signals.ProtocolTracker do
   @impl true
   def handle_call(:get_stats, _from, state) do
     {:reply, compute_stats(), state}
-  end
-
-  @impl true
-  def handle_cast({:mailbox_delivery, message_id, _to, _from}, state) do
-    update_trace_hop(message_id, :mailbox, :delivered)
-    {:noreply, state}
-  end
-
-  @impl true
-  def handle_cast({:command_write, _session_id, command_id}, state) do
-    update_trace_hop(command_id, :command_queue, :pending)
-    {:noreply, state}
-  end
-
-  @impl true
-  def handle_cast({:gateway_broadcast, data}, state) do
-    to_label =
-      case data.recipients do
-        [single] -> single
-        list when is_list(list) -> "#{length(list)} agents"
-        _ -> data.channel
-      end
-
-    hops =
-      [
-        %{protocol: :gateway, status: :routed, at: data.timestamp, detail: data.channel}
-      ] ++
-        if data.delivered > 0 do
-          [
-            %{
-              protocol: :mailbox,
-              status: :delivered,
-              at: DateTime.utc_now(),
-              detail: "#{data.delivered} delivered"
-            }
-          ]
-        else
-          [
-            %{
-              protocol: :mailbox,
-              status: :failed,
-              at: DateTime.utc_now(),
-              detail: "no recipients"
-            }
-          ]
-        end
-
-    trace = %{
-      id: data.trace_id,
-      type: :send_message,
-      from: data.from || "unknown",
-      to: to_label,
-      content_preview: data.content_preview,
-      message_type: "gateway",
-      timestamp: data.timestamp,
-      hops: hops
-    }
-
-    insert_trace(trace)
-    {:noreply, %{state | trace_count: state.trace_count + 1}}
   end
 
   # Trace creation from events
@@ -222,18 +144,6 @@ defmodule Ichor.Signals.ProtocolTracker do
     prune_traces()
   end
 
-  defp update_trace_hop(trace_id, protocol, status) do
-    case :ets.lookup(@table_name, trace_id) do
-      [{^trace_id, trace}] ->
-        hop = %{protocol: protocol, status: status, at: DateTime.utc_now(), detail: ""}
-        updated = %{trace | hops: trace.hops ++ [hop]}
-        :ets.insert(@table_name, {trace_id, updated})
-
-      [] ->
-        :ok
-    end
-  end
-
   defp prune_traces do
     size = :ets.info(@table_name, :size)
 
@@ -249,15 +159,15 @@ defmodule Ichor.Signals.ProtocolTracker do
 
   defp compute_stats do
     traces = :ets.tab2list(@table_name) |> Enum.map(&elem(&1, 1))
-    agent_processes = AgentProcess.list_all()
 
     %{
       traces: :ets.info(@table_name, :size),
       by_type: Enum.frequencies_by(traces, & &1.type),
       mailbox: %{
-        agents: length(agent_processes),
+        agents: length(AgentProcess.list_all()),
         total_unread: 0
-      }
+      },
+      command_queue: %{total_pending: 0}
     }
   end
 

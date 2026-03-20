@@ -9,15 +9,14 @@ defmodule IchorWeb.DashboardState do
   import IchorWeb.DashboardTeamHelpers, only: [all_team_sids: 1]
   import IchorWeb.DashboardFeedHelpers, only: [build_feed_groups: 2]
 
-  alias Ichor.Factory.Runtime
+  alias Ichor.Factory.PipelineMonitor
   alias Ichor.Infrastructure.HITLRelay
   alias Ichor.Infrastructure.Tmux
   alias Ichor.Infrastructure.TmuxDiscovery
   alias Ichor.Notes
-  alias Ichor.Observability.Error
-  alias Ichor.Observability.Message
-  alias Ichor.Observability.Task, as: ObservabilityTask
   alias Ichor.Signals.Bus
+  alias Ichor.Signals.TaskProjection
+  alias Ichor.Signals.ToolFailure
   alias Ichor.Workshop.ActiveTeam
   alias Ichor.Workshop.Agent
   alias Ichor.Workshop.Analysis.Queries, as: FQ
@@ -128,7 +127,7 @@ defmodule IchorWeb.DashboardState do
   end
 
   defp runtime_state do
-    Runtime.state()
+    PipelineMonitor.state()
   catch
     :exit, _ -> %{}
   end
@@ -145,10 +144,9 @@ defmodule IchorWeb.DashboardState do
     teams = ActiveTeam.alive!()
     all_teams = ActiveTeam.all!()
     agents = Agent.all!()
-    messages = Message.recent!()
-    event_tasks = ObservabilityTask.current!() |> Enum.map(&task_to_map/1)
-    errors = Error.recent!()
-    error_groups = Error.by_tool!()
+    event_tasks = TaskProjection.current!() |> Enum.map(&task_to_map/1)
+    errors = ToolFailure.recent!()
+    error_groups = ToolFailure.by_tool!()
 
     # Session derivation (Fleet.Queries)
     all_sessions =
@@ -185,12 +183,9 @@ defmodule IchorWeb.DashboardState do
 
     # Template-layer data
     paused_sessions = safe_paused_sessions()
-    operator_messages = Bus.recent_messages(50)
-    hook_messages = load_messages(messages, 50)
 
     mailbox_messages =
-      (operator_messages ++ hook_messages)
-      |> Enum.uniq_by(fn msg -> {msg.from, msg.to, msg.content} end)
+      Bus.recent_messages(50)
       |> Enum.sort_by(& &1.timestamp, {:desc, DateTime})
       |> Enum.take(50)
 
@@ -206,7 +201,7 @@ defmodule IchorWeb.DashboardState do
     |> assign(:teams, teams)
     |> assign(:has_teams, teams != [])
     |> assign(:active_tasks, active_tasks)
-    |> assign(:messages, messages)
+    |> assign(:messages, mailbox_messages)
     |> assign(:event_notes, event_notes)
     |> assign(:selected_team, selected_team)
     |> assign(:sel_team, sel_team)
@@ -249,26 +244,6 @@ defmodule IchorWeb.DashboardState do
     Tmux.list_sessions()
   rescue
     _ -> []
-  end
-
-  # Reuse already-fetched messages instead of querying Activity.Message.recent!() again
-  defp load_messages(messages, limit) do
-    messages
-    |> Enum.take(limit)
-    |> Enum.map(fn m ->
-      %{
-        id: m.id,
-        from: m.sender_session,
-        to: m.recipient,
-        content: m.content,
-        type: m.type,
-        read: true,
-        timestamp: m.timestamp,
-        sender_app: m.sender_app,
-        summary: m.summary,
-        transport: m.transport || :hook
-      }
-    end)
   end
 
   # Feed groups needed on command/activity views with feed/comms tab

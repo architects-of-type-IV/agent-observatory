@@ -1,11 +1,11 @@
-defmodule Ichor.Observability.Task do
+defmodule Ichor.Signals.TaskProjection do
   @moduledoc """
   A task derived from TaskCreate/TaskUpdate hook events.
   Uses Ash.DataLayer.Simple -- data is loaded by preparations, not persisted.
   """
 
   use Ash.Resource,
-    domain: Ichor.Observability
+    domain: Ichor.SignalBus
 
   attributes do
     attribute(:id, :string, primary_key?: true, allow_nil?: false, public?: true)
@@ -20,7 +20,7 @@ defmodule Ichor.Observability.Task do
 
   actions do
     read :current do
-      prepare({Ichor.Observability.Preparations.LoadTasks, []})
+      prepare({Ichor.Signals.Preparations.LoadTaskProjections, []})
     end
   end
 

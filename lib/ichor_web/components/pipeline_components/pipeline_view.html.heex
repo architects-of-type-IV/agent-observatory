@@ -1,7 +1,7 @@
 <% tasks = @pipeline_state.tasks
 active_project = @pipeline_state.active_project
 projects = @pipeline_state.watched_projects
-pipeline_graph = @pipeline_state.dag
+pipeline_graph = @pipeline_state.dependency_graph
 
 # Group tasks by status for kanban columns
 kanban = %{

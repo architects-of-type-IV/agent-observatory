@@ -23,7 +23,7 @@ defmodule Ichor.Factory.Workers.OrphanSweepWorker do
   @impl Oban.Worker
   def perform(%Oban.Job{}) do
     active_runs = length(Runner.list_all(:mes))
-    Signals.emit(:mes_janitor_init, %{monitored: active_runs})
+    Signals.emit(:mes_maintenance_init, %{monitored: active_runs})
 
     result =
       try do
@@ -32,7 +32,7 @@ defmodule Ichor.Factory.Workers.OrphanSweepWorker do
       rescue
         error ->
           reason = Exception.message(error)
-          Signals.emit(:mes_janitor_error, %{run_id: "sweep", reason: reason})
+          Signals.emit(:mes_maintenance_error, %{run_id: "sweep", reason: reason})
           {:error, reason}
       end
 

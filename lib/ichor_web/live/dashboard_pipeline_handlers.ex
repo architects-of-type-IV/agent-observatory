@@ -5,7 +5,7 @@ defmodule IchorWeb.DashboardPipelineHandlers do
 
   import Phoenix.Component, only: [assign: 3]
 
-  alias Ichor.Factory.Runtime
+  alias Ichor.Factory.PipelineMonitor
   alias Ichor.Signals.Bus
   alias Ichor.Workshop.Agent, as: ControlAgent
   alias IchorWeb.Presentation
@@ -24,48 +24,48 @@ defmodule IchorWeb.DashboardPipelineHandlers do
   def dispatch("clear_command_selection", p, s), do: handle_clear_command_selection(p, s)
 
   def handle_select_project(%{"project" => key}, socket) do
-    Runtime.set_active_project(key)
+    PipelineMonitor.set_active_project(key)
     socket
   end
 
   def handle_add_project(%{"path" => path}, socket) do
     key = Path.basename(path)
-    Runtime.add_project(key, path)
+    PipelineMonitor.add_project(key, path)
     socket
   end
 
   def handle_heal_task(%{"id" => task_id}, socket) do
-    Runtime.heal_task(task_id)
+    PipelineMonitor.heal_task(task_id)
     socket
   end
 
   def handle_reassign_pipeline_task(%{"id" => task_id, "owner" => owner}, socket) do
-    Runtime.reassign_task(task_id, owner)
+    PipelineMonitor.reassign_task(task_id, owner)
     socket
   end
 
   def handle_reset_all_stale(_params, socket) do
-    Runtime.reset_all_stale(10)
+    PipelineMonitor.reset_all_stale(10)
     socket
   end
 
   def handle_trigger_gc(%{"team" => team_name}, socket) do
-    Runtime.trigger_gc(team_name)
+    PipelineMonitor.trigger_gc(team_name)
     socket
   end
 
   def handle_run_health_check(_params, socket) do
-    Runtime.run_health_check()
+    PipelineMonitor.run_health_check()
     socket
   end
 
   def handle_claim_pipeline_task(%{"id" => task_id, "agent" => agent}, socket) do
-    Runtime.claim_task(task_id, agent)
+    PipelineMonitor.claim_task(task_id, agent)
     socket
   end
 
   def handle_select_pipeline_task(%{"id" => task_id}, socket) do
-    pipeline_state = Runtime.state()
+    pipeline_state = PipelineMonitor.state()
     task = Enum.find(pipeline_state.tasks, &(&1.id == task_id))
 
     current = socket.assigns[:selected_pipeline_task]

@@ -45,7 +45,7 @@ defmodule Ichor.Workshop.TeamPrompts do
       to: "mes-#{run_id}-coordinator"
       content: "COORDINATOR READY"
 
-    This self-message is a placeholder. Your parent is the Scheduler -- it has
+    This self-message is a placeholder. Your parent is the MES scheduler -- it has
     already started you. No READY message needs to go upstream.
 
     ============================================================
@@ -103,7 +103,7 @@ defmodule Ichor.Workshop.TeamPrompts do
 
     No markdown. No headers. No extra text before TITLE.
 
-    Also write the brief to subsystems/briefs/#{run_id}.md (mkdir -p subsystems/briefs first).
+    Also write the brief to plugins/briefs/#{run_id}.md (mkdir -p plugins/briefs first).
 
     TOOL BUDGET: Max 15 tool calls.
     """
@@ -230,7 +230,7 @@ defmodule Ichor.Workshop.TeamPrompts do
     If empty, wait 20 seconds, call check_inbox again. REPEAT until you receive
     a research proposal from lead.
 
-    STEP 2: When you receive the proposal, expand it into a full project brief.
+    STEP 2: When you receive the proposal, expand it into a full brief artifact.
     Then IMMEDIATELY call send_message with:
       from_session_id: "mes-#{run_id}-planner"
       to_session_id: "mes-#{run_id}-lead"
@@ -530,7 +530,7 @@ defmodule Ichor.Workshop.TeamPrompts do
     SIGNALS_SUBSCRIBED: comma-separated signal atoms or categories
 
     No markdown. No headers. No extra text before TITLE.
-    Also write the brief to subsystems/briefs/#{run_id}.md (overwrite).
+    Also write the brief to plugins/briefs/#{run_id}.md (overwrite).
 
     After calling send_message, you are done. Stop.
     """

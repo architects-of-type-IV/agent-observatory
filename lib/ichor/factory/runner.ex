@@ -2,9 +2,9 @@ defmodule Ichor.Factory.Runner do
   @moduledoc """
   Unified GenServer representing a single run lifecycle.
 
-  Replaces the former BuildRunner (MES), PlanRunner (Planning), and pipeline
-  runner with a single data-driven implementation. Behavioral differences are
-  expressed through `%Runner.Mode{}` config structs and hook functions.
+  A single data-driven lifecycle process for MES, planning, and pipeline runs.
+  Behavioral differences are expressed through `%Runner.Mode{}` config structs
+  and hook functions.
 
   Registry keys by kind:
     - :mes     -> {:run, run_id}
@@ -14,9 +14,10 @@ defmodule Ichor.Factory.Runner do
 
   use GenServer, restart: :temporary
 
-  alias Ichor.Factory.{Graph, Pipeline, PipelineTask}
+  alias Ichor.Factory.{Pipeline, PipelineGraph, PipelineTask}
   alias Ichor.Factory.Workers.RunCleanupWorker
-  alias Ichor.Infrastructure.{TeamLaunch, TmuxLauncher}
+  alias Ichor.Infrastructure.TeamLaunch
+  alias Ichor.Infrastructure.Tmux.Launcher, as: TmuxLauncher
   alias Ichor.Signals
   alias Ichor.Signals.Message
   alias Ichor.Workshop.TeamSpec
@@ -42,7 +43,7 @@ defmodule Ichor.Factory.Runner do
       :completion,
       # [%{id: :health, every_ms: 30_000, callback: fun}]
       :checks,
-      # %{policy: :teardown | :mes_janitor}
+      # %{policy: :teardown | :mes_maintenance}
       :cleanup,
       # %{ready: atom, completed: atom, tmux_gone: atom, terminated: atom}
       :signals,
@@ -66,7 +67,7 @@ defmodule Ichor.Factory.Runner do
   end
 
   defmodule State do
-    @moduledoc "Runtime state for a unified Runner process."
+    @moduledoc "Internal lifecycle state for a unified Runner process."
 
     @enforce_keys [:run_id, :kind, :session, :config]
     defstruct [
@@ -287,7 +288,7 @@ defmodule Ichor.Factory.Runner do
         signal: :mes_project_created
       },
       checks: nil,
-      cleanup: %{policy: :mes_janitor},
+      cleanup: %{policy: :mes_maintenance},
       signals: %{
         ready: :mes_run_started,
         completed: :mes_run_complete,
@@ -460,7 +461,7 @@ defmodule Ichor.Factory.Runner do
 
   defp pipeline_check_health(state) do
     with {:ok, pipeline_tasks} <- PipelineTask.by_run(state.run_id) do
-      nodes = Enum.map(pipeline_tasks, &Graph.to_graph_node/1)
+      nodes = Enum.map(pipeline_tasks, &PipelineGraph.to_graph_node/1)
       issues = health_issues(nodes, DateTime.utc_now())
 
       Signals.emit(:pipeline_health_report, %{
@@ -497,7 +498,7 @@ defmodule Ichor.Factory.Runner do
   # Cleanup dispatch (replaces Runner.Hooks)
   # ---------------------------------------------------------------------------
 
-  defp do_cleanup(:mes_janitor, state), do: mes_cleanup(state)
+  defp do_cleanup(:mes_maintenance, state), do: mes_cleanup(state)
   defp do_cleanup(:teardown, %{team_spec: nil}), do: :ok
 
   defp do_cleanup(:teardown, state) do
@@ -594,7 +595,7 @@ defmodule Ichor.Factory.Runner do
         :ok
 
       {:error, reason} ->
-        Signals.emit(:mes_janitor_error, %{run_id: state.run_id, reason: inspect(reason)})
+        Signals.emit(:mes_maintenance_error, %{run_id: state.run_id, reason: inspect(reason)})
         :ok
     end
   end
@@ -684,7 +685,7 @@ defmodule Ichor.Factory.Runner do
 
   defp stale_health_issues(nodes, now) do
     nodes
-    |> Graph.stale_items(now, @stale_threshold_min)
+    |> PipelineGraph.stale_items(now, @stale_threshold_min)
     |> Enum.map(fn node ->
       %{
         type: :stale_in_progress,
@@ -698,7 +699,7 @@ defmodule Ichor.Factory.Runner do
 
   defp conflict_health_issues(nodes) do
     nodes
-    |> Graph.file_conflicts()
+    |> PipelineGraph.file_conflicts()
     |> Enum.map(fn {a, b, files} ->
       %{
         type: :file_conflict,

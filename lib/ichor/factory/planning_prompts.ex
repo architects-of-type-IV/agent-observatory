@@ -1,4 +1,4 @@
-defmodule Ichor.Factory.ModePrompts do
+defmodule Ichor.Factory.PlanningPrompts do
   @moduledoc """
   Prompt templates for Planning mode teams.
   Each mode has 3 agents with scoped instructions and MCP tool references.
@@ -10,7 +10,7 @@ defmodule Ichor.Factory.ModePrompts do
 
   @doc "Generates the Mode A coordinator prompt."
   @spec mode_a_coordinator(String.t(), String.t(), String.t() | nil, String.t()) :: String.t()
-  def mode_a_coordinator(run_id, roster, node_id, brief) do
+  def mode_a_coordinator(run_id, roster, project_id, brief) do
     """
     You are the Planning Mode A Coordinator for run #{run_id}.
     Your session_id is: planning-a-#{run_id}-coordinator
@@ -18,7 +18,7 @@ defmodule Ichor.Factory.ModePrompts do
 
     #{roster}
 
-    PROJECT ID: #{node_id || "NONE -- create one first via create_project_draft"}
+    PROJECT ID: #{project_id || "NONE -- create one first via create_project_draft"}
 
     #{brief}
 
@@ -45,7 +45,7 @@ defmodule Ichor.Factory.ModePrompts do
       to: "planning-a-#{run_id}-coordinator"
       content: "COORDINATOR READY"
 
-    This self-message is a protocol smoke test. Your parent is the Scheduler --
+    This self-message is a protocol smoke test. Your parent is the planning scheduler --
     it has already started you. No READY message needs to go upstream.
 
     ============================================================
@@ -126,7 +126,7 @@ defmodule Ichor.Factory.ModePrompts do
 
   @doc "Generates the Mode A architect prompt."
   @spec mode_a_architect(String.t(), String.t(), String.t() | nil, String.t()) :: String.t()
-  def mode_a_architect(run_id, roster, node_id, brief) do
+  def mode_a_architect(run_id, roster, project_id, brief) do
     """
     You are the Planning Mode A Architect for run #{run_id}.
     Your session_id is: planning-a-#{run_id}-architect
@@ -134,7 +134,7 @@ defmodule Ichor.Factory.ModePrompts do
 
     #{roster}
 
-    PROJECT ID: #{node_id}
+    PROJECT ID: #{project_id}
 
     #{brief}
 
@@ -147,7 +147,7 @@ defmodule Ichor.Factory.ModePrompts do
     - This is a pull-based inbox -- nothing arrives unless you call check_inbox.
     - You do NOT persist ADRs. The coordinator persists them after review.
     - Read the codebase to understand existing architecture before proposing.
-    - ADRs must be about the SUBSYSTEM described in the brief, NOT about the existing ICHOR infrastructure.
+    - ADRs must be about the PLUGIN described in the brief, NOT about the existing ICHOR infrastructure.
 
     ============================================================
     STEP 0: ANNOUNCE READY TO COORDINATOR (do this FIRST)
@@ -196,7 +196,7 @@ defmodule Ichor.Factory.ModePrompts do
 
   @doc "Generates the Mode A reviewer prompt."
   @spec mode_a_reviewer(String.t(), String.t(), String.t() | nil, String.t()) :: String.t()
-  def mode_a_reviewer(run_id, roster, node_id, brief) do
+  def mode_a_reviewer(run_id, roster, project_id, brief) do
     """
     You are the Planning Mode A Reviewer for run #{run_id}.
     Your session_id is: planning-a-#{run_id}-reviewer
@@ -204,7 +204,7 @@ defmodule Ichor.Factory.ModePrompts do
 
     #{roster}
 
-    PROJECT ID: #{node_id}
+    PROJECT ID: #{project_id}
 
     #{brief}
 
@@ -257,7 +257,7 @@ defmodule Ichor.Factory.ModePrompts do
 
   @doc "Generates the Mode B coordinator prompt."
   @spec mode_b_coordinator(String.t(), String.t(), String.t() | nil, String.t()) :: String.t()
-  def mode_b_coordinator(run_id, roster, node_id, brief) do
+  def mode_b_coordinator(run_id, roster, project_id, brief) do
     """
     You are the Planning Mode B Coordinator for run #{run_id}.
     Your session_id is: planning-b-#{run_id}-coordinator
@@ -265,7 +265,7 @@ defmodule Ichor.Factory.ModePrompts do
 
     #{roster}
 
-    PROJECT ID: #{node_id}
+    PROJECT ID: #{project_id}
 
     #{brief}
 
@@ -292,7 +292,7 @@ defmodule Ichor.Factory.ModePrompts do
       to: "planning-b-#{run_id}-coordinator"
       content: "COORDINATOR READY"
 
-    This self-message is a protocol smoke test. Your parent is the Scheduler --
+    This self-message is a protocol smoke test. Your parent is the planning scheduler --
     it has already started you. No READY message needs to go upstream.
 
     ============================================================
@@ -372,7 +372,7 @@ defmodule Ichor.Factory.ModePrompts do
 
   @doc "Generates the Mode B analyst prompt."
   @spec mode_b_analyst(String.t(), String.t(), String.t() | nil, String.t()) :: String.t()
-  def mode_b_analyst(run_id, roster, node_id, brief) do
+  def mode_b_analyst(run_id, roster, project_id, brief) do
     """
     You are the Planning Mode B Analyst for run #{run_id}.
     Your session_id is: planning-b-#{run_id}-analyst
@@ -380,7 +380,7 @@ defmodule Ichor.Factory.ModePrompts do
 
     #{roster}
 
-    PROJECT ID: #{node_id}
+    PROJECT ID: #{project_id}
 
     #{brief}
 
@@ -409,7 +409,7 @@ defmodule Ichor.Factory.ModePrompts do
     ============================================================
     STEP 2: READ AND EXTRACT
     ============================================================
-    Call list_adrs to read existing ADRs for this node.
+    Call list_adrs to read existing ADRs for this project.
     Extract concrete features from each ADR decision.
     Use create_feature to persist each feature.
 
@@ -432,7 +432,7 @@ defmodule Ichor.Factory.ModePrompts do
 
   @doc "Generates the Mode B designer prompt."
   @spec mode_b_designer(String.t(), String.t(), String.t() | nil, String.t()) :: String.t()
-  def mode_b_designer(run_id, roster, node_id, brief) do
+  def mode_b_designer(run_id, roster, project_id, brief) do
     """
     You are the Planning Mode B Designer for run #{run_id}.
     Your session_id is: planning-b-#{run_id}-designer
@@ -440,7 +440,7 @@ defmodule Ichor.Factory.ModePrompts do
 
     #{roster}
 
-    PROJECT ID: #{node_id}
+    PROJECT ID: #{project_id}
 
     #{brief}
 
@@ -491,7 +491,7 @@ defmodule Ichor.Factory.ModePrompts do
 
   @doc "Generates the Mode C coordinator prompt."
   @spec mode_c_coordinator(String.t(), String.t(), String.t() | nil, String.t()) :: String.t()
-  def mode_c_coordinator(run_id, roster, node_id, brief) do
+  def mode_c_coordinator(run_id, roster, project_id, brief) do
     """
     You are the Planning Mode C Coordinator for run #{run_id}.
     Your session_id is: planning-c-#{run_id}-coordinator
@@ -499,7 +499,7 @@ defmodule Ichor.Factory.ModePrompts do
 
     #{roster}
 
-    PROJECT ID: #{node_id}
+    PROJECT ID: #{project_id}
 
     #{brief}
 
@@ -526,7 +526,7 @@ defmodule Ichor.Factory.ModePrompts do
       to: "planning-c-#{run_id}-coordinator"
       content: "COORDINATOR READY"
 
-    This self-message is a protocol smoke test. Your parent is the Scheduler --
+    This self-message is a protocol smoke test. Your parent is the planning scheduler --
     it has already started you. No READY message needs to go upstream.
 
     ============================================================
@@ -597,7 +597,7 @@ defmodule Ichor.Factory.ModePrompts do
 
   @doc "Generates the Mode C planner prompt."
   @spec mode_c_planner(String.t(), String.t(), String.t() | nil, String.t()) :: String.t()
-  def mode_c_planner(run_id, roster, node_id, brief) do
+  def mode_c_planner(run_id, roster, project_id, brief) do
     """
     You are the Planning Mode C Planner for run #{run_id}.
     Your session_id is: planning-c-#{run_id}-planner
@@ -605,7 +605,7 @@ defmodule Ichor.Factory.ModePrompts do
 
     #{roster}
 
-    PROJECT ID: #{node_id}
+    PROJECT ID: #{project_id}
 
     #{brief}
 
@@ -664,7 +664,7 @@ defmodule Ichor.Factory.ModePrompts do
 
   @doc "Generates the Mode C architect prompt."
   @spec mode_c_architect(String.t(), String.t(), String.t() | nil, String.t()) :: String.t()
-  def mode_c_architect(run_id, roster, node_id, brief) do
+  def mode_c_architect(run_id, roster, project_id, brief) do
     """
     You are the Planning Mode C Architect for run #{run_id}.
     Your session_id is: planning-c-#{run_id}-architect
@@ -672,7 +672,7 @@ defmodule Ichor.Factory.ModePrompts do
 
     #{roster}
 
-    PROJECT ID: #{node_id}
+    PROJECT ID: #{project_id}
 
     #{brief}
 
@@ -683,7 +683,7 @@ defmodule Ichor.Factory.ModePrompts do
     - NEVER write text to describe what you would send. ALWAYS call the tool.
     - If you find yourself typing "I would send..." STOP. Call send_message instead.
     - This is a pull-based inbox -- nothing arrives unless you call check_inbox.
-    - Tasks must be about the SUBSYSTEM described in the brief, NOT about the existing ICHOR infrastructure.
+    - Tasks must be about the PLUGIN described in the brief, NOT about the existing ICHOR infrastructure.
     - You do NOT persist tasks. Send your task breakdown to the coordinator via send_message.
 
     ============================================================

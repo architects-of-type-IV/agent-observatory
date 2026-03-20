@@ -15,7 +15,6 @@ defmodule Ichor.Workshop.Agent do
   alias Ichor.Infrastructure.Registration
   alias Ichor.Infrastructure.TeamSupervisor
   alias Ichor.Infrastructure.Tmux
-  alias Ichor.Signals.Bus
 
   attributes do
     attribute(:agent_id, :string, primary_key?: true, allow_nil?: false, public?: true)
@@ -349,68 +348,6 @@ defmodule Ichor.Workshop.Agent do
       end)
     end
 
-    action :send_message, :map do
-      description("Send a message to an agent.")
-
-      argument(:agent_id, :string, allow_nil?: false, description: "Target agent ID")
-      argument(:content, :string, allow_nil?: false, description: "Message content")
-      argument(:from, :string, default: "architect", description: "Sender identifier")
-
-      run(fn input, _context ->
-        args = input.arguments
-
-        case Bus.send(%{
-               from: args.from,
-               to: args.agent_id,
-               content: args.content,
-               type: :message
-             }) do
-          {:ok, result} -> {:ok, %{to: args.agent_id, from: args.from, status: result.status}}
-          {:error, reason} -> {:error, reason}
-        end
-      end)
-    end
-
-    action :get_unread, {:array, :map} do
-      description("Get unread messages for an agent.")
-      argument(:agent_id, :string, allow_nil?: false, description: "Agent session ID")
-
-      run(fn input, _context ->
-        agent_id = input.arguments.agent_id
-
-        messages =
-          if AgentProcess.alive?(agent_id) do
-            agent_id
-            |> AgentProcess.get_unread()
-            |> Enum.map(fn msg ->
-              %{
-                "id" => msg[:id] || Ecto.UUID.generate(),
-                "from" => msg[:from] || "system",
-                "content" => msg[:content] || inspect(msg),
-                "type" => to_string(msg[:type] || :message),
-                "timestamp" => DateTime.to_iso8601(msg[:timestamp] || DateTime.utc_now())
-              }
-            end)
-          else
-            []
-          end
-
-        {:ok, messages}
-      end)
-    end
-
-    action :mark_read, :map do
-      description("Mark a message as read for an agent.")
-      argument(:agent_id, :string, allow_nil?: false)
-      argument(:message_id, :string, allow_nil?: false)
-
-      run(fn input, _context ->
-        # AgentProcess.get_unread is a destructive read (clears on read).
-        # mark_read is a no-op -- messages are consumed when read.
-        {:ok, %{status: "acknowledged", message_id: input.arguments.message_id}}
-      end)
-    end
-
     action :update_instructions, :map do
       description("Update an agent's instruction overlay.")
 
@@ -445,10 +382,6 @@ defmodule Ichor.Workshop.Agent do
     define(:resume_agent, args: [:agent_id])
     define(:stop_agent, args: [:agent_id])
     define(:terminate_agent, args: [:agent_id])
-    # Messaging
-    define(:get_unread, args: [:agent_id])
-    define(:mark_read, args: [:agent_id, :message_id])
-    define(:send_message, args: [:agent_id, :content])
     define(:update_instructions, args: [:agent_id, :instructions])
   end
 

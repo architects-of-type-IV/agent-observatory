@@ -1,4 +1,4 @@
-defmodule Ichor.Observability.Preparations.EventBufferReader do
+defmodule Ichor.Signals.Preparations.EventBufferReader do
   @moduledoc false
 
   @spec list_events() :: list()

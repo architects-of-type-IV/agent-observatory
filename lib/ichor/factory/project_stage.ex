@@ -1,7 +1,6 @@
-defmodule Ichor.Factory.PipelineStage do
+defmodule Ichor.Factory.ProjectStage do
   @moduledoc """
-  Derives pipeline stage from a project's embedded planning state.
-  Queries the DAG domain for :building stage detection.
+  Derives planning/build stage from a project's embedded artifacts and roadmap.
   """
 
   alias Ichor.Factory.Pipeline
@@ -14,7 +13,7 @@ defmodule Ichor.Factory.PipelineStage do
           | :pre_gate_b
           | :mode_c
           | :pre_gate_c
-          | :ready_for_dag
+          | :ready_for_pipeline
           | :building
           | :compiled
           | :running
@@ -33,46 +32,46 @@ defmodule Ichor.Factory.PipelineStage do
     {stage, label(stage)}
   end
 
-  @doc "Compute station states for Mode A/B/C/Gate/DAG buttons."
+  @doc "Compute station states for Mode A/B/C/Gate/Pipeline buttons."
   @spec station_states(stage()) :: %{
           a: :active | :completed | :future,
           b: :active | :completed | :future,
           c: :active | :completed | :future,
           gate: :active | :completed | :future,
-          dag: :active | :completed | :future
+          pipeline: :active | :completed | :future
         }
   def station_states(:ideation),
-    do: %{a: :active, b: :future, c: :future, gate: :future, dag: :future}
+    do: %{a: :active, b: :future, c: :future, gate: :future, pipeline: :future}
 
   def station_states(:mode_a),
-    do: %{a: :active, b: :future, c: :future, gate: :future, dag: :future}
+    do: %{a: :active, b: :future, c: :future, gate: :future, pipeline: :future}
 
   def station_states(:pre_gate_a),
-    do: %{a: :completed, b: :future, c: :future, gate: :active, dag: :future}
+    do: %{a: :completed, b: :future, c: :future, gate: :active, pipeline: :future}
 
   def station_states(:mode_b),
-    do: %{a: :completed, b: :active, c: :future, gate: :future, dag: :future}
+    do: %{a: :completed, b: :active, c: :future, gate: :future, pipeline: :future}
 
   def station_states(:pre_gate_b),
-    do: %{a: :completed, b: :completed, c: :future, gate: :active, dag: :future}
+    do: %{a: :completed, b: :completed, c: :future, gate: :active, pipeline: :future}
 
   def station_states(:mode_c),
-    do: %{a: :completed, b: :completed, c: :active, gate: :future, dag: :future}
+    do: %{a: :completed, b: :completed, c: :active, gate: :future, pipeline: :future}
 
   def station_states(:pre_gate_c),
-    do: %{a: :completed, b: :completed, c: :completed, gate: :active, dag: :future}
+    do: %{a: :completed, b: :completed, c: :completed, gate: :active, pipeline: :future}
 
-  def station_states(:ready_for_dag),
-    do: %{a: :completed, b: :completed, c: :completed, gate: :completed, dag: :active}
+  def station_states(:ready_for_pipeline),
+    do: %{a: :completed, b: :completed, c: :completed, gate: :completed, pipeline: :active}
 
   def station_states(:building),
-    do: %{a: :completed, b: :completed, c: :completed, gate: :completed, dag: :active}
+    do: %{a: :completed, b: :completed, c: :completed, gate: :completed, pipeline: :active}
 
   def station_states(:compiled),
-    do: %{a: :completed, b: :completed, c: :completed, gate: :completed, dag: :completed}
+    do: %{a: :completed, b: :completed, c: :completed, gate: :completed, pipeline: :completed}
 
   def station_states(:running),
-    do: %{a: :completed, b: :completed, c: :completed, gate: :completed, dag: :completed}
+    do: %{a: :completed, b: :completed, c: :completed, gate: :completed, pipeline: :completed}
 
   @doc "Returns {text_css_class, bg_css_class} Tailwind classes for a pipeline stage."
   @spec stage_color(stage()) :: {String.t(), String.t()}
@@ -83,7 +82,7 @@ defmodule Ichor.Factory.PipelineStage do
   def stage_color(:pre_gate_b), do: {"text-interactive", "bg-interactive/15"}
   def stage_color(:mode_c), do: {"text-interactive", "bg-interactive/15"}
   def stage_color(:pre_gate_c), do: {"text-warning", "bg-warning/15"}
-  def stage_color(:ready_for_dag), do: {"text-warning", "bg-warning/15"}
+  def stage_color(:ready_for_pipeline), do: {"text-warning", "bg-warning/15"}
   def stage_color(:building), do: {"text-warning", "bg-warning/15"}
   def stage_color(:compiled), do: {"text-success", "bg-success/15"}
   def stage_color(:running), do: {"text-success", "bg-success/15"}
@@ -92,7 +91,7 @@ defmodule Ichor.Factory.PipelineStage do
     cond do
       roadmap_count(project, :phase) > 0 ->
         if gate_c_checkpoint?(artifacts(project, :checkpoint)),
-          do: :ready_for_dag,
+          do: :ready_for_pipeline,
           else: :pre_gate_c
 
       artifact_count(project, :feature) > 0 or artifact_count(project, :use_case) > 0 ->
@@ -141,7 +140,7 @@ defmodule Ichor.Factory.PipelineStage do
     pre_gate_b: "Pre-Gate B",
     mode_c: "Mode C",
     pre_gate_c: "Pre-Gate C",
-    ready_for_dag: "Ready for DAG",
+    ready_for_pipeline: "Ready for Build",
     building: "Building",
     compiled: "Compiled",
     running: "Running"

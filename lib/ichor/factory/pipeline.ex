@@ -9,7 +9,7 @@ defmodule Ichor.Factory.Pipeline do
     data_layer: AshSqlite.DataLayer,
     simple_notifiers: [Ichor.Signals.FromAsh]
 
-  alias Ichor.Factory.{Graph, PipelineTask, Spawn}
+  alias Ichor.Factory.{PipelineGraph, PipelineTask, Spawn}
 
   sqlite do
     repo(Ichor.Repo)
@@ -124,8 +124,8 @@ defmodule Ichor.Factory.Pipeline do
 
         with {:ok, run} <- __MODULE__.get(run_id),
              {:ok, pipeline_tasks} <- PipelineTask.by_run(run_id) do
-          nodes = Enum.map(pipeline_tasks, &Graph.to_graph_node/1)
-          stats = Graph.pipeline_stats(nodes)
+          nodes = Enum.map(pipeline_tasks, &PipelineGraph.to_graph_node/1)
+          stats = PipelineGraph.pipeline_stats(nodes)
 
           {:ok,
            %{

@@ -1,9 +1,9 @@
-defmodule Ichor.Factory.Graph do
-  @moduledoc "Pure DAG computation on normalized graph node maps."
+defmodule Ichor.Factory.PipelineGraph do
+  @moduledoc "Pure pipeline dependency computation on normalized task node maps."
 
   alias Ichor.Factory.DateUtils
 
-  @doc "Normalize to graph node map. Accepts Job structs or string-key maps."
+  @doc "Normalize to pipeline task node map."
   @spec to_graph_node(struct() | map()) :: map()
   def to_graph_node(%{external_id: _external_id} = job) do
     %{
@@ -85,13 +85,13 @@ defmodule Ichor.Factory.Graph do
     Enum.flat_map(items, fn t -> Enum.map(t.blocked_by, &{&1, t.id}) end)
   end
 
-  @doc "Returns a map with waves, edges, and critical_path for a DAG."
-  @spec dag([map()]) :: %{
+  @doc "Returns a map with waves, edges, and critical_path for a dependency graph."
+  @spec dependency_graph([map()]) :: %{
           waves: [[String.t()]],
           edges: [{String.t(), String.t()}],
           critical_path: [String.t()]
         }
-  def dag(items),
+  def dependency_graph(items),
     do: %{waves: waves(items), edges: edges(items), critical_path: critical_path(items)}
 
   @doc "Returns the longest dependency chain as an ordered list of item IDs."

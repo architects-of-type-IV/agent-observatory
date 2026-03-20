@@ -289,10 +289,10 @@ Potentially `domain.ex` remains only if AshAi requires a domain module.
 - `Ichor.Projects.ResearchIngestor` -> `Ichor.Projects.Ingest.Research`
 - `Ichor.Projects.ResearchStore` -> adapter under `projects/ingest` or `build`
 - `Ichor.Projects.Graph` -> `Ichor.Projects.Graph`
-- `Ichor.Projects.ModePrompts` -> `Ichor.Projects.Prompts.Genesis`
+- `Ichor.Projects.PlanningPrompts` -> `Ichor.Projects.Prompts.Genesis`
 - `Ichor.Projects.TeamPrompts` -> `Ichor.Projects.Prompts.Mes`
 - `Ichor.Projects.DagPrompts` -> `Ichor.Projects.Prompts.Dag`
-- `Ichor.Projects.PipelineStage` -> move to web presenter/query layer
+- `Ichor.Projects.ProjectStage` -> move to web presenter/query layer
 - `Ichor.Projects.DateUtils` -> absorb
 - `Ichor.Projects.SubsystemLoader` -> `Ichor.Projects.Build.Loader`
 - `Ichor.Projects.SubsystemScaffold` -> `Ichor.Projects.Build.Scaffold`

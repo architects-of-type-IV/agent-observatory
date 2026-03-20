@@ -231,7 +231,7 @@ defmodule Ichor.MemoriesBridge do
     do: "MES cycle #{rid} (team \"#{team}\") exceeded its time budget and was killed."
 
   defp narrate(:mes_project_created, %{title: title, run_id: rid}),
-    do: "MES project brief \"#{title}\" was created from run #{rid}."
+    do: "MES brief artifact \"#{title}\" was created from run #{rid}."
 
   defp narrate(:mes_project_picked_up, %{project_id: pid, session_id: sid}),
     do:
@@ -240,8 +240,8 @@ defmodule Ichor.MemoriesBridge do
   defp narrate(:mes_plugin_loaded, %{plugin: plugin, modules: mods}),
     do: "Plugin #{plugin} was hot-loaded into the BEAM VM (#{length(mods)} modules)."
 
-  defp narrate(:mes_janitor_cleaned, %{run_id: rid, trigger: trigger}),
-    do: "MES janitor cleaned up run #{rid} (trigger: #{trigger})."
+  defp narrate(:mes_maintenance_cleaned, %{run_id: rid, trigger: trigger}),
+    do: "MES maintenance cleaned up run #{rid} (trigger: #{trigger})."
 
   defp narrate(:mes_team_killed, %{session: session}),
     do: "MES team session \"#{session}\" was killed."

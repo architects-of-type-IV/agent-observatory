@@ -58,7 +58,7 @@ defmodule Ichor.Signals.FromAsh do
   defp signal_for(Ichor.Infrastructure.WebhookDelivery, :mark_dead),
     do: {:dead_letter, &webhook_data/2}
 
-  defp signal_for(Ichor.Observability.HITLInterventionEvent, :record),
+  defp signal_for(Ichor.Infrastructure.HITLInterventionEvent, :record),
     do: {:hitl_intervention_recorded, &hitl_data/2}
 
   defp signal_for(Ichor.Infrastructure.CronJob, :schedule_once),

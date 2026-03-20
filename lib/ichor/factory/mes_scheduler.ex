@@ -1,10 +1,6 @@
-defmodule Ichor.Factory.Scheduler do
+defmodule Ichor.Factory.MesScheduler do
   @moduledoc """
-  Fires every 60 seconds. Spawns one MES run per tick as a Runner (:mes kind)
-  under Ichor.Projects.BuildRunSupervisor (DynamicSupervisor).
-
-  Active run count is derived from Ichor.Registry (no local state tracking).
-  RunProcess owns its own kill timer. Cleanup is handled by Mes.Janitor.
+  Fires every 60 seconds and spawns at most one MES planning run per tick.
 
   Supports pause/resume via `pause/0` and `resume/0`. Paused state persists
   across restarts via a file flag at `~/.ichor/mes/paused`.
@@ -43,15 +39,15 @@ defmodule Ichor.Factory.Scheduler do
   def init(_opts) do
     paused = File.exists?(@pause_flag)
     Signals.emit(:mes_scheduler_init, %{paused: paused})
-    schedule_tick()
-    {:ok, %{tick: 0, paused: paused}}
+    tick_ref = schedule_tick()
+    {:ok, %{tick: 0, paused: paused, tick_ref: tick_ref}}
   end
 
   @impl true
   def handle_info(:tick, %{paused: true} = state) do
     Signals.emit(:mes_tick, %{tick: state.tick, active_runs: 0, paused: true})
-    schedule_tick()
-    {:noreply, %{state | tick: state.tick + 1}}
+    tick_ref = schedule_tick()
+    {:noreply, %{state | tick: state.tick + 1, tick_ref: tick_ref}}
   end
 
   def handle_info(:tick, state) do
@@ -75,8 +71,8 @@ defmodule Ichor.Factory.Scheduler do
       Signals.emit(:mes_cycle_skipped, %{tick: state.tick, active_runs: active})
     end
 
-    schedule_tick()
-    {:noreply, %{state | tick: state.tick + 1}}
+    tick_ref = schedule_tick()
+    {:noreply, %{state | tick: state.tick + 1, tick_ref: tick_ref}}
   end
 
   @impl true
@@ -87,11 +83,16 @@ defmodule Ichor.Factory.Scheduler do
     {:reply, :ok, %{state | paused: true}}
   end
 
+  def handle_call(:resume, _from, %{paused: false} = state) do
+    {:reply, :ok, state}
+  end
+
   def handle_call(:resume, _from, state) do
     File.rm(@pause_flag)
+    cancel_tick(state)
     Signals.emit(:mes_scheduler_resumed, %{tick: state.tick})
     send(self(), :tick)
-    {:reply, :ok, %{state | paused: false}}
+    {:reply, :ok, %{state | paused: false, tick_ref: nil}}
   end
 
   def handle_call(:paused?, _from, state) do
@@ -121,6 +122,13 @@ defmodule Ichor.Factory.Scheduler do
   end
 
   defp schedule_tick, do: Process.send_after(self(), :tick, @tick_interval)
+
+  defp cancel_tick(%{tick_ref: ref}) when is_reference(ref) do
+    Process.cancel_timer(ref, async: false, info: false)
+    :ok
+  end
+
+  defp cancel_tick(_state), do: :ok
 
   defp spawn_run do
     run_id = generate_run_id()

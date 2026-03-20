@@ -277,28 +277,28 @@ defmodule Ichor.Signals.Catalog do
     mes_scheduler_init: %{
       category: :mes,
       keys: [:paused],
-      doc: "MES Scheduler initialized and old runs cleaned"
+      doc: "MES scheduler initialized and existing runs reconciled"
     },
     mes_scheduler_paused: %{
       category: :mes,
       keys: [:tick],
-      doc: "MES Scheduler paused — no new teams will spawn"
+      doc: "MES scheduler paused — no new teams will spawn"
     },
     mes_scheduler_resumed: %{
       category: :mes,
       keys: [:tick],
-      doc: "MES Scheduler resumed — team spawning re-enabled"
+      doc: "MES scheduler resumed — team spawning re-enabled"
     },
-    mes_tick: %{category: :mes, keys: [:tick, :active_runs], doc: "MES Scheduler tick fired"},
+    mes_tick: %{category: :mes, keys: [:tick, :active_runs], doc: "MES scheduler tick fired"},
     mes_cycle_started: %{
       category: :mes,
       keys: [:run_id, :team_name],
-      doc: "MES Scheduler spawned a new manufacturing team"
+      doc: "MES scheduler spawned a new manufacturing team"
     },
     mes_cycle_skipped: %{
       category: :mes,
       keys: [:tick, :active_runs],
-      doc: "MES Scheduler skipped tick due to max concurrent runs"
+      doc: "MES scheduler skipped tick due to max concurrent runs"
     },
     mes_cycle_failed: %{
       category: :mes,
@@ -325,20 +325,25 @@ defmodule Ichor.Signals.Catalog do
       keys: [:run_id],
       doc: "MES RunProcess cleaned up on termination"
     },
-    mes_janitor_init: %{
+    mes_maintenance_init: %{
       category: :mes,
       keys: [:monitored],
-      doc: "MES Janitor started, monitoring active RunProcesses"
+      doc: "MES maintenance sweep initialized and monitoring active runs"
     },
-    mes_janitor_cleaned: %{
+    mes_maintenance_cleaned: %{
       category: :mes,
       keys: [:run_id, :trigger],
-      doc: "MES Janitor cleaned up resources for a dead RunProcess"
+      doc: "MES maintenance cleaned up resources for a completed or dead run"
     },
-    mes_janitor_error: %{
+    mes_maintenance_error: %{
       category: :mes,
       keys: [:run_id, :reason],
-      doc: "MES Janitor encountered an error during cleanup"
+      doc: "MES maintenance encountered an error during cleanup"
+    },
+    mes_maintenance_skipped: %{
+      category: :mes,
+      keys: [:run_id, :reason],
+      doc: "MES maintenance skipped cleanup because runtime resources are still alive"
     },
     mes_prompts_written: %{
       category: :mes,
@@ -399,7 +404,7 @@ defmodule Ichor.Signals.Catalog do
     mes_project_created: %{
       category: :mes,
       keys: [:project_id, :title, :run_id],
-      doc: "Coordinator submitted a completed project brief"
+      doc: "Coordinator submitted a completed brief artifact"
     },
     mes_project_picked_up: %{
       category: :mes,

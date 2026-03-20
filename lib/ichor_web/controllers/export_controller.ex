@@ -2,13 +2,13 @@ defmodule IchorWeb.ExportController do
   @moduledoc "Exports event data as JSON or CSV for download."
 
   use IchorWeb, :controller
-  alias Ichor.Observability.Event
+  alias Ichor.Signals.EventStream
 
   def index(conn, params) do
     format = params["format"] || "json"
 
     events =
-      Event.read!()
+      EventStream.list_events()
       |> apply_filters(params)
       |> Enum.sort_by(& &1.inserted_at, DateTime)
 

@@ -521,7 +521,7 @@ These belong in one orchestration runtime, possibly with pure helper submodules.
 
 Current prompt code is split across:
 
-- `ModePrompts`
+- `PlanningPrompts`
 - `DagPrompts`
 - `TeamPrompts`
 - parts of `TeamSpec`
@@ -539,7 +539,7 @@ The important part is that prompt selection lives next to run/spec composition i
 #### 4. Demote utility/presentation modules
 
 - `DateUtils` is too small to deserve a dedicated module
-- `PipelineStage` is UI/query logic and should live next to queries or web presenters
+- `ProjectStage` is UI/query logic and should live next to queries or web presenters
 - `SubsystemScaffold` is a niche generator, not core runtime
 - `ResearchStore` is an adapter and should live near the research bridge, not in the core project domain
 
@@ -554,7 +554,7 @@ High confidence removals:
 - `Ichor.Projects.ResearchIngestor`
 - `Ichor.Projects.LifecycleSupervisor`
 - `Ichor.Projects.DateUtils`
-- `Ichor.Projects.PipelineStage`
+- `Ichor.Projects.ProjectStage`
 - `Ichor.Projects.Job.Preparations.FilterAvailable`
 - `Ichor.Projects.Job.Changes.SyncRunProcess`
 
@@ -562,7 +562,7 @@ Likely absorbed:
 
 - `Ichor.Projects.Spawn`
 - `Ichor.Projects.TeamSpec`
-- `Ichor.Projects.ModePrompts`
+- `Ichor.Projects.PlanningPrompts`
 - `Ichor.Projects.DagPrompts`
 - `Ichor.Projects.TeamPrompts`
 - `Ichor.Projects.SubsystemScaffold`

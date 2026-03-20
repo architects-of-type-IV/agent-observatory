@@ -4,6 +4,9 @@ defmodule Ichor.Factory.PluginLoader do
   into the running VM without restart.
 
   Pipeline: compile -> add ebin to code path -> load modules -> call start/0.
+
+  The plugin project root still lives under `subsystems/` for now as a
+  temporary filesystem detail. That path is not a product/domain term.
   """
 
   require Logger

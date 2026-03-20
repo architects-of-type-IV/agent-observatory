@@ -9,6 +9,7 @@ defmodule Ichor.Workshop.Preparations.LoadTeams do
   alias Ichor.Infrastructure.AgentProcess
   alias Ichor.Infrastructure.TeamSupervisor
   alias Ichor.Signals.EventStream, as: EventBuffer
+  alias Ichor.Workshop.ActiveTeam
   alias Ichor.Workshop.Analysis.AgentHealth
 
   @dead_team_threshold_sec 300
@@ -211,7 +212,7 @@ defmodule Ichor.Workshop.Preparations.LoadTeams do
         true -> :unknown
       end
 
-    struct!(Team, %{
+    struct!(ActiveTeam, %{
       name: team.name,
       lead_session: team[:lead_session],
       description: team[:description],

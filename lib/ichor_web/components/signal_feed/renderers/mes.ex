@@ -359,16 +359,16 @@ defmodule IchorWeb.SignalFeed.Renderers.Mes do
     """
   end
 
-  def render(%{message: %Message{name: :mes_janitor_init, data: data}} = assigns) do
+  def render(%{message: %Message{name: :mes_maintenance_init, data: data}} = assigns) do
     assigns = assign(assigns, monitored: to_string(data[:monitored] || 0))
 
     ~H"""
-    <span class="text-[10px] text-muted">janitor init</span>
+    <span class="text-[10px] text-muted">maintenance init</span>
     <Primitives.kv key="monitoring" value={@monitored} />
     """
   end
 
-  def render(%{message: %Message{name: :mes_janitor_cleaned, data: data}} = assigns) do
+  def render(%{message: %Message{name: :mes_maintenance_cleaned, data: data}} = assigns) do
     assigns =
       assign(assigns,
         run_id: Primitives.short(data[:run_id]),
@@ -376,13 +376,13 @@ defmodule IchorWeb.SignalFeed.Renderers.Mes do
       )
 
     ~H"""
-    <span class="text-[10px] text-muted">janitor cleaned</span>
+    <span class="text-[10px] text-muted">maintenance cleaned</span>
     <Primitives.kv key="run" value={@run_id} />
     <Primitives.kv key="trigger" value={@trigger} />
     """
   end
 
-  def render(%{message: %Message{name: :mes_janitor_error, data: data}} = assigns) do
+  def render(%{message: %Message{name: :mes_maintenance_error, data: data}} = assigns) do
     assigns =
       assign(assigns,
         run_id: Primitives.short(data[:run_id]),
@@ -390,7 +390,7 @@ defmodule IchorWeb.SignalFeed.Renderers.Mes do
       )
 
     ~H"""
-    <span class="text-[10px] text-error">janitor error</span>
+    <span class="text-[10px] text-error">maintenance error</span>
     <Primitives.kv key="run" value={@run_id} />
     <Primitives.kv key="reason" value={@reason} />
     """

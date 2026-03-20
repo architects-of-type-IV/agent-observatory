@@ -1,12 +1,12 @@
-defmodule Ichor.Observability.Error do
+defmodule Ichor.Signals.ToolFailure do
   @moduledoc """
   A tool error derived from PostToolUseFailure hook events.
   Uses Ash.DataLayer.Simple -- data is loaded by preparations, not persisted.
   """
 
-  use Ash.Resource, domain: Ichor.Observability
+  use Ash.Resource, domain: Ichor.SignalBus
 
-  alias Ichor.Observability.Preparations.{EventBufferReader, LoadErrors}
+  alias Ichor.Signals.Preparations.{EventBufferReader, LoadToolFailures}
 
   attributes do
     attribute(:id, :string, primary_key?: true, allow_nil?: false, public?: true)
@@ -22,7 +22,7 @@ defmodule Ichor.Observability.Error do
 
   actions do
     read :recent do
-      prepare({LoadErrors, []})
+      prepare({LoadToolFailures, []})
     end
 
     action :by_tool, {:array, :map} do

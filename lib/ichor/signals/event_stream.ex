@@ -298,7 +298,7 @@ defmodule Ichor.Signals.EventStream do
 
         {:error, reason} ->
           Logger.debug(
-            "[Events.Runtime] Could not create TeamSupervisor for #{team_name}: #{inspect(reason)}"
+            "[Signals.EventStream] Could not create TeamSupervisor for #{team_name}: #{inspect(reason)}"
           )
 
           :ok

@@ -1,11 +1,9 @@
 defmodule Ichor.Factory.Floor do
-  @moduledoc """
-  Action-only Factory control surface for the task board and MES floor runtime.
-  """
+  @moduledoc "Action-only Factory control surface for board operations and MES control."
 
   use Ash.Resource, domain: Ichor.Factory
 
-  alias Ichor.Factory.{Board, Runner, Scheduler, Spawn}
+  alias Ichor.Factory.{Board, MesScheduler, Runner, Spawn}
   alias Ichor.Workshop.ActiveTeam
 
   actions do
@@ -108,9 +106,9 @@ defmodule Ichor.Factory.Floor do
 
         scheduler_status =
           try do
-            Scheduler.status()
+            MesScheduler.status()
           rescue
-            _ -> %{error: "Scheduler not running"}
+            _ -> %{error: "MES scheduler not running"}
           end
 
         {:ok,
@@ -124,7 +122,7 @@ defmodule Ichor.Factory.Floor do
     end
 
     action :cleanup_mes, :map do
-      description("Force cleanup of orphaned MES teams and tmux sessions.")
+      description("Force maintenance cleanup of orphaned MES teams and tmux sessions.")
 
       run(fn _input, _context ->
         try do

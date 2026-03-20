@@ -8,7 +8,7 @@ MES is the facility -- an automated factory where each project is a product movi
 
 Pipeline: Ideation -> Mode A (ADRs) -> Gate A -> Mode B (FRDs/UCs) -> Gate B -> Mode C (Roadmap) -> Gate C -> DAG -> Running
 
-**Pipeline stage is derived, not stored.** A pure function (`Ichor.Genesis.PipelineStage.derive/1`) examines the genesis node's loaded associations to determine the current stage. No schema change needed.
+**Pipeline stage is derived, not stored.** A pure function (`Ichor.Genesis.ProjectStage.derive/1`) examines the genesis node's loaded associations to determine the current stage. No schema change needed.
 
 ## Layout
 

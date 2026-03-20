@@ -35,28 +35,28 @@ defmodule Ichor.Application do
       # Fleet host registry (tracks BEAM nodes in the cluster)
       Ichor.Infrastructure.HostRegistry,
 
-      # System services (core, gateway, monitoring -- all one_for_one)
-      Ichor.SystemSupervisor,
+      # Runtime services (shared infrastructure, monitoring, and signal-adjacent processes)
+      Ichor.RuntimeSupervisor,
 
       # Fleet supervisor (BEAM-native teams + agents, after Gateway for channel access)
       Ichor.Infrastructure.FleetSupervisor,
 
-      # Observation services (rest_for_one: causal DAG first, then topology + event bridge)
-      Ichor.ObservationSupervisor,
+      # Mesh topology services (rest_for_one: causal DAG first, then event bridge)
+      Ichor.Mesh.Supervisor,
 
       # Task supervisor for fire-and-forget tasks
       {Task.Supervisor, name: Ichor.TaskSupervisor},
 
-      # MES pipeline (Registry + DynamicSupervisor + ProjectIngestor + Scheduler)
+      # Factory planning and pipeline lifecycle
       Ichor.Factory.LifecycleSupervisor,
 
       # Workshop runtime launch listener (signal-driven team spawns)
       Ichor.Workshop.TeamSpawnHandler,
 
-      # Genesis pipeline (DynamicSupervisor for mode RunProcesses)
+      # Planning runs
       {DynamicSupervisor, name: Ichor.Factory.PlanRunSupervisor, strategy: :one_for_one},
 
-      # DAG execution pipeline (DynamicSupervisor for RunProcesses)
+      # Pipeline execution runs
       {DynamicSupervisor, name: Ichor.Factory.DynRunSupervisor, strategy: :one_for_one},
 
       # Memories bridge (signals -> knowledge graph)

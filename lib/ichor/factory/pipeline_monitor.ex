@@ -1,17 +1,15 @@
-defmodule Ichor.Factory.Runtime do
+defmodule Ichor.Factory.PipelineMonitor do
   @moduledoc """
-  Live DAG pipeline runtime.
+  Live pipeline board runtime.
 
   This is the active GenServer behind project discovery, task refresh,
   health polling, and corrective task actions for `tasks.jsonl` pipelines.
-
-  Incorporates: Actions, Catalog, DagAnalysis, Discovery, HealthReport.
   """
   use GenServer
 
   require Logger
 
-  alias Ichor.Factory.{DateUtils, Graph}
+  alias Ichor.Factory.{DateUtils, PipelineGraph}
   alias Ichor.Factory.JsonlStore
   alias Ichor.Infrastructure.Cleanup
   alias Ichor.Signals.EventStream, as: EventBuffer
@@ -32,7 +30,7 @@ defmodule Ichor.Factory.Runtime do
   @spec start_link(keyword()) :: GenServer.on_start()
   def start_link(opts), do: GenServer.start_link(__MODULE__, opts, name: __MODULE__)
 
-  @doc "Returns the current DAG runtime state map."
+  @doc "Returns the current pipeline board state map."
   @spec state() :: map()
   def state, do: GenServer.call(__MODULE__, :get_state)
 
@@ -88,7 +86,7 @@ defmodule Ichor.Factory.Runtime do
       %{
         tasks: [],
         pipeline: %{total: 0, pending: 0, in_progress: 0, completed: 0, failed: 0, blocked: 0},
-        dag: %{waves: [], edges: [], critical_path: []},
+        dependency_graph: %{waves: [], edges: [], critical_path: []},
         stale_tasks: [],
         file_conflicts: [],
         health: %{healthy: true, issues: [], agents: %{}, timestamp: nil},
@@ -378,7 +376,7 @@ defmodule Ichor.Factory.Runtime do
   end
 
   # ---------------------------------------------------------------------------
-  # DagAnalysis (formerly Ichor.Projects.DagAnalysis)
+  # Pipeline analysis and derived board state
   # ---------------------------------------------------------------------------
 
   defp refresh_tasks(state) do
@@ -397,19 +395,19 @@ defmodule Ichor.Factory.Runtime do
           state
           | tasks: [],
             pipeline: empty_pipeline(),
-            dag: empty_dag(),
+            dependency_graph: empty_dependency_graph(),
             stale_tasks: [],
             file_conflicts: []
         }
 
       tasks ->
-        nodes = Enum.map(tasks, &Graph.to_graph_node/1)
+        nodes = Enum.map(tasks, &PipelineGraph.to_graph_node/1)
 
         %{
           state
           | tasks: tasks,
-            pipeline: Graph.pipeline_stats(nodes),
-            dag: Graph.dag(nodes),
+            pipeline: PipelineGraph.pipeline_stats(nodes),
+            dependency_graph: PipelineGraph.dependency_graph(nodes),
             stale_tasks: find_stale_tasks(tasks, DateTime.utc_now()),
             file_conflicts: file_conflicts(tasks)
         }
@@ -429,21 +427,21 @@ defmodule Ichor.Factory.Runtime do
 
   defp find_stale_tasks(tasks, now) do
     tasks
-    |> Enum.map(&Graph.to_graph_node/1)
-    |> Graph.stale_items(now, 10)
+    |> Enum.map(&PipelineGraph.to_graph_node/1)
+    |> PipelineGraph.stale_items(now, 10)
     |> Enum.map(fn node -> Enum.find(tasks, &(&1.id == node.id)) end)
   end
 
   defp file_conflicts(tasks) do
     tasks
-    |> Enum.map(&Graph.to_graph_node/1)
-    |> Graph.file_conflicts()
+    |> Enum.map(&PipelineGraph.to_graph_node/1)
+    |> PipelineGraph.file_conflicts()
   end
 
   defp empty_pipeline,
     do: %{total: 0, pending: 0, in_progress: 0, completed: 0, failed: 0, blocked: 0}
 
-  defp empty_dag, do: %{waves: [], edges: [], critical_path: []}
+  defp empty_dependency_graph, do: %{waves: [], edges: [], critical_path: []}
 
   defp decode_task_line(line) do
     case Jason.decode(String.trim(line)) do

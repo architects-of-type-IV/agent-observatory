@@ -63,7 +63,7 @@ defmodule Ichor.Workshop.PipelinePrompts do
       content: "COORDINATOR READY"
 
     This self-message confirms your messaging tools are working.
-    Your parent is the Scheduler -- it has already started you.
+    Your parent is the pipeline launcher -- it has already started you.
     No READY message needs to go upstream.
 
     ============================================================

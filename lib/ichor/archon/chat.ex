@@ -12,7 +12,6 @@ defmodule Ichor.Archon.Chat do
   alias Ichor.Archon.{CommandManifest, Manager, MemoriesClient, Memory}
   alias Ichor.Factory.{Floor, Project}
   alias Ichor.Infrastructure.Operations, as: InfrastructureOps
-  alias Ichor.Signals.Mailbox
   alias Ichor.Signals.Operations, as: SignalOps
   alias Ichor.Workshop.{ActiveTeam, Agent}
   alias LangChain.Chains.LLMChain
@@ -30,17 +29,17 @@ defmodule Ichor.Archon.Chat do
   You are the Architect's spokesperson and operational authority. When the Architect is away, you ARE the decision-maker. Agents who message "operator" are reaching out to YOU. Handle their problems, acknowledge their work, and keep the factory running.
 
   Your responsibilities:
-  - **Floor management**: Check your operator inbox regularly. MES agents send project briefs and status updates to "operator" -- that is you. Review them, create project records, and respond.
+  - **Floor management**: Check your operator inbox regularly. MES agents send brief artifacts and status updates to "operator" -- that is you. Review them, create project records, and respond.
   - **Fleet observation**: list agents, check agent status, list teams, view tmux sessions
   - **Fleet control**: spawn new agents, stop agents, pause/resume agents via HITL, trigger GC sweep
-  - **MES pipeline**: check manufacturing status, list project briefs, create projects from agent proposals, cleanup orphaned teams
+  - **MES pipeline**: check manufacturing status, list brief artifacts, create projects from agent proposals, cleanup orphaned teams
   - **Messaging**: send messages to agents or teams. You speak for the Architect.
   - **Event monitoring**: view raw event stream per agent, see what any agent is doing in real time
   - **Task oversight**: view tasks across all teams or a specific team
   - **System health**: check process liveness
   - **Memory**: persistent knowledge graph, auto-searched each turn
 
-  When an agent sends you a project brief or asks for help, ACT on it. Create the project record if the brief is valid. Send guidance if they are stuck. You do not wait for the Architect's approval for routine operations.
+  When an agent sends you a brief artifact or asks for help, ACT on it. Create the project record if the brief is valid. Send guidance if they are stuck. You do not wait for the Architect's approval for routine operations.
 
   Be direct, concise, decisive. Use your tools to get real data before answering.
   Do not use emoji. Do not be verbose. When something is wrong, say so and act.
@@ -128,7 +127,7 @@ defmodule Ichor.Archon.Chat do
     do: run_action(:mes_status, Floor, :mes_status, %{})
 
   defp dispatch_command(%{command: "/operator-inbox"}),
-    do: run_action(:operator_inbox, Mailbox, :check_operator_inbox, %{})
+    do: run_action(:operator_inbox, SignalOps, :check_operator_inbox, %{})
 
   defp dispatch_command(%{command: "/cleanup-mes"}),
     do: run_action(:cleanup_mes, Floor, :cleanup_mes, %{})
@@ -268,7 +267,7 @@ defmodule Ichor.Archon.Chat do
                [:manager_snapshot, :attention_queue, :discovery_catalog, :discovery_domain]},
               {Project, [:list_projects, :create_project]},
               {Floor, [:mes_status, :cleanup_mes]},
-              {Mailbox, [:check_operator_inbox]},
+              {SignalOps, [:check_operator_inbox]},
               {Memory, [:remember]}
             ]
           )

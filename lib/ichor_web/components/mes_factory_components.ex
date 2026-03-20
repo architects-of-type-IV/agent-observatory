@@ -2,16 +2,16 @@ defmodule IchorWeb.Components.MesFactoryComponents do
   @moduledoc "Factory view components: action bar, tab bar, and station controls."
 
   use Phoenix.Component
-  alias Ichor.Factory.PipelineStage
+  alias Ichor.Factory.ProjectStage
 
   attr :project, :map, required: true
   attr :planning_project, :any, required: true
   attr :reader_open, :boolean, default: false
 
   def action_bar(assigns) do
-    {stage, label} = PipelineStage.derive(assigns.planning_project)
-    {text_class, bg_class} = PipelineStage.stage_color(stage)
-    stations = PipelineStage.station_states(stage)
+    {stage, label} = ProjectStage.derive(assigns.planning_project)
+    {text_class, bg_class} = ProjectStage.stage_color(stage)
+    stations = ProjectStage.station_states(stage)
 
     assigns =
       assign(assigns,
@@ -53,7 +53,7 @@ defmodule IchorWeb.Components.MesFactoryComponents do
             project_id={@planning_project && @planning_project.id}
           />
           <.build_btn
-            state={@stations.dag}
+            state={@stations.pipeline}
             project_id={@project.id}
           />
         </div>

@@ -3,6 +3,9 @@ defmodule Ichor.Factory.PluginScaffold do
   Creates standalone Mix project directories for plugins.
   Side-effect boundary: isolates File I/O here; template rendering is private.
   Idempotent: skips if mix.exs already exists.
+
+  The generated plugin root still uses `subsystems/` temporarily so existing
+  loading flows keep working. This is a filesystem detail, not a product noun.
   """
 
   @plugins_dir "subsystems"

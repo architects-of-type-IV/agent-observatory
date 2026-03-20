@@ -1,16 +1,6 @@
-defmodule Ichor.SystemSupervisor do
+defmodule Ichor.RuntimeSupervisor do
   @moduledoc """
-  Supervises all independent system services under a single one_for_one supervisor.
-
-  All services here are independent -- no ordering dependency exists between
-  them, so one_for_one is appropriate.
-
-  Children (in start order):
-    Core:    Observability.Janitor, MemoryStore, Events.Runtime
-    Gateway: TmuxDiscovery, EntropyTracker, CronScheduler,
-             WebhookRouter, HITLRelay, OutputCapture
-    Monitor: AgentWatchdog, Projects.Runtime, ProtocolTracker, QualityGate,
-             Signals.Buffer, Archon.SignalManager, Archon.TeamWatchdog
+  Supervises independent runtime services under a single one_for_one supervisor.
   """
   use Supervisor
 
@@ -24,11 +14,10 @@ defmodule Ichor.SystemSupervisor do
   def init(_opts) do
     children = [
       # Core infrastructure services
-      {Ichor.Observability.Janitor, []},
       {Ichor.MemoryStore, []},
       {Ichor.Signals.EventStream, []},
 
-      # Gateway services
+      # Infrastructure and signal-adjacent services
       {Ichor.Infrastructure.TmuxDiscovery, []},
       {Ichor.Signals.EntropyTracker, []},
       {Ichor.Infrastructure.CronScheduler, []},
@@ -37,10 +26,9 @@ defmodule Ichor.SystemSupervisor do
       {Ichor.Infrastructure.OutputCapture, []},
 
       # Monitoring and observability services
-      {Ichor.AgentWatchdog, []},
-      {Ichor.Factory.Runtime, []},
+      {Ichor.Signals.AgentWatchdog, []},
+      {Ichor.Factory.PipelineMonitor, []},
       {Ichor.Signals.ProtocolTracker, []},
-      {Ichor.QualityGate, []},
       {Ichor.Signals.Buffer, []},
       {Ichor.Archon.SignalManager, []},
       {Ichor.Archon.TeamWatchdog, []}

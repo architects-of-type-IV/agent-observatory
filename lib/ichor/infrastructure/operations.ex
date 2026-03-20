@@ -5,8 +5,8 @@ defmodule Ichor.Infrastructure.Operations do
 
   use Ash.Resource, domain: Ichor.Infrastructure
 
-  alias Ichor.AgentWatchdog
   alias Ichor.Infrastructure.Tmux
+  alias Ichor.Signals.AgentWatchdog
   alias Ichor.Signals.EventStream
   alias Ichor.Signals.ProtocolTracker
   alias Ichor.Workshop.{ActiveTeam, Agent}

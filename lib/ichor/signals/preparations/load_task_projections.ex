@@ -1,4 +1,4 @@
-defmodule Ichor.Observability.Preparations.LoadTasks do
+defmodule Ichor.Signals.Preparations.LoadTaskProjections do
   @moduledoc """
   Loads tasks from TaskCreate/TaskUpdate hook events in the EventBuffer.
   """
@@ -6,7 +6,7 @@ defmodule Ichor.Observability.Preparations.LoadTasks do
   use Ash.Resource.Preparation
 
   alias Ash.DataLayer.Simple
-  alias Ichor.Observability.Preparations.EventBufferReader
+  alias Ichor.Signals.Preparations.EventBufferReader
 
   @impl true
   def prepare(query, _opts, _context) do
@@ -65,7 +65,7 @@ defmodule Ichor.Observability.Preparations.LoadTasks do
   end
 
   defp to_resource(task) do
-    struct!(Ichor.Observability.Task, task)
+    struct!(Ichor.Signals.TaskProjection, task)
   end
 
   defp maybe_put(map, _key, nil), do: map

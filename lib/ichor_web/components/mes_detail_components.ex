@@ -9,8 +9,8 @@ defmodule IchorWeb.Components.MesDetailComponents do
   attr :project, :map, required: true
 
   def metadata_sidebar(assigns) do
-    features = assigns.project.features || []
-    use_cases = assigns.project.use_cases || []
+    features = artifact_titles(assigns.project, :feature)
+    use_cases = artifact_titles(assigns.project, :use_case)
 
     assigns = assign(assigns, features: features, use_cases: use_cases)
 
@@ -120,5 +120,12 @@ defmodule IchorWeb.Components.MesDetailComponents do
       {@text}
     </div>
     """
+  end
+
+  defp artifact_titles(project, kind) do
+    project
+    |> Map.get(:artifacts, [])
+    |> Enum.filter(&(&1.kind == kind))
+    |> Enum.map(& &1.title)
   end
 end

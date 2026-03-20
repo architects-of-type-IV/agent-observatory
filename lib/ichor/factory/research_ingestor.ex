@@ -1,8 +1,8 @@
 defmodule Ichor.Factory.ResearchIngestor do
   @moduledoc """
-  Subscribes to MES signals and ingests completed project briefs into
+  Subscribes to MES signals and ingests completed brief artifacts into
   the Memories knowledge graph. Fires on `:mes_project_created`, reads
-  the brief from disk, and calls MemoriesClient.ingest/2.
+  the rendered brief artifact from disk, and calls MemoriesClient.ingest/2.
 
   All episodes are scoped to space "project:ichor:research".
   """
@@ -17,7 +17,7 @@ defmodule Ichor.Factory.ResearchIngestor do
   alias Ichor.Signals.Message
 
   @research_space "project:ichor:research"
-  @briefs_dir "subsystems/briefs"
+  @briefs_dir "plugins/briefs"
 
   @doc false
   @spec start_link(keyword()) :: GenServer.on_start()
@@ -114,8 +114,8 @@ defmodule Ichor.Factory.ResearchIngestor do
       {"Version", project.version},
       {"Signal interface", project.signal_interface},
       {"Architecture", project.architecture},
-      {"Features", join_list(project.features)},
-      {"Use cases", join_list(project.use_cases)},
+      {"Features", join_list(Project.artifact_titles(project, :feature))},
+      {"Use cases", join_list(Project.artifact_titles(project, :use_case))},
       {"Dependencies", join_list(project.dependencies)},
       {"Signals emitted", join_list(project.signals_emitted)},
       {"Signals subscribed", join_list(project.signals_subscribed)}

@@ -5,22 +5,48 @@ defmodule Ichor.Signals.Operations do
 
   use Ash.Resource, domain: Ichor.SignalBus
 
-  alias Ichor.Observability.Message
+  alias Ichor.Infrastructure.AgentProcess
   alias Ichor.Signals.Bus
   alias Ichor.Signals.EventStream
-  alias Ichor.Workshop.Agent
 
   actions do
+    action :check_operator_inbox, {:array, :map} do
+      description("Read unread messages addressed to the operator mailbox.")
+
+      run(fn _input, _context ->
+        try do
+          {:ok,
+           AgentProcess.get_unread("operator")
+           |> Enum.map(fn message ->
+             %{
+               "from" => message[:from] || message["from"],
+               "content" => message[:content] || message["content"],
+               "timestamp" => message[:timestamp] || message["timestamp"]
+             }
+           end)}
+        rescue
+          e in [RuntimeError, ArgumentError, KeyError] ->
+            require Logger
+            Logger.warning("check_operator_inbox failed: #{Exception.message(e)}")
+            {:ok, []}
+        end
+      end)
+    end
+
     action :check_inbox, {:array, :map} do
       description("Check for pending messages in an agent inbox.")
 
       argument(:session_id, :string, allow_nil?: false)
 
       run(fn input, _context ->
-        case Agent.get_unread(input.arguments.session_id) do
-          {:ok, messages} -> {:ok, messages}
-          {:error, _reason} -> {:ok, []}
-        end
+        messages =
+          if AgentProcess.alive?(input.arguments.session_id) do
+            AgentProcess.get_unread(input.arguments.session_id)
+          else
+            []
+          end
+
+        {:ok, messages}
       end)
     end
 
@@ -31,7 +57,12 @@ defmodule Ichor.Signals.Operations do
       argument(:message_id, :string, allow_nil?: false)
 
       run(fn input, _context ->
-        Agent.mark_read(input.arguments.session_id, input.arguments.message_id)
+        {:ok,
+         %{
+           "status" => "acknowledged",
+           "session_id" => input.arguments.session_id,
+           "message_id" => input.arguments.message_id
+         }}
       end)
     end
 
@@ -75,13 +106,13 @@ defmodule Ichor.Signals.Operations do
         limit = input.arguments[:limit] || 20
 
         {:ok,
-         Message.recent!()
+         Bus.recent_messages(limit)
          |> Enum.take(limit)
          |> Enum.map(fn message ->
            %{
              "id" => message.id,
-             "from" => message.sender_session,
-             "to" => message.recipient,
+             "from" => message.from,
+             "to" => message.to,
              "content" => String.slice(message.content || "", 0, 500),
              "type" => message.type,
              "timestamp" => message.timestamp

@@ -5,9 +5,9 @@ defmodule IchorWeb.DebugController do
   alias Ichor.Infrastructure.AgentProcess
   alias Ichor.Infrastructure.HITLRelay
   alias Ichor.Infrastructure.Tmux
-  alias Ichor.Observability.Message
+  alias Ichor.Signals.Bus
   alias Ichor.Signals.Buffer
-  alias Ichor.Signals.EventStream, as: EventRuntime
+  alias Ichor.Signals.EventStream
   alias Ichor.Signals.ProtocolTracker
   alias Ichor.Workshop.ActiveTeam
   alias Ichor.Workshop.Agent
@@ -83,10 +83,10 @@ defmodule IchorWeb.DebugController do
   end
 
   defp check_event_buffer do
-    if Process.whereis(EventRuntime) do
-      %{ok: true, pid: inspect(Process.whereis(EventRuntime))}
+    if Process.whereis(EventStream) do
+      %{ok: true, pid: inspect(Process.whereis(EventStream))}
     else
-      %{ok: false, error: "Events.Runtime not running"}
+      %{ok: false, error: "Signals.EventStream not running"}
     end
   rescue
     e -> %{ok: false, error: Exception.message(e)}
@@ -124,13 +124,13 @@ defmodule IchorWeb.DebugController do
 
   def mailboxes(conn, _params) do
     messages =
-      Message.recent!()
+      Bus.recent_messages(50)
       |> Enum.take(50)
       |> Enum.map(fn m ->
         %{
           id: m.id,
-          from: m.sender_session,
-          to: m.recipient,
+          from: m.from,
+          to: m.to,
           content: String.slice(m.content || "", 0, 200),
           type: m.type,
           timestamp: m.timestamp
@@ -143,7 +143,7 @@ defmodule IchorWeb.DebugController do
   def fleet_agents(conn, _params) do
     agents = Agent.all!()
 
-    events = EventRuntime.list_events()
+    events = EventStream.list_events()
     event_sessions = events |> Enum.map(& &1.session_id) |> Enum.uniq()
 
     beam_processes = AgentProcess.list_all() |> Enum.map(fn {id, _} -> id end)

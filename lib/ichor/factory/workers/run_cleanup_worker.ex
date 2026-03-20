@@ -31,14 +31,14 @@ defmodule Ichor.Factory.Workers.RunCleanupWorker do
       if trigger == "completed" do
         FleetSupervisor.disband_team(session)
         Spawn.kill_session(session)
-        Signals.emit(:mes_janitor_cleaned, %{run_id: run_id, trigger: trigger})
+        Signals.emit(:mes_maintenance_cleaned, %{run_id: run_id, trigger: trigger})
       else
         if Tmux.available?(session) do
-          Signals.emit(:mes_janitor_skipped, %{run_id: run_id, reason: "tmux_alive"})
+          Signals.emit(:mes_maintenance_skipped, %{run_id: run_id, reason: "tmux_alive"})
         else
           FleetSupervisor.disband_team(session)
           Spawn.kill_session(session)
-          Signals.emit(:mes_janitor_cleaned, %{run_id: run_id, trigger: trigger})
+          Signals.emit(:mes_maintenance_cleaned, %{run_id: run_id, trigger: trigger})
         end
       end
 
@@ -46,7 +46,7 @@ defmodule Ichor.Factory.Workers.RunCleanupWorker do
     rescue
       error ->
         reason = Exception.message(error)
-        Signals.emit(:mes_janitor_error, %{run_id: run_id, reason: reason})
+        Signals.emit(:mes_maintenance_error, %{run_id: run_id, reason: reason})
         {:error, reason}
     end
   end

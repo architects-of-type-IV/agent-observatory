@@ -141,10 +141,10 @@ observers, and Archon (the AI floor manager). It contains ~32,900 lines across ~
 | `Ichor.Genesis.Supervisor` | genesis/supervisor.ex | ~25 | Other | Genesis supervision tree |
 | `Ichor.Genesis.ModeRunner` | genesis/mode_runner.ex | 113 | Pure Function | Tmux session/window creation for genesis modes |
 | `Ichor.Genesis.ModeSpawner` | genesis/mode_spawner.ex | 190 | Pure Function | Orchestrates mode agent list + ModeRunner calls |
-| `Ichor.Genesis.ModePrompts` | genesis/mode_prompts.ex | 312 | Pure Function | Prompt strings for A/B/C mode agents (OVER LIMIT) |
+| `Ichor.Genesis.PlanningPrompts` | genesis/mode_prompts.ex | 312 | Pure Function | Prompt strings for A/B/C mode agents (OVER LIMIT) |
 | `Ichor.Genesis.RunProcess` | genesis/run_process.ex | ~140 | GenServer | One genesis run: mode A->B->C state machine |
-| `Ichor.Genesis.PipelineStage` | genesis/pipeline_stage.ex | 155 | Pure Function | Stage transition helpers |
-| `Ichor.Genesis.DagGenerator` | genesis/dag_generator.ex | ~100 | Pure Function | Converts genesis plan -> DAG job graph |
+| `Ichor.Genesis.ProjectStage` | genesis/pipeline_stage.ex | 155 | Pure Function | Stage transition helpers |
+| `Ichor.Genesis.PipelineCompiler` | genesis/dag_generator.ex | ~100 | Pure Function | Converts genesis plan -> DAG job graph |
 
 ### DAG Runtime (in ichor app)
 
@@ -292,7 +292,7 @@ observers, and Archon (the AI floor manager). It contains ~32,900 lines across ~
 | `AgentTools.*` | `Ichor.Genesis.*` | code_interface |
 | `AgentTools.DagExecution` | `Ichor.Dag.{Job,Run}` | code_interface |
 | `Dag.Spawner` | `Ichor.Genesis.Node` | code_interface |
-| `Dag.Loader` | `Ichor.Genesis.{DagGenerator,Node}` | Direct call |
+| `Dag.Loader` | `Ichor.Genesis.{PipelineCompiler,Node}` | Direct call |
 | `Dag.RunProcess` | `Ichor.Genesis.ModeRunner` | Direct call |
 | `DashboardState` | `Ichor.Activity.{Error,Message,Task}` | code_interface |
 | `DashboardState` | `Ichor.Fleet.{Agent,Team}` | code_interface |
@@ -554,7 +554,7 @@ This bypasses the catalog-validated signal system. Use signal subscription throu
 8. **`Ichor.Dag.Prompts` (262 lines)**: Pure prompt strings, same as TeamPrompts issue.
    Split by worker role.
 
-9. **`Ichor.Genesis.ModePrompts` (312 lines)**: Split by mode A/B/C.
+9. **`Ichor.Genesis.PlanningPrompts` (312 lines)**: Split by mode A/B/C.
 
 ### Dead Code
 
@@ -587,7 +587,7 @@ This bypasses the catalog-validated signal system. Use signal subscription throu
 
 - [ ] Split `DashboardFeedHelpers` (521L) into three modules
 - [ ] Split `TeamPrompts` (486L) by mode
-- [ ] Split `ModePrompts` (312L) by mode A/B/C
+- [ ] Split `PlanningPrompts` (312L) by mode A/B/C
 - [ ] Split `Dag.Prompts` (262L) by worker role
 - [ ] Split `DecisionLog` nested structs into own files
 - [ ] Remove `Mes.TeamSpawner` facade (single-caller pure delegate)
