@@ -83,7 +83,6 @@ defmodule Ichor.Messages.Bus do
   def resolve("agent:" <> id), do: {:agent, id}
   def resolve(id) when is_binary(id), do: {:agent, id}
 
-
   defp deliver({:agent, id}, msg), do: deliver_to_agent(id, msg)
   defp deliver({:session, sid}, msg), do: deliver_to_agent(sid, msg)
   defp deliver({:team, name}, msg), do: deliver_to_team(name, msg)

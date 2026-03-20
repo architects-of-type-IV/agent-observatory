@@ -13,8 +13,6 @@ defmodule Ichor.Gateway.Channels.Tmux do
 
   require Logger
 
-  alias Ichor.Gateway.Channels.AnsiUtils
-
   @impl true
   def channel_key, do: :tmux
 
@@ -61,14 +59,14 @@ defmodule Ichor.Gateway.Channels.Tmux do
 
   @doc """
   Capture the current pane output from a tmux session.
-  Returns {:ok, output_lines} or {:error, reason}.
-  Strips ANSI escape codes from the output.
+  Returns `{:ok, output}` with raw ANSI codes preserved, or `{:error, reason}`.
+  Callers that need plain text should apply `AnsiUtils.strip_ansi/1` themselves.
   """
   def capture_pane(session_name, opts \\ []) do
     lines = Keyword.get(opts, :lines, 50)
 
     case try_tmux(["capture-pane", "-t", session_name, "-p", "-S", "-#{lines}"]) do
-      {:ok, output} -> {:ok, AnsiUtils.strip_ansi(output)}
+      {:ok, output} -> {:ok, output}
       {:error, reason} -> {:error, {:capture_failed, reason}}
     end
   end

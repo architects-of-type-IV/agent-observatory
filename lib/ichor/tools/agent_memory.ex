@@ -143,7 +143,6 @@ defmodule Ichor.Tools.AgentMemory do
       end)
     end
 
-
     action :conversation_search, {:array, :map} do
       description(
         "Search your conversation history by text. Returns matching messages from past interactions."
@@ -206,7 +205,6 @@ defmodule Ichor.Tools.AgentMemory do
       end)
     end
 
-
     action :archival_memory_insert, :map do
       description(
         "Store information in your long-term archival memory. Tag entries for easier retrieval."
@@ -260,7 +258,6 @@ defmodule Ichor.Tools.AgentMemory do
         end
       end)
     end
-
 
     action :create_agent, :map do
       description("Register a new specialist agent with initial memory blocks.")

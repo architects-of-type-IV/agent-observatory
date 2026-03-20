@@ -46,7 +46,6 @@ defmodule Ichor.Projects.Validator do
     |> Enum.reject(fn {_id, missing} -> missing == [] end)
   end
 
-
   defp build_edges(items) do
     for item <- items, dep <- item.blocked_by, do: {item.id, dep}
   end

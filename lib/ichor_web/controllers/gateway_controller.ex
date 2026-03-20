@@ -19,40 +19,16 @@ defmodule IchorWeb.GatewayController do
     case SchemaInterceptor.validate_and_enrich(params) do
       {:ok, log} ->
         handle_valid(conn, log)
-
-      {:error, changeset} ->
-        handle_invalid(conn, changeset, params)
     end
   end
 
   defp handle_valid(conn, log) do
     Ichor.Signals.emit(:decision_log, %{log: log})
 
-    trace_id = if log.meta, do: log.meta.trace_id, else: nil
+    trace_id = if log.meta, do: log.meta["trace_id"] || log.meta[:trace_id], else: nil
 
     conn
     |> put_status(:accepted)
     |> json(%{"status" => "accepted", "trace_id" => trace_id})
-  end
-
-  defp handle_invalid(conn, changeset, params) do
-    raw_body = conn.assigns[:raw_body]
-    event = SchemaInterceptor.build_violation_event(changeset, params, raw_body)
-
-    Ichor.Signals.emit(:schema_violation, %{event_map: event})
-
-    Ichor.Signals.emit(:node_state_update, %{
-      agent_id: event["agent_id"],
-      state: :schema_violation
-    })
-
-    conn
-    |> put_status(:unprocessable_entity)
-    |> json(%{
-      "status" => "rejected",
-      "reason" => "schema_violation",
-      "detail" => event["violation_reason"],
-      "trace_id" => nil
-    })
   end
 end
