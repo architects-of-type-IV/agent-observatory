@@ -22,8 +22,8 @@ defmodule Ichor.MemoriesBridge do
   require Logger
 
   alias Ichor.Archon.MemoriesClient
-  alias Ichor.Gateway.AgentRegistry.AgentEntry
   alias Ichor.Signals.{Catalog, Message}
+  alias Ichor.Workshop.AgentEntry
 
   @flush_interval_ms :timer.seconds(30)
 

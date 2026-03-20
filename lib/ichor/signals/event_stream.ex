@@ -21,10 +21,10 @@ defmodule Ichor.Signals.EventStream do
 
   require Logger
 
-  alias Ichor.Control.{AgentProcess, FleetSupervisor, TeamSupervisor}
-  alias Ichor.Signals.TraceEvent
-  alias Ichor.Gateway.AgentRegistry.AgentEntry
+  alias Ichor.Infrastructure.{AgentProcess, FleetSupervisor, TeamSupervisor}
   alias Ichor.Signals
+  alias Ichor.Signals.TraceEvent
+  alias Ichor.Workshop.AgentEntry
 
   # ---------------------------------------------------------------------------
   # EventBuffer ETS table names (preserved for compatibility)

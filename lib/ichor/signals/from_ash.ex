@@ -49,22 +49,22 @@ defmodule Ichor.Signals.FromAsh do
   defp signal_for(Ichor.Factory.Project, :mark_failed),
     do: {:mes_project_failed, &project_data/2}
 
-  defp signal_for(Ichor.Gateway.WebhookDelivery, :enqueue),
+  defp signal_for(Ichor.Infrastructure.WebhookDelivery, :enqueue),
     do: {:webhook_delivery_enqueued, &webhook_data/2}
 
-  defp signal_for(Ichor.Gateway.WebhookDelivery, :mark_delivered),
+  defp signal_for(Ichor.Infrastructure.WebhookDelivery, :mark_delivered),
     do: {:webhook_delivery_delivered, &webhook_data/2}
 
-  defp signal_for(Ichor.Gateway.WebhookDelivery, :mark_dead),
+  defp signal_for(Ichor.Infrastructure.WebhookDelivery, :mark_dead),
     do: {:dead_letter, &webhook_data/2}
 
-  defp signal_for(Ichor.Gateway.HITLInterventionEvent, :record),
+  defp signal_for(Ichor.Observability.HITLInterventionEvent, :record),
     do: {:hitl_intervention_recorded, &hitl_data/2}
 
-  defp signal_for(Ichor.Gateway.CronJob, :schedule_once),
+  defp signal_for(Ichor.Infrastructure.CronJob, :schedule_once),
     do: {:cron_job_scheduled, &cron_data/2}
 
-  defp signal_for(Ichor.Gateway.CronJob, :reschedule),
+  defp signal_for(Ichor.Infrastructure.CronJob, :reschedule),
     do: {:cron_job_rescheduled, &cron_data/2}
 
   defp signal_for(_, _), do: nil

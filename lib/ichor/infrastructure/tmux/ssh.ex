@@ -16,9 +16,9 @@ defmodule Ichor.Infrastructure.Tmux.Ssh do
         ssh_opts: ["-o", "StrictHostKeyChecking=accept-new"]
   """
 
-  @behaviour Ichor.Gateway.Channel
+  @behaviour Ichor.Infrastructure.Channel
 
-  alias Ichor.Gateway.Channels.AnsiUtils
+  alias Ichor.Infrastructure.AnsiUtils
 
   @impl true
   def channel_key, do: :ssh_tmux

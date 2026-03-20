@@ -19,7 +19,7 @@ defmodule Ichor.ObservationSupervisor do
   def init(_opts) do
     children = [
       {Ichor.Mesh.CausalDAG, []},
-      {Ichor.Gateway.EventBridge, []}
+      {Ichor.Signals.EventBridge, []}
     ]
 
     Supervisor.init(children, strategy: :rest_for_one, max_restarts: 5, max_seconds: 60)

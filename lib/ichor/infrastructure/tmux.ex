@@ -9,7 +9,7 @@ defmodule Ichor.Infrastructure.Tmux do
     3. default server
   """
 
-  @behaviour Ichor.Gateway.Channel
+  @behaviour Ichor.Infrastructure.Channel
 
   @impl true
   def channel_key, do: :tmux

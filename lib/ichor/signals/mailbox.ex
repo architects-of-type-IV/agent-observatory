@@ -5,7 +5,7 @@ defmodule Ichor.Signals.Mailbox do
 
   use Ash.Resource, domain: Ichor.SignalBus
 
-  alias Ichor.Control.AgentProcess
+  alias Ichor.Infrastructure.AgentProcess
 
   actions do
     action :check_operator_inbox, {:array, :map} do
