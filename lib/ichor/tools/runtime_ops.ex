@@ -20,13 +20,13 @@ defmodule Ichor.Tools.RuntimeOps do
   alias Ichor.Control.Agent, as: ControlAgent
   alias Ichor.Control.Lifecycle.AgentLaunch
   alias Ichor.Control.Team, as: ControlTeam
-  alias Ichor.Events.Runtime, as: EventRuntime
-  alias Ichor.Gateway.Channels.Tmux
+  alias Ichor.Signals.EventStream, as: EventRuntime
+  alias Ichor.Infrastructure.Tmux
   alias Ichor.Gateway.HITLRelay
-  alias Ichor.Messages.Bus, as: MessageBus
+  alias Ichor.Signals.Bus, as: MessageBus
   alias Ichor.Observability.Message
-  alias Ichor.ProtocolTracker
-  alias Ichor.Tasks.Board
+  alias Ichor.Factory.Board
+  alias Ichor.Signals.ProtocolTracker
 
   # ---------------------------------------------------------------------------
   # Agent.Spawn actions (agent-facing)

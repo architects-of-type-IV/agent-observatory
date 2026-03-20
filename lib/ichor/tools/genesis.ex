@@ -5,8 +5,7 @@ defmodule Ichor.Tools.Genesis do
   """
   use Ash.Resource, domain: Ichor.Tools
 
-  alias Ichor.Projects.{Artifact, RoadmapItem}
-  alias Ichor.Projects.Node
+  alias Ichor.Factory.{Artifact, Node, RoadmapItem}
 
   @node_status_map %{
     "discover" => :discover,

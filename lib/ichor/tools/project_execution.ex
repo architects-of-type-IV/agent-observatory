@@ -19,7 +19,7 @@ defmodule Ichor.Tools.ProjectExecution do
     Spawn
   }
 
-  alias Ichor.Tasks.Board
+  alias Ichor.Factory.Board
 
   @project_status_map %{
     "proposed" => :proposed,

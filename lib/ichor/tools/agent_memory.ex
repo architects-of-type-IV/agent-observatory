@@ -7,7 +7,6 @@ defmodule Ichor.Tools.AgentMemory do
   alias Ichor.MemoryStore
 
   actions do
-
     action :read_memory, :map do
       description(
         "Read your core memory blocks. Returns all blocks pinned to your context. Call this first when starting a session."
