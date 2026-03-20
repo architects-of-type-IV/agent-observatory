@@ -5,9 +5,9 @@ defmodule IchorWeb.DashboardPipelineHandlers do
 
   import Phoenix.Component, only: [assign: 3]
 
-  alias Ichor.Control.Agent, as: ControlAgent
-  alias Ichor.Signals.Bus
   alias Ichor.Factory.Runtime
+  alias Ichor.Signals.Bus
+  alias Ichor.Workshop.Agent, as: ControlAgent
   alias IchorWeb.Presentation
 
   def dispatch("select_pipeline_project", p, s), do: handle_select_project(p, s)

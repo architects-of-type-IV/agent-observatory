@@ -3,7 +3,7 @@ defmodule IchorWeb.Presentation do
   Shared presentation helpers for IDs, timestamps, badges, and safe display values.
   """
 
-  alias Ichor.Gateway.AgentRegistry.AgentEntry
+  alias Ichor.Workshop.AgentEntry
 
   def short_id(nil), do: "?"
   def short_id("unknown"), do: "?"

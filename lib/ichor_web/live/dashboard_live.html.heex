@@ -384,8 +384,8 @@
             ws_strategy={@ws_strategy}
             ws_default_model={@ws_default_model}
             ws_cwd={@ws_cwd}
-            ws_blueprints={@ws_blueprints}
-            ws_blueprint_id={@ws_blueprint_id}
+            ws_teams={@ws_teams}
+            ws_team_id={@ws_team_id}
             ws_agent_types={@ws_agent_types}
             ws_editing_type={@ws_editing_type}
           />
@@ -637,7 +637,7 @@
   so_name =
     so[:short_name] || so[:id] ||
       (so[:session_id] &&
-         Ichor.Gateway.AgentRegistry.AgentEntry.short_id(to_string(so[:session_id]))) || "Agent"
+         Ichor.Workshop.AgentEntry.short_id(to_string(so[:session_id]))) || "Agent"
 
   so_sid = to_string(so[:session_id] || "") %>
   <div

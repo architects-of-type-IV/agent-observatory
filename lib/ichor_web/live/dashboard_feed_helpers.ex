@@ -5,7 +5,7 @@ defmodule IchorWeb.DashboardFeedHelpers do
   then by activity phases (consecutive tools of the same category).
   """
 
-  alias Ichor.Gateway.AgentRegistry.AgentEntry
+  alias Ichor.Workshop.AgentEntry
 
   # Public API
 

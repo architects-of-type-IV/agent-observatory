@@ -7,17 +7,17 @@ defmodule IchorWeb.DashboardWorkshopHandlers do
 
   import Phoenix.Component, only: [assign: 3]
 
-  alias Ichor.Workshop.{AgentType, BlueprintState, Presets, Team, TeamMember}
+  alias Ichor.Workshop.{AgentType, CanvasState, Presets, Team, TeamMember}
   alias IchorWeb.WorkshopPersistence, as: WP
   alias Phoenix.LiveView
 
-  def list_blueprints, do: Team.list_all!()
+  def list_teams, do: Team.list_all!()
   def list_agent_types, do: AgentType.sorted!()
   defdelegate push_ws_state(socket), to: WP
 
   def handle_event("ws_add_agent", _, socket) do
     state =
-      BlueprintState.add_agent(socket.assigns, %{
+      CanvasState.add_agent(socket.assigns, %{
         name: "agent-#{length(socket.assigns.ws_agents) + 1}",
         capability: "builder",
         model: socket.assigns.ws_default_model,
@@ -35,7 +35,7 @@ defmodule IchorWeb.DashboardWorkshopHandlers do
       {:ok, type} ->
         state =
           socket.assigns
-          |> BlueprintState.add_agent(%{
+          |> CanvasState.add_agent(%{
             agent_type_id: type.id,
             name: "#{type.name}-#{length(socket.assigns.ws_agents) + 1}",
             capability: type.capability,
@@ -55,12 +55,12 @@ defmodule IchorWeb.DashboardWorkshopHandlers do
   end
 
   def handle_event("ws_select_agent", %{"id" => id}, socket) do
-    state = BlueprintState.select_agent(socket.assigns, to_int(id))
+    state = CanvasState.select_agent(socket.assigns, to_int(id))
     {:noreply, socket |> assign_workshop_state(state) |> push_ws_state()}
   end
 
   def handle_event("ws_move_agent", %{"id" => id, "x" => x, "y" => y}, socket) do
-    state = BlueprintState.move_agent(socket.assigns, to_int(id), to_int(x), to_int(y))
+    state = CanvasState.move_agent(socket.assigns, to_int(id), to_int(x), to_int(y))
     {:noreply, socket |> assign_workshop_state(state) |> WP.auto_save()}
   end
 
@@ -72,7 +72,7 @@ defmodule IchorWeb.DashboardWorkshopHandlers do
       id ->
         {:noreply,
          socket
-         |> assign_workshop_state(BlueprintState.update_agent(socket.assigns, id, params))
+         |> assign_workshop_state(CanvasState.update_agent(socket.assigns, id, params))
          |> save_and_push()}
     end
   end
@@ -85,33 +85,33 @@ defmodule IchorWeb.DashboardWorkshopHandlers do
       id ->
         {:noreply,
          socket
-         |> assign_workshop_state(BlueprintState.remove_agent(socket.assigns, id))
+         |> assign_workshop_state(CanvasState.remove_agent(socket.assigns, id))
          |> save_and_push()}
     end
   end
 
   def handle_event("ws_add_spawn_link", %{"from" => from, "to" => to}, socket) do
-    state = BlueprintState.add_spawn_link(socket.assigns, to_int(from), to_int(to))
+    state = CanvasState.add_spawn_link(socket.assigns, to_int(from), to_int(to))
     {:noreply, socket |> assign_workshop_state(state) |> save_and_push()}
   end
 
   def handle_event("ws_add_comm_rule", %{"from" => from, "to" => to, "policy" => policy}, socket) do
-    state = BlueprintState.add_comm_rule(socket.assigns, to_int(from), to_int(to), policy)
+    state = CanvasState.add_comm_rule(socket.assigns, to_int(from), to_int(to), policy)
     {:noreply, socket |> assign_workshop_state(state) |> save_and_push()}
   end
 
   def handle_event("ws_remove_spawn_link", %{"index" => idx}, socket) do
-    state = BlueprintState.remove_spawn_link(socket.assigns, to_int(idx))
+    state = CanvasState.remove_spawn_link(socket.assigns, to_int(idx))
     {:noreply, socket |> assign_workshop_state(state) |> save_and_push()}
   end
 
   def handle_event("ws_remove_comm_rule", %{"index" => idx}, socket) do
-    state = BlueprintState.remove_comm_rule(socket.assigns, to_int(idx))
+    state = CanvasState.remove_comm_rule(socket.assigns, to_int(idx))
     {:noreply, socket |> assign_workshop_state(state) |> save_and_push()}
   end
 
   def handle_event("ws_update_team", params, socket) do
-    state = BlueprintState.update_team(socket.assigns, params)
+    state = CanvasState.update_team(socket.assigns, params)
     {:noreply, socket |> assign_workshop_state(state) |> WP.auto_save()}
   end
 
@@ -120,11 +120,11 @@ defmodule IchorWeb.DashboardWorkshopHandlers do
   end
 
   def handle_event("ws_clear", _, socket) do
-    if bp_id = socket.assigns[:ws_blueprint_id] do
+    if bp_id = socket.assigns[:ws_team_id] do
       with {:ok, team} <- Team.by_id(bp_id), do: Team.destroy(team)
     end
 
-    {:noreply, socket |> WP.clear_canvas() |> assign(:ws_blueprint_id, nil) |> push_ws_state()}
+    {:noreply, socket |> WP.clear_canvas() |> assign(:ws_team_id, nil) |> push_ws_state()}
   end
 
   def handle_event("ws_launch_team", _, socket) do
@@ -145,10 +145,9 @@ defmodule IchorWeb.DashboardWorkshopHandlers do
   end
 
   defp launch_team(state) do
-    with {:ok, team} <- Team.by_id(state.ws_blueprint_id),
-         :ok <- TeamMember.sync_from_workshop_state(team, state),
-         {:ok, result} <- Team.spawn_team(team.name) do
-      {:ok, result}
+    with {:ok, team} <- Team.by_id(state.ws_team_id),
+         :ok <- TeamMember.sync_from_workshop_state(team, state) do
+      Team.spawn_team(team.name)
     end
   end
 

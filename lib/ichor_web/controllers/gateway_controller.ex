@@ -5,7 +5,7 @@ defmodule IchorWeb.GatewayController do
 
   require Logger
 
-  alias Ichor.Gateway.SchemaInterceptor
+  alias Ichor.Signals.SchemaInterceptor
 
   @doc """
   Accepts a DecisionLog JSON payload from an agent, validates it against the

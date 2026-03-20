@@ -16,18 +16,17 @@ defmodule IchorWeb.DashboardLive do
   import IchorWeb.DashboardState, only: [recompute: 1, recompute_view: 1, default_assigns: 1]
 
   import IchorWeb.DashboardWorkshopHandlers,
-    only: [list_blueprints: 0, list_agent_types: 0, push_ws_state: 1]
+    only: [list_teams: 0, list_agent_types: 0, push_ws_state: 1]
 
   import IchorWeb.DashboardMessagingHandlers, only: [subscribe_to_mailboxes: 1]
 
-  alias Ichor.Signals.EventStream, as: EventRuntime
-  alias Ichor.Gateway.Channels.AnsiUtils
   alias Ichor.Factory.Project
+  alias Ichor.Infrastructure.AnsiUtils
   alias Ichor.Signals.{Buffer, Catalog, Message}
+  alias Ichor.Signals.EventStream, as: EventRuntime
 
   alias IchorWeb.{
     DashboardArchonHandlers,
-    DashboardPipelineHandlers,
     DashboardFeedHandlers,
     DashboardFilterHandlers,
     DashboardFleetTreeHandlers,
@@ -36,6 +35,7 @@ defmodule IchorWeb.DashboardLive do
     DashboardMessagingHandlers,
     DashboardNavigationHandlers,
     DashboardNotesHandlers,
+    DashboardPipelineHandlers,
     DashboardSelectionHandlers,
     DashboardSessionControlHandlers,
     DashboardSlideoutHandlers,
@@ -101,7 +101,7 @@ defmodule IchorWeb.DashboardLive do
 
   defp apply_nav_view(:workshop, socket) do
     socket
-    |> assign(:ws_blueprints, list_blueprints())
+    |> assign(:ws_teams, list_teams())
     |> assign(:ws_agent_types, list_agent_types())
     |> push_ws_state()
   end
@@ -263,19 +263,19 @@ defmodule IchorWeb.DashboardLive do
   def handle_event("ws_save_type" = e, p, s), do: IchorWeb.WorkshopTypes.handle_event(e, p, s)
   def handle_event("ws_delete_type" = e, p, s), do: IchorWeb.WorkshopTypes.handle_event(e, p, s)
 
-  def handle_event("ws_save_blueprint" = e, p, s),
+  def handle_event("ws_save_team" = e, p, s),
     do: IchorWeb.WorkshopPersistence.handle_event(e, p, s)
 
-  def handle_event("ws_load_blueprint" = e, p, s),
+  def handle_event("ws_load_team" = e, p, s),
     do: IchorWeb.WorkshopPersistence.handle_event(e, p, s)
 
-  def handle_event("ws_delete_blueprint" = e, p, s),
+  def handle_event("ws_delete_team" = e, p, s),
     do: IchorWeb.WorkshopPersistence.handle_event(e, p, s)
 
-  def handle_event("ws_new_blueprint" = e, p, s),
+  def handle_event("ws_new_team" = e, p, s),
     do: IchorWeb.WorkshopPersistence.handle_event(e, p, s)
 
-  def handle_event("ws_list_blueprints" = e, p, s),
+  def handle_event("ws_list_teams" = e, p, s),
     do: IchorWeb.WorkshopPersistence.handle_event(e, p, s)
 
   def handle_event("ws_" <> _ = e, p, s),

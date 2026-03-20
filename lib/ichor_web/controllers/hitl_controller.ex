@@ -9,8 +9,8 @@ defmodule IchorWeb.HITLController do
 
   use IchorWeb, :controller
 
-  alias Ichor.Gateway.HITLInterventionEvent
-  alias Ichor.Gateway.HITLRelay
+  alias Ichor.Infrastructure.HITLRelay
+  alias Ichor.Observability.HITLInterventionEvent
 
   def pause(conn, %{"agent_id" => agent_id, "reason" => reason} = _params)
       when is_binary(agent_id) and agent_id != "" and is_binary(reason) and reason != "" do

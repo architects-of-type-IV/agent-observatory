@@ -2,15 +2,15 @@ defmodule IchorWeb.DebugController do
   @moduledoc "System diagnostics endpoint for quick debugging."
   use IchorWeb, :controller
 
-  alias Ichor.Control.Agent
-  alias Ichor.Control.AgentProcess
-  alias Ichor.Control.Team
-  alias Ichor.Signals.EventStream, as: EventRuntime
+  alias Ichor.Infrastructure.AgentProcess
+  alias Ichor.Infrastructure.HITLRelay
   alias Ichor.Infrastructure.Tmux
-  alias Ichor.Gateway.HITLRelay
   alias Ichor.Observability.Message
-  alias Ichor.Signals.ProtocolTracker
   alias Ichor.Signals.Buffer
+  alias Ichor.Signals.EventStream, as: EventRuntime
+  alias Ichor.Signals.ProtocolTracker
+  alias Ichor.Workshop.ActiveTeam
+  alias Ichor.Workshop.Agent
 
   def registry(conn, _params) do
     agents =
@@ -62,7 +62,7 @@ defmodule IchorWeb.DebugController do
   end
 
   defp check_team_watcher do
-    teams = Team.alive!()
+    teams = ActiveTeam.alive!()
     team_names = Enum.map(teams, & &1.name)
     member_count = Enum.reduce(teams, 0, fn t, acc -> acc + t.member_count end)
     %{ok: true, teams: team_names, member_count: member_count}
@@ -193,7 +193,7 @@ defmodule IchorWeb.DebugController do
   end
 
   def mes_cleanup(conn, _params) do
-    alias Ichor.Control.{FleetSupervisor, TeamSupervisor}
+    alias Ichor.Infrastructure.{FleetSupervisor, TeamSupervisor}
 
     before = Enum.map(TeamSupervisor.list_all(), &elem(&1, 0))
     mes_teams = Enum.filter(before, &String.starts_with?(&1, "mes-"))

@@ -9,19 +9,19 @@ defmodule IchorWeb.DashboardState do
   import IchorWeb.DashboardTeamHelpers, only: [all_team_sids: 1]
   import IchorWeb.DashboardFeedHelpers, only: [build_feed_groups: 2]
 
-  alias Ichor.Control.Agent
-  alias Ichor.Control.Analysis.Queries, as: FQ
-  alias Ichor.Control.Analysis.SessionEviction
-  alias Ichor.Control.Team
+  alias Ichor.Factory.Runtime
+  alias Ichor.Infrastructure.HITLRelay
   alias Ichor.Infrastructure.Tmux
-  alias Ichor.Gateway.HITLRelay
-  alias Ichor.Gateway.TmuxDiscovery
-  alias Ichor.Signals.Bus
+  alias Ichor.Infrastructure.TmuxDiscovery
   alias Ichor.Notes
   alias Ichor.Observability.Error
   alias Ichor.Observability.Message
   alias Ichor.Observability.Task, as: ObservabilityTask
-  alias Ichor.Factory.Runtime
+  alias Ichor.Signals.Bus
+  alias Ichor.Workshop.ActiveTeam
+  alias Ichor.Workshop.Agent
+  alias Ichor.Workshop.Analysis.Queries, as: FQ
+  alias Ichor.Workshop.Analysis.SessionEviction
 
   def default_assigns(disk_teams) do
     %{
@@ -78,8 +78,8 @@ defmodule IchorWeb.DashboardState do
       ws_strategy: "one_for_one",
       ws_default_model: "sonnet",
       ws_cwd: "",
-      ws_blueprint_id: nil,
-      ws_blueprints: [],
+      ws_team_id: nil,
+      ws_teams: [],
       ws_agent_types: [],
       ws_editing_type: nil,
       # Toast notifications
@@ -142,8 +142,8 @@ defmodule IchorWeb.DashboardState do
     assigns = socket.assigns
 
     # Ash domain queries
-    teams = Team.alive!()
-    all_teams = Team.all!()
+    teams = ActiveTeam.alive!()
+    all_teams = ActiveTeam.all!()
     agents = Agent.all!()
     messages = Message.recent!()
     event_tasks = ObservabilityTask.current!() |> Enum.map(&task_to_map/1)

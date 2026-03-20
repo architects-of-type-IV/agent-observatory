@@ -16,8 +16,8 @@ defmodule IchorWeb.Components.WorkshopComponents do
   attr :ws_strategy, :string, default: "one_for_one"
   attr :ws_default_model, :string, default: "sonnet"
   attr :ws_cwd, :string, default: ""
-  attr :ws_blueprints, :list, default: []
-  attr :ws_blueprint_id, :any, default: nil
+  attr :ws_teams, :list, default: []
+  attr :ws_team_id, :any, default: nil
   attr :ws_agent_types, :list, default: []
   attr :ws_editing_type, :any, default: nil
 

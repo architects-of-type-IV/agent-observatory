@@ -3,7 +3,7 @@ defmodule IchorWeb.WebhookController do
 
   use IchorWeb, :controller
 
-  alias Ichor.Gateway.WebhookRouter
+  alias Ichor.Infrastructure.WebhookRouter
 
   def create(conn, %{"webhook_id" => webhook_id}) do
     with {:ok, signature} <- get_signature(conn),

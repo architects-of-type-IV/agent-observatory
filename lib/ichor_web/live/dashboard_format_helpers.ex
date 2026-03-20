@@ -4,7 +4,7 @@ defmodule IchorWeb.DashboardFormatHelpers do
   Handles colors, time formatting, event summaries, and UI presentation.
   """
 
-  alias Ichor.Gateway.AgentRegistry.AgentEntry
+  alias Ichor.Workshop.AgentEntry
 
   @session_palette [
     {"bg-info", "border-info", "text-info"},

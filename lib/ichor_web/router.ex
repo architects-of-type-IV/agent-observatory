@@ -3,7 +3,7 @@ defmodule IchorWeb.Router do
 
   use IchorWeb, :router
 
-  alias Ichor.Tools.Profiles
+  alias Ichor.McpProfiles, as: Profiles
 
   pipeline :browser do
     plug :accepts, ["html"]

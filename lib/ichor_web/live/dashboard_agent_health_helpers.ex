@@ -1,11 +1,11 @@
 defmodule IchorWeb.DashboardAgentHealthHelpers do
   @moduledoc """
   Presentation helpers for agent health indicators (colors, formatting).
-  Domain logic lives in Ichor.Control.Analysis.AgentHealth.
+  Domain logic lives in Ichor.Workshop.Analysis.AgentHealth.
   """
 
-  defdelegate compute_agent_health(member_events, now), to: Ichor.Control.Analysis.AgentHealth
-  defdelegate calculate_failure_rate(events), to: Ichor.Control.Analysis.AgentHealth
+  defdelegate compute_agent_health(member_events, now), to: Ichor.Workshop.Analysis.AgentHealth
+  defdelegate calculate_failure_rate(events), to: Ichor.Workshop.Analysis.AgentHealth
 
   def format_issue({:stuck, latest_event}) do
     "Agent stuck - no activity for >60s (last event: #{relative_time_simple(latest_event.inserted_at)})"

@@ -5,8 +5,8 @@ defmodule IchorWeb.DashboardSlideoutHandlers do
 
   import Phoenix.Component, only: [assign: 3]
 
-  alias Ichor.Control.AgentProcess
-  alias Ichor.Gateway.OutputCapture
+  alias Ichor.Infrastructure.AgentProcess
+  alias Ichor.Infrastructure.OutputCapture
 
   def handle_open_agent_slideout(sid, socket) do
     # Unwatch previous agent if any

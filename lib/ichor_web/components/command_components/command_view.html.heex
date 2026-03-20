@@ -319,7 +319,7 @@ selected = @selected_command_agent %>
     hitl_buffer =
       if is_hitl_paused do
         try do
-          Ichor.Gateway.HITLRelay.buffered_messages(sel_id)
+          Ichor.Infrastructure.HITLRelay.buffered_messages(sel_id)
         rescue
           _ -> []
         end

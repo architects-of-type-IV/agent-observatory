@@ -4,7 +4,7 @@ defmodule IchorWeb.DashboardTeamHelpers do
   Handles merging event-based teams with disk-persisted teams.
   """
 
-  alias Ichor.Gateway.AgentRegistry.AgentEntry
+  alias Ichor.Workshop.AgentEntry
 
   @doc """
   Derive teams from both events and disk state, merging them appropriately.

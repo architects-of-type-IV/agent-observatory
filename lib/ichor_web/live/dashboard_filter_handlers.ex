@@ -6,7 +6,7 @@ defmodule IchorWeb.DashboardFilterHandlers do
   import IchorWeb.DashboardDataHelpers, only: [blank_to_nil: 1]
   import IchorWeb.DashboardTeamHelpers, only: [derive_teams: 2, team_member_sids: 1]
 
-  alias Ichor.Gateway.AgentRegistry.AgentEntry
+  alias Ichor.Workshop.AgentEntry
   alias IchorWeb.DashboardViewRouter
 
   def handle_filter(params, socket) do

@@ -77,7 +77,7 @@
         aid = to_string(@agent[:agent_id]) %> To:
         <span class="text-default font-mono">{display_name}</span>
         <span :if={display_name != aid} class="text-muted ml-1">
-          ({Ichor.Gateway.AgentRegistry.AgentEntry.short_id(aid)})
+          ({Ichor.Workshop.AgentEntry.short_id(aid)})
         </span>
       </div>
       <form phx-submit="send_command_message" class="flex gap-2">

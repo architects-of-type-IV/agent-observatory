@@ -8,7 +8,7 @@ defmodule IchorWeb.Components.FleetHelpers do
   # Delegates to AgentEntry.role_from_string/1 for canonical agent_type mapping.
   # Adds map-based and name-heuristic overloads for display contexts.
 
-  alias Ichor.Gateway.AgentRegistry.AgentEntry
+  alias Ichor.Workshop.AgentEntry
   alias IchorWeb.Presentation
 
   def classify_role(%{role: r}) when is_atom(r), do: r

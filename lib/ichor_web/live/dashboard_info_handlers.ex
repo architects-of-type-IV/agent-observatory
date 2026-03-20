@@ -12,8 +12,8 @@ defmodule IchorWeb.DashboardInfoHandlers do
   import IchorWeb.DashboardNotificationHandlers, only: [handle_agent_crashed: 4]
 
   alias Ichor.Archon.SignalManager
-  alias Ichor.Gateway.HITLRelay
   alias Ichor.Factory.Project
+  alias Ichor.Infrastructure.HITLRelay
   alias Ichor.Signals.Message
   alias IchorWeb.{DashboardArchonHandlers, DashboardMesHandlers}
 

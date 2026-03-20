@@ -1,16 +1,16 @@
 defmodule IchorWeb.WorkshopPersistence do
   @moduledoc """
   Ash persistence layer for the Workshop canvas.
-  Handles auto-save, blueprint CRUD events, and Ash <-> canvas mapping.
+  Handles auto-save, team CRUD events, and Ash <-> canvas mapping.
   """
 
   import Phoenix.Component, only: [assign: 3]
   import Phoenix.LiveView, only: [push_event: 3]
 
-  alias Ichor.Workshop.{AgentType, BlueprintState, Team, TeamMember}
+  alias Ichor.Workshop.{AgentType, CanvasState, Team, TeamMember}
 
-  @spec list_blueprints() :: [map()]
-  def list_blueprints, do: Team.list_all!()
+  @spec list_teams() :: [map()]
+  def list_teams, do: Team.list_all!()
 
   @spec list_agent_types() :: [map()]
   def list_agent_types, do: AgentType.sorted!()
@@ -28,67 +28,65 @@ defmodule IchorWeb.WorkshopPersistence do
   @spec clear_canvas(Phoenix.LiveView.Socket.t()) :: Phoenix.LiveView.Socket.t()
   def clear_canvas(socket) do
     socket
-    |> assign_workshop_state(BlueprintState.clear(socket.assigns))
+    |> assign_workshop_state(CanvasState.clear(socket.assigns))
   end
 
-  def handle_event("ws_save_blueprint", _, socket) do
+  def handle_event("ws_save_team", _, socket) do
     socket = auto_save(socket)
 
-    {:noreply,
-     socket |> assign(:ws_blueprints, list_blueprints()) |> flash(:info, "Blueprint saved")}
+    {:noreply, socket |> assign(:ws_teams, list_teams()) |> flash(:info, "Blueprint saved")}
   end
 
-  def handle_event("ws_load_blueprint", %{"id" => id}, socket) do
-    case load_blueprint(socket.assigns, id) do
+  def handle_event("ws_load_team", %{"id" => id}, socket) do
+    case load_team(socket.assigns, id) do
       {:ok, state} -> {:noreply, socket |> assign_workshop_state(state) |> push_ws_state()}
       {:error, _} -> {:noreply, flash(socket, :error, "Blueprint not found")}
     end
   end
 
-  def handle_event("ws_delete_blueprint", %{"id" => id}, socket) do
-    case delete_blueprint(id) do
+  def handle_event("ws_delete_team", %{"id" => id}, socket) do
+    case delete_team(id) do
       :ok ->
         socket =
-          if socket.assigns[:ws_blueprint_id] == id,
+          if socket.assigns[:ws_team_id] == id,
             do: socket |> clear_canvas() |> push_ws_state(),
             else: socket
 
-        {:noreply,
-         socket |> assign(:ws_blueprints, list_blueprints()) |> flash(:info, "Blueprint deleted")}
+        {:noreply, socket |> assign(:ws_teams, list_teams()) |> flash(:info, "Blueprint deleted")}
 
       {:error, _} ->
         {:noreply, socket}
     end
   end
 
-  def handle_event("ws_new_blueprint", _, socket) do
-    {:noreply, socket |> clear_canvas() |> assign(:ws_blueprint_id, nil) |> push_ws_state()}
+  def handle_event("ws_new_team", _, socket) do
+    {:noreply, socket |> clear_canvas() |> assign(:ws_team_id, nil) |> push_ws_state()}
   end
 
-  def handle_event("ws_list_blueprints", _, socket) do
-    {:noreply, assign(socket, :ws_blueprints, list_blueprints())}
+  def handle_event("ws_list_teams", _, socket) do
+    {:noreply, assign(socket, :ws_teams, list_teams())}
   end
 
   @spec auto_save(Phoenix.LiveView.Socket.t()) :: Phoenix.LiveView.Socket.t()
   def auto_save(socket) do
-    case save_blueprint(socket.assigns[:ws_blueprint_id], socket.assigns) do
+    case save_team(socket.assigns[:ws_team_id], socket.assigns) do
       {:ok, bp} ->
-        socket |> assign(:ws_blueprint_id, bp.id) |> assign(:ws_blueprints, list_blueprints())
+        socket |> assign(:ws_team_id, bp.id) |> assign(:ws_teams, list_teams())
 
       {:error, _} ->
         socket
     end
   end
 
-  defp save_blueprint(nil, state) do
-    with {:ok, team} <- Team.create(BlueprintState.to_persistence_params(state)),
+  defp save_team(nil, state) do
+    with {:ok, team} <- Team.create(CanvasState.to_persistence_params(state)),
          :ok <- TeamMember.sync_from_workshop_state(team, state) do
       {:ok, team}
     end
   end
 
-  defp save_blueprint(id, state) do
-    params = BlueprintState.to_persistence_params(state)
+  defp save_team(id, state) do
+    params = CanvasState.to_persistence_params(state)
 
     case Team.by_id(id) do
       {:ok, team} ->
@@ -98,17 +96,17 @@ defmodule IchorWeb.WorkshopPersistence do
         end
 
       {:error, _} ->
-        save_blueprint(nil, state)
+        save_team(nil, state)
     end
   end
 
-  defp load_blueprint(state, id) do
+  defp load_team(state, id) do
     with {:ok, team} <- Team.by_id(id) do
-      {:ok, BlueprintState.apply_blueprint(state, team)}
+      {:ok, CanvasState.apply_team(state, team)}
     end
   end
 
-  defp delete_blueprint(id) do
+  defp delete_team(id) do
     with {:ok, team} <- Team.by_id(id) do
       Team.destroy(team)
     end
@@ -127,6 +125,6 @@ defmodule IchorWeb.WorkshopPersistence do
     |> assign(:ws_strategy, state.ws_strategy)
     |> assign(:ws_default_model, state.ws_default_model)
     |> assign(:ws_cwd, state.ws_cwd)
-    |> assign(:ws_blueprint_id, state.ws_blueprint_id)
+    |> assign(:ws_team_id, state.ws_team_id)
   end
 end

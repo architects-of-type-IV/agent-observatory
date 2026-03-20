@@ -359,38 +359,38 @@ tree = wc.spawn_tree_html(@ws_agents, @ws_spawn_links) %>
             </h4>
             <div class="flex gap-1">
               <button
-                :if={@ws_blueprint_id}
-                phx-click="ws_new_blueprint"
+                :if={@ws_team_id}
+                phx-click="ws_new_team"
                 class="ichor-btn ichor-btn-muted text-[9px]"
               >
                 New
               </button>
               <button
                 :if={@ws_agents != []}
-                phx-click="ws_save_blueprint"
+                phx-click="ws_save_team"
                 class="ichor-btn ichor-btn-muted text-[9px]"
               >
-                {if @ws_blueprint_id, do: "Update", else: "Save"}
+                {if @ws_team_id, do: "Update", else: "Save"}
               </button>
             </div>
           </div>
-          <%= if @ws_blueprints == [] do %>
+          <%= if @ws_teams == [] do %>
             <div class="text-[10px] text-muted">No saved blueprints yet.</div>
           <% else %>
             <div class="space-y-1">
-              <%= for bp <- @ws_blueprints do %>
-                <div class={"flex items-center gap-1.5 text-[10px] px-2 py-1.5 rounded group #{if @ws_blueprint_id && @ws_blueprint_id == bp.id, do: "bg-cyan/10 border border-cyan/20", else: "bg-raised/50 hover:bg-raised"}"}>
+              <%= for bp <- @ws_teams do %>
+                <div class={"flex items-center gap-1.5 text-[10px] px-2 py-1.5 rounded group #{if @ws_team_id && @ws_team_id == bp.id, do: "bg-cyan/10 border border-cyan/20", else: "bg-raised/50 hover:bg-raised"}"}>
                   <span class="text-high truncate flex-1">{bp.name}</span>
                   <span class="text-[9px] text-muted">{length(bp.agents)} agents</span>
                   <button
-                    phx-click="ws_load_blueprint"
+                    phx-click="ws_load_team"
                     phx-value-id={bp.id}
                     class="text-cyan hover:text-cyan opacity-0 group-hover:opacity-100 cursor-pointer text-[9px]"
                   >
                     load
                   </button>
                   <button
-                    phx-click="ws_delete_blueprint"
+                    phx-click="ws_delete_team"
                     phx-value-id={bp.id}
                     class="text-error hover:text-error opacity-0 group-hover:opacity-100 cursor-pointer text-[9px]"
                     data-confirm={"Delete blueprint \"#{bp.name}\"?"}
