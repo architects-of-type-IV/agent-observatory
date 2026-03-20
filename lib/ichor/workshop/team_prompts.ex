@@ -90,9 +90,9 @@ defmodule Ichor.Workshop.TeamPrompts do
     The content to operator MUST be plain text starting with "TITLE:" on the first line:
     TITLE: short descriptive name
     DESCRIPTION: one or two sentences
-    SUBSYSTEM: Elixir module name (e.g. Ichor.Subsystems.EntropyHarvester)
+    PLUGIN: Elixir module name (e.g. Ichor.Plugins.EntropyHarvester)
     SIGNAL_INTERFACE: which signals control it
-    TOPIC: unique PubSub topic (e.g. subsystem:entropy_harvester)
+    TOPIC: unique PubSub topic (e.g. plugin:entropy_harvester)
     VERSION: 0.1.0
     FEATURES: comma-separated list
     USE_CASES: comma-separated list
@@ -238,9 +238,9 @@ defmodule Ichor.Workshop.TeamPrompts do
 
     TITLE: one short descriptive name
     DESCRIPTION: one or two sentences
-    SUBSYSTEM: Elixir module name (e.g. Ichor.Subsystems.EntropyHarvester)
+    PLUGIN: Elixir module name (e.g. Ichor.Plugins.EntropyHarvester)
     SIGNAL_INTERFACE: which signals control it
-    TOPIC: unique PubSub topic (e.g. subsystem:entropy_harvester)
+    TOPIC: unique PubSub topic (e.g. plugin:entropy_harvester)
     VERSION: 0.1.0
     FEATURES: comma-separated list
     USE_CASES: comma-separated list
@@ -251,14 +251,14 @@ defmodule Ichor.Workshop.TeamPrompts do
 
     You MUST call send_message to deliver this. Do NOT just write the brief as text output.
 
-    EXISTING SUBSYSTEMS (do NOT brief any of these):
-    #{ResearchContext.existing_subsystems()}
+    EXISTING PLUGINS (do NOT brief any of these):
+    #{ResearchContext.existing_plugins()}
 
-    DO NOT produce a brief for any subsystem listed above. If the winning proposal
-    duplicates an existing subsystem, reject it and ask lead for the next-best proposal.
+    DO NOT produce a brief for any plugin listed above. If the winning proposal
+    duplicates an existing plugin, reject it and ask lead for the next-best proposal.
 
     RULES:
-    - Subsystem must implement Ichor.Mes.Subsystem behaviour (info/0, start/0, handle_signal/1, stop/0)
+    - Plugin must implement Ichor.Plugin behaviour (info/0, start/0, handle_signal/1, stop/0)
     - No external SaaS libraries. Must be controllable through Signals.
     - Max 3 turns after receiving the proposal. Send the brief via send_message, then stop.
 
@@ -308,16 +308,16 @@ defmodule Ichor.Workshop.TeamPrompts do
     YOUR JOB: Find a gap and fill it. Build the bridge between what
     the system CAN observe internally and what it CANNOT do externally.
 
-    Subsystem behaviour contract:
+    Plugin behaviour contract:
       info/0    -- returns manifest: name, module, topic, signals_emitted, signals_subscribed, features
       start/0   -- start GenServer, subscribe to PubSub topic
       handle_signal/1 -- react to incoming signals
       stop/0    -- unsubscribe, cleanup
 
     ============================================================
-    EXISTING SUBSYSTEMS (do NOT duplicate)
+    EXISTING PLUGINS (do NOT duplicate)
     ============================================================
-    #{ResearchContext.existing_subsystems()}
+    #{ResearchContext.existing_plugins()}
 
     ============================================================
     DEAD ZONES -- DO NOT PROPOSE ANY VARIANT OF THESE
@@ -332,17 +332,17 @@ defmodule Ichor.Workshop.TeamPrompts do
     These are examples, not requirements. Solve any real problem.
 
     ============================================================
-    WHAT MAKES A GOOD SUBSYSTEM
+    WHAT MAKES A GOOD PLUGIN
     ============================================================
-    A subsystem is a SMALL, CONCRETE platform utility. Think of it
+    A plugin is a SMALL, CONCRETE platform utility. Think of it
     as a pipe fitting: it receives signals in, does one thing well,
     and emits signals out. Loosely coupled. Composable with other
-    subsystems through PubSub.
+    plugins through PubSub.
 
     SCOPE: Under 200 lines of Elixir. One GenServer. One concern.
     If you cannot explain what it does in one sentence, it is too big.
 
-    Subsystems are NOT limited to data processing. They can do
+    Plugins are NOT limited to data processing. They can do
     ANYTHING that is useful when triggered by a signal:
     - Send local notifications, write to log files
     - POST to self-hosted webhooks, local HTTP endpoints
@@ -356,7 +356,7 @@ defmodule Ichor.Workshop.TeamPrompts do
     deduplicators, schedulers, samplers, buffers, enrichers.
 
     Do NOT propose grand architectures, AI/ML systems, or anything
-    that requires multiple GenServers. A subsystem that cannot ship
+    that requires multiple GenServers. A plugin that cannot ship
     in a single coding session is a failed proposal.
 
     ============================================================
@@ -380,7 +380,7 @@ defmodule Ichor.Workshop.TeamPrompts do
 
     PHASE 3 -- DRAFT PROPOSAL
     Write ONE strong proposal for your assigned domain. It needs:
-    - Name: Ichor.Subsystems.[ModuleName]
+    - Name: Ichor.Plugins.[ModuleName]
     - Purpose: one sentence
     - Signal integration: what signals it subscribes to / emits
     - Core algorithm/approach: 2-3 sentences
@@ -425,8 +425,8 @@ defmodule Ichor.Workshop.TeamPrompts do
     OPEN GAPS (what the system cannot do yet):
     #{ResearchContext.open_gaps()}
 
-    EXISTING SUBSYSTEMS (do NOT duplicate):
-    #{ResearchContext.existing_subsystems()}
+    EXISTING PLUGINS (do NOT duplicate):
+    #{ResearchContext.existing_plugins()}
 
     ============================================================
     DEAD ZONES -- REJECT ANY PROPOSAL IN THESE AREAS
@@ -439,13 +439,13 @@ defmodule Ichor.Workshop.TeamPrompts do
     #{ResearchContext.pain_points()}
 
     ============================================================
-    WHAT MAKES A GOOD SUBSYSTEM
+    WHAT MAKES A GOOD PLUGIN
     ============================================================
-    A subsystem is a SMALL, CONCRETE platform utility. Think pipe
+    A plugin is a SMALL, CONCRETE platform utility. Think pipe
     fitting: signals in, one job, signals out. Composable through
     PubSub. Under 200 lines. One GenServer. One concern.
 
-    Subsystems are NOT limited to data processing. They can:
+    Plugins are NOT limited to data processing. They can:
     - Send local notifications, write to log files
     - Write files, generate reports, run shell commands
     - Bridge to external APIs, queues, or databases
@@ -479,7 +479,7 @@ defmodule Ichor.Workshop.TeamPrompts do
 
     PHASE 3 -- DRAFT PROPOSAL
     Write ONE strong proposal for your assigned domain. It needs:
-    - Name: Ichor.Subsystems.[ModuleName]
+    - Name: Ichor.Plugins.[ModuleName]
     - Purpose: one sentence
     - Signal integration: what signals it subscribes to / emits
     - Core algorithm/approach: 2-3 sentences
@@ -513,12 +513,12 @@ defmodule Ichor.Workshop.TeamPrompts do
 
     YOUR TASK (MAX 5 tool calls total):
     1. Call check_inbox with session_id "#{session}-corrective" for additional context.
-    2. Synthesize a corrected subsystem brief that addresses the failure reason.
+    2. Synthesize a corrected plugin brief that addresses the failure reason.
     3. Call send_message to operator with the corrected brief in this EXACT format:
 
     TITLE: short descriptive name
     DESCRIPTION: one or two sentences
-    SUBSYSTEM: Elixir module name (e.g. Ichor.Subsystems.Foo)
+    PLUGIN: Elixir module name (e.g. Ichor.Plugins.Foo)
     SIGNAL_INTERFACE: which signals control it
     TOPIC: unique PubSub topic
     VERSION: 0.1.0

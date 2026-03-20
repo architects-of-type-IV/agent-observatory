@@ -2,23 +2,23 @@ defmodule Ichor.Workshop.TeamSpec do
   @moduledoc """
   Pure builder for `TeamSpec` and `AgentSpec` runtime contracts across all run modes.
 
-  Consolidates MES, DAG, and Genesis spec construction. Per-mode differences
+  Consolidates MES, pipeline, and planning spec construction. Per-mode differences
   (preset name, prompt builder, metadata) are expressed as data, not separate modules.
 
   Public API:
     - build(:mes, run_id, team_name)
-    - build(:dag, run, session, brief, jobs, worker_groups, prompt_ctx)
-    - build(:genesis, run_id, mode, project_id, genesis_node_id, brief)
+    - build(:pipeline, run, session, brief, tasks, worker_groups, prompt_ctx)
+    - build(:planning, run_id, mode, project_id, planning_project_id, brief)
     - build_corrective(run_id, session, reason, attempt)
     - session_name(run_id) -- MES only
-    - prompt_dir(:mes, run_id) | prompt_dir(:dag, run_id) | prompt_dir(:genesis, run_id, mode)
-    - prompt_root_dir(:mes) | prompt_root_dir(:dag) | prompt_root_dir(:genesis)
+    - prompt_dir(:mes, run_id) | prompt_dir(:pipeline, run_id) | prompt_dir(:planning, run_id, mode)
+    - prompt_root_dir(:mes) | prompt_root_dir(:pipeline) | prompt_root_dir(:planning)
   """
 
   alias Ichor.Control.Lifecycle.AgentSpec
   alias Ichor.Control.Lifecycle.TeamSpec, as: Spec
   alias Ichor.Factory.ModePrompts
-  alias Ichor.Workshop.{BlueprintState, DagPrompts, Presets, Team, TeamPrompts}
+  alias Ichor.Workshop.{BlueprintState, PipelinePrompts, Presets, Team, TeamPrompts}
 
   # MES
 
@@ -74,53 +74,53 @@ defmodule Ichor.Workshop.TeamSpec do
   @spec session_name(String.t()) :: String.t()
   def session_name(run_id), do: "mes-#{run_id}"
 
-  # DAG
+  # Pipeline
 
-  @doc "Builds a TeamSpec for a DAG execution run."
-  @spec build(:dag, map(), String.t(), String.t(), [map()], [map()], map()) :: Spec.t()
-  def build(:dag, run, session, brief, jobs, worker_groups, prompt_ctx) do
-    state = dag_state(session, worker_groups)
+  @doc "Builds a TeamSpec for a pipeline execution run."
+  @spec build(:pipeline, map(), String.t(), String.t(), [map()], [map()], map()) :: Spec.t()
+  def build(:pipeline, run, session, brief, tasks, worker_groups, prompt_ctx) do
+    state = pipeline_state(session, worker_groups)
 
     shared = %{
       run_id: run.id,
       session: session,
       brief: brief,
-      jobs: jobs,
+      jobs: tasks,
       worker_groups: worker_groups,
       subsystem_dir: prompt_ctx.subsystem_dir
     }
 
-    roster = dag_roster(session, worker_groups)
-    prompt_map = dag_prompt_map(shared, roster, worker_groups)
+    roster = pipeline_roster(session, worker_groups)
+    prompt_map = pipeline_prompt_map(shared, roster, worker_groups)
 
     build_from_state(
       state,
       session: session,
-      prompt_dir: prompt_dir(:dag, run.id),
-      team_metadata: %{run_id: run.id, source: :dag},
+      prompt_dir: prompt_dir(:pipeline, run.id),
+      team_metadata: %{run_id: run.id, source: :pipeline},
       prompt_builder: fn agent, _state -> Map.fetch!(prompt_map, agent.name) end,
-      agent_metadata_builder: fn agent, state -> dag_agent_meta(agent, state, run.id) end,
+      agent_metadata_builder: fn agent, state -> pipeline_agent_meta(agent, state, run.id) end,
       window_name_builder: & &1.name,
       agent_id_builder: fn agent, _win, session -> "#{session}-#{agent.name}" end
     )
   end
 
-  # Genesis
+  # Planning
 
-  @doc "Builds a TeamSpec for a Genesis mode run."
-  @spec build(:genesis, String.t(), String.t(), String.t(), String.t() | nil, String.t()) ::
+  @doc "Builds a TeamSpec for a planning mode run."
+  @spec build(:planning, String.t(), String.t(), String.t(), String.t() | nil, String.t()) ::
           Spec.t()
-  def build(:genesis, run_id, mode, _project_id, genesis_node_id, brief) do
-    session = "genesis-#{mode}-#{run_id}"
-    state = genesis_state(session, mode)
-    roster = genesis_roster(session, mode)
-    prompt_map = genesis_prompt_map(mode, run_id, roster, genesis_node_id, brief)
+  def build(:planning, run_id, mode, _project_id, planning_project_id, brief) do
+    session = "planning-#{mode}-#{run_id}"
+    state = planning_state(session, mode)
+    roster = planning_roster(session, mode)
+    prompt_map = planning_prompt_map(mode, run_id, roster, planning_project_id, brief)
 
     build_from_state(
       state,
       session: session,
-      prompt_dir: prompt_dir(:genesis, run_id, mode),
-      team_metadata: %{run_id: run_id, source: :genesis, mode: mode},
+      prompt_dir: prompt_dir(:planning, run_id, mode),
+      team_metadata: %{run_id: run_id, source: :planning, mode: mode},
       prompt_builder: fn agent, _state -> Map.fetch!(prompt_map, agent.name) end,
       window_name_builder: & &1.name,
       agent_id_builder: fn agent, _win, session -> "#{session}-#{agent.name}" end
@@ -131,25 +131,25 @@ defmodule Ichor.Workshop.TeamSpec do
 
   @doc "Returns the prompt directory path for a run."
   @spec prompt_dir(:mes, String.t()) :: String.t()
-  @spec prompt_dir(:dag, String.t()) :: String.t()
+  @spec prompt_dir(:pipeline, String.t()) :: String.t()
   def prompt_dir(:mes, run_id), do: Path.join(prompt_root_dir(:mes), run_id)
-  def prompt_dir(:dag, run_id), do: Path.join(prompt_root_dir(:dag), run_id)
+  def prompt_dir(:pipeline, run_id), do: Path.join(prompt_root_dir(:pipeline), run_id)
 
-  @doc "Returns the prompt directory path for a genesis mode run."
-  @spec prompt_dir(:genesis, String.t(), String.t()) :: String.t()
-  def prompt_dir(:genesis, run_id, mode),
-    do: Path.join(prompt_root_dir(:genesis), "#{mode}-#{run_id}")
+  @doc "Returns the prompt directory path for a planning mode run."
+  @spec prompt_dir(:planning, String.t(), String.t()) :: String.t()
+  def prompt_dir(:planning, run_id, mode),
+    do: Path.join(prompt_root_dir(:planning), "#{mode}-#{run_id}")
 
   @doc "Returns the root prompt directory for the given run kind."
-  @spec prompt_root_dir(:mes | :dag | :genesis) :: String.t()
+  @spec prompt_root_dir(:mes | :pipeline | :planning) :: String.t()
   def prompt_root_dir(:mes),
     do: Application.get_env(:ichor, :mes_prompt_root_dir, Path.expand("~/.ichor/mes"))
 
-  def prompt_root_dir(:dag),
-    do: Application.get_env(:ichor, :dag_prompt_root_dir, Path.expand("~/.ichor/dag"))
+  def prompt_root_dir(:pipeline),
+    do: Application.get_env(:ichor, :pipeline_prompt_root_dir, Path.expand("~/.ichor/pipeline"))
 
-  def prompt_root_dir(:genesis),
-    do: Application.get_env(:ichor, :genesis_prompt_root_dir, Path.expand("~/.ichor/genesis"))
+  def prompt_root_dir(:planning),
+    do: Application.get_env(:ichor, :planning_prompt_root_dir, Path.expand("~/.ichor/planning"))
 
   # MES internals
 
@@ -192,10 +192,10 @@ defmodule Ichor.Workshop.TeamSpec do
     }
   end
 
-  # DAG internals
+  # Pipeline internals
 
-  defp dag_state(session, worker_groups) do
-    base = Presets.apply(BlueprintState.defaults(), "dag")
+  defp pipeline_state(session, worker_groups) do
+    base = Presets.apply(BlueprintState.defaults(), "pipeline")
 
     injected =
       worker_groups
@@ -207,7 +207,7 @@ defmodule Ichor.Workshop.TeamSpec do
           capability: "builder",
           model: "sonnet",
           permission: "default",
-          persona: "DAG worker. Implements only the jobs assigned to #{worker.name}.",
+          persona: "Pipeline worker. Implements only the tasks assigned to #{worker.name}.",
           file_scope: Enum.join(worker.allowed_files, "\n"),
           quality_gates: "mix compile --warnings-as-errors",
           x: rem(slot_id - 3, 4) * 180 + 40,
@@ -233,7 +233,7 @@ defmodule Ichor.Workshop.TeamSpec do
     |> Map.put(:ws_cwd, File.cwd!())
   end
 
-  defp dag_roster(session, worker_groups) do
+  defp pipeline_roster(session, worker_groups) do
     names = ["coordinator", "lead"] ++ Enum.map(worker_groups, & &1.name)
     ids = Enum.map_join(names, "\n", fn name -> "  - #{name}: #{session}-#{name}" end)
 
@@ -245,24 +245,24 @@ defmodule Ichor.Workshop.TeamSpec do
     """
   end
 
-  defp dag_prompt_map(shared, roster, worker_groups) do
+  defp pipeline_prompt_map(shared, roster, worker_groups) do
     shared_r = Map.put(shared, :roster, roster)
 
     workers =
       Map.new(worker_groups, fn worker ->
-        {worker.name, DagPrompts.worker(Map.put(shared_r, :worker, worker))}
+        {worker.name, PipelinePrompts.worker(Map.put(shared_r, :worker, worker))}
       end)
 
     Map.merge(workers, %{
-      "coordinator" => DagPrompts.coordinator(shared_r),
-      "lead" => DagPrompts.lead(shared_r)
+      "coordinator" => PipelinePrompts.coordinator(shared_r),
+      "lead" => PipelinePrompts.lead(shared_r)
     })
   end
 
-  defp dag_agent_meta(agent, state, run_id) do
+  defp pipeline_agent_meta(agent, state, run_id) do
     %{
       run_id: run_id,
-      source: :dag,
+      source: :pipeline,
       team_name: state.ws_team_name,
       permission: agent.permission,
       file_scope: agent.file_scope,
@@ -270,19 +270,19 @@ defmodule Ichor.Workshop.TeamSpec do
     }
   end
 
-  # Genesis internals
+  # Planning internals
 
-  defp genesis_state(session, mode) do
+  defp planning_state(session, mode) do
     BlueprintState.defaults()
-    |> Presets.apply("genesis_#{mode}")
+    |> Presets.apply("planning_#{mode}")
     |> Map.put(:ws_team_name, session)
     |> Map.put(:ws_cwd, File.cwd!())
   end
 
-  defp genesis_roster(session, mode) do
+  defp planning_roster(session, mode) do
     entries =
       mode
-      |> genesis_agent_names()
+      |> planning_agent_names()
       |> Enum.map_join("\n", fn name -> "  - #{name}: #{session}-#{name}" end)
 
     """
@@ -293,33 +293,33 @@ defmodule Ichor.Workshop.TeamSpec do
     """
   end
 
-  defp genesis_prompt_map("a", run_id, roster, node_id, brief) do
+  defp planning_prompt_map("a", run_id, roster, project_id, brief) do
     %{
-      "coordinator" => ModePrompts.mode_a_coordinator(run_id, roster, node_id, brief),
-      "architect" => ModePrompts.mode_a_architect(run_id, roster, node_id, brief),
-      "reviewer" => ModePrompts.mode_a_reviewer(run_id, roster, node_id, brief)
+      "coordinator" => ModePrompts.mode_a_coordinator(run_id, roster, project_id, brief),
+      "architect" => ModePrompts.mode_a_architect(run_id, roster, project_id, brief),
+      "reviewer" => ModePrompts.mode_a_reviewer(run_id, roster, project_id, brief)
     }
   end
 
-  defp genesis_prompt_map("b", run_id, roster, node_id, brief) do
+  defp planning_prompt_map("b", run_id, roster, project_id, brief) do
     %{
-      "coordinator" => ModePrompts.mode_b_coordinator(run_id, roster, node_id, brief),
-      "analyst" => ModePrompts.mode_b_analyst(run_id, roster, node_id, brief),
-      "designer" => ModePrompts.mode_b_designer(run_id, roster, node_id, brief)
+      "coordinator" => ModePrompts.mode_b_coordinator(run_id, roster, project_id, brief),
+      "analyst" => ModePrompts.mode_b_analyst(run_id, roster, project_id, brief),
+      "designer" => ModePrompts.mode_b_designer(run_id, roster, project_id, brief)
     }
   end
 
-  defp genesis_prompt_map("c", run_id, roster, node_id, brief) do
+  defp planning_prompt_map("c", run_id, roster, project_id, brief) do
     %{
-      "coordinator" => ModePrompts.mode_c_coordinator(run_id, roster, node_id, brief),
-      "planner" => ModePrompts.mode_c_planner(run_id, roster, node_id, brief),
-      "architect" => ModePrompts.mode_c_architect(run_id, roster, node_id, brief)
+      "coordinator" => ModePrompts.mode_c_coordinator(run_id, roster, project_id, brief),
+      "planner" => ModePrompts.mode_c_planner(run_id, roster, project_id, brief),
+      "architect" => ModePrompts.mode_c_architect(run_id, roster, project_id, brief)
     }
   end
 
-  defp genesis_agent_names("a"), do: ~w(coordinator architect reviewer)
-  defp genesis_agent_names("b"), do: ~w(coordinator analyst designer)
-  defp genesis_agent_names("c"), do: ~w(coordinator planner architect)
+  defp planning_agent_names("a"), do: ~w(coordinator architect reviewer)
+  defp planning_agent_names("b"), do: ~w(coordinator analyst designer)
+  defp planning_agent_names("c"), do: ~w(coordinator planner architect)
 
   defp build_from_state(state, opts) do
     team_name = state.ws_team_name

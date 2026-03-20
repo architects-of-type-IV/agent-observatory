@@ -1,9 +1,9 @@
-defmodule Ichor.Workshop.DagPrompts do
-  @moduledoc "Prompt templates for DAG execution teams with all workers spawned upfront."
+defmodule Ichor.Workshop.PipelinePrompts do
+  @moduledoc "Prompt templates for pipeline execution teams with all workers spawned upfront."
 
   @coord_tools "mcp__ichor__get_run_status, mcp__ichor__check_inbox, mcp__ichor__send_message, mcp__ichor__acknowledge_message"
-  @lead_tools "mcp__ichor__get_run_status, mcp__ichor__next_jobs, mcp__ichor__check_inbox, mcp__ichor__send_message, mcp__ichor__acknowledge_message"
-  @worker_tools "mcp__ichor__claim_job, mcp__ichor__complete_job, mcp__ichor__fail_job, mcp__ichor__check_inbox, mcp__ichor__send_message, mcp__ichor__acknowledge_message"
+  @lead_tools "mcp__ichor__get_run_status, mcp__ichor__next_tasks, mcp__ichor__check_inbox, mcp__ichor__send_message, mcp__ichor__acknowledge_message"
+  @worker_tools "mcp__ichor__claim_task, mcp__ichor__complete_task, mcp__ichor__fail_task, mcp__ichor__check_inbox, mcp__ichor__send_message, mcp__ichor__acknowledge_message"
 
   @code_quality """
   CODE QUALITY (Elixir/Ash):
@@ -17,7 +17,7 @@ defmodule Ichor.Workshop.DagPrompts do
   - No speculative abstraction. Only what the task requires.
   """
 
-  @doc "Generates the coordinator agent prompt for a DAG run."
+  @doc "Generates the coordinator agent prompt for a pipeline run."
   @spec coordinator(map()) :: String.t()
   def coordinator(%{
         run_id: run_id,
@@ -29,9 +29,9 @@ defmodule Ichor.Workshop.DagPrompts do
         subsystem_dir: subsystem_dir
       }) do
     """
-    You are the DAG Coordinator for run #{run_id}.
+    You are the Pipeline Coordinator for run #{run_id}.
     Your session_id is: #{session}-coordinator
-    Mode: EXECUTE -- drive the DAG to completion using the already-spawned team.
+    Mode: EXECUTE -- drive the pipeline to completion using the already-spawned team.
 
     #{roster}
 
@@ -115,17 +115,17 @@ defmodule Ichor.Workshop.DagPrompts do
     PHASE 5: DELIVER (send final summary to operator)
     ============================================================
 
-    When mcp__ichor__get_run_status shows all jobs are complete or irrecoverably failed:
+    When mcp__ichor__get_run_status shows all tasks are complete or irrecoverably failed:
     Call mcp__ichor__send_message:
       from: "#{session}-coordinator"
       to: "operator"
-      content: final summary including completed jobs, failed jobs, remaining risks, and whether the DAG fully converged.
+      content: final summary including completed tasks, failed tasks, remaining risks, and whether the pipeline fully converged.
 
     YOU MUST CALL mcp__ichor__send_message. Printing text does NOT deliver it.
     """
   end
 
-  @doc "Generates the lead agent prompt for a DAG run."
+  @doc "Generates the lead agent prompt for a pipeline run."
   @spec lead(map()) :: String.t()
   def lead(%{
         run_id: run_id,
@@ -137,7 +137,7 @@ defmodule Ichor.Workshop.DagPrompts do
         subsystem_dir: subsystem_dir
       }) do
     """
-    You are the DAG Lead for run #{run_id}.
+    You are the Pipeline Lead for run #{run_id}.
     Your session_id is: #{session}-lead
     Mode: EXECUTE -- route work to pre-existing workers and keep the coordinator informed.
 
@@ -208,7 +208,7 @@ defmodule Ichor.Workshop.DagPrompts do
     If empty, wait 30 seconds, call mcp__ichor__check_inbox again. REPEAT.
 
     Workers will report DONE or BLOCKED with external_ids and notes.
-    Use mcp__ichor__get_run_status or mcp__ichor__next_jobs to confirm downstream readiness before
+    Use mcp__ichor__get_run_status or mcp__ichor__next_tasks to confirm downstream readiness before
     asking another worker to start. Do not activate a blocked job early.
 
     ============================================================
@@ -279,8 +279,8 @@ defmodule Ichor.Workshop.DagPrompts do
     - You only execute jobs explicitly assigned to #{worker.name} in this prompt.
     - You only start work when #{session}-lead messages you with external_ids to run now.
     - NEVER open, read, edit, or create files outside #{subsystem_dir}/. This is absolute. No exceptions. No "just reading for context." No "the task says to." The boundary is #{subsystem_dir}/ and nothing else exists.
-    - If a job says to edit a host app file (lib/ichor/*, lib/ichor_web/*), call mcp__ichor__fail_job with reason "file outside subsystem boundary" and move to the next job.
-    - Claim and complete your own jobs. Do not wait for the lead to do DAG mutations for you.
+    - If a task says to edit a host app file (lib/ichor/*, lib/ichor_web/*), call mcp__ichor__fail_task with reason "file outside subsystem boundary" and move to the next task.
+    - Claim and complete your own tasks. Do not wait for the lead to do pipeline mutations for you.
     - After each job, immediately report back to #{session}-lead using mcp__ichor__send_message.
 
     ============================================================
@@ -307,10 +307,10 @@ defmodule Ichor.Workshop.DagPrompts do
 
     For each external_id the lead sends:
     - FIRST: check ALLOWED_FILES. If ANY file is outside #{subsystem_dir}/, fail the job immediately. Do not claim it.
-    - Call mcp__ichor__claim_job with the embedded job_id and owner "#{session}-#{worker.name}".
+    - Call mcp__ichor__claim_task with the embedded task_id and owner "#{session}-#{worker.name}".
     - Implement the described changes. Every file you create or edit MUST be inside #{subsystem_dir}/.
     - Run: cd #{subsystem_dir} && mix compile --warnings-as-errors
-    - If verification passes, call mcp__ichor__complete_job for that job_id.
+    - If verification passes, call mcp__ichor__complete_task for that task_id.
     - Call mcp__ichor__send_message:
         from: "#{session}-#{worker.name}"
         to: "#{session}-lead"
@@ -322,7 +322,7 @@ defmodule Ichor.Workshop.DagPrompts do
     ============================================================
 
     If you cannot complete a job:
-    - Call mcp__ichor__fail_job with the embedded job_id and a precise reason.
+    - Call mcp__ichor__fail_task with the embedded task_id and a precise reason.
     - Call mcp__ichor__send_message:
         from: "#{session}-#{worker.name}"
         to: "#{session}-lead"
@@ -381,7 +381,7 @@ defmodule Ichor.Workshop.DagPrompts do
     Enum.map_join(jobs, "\n\n", fn job ->
       """
       EXTERNAL_ID: #{job.external_id}
-      JOB_ID: #{job.id}
+      TASK_ID: #{job.id}
       WAVE: #{job.wave || 0}
       SUBJECT: #{job.subject}
       GOAL: #{job.goal || "(not provided)"}

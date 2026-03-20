@@ -4,10 +4,10 @@ defmodule Ichor.Workshop.Presets do
   """
 
   @presets %{
-    "dag" => %{
-      label: "DAG Pipeline",
+    "pipeline" => %{
+      label: "Pipeline Execution",
       color: "cyan",
-      team_name: "dag-execution",
+      team_name: "pipeline-execution",
       strategy: "one_for_one",
       model: "sonnet",
       agents: [
@@ -18,7 +18,7 @@ defmodule Ichor.Workshop.Presets do
           model: "opus",
           permission: "default",
           persona:
-            "Strategic DAG orchestrator. Assesses job graph, groups jobs by file scope, dispatches waves to lead. Owns operator communication. Handles failure strategy (retry/skip/abort).",
+            "Strategic pipeline orchestrator. Assesses task graph, groups tasks by file scope, dispatches waves to lead. Owns operator communication. Handles failure strategy (retry/skip/abort).",
           file_scope: "",
           quality_gates: "",
           x: 220,
@@ -31,7 +31,7 @@ defmodule Ichor.Workshop.Presets do
           model: "sonnet",
           permission: "default",
           persona:
-            "Tactical DAG executor. Claims jobs per coordinator dispatch, pre-reads target files, builds context-rich worker prompts, dispatches to pre-spawned workers via send_message, verifies done_when, reports to coordinator.",
+            "Tactical pipeline lead. Claims tasks per coordinator dispatch, pre-reads target files, builds context-rich worker prompts, dispatches to pre-spawned workers via send_message, verifies done_when, reports to coordinator.",
           file_scope: "",
           quality_gates: "mix compile --warnings-as-errors",
           x: 220,
@@ -286,7 +286,7 @@ defmodule Ichor.Workshop.Presets do
         %{from: 5, to: 2, policy: "allow", via: nil}
       ]
     },
-    "genesis_a" => %{
+    "planning_a" => %{
       label: "Genesis Mode A",
       color: "violet",
       team_name: "genesis",
@@ -340,7 +340,7 @@ defmodule Ichor.Workshop.Presets do
         %{from: 3, to: 1, policy: "allow", via: nil}
       ]
     },
-    "genesis_b" => %{
+    "planning_b" => %{
       label: "Genesis Mode B",
       color: "violet",
       team_name: "genesis",
@@ -394,7 +394,7 @@ defmodule Ichor.Workshop.Presets do
         %{from: 3, to: 1, policy: "allow", via: nil}
       ]
     },
-    "genesis_c" => %{
+    "planning_c" => %{
       label: "Genesis Mode C",
       color: "violet",
       team_name: "genesis",
