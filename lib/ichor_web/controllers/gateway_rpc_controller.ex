@@ -9,7 +9,7 @@ defmodule IchorWeb.GatewayRpcController do
   use IchorWeb, :controller
   require Logger
 
-  alias Ichor.Messages.Bus
+  alias Ichor.Signals.Bus
 
   def create(conn, %{"channel" => channel, "payload" => payload})
       when is_binary(channel) and is_map(payload) do

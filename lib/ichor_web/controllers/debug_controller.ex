@@ -5,11 +5,11 @@ defmodule IchorWeb.DebugController do
   alias Ichor.Control.Agent
   alias Ichor.Control.AgentProcess
   alias Ichor.Control.Team
-  alias Ichor.Events.Runtime, as: EventRuntime
-  alias Ichor.Gateway.Channels.Tmux
+  alias Ichor.Signals.EventStream, as: EventRuntime
+  alias Ichor.Infrastructure.Tmux
   alias Ichor.Gateway.HITLRelay
   alias Ichor.Observability.Message
-  alias Ichor.ProtocolTracker
+  alias Ichor.Signals.ProtocolTracker
   alias Ichor.Signals.Buffer
 
   def registry(conn, _params) do

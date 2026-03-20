@@ -5,7 +5,7 @@ defmodule IchorWeb.EventController do
   """
   use IchorWeb, :controller
 
-  alias Ichor.Events.Runtime, as: EventRuntime
+  alias Ichor.Signals.EventStream, as: EventRuntime
 
   def create(conn, params) do
     {raw, hook_type, source_app, tmux_session, os_pid} = extract_envelope(params)

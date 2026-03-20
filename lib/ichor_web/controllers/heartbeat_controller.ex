@@ -3,7 +3,7 @@ defmodule IchorWeb.HeartbeatController do
 
   use IchorWeb, :controller
 
-  alias Ichor.Events.Runtime, as: EventRuntime
+  alias Ichor.Signals.EventStream, as: EventRuntime
 
   def create(conn, %{"agent_id" => agent_id, "cluster_id" => cluster_id}) do
     EventRuntime.record_heartbeat(agent_id, cluster_id)
