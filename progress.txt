@@ -39,13 +39,19 @@
 - [x] Session 3 plan: codex-reviewed twice (14+6 findings), approved
 - [x] Oban candidate audit (5 strong, 5 maybe, 2 bugs found)
 - [x] State document audit (9 stale claims identified and fixed)
-- [ ] Phase 1: Quick wins (dead notifier, unsafe atoms, EventBuffer, team.ex, termination)
-- [ ] Phase 2: Spawn convergence (all teams through Workshop + TeamLaunch)
-- [ ] Phase 3: Runner helper extraction (use macro, not behaviour)
-- [x] Phase 4 (partial): RunnerRegistry extracted -- via/1, lookup/1, list_all/0 deduplicated across 3 runners
-- [ ] Phase 4 (remaining): stale deps cleanup
-- [ ] Phase 5: Safety sweep (impure formatter, validate_config, async write-through)
-- [x] Phase 6: Domain wrapper removal -- Ichor.Control facade stripped (169→22 LOC, 31 wrappers deleted, 9 callers migrated to resource code_interface directly)
+- [x] Phase 1: Quick wins (dead notifier, 14 unsafe atoms, EventBufferReader, team.ex, agent.ex termination)
+- [x] Phase 2: Spawn convergence (DAG + Genesis converged onto TeamLaunch, Genesis presets added, TeamLaunch.teardown/1)
+- [x] Phase 3+4: RunnerRegistry extracted, runner boilerplate deduplicated
+- [x] Phase 5: Safety sweep (ModeRunner deleted, GenesisFormatter purified, validate_config fixed, AgentWatchdog crash fixed, GatewayController Task.start removed)
+- [x] Phase 6: All 3 domain facades stripped (Control 169→22, Projects 283→25, Observability 61→~20). All callers migrated to resource code_interface.
+- [x] 11 Ash.Type.Enum modules inlined as :atom with one_of constraint
+- [x] Status merged into Runtime, Bus merged into Runtime
+- [x] Supervisor hardening (max_restarts on Fleet/System/Observation)
+- [x] Bugfix: duplicate message delivery (MCP PreToolUse now observability-only)
+- [x] UI: unified message shape + transport badge + content dedup
+- [x] MES: coordinator patience (READY handshake, no deadlines), scheduler immediate tick on resume
+- [x] File count: 228→215 (13 files eliminated)
+- [ ] Module inlining pass (29 single-caller modules identified)
 - [ ] Oban installation + migration of 5 strong candidates
 - [ ] Component library (deferred)
 
