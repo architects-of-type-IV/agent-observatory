@@ -1,11 +1,11 @@
 defmodule Ichor.ObservationSupervisor do
   @moduledoc """
-  Supervises gateway observation services: the causal event DAG, topology
-  projection, and event-to-observation bridging.
+  Supervises gateway observation services: the causal event DAG and
+  the event-to-observation bridge.
 
-  Uses rest_for_one: CausalDAG must start first (TopologyBuilder subscribes to
-  per-session DAG topics, EventBridge inserts into DAG). If CausalDAG crashes,
-  downstream services restart so they can re-subscribe.
+  Uses rest_for_one: CausalDAG must start first (EventBridge inserts
+  into DAG and subscribes to per-session DAG topics). If CausalDAG
+  crashes, EventBridge restarts so it can re-subscribe.
   """
   use Supervisor
 
@@ -19,7 +19,6 @@ defmodule Ichor.ObservationSupervisor do
   def init(_opts) do
     children = [
       {Ichor.Mesh.CausalDAG, []},
-      {Ichor.Gateway.TopologyBuilder, []},
       {Ichor.Gateway.EventBridge, []}
     ]
 

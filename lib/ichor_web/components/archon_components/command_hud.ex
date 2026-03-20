@@ -260,7 +260,7 @@ defmodule IchorWeb.Components.ArchonComponents.CommandHud do
     assigns =
       assigns
       |> assign(:manager_snapshot, snapshot)
-      |> assign(:manager_attention, List.wrap(assigns.msg[:attention] || []))
+      |> assign(:manager_attention, List.wrap(snapshot["attention"] || []))
 
     ~H"""
     <.manager_snapshot snapshot={@manager_snapshot} attention={@manager_attention} />

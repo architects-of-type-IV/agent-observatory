@@ -16,7 +16,7 @@ defmodule Ichor.Projects.Runner do
 
   alias Ichor.Control.Lifecycle.{TeamLaunch, TmuxLauncher}
   alias Ichor.Projects.{Graph, Janitor, Job, Run}
-  alias Ichor.Projects.{TeamCleanup, TeamSpecBuilder}
+  alias Ichor.Projects.TeamSpec
   alias Ichor.Signals
   alias Ichor.Signals.Message
 
@@ -381,7 +381,7 @@ defmodule Ichor.Projects.Runner do
     team_name =
       get_in(state.config, [Access.key(:hooks), Access.key(:team_name)]) || state.session
 
-    spec = mes_team_spec_builder().build_team_spec(state.run_id, team_name)
+    spec = TeamSpec.build(:mes, state.run_id, team_name)
 
     case mes_team_launch().launch(spec) do
       {:ok, _session} ->
@@ -414,8 +414,7 @@ defmodule Ichor.Projects.Runner do
   defp mes_on_signal(_msg, state), do: state
 
   defp mes_spawn_corrective_agent(run_id, session, reason, attempt) do
-    builder = mes_team_spec_builder()
-    spec = builder.build_corrective_team_spec(run_id, session, reason, attempt)
+    spec = TeamSpec.build_corrective(run_id, session, reason, attempt)
 
     case mes_team_launch().launch_into_existing_session(spec, session) do
       :ok ->
@@ -439,16 +438,12 @@ defmodule Ichor.Projects.Runner do
     :ok
   end
 
-  defp mes_team_spec_builder do
-    Application.get_env(:ichor, :mes_team_spec_builder_module, TeamSpecBuilder)
-  end
-
   defp mes_team_launch do
     Application.get_env(:ichor, :mes_team_launch_module, TeamLaunch)
   end
 
   defp mes_team_cleanup do
-    Application.get_env(:ichor, :mes_team_cleanup_module, TeamCleanup)
+    Application.get_env(:ichor, :mes_team_cleanup_module, Ichor.Control.Lifecycle.Cleanup)
   end
 
   # ---------------------------------------------------------------------------

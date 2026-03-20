@@ -6,11 +6,16 @@ defmodule Ichor.Gateway.EventBridge do
   Subscribes to "events:stream" and broadcasts the transformed
   DecisionLog on "gateway:messages" so the dashboard's gateway
   handlers receive live data from all Claude Code sessions.
+
+  Also manages per-session DAG topology subscriptions (formerly
+  TopologyBuilder). When a new session is seen, EventBridge
+  subscribes to "session:dag:<id>" and emits a topology_snapshot
+  signal on each dag_delta event.
   """
 
   use GenServer
 
-  alias Ichor.Gateway.{EntropyTracker, TopologyBuilder}
+  alias Ichor.Gateway.EntropyTracker
   alias Ichor.Mesh.CausalDAG
   alias Ichor.Mesh.DecisionLog
   alias Ichor.Mesh.DecisionLog.Helpers, as: DLHelpers
@@ -29,7 +34,7 @@ defmodule Ichor.Gateway.EventBridge do
   def init(_opts) do
     Ichor.Signals.subscribe(:events)
     schedule_sweep()
-    {:ok, %{last_event: %{}, last_seen: %{}}}
+    {:ok, %{last_event: %{}, last_seen: %{}, dag_sessions: MapSet.new()}}
   end
 
   @impl true
@@ -45,6 +50,21 @@ defmodule Ichor.Gateway.EventBridge do
     {:noreply, state}
   end
 
+  def handle_info(%{event: "dag_delta", session_id: session_id}, state) do
+    state = put_in(state.last_seen[session_id], System.monotonic_time(:second))
+
+    case CausalDAG.get_session_dag(session_id) do
+      {:ok, node_map} ->
+        Ichor.Signals.emit(:topology_snapshot, build_topology(node_map))
+        {:noreply, state}
+
+      {:error, :session_not_found} ->
+        require Logger
+        Logger.debug("EventBridge: session not found for session_id=#{session_id}")
+        {:noreply, state}
+    end
+  end
+
   def handle_info(:sweep, state) do
     cutoff = System.monotonic_time(:second) - @stale_ttl_seconds
 
@@ -53,11 +73,18 @@ defmodule Ichor.Gateway.EventBridge do
       |> Enum.filter(fn {_sid, ts} -> ts < cutoff end)
       |> Enum.map(&elem(&1, 0))
 
+    Enum.each(stale_sids, fn sid ->
+      Phoenix.PubSub.unsubscribe(Ichor.PubSub, "session:dag:#{sid}")
+    end)
+
     new_last_event = Map.drop(state.last_event, stale_sids)
     new_last_seen = Map.drop(state.last_seen, stale_sids)
+    new_dag_sessions = Enum.reduce(stale_sids, state.dag_sessions, &MapSet.delete(&2, &1))
 
     schedule_sweep()
-    {:noreply, %{state | last_event: new_last_event, last_seen: new_last_seen}}
+
+    {:noreply,
+     %{state | last_event: new_last_event, last_seen: new_last_seen, dag_sessions: new_dag_sessions}}
   end
 
   def handle_info(_msg, state), do: {:noreply, state}
@@ -171,7 +198,6 @@ defmodule Ichor.Gateway.EventBridge do
   defp intent(other, _tool, _payload), do: to_string(other)
 
   defp extract_team_name(event) do
-    # Try multiple payload locations for team context
     get_in(event.payload, ["tool_input", "team_name"]) ||
       get_in(event.payload, ["team_name"]) ||
       nil
@@ -232,7 +258,8 @@ defmodule Ichor.Gateway.EventBridge do
          %{intent: intent} when is_binary(intent) <- log.cognition do
       parent_id = Map.get(state.last_event, session_id)
       node = build_dag_node(log, event_id, agent_id, intent, parent_id)
-      TopologyBuilder.subscribe_to_session(session_id)
+
+      state = maybe_subscribe_dag(state, session_id)
       CausalDAG.insert(session_id, node)
 
       %{
@@ -249,6 +276,15 @@ defmodule Ichor.Gateway.EventBridge do
     :exit, _ -> state
   end
 
+  defp maybe_subscribe_dag(%{dag_sessions: sessions} = state, session_id) do
+    if MapSet.member?(sessions, session_id) do
+      state
+    else
+      Phoenix.PubSub.subscribe(Ichor.PubSub, "session:dag:#{session_id}")
+      %{state | dag_sessions: MapSet.put(sessions, session_id)}
+    end
+  end
+
   defp build_dag_node(log, event_id, agent_id, intent, parent_id) do
     %CausalDAG.Node{
       trace_id: event_id,
@@ -260,6 +296,38 @@ defmodule Ichor.Gateway.EventBridge do
       action_status: get_nested(log.action, :status, :pending),
       timestamp: get_nested(log.meta, :timestamp, DateTime.utc_now())
     }
+  end
+
+  defp build_topology(node_map) do
+    nodes =
+      Enum.map(node_map, fn {_trace_id, node} ->
+        %{
+          trace_id: node.trace_id,
+          agent_id: node.agent_id,
+          state: node.action_status || :idle,
+          x: nil,
+          y: nil
+        }
+      end)
+
+    edges =
+      Enum.flat_map(node_map, fn {_trace_id, node} ->
+        Enum.map(node.children, fn child_id ->
+          %{
+            from: node.trace_id,
+            to: child_id,
+            traffic_volume: 0,
+            latency_ms: 0,
+            status: "active",
+            from_x: nil,
+            from_y: nil,
+            to_x: nil,
+            to_y: nil
+          }
+        end)
+      end)
+
+    %{nodes: nodes, edges: edges}
   end
 
   defp get_nested(nil, _key, default), do: default

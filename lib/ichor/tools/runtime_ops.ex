@@ -26,7 +26,7 @@ defmodule Ichor.Tools.RuntimeOps do
   alias Ichor.Messages.Bus, as: MessageBus
   alias Ichor.Observability.Message
   alias Ichor.ProtocolTracker
-  alias Ichor.Tasks.TeamStore
+  alias Ichor.Tasks.Board
 
   # ---------------------------------------------------------------------------
   # Agent.Spawn actions (agent-facing)
@@ -644,7 +644,9 @@ defmodule Ichor.Tools.RuntimeOps do
       description("Condensed managerial snapshot derived from Signals.")
 
       run(fn _input, _context ->
-        {:ok, SignalManager.snapshot()}
+        snapshot = SignalManager.snapshot()
+        attention = SignalManager.attention()
+        {:ok, Map.put(snapshot, "attention", attention)}
       end)
     end
 
@@ -787,7 +789,7 @@ defmodule Ichor.Tools.RuntimeOps do
   defp list_tasks_for_teams(teams) do
     Enum.flat_map(teams, fn team ->
       team.name
-      |> TeamStore.list_tasks()
+      |> Board.list_tasks()
       |> Enum.map(&Map.put(&1, "team", team.name))
     end)
   end

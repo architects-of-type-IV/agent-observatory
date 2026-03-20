@@ -20,7 +20,7 @@ defmodule Ichor.AgentWatchdog do
   alias Ichor.Gateway.HITLRelay
   alias Ichor.Messages.Bus
   alias Ichor.Signals.Message
-  alias Ichor.Tasks.TeamStore
+  alias Ichor.Tasks.Board
 
   @interval 5_000
   @crash_threshold_sec 120
@@ -141,14 +141,14 @@ defmodule Ichor.AgentWatchdog do
   end
 
   defp reassign_agent_tasks(session_id, team_name) do
-    tasks = TeamStore.list_tasks(team_name)
+    tasks = Board.list_tasks(team_name)
 
     tasks
     |> Enum.filter(fn task ->
       task["status"] == "in_progress" and task["owner"] == session_id
     end)
     |> Enum.map(fn task ->
-      case TeamStore.update_task(team_name, task["id"], %{"status" => "pending", "owner" => nil}) do
+      case Board.update_task(team_name, task["id"], %{"status" => "pending", "owner" => nil}) do
         {:ok, _} ->
           Logger.info("AgentWatchdog: Reassigned task #{task["id"]} from #{session_id}")
           1
