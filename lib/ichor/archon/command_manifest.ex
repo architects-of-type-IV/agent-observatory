@@ -23,6 +23,7 @@ defmodule Ichor.Archon.CommandManifest do
     {"inbox", "Show recent messages"},
     {"health", "System health check"},
     {"sessions", "List tmux sessions"},
+    {"discovery [domain]", "List discoverable Ash actions"},
     {"remember <text>", "Persist an observation to memory"},
     {"recall <query>", "Search knowledge graph"},
     {"query <question>", "Natural language memory query"}
@@ -30,7 +31,7 @@ defmodule Ichor.Archon.CommandManifest do
 
   @usage_groups [
     {"Observation",
-     "/agents /teams /status <id> /events <id> [limit] /tasks [team] /inbox /health /sessions"},
+     "/agents /teams /status <id> /events <id> [limit] /tasks [team] /inbox /health /sessions /discovery [domain]"},
     {"Manager", "/manager /attention"},
     {"Control", "/spawn <prompt> /stop <id> /pause <id> [reason] /resume <id> /sweep"},
     {"Messaging", "/msg <target> <text>"},
