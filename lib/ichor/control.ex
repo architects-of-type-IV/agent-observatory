@@ -1,18 +1,13 @@
 defmodule Ichor.Control do
   @moduledoc """
-  Ash Domain: Agent control plane.
+  Ash Domain: control-plane infrastructure.
 
-  Manages agents, their configurations, spawning, and coordination.
-  Fleet is all agents. Teams are agents with the same group name.
-  Blueprints are agent configurations with instructions.
+  Holds integration resources that support the runtime but are not part of the
+  canonical Workshop modeling surface.
   """
   use Ash.Domain
 
   resources do
-    resource(Ichor.Control.Agent)
-    resource(Ichor.Control.Team)
-    resource(Ichor.Control.Blueprint)
-    resource(Ichor.Control.AgentType)
     resource(Ichor.Gateway.WebhookDelivery)
     resource(Ichor.Gateway.CronJob)
   end

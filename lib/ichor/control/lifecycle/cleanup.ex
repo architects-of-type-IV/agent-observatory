@@ -5,10 +5,9 @@ defmodule Ichor.Control.Lifecycle.Cleanup do
 
   alias Ichor.Control.FleetSupervisor
   alias Ichor.Control.Lifecycle.Registration
-  alias Ichor.Control.Lifecycle.TmuxLauncher
-  alias Ichor.Control.Lifecycle.TmuxScript
+  alias Ichor.Infrastructure.Tmux.{Launcher, Script}
   alias Ichor.Control.TeamSupervisor
-  alias Ichor.EventBuffer
+  alias Ichor.Signals.EventStream, as: EventBuffer
 
   @gc_script Path.expand("~/.claude/skills/dag/scripts/gc.sh")
 
@@ -19,7 +18,7 @@ defmodule Ichor.Control.Lifecycle.Cleanup do
 
     result =
       if is_binary(tmux_target) do
-        TmuxLauncher.send_exit(tmux_target)
+        Launcher.send_exit(tmux_target)
       else
         :ok
       end
@@ -29,11 +28,11 @@ defmodule Ichor.Control.Lifecycle.Cleanup do
   end
 
   @spec kill_session(String.t()) :: :ok | {:error, term()}
-  def kill_session(session), do: TmuxLauncher.kill_session(session)
+  def kill_session(session), do: Launcher.kill_session(session)
 
   @doc "Remove the prompt directory created for an agent's launch scripts."
   @spec cleanup_prompt_dir(String.t()) :: :ok
-  def cleanup_prompt_dir(dir), do: TmuxScript.cleanup_dir(dir)
+  def cleanup_prompt_dir(dir), do: Script.cleanup_dir(dir)
 
   @spec cleanup_orphaned_teams(MapSet.t(String.t()), String.t()) :: :ok
   def cleanup_orphaned_teams(active_teams, prefix) do
@@ -47,7 +46,7 @@ defmodule Ichor.Control.Lifecycle.Cleanup do
 
   @spec cleanup_orphaned_tmux_sessions(MapSet.t(String.t()), String.t()) :: :ok
   def cleanup_orphaned_tmux_sessions(active_sessions, prefix) do
-    TmuxLauncher.list_sessions()
+    Launcher.list_sessions()
     |> Enum.filter(&String.starts_with?(&1, prefix))
     |> Enum.reject(&MapSet.member?(active_sessions, &1))
     |> Enum.each(&kill_session/1)

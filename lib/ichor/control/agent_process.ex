@@ -10,7 +10,9 @@ defmodule Ichor.Control.AgentProcess do
 
   use GenServer
 
-  alias Ichor.Gateway.Channels.{SshTmux, Tmux, WebhookAdapter}
+  alias Ichor.Gateway.Channels.WebhookAdapter
+  alias Ichor.Infrastructure.Tmux
+  alias Ichor.Infrastructure.Tmux.Ssh, as: SshTmux
 
   @type_iv_registry Ichor.Registry
   @pg_scope :ichor_agents
@@ -235,7 +237,7 @@ defmodule Ichor.Control.AgentProcess do
   def terminate(:tmux_gone, state) do
     # Tmux window already dead -- skip kill, just clean up BEAM-side registrations.
     # Ichor.Registry auto-deregisters when the process exits -- no explicit remove needed.
-    Ichor.EventBuffer.tombstone_session(state.id)
+    Ichor.Signals.EventStream.tombstone_session(state.id)
     broadcast_lifecycle({:agent_stopped, state.id, :tmux_gone})
     :ok
   end
@@ -243,7 +245,7 @@ defmodule Ichor.Control.AgentProcess do
   def terminate(reason, state) do
     terminate_backend(state.backend)
     # Ichor.Registry auto-deregisters when the process exits -- no explicit remove needed.
-    Ichor.EventBuffer.tombstone_session(state.id)
+    Ichor.Signals.EventStream.tombstone_session(state.id)
     broadcast_lifecycle({:agent_stopped, state.id, reason})
     :ok
   end

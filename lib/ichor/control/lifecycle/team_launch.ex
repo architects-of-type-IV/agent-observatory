@@ -6,8 +6,7 @@ defmodule Ichor.Control.Lifecycle.TeamLaunch do
   alias Ichor.Control.FleetSupervisor
   alias Ichor.Control.Lifecycle.Registration
   alias Ichor.Control.Lifecycle.TeamSpec
-  alias Ichor.Control.Lifecycle.TmuxLauncher
-  alias Ichor.Control.Lifecycle.TmuxScript
+  alias Ichor.Infrastructure.Tmux.{Launcher, Script}
 
   @doc "Launch a full multi-agent team: creates tmux session, all windows, and registers all agents."
   @spec launch(TeamSpec.t()) :: {:ok, String.t()} | {:error, term()}
@@ -21,7 +20,7 @@ defmodule Ichor.Control.Lifecycle.TeamLaunch do
   defp do_launch(%TeamSpec{agents: [first | rest]} = spec) do
     with {:ok, scripts} <- write_agent_files(spec),
          :ok <-
-           TmuxLauncher.create_session(
+           Launcher.create_session(
              spec.session,
              spec.cwd,
              first.window_name,
@@ -38,7 +37,7 @@ defmodule Ichor.Control.Lifecycle.TeamLaunch do
   def launch_into_existing_session(%TeamSpec{agents: [agent]} = spec, session) do
     with {:ok, scripts} <- write_agent_files(spec),
          :ok <-
-           TmuxLauncher.create_window(
+           Launcher.create_window(
              session,
              agent.window_name,
              spec.cwd,
@@ -52,7 +51,7 @@ defmodule Ichor.Control.Lifecycle.TeamLaunch do
 
   defp create_windows(spec, agents, scripts) do
     Enum.reduce_while(agents, :ok, fn agent, :ok ->
-      case TmuxLauncher.create_window(
+      case Launcher.create_window(
              spec.session,
              agent.window_name,
              spec.cwd,
@@ -75,7 +74,7 @@ defmodule Ichor.Control.Lifecycle.TeamLaunch do
 
   defp write_agent_files(%TeamSpec{} = spec) do
     Enum.reduce_while(spec.agents, {:ok, %{}}, fn agent, {:ok, acc} ->
-      case TmuxScript.write_agent_files(
+      case Script.write_agent_files(
              spec.prompt_dir,
              agent.window_name,
              agent.prompt || "",
@@ -103,11 +102,11 @@ defmodule Ichor.Control.Lifecycle.TeamLaunch do
   @doc "Tear down by explicit parts rather than a spec struct. Same idempotent semantics."
   @spec teardown(String.t(), String.t(), String.t() | nil) :: :ok
   def teardown(session, team_name, prompt_dir) do
-    _ = TmuxLauncher.kill_session(session)
+    _ = Launcher.kill_session(session)
     _ = FleetSupervisor.disband_team(team_name)
 
     if prompt_dir do
-      TmuxScript.cleanup_dir(prompt_dir)
+      Script.cleanup_dir(prompt_dir)
     end
 
     :ok

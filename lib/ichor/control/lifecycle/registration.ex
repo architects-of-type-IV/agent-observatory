@@ -9,7 +9,7 @@ defmodule Ichor.Control.Lifecycle.Registration do
   alias Ichor.Control.FleetSupervisor
   alias Ichor.Control.Lifecycle.AgentSpec
   alias Ichor.Control.TeamSupervisor
-  alias Ichor.Control.TmuxHelpers
+  alias Ichor.Infrastructure.Tmux.Helpers
 
   @doc "Ensure a TeamSupervisor exists for `name`, creating it if absent."
   @spec ensure_team(String.t()) :: :ok | {:error, term()}
@@ -27,11 +27,11 @@ defmodule Ichor.Control.Lifecycle.Registration do
   def register(%AgentSpec{} = spec, tmux_target) do
     process_opts = [
       id: spec.agent_id,
-      role: TmuxHelpers.capability_to_role(spec.capability || "builder"),
+      role: Helpers.capability_to_role(spec.capability || "builder"),
       team: spec.team_name,
       liveness_poll: true,
       backend: %{type: :tmux, session: tmux_target},
-      capabilities: TmuxHelpers.capabilities_for(spec.capability || "builder"),
+      capabilities: Helpers.capabilities_for(spec.capability || "builder"),
       metadata:
         Map.put(spec.metadata, :cwd, spec.cwd) |> Map.put_new(:model, spec.model || "sonnet")
     ]

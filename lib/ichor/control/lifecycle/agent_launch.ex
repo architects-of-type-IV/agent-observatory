@@ -9,8 +9,7 @@ defmodule Ichor.Control.Lifecycle.AgentLaunch do
   alias Ichor.Control.Lifecycle.AgentSpec
   alias Ichor.Control.Lifecycle.Cleanup
   alias Ichor.Control.Lifecycle.Registration
-  alias Ichor.Control.Lifecycle.TmuxLauncher
-  alias Ichor.Control.Lifecycle.TmuxScript
+  alias Ichor.Infrastructure.Tmux.{Launcher, Script}
 
   @agents_dir Path.expand("~/.ichor/agents")
 
@@ -57,7 +56,7 @@ defmodule Ichor.Control.Lifecycle.AgentLaunch do
     with :ok <- validate_cwd(spec.cwd),
          :ok <- validate_no_window_conflict(spec.session, spec.window_name),
          {:ok, %{script_path: script_path}} <-
-           TmuxScript.write_agent_files(
+           Script.write_agent_files(
              @agents_dir,
              spec.window_name,
              spec.prompt || "",
@@ -110,15 +109,15 @@ defmodule Ichor.Control.Lifecycle.AgentLaunch do
   end
 
   defp launch_window(spec, script_path) do
-    if TmuxLauncher.available?(spec.session) do
-      TmuxLauncher.create_window(spec.session, spec.window_name, spec.cwd, script_path)
+    if Launcher.available?(spec.session) do
+      Launcher.create_window(spec.session, spec.window_name, spec.cwd, script_path)
     else
-      TmuxLauncher.create_session(spec.session, spec.cwd, spec.window_name, script_path)
+      Launcher.create_session(spec.session, spec.cwd, spec.window_name, script_path)
     end
   end
 
   defp validate_no_window_conflict(session, window_name) do
-    case TmuxLauncher.available?("#{session}:#{window_name}") do
+    case Launcher.available?("#{session}:#{window_name}") do
       true -> {:error, {:window_exists, "#{session}:#{window_name}"}}
       false -> :ok
     end

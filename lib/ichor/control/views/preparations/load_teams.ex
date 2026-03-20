@@ -10,7 +10,7 @@ defmodule Ichor.Control.Views.Preparations.LoadTeams do
   alias Ichor.Control.Analysis.AgentHealth
   alias Ichor.Control.Team
   alias Ichor.Control.TeamSupervisor
-  alias Ichor.EventBuffer
+  alias Ichor.Signals.EventStream, as: EventBuffer
 
   @dead_team_threshold_sec 300
 

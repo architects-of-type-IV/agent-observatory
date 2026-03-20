@@ -7,14 +7,14 @@ defmodule Ichor.Control.Agent do
   This is the canonical entry point for all agent operations.
   """
 
-  use Ash.Resource, domain: Ichor.Control
+  use Ash.Resource, domain: Ichor.Workshop
 
   alias Ichor.Control.AgentProcess
   alias Ichor.Control.FleetSupervisor
   alias Ichor.Control.Lifecycle.AgentLaunch
   alias Ichor.Control.Lifecycle.Registration
   alias Ichor.Control.TeamSupervisor
-  alias Ichor.Messages.Bus
+  alias Ichor.Signals.Bus
 
   attributes do
     attribute(:agent_id, :string, primary_key?: true, allow_nil?: false, public?: true)
