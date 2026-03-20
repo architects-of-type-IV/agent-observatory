@@ -10,12 +10,12 @@ defmodule IchorWeb.Components.MesArtifactComponents do
 
   defdelegate reader_sidebar(assigns), to: MesReaderComponents
 
-  attr :genesis_node, :any, required: true
+  attr :planning_project, :any, required: true
   attr :sub_tab, :atom, required: true
   attr :selected, :any, default: nil
 
   def artifact_list(assigns) do
-    items = build_items(assigns.genesis_node, assigns.sub_tab)
+    items = build_items(assigns.planning_project, assigns.sub_tab)
     assigns = assign(assigns, :items, items)
 
     ~H"""
@@ -25,7 +25,7 @@ defmodule IchorWeb.Components.MesArtifactComponents do
       </div>
       <button
         :for={item <- @items}
-        phx-click="genesis_select_artifact"
+        phx-click="planning_select_artifact"
         phx-value-type={item.type}
         phx-value-id={item.id}
         class={[
@@ -57,7 +57,7 @@ defmodule IchorWeb.Components.MesArtifactComponents do
 
   defp build_items(node, :decisions) do
     node
-    |> safe_list(:adrs)
+    |> artifacts(:adr)
     |> Enum.map(fn adr ->
       %{
         type: :adr,
@@ -73,7 +73,7 @@ defmodule IchorWeb.Components.MesArtifactComponents do
   defp build_items(node, :requirements) do
     features =
       node
-      |> safe_list(:features)
+      |> artifacts(:feature)
       |> Enum.map(fn f ->
         %{
           type: :feature,
@@ -87,7 +87,7 @@ defmodule IchorWeb.Components.MesArtifactComponents do
 
     use_cases =
       node
-      |> safe_list(:use_cases)
+      |> artifacts(:use_case)
       |> Enum.map(fn uc ->
         %{
           type: :use_case,
@@ -105,7 +105,7 @@ defmodule IchorWeb.Components.MesArtifactComponents do
   defp build_items(node, :checkpoints) do
     checkpoints =
       node
-      |> safe_list(:checkpoints)
+      |> artifacts(:checkpoint)
       |> Enum.map(fn cp ->
         %{
           type: :checkpoint,
@@ -119,7 +119,7 @@ defmodule IchorWeb.Components.MesArtifactComponents do
 
     conversations =
       node
-      |> safe_list(:conversations)
+      |> artifacts(:conversation)
       |> Enum.map(fn conv ->
         %{
           type: :conversation,
@@ -136,7 +136,7 @@ defmodule IchorWeb.Components.MesArtifactComponents do
 
   defp build_items(node, :roadmap) do
     node
-    |> safe_list(:phases)
+    |> roadmap_items(:phase)
     |> Enum.map(fn phase ->
       %{
         type: :phase,
@@ -151,12 +151,11 @@ defmodule IchorWeb.Components.MesArtifactComponents do
 
   defp build_items(_node, _tab), do: []
 
-  defp safe_list(nil, _key), do: []
+  defp artifacts(nil, _kind), do: []
+  defp artifacts(node, kind), do: Enum.filter(Map.get(node, :artifacts, []), &(&1.kind == kind))
 
-  defp safe_list(node, key) do
-    case Map.get(node, key, []) do
-      list when is_list(list) -> list
-      _ -> []
-    end
-  end
+  defp roadmap_items(nil, _kind), do: []
+
+  defp roadmap_items(node, kind),
+    do: Enum.filter(Map.get(node, :roadmap_items, []), &(&1.kind == kind))
 end

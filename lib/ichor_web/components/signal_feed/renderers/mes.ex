@@ -60,27 +60,41 @@ defmodule IchorWeb.SignalFeed.Renderers.Mes do
     """
   end
 
-  def render(%{message: %Message{name: :mes_subsystem_loaded, data: data}} = assigns) do
+  def render(%{message: %Message{name: :mes_plugin_loaded, data: data}} = assigns) do
     assigns =
       assign(assigns,
-        subsystem: to_string(data[:subsystem] || "?"),
+        plugin: to_string(data[:plugin] || "?"),
         modules: to_string(length(data[:modules] || []))
       )
 
     ~H"""
     <span class="text-[10px] text-success">
-      subsystem <span class="font-mono">{@subsystem}</span> loaded
+      plugin <span class="font-mono">{@plugin}</span> loaded
     </span>
     <Primitives.kv key="modules" value={@modules} />
     """
   end
 
-  def render(%{message: %Message{name: :mes_subsystem_compile_failed, data: data}} = assigns) do
+  def render(%{message: %Message{name: :mes_plugin_compile_failed, data: data}} = assigns) do
     assigns = assign(assigns, reason: to_string(data[:reason] || "?"))
 
     ~H"""
-    <span class="text-[10px] text-error font-medium">subsystem compile failed</span>
+    <span class="text-[10px] text-error font-medium">plugin compile failed</span>
     <Primitives.kv key="reason" value={@reason} />
+    """
+  end
+
+  def render(%{message: %Message{name: :mes_output_unhandled, data: data}} = assigns) do
+    assigns =
+      assign(assigns,
+        output_kind: to_string(data[:output_kind] || "?"),
+        project_id: Primitives.short(data[:project_id])
+      )
+
+    ~H"""
+    <span class="text-[10px] text-warning font-medium">output handler missing</span>
+    <Primitives.kv key="kind" value={@output_kind} />
+    <Primitives.kv key="project" value={@project_id} />
     """
   end
 
@@ -214,25 +228,25 @@ defmodule IchorWeb.SignalFeed.Renderers.Mes do
     """
   end
 
-  def render(%{message: %Message{name: :mes_dag_generated, data: data}} = assigns) do
-    assigns = assign(assigns, node_id: Primitives.short(data[:node_id]))
+  def render(%{message: %Message{name: :mes_pipeline_generated, data: data}} = assigns) do
+    assigns = assign(assigns, project_id: Primitives.short(data[:project_id]))
 
     ~H"""
-    <span class="text-[10px] text-default">DAG generated</span>
-    <Primitives.kv key="node" value={@node_id} />
+    <span class="text-[10px] text-default">Pipeline generated</span>
+    <Primitives.kv key="project" value={@project_id} />
     """
   end
 
-  def render(%{message: %Message{name: :mes_dag_launched, data: data}} = assigns) do
+  def render(%{message: %Message{name: :mes_pipeline_launched, data: data}} = assigns) do
     assigns =
       assign(assigns,
-        node_id: Primitives.short(data[:node_id]),
+        project_id: Primitives.short(data[:project_id]),
         session: to_string(data[:session] || "?")
       )
 
     ~H"""
-    <span class="text-[10px] text-success">DAG launched</span>
-    <Primitives.kv key="node" value={@node_id} />
+    <span class="text-[10px] text-success">Pipeline launched</span>
+    <Primitives.kv key="project" value={@project_id} />
     <Primitives.kv key="session" value={@session} />
     """
   end

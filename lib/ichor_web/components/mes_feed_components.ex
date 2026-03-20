@@ -39,7 +39,7 @@ defmodule IchorWeb.Components.MesFeedComponents do
         ]}
       >
         <span class="font-mono text-[10px] text-brand truncate pr-2">
-          {short_module(project.subsystem)}
+          {feed_label(project)}
         </span>
         <span class="text-[11px] font-semibold text-high truncate pr-2">
           {project.title}
@@ -99,4 +99,12 @@ defmodule IchorWeb.Components.MesFeedComponents do
   defp short_module(module) when is_binary(module) do
     module |> String.split(".") |> List.last()
   end
+
+  defp feed_label(%{plugin: plugin}) when is_binary(plugin) and plugin != "",
+    do: short_module(plugin)
+
+  defp feed_label(%{output_kind: output_kind}) when is_binary(output_kind),
+    do: String.upcase(output_kind)
+
+  defp feed_label(_), do: ""
 end

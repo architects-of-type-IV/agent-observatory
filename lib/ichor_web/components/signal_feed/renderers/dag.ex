@@ -1,7 +1,7 @@
 defmodule IchorWeb.SignalFeed.Renderers.Dag do
   @moduledoc """
-  Renders signals in the :dag domain.
-  Covers run lifecycle and job state transitions.
+  Renders signals in the :pipeline domain.
+  Covers pipeline lifecycle and pipeline task transitions.
   """
   use Phoenix.Component
 
@@ -11,22 +11,22 @@ defmodule IchorWeb.SignalFeed.Renderers.Dag do
   attr :seq, :integer, required: true
   attr :message, :any, required: true
 
-  def render(%{message: %Message{name: :dag_run_created, data: data}} = assigns) do
+  def render(%{message: %Message{name: :pipeline_created, data: data}} = assigns) do
     assigns =
       assign(assigns,
         run_id: Primitives.short(data[:run_id]),
         label: to_string(data[:label] || "?"),
-        count: to_string(data[:job_count] || "?")
+        count: to_string(data[:task_count] || data[:job_count] || "?")
       )
 
     ~H"""
     <span class="text-[10px] text-high">run <span class="font-semibold">{@label}</span> created</span>
-    <Primitives.kv key="jobs" value={@count} />
+    <Primitives.kv key="tasks" value={@count} />
     <Primitives.kv key="id" value={@run_id} />
     """
   end
 
-  def render(%{message: %Message{name: :dag_run_ready, data: data}} = assigns) do
+  def render(%{message: %Message{name: :pipeline_ready, data: data}} = assigns) do
     assigns =
       assign(assigns,
         run_id: Primitives.short(data[:run_id]),
@@ -40,7 +40,7 @@ defmodule IchorWeb.SignalFeed.Renderers.Dag do
     """
   end
 
-  def render(%{message: %Message{name: :dag_run_completed, data: data}} = assigns) do
+  def render(%{message: %Message{name: :pipeline_completed, data: data}} = assigns) do
     assigns =
       assign(assigns,
         run_id: Primitives.short(data[:run_id]),
@@ -55,7 +55,7 @@ defmodule IchorWeb.SignalFeed.Renderers.Dag do
     """
   end
 
-  def render(%{message: %Message{name: :dag_run_archived, data: data}} = assigns) do
+  def render(%{message: %Message{name: :pipeline_archived, data: data}} = assigns) do
     assigns =
       assign(assigns,
         run_id: Primitives.short(data[:run_id]),
@@ -71,7 +71,7 @@ defmodule IchorWeb.SignalFeed.Renderers.Dag do
     """
   end
 
-  def render(%{message: %Message{name: :dag_job_claimed, data: data}} = assigns) do
+  def render(%{message: %Message{name: :pipeline_task_claimed, data: data}} = assigns) do
     assigns =
       assign(assigns,
         ext_id: to_string(data[:external_id] || "?"),
@@ -80,13 +80,15 @@ defmodule IchorWeb.SignalFeed.Renderers.Dag do
       )
 
     ~H"""
-    <span class="text-[10px] text-default">job <span class="font-mono">{@ext_id}</span> claimed</span>
+    <span class="text-[10px] text-default">
+      task <span class="font-mono">{@ext_id}</span> claimed
+    </span>
     <Primitives.kv key="by" value={@owner} />
     <Primitives.kv :if={@wave} key="wave" value={to_string(@wave)} />
     """
   end
 
-  def render(%{message: %Message{name: :dag_job_completed, data: data}} = assigns) do
+  def render(%{message: %Message{name: :pipeline_task_completed, data: data}} = assigns) do
     assigns =
       assign(assigns,
         ext_id: to_string(data[:external_id] || "?"),
@@ -94,12 +96,12 @@ defmodule IchorWeb.SignalFeed.Renderers.Dag do
       )
 
     ~H"""
-    <span class="text-[10px] text-success">job <span class="font-mono">{@ext_id}</span> done</span>
+    <span class="text-[10px] text-success">task <span class="font-mono">{@ext_id}</span> done</span>
     <Primitives.kv key="by" value={@owner} />
     """
   end
 
-  def render(%{message: %Message{name: :dag_job_failed, data: data}} = assigns) do
+  def render(%{message: %Message{name: :pipeline_task_failed, data: data}} = assigns) do
     assigns =
       assign(assigns,
         ext_id: to_string(data[:external_id] || "?"),
@@ -108,21 +110,21 @@ defmodule IchorWeb.SignalFeed.Renderers.Dag do
 
     ~H"""
     <span class="text-[10px] text-error font-medium">
-      job <span class="font-mono">{@ext_id}</span> failed
+      task <span class="font-mono">{@ext_id}</span> failed
     </span>
     <Primitives.kv :if={@notes} key="notes" value={to_string(@notes)} />
     """
   end
 
-  def render(%{message: %Message{name: :dag_job_reset, data: data}} = assigns) do
+  def render(%{message: %Message{name: :pipeline_task_reset, data: data}} = assigns) do
     assigns = assign(assigns, ext_id: to_string(data[:external_id] || "?"))
 
     ~H"""
-    <span class="text-[10px] text-medium">job <span class="font-mono">{@ext_id}</span> reset</span>
+    <span class="text-[10px] text-medium">task <span class="font-mono">{@ext_id}</span> reset</span>
     """
   end
 
-  def render(%{message: %Message{name: :dag_status, data: data}} = assigns) do
+  def render(%{message: %Message{name: :pipeline_status, data: data}} = assigns) do
     assigns = assign(assigns, :status, extract_status(data[:state_map] || %{}))
 
     ~H"""
@@ -136,7 +138,7 @@ defmodule IchorWeb.SignalFeed.Renderers.Dag do
     """
   end
 
-  def render(%{message: %Message{name: :dag_tmux_gone, data: data}} = assigns) do
+  def render(%{message: %Message{name: :pipeline_tmux_gone, data: data}} = assigns) do
     assigns = assign(assigns, run_id: Primitives.short(data[:run_id]))
 
     ~H"""
@@ -145,7 +147,7 @@ defmodule IchorWeb.SignalFeed.Renderers.Dag do
     """
   end
 
-  def render(%{message: %Message{name: :dag_health_report, data: data}} = assigns) do
+  def render(%{message: %Message{name: :pipeline_health_report, data: data}} = assigns) do
     assigns =
       assign(assigns,
         run_id: Primitives.short(data[:run_id]),

@@ -170,8 +170,8 @@ defmodule IchorWeb.Components.SignalComponents do
   defp category_color(:messages), do: "text-success"
   defp category_color(:memory), do: "text-interactive"
   defp category_color(:system), do: "text-muted"
-  defp category_color(:genesis), do: "text-brand"
-  defp category_color(:dag), do: "text-info"
+  defp category_color(:planning), do: "text-brand"
+  defp category_color(:pipeline), do: "text-info"
   defp category_color(:mes), do: "text-default"
   defp category_color(_), do: "text-muted"
 

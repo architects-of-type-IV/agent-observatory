@@ -5,11 +5,11 @@ defmodule IchorWeb.Components.MesFactoryComponents do
   alias Ichor.Factory.PipelineStage
 
   attr :project, :map, required: true
-  attr :genesis_node, :any, required: true
+  attr :planning_project, :any, required: true
   attr :reader_open, :boolean, default: false
 
   def action_bar(assigns) do
-    {stage, label} = PipelineStage.derive(assigns.genesis_node)
+    {stage, label} = PipelineStage.derive(assigns.planning_project)
     {text_class, bg_class} = PipelineStage.stage_color(stage)
     stations = PipelineStage.station_states(stage)
 
@@ -50,11 +50,10 @@ defmodule IchorWeb.Components.MesFactoryComponents do
             label="Gate"
             state={@stations.gate}
             event="mes_gate_check"
-            node_id={@genesis_node && @genesis_node.id}
+            project_id={@planning_project && @planning_project.id}
           />
           <.build_btn
             state={@stations.dag}
-            node_id={@genesis_node && @genesis_node.id}
             project_id={@project.id}
           />
         </div>
@@ -110,13 +109,13 @@ defmodule IchorWeb.Components.MesFactoryComponents do
   attr :label, :string, required: true
   attr :state, :atom, required: true
   attr :event, :string, required: true
-  attr :node_id, :any, default: nil
+  attr :project_id, :any, default: nil
 
   defp station_btn(%{state: :active} = assigns) do
     assigns = assign(assigns, :cls, @pill_active)
 
     ~H"""
-    <button phx-click={@event} phx-value-node-id={@node_id} class={@cls}>
+    <button phx-click={@event} phx-value-project-id={@project_id} class={@cls}>
       {@label}
     </button>
     """
@@ -140,7 +139,6 @@ defmodule IchorWeb.Components.MesFactoryComponents do
     ~H"""
     <button
       phx-click="mes_launch_dag"
-      phx-value-node-id={@node_id}
       phx-value-project-id={@project_id}
       class={@cls}
     >
@@ -160,17 +158,16 @@ defmodule IchorWeb.Components.MesFactoryComponents do
   end
 
   attr :active, :atom, required: true
-  attr :genesis_node, :any, required: true
+  attr :planning_project, :any, required: true
 
   def tab_bar(assigns) do
-    node = assigns.genesis_node
+    node = assigns.planning_project
 
     counts = %{
-      decisions: length(safe_list(node, :adrs)),
-      requirements: length(safe_list(node, :features)) + length(safe_list(node, :use_cases)),
-      checkpoints:
-        length(safe_list(node, :checkpoints)) + length(safe_list(node, :conversations)),
-      roadmap: length(safe_list(node, :phases))
+      decisions: length(artifacts(node, :adr)),
+      requirements: length(artifacts(node, :feature)) + length(artifacts(node, :use_case)),
+      checkpoints: length(artifacts(node, :checkpoint)) + length(artifacts(node, :conversation)),
+      roadmap: length(roadmap_items(node, :phase))
     }
 
     assigns = assign(assigns, counts: counts)
@@ -202,7 +199,7 @@ defmodule IchorWeb.Components.MesFactoryComponents do
 
     ~H"""
     <button
-      phx-click="genesis_switch_tab"
+      phx-click="planning_switch_tab"
       phx-value-tab={@key}
       class={[
         "px-5 py-2.5 text-[9px] font-bold uppercase tracking-wider border-b-2 transition-colors",
@@ -220,12 +217,11 @@ defmodule IchorWeb.Components.MesFactoryComponents do
     """
   end
 
-  defp safe_list(nil, _key), do: []
+  defp artifacts(nil, _kind), do: []
+  defp artifacts(node, kind), do: Enum.filter(Map.get(node, :artifacts, []), &(&1.kind == kind))
 
-  defp safe_list(node, key) do
-    case Map.get(node, key, []) do
-      list when is_list(list) -> list
-      _ -> []
-    end
-  end
+  defp roadmap_items(nil, _kind), do: []
+
+  defp roadmap_items(node, kind),
+    do: Enum.filter(Map.get(node, :roadmap_items, []), &(&1.kind == kind))
 end

@@ -37,11 +37,11 @@ defmodule IchorWeb.SignalFeed.Renderer do
     Gateway.render(assigns)
   end
 
-  def render(%{message: %Message{domain: :genesis}} = assigns) do
+  def render(%{message: %Message{domain: :planning}} = assigns) do
     Genesis.render(assigns)
   end
 
-  def render(%{message: %Message{domain: :dag}} = assigns) do
+  def render(%{message: %Message{domain: :pipeline}} = assigns) do
     Dag.render(assigns)
   end
 

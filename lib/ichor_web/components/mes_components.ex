@@ -15,10 +15,10 @@ defmodule IchorWeb.Components.MesComponents do
   attr :projects, :list, required: true
   attr :scheduler_status, :map, required: true
   attr :selected, :any, default: nil
-  attr :genesis_node, :any, default: nil
+  attr :planning_project, :any, default: nil
   attr :gate_report, :any, default: nil
-  attr :genesis_sub_tab, :atom, default: :decisions
-  attr :genesis_selected, :any, default: nil
+  attr :planning_sub_tab, :atom, default: :decisions
+  attr :planning_selected, :any, default: nil
 
   def mes_view(assigns) do
     ~H"""
@@ -38,34 +38,35 @@ defmodule IchorWeb.Components.MesComponents do
         <div :if={@selected} class="flex-1 flex flex-col overflow-hidden border-l border-border">
           <MesFactoryComponents.action_bar
             project={@selected}
-            genesis_node={@genesis_node}
-            reader_open={@genesis_selected != nil}
+            planning_project={@planning_project}
+            reader_open={@planning_selected != nil}
           />
 
           <%!-- Gate report (if present) --%>
           <MesGateComponents.gate_report :if={@gate_report} report={@gate_report} />
 
-          <%!-- Artifact section (only when genesis node exists) --%>
-          <div :if={@genesis_node} class="flex-1 flex flex-col overflow-hidden">
-            <MesFactoryComponents.tab_bar active={@genesis_sub_tab} genesis_node={@genesis_node} />
+          <div :if={@planning_project} class="flex-1 flex flex-col overflow-hidden">
+            <MesFactoryComponents.tab_bar
+              active={@planning_sub_tab}
+              planning_project={@planning_project}
+            />
             <div class="flex-1 flex overflow-hidden">
               <MesArtifactComponents.artifact_list
-                :if={!@genesis_selected}
-                genesis_node={@genesis_node}
-                sub_tab={@genesis_sub_tab}
-                selected={@genesis_selected}
+                :if={!@planning_selected}
+                planning_project={@planning_project}
+                sub_tab={@planning_sub_tab}
+                selected={@planning_selected}
               />
               <MesArtifactComponents.reader_sidebar
-                :if={@genesis_selected}
-                genesis_node={@genesis_node}
-                selected={@genesis_selected}
-                sub_tab={@genesis_sub_tab}
+                :if={@planning_selected}
+                planning_project={@planning_project}
+                selected={@planning_selected}
+                sub_tab={@planning_sub_tab}
               />
             </div>
           </div>
 
-          <%!-- No genesis node message --%>
-          <div :if={!@genesis_node} class="flex-1 flex items-center justify-center">
+          <div :if={!@planning_project} class="flex-1 flex items-center justify-center">
             <p class="text-muted text-sm">Launch Mode A to begin the planning pipeline.</p>
           </div>
         </div>

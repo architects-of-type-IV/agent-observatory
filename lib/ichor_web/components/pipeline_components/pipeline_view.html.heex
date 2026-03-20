@@ -1,7 +1,7 @@
-<% tasks = @dag_state.tasks
-active_project = @dag_state.active_project
-projects = @dag_state.watched_projects
-dag = @dag_state.dag
+<% tasks = @pipeline_state.tasks
+active_project = @pipeline_state.active_project
+projects = @pipeline_state.watched_projects
+pipeline_graph = @pipeline_state.dag
 
 # Group tasks by status for kanban columns
 kanban = %{
@@ -21,8 +21,8 @@ columns = [
 ]
 
 task_map = Map.new(tasks, &{&1.id, &1})
-waves = dag.waves
-critical_path = MapSet.new(dag.critical_path) %>
+waves = pipeline_graph.waves
+critical_path = MapSet.new(pipeline_graph.critical_path) %>
 <div class="flex gap-0 h-full">
   <%!-- Left Sidebar: Projects + Stats + Task Detail --%>
   <div class="w-[240px] shrink-0 flex flex-col gap-3 bg-base/30 border-r border-border p-3 overflow-x-hidden overflow-y-auto">
@@ -41,18 +41,18 @@ critical_path = MapSet.new(dag.critical_path) %>
         <div class="flex flex-wrap gap-1">
           <button
             :if={active_project && active_project != ""}
-            phx-click="trigger_dag_gc"
+            phx-click="trigger_pipeline_gc"
             phx-value-team={active_project}
             class="ichor-btn ichor-btn-danger"
             data-confirm="Run garbage collection on this project?"
           >
             GC
           </button>
-          <button phx-click="run_dag_health_check" class="ichor-btn ichor-btn-muted">
+          <button phx-click="run_pipeline_health_check" class="ichor-btn ichor-btn-muted">
             Health
           </button>
           <button
-            phx-click="reset_dag_stale"
+            phx-click="reset_pipeline_stale"
             class="ichor-btn bg-brand/15 text-brand hover:bg-brand/25"
             data-confirm="Reset all stale tasks to pending?"
           >
@@ -63,50 +63,53 @@ critical_path = MapSet.new(dag.critical_path) %>
     </div>
 
     <%!-- Task Detail (selected) --%>
-    <div :if={@selected_dag_task} class="ichor-card p-3 min-w-0 overflow-hidden">
+    <div :if={@selected_pipeline_task} class="ichor-card p-3 min-w-0 overflow-hidden">
       <span class="text-[10px] text-muted uppercase tracking-wider">Task Detail</span>
       <div class="flex items-center gap-2 flex-wrap mt-2 mb-2">
         <span
-          :if={@selected_dag_task[:project]}
+          :if={@selected_pipeline_task[:project]}
           class="text-[10px] font-mono text-violet truncate"
         >
-          {@selected_dag_task.project}
+          {@selected_pipeline_task.project}
         </span>
-        <span class="text-xs font-mono text-default">#{@selected_dag_task.id}</span>
-        <span class={task_badge_class(@selected_dag_task.status)}>
-          {@selected_dag_task.status}
+        <span class="text-xs font-mono text-default">#{@selected_pipeline_task.id}</span>
+        <span class={task_badge_class(@selected_pipeline_task.status)}>
+          {@selected_pipeline_task.status}
         </span>
-        <span :if={@selected_dag_task.priority} class="text-[10px] text-low">
-          {@selected_dag_task.priority}
+        <span :if={@selected_pipeline_task.priority} class="text-[10px] text-low">
+          {@selected_pipeline_task.priority}
         </span>
       </div>
-      <div class="text-xs text-high mb-1 break-words">{@selected_dag_task.subject}</div>
-      <div :if={@selected_dag_task[:description]} class="text-xs text-low mb-2 break-words">
-        {@selected_dag_task.description}
+      <div class="text-xs text-high mb-1 break-words">{@selected_pipeline_task.subject}</div>
+      <div :if={@selected_pipeline_task[:description]} class="text-xs text-low mb-2 break-words">
+        {@selected_pipeline_task.description}
       </div>
       <div class="flex flex-col gap-1 text-[10px] text-muted mb-2 break-all">
-        <span :if={@selected_dag_task.owner && @selected_dag_task.owner != ""} class="truncate">
-          owner: {@selected_dag_task.owner}
+        <span
+          :if={@selected_pipeline_task.owner && @selected_pipeline_task.owner != ""}
+          class="truncate"
+        >
+          owner: {@selected_pipeline_task.owner}
         </span>
-        <span :if={@selected_dag_task.blocked_by != []} class="truncate">
-          blocked by: {Enum.join(@selected_dag_task.blocked_by, ", ")}
+        <span :if={@selected_pipeline_task.blocked_by != []} class="truncate">
+          blocked by: {Enum.join(@selected_pipeline_task.blocked_by, ", ")}
         </span>
-        <span :if={@selected_dag_task[:updated]}>
-          updated: {short_timestamp(@selected_dag_task.updated)}
+        <span :if={@selected_pipeline_task[:updated]}>
+          updated: {short_timestamp(@selected_pipeline_task.updated)}
         </span>
       </div>
       <div class="flex flex-wrap gap-1">
         <button
-          phx-click="reassign_dag_task"
-          phx-value-id={@selected_dag_task.id}
+          phx-click="reassign_pipeline_task"
+          phx-value-id={@selected_pipeline_task.id}
           phx-value-owner=""
           class="ichor-btn ichor-btn-muted"
         >
           Unassign
         </button>
         <button
-          phx-click="heal_dag_task"
-          phx-value-id={@selected_dag_task.id}
+          phx-click="heal_pipeline_task"
+          phx-value-id={@selected_pipeline_task.id}
           class="ichor-btn bg-brand/15 text-brand hover:bg-brand/25"
         >
           Reset
@@ -138,12 +141,12 @@ critical_path = MapSet.new(dag.critical_path) %>
           <div class="space-y-1 max-h-[280px] overflow-y-auto pr-0.5">
             <div
               :for={task <- kanban[status]}
-              phx-click="select_dag_node"
+              phx-click="select_pipeline_task"
               phx-value-id={task.id}
               class={[
                 "ichor-card-compact cursor-pointer",
                 border_color,
-                @selected_dag_task && @selected_dag_task.id == task.id &&
+                @selected_pipeline_task && @selected_pipeline_task.id == task.id &&
                   "!ring-1 !ring-interactive/50 !bg-raised/60"
               ]}
             >
@@ -177,15 +180,18 @@ critical_path = MapSet.new(dag.critical_path) %>
         </div>
       </div>
 
-      <%!-- DAG Dependency Graph --%>
+      <%!-- Pipeline Dependency Graph --%>
       <div
         :if={waves != []}
         class="border border-border/60 rounded-md p-3 overflow-x-auto bg-base/20"
       >
         <h3 class="text-[10px] font-semibold text-muted uppercase tracking-wider mb-2">
           Dependency Graph
-          <span :if={dag.critical_path != []} class="text-muted normal-case font-normal ml-2">
-            Critical path: {length(dag.critical_path)} tasks
+          <span
+            :if={pipeline_graph.critical_path != []}
+            class="text-muted normal-case font-normal ml-2"
+          >
+            Critical path: {length(pipeline_graph.critical_path)} tasks
           </span>
         </h3>
         <div class="flex gap-6 overflow-x-auto pb-2 min-h-[120px]">
@@ -196,12 +202,12 @@ critical_path = MapSet.new(dag.critical_path) %>
             <div class="text-[10px] text-muted uppercase tracking-wider mb-1 text-center">
               Wave {wave_idx}
             </div>
-            <.dag_node
+            <.task_node
               :for={task_id <- wave}
               task={Map.get(task_map, task_id)}
               task_id={task_id}
               is_critical={MapSet.member?(critical_path, task_id)}
-              is_selected={@selected_dag_task && @selected_dag_task.id == task_id}
+              is_selected={@selected_pipeline_task && @selected_pipeline_task.id == task_id}
             />
           </div>
         </div>

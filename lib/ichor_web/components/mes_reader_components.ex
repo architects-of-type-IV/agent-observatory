@@ -5,14 +5,14 @@ defmodule IchorWeb.Components.MesReaderComponents do
 
   alias IchorWeb.Components.MesPhaseRenderer
 
-  # Close button emits "genesis_close_reader" -- handler must set genesis_selected to nil.
+  # Close button emits "planning_close_reader" -- handler must clear planning_selected.
 
-  attr :genesis_node, :any, required: true
+  attr :planning_project, :any, required: true
   attr :selected, :any, required: true
   attr :sub_tab, :atom, required: true
 
   def reader_sidebar(assigns) do
-    item = find_selected(assigns.genesis_node, assigns.selected)
+    item = find_selected(assigns.planning_project, assigns.selected)
     assigns = assign(assigns, item: item)
 
     ~H"""
@@ -31,7 +31,7 @@ defmodule IchorWeb.Components.MesReaderComponents do
             </span>
           </div>
           <button
-            phx-click="genesis_close_reader"
+            phx-click="planning_close_reader"
             class="px-2 py-1 text-[9px] font-semibold bg-surface border border-subtle text-muted rounded hover:text-default transition-colors shrink-0"
           >
             Close
@@ -43,7 +43,7 @@ defmodule IchorWeb.Components.MesReaderComponents do
         <div :if={@item.refs != []} class="flex flex-wrap gap-1.5 mt-2.5">
           <span
             :for={ref <- @item.refs}
-            phx-click="genesis_select_artifact"
+            phx-click="planning_select_artifact"
             phx-value-type={ref.type}
             phx-value-id={ref.id}
             class="text-[9px] px-2 py-0.5 rounded bg-brand/10 text-brand font-mono cursor-pointer font-semibold hover:bg-brand/20"
@@ -52,7 +52,7 @@ defmodule IchorWeb.Components.MesReaderComponents do
           </span>
         </div>
 
-        <div class="genesis-prose mt-5">
+        <div class="planning-prose mt-5">
           {Phoenix.HTML.raw(render_content(@item))}
         </div>
       </div>
@@ -79,16 +79,16 @@ defmodule IchorWeb.Components.MesReaderComponents do
 
   defp find_selected(node, {type, id}) do
     key = artifact_key(type)
-    record = node |> safe_list(key) |> Enum.find(&(&1.id == id))
+    record = node |> items_for_key(key) |> Enum.find(&matches_item?(&1, id))
     build_item(type, record)
   end
 
-  defp artifact_key(:adr), do: :adrs
-  defp artifact_key(:feature), do: :features
-  defp artifact_key(:use_case), do: :use_cases
-  defp artifact_key(:checkpoint), do: :checkpoints
-  defp artifact_key(:conversation), do: :conversations
-  defp artifact_key(:phase), do: :phases
+  defp artifact_key(:adr), do: {:artifact, :adr}
+  defp artifact_key(:feature), do: {:artifact, :feature}
+  defp artifact_key(:use_case), do: {:artifact, :use_case}
+  defp artifact_key(:checkpoint), do: {:artifact, :checkpoint}
+  defp artifact_key(:conversation), do: {:artifact, :conversation}
+  defp artifact_key(:phase), do: {:roadmap, :phase}
 
   defp build_item(_type, nil), do: nil
 
@@ -157,14 +157,15 @@ defmodule IchorWeb.Components.MesReaderComponents do
 
   defp ref(type, code), do: %{type: type, id: code, label: code}
 
-  defp safe_list(nil, _key), do: []
+  defp items_for_key(nil, _key), do: []
 
-  defp safe_list(node, key) do
-    case Map.get(node, key, []) do
-      list when is_list(list) -> list
-      _ -> []
-    end
-  end
+  defp items_for_key(node, {:artifact, kind}),
+    do: Enum.filter(Map.get(node, :artifacts, []), &(&1.kind == kind))
+
+  defp items_for_key(node, {:roadmap, kind}),
+    do: Enum.filter(Map.get(node, :roadmap_items, []), &(&1.kind == kind))
+
+  defp matches_item?(item, id), do: item.id == id or Map.get(item, :code) == id
 
   defp safe_codes(nil), do: []
   defp safe_codes(codes) when is_list(codes), do: codes

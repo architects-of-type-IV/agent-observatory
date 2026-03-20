@@ -1,6 +1,6 @@
-defmodule IchorWeb.Components.MesGenesisComponents do
+defmodule IchorWeb.Components.MesPlanningComponents do
   @moduledoc """
-  Genesis pipeline panel for MES projects.
+  Planning pipeline panel for MES projects.
   Mode A/B/C launch buttons and artifact summary.
   """
 
@@ -15,29 +15,29 @@ defmodule IchorWeb.Components.MesGenesisComponents do
   ]
 
   attr :project, :map, required: true
-  attr :genesis_node, :any, default: nil
+  attr :planning_project, :any, default: nil
   attr :gate_report, :any, default: nil
 
-  def genesis_panel(assigns) do
+  def planning_panel(assigns) do
     assigns = assign(assigns, :modes, @modes)
 
     ~H"""
     <div class="mt-4 pt-3 border-t border-border/50">
       <div class="flex items-center justify-between mb-2">
         <h3 class="text-[9px] font-semibold text-low uppercase tracking-wider">
-          Genesis Pipeline
+          Planning Pipeline
         </h3>
-        <div :if={@genesis_node} class="flex items-center gap-1.5">
+        <div :if={@planning_project} class="flex items-center gap-1.5">
           <button
             phx-click="mes_gate_check"
-            phx-value-node-id={@genesis_node.id}
+            phx-value-project-id={@planning_project.id}
             class="px-2 py-0.5 text-[9px] font-semibold rounded bg-warning/10 text-warning border border-warning/20 hover:bg-warning/20 transition-colors"
           >
             Gate Check
           </button>
           <button
             phx-click="mes_generate_dag"
-            phx-value-node-id={@genesis_node.id}
+            phx-value-project-id={@planning_project.id}
             class="px-2 py-0.5 text-[9px] font-semibold rounded bg-success/10 text-success border border-success/20 hover:bg-success/20 transition-colors"
           >
             Generate DAG
@@ -47,21 +47,21 @@ defmodule IchorWeb.Components.MesGenesisComponents do
 
       <.mode_buttons
         project_id={@project.id}
-        genesis_node={@genesis_node}
+        planning_project={@planning_project}
         modes={@modes}
       />
 
-      <.artifact_summary :if={@genesis_node} genesis_node={@genesis_node} />
+      <.artifact_summary :if={@planning_project} planning_project={@planning_project} />
 
       <MesGateComponents.gate_report :if={@gate_report} report={@gate_report} />
 
-      <.node_status :if={@genesis_node} genesis_node={@genesis_node} />
+      <.project_status :if={@planning_project} planning_project={@planning_project} />
     </div>
     """
   end
 
   attr :project_id, :string, required: true
-  attr :genesis_node, :any, default: nil
+  attr :planning_project, :any, default: nil
   attr :modes, :list, required: true
 
   defp mode_buttons(assigns) do
@@ -74,7 +74,7 @@ defmodule IchorWeb.Components.MesGenesisComponents do
         phx-value-project-id={@project_id}
         class={[
           "flex-1 px-2 py-1.5 text-[10px] font-semibold rounded border transition-colors text-center",
-          mode_button_class(@genesis_node, mode.status)
+          mode_button_class(@planning_project, mode.status)
         ]}
       >
         <div class="font-bold">{mode.label}</div>
@@ -107,16 +107,16 @@ defmodule IchorWeb.Components.MesGenesisComponents do
   defp status_rank(:build), do: 3
   defp status_rank(:complete), do: 4
 
-  attr :genesis_node, :map, required: true
+  attr :planning_project, :map, required: true
 
   defp artifact_summary(assigns) do
     counts = %{
-      adrs: length(Map.get(assigns.genesis_node, :adrs, [])),
-      features: length(Map.get(assigns.genesis_node, :features, [])),
-      use_cases: length(Map.get(assigns.genesis_node, :use_cases, [])),
-      conversations: length(Map.get(assigns.genesis_node, :conversations, [])),
-      checkpoints: length(Map.get(assigns.genesis_node, :checkpoints, [])),
-      phases: length(Map.get(assigns.genesis_node, :phases, []))
+      adrs: count_artifacts(assigns.planning_project, :adr),
+      features: count_artifacts(assigns.planning_project, :feature),
+      use_cases: count_artifacts(assigns.planning_project, :use_case),
+      conversations: count_artifacts(assigns.planning_project, :conversation),
+      checkpoints: count_artifacts(assigns.planning_project, :checkpoint),
+      phases: count_roadmap_items(assigns.planning_project, :phase)
     }
 
     assigns = assign(assigns, :counts, counts)
@@ -166,18 +166,28 @@ defmodule IchorWeb.Components.MesGenesisComponents do
   defp count_card_classes("success"),
     do: %{bg: "bg-success/5 border border-success/10", text: "text-success"}
 
-  attr :genesis_node, :map, required: true
+  defp count_artifacts(nil, _kind), do: 0
 
-  defp node_status(assigns) do
+  defp count_artifacts(node, kind),
+    do: Enum.count(Map.get(node, :artifacts, []), &(&1.kind == kind))
+
+  defp count_roadmap_items(nil, _kind), do: 0
+
+  defp count_roadmap_items(node, kind),
+    do: Enum.count(Map.get(node, :roadmap_items, []), &(&1.kind == kind))
+
+  attr :planning_project, :map, required: true
+
+  defp project_status(assigns) do
     ~H"""
     <div class="flex items-center gap-2 text-[10px] text-muted">
       <span class="text-low">Stage:</span>
       <span class="font-semibold text-default uppercase tracking-wider">
-        {@genesis_node.status}
+        {@planning_project.status}
       </span>
-      <span :if={@genesis_node.title} class="text-low">|</span>
-      <span :if={@genesis_node.title} class="text-default truncate">
-        {@genesis_node.title}
+      <span :if={@planning_project.title} class="text-low">|</span>
+      <span :if={@planning_project.title} class="text-default truncate">
+        {@planning_project.title}
       </span>
     </div>
     """

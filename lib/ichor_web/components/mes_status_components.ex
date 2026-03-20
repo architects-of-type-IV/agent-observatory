@@ -72,7 +72,7 @@ defmodule IchorWeb.Components.MesStatusComponents do
   def action_button(%{project: %{status: :compiled}} = assigns) do
     ~H"""
     <button
-      phx-click="mes_load_subsystem"
+      phx-click="mes_load_plugin"
       phx-value-id={@project.id}
       class="px-2.5 py-1 text-[10px] font-semibold rounded bg-success/15 text-success hover:bg-success/25 transition-colors"
     >

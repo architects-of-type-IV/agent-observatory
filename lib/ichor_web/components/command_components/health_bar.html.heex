@@ -23,7 +23,7 @@
       <%!-- Project selector --%>
       <div :if={map_size(@projects) > 0} class="flex items-center gap-2">
         <span class="text-xs text-low">Pipeline:</span>
-        <form phx-change="select_dag_project" class="inline">
+        <form phx-change="select_pipeline_project" class="inline">
           <.stable_select id="select-project" name="project" class="ichor-select text-xs py-1">
             <option :for={{key, _path} <- @projects} value={key} selected={key == @active_project}>
               {key}
@@ -51,13 +51,13 @@
     <div class="flex items-center gap-2">
       <button
         :if={length(@stale) > 0}
-        phx-click="reset_dag_stale"
+        phx-click="reset_pipeline_stale"
         class="px-2 py-1 bg-brand/20 text-brand rounded text-xs hover:bg-brand/30 transition"
       >
         Reset {length(@stale)} stuck tasks
       </button>
       <button
-        phx-click="run_dag_health_check"
+        phx-click="run_pipeline_health_check"
         class="px-2 py-1 bg-highlight text-high rounded text-xs hover:bg-highlight transition"
       >
         Check Health

@@ -1,7 +1,6 @@
 defmodule IchorWeb.SignalFeed.Renderers.Genesis do
   @moduledoc """
-  Renders signals in the :genesis domain.
-  Covers node creation, advancement, artifact creation, and run lifecycle.
+  Renders planning and pipeline lifecycle signals.
   """
   use Phoenix.Component
 
@@ -11,7 +10,7 @@ defmodule IchorWeb.SignalFeed.Renderers.Genesis do
   attr :seq, :integer, required: true
   attr :message, :any, required: true
 
-  def render(%{message: %Message{name: :genesis_node_created, data: data}} = assigns) do
+  def render(%{message: %Message{name: :project_created, data: data}} = assigns) do
     assigns =
       assign(assigns,
         title: to_string(data[:title] || "?"),
@@ -20,13 +19,13 @@ defmodule IchorWeb.SignalFeed.Renderers.Genesis do
 
     ~H"""
     <span class="text-[10px] text-high">
-      node <span class="font-semibold">{@title}</span> created
+      project <span class="font-semibold">{@title}</span> created
     </span>
     <Primitives.kv :if={@type} key="type" value={to_string(@type)} />
     """
   end
 
-  def render(%{message: %Message{name: :genesis_node_advanced, data: data}} = assigns) do
+  def render(%{message: %Message{name: :project_advanced, data: data}} = assigns) do
     assigns =
       assign(assigns,
         title: to_string(data[:title] || "?"),
@@ -35,26 +34,26 @@ defmodule IchorWeb.SignalFeed.Renderers.Genesis do
 
     ~H"""
     <span class="text-[10px] text-high">
-      node <span class="font-semibold">{@title}</span> advanced
+      project <span class="font-semibold">{@title}</span> advanced
     </span>
     <Primitives.kv :if={@type} key="type" value={to_string(@type)} />
     """
   end
 
-  def render(%{message: %Message{name: :genesis_artifact_created, data: data}} = assigns) do
+  def render(%{message: %Message{name: :project_artifact_created, data: data}} = assigns) do
     assigns =
       assign(assigns,
         type: to_string(data[:type] || "artifact"),
-        node_id: Primitives.short(data[:node_id])
+        project_id: Primitives.short(data[:project_id])
       )
 
     ~H"""
     <span class="text-[10px] text-high">{@type} created</span>
-    <Primitives.kv key="node" value={@node_id} />
+    <Primitives.kv key="project" value={@project_id} />
     """
   end
 
-  def render(%{message: %Message{name: :genesis_team_ready, data: data}} = assigns) do
+  def render(%{message: %Message{name: :planning_team_ready, data: data}} = assigns) do
     assigns =
       assign(assigns,
         mode: to_string(data[:mode] || "?"),
@@ -67,7 +66,7 @@ defmodule IchorWeb.SignalFeed.Renderers.Genesis do
     """
   end
 
-  def render(%{message: %Message{name: :genesis_team_spawn_failed, data: data}} = assigns) do
+  def render(%{message: %Message{name: :planning_team_spawn_failed, data: data}} = assigns) do
     assigns = assign(assigns, reason: to_string(data[:reason] || "?"))
 
     ~H"""
@@ -76,7 +75,7 @@ defmodule IchorWeb.SignalFeed.Renderers.Genesis do
     """
   end
 
-  def render(%{message: %Message{name: :genesis_team_killed, data: data}} = assigns) do
+  def render(%{message: %Message{name: :planning_team_killed, data: data}} = assigns) do
     assigns = assign(assigns, session: to_string(data[:session] || "?"))
 
     ~H"""
@@ -85,7 +84,7 @@ defmodule IchorWeb.SignalFeed.Renderers.Genesis do
     """
   end
 
-  def render(%{message: %Message{name: :genesis_run_init, data: data}} = assigns) do
+  def render(%{message: %Message{name: :planning_run_init, data: data}} = assigns) do
     assigns =
       assign(assigns,
         run_id: Primitives.short(data[:run_id]),
@@ -99,7 +98,7 @@ defmodule IchorWeb.SignalFeed.Renderers.Genesis do
     """
   end
 
-  def render(%{message: %Message{name: :genesis_run_complete, data: data}} = assigns) do
+  def render(%{message: %Message{name: :planning_run_complete, data: data}} = assigns) do
     assigns =
       assign(assigns,
         run_id: Primitives.short(data[:run_id]),
@@ -113,7 +112,7 @@ defmodule IchorWeb.SignalFeed.Renderers.Genesis do
     """
   end
 
-  def render(%{message: %Message{name: :genesis_run_terminated, data: data}} = assigns) do
+  def render(%{message: %Message{name: :planning_run_terminated, data: data}} = assigns) do
     assigns = assign(assigns, run_id: Primitives.short(data[:run_id]))
 
     ~H"""
@@ -122,7 +121,7 @@ defmodule IchorWeb.SignalFeed.Renderers.Genesis do
     """
   end
 
-  def render(%{message: %Message{name: :genesis_tmux_gone, data: data}} = assigns) do
+  def render(%{message: %Message{name: :planning_tmux_gone, data: data}} = assigns) do
     assigns = assign(assigns, run_id: Primitives.short(data[:run_id]))
 
     ~H"""

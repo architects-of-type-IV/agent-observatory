@@ -143,7 +143,7 @@
         Reset to Pending
       </button>
       <button
-        phx-click="reassign_dag_task"
+        phx-click="reassign_pipeline_task"
         phx-value-id={@task.id}
         phx-value-owner=""
         class="px-2 py-1 bg-highlight text-high rounded text-xs hover:bg-highlight transition"
@@ -151,7 +151,7 @@
         Unassign
       </button>
       <button
-        phx-click="claim_dag_task"
+        phx-click="claim_pipeline_task"
         phx-value-id={@task.id}
         phx-value-agent="dashboard"
         class="px-2 py-1 bg-highlight text-high rounded text-xs hover:bg-highlight transition"

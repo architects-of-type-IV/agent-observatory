@@ -19,7 +19,12 @@ defmodule IchorWeb.Components.MesDetailComponents do
       <%!-- Project Brief --%>
       <div class="mb-4 pb-3 border-b border-border/50">
         <h3 class="text-xs font-bold text-zinc-300 leading-tight mb-1">{@project.title}</h3>
-        <p class="text-[10px] font-mono text-brand mb-2">{@project.subsystem}</p>
+        <div class="mb-2 flex items-center gap-2">
+          <p :if={@project.plugin} class="text-[10px] font-mono text-brand">{@project.plugin}</p>
+          <span class="text-[9px] px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-300 uppercase tracking-wider">
+            {@project.output_kind || "plugin"}
+          </span>
+        </div>
         <p class="text-[10px] text-zinc-400 leading-relaxed">{@project.description}</p>
       </div>
 
