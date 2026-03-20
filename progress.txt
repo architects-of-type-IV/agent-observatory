@@ -251,6 +251,14 @@
 - [x] mix compile --warnings-as-errors: clean
 - [x] mix credo --strict: 0 issues
 
+## Phase 2 Simplification Steps 4-5: Message Bus (2026-03-20) -- COMPLETE
+- [x] Created Ichor.Messages.Bus (replaces MessageRouter)
+- [x] resolve_target/1 promoted to public resolve/1
+- [x] 10 callers repointed (application, watchdog, control/agent, quality_gate, 2 tools, 4 LiveView handlers)
+- [x] message_router.ex trashed
+- [x] mix compile --warnings-as-errors: CLEAN
+- [x] mix credo --strict: 0 issues
+
 ## Projects Domain Simplification Phase 1 (2026-03-20) -- COMPLETE
 - [x] Deleted PlanSupervisor (single-child DynamicSupervisor wrapper)
 - [x] Deleted ExecutionSupervisor (single-child DynamicSupervisor wrapper)

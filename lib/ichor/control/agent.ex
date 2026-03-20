@@ -14,6 +14,7 @@ defmodule Ichor.Control.Agent do
   alias Ichor.Control.Lifecycle.AgentLaunch
   alias Ichor.Control.Lifecycle.Registration
   alias Ichor.Control.TeamSupervisor
+  alias Ichor.Messages.Bus
 
   attributes do
     attribute(:agent_id, :string, primary_key?: true, allow_nil?: false, public?: true)
@@ -199,7 +200,7 @@ defmodule Ichor.Control.Agent do
       run(fn input, _context ->
         args = input.arguments
 
-        case Ichor.MessageRouter.send(%{
+        case Bus.send(%{
                from: args.from,
                to: args.agent_id,
                content: args.content,

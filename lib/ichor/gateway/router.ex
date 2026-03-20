@@ -71,9 +71,9 @@ defmodule Ichor.Gateway.Router do
   end
 
   # --- Recipient resolution ---
-  # NOTE: Ichor.MessageRouter.resolve_target/1 matches the same prefix strings.
+  # NOTE: Ichor.Messages.Bus.resolve/1 matches the same prefix strings.
   # The two are intentionally separate: this function returns recipient maps
-  # (used for channel delivery), while MessageRouter returns tagged tuples
+  # (used for channel delivery), while Bus.resolve/1 returns tagged tuples
   # (used for agent/team dispatch). A shared module would add indirection
   # without eliminating the shape difference.
 

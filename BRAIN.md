@@ -12,6 +12,12 @@
 - **Signals bus** -- infrastructure/nervous system. Not a domain.
 - Callers use resource code_interface directly (`Resource.action!(args)`), never domain wrappers.
 
+## Message Bus
+- **Ichor.Messages.Bus** -- single delivery authority (replaced MessageRouter)
+- Located at `lib/ichor/messages/bus.ex`
+- `resolve/1` is public (was private `resolve_target/1` in MessageRouter)
+- Gateway.Router still has its own private `resolve/1` returning recipient maps (different shape)
+
 ## File Structure (215 files, target 60)
 - control/ -- agent lifecycle, fleet, workshop, lifecycle/
 - projects/ -- genesis planning, MES lifecycle, DAG execution

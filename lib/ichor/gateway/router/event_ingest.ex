@@ -45,7 +45,7 @@ defmodule Ichor.Gateway.Router.EventIngest do
   end
 
   # MCP send_message tool: PreToolUse is a monitoring event only.
-  # Delivery happens exclusively via the MCP path (/mcp -> AshAi -> MessageRouter).
+  # Delivery happens exclusively via the MCP path (/mcp -> AshAi -> Messages.Bus).
   # Args are nested under "input" key in MCP tool_input.
   defp handle_pre_tool_use("mcp__ichor__send_message", event, input) do
     emit_intercepted_mcp(event, input["input"] || %{})

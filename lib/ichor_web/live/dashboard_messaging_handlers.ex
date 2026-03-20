@@ -1,10 +1,10 @@
 defmodule IchorWeb.DashboardMessagingHandlers do
   @moduledoc """
   LiveView event handlers for messaging functionality in the Ichor Dashboard.
-  All outbound messages route through Ichor.MessageRouter.
+  All outbound messages route through Ichor.Messages.Bus.
   """
 
-  alias Ichor.MessageRouter
+  alias Ichor.Messages.Bus, as: MessageBus
 
   def dispatch("set_message_target", p, s), do: handle_set_message_target(p, s)
   def dispatch("send_targeted_message", p, s), do: handle_send_targeted_message(p, s)
@@ -12,7 +12,7 @@ defmodule IchorWeb.DashboardMessagingHandlers do
   def handle_send_agent_message(%{"content" => ""}, socket), do: {:noreply, socket}
 
   def handle_send_agent_message(%{"session_id" => sid, "content" => content}, socket) do
-    case MessageRouter.send(%{from: "operator", to: sid, content: content, transport: :operator}) do
+    case MessageBus.send(%{from: "operator", to: sid, content: content, transport: :operator}) do
       {:ok, %{delivered: delivered}} when delivered > 0 ->
         label = resolve_label(sid, socket)
 
@@ -36,7 +36,7 @@ defmodule IchorWeb.DashboardMessagingHandlers do
   end
 
   def handle_send_team_broadcast(%{"team" => team_name, "content" => content}, socket) do
-    case MessageRouter.send(%{
+    case MessageBus.send(%{
            from: "operator",
            to: "team:#{team_name}",
            content: content,
@@ -56,7 +56,7 @@ defmodule IchorWeb.DashboardMessagingHandlers do
   def handle_push_context(%{"session_id" => sid, "file_path" => path}, socket) do
     case File.read(path) do
       {:ok, content} ->
-        MessageRouter.send(%{
+        MessageBus.send(%{
           from: "operator",
           to: sid,
           content: content,
@@ -92,7 +92,7 @@ defmodule IchorWeb.DashboardMessagingHandlers do
   def handle_send_targeted_message(%{"target" => _, "content" => ""}, socket), do: socket
 
   def handle_send_targeted_message(%{"target" => target, "content" => content}, socket) do
-    case MessageRouter.send(%{
+    case MessageBus.send(%{
            from: "operator",
            to: target,
            content: content,

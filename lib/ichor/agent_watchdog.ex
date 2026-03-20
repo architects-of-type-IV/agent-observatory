@@ -19,6 +19,7 @@ defmodule Ichor.AgentWatchdog do
   alias Ichor.Gateway.AgentRegistry.AgentEntry
   alias Ichor.Gateway.Channels.Tmux
   alias Ichor.Gateway.HITLRelay
+  alias Ichor.Messages.Bus
   alias Ichor.Signals.Message
   alias Ichor.Tasks.TeamStore
 
@@ -264,7 +265,7 @@ defmodule Ichor.AgentWatchdog do
       "[Ichor] Are you still working? No activity detected for >#{threshold}s. " <>
         "Reply or take action to clear this alert."
 
-    case Ichor.MessageRouter.send(%{
+    case Bus.send(%{
            from: "ichor",
            to: session_id,
            content: nudge_message,

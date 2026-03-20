@@ -10,6 +10,8 @@ defmodule IchorWeb.DashboardSessionControlHandlers do
   alias Ichor.Gateway.AgentRegistry.AgentEntry
   alias Ichor.Gateway.Channels.Tmux
   alias Ichor.Gateway.HITLRelay
+  alias Ichor.Messages.Bus
+  alias Ichor.Signals
 
   import IchorWeb.DashboardToast, only: [push_toast: 3]
 
@@ -28,10 +30,10 @@ defmodule IchorWeb.DashboardSessionControlHandlers do
 
   def handle_pause_agent(%{"session_id" => session_id}, socket) do
     HITLRelay.pause(session_id, session_id, "operator", "Operator paused from dashboard")
-    Ichor.Signals.subscribe(:gate_open, session_id)
-    Ichor.Signals.subscribe(:gate_close, session_id)
+    Signals.subscribe(:gate_open, session_id)
+    Signals.subscribe(:gate_close, session_id)
 
-    Ichor.MessageRouter.send(%{
+    Bus.send(%{
       from: "operator",
       to: session_id,
       content: "Pause requested by dashboard",
@@ -56,7 +58,7 @@ defmodule IchorWeb.DashboardSessionControlHandlers do
   def handle_resume_agent(%{"session_id" => session_id}, socket) do
     HITLRelay.unpause(session_id, session_id, "operator")
 
-    Ichor.MessageRouter.send(%{
+    Bus.send(%{
       from: "operator",
       to: session_id,
       content: "Resume requested by dashboard",
@@ -85,7 +87,7 @@ defmodule IchorWeb.DashboardSessionControlHandlers do
         |> push_toast(:info, "Session was not paused")
 
       {:ok, count} ->
-        Ichor.Signals.emit(:hitl_operator_approved, %{session_id: session_id})
+        Signals.emit(:hitl_operator_approved, %{session_id: session_id})
 
         socket
         |> Phoenix.Component.assign(:paused_sessions, paused)
@@ -98,7 +100,7 @@ defmodule IchorWeb.DashboardSessionControlHandlers do
   """
   def handle_hitl_reject(%{"session_id" => session_id}, socket) do
     HITLRelay.reject(session_id, session_id, "operator")
-    Ichor.Signals.emit(:hitl_operator_rejected, %{session_id: session_id})
+    Signals.emit(:hitl_operator_rejected, %{session_id: session_id})
     paused = MapSet.delete(socket.assigns.paused_sessions, session_id)
 
     socket
@@ -111,7 +113,7 @@ defmodule IchorWeb.DashboardSessionControlHandlers do
   Sends shutdown command, marks ended in registry, and stops the AgentProcess.
   """
   def handle_shutdown_agent(%{"session_id" => session_id}, socket) do
-    Ichor.MessageRouter.send(%{
+    Bus.send(%{
       from: "operator",
       to: session_id,
       content: "Shutdown requested by dashboard",
@@ -147,7 +149,7 @@ defmodule IchorWeb.DashboardSessionControlHandlers do
       end
 
     EventBuffer.tombstone_session(session_id)
-    Ichor.Signals.emit(:agent_stopped, %{session_id: session_id, reason: "dashboard_shutdown"})
+    Signals.emit(:agent_stopped, %{session_id: session_id, reason: "dashboard_shutdown"})
 
     short = String.slice(session_id, 0..7)
 
@@ -195,7 +197,7 @@ defmodule IchorWeb.DashboardSessionControlHandlers do
         %{"agent_class" => agent_class, "instructions" => instructions},
         socket
       ) do
-    Ichor.Signals.emit(:agent_instructions, agent_class, %{
+    Signals.emit(:agent_instructions, agent_class, %{
       agent_class: agent_class,
       instructions: instructions
     })
@@ -213,7 +215,7 @@ defmodule IchorWeb.DashboardSessionControlHandlers do
   end
 
   defp dispatch_mesh_pause(socket) do
-    Ichor.Signals.emit(:mesh_pause, %{initiated_by: "god_mode"})
+    Signals.emit(:mesh_pause, %{initiated_by: "god_mode"})
 
     socket
   end

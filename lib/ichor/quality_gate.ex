@@ -11,6 +11,8 @@ defmodule Ichor.QualityGate do
   use GenServer
   require Logger
 
+  alias Ichor.Messages.Bus
+
   @default_timeout 60_000
 
   @doc false
@@ -73,7 +75,7 @@ defmodule Ichor.QualityGate do
         "Fix the issues and re-run the gate before reporting completion."
 
     _ =
-      Ichor.MessageRouter.send(%{
+      Bus.send(%{
         from: "ichor",
         to: session_id,
         content: message,

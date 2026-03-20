@@ -8,6 +8,7 @@ defmodule IchorWeb.DashboardDagHandlers do
   import Phoenix.Component, only: [assign: 3]
 
   alias Ichor.Control.RuntimeQuery
+  alias Ichor.Messages.Bus
   alias Ichor.Projects.Runtime
 
   def dispatch("select_dag_project", p, s), do: handle_select_project(p, s)
@@ -94,7 +95,7 @@ defmodule IchorWeb.DashboardDagHandlers do
 
   def handle_send_command_message(%{"to" => to, "content" => content}, socket) do
     if content != "" do
-      case Ichor.MessageRouter.send(%{
+      case Bus.send(%{
              from: "operator",
              to: to,
              content: content,

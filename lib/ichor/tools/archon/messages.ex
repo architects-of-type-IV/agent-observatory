@@ -4,6 +4,7 @@ defmodule Ichor.Tools.Archon.Messages do
   """
   use Ash.Resource, domain: Ichor.Tools
 
+  alias Ichor.Messages.Bus
   alias Ichor.Observability.Message
 
   actions do
@@ -57,7 +58,7 @@ defmodule Ichor.Tools.Archon.Messages do
         content = input.arguments.content
 
         with {:ok, result} <-
-               Ichor.MessageRouter.send(%{from: "archon", to: to, content: content}) do
+               Bus.send(%{from: "archon", to: to, content: content}) do
           {:ok,
            %{
              "status" => result.status,

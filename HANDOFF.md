@@ -1,6 +1,34 @@
 # ICHOR IV - Handoff
 
-## Current Status: Session 5 -- Projects Domain Simplification Phase 1 (2026-03-20)
+## Current Status: Session 5 -- Phase 2 Simplification Steps 4-5 (2026-03-20)
+
+### What Was Done: Phase 2 Steps 4-5 (Message Bus)
+
+**Step 4: Created `lib/ichor/messages/bus.ex`** (`Ichor.Messages.Bus`)
+- Replaces `Ichor.MessageRouter` as single delivery authority
+- `resolve_target/1` promoted to public `resolve/1` (tagged tuples)
+- API: `send/1`, `recent_messages/1`, `start_message_log/0`, `resolve/1`
+
+**Step 5: Repointed 10 callers to `Bus`**
+- `application.ex`, `agent_watchdog.ex`, `control/agent.ex`, `quality_gate.ex`
+- `tools/archon/messages.ex`, `tools/agent/inbox.ex`
+- `dashboard_messaging_handlers.ex`, `dashboard_dag_handlers.ex`
+- `dashboard_session_control_handlers.ex`, `dashboard_state.ex`
+- Trashed: `lib/ichor/message_router.ex` → `tmp/trash/`
+
+**Build**: `mix compile --warnings-as-errors` EXIT:0, `mix credo --strict` EXIT:0
+
+**Steps 1-3 (Events.Runtime)** not yet present -- parallel agent hadn't created it yet.
+Bus was built independently as instructed.
+
+### What Remains (Steps 6-8)
+- Step 6: `event_bridge.ex` (do NOT touch yet)
+- Step 7: `protocol_tracker.ex` (do NOT touch yet)
+- Step 8: Full `gateway/router.ex` consolidation (do NOT touch yet)
+
+---
+
+## Previous: Session 5 -- Projects Domain Simplification Phase 1 (2026-03-20)
 
 ### What Was Done This Session
 

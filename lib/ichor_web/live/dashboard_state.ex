@@ -17,6 +17,7 @@ defmodule IchorWeb.DashboardState do
   alias Ichor.Gateway.Channels.Tmux
   alias Ichor.Gateway.HITLRelay
   alias Ichor.Gateway.TmuxDiscovery
+  alias Ichor.Messages.Bus
   alias Ichor.Notes
   alias Ichor.Observability.Error
   alias Ichor.Observability.Message
@@ -179,7 +180,7 @@ defmodule IchorWeb.DashboardState do
 
     # Template-layer data
     paused_sessions = safe_paused_sessions()
-    operator_messages = Ichor.MessageRouter.recent_messages(50)
+    operator_messages = Bus.recent_messages(50)
     hook_messages = load_messages(messages, 50)
 
     mailbox_messages =
