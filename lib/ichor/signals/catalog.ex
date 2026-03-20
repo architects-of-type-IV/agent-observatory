@@ -406,10 +406,10 @@ defmodule Ichor.Signals.Catalog do
       keys: [:project_id, :session_id],
       doc: "An implementation team claimed a MES project"
     },
-    mes_subsystem_loaded: %{
+    mes_plugin_loaded: %{
       category: :mes,
-      keys: [:project_id, :subsystem, :modules],
-      doc: "Compiled subsystem hot-loaded into BEAM"
+      keys: [:project_id, :plugin, :modules],
+      doc: "Compiled plugin hot-loaded into BEAM"
     },
     mes_quality_gate_passed: %{
       category: :mes,
@@ -456,128 +456,133 @@ defmodule Ichor.Signals.Catalog do
       keys: [:project_id, :title],
       doc: "MES project marked as failed"
     },
-    mes_subsystem_compile_failed: %{
+    mes_plugin_compile_failed: %{
       category: :mes,
       keys: [:run_id, :project_id, :reason],
-      doc: "Subsystem compile/load failed after DAG completion"
+      doc: "Plugin compile/load failed after DAG completion"
     },
-    mes_dag_generated: %{
+    mes_output_unhandled: %{
       category: :mes,
-      keys: [:node_id],
-      doc: "DAG tasks.jsonl generated for MES project"
+      keys: [:run_id, :project_id, :output_kind],
+      doc: "Pipeline completed for a project kind with no registered output handler"
     },
-    mes_dag_launched: %{
+    mes_pipeline_generated: %{
       category: :mes,
-      keys: [:node_id, :session],
-      doc: "DAG build team launched for MES project"
+      keys: [:project_id],
+      doc: "Pipeline tasks.jsonl generated for MES project"
+    },
+    mes_pipeline_launched: %{
+      category: :mes,
+      keys: [:project_id, :session],
+      doc: "Pipeline build team launched for MES project"
     }
   }
 
-  @genesis_dag_defs %{
-    genesis_team_ready: %{
-      category: :genesis,
-      keys: [:session, :mode, :project_id, :genesis_node_id, :agent_count],
-      doc: "Genesis mode team spawned and ready in tmux"
+  @planning_pipeline_defs %{
+    planning_team_ready: %{
+      category: :planning,
+      keys: [:session, :mode, :project_id, :agent_count],
+      doc: "Planning mode team spawned and ready in tmux"
     },
-    genesis_team_spawn_failed: %{
-      category: :genesis,
+    planning_team_spawn_failed: %{
+      category: :planning,
       keys: [:session, :reason],
-      doc: "Genesis mode team failed to spawn"
+      doc: "Planning mode team failed to spawn"
     },
-    genesis_team_killed: %{
-      category: :genesis,
+    planning_team_killed: %{
+      category: :planning,
       keys: [:session],
-      doc: "Genesis tmux session killed during cleanup"
+      doc: "Planning tmux session killed during cleanup"
     },
-    genesis_run_init: %{
-      category: :genesis,
+    planning_run_init: %{
+      category: :planning,
       keys: [:run_id, :mode, :session],
-      doc: "RunProcess started monitoring a genesis mode run"
+      doc: "RunProcess started monitoring a planning mode run"
     },
-    genesis_tmux_gone: %{
-      category: :genesis,
+    planning_tmux_gone: %{
+      category: :planning,
       keys: [:run_id, :session],
-      doc: "Genesis tmux session no longer exists (liveness check)"
+      doc: "Planning tmux session no longer exists (liveness check)"
     },
-    genesis_run_complete: %{
-      category: :genesis,
+    planning_run_complete: %{
+      category: :planning,
       keys: [:run_id, :mode, :session, :delivered_by],
-      doc: "Genesis mode run completed (coordinator delivered to operator)"
+      doc: "Planning mode run completed (coordinator delivered to operator)"
     },
-    genesis_run_terminated: %{
-      category: :genesis,
+    planning_run_terminated: %{
+      category: :planning,
       keys: [:run_id, :mode],
       doc: "RunProcess GenServer terminated"
     },
-    genesis_node_created: %{
-      category: :genesis,
-      keys: [:id, :node_id, :title, :type],
-      doc: "Genesis Node created"
+    project_created: %{
+      category: :planning,
+      keys: [:id, :project_id, :title, :type],
+      doc: "Project created"
     },
-    genesis_node_advanced: %{
-      category: :genesis,
-      keys: [:id, :node_id, :title, :type],
-      doc: "Genesis Node advanced to next pipeline stage"
+    project_advanced: %{
+      category: :planning,
+      keys: [:id, :project_id, :title, :type],
+      doc: "Project advanced to next pipeline stage"
     },
-    genesis_artifact_created: %{
-      category: :genesis,
-      keys: [:id, :node_id, :type],
-      doc: "Genesis artifact created (ADR, Feature, UseCase, Phase, etc.)"
+    project_artifact_created: %{
+      category: :planning,
+      keys: [:id, :project_id, :type],
+      doc: "Project artifact created (ADR, Feature, UseCase, Phase, etc.)"
     },
-    dag_run_created: %{
-      category: :dag,
-      keys: [:run_id, :source, :label, :job_count],
-      doc: "Dag.Run created (genesis or imported ingest)"
+    pipeline_created: %{
+      category: :pipeline,
+      keys: [:run_id, :source, :label, :task_count],
+      doc: "Pipeline created (project-derived or imported ingest)"
     },
-    dag_run_ready: %{
-      category: :dag,
-      keys: [:run_id, :session, :node_id],
-      doc: "Dag.Run spawned with lead agent in tmux"
+    pipeline_ready: %{
+      category: :pipeline,
+      keys: [:run_id, :session, :project_id],
+      doc: "Pipeline spawned with lead agent in tmux"
     },
-    dag_run_completed: %{
-      category: :dag,
+    pipeline_completed: %{
+      category: :pipeline,
       keys: [:run_id, :label],
-      doc: "All jobs completed for a run"
+      doc: "All pipeline tasks completed for a pipeline run"
     },
-    dag_job_claimed: %{
-      category: :dag,
-      keys: [:run_id, :external_id, :owner, :wave],
-      doc: "Job claimed by a lead agent"
+    pipeline_task_claimed: %{
+      category: :pipeline,
+      keys: [:run_id, :task_id, :external_id, :owner, :wave],
+      doc: "Pipeline task claimed by a lead agent"
     },
-    dag_job_completed: %{
-      category: :dag,
-      keys: [:run_id, :external_id, :owner],
-      doc: "Job marked completed after verification"
+    pipeline_task_completed: %{
+      category: :pipeline,
+      keys: [:run_id, :task_id, :external_id, :owner],
+      doc: "Pipeline task marked completed after verification"
     },
-    dag_job_failed: %{
-      category: :dag,
-      keys: [:run_id, :external_id, :notes],
-      doc: "Job marked failed"
+    pipeline_task_failed: %{
+      category: :pipeline,
+      keys: [:run_id, :task_id, :external_id, :notes],
+      doc: "Pipeline task marked failed"
     },
-    dag_job_reset: %{
-      category: :dag,
-      keys: [:run_id, :external_id],
-      doc: "Stale or failed job reset to pending"
+    pipeline_task_reset: %{
+      category: :pipeline,
+      keys: [:run_id, :task_id, :external_id],
+      doc: "Stale or failed pipeline task reset to pending"
     },
-    dag_tmux_gone: %{
-      category: :dag,
+    pipeline_tmux_gone: %{
+      category: :pipeline,
       keys: [:run_id, :session],
-      doc: "DAG tmux session no longer exists (liveness check)"
+      doc: "Pipeline tmux session no longer exists (liveness check)"
     },
-    dag_health_report: %{
-      category: :dag,
+    pipeline_health_report: %{
+      category: :pipeline,
       keys: [:run_id, :healthy, :issue_count],
-      doc: "Periodic health check result for a run"
+      doc: "Periodic health check result for a pipeline run"
     },
-    dag_status: %{
-      category: :dag,
+    pipeline_status: %{
+      category: :pipeline,
       keys: [:state_map],
-      doc: "Current DAG pipeline status snapshot for the active project set"
+      doc: "Current pipeline status snapshot for the active project set"
     },
-    dag_run_archived: %{
-      category: :dag,
+    pipeline_archived: %{
+      category: :pipeline,
       keys: [:run_id, :label, :reason],
-      doc: "DAG run archived by watchdog after unexpected death"
+      doc: "Pipeline run archived by watchdog after unexpected death"
     }
   }
 
@@ -585,7 +590,7 @@ defmodule Ichor.Signals.Catalog do
            |> Map.merge(@gateway_agent_defs)
            |> Map.merge(@team_monitoring_defs)
            |> Map.merge(@mes_defs)
-           |> Map.merge(@genesis_dag_defs)
+           |> Map.merge(@planning_pipeline_defs)
 
   @catalog Map.new(@signals, fn {k, v} -> {k, Map.put_new(v, :dynamic, false)} end)
   @categories @catalog |> Map.values() |> Enum.map(& &1.category) |> Enum.uniq() |> Enum.sort()

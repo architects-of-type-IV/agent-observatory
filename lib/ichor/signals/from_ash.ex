@@ -22,24 +22,21 @@ defmodule Ichor.Signals.FromAsh do
     :ok
   end
 
-  defp signal_for(Ichor.Factory.Run, :create), do: {:dag_run_created, &run_data/2}
-  defp signal_for(Ichor.Factory.Run, :complete), do: {:dag_run_completed, &run_data/2}
-  defp signal_for(Ichor.Factory.Run, :fail), do: {:dag_run_completed, &run_data/2}
-  defp signal_for(Ichor.Factory.Run, :archive), do: {:dag_run_archived, &run_archive_data/2}
+  defp signal_for(Ichor.Factory.Pipeline, :create), do: {:pipeline_created, &run_data/2}
+  defp signal_for(Ichor.Factory.Pipeline, :complete), do: {:pipeline_completed, &run_data/2}
+  defp signal_for(Ichor.Factory.Pipeline, :fail), do: {:pipeline_completed, &run_data/2}
+  defp signal_for(Ichor.Factory.Pipeline, :archive), do: {:pipeline_archived, &run_archive_data/2}
 
-  defp signal_for(Ichor.Factory.Job, :claim), do: {:job_claimed, &job_data/2}
-  defp signal_for(Ichor.Factory.Job, :complete), do: {:job_completed, &job_data/2}
-  defp signal_for(Ichor.Factory.Job, :fail), do: {:job_failed, &job_data/2}
-  defp signal_for(Ichor.Factory.Job, :reset), do: {:job_reset, &job_data/2}
+  defp signal_for(Ichor.Factory.PipelineTask, :claim), do: {:pipeline_task_claimed, &task_data/2}
 
-  defp signal_for(Ichor.Factory.Node, :create), do: {:genesis_node_created, &node_data/2}
-  defp signal_for(Ichor.Factory.Node, :advance), do: {:genesis_node_advanced, &node_data/2}
+  defp signal_for(Ichor.Factory.PipelineTask, :complete),
+    do: {:pipeline_task_completed, &task_data/2}
 
-  defp signal_for(Ichor.Factory.Artifact, :create),
-    do: {:genesis_artifact_created, &artifact_data/2}
+  defp signal_for(Ichor.Factory.PipelineTask, :fail), do: {:pipeline_task_failed, &task_data/2}
+  defp signal_for(Ichor.Factory.PipelineTask, :reset), do: {:pipeline_task_reset, &task_data/2}
 
-  defp signal_for(Ichor.Factory.RoadmapItem, :create),
-    do: {:genesis_artifact_created, &roadmap_item_data/2}
+  defp signal_for(Ichor.Factory.Project, :create), do: {:project_created, &project_data/2}
+  defp signal_for(Ichor.Factory.Project, :advance), do: {:project_advanced, &project_data/2}
 
   defp signal_for(Ichor.Factory.Project, :pick_up), do: {:mes_project_picked_up, &project_data/2}
 
@@ -47,7 +44,7 @@ defmodule Ichor.Signals.FromAsh do
     do: {:mes_project_compiled, &project_data/2}
 
   defp signal_for(Ichor.Factory.Project, :mark_loaded),
-    do: {:mes_subsystem_loaded, &project_data/2}
+    do: {:mes_plugin_loaded, &project_data/2}
 
   defp signal_for(Ichor.Factory.Project, :mark_failed),
     do: {:mes_project_failed, &project_data/2}
@@ -72,9 +69,9 @@ defmodule Ichor.Signals.FromAsh do
 
   defp signal_for(_, _), do: nil
 
-  defp job_data(data, _action) do
+  defp task_data(data, _action) do
     %{
-      job_id: data.id,
+      task_id: data.id,
       run_id: data.run_id,
       external_id: data.external_id,
       subject: data.subject,
@@ -84,27 +81,24 @@ defmodule Ichor.Signals.FromAsh do
   end
 
   defp run_data(data, _action) do
-    %{run_id: data.id, label: data.label, source: data.source, job_count: data.job_count}
+    %{run_id: data.id, label: data.label, source: data.source, task_count: data.task_count}
   end
 
   defp run_archive_data(data, _action) do
     %{run_id: data.id, label: data.label, reason: "notifier"}
   end
 
-  defp node_data(data, action) do
-    %{id: data.id, node_id: data.id, title: data.title, type: action.name}
-  end
-
-  defp artifact_data(data, _action) do
-    %{id: data.id, node_id: data.node_id, type: data.kind}
-  end
-
-  defp roadmap_item_data(data, _action) do
-    %{id: data.id, node_id: data.node_id, type: data.kind}
+  defp project_data(data, %{name: name}) when name in [:create, :advance] do
+    %{id: data.id, project_id: data.id, title: data.title, type: name}
   end
 
   defp project_data(data, _action) do
-    %{project_id: data.id, title: data.title, session_id: Map.get(data, :picked_up_by)}
+    %{
+      project_id: data.id,
+      title: data.title,
+      plugin: Map.get(data, :plugin),
+      session_id: Map.get(data, :picked_up_by)
+    }
   end
 
   defp webhook_data(data, _action) do
