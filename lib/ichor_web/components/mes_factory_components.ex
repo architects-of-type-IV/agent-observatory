@@ -2,7 +2,7 @@ defmodule IchorWeb.Components.MesFactoryComponents do
   @moduledoc "Factory view components: action bar, tab bar, and station controls."
 
   use Phoenix.Component
-  alias Ichor.Projects.PipelineStage
+  alias Ichor.Factory.PipelineStage
 
   attr :project, :map, required: true
   attr :genesis_node, :any, required: true

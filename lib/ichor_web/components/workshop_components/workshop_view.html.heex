@@ -6,7 +6,7 @@ tree = wc.spawn_tree_html(@ws_agents, @ws_spawn_links) %>
   <div class="flex items-center px-2 py-1 border-b border-border gap-2 shrink-0">
     <div class="flex items-center rounded overflow-hidden border border-border-subtle/60">
       <span class="text-[10px] text-muted px-1.5 py-1 bg-raised/80">Presets</span>
-      <%= for p <- Ichor.Control.Presets.ui_list() do %>
+      <%= for p <- Ichor.Workshop.Presets.ui_list() do %>
         <button
           phx-click="ws_preset"
           phx-value-name={p.name}

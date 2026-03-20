@@ -1,10 +1,10 @@
 defmodule IchorWeb.DashboardMessagingHandlers do
   @moduledoc """
   LiveView event handlers for messaging functionality in the Ichor Dashboard.
-  All outbound messages route through Ichor.Messages.Bus.
+  All outbound messages route through Ichor.Signals.Bus.
   """
 
-  alias Ichor.Messages.Bus, as: MessageBus
+  alias Ichor.Signals.Bus, as: MessageBus
 
   def dispatch("set_message_target", p, s), do: handle_set_message_target(p, s)
   def dispatch("send_targeted_message", p, s), do: handle_send_targeted_message(p, s)

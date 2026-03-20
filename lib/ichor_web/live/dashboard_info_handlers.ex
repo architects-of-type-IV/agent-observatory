@@ -13,7 +13,7 @@ defmodule IchorWeb.DashboardInfoHandlers do
 
   alias Ichor.Archon.SignalManager
   alias Ichor.Gateway.HITLRelay
-  alias Ichor.Projects.{Node, Project}
+  alias Ichor.Factory.{Node, Project}
   alias Ichor.Signals.Message
   alias IchorWeb.{DashboardArchonHandlers, DashboardMesHandlers}
 

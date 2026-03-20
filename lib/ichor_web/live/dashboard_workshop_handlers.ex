@@ -7,16 +7,11 @@ defmodule IchorWeb.DashboardWorkshopHandlers do
 
   import Phoenix.Component, only: [assign: 3]
 
-  alias Ichor.Control.AgentType
-  alias Ichor.Control.Blueprint
-  alias Ichor.Control.BlueprintState
-  alias Ichor.Control.Lifecycle.TeamLaunch
-  alias Ichor.Control.Presets
-  alias Ichor.Control.TeamSpecBuilder
+  alias Ichor.Workshop.{AgentType, BlueprintState, Presets, Team, TeamMember}
   alias IchorWeb.WorkshopPersistence, as: WP
   alias Phoenix.LiveView
 
-  def list_blueprints, do: Blueprint.list_all!()
+  def list_blueprints, do: Team.list_all!()
   def list_agent_types, do: AgentType.sorted!()
   defdelegate push_ws_state(socket), to: WP
 
@@ -41,13 +36,15 @@ defmodule IchorWeb.DashboardWorkshopHandlers do
         state =
           socket.assigns
           |> BlueprintState.add_agent(%{
+            agent_type_id: type.id,
             name: "#{type.name}-#{length(socket.assigns.ws_agents) + 1}",
             capability: type.capability,
             model: type.default_model,
             permission: type.default_permission,
             persona: type.default_persona || "",
             file_scope: type.default_file_scope || "",
-            quality_gates: type.default_quality_gates || ""
+            quality_gates: type.default_quality_gates || "",
+            tools: type.default_tools || []
           })
 
         {:noreply, socket |> assign_workshop_state(state) |> save_and_push()}
@@ -124,13 +121,15 @@ defmodule IchorWeb.DashboardWorkshopHandlers do
 
   def handle_event("ws_clear", _, socket) do
     if bp_id = socket.assigns[:ws_blueprint_id] do
-      with {:ok, blueprint} <- Blueprint.by_id(bp_id), do: Blueprint.destroy(blueprint)
+      with {:ok, team} <- Team.by_id(bp_id), do: Team.destroy(team)
     end
 
     {:noreply, socket |> WP.clear_canvas() |> assign(:ws_blueprint_id, nil) |> push_ws_state()}
   end
 
   def handle_event("ws_launch_team", _, socket) do
+    socket = WP.auto_save(socket)
+
     case launch_team(socket.assigns) do
       {:ok, result} ->
         {:noreply,
@@ -146,16 +145,10 @@ defmodule IchorWeb.DashboardWorkshopHandlers do
   end
 
   defp launch_team(state) do
-    spec = TeamSpecBuilder.build_from_state(state)
-
-    with {:ok, session} <- TeamLaunch.launch(spec) do
-      {:ok,
-       %{
-         team_name: spec.team_name,
-         session: session,
-         launched: length(spec.agents),
-         total: length(spec.agents)
-       }}
+    with {:ok, team} <- Team.by_id(state.ws_blueprint_id),
+         :ok <- TeamMember.sync_from_workshop_state(team, state),
+         {:ok, result} <- Team.spawn_team(team.name) do
+      {:ok, result}
     end
   end
 

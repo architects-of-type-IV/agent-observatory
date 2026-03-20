@@ -4,7 +4,7 @@ defmodule IchorWeb.DashboardTaskHandlers do
   Handles task creation, status updates, reassignment, and editing.
   """
 
-  alias Ichor.Tasks.Board
+  alias Ichor.Factory.Board
 
   def dispatch("update_task_status", p, s) do
     {:noreply, socket} = handle_update_task_status(p, s)

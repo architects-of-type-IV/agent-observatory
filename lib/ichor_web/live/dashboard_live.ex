@@ -20,9 +20,9 @@ defmodule IchorWeb.DashboardLive do
 
   import IchorWeb.DashboardMessagingHandlers, only: [subscribe_to_mailboxes: 1]
 
-  alias Ichor.Events.Runtime, as: EventRuntime
+  alias Ichor.Signals.EventStream, as: EventRuntime
   alias Ichor.Gateway.Channels.AnsiUtils
-  alias Ichor.Projects.Project
+  alias Ichor.Factory.Project
   alias Ichor.Signals.{Buffer, Catalog, Message}
 
   alias IchorWeb.{

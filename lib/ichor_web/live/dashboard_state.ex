@@ -13,15 +13,15 @@ defmodule IchorWeb.DashboardState do
   alias Ichor.Control.Analysis.Queries, as: FQ
   alias Ichor.Control.Analysis.SessionEviction
   alias Ichor.Control.Team
-  alias Ichor.Gateway.Channels.Tmux
+  alias Ichor.Infrastructure.Tmux
   alias Ichor.Gateway.HITLRelay
   alias Ichor.Gateway.TmuxDiscovery
-  alias Ichor.Messages.Bus
+  alias Ichor.Signals.Bus
   alias Ichor.Notes
   alias Ichor.Observability.Error
   alias Ichor.Observability.Message
   alias Ichor.Observability.Task, as: ObservabilityTask
-  alias Ichor.Projects.Runtime
+  alias Ichor.Factory.Runtime
 
   def default_assigns(disk_teams) do
     %{

@@ -5,7 +5,7 @@ defmodule IchorWeb.WorkshopTypes do
 
   import Phoenix.Component, only: [assign: 3]
 
-  alias Ichor.Control.AgentType
+  alias Ichor.Workshop.AgentType
 
   def handle_event("ws_edit_type", %{"id" => id}, socket) do
     case AgentType.by_id(id) do

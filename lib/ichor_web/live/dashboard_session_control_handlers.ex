@@ -6,11 +6,11 @@ defmodule IchorWeb.DashboardSessionControlHandlers do
   """
 
   alias Ichor.Control.{AgentProcess, FleetSupervisor, TeamSupervisor}
-  alias Ichor.Events.Runtime, as: EventRuntime
+  alias Ichor.Signals.EventStream, as: EventRuntime
   alias Ichor.Gateway.AgentRegistry.AgentEntry
-  alias Ichor.Gateway.Channels.Tmux
+  alias Ichor.Infrastructure.Tmux
   alias Ichor.Gateway.HITLRelay
-  alias Ichor.Messages.Bus
+  alias Ichor.Signals.Bus
   alias Ichor.Signals
 
   import IchorWeb.DashboardToast, only: [push_toast: 3]

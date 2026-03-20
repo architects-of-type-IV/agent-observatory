@@ -19,7 +19,7 @@ defmodule IchorWeb.Router do
   end
 
   pipeline :hitl_auth do
-    plug Ichor.Plugs.OperatorAuth
+    plug Ichor.Infrastructure.Plugs.OperatorAuth
   end
 
   scope "/api", IchorWeb do

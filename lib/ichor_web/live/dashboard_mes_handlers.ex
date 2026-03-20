@@ -4,22 +4,24 @@ defmodule IchorWeb.DashboardMesHandlers do
   import Phoenix.Component, only: [assign: 3]
   import Phoenix.LiveView, only: [put_flash: 3]
 
-  alias Ichor.Projects.Node, as: ProjectNode
+  alias Ichor.Factory.Node, as: ProjectNode
 
-  alias Ichor.Projects.{
+  alias Ichor.Factory.{
     DagGenerator,
     Project,
     Scheduler,
-    Spawn,
-    SubsystemLoader
+    Spawn
   }
+
+  alias Ichor.Factory.SubsystemLoader
 
   alias Ichor.Signals
 
   @spec dispatch(String.t(), map(), Phoenix.LiveView.Socket.t()) :: Phoenix.LiveView.Socket.t()
   def dispatch("toggle_mes_scheduler", _params, socket) do
-    toggle_scheduler(Scheduler.paused?())
-    assign(socket, :mes_scheduler_status, fetch_scheduler_status())
+    socket
+    |> toggle_scheduler(Scheduler.paused?())
+    |> assign(:mes_scheduler_status, fetch_scheduler_status())
   end
 
   def dispatch("mes_deselect_project", _params, socket) do
@@ -152,8 +154,15 @@ defmodule IchorWeb.DashboardMesHandlers do
     end
   end
 
-  defp toggle_scheduler(true), do: Scheduler.resume()
-  defp toggle_scheduler(false), do: Scheduler.pause()
+  defp toggle_scheduler(socket, true) do
+    Scheduler.resume()
+    put_flash(socket, :info, "MES resumed")
+  end
+
+  defp toggle_scheduler(socket, false) do
+    Scheduler.pause()
+    put_flash(socket, :info, "MES paused")
+  end
 
   @scheduler_fallback %{tick: 0, active_runs: 0, next_tick_in: 60_000, paused: false}
 

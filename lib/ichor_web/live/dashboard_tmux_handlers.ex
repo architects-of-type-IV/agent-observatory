@@ -10,7 +10,7 @@ defmodule IchorWeb.DashboardTmuxHandlers do
   import IchorWeb.DashboardToast, only: [push_toast: 3]
 
   alias Ichor.Control.Lifecycle.AgentLaunch
-  alias Ichor.Gateway.Channels.Tmux
+  alias Ichor.Infrastructure.Tmux
 
   def dispatch("connect_tmux", p, s), do: handle_connect_tmux(p, s)
   def dispatch("disconnect_tmux", p, s), do: handle_disconnect_tmux(p, s)
