@@ -6,8 +6,8 @@ defmodule Ichor.SystemSupervisor do
   them, so one_for_one is appropriate.
 
   Children (in start order):
-    Core:    Observability.Janitor, MemoryStore, EventBuffer
-    Gateway: TmuxDiscovery, EntropyTracker, HeartbeatManager, CronScheduler,
+    Core:    Observability.Janitor, MemoryStore, Events.Runtime
+    Gateway: TmuxDiscovery, EntropyTracker, CronScheduler,
              WebhookRouter, HITLRelay, OutputCapture
     Monitor: AgentWatchdog, Projects.Runtime, ProtocolTracker, QualityGate,
              Signals.Buffer, Archon.SignalManager, Archon.TeamWatchdog
@@ -26,12 +26,11 @@ defmodule Ichor.SystemSupervisor do
       # Core infrastructure services
       {Ichor.Observability.Janitor, []},
       {Ichor.MemoryStore, []},
-      {Ichor.EventBuffer, []},
+      {Ichor.Events.Runtime, []},
 
       # Gateway services
       {Ichor.Gateway.TmuxDiscovery, []},
       {Ichor.Gateway.EntropyTracker, []},
-      {Ichor.Gateway.HeartbeatManager, []},
       {Ichor.Gateway.CronScheduler, []},
       {Ichor.Gateway.WebhookRouter, []},
       {Ichor.Gateway.HITLRelay, []},

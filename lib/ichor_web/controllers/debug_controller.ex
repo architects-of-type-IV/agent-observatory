@@ -5,7 +5,7 @@ defmodule IchorWeb.DebugController do
   alias Ichor.Control.Agent
   alias Ichor.Control.AgentProcess
   alias Ichor.Control.Team
-  alias Ichor.EventBuffer
+  alias Ichor.Events.Runtime, as: EventRuntime
   alias Ichor.Gateway.Channels.Tmux
   alias Ichor.Gateway.HITLRelay
   alias Ichor.Observability.Message
@@ -83,10 +83,10 @@ defmodule IchorWeb.DebugController do
   end
 
   defp check_event_buffer do
-    if Process.whereis(EventBuffer) do
-      %{ok: true, pid: inspect(Process.whereis(EventBuffer))}
+    if Process.whereis(EventRuntime) do
+      %{ok: true, pid: inspect(Process.whereis(EventRuntime))}
     else
-      %{ok: false, error: "EventBuffer not running"}
+      %{ok: false, error: "Events.Runtime not running"}
     end
   rescue
     e -> %{ok: false, error: Exception.message(e)}
@@ -143,7 +143,7 @@ defmodule IchorWeb.DebugController do
   def fleet_agents(conn, _params) do
     agents = Agent.all!()
 
-    events = EventBuffer.list_events()
+    events = EventRuntime.list_events()
     event_sessions = events |> Enum.map(& &1.session_id) |> Enum.uniq()
 
     beam_processes = AgentProcess.list_all() |> Enum.map(fn {id, _} -> id end)

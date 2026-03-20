@@ -6,7 +6,7 @@ defmodule IchorWeb.DashboardSessionControlHandlers do
   """
 
   alias Ichor.Control.{AgentProcess, FleetSupervisor, TeamSupervisor}
-  alias Ichor.EventBuffer
+  alias Ichor.Events.Runtime, as: EventRuntime
   alias Ichor.Gateway.AgentRegistry.AgentEntry
   alias Ichor.Gateway.Channels.Tmux
   alias Ichor.Gateway.HITLRelay
@@ -148,7 +148,7 @@ defmodule IchorWeb.DashboardSessionControlHandlers do
           false
       end
 
-    EventBuffer.tombstone_session(session_id)
+    EventRuntime.tombstone_session(session_id)
     Signals.emit(:agent_stopped, %{session_id: session_id, reason: "dashboard_shutdown"})
 
     short = String.slice(session_id, 0..7)
