@@ -21,7 +21,7 @@ defmodule Ichor.Repo.Migrations.AddTeamMembersAndToolScopes do
             )
 
         add :team_id,
-            references(:workshop_blueprints,
+            references(:workshop_teams,
               column: :id,
               name: "workshop_team_members_team_id_fkey",
               type: :uuid
@@ -88,7 +88,7 @@ defmodule Ichor.Repo.Migrations.AddTeamMembersAndToolScopes do
   defp migrate_blueprint_agents_into_team_members do
     rows =
       repo().query!(
-        "SELECT id, agents, inserted_at, updated_at FROM workshop_blueprints ORDER BY inserted_at ASC"
+        "SELECT id, agents, inserted_at, updated_at FROM workshop_teams ORDER BY inserted_at ASC"
       ).rows
 
     for [team_id, agents, inserted_at, updated_at] <- rows do

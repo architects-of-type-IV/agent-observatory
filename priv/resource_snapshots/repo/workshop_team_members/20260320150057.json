@@ -160,7 +160,7 @@
       "source": "team_id",
       "references": {
         "name": "workshop_team_members_team_id_fkey",
-        "table": "workshop_blueprints",
+        "table": "workshop_teams",
         "primary_key?": true,
         "multitenancy": {
           "global": null,

@@ -1,7 +1,7 @@
 defmodule Ichor.Repo.Migrations.ConsolidateBlueprints do
   @moduledoc """
   Collapses workshop_team_blueprints + 3 child tables into a single
-  workshop_blueprints table with embedded JSON columns for agents,
+  workshop_teams table with embedded JSON columns for agents,
   spawn_links, and comm_rules.
 
   Data migration: reads existing rows and re-encodes them into the new
@@ -11,7 +11,7 @@ defmodule Ichor.Repo.Migrations.ConsolidateBlueprints do
   use Ecto.Migration
 
   def up do
-    create table(:workshop_blueprints, primary_key: false) do
+    create table(:workshop_teams, primary_key: false) do
       add :id, :uuid, null: false, primary_key: true
       add :name, :text, null: false
       add :strategy, :text, null: false
@@ -24,9 +24,7 @@ defmodule Ichor.Repo.Migrations.ConsolidateBlueprints do
       add :updated_at, :utc_datetime_usec, null: false
     end
 
-    create unique_index(:workshop_blueprints, [:name],
-             name: "workshop_blueprints_unique_name_index"
-           )
+    create unique_index(:workshop_teams, [:name], name: "workshop_teams_unique_name_index")
 
     flush()
 
@@ -111,7 +109,7 @@ defmodule Ichor.Repo.Migrations.ConsolidateBlueprints do
       add :updated_at, :utc_datetime_usec, null: false
     end
 
-    drop_if_exists table(:workshop_blueprints)
+    drop_if_exists table(:workshop_teams)
   end
 
   defp migrate_existing_data do
@@ -161,7 +159,7 @@ defmodule Ichor.Repo.Migrations.ConsolidateBlueprints do
 
       repo().query!(
         """
-        INSERT INTO workshop_blueprints
+        INSERT INTO workshop_teams
           (id, name, strategy, default_model, cwd, agents, spawn_links, comm_rules, inserted_at, updated_at)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
