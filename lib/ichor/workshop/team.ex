@@ -14,7 +14,7 @@ defmodule Ichor.Workshop.Team do
 
   sqlite do
     repo(Ichor.Repo)
-    table("workshop_blueprints")
+    table("workshop_teams")
   end
 
   attributes do

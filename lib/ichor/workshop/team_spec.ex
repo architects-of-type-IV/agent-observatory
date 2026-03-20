@@ -15,10 +15,10 @@ defmodule Ichor.Workshop.TeamSpec do
     - prompt_root_dir(:mes) | prompt_root_dir(:pipeline) | prompt_root_dir(:planning)
   """
 
-  alias Ichor.Control.Lifecycle.AgentSpec
-  alias Ichor.Control.Lifecycle.TeamSpec, as: Spec
   alias Ichor.Factory.ModePrompts
-  alias Ichor.Workshop.{BlueprintState, PipelinePrompts, Presets, Team, TeamPrompts}
+  alias Ichor.Infrastructure.AgentSpec
+  alias Ichor.Infrastructure.TeamSpec, as: Spec
+  alias Ichor.Workshop.{CanvasState, PipelinePrompts, Presets, Team, TeamPrompts}
 
   # MES
 
@@ -33,7 +33,7 @@ defmodule Ichor.Workshop.TeamSpec do
       state,
       session: session,
       prompt_dir: prompt_dir(:mes, run_id),
-      team_metadata: %{run_id: run_id, source: :mes, blueprint: mes_blueprint_name()},
+      team_metadata: %{run_id: run_id, source: :mes, team_template: mes_team_name()},
       prompt_builder: fn agent, _state -> mes_prompt(agent, run_id, roster) end,
       agent_metadata_builder: fn agent, state -> mes_agent_meta(agent, state, run_id) end,
       window_name_builder: & &1.name,
@@ -87,7 +87,7 @@ defmodule Ichor.Workshop.TeamSpec do
       brief: brief,
       jobs: tasks,
       worker_groups: worker_groups,
-      subsystem_dir: prompt_ctx.subsystem_dir
+      plugin_dir: prompt_ctx.plugin_dir
     }
 
     roster = pipeline_roster(session, worker_groups)
@@ -155,9 +155,9 @@ defmodule Ichor.Workshop.TeamSpec do
 
   defp mes_state(team_name) do
     base =
-      case Team.by_name(mes_blueprint_name()) do
-        {:ok, team} -> BlueprintState.apply_blueprint(BlueprintState.defaults(), team)
-        {:error, _} -> Presets.apply(BlueprintState.defaults(), mes_blueprint_name())
+      case Team.by_name(mes_team_name()) do
+        {:ok, team} -> CanvasState.apply_team(CanvasState.defaults(), team)
+        {:error, _} -> Presets.apply(CanvasState.defaults(), mes_team_name())
       end
 
     base
@@ -165,8 +165,8 @@ defmodule Ichor.Workshop.TeamSpec do
     |> Map.put(:ws_cwd, File.cwd!())
   end
 
-  defp mes_blueprint_name do
-    Application.get_env(:ichor, :mes_workshop_blueprint_name, "mes")
+  defp mes_team_name do
+    Application.get_env(:ichor, :mes_workshop_team_name, "mes")
   end
 
   defp mes_prompt(agent, run_id, roster) do
@@ -184,7 +184,7 @@ defmodule Ichor.Workshop.TeamSpec do
     %{
       run_id: run_id,
       source: :mes,
-      blueprint: mes_blueprint_name(),
+      team_template: mes_team_name(),
       team_name: state.ws_team_name,
       permission: agent.permission,
       file_scope: agent.file_scope,
@@ -195,7 +195,7 @@ defmodule Ichor.Workshop.TeamSpec do
   # Pipeline internals
 
   defp pipeline_state(session, worker_groups) do
-    base = Presets.apply(BlueprintState.defaults(), "pipeline")
+    base = Presets.apply(CanvasState.defaults(), "pipeline")
 
     injected =
       worker_groups
@@ -273,7 +273,7 @@ defmodule Ichor.Workshop.TeamSpec do
   # Planning internals
 
   defp planning_state(session, mode) do
-    BlueprintState.defaults()
+    CanvasState.defaults()
     |> Presets.apply("planning_#{mode}")
     |> Map.put(:ws_team_name, session)
     |> Map.put(:ws_cwd, File.cwd!())
@@ -364,7 +364,7 @@ defmodule Ichor.Workshop.TeamSpec do
         Keyword.get(opts, :team_metadata, %{
           source: :workshop,
           strategy: state.ws_strategy,
-          team_id: state[:ws_blueprint_id]
+          team_id: state[:ws_team_id]
         })
     })
   end

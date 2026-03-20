@@ -3,8 +3,8 @@ defmodule Ichor.Workshop.Spawn do
   Builds and launches a saved Workshop team definition by name.
   """
 
-  alias Ichor.Control.Lifecycle.AgentSpec
-  alias Ichor.Control.Lifecycle.TeamSpec
+  alias Ichor.Infrastructure.AgentSpec
+  alias Ichor.Infrastructure.TeamSpec
   alias Ichor.Signals
   alias Ichor.Workshop.{Presets, Team, TeamMember}
 
@@ -35,11 +35,13 @@ defmodule Ichor.Workshop.Spawn do
   end
 
   defp spawn_preset(name) do
-    with {:ok, preset} <- Presets.fetch(name) do
-      spec = build_preset_spec(name, preset)
-      request_spawn(spec, %{team_name: name, source: :preset})
-    else
-      :error -> {:error, {:team_not_found, name}}
+    case Presets.fetch(name) do
+      {:ok, preset} ->
+        spec = build_preset_spec(name, preset)
+        request_spawn(spec, %{team_name: name, source: :preset})
+
+      :error ->
+        {:error, {:team_not_found, name}}
     end
   end
 
@@ -49,21 +51,19 @@ defmodule Ichor.Workshop.Spawn do
   end
 
   defp do_request_spawn(request_id, spec, extra_metadata) do
-    try do
-      :ok = Signals.subscribe(:team_spawn_ready, request_id)
-      :ok = Signals.subscribe(:team_spawn_failed, request_id)
+    :ok = Signals.subscribe(:team_spawn_ready, request_id)
+    :ok = Signals.subscribe(:team_spawn_failed, request_id)
 
-      Signals.emit(:team_spawn_requested, request_id, %{
-        team_name: spec.team_name,
-        spec: spec,
-        source: Map.get(extra_metadata, :source, :team)
-      })
+    Signals.emit(:team_spawn_requested, request_id, %{
+      team_name: spec.team_name,
+      spec: spec,
+      source: Map.get(extra_metadata, :source, :team)
+    })
 
-      await_spawn_result(request_id, spec, extra_metadata)
-    after
-      Signals.unsubscribe(:team_spawn_ready, request_id)
-      Signals.unsubscribe(:team_spawn_failed, request_id)
-    end
+    await_spawn_result(request_id, spec, extra_metadata)
+  after
+    Signals.unsubscribe(:team_spawn_ready, request_id)
+    Signals.unsubscribe(:team_spawn_failed, request_id)
   end
 
   defp await_spawn_result(request_id, spec, extra_metadata) do

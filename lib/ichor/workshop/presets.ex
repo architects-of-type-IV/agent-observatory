@@ -1,6 +1,6 @@
 defmodule Ichor.Workshop.Presets do
   @moduledoc """
-  Canonical Workshop blueprint presets and launch ordering.
+  Canonical Workshop team presets and launch ordering.
   """
 
   @presets %{

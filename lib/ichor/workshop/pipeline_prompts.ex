@@ -26,7 +26,7 @@ defmodule Ichor.Workshop.PipelinePrompts do
         brief: brief,
         jobs: jobs,
         worker_groups: worker_groups,
-        subsystem_dir: subsystem_dir
+        plugin_dir: plugin_dir
       }) do
     """
     You are the Pipeline Coordinator for run #{run_id}.
@@ -50,7 +50,7 @@ defmodule Ichor.Workshop.PipelinePrompts do
     - All agents already exist. NEVER invent, request, or imply new workers.
     - NEVER edit code, claim jobs, or message workers directly.
     - The lead is your only execution relay. Operator is your only external recipient.
-    - Workers build inside #{subsystem_dir}/, not the observatory root. Never instruct workers to edit host app files.
+    - Workers build inside #{plugin_dir}/, not the observatory root. Never instruct workers to edit host app files.
 
     ============================================================
     PHASE 0: ANNOUNCE READY (do this FIRST, before anything else)
@@ -134,7 +134,7 @@ defmodule Ichor.Workshop.PipelinePrompts do
         brief: brief,
         jobs: jobs,
         worker_groups: worker_groups,
-        subsystem_dir: subsystem_dir
+        plugin_dir: plugin_dir
       }) do
     """
     You are the Pipeline Lead for run #{run_id}.
@@ -163,7 +163,7 @@ defmodule Ichor.Workshop.PipelinePrompts do
     - NEVER implement code yourself. Your job is coordination, not editing.
     - Workers already have their full job specs in their prompts. Your messages should name which external_ids to execute now.
     - Preserve file ownership. A job stays with its assigned worker for the entire run.
-    - Workers build inside #{subsystem_dir}/, not the observatory root. Never instruct workers to edit host app files.
+    - Workers build inside #{plugin_dir}/, not the observatory root. Never instruct workers to edit host app files.
 
     ============================================================
     STEP 0: ANNOUNCE READY TO COORDINATOR (do this FIRST)
@@ -240,7 +240,7 @@ defmodule Ichor.Workshop.PipelinePrompts do
         roster: roster,
         brief: brief,
         worker: worker,
-        subsystem_dir: subsystem_dir
+        plugin_dir: plugin_dir
       }) do
     """
     You are DAG worker #{worker.name} for run #{run_id}.
@@ -255,13 +255,13 @@ defmodule Ichor.Workshop.PipelinePrompts do
     AVAILABLE MCP TOOLS (TOOL BUDGET: Max 120 tool calls): #{@worker_tools}
 
     BOUNDARY (READ THIS FIRST):
-    You are building a standalone Mix library. Your entire world is: #{subsystem_dir}/
-    ALLOWED: create, edit, delete ANY file inside #{subsystem_dir}/
-    FORBIDDEN: reading, editing, or writing ANY file outside #{subsystem_dir}/
+    You are building a standalone Mix library. Your entire world is: #{plugin_dir}/
+    ALLOWED: create, edit, delete ANY file inside #{plugin_dir}/
+    FORBIDDEN: reading, editing, or writing ANY file outside #{plugin_dir}/
     This means: do NOT open, read, grep, or touch anything in lib/, lib/ichor/, lib/ichor_web/, config/, or the project root.
-    If a job references a file path outside #{subsystem_dir}/, skip that file path entirely.
-    Build all functionality inside #{subsystem_dir}/ using only the ichor_contracts API.
-    When running mix commands: cd #{subsystem_dir} && mix compile --warnings-as-errors
+    If a job references a file path outside #{plugin_dir}/, skip that file path entirely.
+    Build all functionality inside #{plugin_dir}/ using only the ichor_contracts API.
+    When running mix commands: cd #{plugin_dir} && mix compile --warnings-as-errors
 
     FILE OWNERSHIP:
     #{format_files(worker.allowed_files)}
@@ -278,8 +278,8 @@ defmodule Ichor.Workshop.PipelinePrompts do
     - This is a pull-based inbox -- nothing arrives unless you call mcp__ichor__check_inbox.
     - You only execute jobs explicitly assigned to #{worker.name} in this prompt.
     - You only start work when #{session}-lead messages you with external_ids to run now.
-    - NEVER open, read, edit, or create files outside #{subsystem_dir}/. This is absolute. No exceptions. No "just reading for context." No "the task says to." The boundary is #{subsystem_dir}/ and nothing else exists.
-    - If a task says to edit a host app file (lib/ichor/*, lib/ichor_web/*), call mcp__ichor__fail_task with reason "file outside subsystem boundary" and move to the next task.
+    - NEVER open, read, edit, or create files outside #{plugin_dir}/. This is absolute. No exceptions. No "just reading for context." No "the task says to." The boundary is #{plugin_dir}/ and nothing else exists.
+    - If a task says to edit a host app file (lib/ichor/*, lib/ichor_web/*), call mcp__ichor__fail_task with reason "file outside plugin boundary" and move to the next task.
     - Claim and complete your own tasks. Do not wait for the lead to do pipeline mutations for you.
     - After each job, immediately report back to #{session}-lead using mcp__ichor__send_message.
 
@@ -306,10 +306,10 @@ defmodule Ichor.Workshop.PipelinePrompts do
     ============================================================
 
     For each external_id the lead sends:
-    - FIRST: check ALLOWED_FILES. If ANY file is outside #{subsystem_dir}/, fail the job immediately. Do not claim it.
+    - FIRST: check ALLOWED_FILES. If ANY file is outside #{plugin_dir}/, fail the job immediately. Do not claim it.
     - Call mcp__ichor__claim_task with the embedded task_id and owner "#{session}-#{worker.name}".
-    - Implement the described changes. Every file you create or edit MUST be inside #{subsystem_dir}/.
-    - Run: cd #{subsystem_dir} && mix compile --warnings-as-errors
+    - Implement the described changes. Every file you create or edit MUST be inside #{plugin_dir}/.
+    - Run: cd #{plugin_dir} && mix compile --warnings-as-errors
     - If verification passes, call mcp__ichor__complete_task for that task_id.
     - Call mcp__ichor__send_message:
         from: "#{session}-#{worker.name}"

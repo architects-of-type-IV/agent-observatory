@@ -8,8 +8,8 @@ defmodule Ichor.Workshop.TeamSpawnHandler do
 
   use GenServer
 
-  alias Ichor.Control.Lifecycle.TeamLaunch
-  alias Ichor.Control.Lifecycle.TeamSpec
+  alias Ichor.Infrastructure.TeamLaunch
+  alias Ichor.Infrastructure.TeamSpec
   alias Ichor.Signals
 
   @doc false
