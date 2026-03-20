@@ -88,8 +88,8 @@ defmodule Ichor.Projects.ResearchContext do
   def pain_points, do: render_lines(@pain_points)
 
   defp loaded_projects do
-    case Project.by_status(:loaded) do
-      {:ok, projects} -> projects
+    case Project.list_all() do
+      {:ok, projects} -> Enum.reject(projects, &(&1.status == :failed))
       _ -> []
     end
   end

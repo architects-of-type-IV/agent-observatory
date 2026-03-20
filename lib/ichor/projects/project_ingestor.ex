@@ -205,7 +205,7 @@ defmodule Ichor.Projects.ProjectIngestor do
       |> maybe_put(:signals_emitted, payload["signals_emitted"])
       |> maybe_put(:signals_subscribed, payload["signals_subscribed"])
 
-    case Project.create(attrs) do
+    case create_if_unique(attrs) do
       {:ok, project} ->
         Logger.info("[MES.ProjectIngestor] Ingested project: #{project.title} (#{project.id})")
 
@@ -215,8 +215,27 @@ defmodule Ichor.Projects.ProjectIngestor do
           run_id: run_id
         })
 
+      {:error, :duplicate_subsystem} ->
+        :ok
+
       {:error, reason} ->
         Logger.warning("[MES.ProjectIngestor] Failed to ingest: #{inspect(reason)}")
+    end
+  end
+
+  defp create_if_unique(attrs) do
+    case Project.list_all() do
+      {:ok, existing} -> check_and_create(existing, attrs)
+      _ -> Project.create(attrs)
+    end
+  end
+
+  defp check_and_create(existing, attrs) do
+    if Enum.any?(existing, &(&1.subsystem == attrs.subsystem && &1.status != :failed)) do
+      Logger.warning("[MES.ProjectIngestor] Duplicate subsystem rejected: #{attrs.subsystem}")
+      {:error, :duplicate_subsystem}
+    else
+      Project.create(attrs)
     end
   end
 end

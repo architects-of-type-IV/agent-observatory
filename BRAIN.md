@@ -8,7 +8,8 @@
 - **Ichor.Control** -- 22 LOC, pure `use Ash.Domain` + resources. 9 resources.
 - **Ichor.Projects** -- 25 LOC, pure domain declaration. 13 resources.
 - **Ichor.Observability** -- ~20 LOC, pure domain declaration. 7 resources.
-- **Ichor.Tools** -- MCP surfaces, 21 resources, capability-based with Profiles
+- **Ichor.Tools** -- MCP surfaces, 6 consolidated resources (was 21), capability-based with Profiles
+  - RuntimeOps (18 actions), AgentMemory (10), ProjectExecution (14), Genesis (18), ArchonMemory
 - **Signals bus** -- infrastructure/nervous system. Not a domain.
 - Callers use resource code_interface directly (`Resource.action!(args)`), never domain wrappers.
 
@@ -18,12 +19,11 @@
 - `resolve/1` is public (was private `resolve_target/1` in MessageRouter)
 - Gateway.Router still has its own private `resolve/1` returning recipient maps (different shape)
 
-## File Structure (215 files, target 60)
+## File Structure (309 files checked, tool surface collapsed)
 - control/ -- agent lifecycle, fleet, workshop, lifecycle/
 - projects/ -- genesis planning, MES lifecycle, DAG execution
 - observability/ -- events, activity, preparations
-- tools/agent/ -- 12 MCP tool resources for agents
-- tools/archon/ -- 9 MCP tool resources for archon
+- tools/ -- 6 consolidated resources (RuntimeOps, AgentMemory, ProjectExecution, Genesis, ArchonMemory + tools.ex)
 - gateway/ -- transport infrastructure
 - archon/ -- chat, signal_manager, team_watchdog
 - signals/ -- runtime, buffer, catalog, from_ash (Bus merged into Runtime)

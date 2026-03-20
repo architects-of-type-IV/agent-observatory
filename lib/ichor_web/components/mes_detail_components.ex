@@ -15,12 +15,12 @@ defmodule IchorWeb.Components.MesDetailComponents do
     assigns = assign(assigns, features: features, use_cases: use_cases)
 
     ~H"""
-    <div class="w-[220px] shrink-0 border-l border-border overflow-y-auto bg-zinc-900/30 p-3">
+    <div class="w-[400px] shrink-0 border-l border-border overflow-y-auto bg-zinc-900/30 p-3">
       <%!-- Project Brief --%>
       <div class="mb-4 pb-3 border-b border-border/50">
-        <h3 class="text-[10px] font-bold text-zinc-300 leading-tight mb-1">{@project.title}</h3>
-        <p class="text-[9px] font-mono text-brand mb-2">{@project.subsystem}</p>
-        <p class="text-[9px] text-zinc-400 leading-relaxed">{@project.description}</p>
+        <h3 class="text-xs font-bold text-zinc-300 leading-tight mb-1">{@project.title}</h3>
+        <p class="text-[10px] font-mono text-brand mb-2">{@project.subsystem}</p>
+        <p class="text-[10px] text-zinc-400 leading-relaxed">{@project.description}</p>
       </div>
 
       <%!-- Features (what it does) --%>
@@ -28,7 +28,7 @@ defmodule IchorWeb.Components.MesDetailComponents do
         <ul class="space-y-0.5">
           <li
             :for={f <- @features}
-            class="text-[9px] text-zinc-400 leading-snug pl-2 border-l border-zinc-700"
+            class="text-[10px] text-zinc-400 leading-snug pl-2 border-l border-zinc-700"
           >
             {f}
           </li>
@@ -40,7 +40,7 @@ defmodule IchorWeb.Components.MesDetailComponents do
         <ul class="space-y-0.5">
           <li
             :for={uc <- @use_cases}
-            class="text-[9px] text-zinc-400 leading-snug pl-2 border-l border-brand/30"
+            class="text-[10px] text-zinc-400 leading-snug pl-2 border-l border-brand/30"
           >
             {uc}
           </li>
@@ -67,7 +67,7 @@ defmodule IchorWeb.Components.MesDetailComponents do
       </.meta_section>
 
       <%!-- Footer --%>
-      <div class="mt-4 pt-3 border-t border-border/50 space-y-1 text-[9px] text-muted">
+      <div class="mt-4 pt-3 border-t border-border/50 space-y-1 text-[10px] text-muted">
         <div :if={@project.version}>
           v<span class="font-mono text-default">{@project.version}</span>
         </div>
@@ -86,7 +86,7 @@ defmodule IchorWeb.Components.MesDetailComponents do
   defp meta_section(assigns) do
     ~H"""
     <div class="mb-3">
-      <h4 class="text-[8px] font-bold text-zinc-500 uppercase tracking-wider mb-1.5">{@label}</h4>
+      <h4 class="text-[9px] font-bold text-zinc-500 uppercase tracking-wider mb-1.5">{@label}</h4>
       {render_slot(@inner_block)}
     </div>
     """
@@ -99,7 +99,7 @@ defmodule IchorWeb.Components.MesDetailComponents do
     <div class="flex flex-wrap gap-1">
       <span
         :for={item <- @items}
-        class="text-[8px] px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400 font-mono"
+        class="text-[9px] px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400 font-mono"
       >
         {item}
       </span>
@@ -111,7 +111,7 @@ defmodule IchorWeb.Components.MesDetailComponents do
 
   defp mono_block(assigns) do
     ~H"""
-    <div class="text-[9px] font-mono text-zinc-400 p-2 rounded bg-zinc-900 border border-zinc-800 whitespace-pre-wrap leading-relaxed">
+    <div class="text-[10px] font-mono text-zinc-400 p-2 rounded bg-zinc-900 border border-zinc-800 whitespace-pre-wrap leading-relaxed">
       {@text}
     </div>
     """

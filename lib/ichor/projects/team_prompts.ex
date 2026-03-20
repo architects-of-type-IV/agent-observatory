@@ -251,6 +251,12 @@ defmodule Ichor.Projects.TeamPrompts do
 
     You MUST call send_message to deliver this. Do NOT just write the brief as text output.
 
+    EXISTING SUBSYSTEMS (do NOT brief any of these):
+    #{ResearchContext.existing_subsystems()}
+
+    DO NOT produce a brief for any subsystem listed above. If the winning proposal
+    duplicates an existing subsystem, reject it and ask lead for the next-best proposal.
+
     RULES:
     - Subsystem must implement Ichor.Mes.Subsystem behaviour (info/0, start/0, handle_signal/1, stop/0)
     - No external SaaS libraries. Must be controllable through Signals.

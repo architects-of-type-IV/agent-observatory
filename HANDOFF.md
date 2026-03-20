@@ -1,13 +1,39 @@
 # ICHOR IV - Handoff
 
-## Current Status: Session 5 -- MES Team Launch Regression Fix (2026-03-20)
+## Current Status: Session 5 -- Phase 4 Tool Collapse + MES Fixes (2026-03-20)
+
+### What Was Done: Phase 4 Tool Surface Collapse (21 modules → 6)
+
+**New consolidated tool modules:**
+- `RuntimeOps` -- 18 actions merged from 9 modules
+- `AgentMemory` -- 10 actions merged from 4 modules
+- `ProjectExecution` -- 14 actions merged from 3 modules
+- `Genesis` -- 18 actions merged from 4 modules + formatter
+- `ArchonMemory` -- stays as-is (already single file)
+- 20 tool modules deleted, all tool names preserved
+
+**MES duplicate briefs fix:**
+- Planner prompt updated
+- ResearchContext broadened
+- ProjectIngestor guard added
+
+**MES UI:**
+- Sidebar wider (300px)
+- Font sizes increased
+- Subsystem list capped
+
+**Build**: `mix compile --warnings-as-errors` EXIT:0, `mix credo --strict` 0 issues
+
+---
+
+## Previous: Session 5 -- MES Team Launch Regression Fix (2026-03-20)
 
 ### What Was Done: Bugfix -- MES team not starting after unified Runner
 
 **Root cause**: `Scheduler.spawn_run/0` calls `Runner.start(:mes, ...)` but never calls
 `TeamLaunch.launch(spec)` to start the tmux team. DAG and Genesis both call
 `TeamLaunch.launch(spec)` BEFORE starting their Runner. MES's `on_init` hook only registered
-with the Janitor — it did NOT launch the team. The launch call was missing entirely.
+with the Janitor -- it did NOT launch the team. The launch call was missing entirely.
 
 **Fix**: `Hooks.MES.on_init/1` now builds the spec via `TeamSpecBuilder.build_team_spec/2`
 and calls `team_launch().launch(spec)` before calling `Janitor.monitor_run/2`. Errors are
@@ -37,9 +63,6 @@ emitted as `:mes_cycle_failed` signals.
 
 **Build**: `mix compile --warnings-as-errors` EXIT:0, `mix credo --strict` EXIT:0
 
-**Steps 1-3 (Events.Runtime)** not yet present -- parallel agent hadn't created it yet.
-Bus was built independently as instructed.
-
 ### What Remains (Steps 6-8)
 - Step 6: `event_bridge.ex` (do NOT touch yet)
 - Step 7: `protocol_tracker.ex` (do NOT touch yet)
@@ -49,32 +72,14 @@ Bus was built independently as instructed.
 
 ## Previous: Session 5 -- Projects Domain Simplification Phase 1 (2026-03-20)
 
-### What Was Done This Session
+**Modules trashed:**
+- `PlanSupervisor`, `ExecutionSupervisor` -- single-child DynamicSupervisor wrappers
+- `RunSupervisor` -- facade over `DynRunSupervisor`
+- `RunnerRegistry` -- convenience rename over Registry calls
+- `TeamLifecycle` -- thin orchestration wrapper around `TeamCleanup`
 
-Phase 1 simplification: deleted 5 trivial wrapper modules in the Projects domain (TeamCleanup kept).
-
-**Modules trashed (moved to tmp/trash/):**
-- `PlanSupervisor` -- single-child DynamicSupervisor wrapper. Now `{DynamicSupervisor, name: Ichor.Projects.PlanRunSupervisor, ...}` directly in `application.ex`
-- `ExecutionSupervisor` -- same pattern. Now `{DynamicSupervisor, name: Ichor.Projects.DynRunSupervisor, ...}` directly in `application.ex`
-- `RunSupervisor` -- facade over `DynRunSupervisor`. `DynamicSupervisor.start_child` inlined directly in `spawner.ex`
-- `RunnerRegistry` -- convenience rename over Registry calls. `Registry.lookup/select` + via-tuple inlined into `BuildRunner`, `PlanRunner`, `RunProcess`
-- `TeamLifecycle` -- thin orchestration wrapper around `TeamCleanup`. Spawn logic moved into `BuildRunner` directly, with config injection preserved (`:mes_team_spec_builder_module`, `:mes_team_launch_module`, `:mes_team_cleanup_module`)
-
-**TeamCleanup kept** -- it has real implementation: signal emissions, file cleanup, orphan detection. `Janitor` and `Ichor.Tools.Archon.Mes` now call `TeamCleanup` directly (one fewer indirection hop).
-
-### Files Changed
-- `lib/ichor/application.ex` -- removed PlanSupervisor + ExecutionSupervisor, DynamicSupervisors inline
-- `lib/ichor/projects/spawner.ex` -- RunSupervisor.start_run → DynamicSupervisor.start_child inline
-- `lib/ichor/projects/plan_runner.ex` -- RunnerRegistry calls → Registry inline
-- `lib/ichor/projects/run_process.ex` -- RunnerRegistry calls → Registry inline
-- `lib/ichor/projects/build_runner.ex` -- RunnerRegistry + TeamLifecycle inlined, 3 config helpers added
-- `lib/ichor/projects/janitor.ex` -- TeamLifecycle → TeamCleanup direct
-- `lib/ichor/tools/archon/mes.ex` -- TeamLifecycle → TeamCleanup direct
-- `lib/ichor/projects/scheduler.ex` -- stale comment updated
+**TeamCleanup kept** -- real logic: signal emissions, file cleanup, orphan detection.
 
 ### Build Status
-- `mix compile --warnings-as-errors`: EXIT 0 (322 files)
+- `mix compile --warnings-as-errors`: EXIT 0
 - `mix credo --strict`: 0 issues
-
-### Next Steps
-Continue with additional simplification passes as directed.

@@ -26,7 +26,7 @@ defmodule IchorWeb.Components.MesComponents do
       <.header scheduler_status={@scheduler_status} />
       <div class="flex flex-1 overflow-hidden">
         <%!-- Feed (left) --%>
-        <div class="flex-1 flex flex-col overflow-hidden">
+        <div class={"flex-1 flex flex-col overflow-hidden #{if @selected, do: "max-w-sm", else: ""}"}>
           <MesFeedComponents.feed
             projects={@projects}
             selected={@selected}

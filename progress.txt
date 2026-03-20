@@ -1,5 +1,17 @@
 # ICHOR IV Progress
 
+## Phase 4 Tool Surface Collapse (2026-03-20) -- COMPLETE
+- [x] RuntimeOps: 18 actions from 9 modules
+- [x] AgentMemory: 10 actions from 4 modules
+- [x] ProjectExecution: 14 actions from 3 modules
+- [x] Genesis: 18 actions from 4 modules + formatter
+- [x] ArchonMemory: kept as-is
+- [x] 20 tool modules deleted, all tool names preserved
+- [x] MES duplicate briefs fix (planner prompt + ResearchContext + ProjectIngestor guard)
+- [x] MES sidebar wider (300px), font sizes increased, subsystem list capped
+- [x] mix compile --warnings-as-errors: CLEAN (309 files)
+- [x] mix credo --strict: 0 issues
+
 ## Domain Consolidation: 10 → 4 Ash Domains (2026-03-19) -- ALL PHASES COMPLETE
 - [x] Phase 0: Bootstrap Ichor.Control, Ichor.Projects, Ichor.Observability
 - [x] Phase 1: Events + Activity + Signals.Domain → Observability (6 resources, 11 callers)
