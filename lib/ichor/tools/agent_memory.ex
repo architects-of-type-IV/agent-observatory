@@ -153,13 +153,12 @@ defmodule Ichor.Tools.AgentMemory do
 
       argument(:agent_name, :string, allow_nil?: false)
       argument(:query, :string, allow_nil?: false)
-      argument(:page, :integer, allow_nil?: true)
+      argument(:page, :integer, allow_nil?: false, default: 0)
 
       run(fn input, _context ->
         args = input.arguments
-        page = args[:page] || 0
 
-        case MemoryStore.conversation_search(args.agent_name, args.query, page: page) do
+        case MemoryStore.conversation_search(args.agent_name, args.query, page: args.page) do
           {:ok, results} ->
             {:ok,
              Enum.map(results, fn e ->
@@ -218,13 +217,12 @@ defmodule Ichor.Tools.AgentMemory do
 
       argument(:agent_name, :string, allow_nil?: false)
       argument(:content, :string, allow_nil?: false)
-      argument(:tags, {:array, :string}, allow_nil?: true)
+      argument(:tags, {:array, :string}, allow_nil?: false, default: [])
 
       run(fn input, _context ->
         args = input.arguments
-        tags = args[:tags] || []
 
-        case MemoryStore.archival_memory_insert(args.agent_name, args.content, tags) do
+        case MemoryStore.archival_memory_insert(args.agent_name, args.content, args.tags) do
           {:ok, passage} ->
             {:ok, %{"status" => "stored", "id" => passage.id, "tags" => passage.tags}}
 
@@ -239,17 +237,15 @@ defmodule Ichor.Tools.AgentMemory do
 
       argument(:agent_name, :string, allow_nil?: false)
       argument(:query, :string, allow_nil?: false)
-      argument(:tags, {:array, :string}, allow_nil?: true)
-      argument(:page, :integer, allow_nil?: true)
+      argument(:tags, {:array, :string}, allow_nil?: false, default: [])
+      argument(:page, :integer, allow_nil?: false, default: 0)
 
       run(fn input, _context ->
         args = input.arguments
-        tags = args[:tags] || []
-        page = args[:page] || 0
 
         case MemoryStore.archival_memory_search(args.agent_name, args.query,
-               tags: tags,
-               page: page
+               tags: args.tags,
+               page: args.page
              ) do
           {:ok, results} ->
             {:ok,
@@ -275,8 +271,8 @@ defmodule Ichor.Tools.AgentMemory do
 
       argument(:agent_name, :string, allow_nil?: false)
       argument(:persona, :string, allow_nil?: false)
-      argument(:human, :string, allow_nil?: true)
-      argument(:extra_blocks, {:array, :map}, allow_nil?: true)
+      argument(:human, :string, allow_nil?: false, default: "")
+      argument(:extra_blocks, {:array, :map}, allow_nil?: false, default: [])
 
       run(fn input, _context ->
         args = input.arguments
@@ -289,13 +285,13 @@ defmodule Ichor.Tools.AgentMemory do
           },
           %{
             label: "human",
-            value: args[:human] || "",
+            value: args.human,
             description: "Key details about the human you work with."
           }
         ]
 
         extra =
-          Enum.map(args[:extra_blocks] || [], fn b ->
+          Enum.map(args.extra_blocks, fn b ->
             %{
               label: b["label"] || b[:label],
               value: b["value"] || b[:value] || "",

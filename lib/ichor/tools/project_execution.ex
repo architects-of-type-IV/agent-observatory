@@ -76,7 +76,8 @@ defmodule Ichor.Tools.ProjectExecution do
       argument(:job_id, :string, allow_nil?: false, description: "Dag.Job UUID")
 
       argument(:notes, :string,
-        allow_nil?: true,
+        allow_nil?: false,
+        default: "",
         description: "Completion notes or summary"
       )
 
@@ -84,7 +85,8 @@ defmodule Ichor.Tools.ProjectExecution do
         args = input.arguments
 
         with {:ok, job} <- Job.get(args.job_id),
-             {:ok, completed} <- Job.complete(job, %{notes: args[:notes]}),
+             {:ok, completed} <-
+               Job.complete(job, %{notes: if(args.notes == "", do: nil, else: args.notes)}),
              {:ok, available} <- Job.available(completed.run_id),
              {:ok, all_jobs} <- Job.by_run(completed.run_id) do
           all_done = Enum.all?(all_jobs, &(&1.status == :completed))
@@ -167,11 +169,15 @@ defmodule Ichor.Tools.ProjectExecution do
         description: "Absolute path to tasks.jsonl"
       )
 
-      argument(:label, :string, allow_nil?: true, description: "Human label for this run")
+      argument(:label, :string,
+        allow_nil?: false,
+        default: "",
+        description: "Human label for this run"
+      )
 
       run(fn input, _context ->
         args = input.arguments
-        opts = if args[:label], do: [label: args.label], else: []
+        opts = if args.label != "", do: [label: args.label], else: []
 
         case Loader.from_file(args.tasks_jsonl_path, opts) do
           {:ok, run} ->

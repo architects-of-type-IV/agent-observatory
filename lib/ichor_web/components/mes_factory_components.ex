@@ -69,11 +69,16 @@ defmodule IchorWeb.Components.MesFactoryComponents do
   attr :project_id, :string, required: true
 
   @pill_active "px-2.5 py-1 text-[8px] font-bold bg-brand/15 text-brand hover:bg-brand/25 transition-colors cursor-pointer"
-  @pill_completed "px-2.5 py-1 text-[8px] font-bold bg-success/10 text-success/70"
+  @pill_completed "px-2.5 py-1 text-[8px] font-bold bg-success/10 text-success/70 hover:bg-success/20 transition-colors cursor-pointer"
   @pill_future "px-2.5 py-1 text-[8px] font-bold text-zinc-600"
 
-  defp mode_btn(%{state: :active} = assigns) do
-    assigns = assign(assigns, :cls, @pill_active)
+  defp mode_btn(%{state: :future} = assigns) do
+    assigns = assign(assigns, :cls, @pill_future)
+    ~H"<span class={@cls}>{@label}</span>"
+  end
+
+  defp mode_btn(%{state: :completed} = assigns) do
+    assigns = assign(assigns, :cls, @pill_completed)
 
     ~H"""
     <button
@@ -87,14 +92,19 @@ defmodule IchorWeb.Components.MesFactoryComponents do
     """
   end
 
-  defp mode_btn(%{state: :completed} = assigns) do
-    assigns = assign(assigns, :cls, @pill_completed)
-    ~H"<span class={@cls}>{@label}</span>"
-  end
-
   defp mode_btn(assigns) do
-    assigns = assign(assigns, :cls, @pill_future)
-    ~H"<span class={@cls}>{@label}</span>"
+    assigns = assign(assigns, :cls, @pill_active)
+
+    ~H"""
+    <button
+      phx-click="mes_start_mode"
+      phx-value-mode={@mode}
+      phx-value-project-id={@project_id}
+      class={@cls}
+    >
+      {@label}
+    </button>
+    """
   end
 
   attr :label, :string, required: true

@@ -164,21 +164,22 @@ defmodule Ichor.Tools.Genesis do
       argument(:node_id, :string, allow_nil?: false, description: "Genesis Node UUID")
       argument(:code, :string, allow_nil?: false, description: "ADR code, e.g. ADR-001")
       argument(:title, :string, allow_nil?: false, description: "ADR title")
-      argument(:content, :string, allow_nil?: true, description: "ADR body text")
+      argument(:content, :string, allow_nil?: false, default: "", description: "ADR body text")
 
       argument(:status, :string,
-        allow_nil?: true,
+        allow_nil?: false,
+        default: "pending",
         description: "pending, proposed, accepted, or rejected"
       )
 
       run(fn input, _context ->
         args = input.arguments
-        status = parse_enum(args[:status], :pending, @valid_adr_statuses)
+        status = parse_enum(args.status, :pending, @valid_adr_statuses)
 
         Adr.create(%{
           code: args.code,
           title: args.title,
-          content: args[:content],
+          content: if(args.content == "", do: nil, else: args.content),
           status: status,
           node_id: args.node_id
         })
@@ -190,15 +191,23 @@ defmodule Ichor.Tools.Genesis do
       description("Update an existing ADR's status or content.")
 
       argument(:adr_id, :string, allow_nil?: false, description: "ADR UUID")
-      argument(:status, :string, allow_nil?: true, description: "New status")
-      argument(:content, :string, allow_nil?: true, description: "Updated body text")
+      argument(:status, :string, allow_nil?: false, default: "", description: "New status")
+
+      argument(:content, :string,
+        allow_nil?: false,
+        default: "",
+        description: "Updated body text"
+      )
 
       run(fn input, _context ->
         with {:ok, adr} <- Adr.get(input.arguments.adr_id) do
+          status_str = if input.arguments.status == "", do: nil, else: input.arguments.status
+          content_val = if input.arguments.content == "", do: nil, else: input.arguments.content
+
           attrs =
             %{}
-            |> put_if(:status, parse_enum(input.arguments[:status], nil, @valid_adr_statuses))
-            |> put_if(:content, input.arguments[:content])
+            |> put_if(:status, parse_enum(status_str, nil, @valid_adr_statuses))
+            |> put_if(:content, content_val)
 
           Adr.update(adr, attrs) |> to_map(@artifact_fields)
         end
@@ -225,8 +234,18 @@ defmodule Ichor.Tools.Genesis do
       argument(:node_id, :string, allow_nil?: false, description: "Genesis Node UUID")
       argument(:code, :string, allow_nil?: false, description: "Feature code, e.g. FRD-001")
       argument(:title, :string, allow_nil?: false, description: "Feature title")
-      argument(:content, :string, allow_nil?: true, description: "FRD body with inline FRs")
-      argument(:adr_codes, :string, allow_nil?: true, description: "Comma-separated ADR codes")
+
+      argument(:content, :string,
+        allow_nil?: false,
+        default: "",
+        description: "FRD body with inline FRs"
+      )
+
+      argument(:adr_codes, :string,
+        allow_nil?: false,
+        default: "",
+        description: "Comma-separated ADR codes"
+      )
 
       run(fn input, _context ->
         args = input.arguments
@@ -234,8 +253,8 @@ defmodule Ichor.Tools.Genesis do
         Feature.create(%{
           code: args.code,
           title: args.title,
-          content: args[:content],
-          adr_codes: split_csv(args[:adr_codes]),
+          content: if(args.content == "", do: nil, else: args.content),
+          adr_codes: split_csv(args.adr_codes),
           node_id: args.node_id
         })
         |> to_map(@artifact_fields)
@@ -262,10 +281,16 @@ defmodule Ichor.Tools.Genesis do
       argument(:node_id, :string, allow_nil?: false, description: "Genesis Node UUID")
       argument(:code, :string, allow_nil?: false, description: "UC code, e.g. UC-0001")
       argument(:title, :string, allow_nil?: false, description: "Use case title")
-      argument(:content, :string, allow_nil?: true, description: "UC body with Gherkin scenarios")
+
+      argument(:content, :string,
+        allow_nil?: false,
+        default: "",
+        description: "UC body with Gherkin scenarios"
+      )
 
       argument(:feature_code, :string,
-        allow_nil?: true,
+        allow_nil?: false,
+        default: "",
         description: "Feature code this UC validates"
       )
 
@@ -275,8 +300,8 @@ defmodule Ichor.Tools.Genesis do
         UseCase.create(%{
           code: args.code,
           title: args.title,
-          content: args[:content],
-          feature_code: args[:feature_code],
+          content: if(args.content == "", do: nil, else: args.content),
+          feature_code: if(args.feature_code == "", do: nil, else: args.feature_code),
           node_id: args.node_id
         })
         |> to_map(@artifact_fields)
@@ -303,8 +328,14 @@ defmodule Ichor.Tools.Genesis do
       argument(:node_id, :string, allow_nil?: false, description: "Genesis Node UUID")
       argument(:title, :string, allow_nil?: false, description: "Checkpoint title")
       argument(:mode, :string, allow_nil?: false, description: "Mode: discover, define, or build")
-      argument(:content, :string, allow_nil?: true, description: "Gate check report")
-      argument(:summary, :string, allow_nil?: true, description: "One-line verdict")
+
+      argument(:content, :string,
+        allow_nil?: false,
+        default: "",
+        description: "Gate check report"
+      )
+
+      argument(:summary, :string, allow_nil?: false, default: "", description: "One-line verdict")
 
       run(fn input, _context ->
         args = input.arguments
@@ -314,8 +345,8 @@ defmodule Ichor.Tools.Genesis do
             Checkpoint.create(%{
               title: args.title,
               mode: mode,
-              content: args[:content],
-              summary: args[:summary],
+              content: if(args.content == "", do: nil, else: args.content),
+              summary: if(args.summary == "", do: nil, else: args.summary),
               node_id: args.node_id
             })
             |> to_map([:title, :mode, :content, :summary, :node_id])
@@ -334,7 +365,12 @@ defmodule Ichor.Tools.Genesis do
       argument(:node_id, :string, allow_nil?: false, description: "Genesis Node UUID")
       argument(:title, :string, allow_nil?: false, description: "Conversation title")
       argument(:mode, :string, allow_nil?: false, description: "Mode: discover, define, or build")
-      argument(:content, :string, allow_nil?: true, description: "Transcript or summary")
+
+      argument(:content, :string,
+        allow_nil?: false,
+        default: "",
+        description: "Transcript or summary"
+      )
 
       run(fn input, _context ->
         args = input.arguments
@@ -344,7 +380,7 @@ defmodule Ichor.Tools.Genesis do
             Conversation.create(%{
               title: args.title,
               mode: mode,
-              content: args[:content],
+              content: if(args.content == "", do: nil, else: args.content),
               node_id: args.node_id
             })
             |> to_map([:title, :mode, :content, :summary, :node_id])
@@ -376,10 +412,16 @@ defmodule Ichor.Tools.Genesis do
       argument(:node_id, :string, allow_nil?: false, description: "Genesis Node UUID")
       argument(:number, :integer, allow_nil?: false, description: "Phase number (1-based)")
       argument(:title, :string, allow_nil?: false, description: "Phase title")
-      argument(:goals, :string, allow_nil?: true, description: "Comma-separated goals")
+
+      argument(:goals, :string,
+        allow_nil?: false,
+        default: "",
+        description: "Comma-separated goals"
+      )
 
       argument(:governed_by, :string,
-        allow_nil?: true,
+        allow_nil?: false,
+        default: "",
         description: "Comma-separated FRD/ADR codes"
       )
 
@@ -389,8 +431,8 @@ defmodule Ichor.Tools.Genesis do
         Phase.create(%{
           number: args.number,
           title: args.title,
-          goals: split_csv(args[:goals]),
-          governed_by: split_csv(args[:governed_by]),
+          goals: split_csv(args.goals),
+          governed_by: split_csv(args.governed_by),
           node_id: args.node_id
         })
         |> to_map([:number, :title, :status, :goals, :governed_by, :node_id])
@@ -403,7 +445,7 @@ defmodule Ichor.Tools.Genesis do
       argument(:phase_id, :string, allow_nil?: false, description: "Phase UUID")
       argument(:number, :integer, allow_nil?: false, description: "Section number")
       argument(:title, :string, allow_nil?: false, description: "Section title")
-      argument(:goal, :string, allow_nil?: true, description: "Section goal")
+      argument(:goal, :string, allow_nil?: false, default: "", description: "Section goal")
 
       run(fn input, _context ->
         args = input.arguments
@@ -411,7 +453,7 @@ defmodule Ichor.Tools.Genesis do
         Section.create(%{
           number: args.number,
           title: args.title,
-          goal: args[:goal],
+          goal: if(args.goal == "", do: nil, else: args.goal),
           phase_id: args.phase_id
         })
         |> to_map([:number, :title, :goal, :phase_id])
@@ -426,11 +468,16 @@ defmodule Ichor.Tools.Genesis do
       argument(:title, :string, allow_nil?: false, description: "Task title")
 
       argument(:governed_by, :string,
-        allow_nil?: true,
+        allow_nil?: false,
+        default: "",
         description: "Comma-separated FRD/ADR codes"
       )
 
-      argument(:parent_uc, :string, allow_nil?: true, description: "UseCase code this implements")
+      argument(:parent_uc, :string,
+        allow_nil?: false,
+        default: "",
+        description: "UseCase code this implements"
+      )
 
       run(fn input, _context ->
         args = input.arguments
@@ -438,8 +485,8 @@ defmodule Ichor.Tools.Genesis do
         RoadmapTask.create(%{
           number: args.number,
           title: args.title,
-          governed_by: split_csv(args[:governed_by]),
-          parent_uc: args[:parent_uc],
+          governed_by: split_csv(args.governed_by),
+          parent_uc: if(args.parent_uc == "", do: nil, else: args.parent_uc),
           section_id: args.section_id
         })
         |> to_map([:number, :title, :status, :governed_by, :parent_uc, :section_id])
@@ -452,21 +499,36 @@ defmodule Ichor.Tools.Genesis do
       argument(:task_id, :string, allow_nil?: false, description: "Task UUID")
       argument(:number, :integer, allow_nil?: false, description: "Subtask number")
       argument(:title, :string, allow_nil?: false, description: "Subtask title")
-      argument(:goal, :string, allow_nil?: true, description: "What success looks like")
+
+      argument(:goal, :string,
+        allow_nil?: false,
+        default: "",
+        description: "What success looks like"
+      )
 
       argument(:allowed_files, :string,
-        allow_nil?: true,
+        allow_nil?: false,
+        default: "",
         description: "Comma-separated file paths"
       )
 
-      argument(:blocked_by, :string, allow_nil?: true, description: "Comma-separated subtask IDs")
+      argument(:blocked_by, :string,
+        allow_nil?: false,
+        default: "",
+        description: "Comma-separated subtask IDs"
+      )
 
       argument(:steps, :string,
-        allow_nil?: true,
+        allow_nil?: false,
+        default: "",
         description: "Comma-separated implementation steps"
       )
 
-      argument(:done_when, :string, allow_nil?: true, description: "Verification command")
+      argument(:done_when, :string,
+        allow_nil?: false,
+        default: "",
+        description: "Verification command"
+      )
 
       run(fn input, _context ->
         args = input.arguments
@@ -474,11 +536,11 @@ defmodule Ichor.Tools.Genesis do
         Subtask.create(%{
           number: args.number,
           title: args.title,
-          goal: args[:goal],
-          allowed_files: split_csv(args[:allowed_files]),
-          blocked_by: split_csv(args[:blocked_by]),
-          steps: split_csv(args[:steps]),
-          done_when: args[:done_when],
+          goal: if(args.goal == "", do: nil, else: args.goal),
+          allowed_files: split_csv(args.allowed_files),
+          blocked_by: split_csv(args.blocked_by),
+          steps: split_csv(args.steps),
+          done_when: if(args.done_when == "", do: nil, else: args.done_when),
           task_id: args.task_id
         })
         |> to_map([
