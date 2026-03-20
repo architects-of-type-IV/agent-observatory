@@ -12,9 +12,10 @@ config :ichor,
   ecto_repos: [Ichor.Repo],
   ash_domains: [
     Ichor.Tools,
+    Ichor.Workshop,
     Ichor.Control,
     Ichor.Observability,
-    Ichor.Projects
+    Ichor.Factory
   ]
 
 config :ichor, Ichor.Repo,

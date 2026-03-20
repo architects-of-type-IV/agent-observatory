@@ -33,3 +33,6 @@ config :phoenix,
 
 # Oban inline testing -- jobs run synchronously, no queues needed
 config :ichor, Oban, testing: :inline
+
+# Disable swoosh api client in test; production uses Req explicitly.
+config :swoosh, :api_client, false
