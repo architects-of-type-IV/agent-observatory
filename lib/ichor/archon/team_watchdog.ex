@@ -8,7 +8,7 @@ defmodule Ichor.Archon.TeamWatchdog do
   use GenServer
 
   alias Ichor.Control.FleetSupervisor
-  alias Ichor.Projects.{Job, Run}
+  alias Ichor.Factory.{Job, Run}
   alias Ichor.Signals
   alias Ichor.Signals.Message
 

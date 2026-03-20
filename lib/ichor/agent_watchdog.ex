@@ -16,11 +16,12 @@ defmodule Ichor.AgentWatchdog do
 
   alias Ichor.Control.AgentProcess
   alias Ichor.Gateway.AgentRegistry.AgentEntry
-  alias Ichor.Gateway.Channels.{SshTmux, Tmux}
   alias Ichor.Gateway.HITLRelay
-  alias Ichor.Messages.Bus
+  alias Ichor.Infrastructure.Tmux
+  alias Ichor.Infrastructure.Tmux.Ssh, as: SshTmux
+  alias Ichor.Factory.Board
+  alias Ichor.Signals.Bus
   alias Ichor.Signals.Message
-  alias Ichor.Tasks.Board
 
   @interval 5_000
   @crash_threshold_sec 120
@@ -47,6 +48,7 @@ defmodule Ichor.AgentWatchdog do
   @impl true
   def init(_opts) do
     Ichor.Signals.subscribe(:events)
+    Ichor.Signals.subscribe(:fleet)
     schedule()
 
     {:ok,
@@ -81,6 +83,18 @@ defmodule Ichor.AgentWatchdog do
     sessions = update_session_activity(event, state.sessions)
     escalations = clear_escalation_if_active(event.session_id, state.escalations)
     {:noreply, %{state | sessions: sessions, escalations: escalations}}
+  end
+
+  @impl true
+  def handle_info(%Message{name: :agent_stopped, data: %{session_id: session_id}}, state)
+      when is_binary(session_id) do
+    {:noreply, drop_session_state(state, session_id)}
+  end
+
+  @impl true
+  def handle_info(%Message{name: :team_disbanded, data: %{team_name: team_name}}, state)
+      when is_binary(team_name) do
+    {:noreply, drop_team_state(state, team_name)}
   end
 
   @impl true
@@ -404,6 +418,14 @@ defmodule Ichor.AgentWatchdog do
       {:error, _} ->
         state
     end
+  catch
+    :error, :emfile ->
+      Logger.warning("AgentWatchdog: skipping pane scan due to open file limit")
+      state
+
+    :exit, :emfile ->
+      Logger.warning("AgentWatchdog: skipping pane scan due to open file limit")
+      state
   end
 
   defp parse_pane_signals(agent, text, state) do
@@ -459,15 +481,55 @@ defmodule Ichor.AgentWatchdog do
     state
   end
 
+  defp drop_session_state(state, session_id) do
+    captures =
+      state.captures
+      |> Enum.reject(fn {target, _output} -> target == session_id end)
+      |> Map.new()
+
+    signals =
+      state.signals
+      |> Enum.reject(fn {{sid, _kind}, _value} -> sid == session_id end)
+      |> Map.new()
+
+    %{
+      state
+      | sessions: Map.delete(state.sessions, session_id),
+        escalations: Map.delete(state.escalations, session_id),
+        captures: captures,
+        signals: signals
+    }
+  end
+
+  defp drop_team_state(state, team_name) do
+    session_ids =
+      state.sessions
+      |> Enum.filter(fn {session_id, data} ->
+        data.team_name == team_name or session_id == team_name or
+          String.starts_with?(session_id, team_name <> "-")
+      end)
+      |> Enum.map(&elem(&1, 0))
+
+    Enum.reduce(session_ids, state, &drop_session_state(&2, &1))
+  end
+
   defp resolve_capture_target(%{channels: %{tmux: target}}) when is_binary(target) do
-    {target, &Tmux.capture_pane(&1, lines: @capture_lines)}
+    if capture_target?(target) do
+      {target, &Tmux.capture_pane(&1, lines: @capture_lines)}
+    end
   end
 
   defp resolve_capture_target(%{channels: %{ssh_tmux: target}}) when is_binary(target) do
-    {target, &SshTmux.capture_pane(&1, lines: @capture_lines)}
+    if capture_target?(target) do
+      {target, &SshTmux.capture_pane(&1, lines: @capture_lines)}
+    end
   end
 
   defp resolve_capture_target(_), do: nil
+
+  defp capture_target?("%" <> _), do: true
+  defp capture_target?(target) when is_binary(target), do: String.contains?(target, ":")
+  defp capture_target?(_), do: false
 
   defp diff_output(prev, current) do
     prev_lines = String.split(prev, "\n", trim: true)

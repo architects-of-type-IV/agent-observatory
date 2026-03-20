@@ -6,7 +6,7 @@ defmodule Ichor.Application do
   use Application
 
   alias Ichor.Control.Lifecycle.AgentLaunch
-  alias Ichor.Messages.Bus
+  alias Ichor.Signals.Bus
   alias Ichor.Notes
 
   @impl true
@@ -48,13 +48,16 @@ defmodule Ichor.Application do
       {Task.Supervisor, name: Ichor.TaskSupervisor},
 
       # MES subsystem (Registry + DynamicSupervisor + ProjectIngestor + Scheduler)
-      Ichor.Projects.LifecycleSupervisor,
+      Ichor.Factory.LifecycleSupervisor,
+
+      # Workshop runtime launch listener (signal-driven team spawns)
+      Ichor.Workshop.TeamSpawnHandler,
 
       # Genesis pipeline (DynamicSupervisor for mode RunProcesses)
-      {DynamicSupervisor, name: Ichor.Projects.PlanRunSupervisor, strategy: :one_for_one},
+      {DynamicSupervisor, name: Ichor.Factory.PlanRunSupervisor, strategy: :one_for_one},
 
       # DAG execution subsystem (DynamicSupervisor for RunProcesses)
-      {DynamicSupervisor, name: Ichor.Projects.DynRunSupervisor, strategy: :one_for_one},
+      {DynamicSupervisor, name: Ichor.Factory.DynRunSupervisor, strategy: :one_for_one},
 
       # Memories bridge (signals -> knowledge graph)
       Ichor.MemoriesBridge,

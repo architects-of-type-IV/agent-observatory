@@ -26,7 +26,7 @@ defmodule Ichor.SystemSupervisor do
       # Core infrastructure services
       {Ichor.Observability.Janitor, []},
       {Ichor.MemoryStore, []},
-      {Ichor.Events.Runtime, []},
+      {Ichor.Signals.EventStream, []},
 
       # Gateway services
       {Ichor.Gateway.TmuxDiscovery, []},
@@ -38,8 +38,8 @@ defmodule Ichor.SystemSupervisor do
 
       # Monitoring and observability services
       {Ichor.AgentWatchdog, []},
-      {Ichor.Projects.Runtime, []},
-      {Ichor.ProtocolTracker, []},
+      {Ichor.Factory.Runtime, []},
+      {Ichor.Signals.ProtocolTracker, []},
       {Ichor.QualityGate, []},
       {Ichor.Signals.Buffer, []},
       {Ichor.Archon.SignalManager, []},

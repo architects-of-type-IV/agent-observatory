@@ -16,17 +16,17 @@ defmodule Ichor.Mesh.DecisionLog do
   use Ash.Resource, data_layer: :embedded
 
   attributes do
-    attribute :meta, :map, public?: true
-    attribute :identity, :map, public?: true
-    attribute :cognition, :map, public?: true
-    attribute :action, :map, public?: true
-    attribute :state_delta, :map, public?: true
-    attribute :control, :map, public?: true
+    attribute(:meta, :map, public?: true)
+    attribute(:identity, :map, public?: true)
+    attribute(:cognition, :map, public?: true)
+    attribute(:action, :map, public?: true)
+    attribute(:state_delta, :map, public?: true)
+    attribute(:control, :map, public?: true)
   end
 
   actions do
     create :create do
-      accept [:meta, :identity, :cognition, :action, :state_delta, :control]
+      accept([:meta, :identity, :cognition, :action, :state_delta, :control])
     end
   end
 end
