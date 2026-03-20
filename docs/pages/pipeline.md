@@ -10,7 +10,7 @@ Now I have a complete picture. Let me compile the full analysis.
 
 ### Overview
 
-The `/pipeline` view is the default landing page of the ICHOR IV dashboard. It is a real-time task pipeline board backed by `tasks.jsonl` files auto-discovered from active agent working directories. The URL path `/` (or any unrecognized `?view=` param) resolves to `nav_view: :pipeline`.
+The `/pipeline` view is the default landing page of the ICHOR IV dashboard. It is a real-time task pipeline board backed by the Factory pipeline runtime. The URL path `/` (or any unrecognized `?view=` param) resolves to `nav_view: :pipeline`.
 
 ---
 
@@ -46,11 +46,11 @@ Displays the following counters, all with hover tooltips:
 - Tool call count (total tool calls from events)
 - Visible/total events ratio
 - Task progress bar (done/total with percentage) from `active_tasks`
-- Pipeline progress bar (completed/total in cyan) from `dag_state.pipeline`, shown only when different from task bar
-- Health badge: green "OK" or red with issue count, derived from `dag_state.health` and error count
+- Pipeline progress bar (completed/total in cyan) from `pipeline_state.pipeline`, shown only when different from task bar
+- Health badge: green "OK" or red with issue count, derived from `pipeline_state.health` and error count
 - Protocol stats: traces (T:), mailbox pending (M:), command queue (Q:) -- shown only when non-zero
 
-Data sources: `@agent_index` (map of all agents), `@active_tasks`, `@dag_state`, `@errors`, `@messages`, `@protocol_stats`, `@visible_events`
+Data sources: `@agent_index` (map of all agents), `@active_tasks`, `@pipeline_state`, `@errors`, `@messages`, `@protocol_stats`, `@visible_events`
 
 #### Search Bar
 - Free-text search input, phx-change `search_feed`, debounce 150ms
@@ -104,7 +104,7 @@ Rendered when `@nav_view == :pipeline`. Consists of:
 File: `dashboard_live.html.heex` (lines 332-363)
 
 - "Pipeline Board" label (uppercase, muted)
-- Status summary badge row (shown when `@dag_state.pipeline.total > 0`):
+- Status summary badge row (shown when `@pipeline_state.pipeline.total > 0`):
   - Green: N done
   - Blue: N running
   - Default: N pending
@@ -118,7 +118,7 @@ Files:
 - `/Users/xander/code/www/kardashev/observatory/lib/ichor_web/components/pipeline_components/pipeline_view.html.heex`
 - `/Users/xander/code/www/kardashev/observatory/lib/ichor_web/components/pipeline_components/dag_node.html.heex`
 
-Props received: `@dag_state`, `@selected_dag_task`, `@show_add_project`, `@now`
+Props received: `@pipeline_state`, `@selected_pipeline_task`, `@show_add_project`, `@now`
 
 **Two-column layout:**
 
@@ -128,8 +128,8 @@ Projects Section:
 - Badge list of all watched project keys (font-mono, zinc style)
 - "Auto-detecting..." placeholder when no projects
 - Action buttons:
-  - **GC** (danger, with confirm dialog): `trigger_dag_gc` -- archives completed work for active project
-  - **Health** (muted): `run_dag_health_check` -- triggers immediate health check via shell script
+  - **GC** (danger, with confirm dialog): `trigger_pipeline_gc` -- archives completed work for active project
+  - **Health** (muted): `run_pipeline_health_check` -- triggers immediate health check via shell script
   - **Reset Stale** (brand): `reset_dag_stale` -- resets all in-progress tasks stale > 10 minutes back to pending
 
 Selected Task Detail Card (conditional, shown when `@selected_dag_task` is set):
@@ -140,8 +140,8 @@ Selected Task Detail Card (conditional, shown when `@selected_dag_task` is set):
 - Blocked-by task IDs (if non-empty)
 - Updated timestamp (short time HH:MM:SS)
 - Action buttons:
-  - **Unassign**: `reassign_dag_task` with empty owner
-  - **Reset**: `heal_dag_task` -- resets task status back to pending
+  - **Unassign**: `reassign_pipeline_task` with empty owner
+  - **Reset**: `heal_pipeline_task` -- resets task status back to pending
 
 ##### Right Panel (flex-1): Kanban Board + DAG Graph
 
@@ -160,7 +160,7 @@ Each column:
 - Scrollable card list (max-height 280px)
 
 Each task card:
-- Click to select: `select_dag_node` with task ID (toggle: clicking selected task deselects)
+- Click to select: `select_pipeline_task` with task ID (toggle: clicking selected task deselects)
 - Project key (violet/60, 9px monospace, if present)
 - Task ID (9px monospace, muted)
 - Priority label (color-coded: critical=error, high=brand, medium=default, low=muted)
@@ -174,7 +174,7 @@ Each task card:
 - Horizontal scrollable wave layout
 - Each wave labeled "Wave 0", "Wave 1", etc.
 - Each task in a wave rendered as a `<.dag_node>` button:
-  - Click: `select_dag_node` (same toggle behavior as kanban)
+  - Click: `select_pipeline_task` (same toggle behavior as kanban)
   - Task ID (#N monospace)
   - Status dot (color + animation): completed=green, in_progress=blue+pulse, failed=red, pending=low/grey, other=highlight
   - Subject text (truncated, max 120px)
@@ -289,17 +289,17 @@ Hidden `<div id="browser-notifications" phx-hook="BrowserNotifications">` -- pus
 
 | Data | Source | Update Mechanism |
 |---|---|---|
-| `dag_state` | `Ichor.Projects.Runtime` GenServer (ETS-backed poll every 3s) | Signal `:dag_status` broadcast received by `DashboardInfoHandlers.dispatch/2`, assigns `dag_state` |
-| `tasks` | Parsed from `tasks.jsonl` in each watched project directory | Polled every 3s; also triggered by new agent events (CWD registration) |
+| `pipeline_state` | `Ichor.Factory.PipelineMonitor` runtime state | Signal `:pipeline_status` broadcast received by `DashboardInfoHandlers.dispatch/2`, assigns `pipeline_state` |
+| `tasks` | Factory pipeline task state | Refreshed by pipeline runtime and operator actions |
 | Watched projects | Auto-discovered from: event CWD buffer, `~/.claude/teams/` config.json files, `~/.claude/teams/.archive/` | Re-scanned on every `:poll_tasks` cycle |
-| DAG structure | Computed by `Ichor.Projects.Graph` (pure functions): topological sort into waves, critical path (longest chain), edge list | Recomputed on every task refresh |
+| Dependency graph | Computed by `Ichor.Factory.PipelineGraph` (pure functions): waves, critical path, edge list | Recomputed on every task refresh |
 | Pipeline stats | `Graph.pipeline_stats/1` | Same |
-| `teams` | `Ichor.Control.Team.alive!()` (Ash query) | `recompute/1` on signals: `agent_spawned`, `agent_stopped`, `registry_changed`, `fleet_changed` |
+| `teams` | `Ichor.Workshop.ActiveTeam.alive!()` (Ash query) | `recompute/1` on signals: `agent_spawned`, `agent_stopped`, `registry_changed`, `fleet_changed` |
 | `sessions` | Derived by `FQ.active_sessions/2` from events + tmux | Same recompute |
-| `agents` / `agent_index` | `Ichor.Control.Agent.all!()` (Ash query) | Same recompute |
-| `errors` | `Ichor.Observability.Error.recent!()` | Same recompute |
-| `messages` | `Ichor.Observability.Message.recent!()` + `Bus.recent_messages/1` | Same recompute |
-| Health | `~/.claude/skills/swarm/scripts/health-check.sh` shell script | Polled every 30s, or on-demand via `run_dag_health_check` button |
+| `agents` / `agent_index` | `Ichor.Workshop.Agent.all!()` (Ash query) | Same recompute |
+| `errors` | `Ichor.Signals.ToolFailure.recent!()` | Same recompute |
+| `messages` | `Ichor.Signals.Bus.recent_messages/1` | Same recompute |
+| Health | `~/.claude/skills/swarm/scripts/health-check.sh` shell script | Polled every 30s, or on-demand via `run_pipeline_health_check` button |
 
 ---
 
@@ -309,25 +309,25 @@ All are dispatched through `DashboardDagHandlers.dispatch/3`:
 
 | Event | Handler | Effect |
 |---|---|---|
-| `select_dag_node` | `handle_select_dag_node/2` | Toggles `selected_dag_task` assign (deselects if already selected) |
-| `heal_dag_task` / `heal_task` | `handle_heal_task/2` | `Runtime.heal_task(id)` -- resets task to pending via `JsonlStore` |
-| `reassign_dag_task` | `handle_reassign_dag_task/2` | `Runtime.reassign_task(id, owner)` -- writes new owner to `tasks.jsonl` |
-| `reset_dag_stale` | `handle_reset_all_stale/2` | Resets all in-progress tasks stale > 10 min |
-| `run_dag_health_check` | `handle_run_health_check/2` | Runs health check script immediately |
-| `trigger_dag_gc` | `handle_trigger_gc/2` | Archives completed tasks for the active project |
-| `claim_dag_task` | `handle_claim_dag_task/2` | Sets task to in_progress with agent name |
-| `select_dag_project` | `handle_select_project/2` | Switches active project in Runtime GenServer |
+| `select_pipeline_task` | `handle_select_pipeline_task/2` | Toggles `selected_pipeline_task` assign (deselects if already selected) |
+| `heal_pipeline_task` | `handle_heal_task/2` | Resets a pipeline task back to pending |
+| `reassign_pipeline_task` | `handle_reassign_task/2` | Changes task owner |
+| `reset_pipeline_stale` | `handle_reset_all_stale/2` | Resets all in-progress stale tasks |
+| `run_pipeline_health_check` | `handle_run_health_check/2` | Runs health check script immediately |
+| `trigger_pipeline_gc` | `handle_trigger_gc/2` | Archives completed tasks for the active project |
+| `claim_pipeline_task` | `handle_claim_task/2` | Sets task to in_progress with agent name |
+| `select_pipeline_project` | `handle_select_project/2` | Switches active project in pipeline state |
 
-All mutations in `Runtime` write to `tasks.jsonl` via `Ichor.Tasks.JsonlStore`, then call `refresh_tasks/1` and broadcast `:dag_status` signal, which the LiveView receives and assigns to `@dag_state`.
+Pipeline mutations flow through the Factory runtime and monitor layers, then broadcast `:pipeline_status`, which the LiveView receives and assigns to `@pipeline_state`.
 
 ---
 
 ### Real-Time Update Flow
 
-1. `Ichor.Projects.Runtime` polls `tasks.jsonl` every 3 seconds (`@tasks_poll_interval 3_000`)
-2. On change: emits `Ichor.Signals.emit(:dag_status, %{state_map: state})`
+1. `Ichor.Factory.PipelineMonitor` refreshes pipeline state from the active Factory runtime
+2. On change: emits `Ichor.Signals.emit(:pipeline_status, %{state_map: state})`
 3. `DashboardLive` subscribed to all signal categories at mount
-4. `handle_info(%Message{name: :dag_status, ...}, socket)` in `DashboardInfoHandlers` assigns new `dag_state`
+4. `handle_info(%Message{name: :pipeline_status, ...}, socket)` in `DashboardInfoHandlers` assigns new `pipeline_state`
 5. Template re-renders kanban, DAG graph, and header stats reactively
 
 ---
@@ -341,7 +341,7 @@ All mutations in `Runtime` write to `tasks.jsonl` via `Ichor.Tasks.JsonlStore`, 
 | `/Users/xander/code/www/kardashev/observatory/lib/ichor_web/components/pipeline_components/pipeline_view.html.heex` | Kanban board + DAG graph layout |
 | `/Users/xander/code/www/kardashev/observatory/lib/ichor_web/components/pipeline_components/dag_node.html.heex` | Single DAG node button |
 | `/Users/xander/code/www/kardashev/observatory/lib/ichor_web/components/pipeline_components.ex` | Pipeline component module + styling helpers |
-| `/Users/xander/code/www/kardashev/observatory/lib/ichor_web/live/dashboard_dag_handlers.ex` | DAG event handler dispatch |
+| `/Users/xander/code/www/kardashev/observatory/lib/ichor_web/live/dashboard_pipeline_handlers.ex` | Pipeline event handler dispatch |
 | `/Users/xander/code/www/kardashev/observatory/lib/ichor/projects/runtime.ex` | Runtime GenServer: discovery, polling, task mutations, health checks |
 | `/Users/xander/code/www/kardashev/observatory/lib/ichor/projects/graph.ex` | Pure DAG computation: waves, edges, critical path, stats |
 | `/Users/xander/code/www/kardashev/observatory/lib/ichor_web/live/dashboard_state.ex` | `recompute/1` -- derives all dashboard assigns from Ash queries |

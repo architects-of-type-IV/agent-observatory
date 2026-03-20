@@ -1,305 +1,219 @@
-Let me search for the MES page components and handlers.
-Now let me check the `ProjectStage` module used in the action bar, and look at the `mes_events` list and any remaining handler details.
-I now have a complete picture of the MES page. Here is the comprehensive feature description:
-
----
-
-# MES Page -- Complete Feature Description
+# MES Page
 
 ## Overview
 
-The MES page (Manufacturing Execution System) is a full-page LiveView panel accessible via the `/mes` route. It is one of five top-level navigation views in the Ichor dashboard. Its purpose is to track and operate the lifecycle of AI-built subsystem projects, from initial ideation through multi-mode planning (Genesis pipeline), DAG-based code generation, compilation, and runtime loading into the BEAM.
+The MES page is the Factory view for project intake, planning, and pipeline launch.
+It is rendered inside `DashboardLive` when `?view=mes` and is backed by the
+`Ichor.Factory` domain, not the old `Projects/Genesis/DAG` split.
 
----
+The current nouns are:
 
-## Layout Structure
+- `Project` = durable MES project
+- `Artifact` = embedded planning document inside a project
+- `RoadmapItem` = embedded planning tree item inside a project
+- `Pipeline` = executable delivery projection
+- `PipelineTask` = executable task unit inside a pipeline
 
-The page uses a three-column layout when a project is selected, collapsing to a single-column list view when nothing is selected.
+## Layout
 
-- **Header bar** (always visible): page title ("Manufacturing Execution System"), subtitle ("Subsystem Production Line"), scheduler status indicator, and scheduler pause/resume toggle.
-- **Left column** -- Project Feed (always visible): scrollable list of all MES projects. Narrows to compact mode when a project is selected.
-- **Center column** -- Factory Detail (visible when a project is selected): action bar, optional gate report, artifact tabs and reader.
-- **Right column** -- Metadata Sidebar (visible when a project is selected): static project metadata.
+The page has three working areas when a project is selected:
 
----
+- left: project feed
+- center: planning and gate flow
+- right: project metadata
 
-## Header Bar
+When nothing is selected, only the project feed is shown.
 
-**UI elements:**
-- Title: "Manufacturing Execution System"
-- Subtitle: "Subsystem Production Line"
-- Scheduler status pill: shows current tick number (monospaced), active run count OR "Paused" label, animated green dot (running) or amber dot (paused).
-- Pause/Resume button: toggles `Ichor.Projects.Scheduler`. "Pause" in amber when running, "Resume" in brand color when paused.
+## Header
 
-**Interactions:**
-- `phx-click="toggle_mes_scheduler"` -- calls `Scheduler.pause()` or `Scheduler.resume()` depending on current state, then re-fetches scheduler status.
+The header shows:
 
-**Data source:** `Ichor.Projects.Scheduler.status/0` returns `%{tick, active_runs, next_tick_in, paused}`.
+- title: `Manufacturing Execution System`
+- subtitle: `Subsystem Production Line`
+- MES scheduler status
+- pause/resume button
 
----
+The scheduler is driven by `Ichor.Factory.MesScheduler`. The UI event is
+`toggle_mes_scheduler`, handled in
+[/Users/xander/code/www/kardashev/observatory/lib/ichor_web/live/dashboard_mes_handlers.ex](/Users/xander/code/www/kardashev/observatory/lib/ichor_web/live/dashboard_mes_handlers.ex).
 
-## Project Feed (Left Column)
+The status map comes from `MesScheduler.status/0` and currently includes:
 
-**UI elements:**
-- Empty state: message "No projects yet. The scheduler will spawn the first team shortly."
-- Sticky column header: Module / Project / Topic / Ver / Status (Topic and Ver hidden in compact mode).
-- Project rows (one per project), clickable.
+- `tick`
+- `active_runs`
+- `next_tick_in`
+- `paused`
 
-**Per-row data displayed:**
-- Subsystem module name (last segment only, monospaced, brand color) -- e.g., `AuthCore`
-- Project title (bold)
-- Topic (monospaced, muted) -- hidden in compact mode
-- Version (monospaced, centered) -- hidden in compact mode
-- Status badge (right-aligned)
+## Project Feed
 
-**Status badges:**
-- `:proposed` -- "Proposed" (info color)
-- `:in_progress` -- "Building" (brand color)
-- `:compiled` -- "Compiled" (success color)
-- `:loaded` -- "Live" with animated pulse dot (success color)
-- `:failed` -- "Failed" (error color)
-- Any other atom -- displayed as-is (muted)
+The left column lists MES projects from `Ichor.Factory.Project.list_all!/0`.
 
-**Interactions:**
-- `phx-click="mes_select_project"` with `phx-value-id` -- selects a project, loads its Genesis node (with all associations), switches layout to 3-column.
-- Selected row is highlighted with a brand-colored left border.
+Each row shows:
 
-**Data source:** `Ichor.Projects.Project.list_all!/0` -- called on initial navigation to `:mes` and after any project mutation.
+- plugin/module name
+- title
+- topic
+- version
+- status
 
----
+Clicking a row fires `mes_select_project`. That loads:
 
-## Action Bar (Center Column Top, when project selected)
+- `selected_mes_project` for metadata
+- `planning_project` for the planning detail panel
 
-**UI elements:**
-- Project title (bold, truncated)
-- "Back to list" button -- deselects the current project, clears genesis_node, gate_report, genesis_selected.
-- Pipeline stage badge -- color-coded label for the current stage (see Pipeline Stage section below).
-- Station buttons: **A**, **B**, **C**, **Gate**, **Build** -- each visually reflects its state (active/completed/future).
+The detail side intentionally reads the current `Project` record again, because
+the planning panel depends on embedded `artifacts` and `roadmap_items`.
 
-**Station button behavior:**
-- Mode buttons (A/B/C): active = clickable brand style; completed = clickable success style; future = non-clickable muted.
-- Gate button: active = clickable brand style; completed = non-clickable success style; future = non-clickable muted.
-- Build button: active = clickable amber style labeled "Build"; completed = non-clickable success style labeled "Built"; future = non-clickable muted.
+## Center Panel
 
-**Interactions:**
-- `phx-click="mes_start_mode"` with `phx-value-mode` (a/b/c) and `phx-value-project-id` -- spawns a Genesis team in the given mode via `Ichor.Projects.Spawn.spawn(:genesis, mode, project_id, node_id)`. Ensures a Genesis node exists first. Shows flash on success or error.
-- `phx-click="mes_gate_check"` with `phx-value-node-id` -- runs a gate readiness check and stores the report in `gate_report` assign. Triggers display of the Gate Report panel.
-- `phx-click="mes_launch_dag"` with `phx-value-node-id` and `phx-value-project-id` -- launches a DAG build team via `Spawn.spawn(:dag, node_id, project_id)`. Emits `:mes_dag_launched` signal on success.
-- `phx-click="mes_deselect_project"` -- clears `selected_mes_project`, `genesis_node`, `genesis_selected`, `gate_report`.
+The center column is the planning and build surface.
 
----
+### Action bar
 
-## Pipeline Stage System
+The action bar is rendered by
+[/Users/xander/code/www/kardashev/observatory/lib/ichor_web/components/mes_factory_components.ex](/Users/xander/code/www/kardashev/observatory/lib/ichor_web/components/mes_factory_components.ex).
 
-`Ichor.Projects.ProjectStage.derive/1` computes the current stage from loaded Genesis node associations. Stages in order:
+It shows:
 
-| Stage | Label | Color |
-|---|---|---|
-| `:ideation` | Ideation | brand |
-| `:mode_a` | Mode A | brand |
-| `:pre_gate_a` | Pre-Gate A | brand |
-| `:mode_b` | Mode B | interactive |
-| `:pre_gate_b` | Pre-Gate B | interactive |
-| `:mode_c` | Mode C | interactive |
-| `:pre_gate_c` | Pre-Gate C | warning |
-| `:ready_for_dag` | Ready for DAG | warning |
-| `:building` | Building | warning |
-| `:compiled` | Compiled | success |
-| `:running` | Running | success |
+- current project title
+- derived project stage via `Ichor.Factory.ProjectStage`
+- mode buttons `A`, `B`, `C`
+- gate button
+- build button
 
-Stage is derived from what artifacts exist on the node (ADRs -> features/use_cases -> phases) and which gate checkpoints have been recorded. If an active DAG run exists for the node (`Run.by_node!/1` non-empty), stage is forced to `:building`.
+Current major events:
 
-Station states (active/completed/future) for each Mode button and the Gate/Build buttons are fully deterministic from the stage -- defined by `station_states/1` clause matching.
+- `mes_start_mode`
+- `mes_gate_check`
+- `mes_generate_dag`
+- `mes_launch_dag`
+- `mes_deselect_project`
 
----
+### Planning teams
 
-## Gate Report Panel (Center Column, conditional)
+`mes_start_mode` no longer launches a `genesis` team. It launches a planning team:
 
-Appears below the action bar when `mes_gate_check` is fired. Dismisses on deselect.
+- `Spawn.ensure_planning_project/2`
+- `Spawn.spawn(:planning, mode, project_id, planning_project_id)`
 
-**UI elements:**
-- Header: "Gate Readiness Report" + current node status (monospaced)
-- 2-column metric grid: ADRs, Accepted ADRs, Features, Use Cases, Checkpoints, Phases (each as a label/value pair)
-- Verdict rows:
-  - "Ready for Define" -- green dot + success text if `adrs > 0 and accepted_adrs > 0`, otherwise error dot + muted text
-  - "Ready for Build" -- green if `features > 0 and use_cases > 0`
-  - "Ready for Complete" -- green if `phases > 0`
+The run-team spec is currently built by
+[/Users/xander/code/www/kardashev/observatory/lib/ichor/workshop/team_spec.ex](/Users/xander/code/www/kardashev/observatory/lib/ichor/workshop/team_spec.ex)
+using the `:planning` path.
 
-**Data source:** Built by `build_gate_report/1` in `DashboardMesHandlers` from the loaded genesis node's associations.
+### Gate report
 
----
+`mes_gate_check` calls `Ichor.Factory.Project.gate_check/1`.
 
-## Artifact Tabs (Center Column, when Genesis node exists)
+The gate report is now Factory-owned. The LiveView only normalizes the returned
+map for display. The gate report tracks planning readiness from embedded project
+content, including:
 
-Four tabs, each showing a count badge:
+- ADR count
+- accepted ADR count
+- feature count
+- use case count
+- checkpoint count
+- phase count
+- readiness booleans for define/build/complete
 
-- **Decisions** -- count of ADRs
-- **Requirements** -- count of features + use_cases
-- **Checkpoints** -- count of checkpoints + conversations
-- **Roadmap** -- count of phases
+### Planning artifacts
 
-**Interaction:** `phx-click="genesis_switch_tab"` with `phx-value-tab` -- switches `genesis_sub_tab` assign and clears `genesis_selected`.
+The tabbed artifact browser now uses planning terminology:
 
----
+- `planning_switch_tab`
+- `planning_select_artifact`
+- `planning_close_reader`
 
-## Artifact List (Center Column, below tabs)
+Tabs are:
 
-Shown when no artifact is selected (`genesis_selected` is nil). Renders a list of items for the active tab.
+- `decisions`
+- `requirements`
+- `checkpoints`
+- `roadmap`
 
-**Per-item display:**
-- Code label (monospaced, colored): ADRs get brand color, Features/Use Cases get interactive color, Phases get success color
-- Title (bold, truncated)
-- Badge: ADR status, checkpoint/conversation mode, or empty
+The content comes from embedded project data:
 
-**Interactions:** `phx-click="genesis_select_artifact"` with `phx-value-type` and `phx-value-id` -- sets `genesis_selected` to `{type, id}` tuple, triggering reader sidebar.
+- artifacts of kind `:adr`, `:feature`, `:use_case`, `:checkpoint`, `:conversation`
+- roadmap items of kind `:phase`
 
-**Tab contents:**
-- Decisions: all ADRs (code, title, status badge)
-- Requirements: all Features (code, title) + all Use Cases (code, title), concatenated
-- Checkpoints: all Checkpoints (title, mode badge) + all Conversations (title, mode badge)
-- Roadmap: all Phases (P{number}, title)
+The reader and list components live in:
 
----
+- [/Users/xander/code/www/kardashev/observatory/lib/ichor_web/components/mes_artifact_components.ex](/Users/xander/code/www/kardashev/observatory/lib/ichor_web/components/mes_artifact_components.ex)
+- [/Users/xander/code/www/kardashev/observatory/lib/ichor_web/components/mes_reader_components.ex](/Users/xander/code/www/kardashev/observatory/lib/ichor_web/components/mes_reader_components.ex)
 
-## Reader Sidebar (Center Column, replaces artifact list when artifact selected)
+### Pipeline generation and launch
 
-Shown when `genesis_selected` is set. Replaces the artifact list.
+The UI still uses the historical event name `mes_generate_dag`, but the behavior
+is now pipeline-oriented:
 
-**UI elements:**
-- Code label (bold, brand monospaced) + status/mode badge
-- Close button -- `phx-click="genesis_close_reader"` -- clears `genesis_selected`
-- Title (large, bold)
-- Cross-reference chips: clickable tags for related ADRs, parent features, or governing ADRs -- each `phx-click="genesis_select_artifact"` navigates to that artifact
-- Content area: markdown rendered to HTML via Earmark
+- `PipelineCompiler.generate(project_id)`
+- `PipelineCompiler.to_jsonl_string(tasks)`
+- append to `tasks.jsonl`
+- emit `:mes_pipeline_generated`
 
-**Content per artifact type:**
-- ADR: `content` field, cross-refs to related ADR codes
-- Feature: `content` field, cross-refs to referenced ADR codes
-- Use Case: `content` field, cross-ref to parent feature code
-- Checkpoint / Conversation: `content` field, no cross-refs
-- Phase: structured HTML rendering via `MesPhaseRenderer`
+`mes_launch_dag` likewise launches a pipeline team:
 
-**Phase reader (MesPhaseRenderer):**
-- Stats bar: section count, task count, subtask count
-- Goals list (bulleted)
-- Section cards: each shows section number badge, title, goal (italic), task rows
-- Task rows: colored status dot (pending/in-progress/completed), task number + title, governed-by ADR codes, parent UC code, nested subtask rows
-- Subtask rows: colored status dot, number + title, blocked-by task IDs, goal text
+- `Spawn.spawn(:pipeline, project_id, project_id)`
+- emit `:mes_pipeline_launched`
 
----
+The event names are still transitional, but the domain model is already
+`Pipeline` and `PipelineTask`.
 
-## Metadata Sidebar (Right Column, ~400px, when project selected)
+## Right Sidebar
 
-**UI elements and data displayed:**
-- Project title and subsystem module name (monospaced)
-- Description text
-- Features list (what it does) -- bordered left with zinc line
-- Use Cases list (what it solves) -- bordered left with brand color
-- Signals Emitted -- tag list (monospaced chips)
-- Signals Subscribed -- tag list (monospaced chips)
-- Architecture -- monospace preformatted block
-- Dependencies -- tag list
-- Footer: version, topic (monospaced), signal_interface
+The metadata sidebar is rendered by
+[/Users/xander/code/www/kardashev/observatory/lib/ichor_web/components/mes_detail_components.ex](/Users/xander/code/www/kardashev/observatory/lib/ichor_web/components/mes_detail_components.ex).
 
-**Data source:** Project struct fields from `Ichor.Projects.Project`.
+It displays project-owned fields such as:
 
----
+- title
+- description
+- plugin
+- output kind
+- topic
+- version
+- signal interface
+- features
+- use cases
+- architecture
+- dependencies
+- emitted/subscribed signals
 
-## Status-Driven Action Buttons (in MesStatusComponents)
+`Project.output_kind` is important now. MES currently defaults to `plugin`, but
+completion no longer assumes every project result must be a plugin forever.
 
-These buttons appear in the project list or detail context depending on status:
-- `:proposed` -- "Pick Up" button: `phx-click="mes_pick_up"` -- calls `Project.pick_up(project, "manual")`, emits `:mes_project_picked_up` signal, refreshes project list.
-- `:compiled` -- "Load into BEAM" button: `phx-click="mes_load_subsystem"` -- calls `SubsystemLoader.compile_and_load(project)`, marks project loaded or failed, refreshes project list.
+## Status Actions
 
----
+Project status actions are rendered by
+[/Users/xander/code/www/kardashev/observatory/lib/ichor_web/components/mes_status_components.ex](/Users/xander/code/www/kardashev/observatory/lib/ichor_web/components/mes_status_components.ex).
 
-## "Generate DAG" Feature
+Current actions:
 
-Accessible from `MesGenesisComponents.genesis_panel` (the older genesis panel component, used in contexts other than the main factory view). When a Genesis node exists:
-- `phx-click="mes_generate_dag"` with `phx-value-node-id` -- calls `PipelineCompiler.generate(node_id)`, converts result to JSONL, appends to `tasks.jsonl` in the cwd, emits `:mes_dag_generated` signal.
-- Flash: "No subtasks found -- run Mode C first" if empty; "DAG generated: N tasks appended to tasks.jsonl" on success.
+- `mes_pick_up`
+- `mes_load_plugin`
 
----
+The load action calls `Ichor.Factory.PluginLoader.compile_and_load/1`.
 
-## All Events Handled by MES
+## Signals
 
-Registered in `@mes_events` in `DashboardLive`:
+MES signals are rendered by
+[/Users/xander/code/www/kardashev/observatory/lib/ichor_web/components/signal_feed/renderers/mes.ex](/Users/xander/code/www/kardashev/observatory/lib/ichor_web/components/signal_feed/renderers/mes.ex).
 
-| Event | Action |
-|---|---|
-| `mes_pick_up` | Picks up a proposed project, marks in-progress |
-| `mes_load_subsystem` | Compiles and hot-loads subsystem into BEAM |
-| `toggle_mes_scheduler` | Pauses or resumes the MES scheduler |
-| `mes_select_project` | Selects a project, loads genesis node |
-| `mes_deselect_project` | Clears selection and all detail state |
-| `mes_start_mode` | Spawns a Genesis team in mode A, B, or C |
-| `mes_gate_check` | Runs gate readiness report |
-| `mes_generate_dag` | Generates DAG tasks from planning artifacts, appends to tasks.jsonl |
-| `mes_launch_dag` | Launches DAG build team (spawns a DAG-mode team) |
-| `genesis_switch_tab` | Switches artifact tab (decisions/requirements/checkpoints/roadmap) |
-| `genesis_select_artifact` | Opens artifact reader for a specific item |
-| `genesis_close_reader` | Closes artifact reader |
+Important current MES signal families:
 
----
-
-## State Initialized on Navigation to `:mes`
-
-Set by `apply_nav_view(:mes, socket)` in `DashboardLive`:
-- `mes_projects` -- full project list from `Project.list_all!/0`
-- `mes_scheduler_status` -- scheduler status map (tick, active_runs, next_tick_in, paused)
-- `selected_mes_project` -- nil
-- `genesis_node` -- nil
-- `gate_report` -- nil
-
-Default assigns (from `default_assigns/1`): also `genesis_sub_tab: :decisions`, `genesis_selected: nil`.
-
----
-
-## Signal Feed Integration
-
-MES signals are rendered in the Signals view feed (`IchorWeb.SignalFeed.Renderers.Mes`). All MES domain signals with dedicated renderers:
-
-- Project lifecycle: `mes_project_created`, `mes_project_picked_up`, `mes_project_compiled`, `mes_project_failed`
-- Subsystem loading: `mes_subsystem_loaded`, `mes_subsystem_compile_failed`
-- Scheduler: `mes_scheduler_init`, `mes_scheduler_paused`, `mes_scheduler_resumed`, `mes_tick`, `mes_cycle_started`, `mes_cycle_skipped`, `mes_cycle_failed`, `mes_cycle_timeout`
-- Team lifecycle: `mes_team_ready`, `mes_team_killed`, `mes_team_spawn_failed`
-- Agent lifecycle: `mes_agent_registered`, `mes_agent_stopped`, `mes_agent_tmux_gone`, `mes_agent_register_failed`
-- Run lifecycle: `mes_run_init`, `mes_run_started`, `mes_run_terminated`
-- Quality gates: `mes_quality_gate_passed`, `mes_quality_gate_failed`, `mes_quality_gate_escalated`
-- DAG: `mes_dag_generated`, `mes_dag_launched`
-- Tmux spawning: `mes_tmux_spawning`, `mes_tmux_session_created`, `mes_tmux_spawn_failed`, `mes_tmux_window_created`
-- Research: `mes_research_ingested`, `mes_research_ingest_failed`
-- Housekeeping: `mes_janitor_init`, `mes_janitor_cleaned`, `mes_janitor_error`, `mes_prompts_written`, `mes_operator_ensured`, `mes_cleanup`, `mes_run_init`
-
----
-
-## Research Facility (DashboardMesResearchHandlers)
-
-A secondary handler module exists for a Research Facility feature. It handles:
-- `mes_research_search` -- searches `ResearchStore` by query, stores results in `mes_research_results`
-- `mes_select_research_entity` -- selects an entity from `mes_research_entities`
-- `mes_select_research_episode` -- selects an episode from `mes_research_episodes`
-- `mes_research_refresh` -- reloads entities and episodes from `ResearchStore`
-
-These events are NOT in the current `@mes_events` list in `DashboardLive`, and no Research Facility UI is present in the current template. This handler exists but is not wired into the live view routing or rendered in any heex. It is a dormant or in-progress feature.
-
----
+- project lifecycle: `mes_project_created`, `mes_project_picked_up`
+- planning/pipeline launch: `planning_team_ready`, `mes_pipeline_generated`, `mes_pipeline_launched`
+- scheduler: `mes_scheduler_init`, `mes_scheduler_paused`, `mes_scheduler_resumed`, `mes_tick`
+- runtime: `mes_run_init`, `mes_run_started`, `mes_run_terminated`
+- maintenance: `mes_maintenance_init`, `mes_maintenance_cleaned`, `mes_maintenance_error`
+- plugin output: `mes_plugin_loaded`, `mes_plugin_compile_failed`, `mes_output_unhandled`
 
 ## Key Files
 
-- `/Users/xander/code/www/kardashev/observatory/lib/ichor_web/live/dashboard_live.ex` -- event routing, nav view initialization
-- `/Users/xander/code/www/kardashev/observatory/lib/ichor_web/live/dashboard_mes_handlers.ex` -- all active MES event handlers
-- `/Users/xander/code/www/kardashev/observatory/lib/ichor_web/live/dashboard_mes_research_handlers.ex` -- dormant Research Facility handlers
-- `/Users/xander/code/www/kardashev/observatory/lib/ichor_web/live/dashboard_state.ex` -- default assigns and recompute
-- `/Users/xander/code/www/kardashev/observatory/lib/ichor_web/components/mes_components.ex` -- top-level layout orchestrator
-- `/Users/xander/code/www/kardashev/observatory/lib/ichor_web/components/mes_feed_components.ex` -- project list table
-- `/Users/xander/code/www/kardashev/observatory/lib/ichor_web/components/mes_factory_components.ex` -- action bar, mode/gate/build buttons, tab bar
-- `/Users/xander/code/www/kardashev/observatory/lib/ichor_web/components/mes_artifact_components.ex` -- artifact list per tab
-- `/Users/xander/code/www/kardashev/observatory/lib/ichor_web/components/mes_reader_components.ex` -- artifact reader sidebar with cross-references
-- `/Users/xander/code/www/kardashev/observatory/lib/ichor_web/components/mes_phase_renderer.ex` -- phase hierarchy HTML renderer
-- `/Users/xander/code/www/kardashev/observatory/lib/ichor_web/components/mes_gate_components.ex` -- gate readiness report panel
-- `/Users/xander/code/www/kardashev/observatory/lib/ichor_web/components/mes_detail_components.ex` -- right-side metadata sidebar
-- `/Users/xander/code/www/kardashev/observatory/lib/ichor_web/components/mes_status_components.ex` -- status badges and action buttons
-- `/Users/xander/code/www/kardashev/observatory/lib/ichor_web/components/mes_genesis_components.ex` -- genesis panel (older component with mode buttons, artifact summary counts, gate check, generate DAG)
-- `/Users/xander/code/www/kardashev/observatory/lib/ichor/projects/pipeline_stage.ex` -- stage derivation and station state logic
-- `/Users/xander/code/www/kardashev/observatory/lib/ichor_web/components/signal_feed/renderers/mes.ex` -- signal feed renderers for all MES domain signals
+- [/Users/xander/code/www/kardashev/observatory/lib/ichor_web/live/dashboard_mes_handlers.ex](/Users/xander/code/www/kardashev/observatory/lib/ichor_web/live/dashboard_mes_handlers.ex)
+- [/Users/xander/code/www/kardashev/observatory/lib/ichor_web/components/mes_components.ex](/Users/xander/code/www/kardashev/observatory/lib/ichor_web/components/mes_components.ex)
+- [/Users/xander/code/www/kardashev/observatory/lib/ichor_web/components/mes_factory_components.ex](/Users/xander/code/www/kardashev/observatory/lib/ichor_web/components/mes_factory_components.ex)
+- [/Users/xander/code/www/kardashev/observatory/lib/ichor/factory/project.ex](/Users/xander/code/www/kardashev/observatory/lib/ichor/factory/project.ex)
+- [/Users/xander/code/www/kardashev/observatory/lib/ichor/factory/spawn.ex](/Users/xander/code/www/kardashev/observatory/lib/ichor/factory/spawn.ex)
+- [/Users/xander/code/www/kardashev/observatory/lib/ichor/factory/pipeline_compiler.ex](/Users/xander/code/www/kardashev/observatory/lib/ichor/factory/pipeline_compiler.ex)
+- [/Users/xander/code/www/kardashev/observatory/lib/ichor/factory/mes_scheduler.ex](/Users/xander/code/www/kardashev/observatory/lib/ichor/factory/mes_scheduler.ex)

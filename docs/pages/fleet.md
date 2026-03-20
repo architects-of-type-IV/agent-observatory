@@ -30,7 +30,7 @@ Three-column layout at full viewport height:
 
 ## Left Panel: Agent Roster
 
-**Data source:** `@agent_index` -- a map built in `DashboardState.recompute/1` from `Ichor.Control.Agent.all!()`, merged with team membership data and tmux session names. The "operator" agent is explicitly excluded from the list.
+**Data source:** `@agent_index` -- a map built in `DashboardState.recompute/1` from `Ichor.Workshop.Agent.all!()`, merged with team membership data and tmux session names. The "operator" agent is explicitly excluded from the list.
 
 **Sorting:** Agents sorted by `{status_sort_val(status), name}`. Active agents appear first (sort val 0), idle second (1), everything else last (2).
 
@@ -57,11 +57,11 @@ A persistent bar at the top of the center column, always visible regardless of a
 **Broadcast/targeted message form (`send_targeted_message`):**
 - Target dropdown (`phx-update="ignore"` for DOM stability): Options grouped into "Broadcast" (all agents, per-team) and "Agents" (individual agents by name + team hint). Value can be `"all"`, `"team:TeamName"`, or an `agent_id`.
 - Text input: message content
-- Submit: `Send` button. Routes through `DashboardMessagingHandlers.handle_send_targeted_message/2`, which calls `Ichor.Messages.Bus.send/1` with `from: "operator"`, `transport: :operator`. Toast shown on success (channel count) or warning (no delivery channel). No-ops on empty content or empty target.
+- Submit: `Send` button. Routes through `DashboardMessagingHandlers.handle_send_targeted_message/2`, which calls `Ichor.Signals.Bus.send/1` with `from: "operator"`, `transport: :operator`. Toast shown on success (delivery count) or warning (no delivery target). No-ops on empty content or empty target.
 
 **Launch session form (`launch_session`):**
-- Project dropdown (`phx-update="ignore"`): Populated from `@dag_state.watched_projects`, key/path pairs.
-- Submit: `Launch` button. Routes to `DashboardTmuxHandlers.handle_launch_session/2`, which calls `Ichor.Control.Lifecycle.AgentLaunch.spawn(%{cwd: cwd})`. Toast on success or error. No-ops if no project is selected.
+- Project dropdown (`phx-update="ignore"`): Populated from `@pipeline_state.watched_projects`, key/path pairs.
+- Submit: `Launch` button. Routes to `DashboardTmuxHandlers.handle_launch_session/2`, which launches through the current Infrastructure runtime path rather than the deleted `Control.Lifecycle` namespace. Toast on success or error. No-ops if no project is selected.
 
 ---
 
@@ -73,7 +73,7 @@ Two tabs: "Comms" and "Feed". Tab state is `@activity_tab` (default `:comms`). S
 
 ## Center Panel Tab: Comms
 
-**Data source:** `@mailbox_messages` -- a merged, deduplicated list of the last 50 messages from `Ichor.Messages.Bus.recent_messages(50)` (operator-sent messages) and `Ichor.Observability.Message.recent!()` (hook-delivered messages), sorted by timestamp descending.
+**Data source:** `@mailbox_messages` -- the last 50 messages from `Ichor.Signals.Bus.recent_messages/1`, sorted by timestamp descending.
 
 **Filtering:** Two filter dimensions applied in sequence:
 1. Team filter (`comms_team_filter`): Shows only messages where `from` or `to` matches a team member's session_id, or `from`/`to` is `"operator"`. Team pills shown in the tab bar header; clicking the same team again clears the filter; "All" clears to nil.
@@ -161,7 +161,7 @@ Present on all views (not just /fleet), rendered in the header as `fleet_status_
 - **Event ratio:** `visible/total events`.
 - **Task progress bar:** 12px wide, success-colored fill showing `done/total` ratio. Only shown when tasks exist.
 - **Pipeline progress bar:** Cyan-colored, shown when pipeline total differs from task count.
-- **Health badge:** Green "OK" or red pulsing dot with error/issue count. Combines `dag_state.health.healthy`, `dag_state.health.issues`, and `error_count`.
+- **Health badge:** Green "OK" or red pulsing dot with error/issue count. Combines `pipeline_state.health.healthy`, `pipeline_state.health.issues`, and `error_count`.
 - **Protocol stats:** Shows `T:X` (traces), `M:X` (mailbox pending), `Q:X` (command queue pending) when any are nonzero.
 
 ---
@@ -174,7 +174,7 @@ The fleet page receives live updates via PubSub signals. The `DashboardInfoHandl
 - `:agent_crashed` -- triggers recompute + notification handler
 - `:gate_open`, `:gate_close` -- refreshes `paused_sessions` directly from `HITLRelay.paused_sessions()`
 - `:mailbox_message` -- routes to `DashboardMessagingHandlers.handle_new_mailbox_message/2`
-- `:dag_status`, `:protocol_update` -- update `dag_state` and `protocol_stats` directly (used in status bar)
+- `:pipeline_status`, `:protocol_update` -- update `pipeline_state` and `protocol_stats` directly (used in status bar)
 - `:terminal_output` -- updates `slideout_terminal` if the slideout is open for that session
 
 ---
@@ -208,7 +208,7 @@ Also in `DashboardSessionControlHandlers`. Events: `push_instructions_intent` (s
 - `/Users/xander/code/www/kardashev/observatory/lib/ichor_web/components/fleet_helpers.ex` -- pure helpers: role classification, hierarchy sorting, chain-of-command, comms filtering, name resolution
 - `/Users/xander/code/www/kardashev/observatory/lib/ichor_web/live/dashboard_fleet_tree_handlers.ex` -- `toggle_fleet_team`, `set_comms_filter`, `trace_agent`, `clear_trace`
 - `/Users/xander/code/www/kardashev/observatory/lib/ichor_web/live/dashboard_session_control_handlers.ex` -- pause, resume, shutdown, HITL approve/reject, kill switch, push instructions
-- `/Users/xander/code/www/kardashev/observatory/lib/ichor_web/live/dashboard_dag_handlers.ex` -- `select_command_agent`, `send_command_message`, `clear_command_selection`
+- `/Users/xander/code/www/kardashev/observatory/lib/ichor_web/live/dashboard_pipeline_handlers.ex` -- `select_command_agent`, `send_command_message`, `clear_command_selection`
 - `/Users/xander/code/www/kardashev/observatory/lib/ichor_web/live/dashboard_messaging_handlers.ex` -- `send_targeted_message`, `set_message_target`, mailbox subscription and message receipt
 - `/Users/xander/code/www/kardashev/observatory/lib/ichor_web/live/dashboard_tmux_handlers.ex` -- `launch_session`
 - `/Users/xander/code/www/kardashev/observatory/lib/ichor_web/live/dashboard_state.ex` -- `recompute/1` (all data queries), `default_assigns/1` (initial assign shape)
