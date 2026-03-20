@@ -412,7 +412,7 @@ Move `short_id/1`, `uuid?/1`, `role_from_string/1` to `Ichor.Fleet.AgentId`.
 
 **Step 2: Update all imports**
 
-Replace `alias Ichor.Gateway.AgentRegistry.AgentEntry` with `alias Ichor.Fleet.AgentId` across the codebase.
+Replace `alias Ichor.Workshop.AgentEntry` with `alias Ichor.Fleet.AgentId` across the codebase.
 
 **Step 3: Delete ETS registry files**
 

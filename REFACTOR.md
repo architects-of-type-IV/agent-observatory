@@ -44,23 +44,23 @@ observers, and Archon (the AI floor manager). It contains ~32,900 lines across ~
 | `Ichor.Gateway.HeartbeatManager` | gateway/heartbeat_manager.ex | ~120 | GenServer | Tracks agent heartbeats; detects zombies |
 | `Ichor.Gateway.HITLRelay` | gateway/hitl_relay.ex | 219 | GenServer | Human-in-the-loop pause/resume for agents |
 | `Ichor.Gateway.CronScheduler` | gateway/cron_scheduler.ex | ~100 | GenServer | Cron job management |
-| `Ichor.Gateway.CronJob` | gateway/cron_job.ex | ~40 | Other | Cron job struct |
+| `Ichor.Infrastructure.CronJob` | gateway/cron_job.ex | ~40 | Other | Cron job struct |
 | `Ichor.Gateway.CapabilityMap` | gateway/capability_map.ex | ~100 | GenServer | Tracks agent capabilities from heartbeats |
 | `Ichor.Gateway.WebhookRouter` | gateway/webhook_router.ex | 162 | GenServer | Routes webhooks; dead-letter queue |
-| `Ichor.Gateway.WebhookDelivery` | gateway/webhook_delivery.ex | ~80 | Pure Function | HTTP delivery for webhooks |
+| `Ichor.Infrastructure.WebhookDelivery` | gateway/webhook_delivery.ex | ~80 | Pure Function | HTTP delivery for webhooks |
 | `Ichor.Gateway.OutputCapture` | gateway/output_capture.ex | ~60 | GenServer | Captures terminal output |
 | `Ichor.Gateway.TmuxDiscovery` | gateway/tmux_discovery.ex | 166 | GenServer | Discovers active tmux sessions |
 | `Ichor.Gateway.TopologyBuilder` | gateway/topology_builder.ex | ~100 | GenServer | Builds topology snapshot for dashboard |
 | `Ichor.Gateway.Envelope` | gateway/envelope.ex | ~40 | Other | Envelope struct |
 | `Ichor.Gateway.Target` | gateway/target.ex | ~30 | Other | Delivery target struct |
-| `Ichor.Gateway.Channels.Tmux` | gateway/channels/tmux.ex | 171 | Pure Function | Tmux delivery channel adapter |
-| `Ichor.Gateway.Channels.MailboxAdapter` | gateway/channels/mailbox_adapter.ex | ~80 | Pure Function | Mailbox channel adapter |
-| `Ichor.Gateway.Channels.SshTmux` | gateway/channels/ssh_tmux.ex | ~60 | Pure Function | SSH+tmux channel adapter |
-| `Ichor.Gateway.Channels.WebhookAdapter` | gateway/channels/webhook_adapter.ex | ~50 | Pure Function | Webhook channel adapter |
+| `Ichor.Infrastructure.Channels.Tmux` | gateway/channels/tmux.ex | 171 | Pure Function | Tmux delivery channel adapter |
+| `Ichor.Infrastructure.Channels.MailboxAdapter` | gateway/channels/mailbox_adapter.ex | ~80 | Pure Function | Mailbox channel adapter |
+| `Ichor.Infrastructure.Channels.SshTmux` | gateway/channels/ssh_tmux.ex | ~60 | Pure Function | SSH+tmux channel adapter |
+| `Ichor.Infrastructure.Channels.WebhookAdapter` | gateway/channels/webhook_adapter.ex | ~50 | Pure Function | Webhook channel adapter |
 | `Ichor.Gateway.HitlEvents` | gateway/hitl_events.ex | ~30 | Other | HITL event structs (contains nested modules) |
 | `Ichor.Gateway.HitlInterventionEvent` | gateway/hitl_intervention_event.ex | ~20 | Other | HITL intervention struct |
 | `Ichor.Gateway.HeartbeatRecord` | gateway/heartbeat_record.ex | ~30 | Other | Heartbeat record struct |
-| `Ichor.Gateway.AgentRegistry.AgentEntry` | gateway/agent_registry/agent_entry.ex | ~80 | Pure Function | Agent entry helpers (UUID detection, short_id) |
+| `Ichor.Workshop.AgentEntry` | gateway/agent_registry/agent_entry.ex | ~80 | Pure Function | Agent entry helpers (UUID detection, short_id) |
 
 ### Fleet
 

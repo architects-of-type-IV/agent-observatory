@@ -181,7 +181,7 @@ This folder holds real IO boundaries only:
 This absorbs current code from:
 
 - `Ichor.Messages.Bus`
-- `Ichor.Gateway.Channels.*`
+- `Ichor.Infrastructure.Channels.*`
 - `Ichor.Gateway.Cron*`
 - `Ichor.Gateway.HITL*`
 - `Ichor.Gateway.OutputCapture`
@@ -311,16 +311,16 @@ Potentially `domain.ex` remains only if AshAi requires a domain module.
 ## Transport/gateway/messages
 
 - `Ichor.Messages.Bus` -> `Ichor.Transport.MessageBus`
-- `Ichor.Gateway.Channels.Tmux` -> `Ichor.Transport.Tmux`
-- `Ichor.Gateway.Channels.SshTmux` -> `Ichor.Transport.SshTmux`
-- `Ichor.Gateway.Channels.MailboxAdapter` -> `Ichor.Transport.Mailbox`
-- `Ichor.Gateway.Channels.WebhookAdapter` -> `Ichor.Transport.Webhook`
+- `Ichor.Infrastructure.Channels.Tmux` -> `Ichor.Transport.Tmux`
+- `Ichor.Infrastructure.Channels.SshTmux` -> `Ichor.Transport.SshTmux`
+- `Ichor.Infrastructure.Channels.MailboxAdapter` -> `Ichor.Transport.Mailbox`
+- `Ichor.Infrastructure.Channels.WebhookAdapter` -> `Ichor.Transport.Webhook`
 - `Ichor.Gateway.CronScheduler` -> `Ichor.Transport.Cron`
-- `Ichor.Gateway.CronJob` -> `Ichor.Transport.CronJob` or merge into `Cron`
+- `Ichor.Infrastructure.CronJob` -> `Ichor.Transport.CronJob` or merge into `Cron`
 - `Ichor.Gateway.HITLRelay` -> `Ichor.Transport.HITL`
-- `Ichor.Gateway.HITLInterventionEvent` -> keep only if persisted audit records are needed
+- `Ichor.Observability.HITLInterventionEvent` -> keep only if persisted audit records are needed
 - `Ichor.Gateway.WebhookRouter` -> `Ichor.Transport.WebhookRouter`
-- `Ichor.Gateway.WebhookDelivery` -> `Ichor.Transport.WebhookDelivery`
+- `Ichor.Infrastructure.WebhookDelivery` -> `Ichor.Transport.WebhookDelivery`
 - `Ichor.Gateway.OutputCapture` -> `Ichor.Transport.OutputCapture`
 - `Ichor.Gateway.TmuxDiscovery` -> likely `Ichor.Fleet.Runtime` or `Ichor.Transport.Tmux`
 - `Ichor.Gateway.SchemaInterceptor` -> absorb into webhook/router ingress

@@ -11,10 +11,10 @@ config :ichor,
   generators: [timestamp_type: :utc_datetime],
   ecto_repos: [Ichor.Repo],
   ash_domains: [
-    Ichor.Tools,
     Ichor.SignalBus,
     Ichor.Workshop,
-    Ichor.Control,
+    Ichor.Archon,
+    Ichor.Infrastructure,
     Ichor.Observability,
     Ichor.Factory
   ]

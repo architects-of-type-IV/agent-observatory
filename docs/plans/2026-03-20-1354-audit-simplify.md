@@ -628,21 +628,21 @@ High confidence removals or relocations:
 
 - `Ichor.Gateway.EventBridge`
 - `Ichor.Gateway.EntropyTracker`
-- `Ichor.Gateway.AgentRegistry.AgentEntry`
-- `Ichor.Gateway.Channels.AnsiUtils`
+- `Ichor.Workshop.AgentEntry`
+- `Ichor.Infrastructure.Channels.AnsiUtils`
 
 Likely retained but moved:
 
-- `Ichor.Gateway.Channels.Tmux`
-- `Ichor.Gateway.Channels.SshTmux`
-- `Ichor.Gateway.Channels.WebhookAdapter`
-- `Ichor.Gateway.Channels.MailboxAdapter`
+- `Ichor.Infrastructure.Channels.Tmux`
+- `Ichor.Infrastructure.Channels.SshTmux`
+- `Ichor.Infrastructure.Channels.WebhookAdapter`
+- `Ichor.Infrastructure.Channels.MailboxAdapter`
 - `Ichor.Gateway.CronScheduler`
-- `Ichor.Gateway.CronJob`
+- `Ichor.Infrastructure.CronJob`
 - `Ichor.Gateway.HITLRelay`
 - `Ichor.Gateway.OutputCapture`
 - `Ichor.Gateway.WebhookRouter`
-- `Ichor.Gateway.WebhookDelivery`
+- `Ichor.Infrastructure.WebhookDelivery`
 
 ### Net effect
 
@@ -747,8 +747,8 @@ These are low-risk deletions after callers are redirected:
 - `Ichor.EventBuffer`
 - `Ichor.Observability.Preparations.EventBufferReader`
 - `Ichor.Projects.DateUtils`
-- `Ichor.Gateway.AgentRegistry.AgentEntry`
-- `Ichor.Gateway.Channels.AnsiUtils`
+- `Ichor.Workshop.AgentEntry`
+- `Ichor.Infrastructure.Channels.AnsiUtils`
 
 ## Tier 2: replace ephemeral Ash resources with plain query/service modules
 

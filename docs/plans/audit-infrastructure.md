@@ -32,7 +32,7 @@
 
 ## Gateway
 
-### `Ichor.Gateway.Channel` (`gateway/channel.ex`)
+### `Ichor.Infrastructure.Channel` (`gateway/channel.ex`)
 
 **Purpose**: Behaviour definition for delivery channels.
 
@@ -92,7 +92,7 @@
 
 ---
 
-### `Ichor.Gateway.CronJob` (`gateway/cron_job.ex`)
+### `Ichor.Infrastructure.CronJob` (`gateway/cron_job.ex`)
 
 **Purpose**: Ash Resource. SQLite-persisted scheduled work items per agent.
 
@@ -138,7 +138,7 @@
 
 ---
 
-### `Ichor.Gateway.WebhookDelivery` (`gateway/webhook_delivery.ex`)
+### `Ichor.Infrastructure.WebhookDelivery` (`gateway/webhook_delivery.ex`)
 
 **Purpose**: Ash Resource. SQLite-persisted delivery attempts with retry/dead-letter tracking.
 
@@ -171,7 +171,7 @@
 
 ---
 
-### `Ichor.Gateway.HITLInterventionEvent` (`gateway/hitl_intervention_event.ex`)
+### `Ichor.Observability.HITLInterventionEvent` (`gateway/hitl_intervention_event.ex`)
 
 **Purpose**: Ash Resource. SQLite audit log of HITL events.
 
@@ -279,7 +279,7 @@
 
 ---
 
-### `Ichor.Gateway.Channels.Tmux` (`gateway/channels/tmux.ex`)
+### `Ichor.Infrastructure.Channels.Tmux` (`gateway/channels/tmux.ex`)
 
 **Purpose**: Implements Channel behaviour. Delivers messages to tmux sessions via named buffers. Tries multiple server options (socket, named server, default).
 
@@ -293,11 +293,11 @@
 
 **Shape duplicates?** `strip_ansi/1` (private) is byte-identical to `SshTmux.strip_ansi/1`. Code duplication.
 
-**Verdict**: KEEP. EXTRACT `strip_ansi/1` to `Ichor.Gateway.Channels.AnsiUtils` module.
+**Verdict**: KEEP. EXTRACT `strip_ansi/1` to `Ichor.Infrastructure.Channels.AnsiUtils` module.
 
 ---
 
-### `Ichor.Gateway.Channels.SshTmux` (`gateway/channels/ssh_tmux.ex`)
+### `Ichor.Infrastructure.Channels.SshTmux` (`gateway/channels/ssh_tmux.ex`)
 
 **Purpose**: Implements Channel behaviour. Delivers messages to tmux sessions on remote hosts via SSH.
 
@@ -312,7 +312,7 @@
 
 ---
 
-### `Ichor.Gateway.Channels.WebhookAdapter` (`gateway/channels/webhook_adapter.ex`)
+### `Ichor.Infrastructure.Channels.WebhookAdapter` (`gateway/channels/webhook_adapter.ex`)
 
 **Purpose**: Implements Channel behaviour. Thin wrapper around `WebhookRouter.enqueue/4`.
 
@@ -324,7 +324,7 @@
 
 ---
 
-### `Ichor.Gateway.Channels.MailboxAdapter` (`gateway/channels/mailbox_adapter.ex`)
+### `Ichor.Infrastructure.Channels.MailboxAdapter` (`gateway/channels/mailbox_adapter.ex`)
 
 **Purpose**: Implements Channel behaviour. Delivers to in-process `AgentProcess` mailboxes.
 
@@ -334,7 +334,7 @@
 
 ---
 
-### `Ichor.Gateway.AgentRegistry.AgentEntry` (`gateway/agent_registry/agent_entry.ex`)
+### `Ichor.Workshop.AgentEntry` (`gateway/agent_registry/agent_entry.ex`)
 
 **Purpose**: Pure module. Helpers for constructing and interpreting agent registry entries.
 
@@ -913,7 +913,7 @@
 |---|---------|--------|
 | 1 | `Ichor.Archon.TeamWatchdog` GenServer file MISSING | Locate or remove from `SystemSupervisor` — potential startup crash |
 | 2 | `Gateway.Router.resolve/1` and `MessageRouter.resolve_target/1` are shape-duplicates with identical logic | EXTRACT to `Ichor.Gateway.AddressResolver` |
-| 3 | `Tmux.strip_ansi/1` and `SshTmux.strip_ansi/1` are byte-identical private functions | EXTRACT to `Ichor.Gateway.Channels.AnsiUtils` |
+| 3 | `Tmux.strip_ansi/1` and `SshTmux.strip_ansi/1` are byte-identical private functions | EXTRACT to `Ichor.Infrastructure.Channels.AnsiUtils` |
 
 ### High Priority (next refactor wave)
 
