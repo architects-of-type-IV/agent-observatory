@@ -121,7 +121,7 @@ lib/ichor/
 │   ├── artifact.ex                # Unified Genesis artifact (SQLite)
 │   ├── completion_handler.ex      # DAG completion → subsystem hot-load
 │   ├── dag_generator.ex           # RoadmapItem hierarchy → tasks.jsonl
-│   ├── dag_prompts.ex             # DAG team prompt templates
+│   ├── pipeline_prompts.ex        # Pipeline team prompt templates
 │   ├── date_utils.ex              # ISO 8601 timestamp parsing
 │   ├── graph.ex                   # Pure DAG computation
 │   ├── janitor.ex                 # Runner monitor + orphan cleanup
