@@ -11,11 +11,8 @@ defmodule Ichor.Control do
   resources do
     resource(Ichor.Control.Agent)
     resource(Ichor.Control.Team)
-    resource(Ichor.Control.TeamBlueprint)
-    resource(Ichor.Control.AgentBlueprint)
+    resource(Ichor.Control.Blueprint)
     resource(Ichor.Control.AgentType)
-    resource(Ichor.Control.SpawnLink)
-    resource(Ichor.Control.CommRule)
     resource(Ichor.Gateway.WebhookDelivery)
     resource(Ichor.Gateway.CronJob)
   end

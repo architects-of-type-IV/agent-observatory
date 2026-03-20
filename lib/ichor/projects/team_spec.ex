@@ -15,11 +15,11 @@ defmodule Ichor.Projects.TeamSpec do
     - prompt_root_dir(:mes) | prompt_root_dir(:dag) | prompt_root_dir(:genesis)
   """
 
+  alias Ichor.Control.Blueprint
   alias Ichor.Control.BlueprintState
   alias Ichor.Control.Lifecycle.AgentSpec
   alias Ichor.Control.Lifecycle.TeamSpec, as: Spec
   alias Ichor.Control.Presets
-  alias Ichor.Control.TeamBlueprint
   alias Ichor.Control.TeamSpecBuilder, as: WorkshopBuilder
   alias Ichor.Projects.{DagPrompts, ModePrompts, TeamPrompts}
 
@@ -140,7 +140,8 @@ defmodule Ichor.Projects.TeamSpec do
 
   @doc "Returns the prompt directory path for a genesis mode run."
   @spec prompt_dir(:genesis, String.t(), String.t()) :: String.t()
-  def prompt_dir(:genesis, run_id, mode), do: Path.join(prompt_root_dir(:genesis), "#{mode}-#{run_id}")
+  def prompt_dir(:genesis, run_id, mode),
+    do: Path.join(prompt_root_dir(:genesis), "#{mode}-#{run_id}")
 
   @doc "Returns the root prompt directory for the given run kind."
   @spec prompt_root_dir(:mes | :dag | :genesis) :: String.t()
@@ -157,7 +158,7 @@ defmodule Ichor.Projects.TeamSpec do
 
   defp mes_state(team_name) do
     base =
-      case TeamBlueprint.by_name(mes_blueprint_name()) do
+      case Blueprint.by_name(mes_blueprint_name()) do
         {:ok, blueprint} -> BlueprintState.apply_blueprint(BlueprintState.defaults(), blueprint)
         {:error, _} -> Presets.apply(BlueprintState.defaults(), mes_blueprint_name())
       end
@@ -217,6 +218,7 @@ defmodule Ichor.Projects.TeamSpec do
         }
 
         new_links = [%{from: 1, to: slot_id}, %{from: 2, to: slot_id}]
+
         new_rules = [
           %{from: 2, to: slot_id, policy: "allow", via: nil},
           %{from: slot_id, to: 2, policy: "allow", via: nil}

@@ -381,7 +381,7 @@ tree = wc.spawn_tree_html(@ws_agents, @ws_spawn_links) %>
               <%= for bp <- @ws_blueprints do %>
                 <div class={"flex items-center gap-1.5 text-[10px] px-2 py-1.5 rounded group #{if @ws_blueprint_id && @ws_blueprint_id == bp.id, do: "bg-cyan/10 border border-cyan/20", else: "bg-raised/50 hover:bg-raised"}"}>
                   <span class="text-high truncate flex-1">{bp.name}</span>
-                  <span class="text-[9px] text-muted">{length(bp.agent_blueprints)} agents</span>
+                  <span class="text-[9px] text-muted">{length(bp.agents)} agents</span>
                   <button
                     phx-click="ws_load_blueprint"
                     phx-value-id={bp.id}

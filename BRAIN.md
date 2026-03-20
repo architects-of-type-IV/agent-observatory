@@ -4,37 +4,23 @@
 
 When 3 modules share the same call structure (apply preset, build roster, build prompt map, call WorkshopBuilder.build_from_state), they collapse cleanly into one module with a dispatch atom as the first argument. The key is: **per-mode differences are data, not separate modules**.
 
-Pattern used in TeamSpec:
-```elixir
-def build(:mes, run_id, team_name), do: ...
-def build(:dag, run, session, ...), do: ...
-def build(:genesis, run_id, mode, ...), do: ...
-```
+## Pattern: Embedded JSON vs has_many for Co-Loaded Children (2026-03-20)
 
-## Pattern: Format Hook Reverts Edits
+When child records are always loaded together, written together, and never queried independently, `{:array, :map}` embedded JSON is better than has_many + separate tables:
+- No joins, no relationship loading, single-row reads/writes
+- Simpler resource (no manage_relationship changes, no direct_control)
+- Migration: `create table` + `flush()` (DDL must commit before DML), raw SQL data migration, then `DROP TABLE IF EXISTS` for old tables
 
-The format-on-save hook in this project reverts Edit tool changes. Always use Python3 writes for source files. The Edit tool "sticks" but only when the hook happens to accept the result; for multi-line complex edits it reverts.
+## Ash `{:array, :map}` Key Behavior
 
-**Use**:
-```python
-python3 << 'PY'
-with open(path, 'r') as f: content = f.read()
-content = content.replace(old, new)
-with open(path, 'w') as f: f.write(content)
-PY
-```
+- SQLite stores as JSON TEXT; on load, maps come back **string-keyed**
+- Write time: atom or string keys both accepted
+- Read time: always string keys -- use `Map.get(map, "key")` not `map.key`
+- Keep a clear boundary: canvas state = atom keys, persisted maps = string keys
 
-## Pattern: Ash.Resource Cyclic Error on Embedded Schemas
+## Migration Infrastructure
 
-`use Ash.Resource, data_layer: :embedded` with `%__MODULE__{...}` struct patterns in function heads causes cyclic compilation. The format hook reverts to `use Ecto.Schema` which doesn't have this problem. Leave `DecisionLog` as Ecto embedded schema -- it's correct.
-
-## Ownership of cleanup in spawn.ex
-
-`TeamCleanup` was a natural fit for folding into `Spawn` because:
-- cleanup is the other side of spawning (spawn creates, cleanup destroys)
-- both need to know about session naming conventions
-- Runner already used configurable modules for both (`:mes_team_spec_builder_module`, `:mes_team_cleanup_module`)
-
-## Runner's configurable module pattern
-
-Runner uses `Application.get_env(:ichor, :mes_team_spec_builder_module, TeamSpec)` -- allows test injection without mocking. The default now points to the consolidated modules.
+- `mix ash.codegen` with no prior snapshots generates bad "create all" migration -- write manual migrations only
+- `flush()` is required between DDL (`create table`) and DML (`repo().query!`) in Ecto migrations
+- `repo()` is available in migration modules for raw SQL data migrations
+- SQLite FK drop: not supported via ALTER TABLE; just `DROP TABLE IF EXISTS` child tables before parent

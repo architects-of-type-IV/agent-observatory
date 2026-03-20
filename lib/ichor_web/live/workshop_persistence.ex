@@ -8,11 +8,11 @@ defmodule IchorWeb.WorkshopPersistence do
   import Phoenix.LiveView, only: [push_event: 3]
 
   alias Ichor.Control.AgentType
+  alias Ichor.Control.Blueprint
   alias Ichor.Control.BlueprintState
-  alias Ichor.Control.TeamBlueprint
 
   @spec list_blueprints() :: [map()]
-  def list_blueprints, do: TeamBlueprint.list_with_relationships!()
+  def list_blueprints, do: Blueprint.list_all!()
 
   @spec list_agent_types() :: [map()]
   def list_agent_types, do: AgentType.sorted!()
@@ -83,27 +83,27 @@ defmodule IchorWeb.WorkshopPersistence do
   end
 
   defp save_blueprint(nil, state) do
-    TeamBlueprint.create(BlueprintState.to_persistence_params(state))
+    Blueprint.create(BlueprintState.to_persistence_params(state))
   end
 
   defp save_blueprint(id, state) do
     params = BlueprintState.to_persistence_params(state)
 
-    case TeamBlueprint.by_id(id) do
-      {:ok, blueprint} -> TeamBlueprint.update(blueprint, params)
-      {:error, _} -> TeamBlueprint.create(params)
+    case Blueprint.by_id(id) do
+      {:ok, blueprint} -> Blueprint.update(blueprint, params)
+      {:error, _} -> Blueprint.create(params)
     end
   end
 
   defp load_blueprint(state, id) do
-    with {:ok, blueprint} <- TeamBlueprint.by_id(id) do
+    with {:ok, blueprint} <- Blueprint.by_id(id) do
       {:ok, BlueprintState.apply_blueprint(state, blueprint)}
     end
   end
 
   defp delete_blueprint(id) do
-    with {:ok, blueprint} <- TeamBlueprint.by_id(id) do
-      TeamBlueprint.destroy(blueprint)
+    with {:ok, blueprint} <- Blueprint.by_id(id) do
+      Blueprint.destroy(blueprint)
     end
   end
 

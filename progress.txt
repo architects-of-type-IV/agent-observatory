@@ -1,5 +1,15 @@
 # ICHOR IV Progress
 
+## Level 2 Blueprint Consolidation (2026-03-20) -- COMPLETE
+- [x] Created Blueprint resource: agents/spawn_links/comm_rules as {:array, :map} JSON
+- [x] Dropped 3 child tables: workshop_agent_blueprints, workshop_spawn_links, workshop_comm_rules
+- [x] Migration 20260320150000: data migrated + old tables dropped
+- [x] BlueprintState: string-key aware converters (SQLite JSON → atom-key canvas state)
+- [x] Domain: 9 resources → 6 (removed TeamBlueprint, AgentBlueprint, SpawnLink, CommRule)
+- [x] 4 callers updated: workshop_persistence, dashboard_workshop_handlers, team_spec, heex
+- [x] mix compile --warnings-as-errors: CLEAN
+- [x] mix credo --strict: 0 issues
+
 ## ANSI Terminal Rendering (2026-03-20) -- COMPLETE
 - [x] ExTerm evaluated: full-page LiveView, not embeddable -- rejected
 - [x] `AnsiUtils.to_html/1` implemented: SGR codes → HTML spans with inline CSS

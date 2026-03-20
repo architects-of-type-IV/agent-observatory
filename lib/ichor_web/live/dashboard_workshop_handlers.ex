@@ -8,15 +8,15 @@ defmodule IchorWeb.DashboardWorkshopHandlers do
   import Phoenix.Component, only: [assign: 3]
 
   alias Ichor.Control.AgentType
+  alias Ichor.Control.Blueprint
   alias Ichor.Control.BlueprintState
   alias Ichor.Control.Lifecycle.TeamLaunch
   alias Ichor.Control.Presets
-  alias Ichor.Control.TeamBlueprint
   alias Ichor.Control.TeamSpecBuilder
   alias IchorWeb.WorkshopPersistence, as: WP
   alias Phoenix.LiveView
 
-  def list_blueprints, do: TeamBlueprint.list_with_relationships!()
+  def list_blueprints, do: Blueprint.list_all!()
   def list_agent_types, do: AgentType.sorted!()
   defdelegate push_ws_state(socket), to: WP
 
@@ -124,7 +124,7 @@ defmodule IchorWeb.DashboardWorkshopHandlers do
 
   def handle_event("ws_clear", _, socket) do
     if bp_id = socket.assigns[:ws_blueprint_id] do
-      with {:ok, blueprint} <- TeamBlueprint.by_id(bp_id), do: TeamBlueprint.destroy(blueprint)
+      with {:ok, blueprint} <- Blueprint.by_id(bp_id), do: Blueprint.destroy(blueprint)
     end
 
     {:noreply, socket |> WP.clear_canvas() |> assign(:ws_blueprint_id, nil) |> push_ws_state()}
