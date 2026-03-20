@@ -1,0 +1,351 @@
+defmodule Ichor.Workshop.Spawn do
+  @moduledoc """
+  Builds and launches a saved Workshop team definition by name.
+  """
+
+  alias Ichor.Control.Lifecycle.AgentSpec
+  alias Ichor.Control.Lifecycle.TeamSpec
+  alias Ichor.Signals
+  alias Ichor.Workshop.{Presets, Team, TeamMember}
+
+  @spawn_timeout 30_000
+
+  @spec spawn_team(String.t()) :: {:ok, map()} | {:error, term()}
+  def spawn_team(name) when is_binary(name) do
+    case Team.by_name(name) do
+      {:ok, team} ->
+        with {:ok, members} <- TeamMember.for_team_with_type(team.id) do
+          spawn_team(team, members)
+        end
+
+      {:error, _} ->
+        spawn_preset(name)
+    end
+  end
+
+  @spec spawn_team(Team.t()) :: {:ok, map()} | {:error, term()}
+  def spawn_team(%Team{} = team) do
+    members = TeamMember.for_team_with_type!(team.id)
+    spawn_team(team, members)
+  end
+
+  defp spawn_team(%Team{} = team, members) do
+    spec = build_spec(team, members)
+    request_spawn(spec, %{team_name: team.name, source: :team})
+  end
+
+  defp spawn_preset(name) do
+    with {:ok, preset} <- Presets.fetch(name) do
+      spec = build_preset_spec(name, preset)
+      request_spawn(spec, %{team_name: name, source: :preset})
+    else
+      :error -> {:error, {:team_not_found, name}}
+    end
+  end
+
+  defp request_spawn(spec, extra_metadata) do
+    request_id = Ecto.UUID.generate()
+    do_request_spawn(request_id, spec, extra_metadata)
+  end
+
+  defp do_request_spawn(request_id, spec, extra_metadata) do
+    try do
+      :ok = Signals.subscribe(:team_spawn_ready, request_id)
+      :ok = Signals.subscribe(:team_spawn_failed, request_id)
+
+      Signals.emit(:team_spawn_requested, request_id, %{
+        team_name: spec.team_name,
+        spec: spec,
+        source: Map.get(extra_metadata, :source, :team)
+      })
+
+      await_spawn_result(request_id, spec, extra_metadata)
+    after
+      Signals.unsubscribe(:team_spawn_ready, request_id)
+      Signals.unsubscribe(:team_spawn_failed, request_id)
+    end
+  end
+
+  defp await_spawn_result(request_id, spec, extra_metadata) do
+    receive do
+      %Signals.Message{name: :team_spawn_ready, data: %{scope_id: ^request_id, session: session}} ->
+        {:ok,
+         %{
+           team_name: spec.team_name,
+           session: session,
+           launched: length(spec.agents),
+           total: length(spec.agents),
+           members: Enum.map(spec.agents, &%{name: &1.name, agent_id: &1.agent_id})
+         }
+         |> Map.merge(extra_metadata)}
+
+      %Signals.Message{
+        name: :team_spawn_failed,
+        data: %{scope_id: ^request_id, reason: reason}
+      } ->
+        {:error, reason}
+    after
+      @spawn_timeout ->
+        {:error, :team_spawn_timeout}
+    end
+  end
+
+  defp build_spec(%Team{} = team, members) do
+    session = session_name(team.name)
+    cwd = blank_to_cwd(team.cwd)
+    links = normalize_links(team.spawn_links)
+    rules = normalize_rules(team.comm_rules)
+    launch_agents = build_launch_agents(members)
+    ordered_agents = Presets.spawn_order(launch_agents, links)
+
+    TeamSpec.new(%{
+      team_name: team.name,
+      session: session,
+      cwd: cwd,
+      agents:
+        Enum.map(ordered_agents, fn agent ->
+          AgentSpec.new(%{
+            name: agent.name,
+            window_name: window_name(agent),
+            agent_id: "#{session}-#{window_name(agent)}",
+            capability: agent.capability,
+            model: agent.model,
+            cwd: cwd,
+            team_name: team.name,
+            session: session,
+            prompt: prompt_for_agent(agent, ordered_agents, rules, session, team.name),
+            metadata: agent_metadata(agent, team.name)
+          })
+        end),
+      prompt_dir: prompt_dir(team.name),
+      metadata: %{
+        source: :workshop,
+        strategy: team.strategy,
+        team_id: team.id
+      }
+    })
+  end
+
+  defp build_preset_spec(name, preset) do
+    session = session_name(name)
+    cwd = File.cwd!()
+    links = Map.get(preset, :links, [])
+    rules = Map.get(preset, :rules, [])
+
+    agents =
+      preset
+      |> Map.get(:agents, [])
+      |> Enum.map(fn agent ->
+        %{
+          id: agent.id,
+          agent_type_id: nil,
+          name: agent.name,
+          capability: agent.capability,
+          model: agent.model,
+          permission: Map.get(agent, :permission, "default"),
+          persona: Map.get(agent, :persona, ""),
+          file_scope: Map.get(agent, :file_scope, ""),
+          quality_gates: Map.get(agent, :quality_gates, ""),
+          tools: Map.get(agent, :tools, [])
+        }
+      end)
+      |> Presets.spawn_order(links)
+
+    TeamSpec.new(%{
+      team_name: name,
+      session: session,
+      cwd: cwd,
+      agents:
+        Enum.map(agents, fn agent ->
+          AgentSpec.new(%{
+            name: agent.name,
+            window_name: window_name(agent),
+            agent_id: "#{session}-#{window_name(agent)}",
+            capability: agent.capability,
+            model: agent.model,
+            cwd: cwd,
+            team_name: name,
+            session: session,
+            prompt: prompt_for_agent(agent, agents, rules, session, name),
+            metadata: agent_metadata(agent, name)
+          })
+        end),
+      prompt_dir: prompt_dir(name),
+      metadata: %{
+        source: :preset,
+        preset_name: name,
+        strategy: Map.get(preset, :strategy, "one_for_one")
+      }
+    })
+  end
+
+  defp build_launch_agents(members) do
+    Enum.map(members, fn member ->
+      type = member.agent_type
+
+      %{
+        id: member.slot,
+        agent_type_id: member.agent_type_id,
+        name: member.name,
+        capability: member.capability,
+        model: member.model,
+        permission: member.permission,
+        persona: effective_persona(type, member),
+        file_scope: effective_file_scope(type, member),
+        quality_gates: effective_quality_gates(type, member),
+        tools: effective_tools(type, member)
+      }
+    end)
+  end
+
+  defp prompt_for_agent(agent, agents, rules, session, team_name) do
+    teammates =
+      agents
+      |> Enum.reject(&(&1.id == agent.id))
+      |> Enum.map(fn teammate ->
+        "- #{teammate.name} (session id: #{session_id_for(session, teammate)}, capability: #{teammate.capability})"
+      end)
+
+    comm_context =
+      rules
+      |> Enum.filter(&(&1.from == agent.id))
+      |> Enum.map(fn rule ->
+        via =
+          case rule.via do
+            nil -> ""
+            value -> " via slot #{value}"
+          end
+
+        "Talk to slot #{rule.to}: #{rule.policy}#{via}"
+      end)
+
+    tool_lines =
+      agent
+      |> Map.get(:tools, [])
+      |> Enum.map(&"- #{&1}")
+
+    [
+      "You are #{agent.name}, a #{agent.capability} agent on team #{team_name}.",
+      "Your tmux session id is #{session_id_for(session, agent)}.",
+      "Use the MCP server to communicate with teammates and operate through the app.",
+      block("Shared and member-specific instructions", Map.get(agent, :persona)),
+      block("Team roster", teammates),
+      block("Communication rules", comm_context),
+      block("Allowed Ash AI tools", tool_lines),
+      optional_line("Permission profile: #{agent.permission}", agent.permission),
+      optional_line("File scope: #{agent.file_scope}", agent.file_scope),
+      optional_line("Quality gates: #{agent.quality_gates}", agent.quality_gates)
+    ]
+    |> Enum.reject(&(&1 in [nil, ""]))
+    |> Enum.join("\n\n")
+  end
+
+  defp agent_metadata(agent, team_name) do
+    %{
+      source: :workshop,
+      team_name: team_name,
+      permission: agent.permission,
+      file_scope: agent.file_scope,
+      quality_gates: agent.quality_gates,
+      tools: Map.get(agent, :tools, []),
+      agent_type_id: agent[:agent_type_id]
+    }
+  end
+
+  defp effective_persona(nil, member), do: member.extra_instructions
+
+  defp effective_persona(type, member) do
+    [type.default_persona || "", member.extra_instructions || ""]
+    |> Enum.reject(&(&1 == ""))
+    |> Enum.join("\n\n")
+  end
+
+  defp effective_file_scope(nil, member), do: member.file_scope
+
+  defp effective_file_scope(type, member),
+    do: first_present(member.file_scope, type.default_file_scope)
+
+  defp effective_quality_gates(nil, member), do: member.quality_gates
+
+  defp effective_quality_gates(type, member),
+    do: first_present(member.quality_gates, type.default_quality_gates)
+
+  defp effective_tools(nil, member), do: member.tool_scope || []
+
+  defp effective_tools(type, member) do
+    member_scope = member.tool_scope || []
+
+    if member_scope == [] do
+      type.default_tools || []
+    else
+      member_scope
+    end
+  end
+
+  defp normalize_links(links) when is_list(links) do
+    Enum.map(links, fn link ->
+      %{from: fetch_int(link, "from_slot"), to: fetch_int(link, "to_slot")}
+    end)
+  end
+
+  defp normalize_links(_), do: []
+
+  defp normalize_rules(rules) when is_list(rules) do
+    Enum.map(rules, fn rule ->
+      %{
+        from: fetch_int(rule, "from_slot"),
+        to: fetch_int(rule, "to_slot"),
+        policy: Map.get(rule, "policy", "allow"),
+        via: Map.get(rule, "via_slot")
+      }
+    end)
+  end
+
+  defp normalize_rules(_), do: []
+
+  defp fetch_int(map, key) do
+    case Map.get(map, key) do
+      value when is_integer(value) -> value
+      value when is_binary(value) -> String.to_integer(value)
+      _ -> 0
+    end
+  end
+
+  defp first_present("", fallback), do: fallback || ""
+  defp first_present(nil, fallback), do: fallback || ""
+  defp first_present(value, _fallback), do: value
+
+  defp blank_to_cwd(""), do: File.cwd!()
+  defp blank_to_cwd(nil), do: File.cwd!()
+  defp blank_to_cwd(value), do: value
+
+  defp session_name(team_name), do: "workshop-#{slug(team_name)}"
+  defp prompt_dir(team_name), do: Path.join(prompt_root_dir(), slug(team_name))
+
+  defp prompt_root_dir do
+    Application.get_env(:ichor, :workshop_prompt_root_dir, Path.expand("~/.ichor/workshop"))
+  end
+
+  defp session_id_for(session, agent), do: "#{session}-#{window_name(agent)}"
+  defp window_name(agent), do: slug("#{agent.id}-#{agent.name}")
+
+  defp block(_title, []), do: nil
+  defp block(_title, ""), do: nil
+  defp block(_title, nil), do: nil
+
+  defp block(title, items) when is_list(items),
+    do: [title <> ":", Enum.join(items, "\n")] |> Enum.join("\n")
+
+  defp block(title, text), do: [title <> ":", text] |> Enum.join("\n")
+
+  defp optional_line(_label, ""), do: nil
+  defp optional_line(_label, nil), do: nil
+  defp optional_line(label, _value), do: label
+
+  defp slug(value) do
+    value
+    |> String.downcase()
+    |> String.replace(~r/[^a-z0-9]+/u, "-")
+    |> String.trim("-")
+  end
+end
