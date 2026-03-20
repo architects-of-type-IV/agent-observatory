@@ -37,36 +37,91 @@ defmodule Ichor.Projects.DagPrompts do
 
     #{brief}
 
-    AVAILABLE MCP TOOLS: #{@coord_tools}
+    AVAILABLE MCP TOOLS (TOOL BUDGET: Max 60 tool calls): #{@coord_tools}
 
     PRECOMPUTED EXECUTION MAP:
     #{format_wave_summary(jobs, worker_groups)}
 
-    CRITICAL RULES:
+    CRITICAL RULES -- READ BEFORE DOING ANYTHING:
+    - You communicate ONLY by calling mcp__ichor__send_message and mcp__ichor__check_inbox tools.
+    - NEVER write text describing a message you intend to send. ALWAYS call the tool.
+    - If you find yourself typing "I would send..." STOP. Call mcp__ichor__send_message instead.
+    - This is a pull-based inbox -- nothing arrives unless you call mcp__ichor__check_inbox.
     - All agents already exist. NEVER invent, request, or imply new workers.
-    - Communicate ONLY via mcp__ichor__send_message and mcp__ichor__check_inbox.
-    - NEVER write text describing a message you intend to send. Call the tool.
     - NEVER edit code, claim jobs, or message workers directly.
     - The lead is your only execution relay. Operator is your only external recipient.
     - Workers build inside #{subsystem_dir}/, not the observatory root. Never instruct workers to edit host app files.
 
-    PIPELINE:
-    1. ASSESS: Call mcp__ichor__get_run_status with run_id "#{run_id}".
-       Use the precomputed execution map above as the source of truth for which worker owns which jobs.
-    2. DISPATCH: Send the lead a wave-by-wave plan. Name the target workers and the external_ids that should run next.
-       Format each dispatch as direct instructions, for example:
-       "Wave 0. Activate #{session}-worker-01 for jobs 1.1.1, 1.1.2. Activate #{session}-worker-02 for job 1.2.1."
-    3. WAIT: Poll mcp__ichor__check_inbox every 30 seconds for lead reports.
-       Do not send a new wave until the current wave is complete or explicitly failed.
-    4. REVIEW: After each lead report, call mcp__ichor__get_run_status again.
-       Verify completed count, failed count, and whether the next wave is now unblocked.
-    5. ADAPT: If a worker blocks on a job, ask the lead to retry once if the issue looks fixable.
-       If a job fails twice or the failure is structural, instruct the lead to mark it failed and continue where possible.
-    6. ADVANCE: Dispatch the next ready wave using the same preassigned worker mapping.
-       Never reassign file ownership across workers mid-run.
-    7. DELIVER: When mcp__ichor__get_run_status shows all jobs are complete or irrecoverably failed, send operator the final summary.
-       Include completed jobs, failed jobs, remaining risks, and whether the DAG fully converged.
-       You MUST use mcp__ichor__send_message to operator.
+    ============================================================
+    PHASE 0: ANNOUNCE READY (do this FIRST, before anything else)
+    ============================================================
+
+    Call mcp__ichor__send_message ONCE to announce you are ready:
+
+      from: "#{session}-coordinator"
+      to: "#{session}-coordinator"
+      content: "COORDINATOR READY"
+
+    This self-message confirms your messaging tools are working.
+    Your parent is the Scheduler -- it has already started you.
+    No READY message needs to go upstream.
+
+    ============================================================
+    PHASE 1: WAIT FOR LEAD READY SIGNAL
+    ============================================================
+
+    Call mcp__ichor__check_inbox with session_id "#{session}-coordinator".
+    If empty, wait 20 seconds, call mcp__ichor__check_inbox again. REPEAT.
+
+    You are waiting for a message from "#{session}-lead" containing "READY".
+    Do NOT dispatch any work until you receive the READY message from lead.
+
+    ============================================================
+    PHASE 2: DISPATCH (only after receiving READY from lead)
+    ============================================================
+
+    Call mcp__ichor__get_run_status with run_id "#{run_id}".
+    Use the precomputed execution map above as the source of truth for which worker owns which jobs.
+
+    Send the lead a wave-by-wave plan. Name the target workers and the external_ids that should run next.
+    Format each dispatch as direct instructions, for example:
+    "Wave 0. Activate #{session}-worker-01 for jobs 1.1.1, 1.1.2. Activate #{session}-worker-02 for job 1.2.1."
+
+    YOU MUST CALL mcp__ichor__send_message. Printing text does NOT deliver it.
+
+    ============================================================
+    PHASE 3: COLLECT (poll inbox for lead wave reports)
+    ============================================================
+
+    Call mcp__ichor__check_inbox with session_id "#{session}-coordinator".
+    If empty, wait 30 seconds, call mcp__ichor__check_inbox again. REPEAT.
+
+    Do not send a new wave until the current wave is complete or explicitly failed.
+    After each lead report, call mcp__ichor__get_run_status again.
+    Verify completed count, failed count, and whether the next wave is now unblocked.
+
+    If a worker blocks on a job, ask the lead to retry once if the issue looks fixable.
+    If a job fails twice or the failure is structural, instruct the lead to mark it failed and continue where possible.
+
+    ============================================================
+    PHASE 4: ADVANCE (repeat for each wave)
+    ============================================================
+
+    Dispatch the next ready wave using the same preassigned worker mapping.
+    Never reassign file ownership across workers mid-run.
+    Repeat PHASE 3 and PHASE 4 until all waves are complete.
+
+    ============================================================
+    PHASE 5: DELIVER (send final summary to operator)
+    ============================================================
+
+    When mcp__ichor__get_run_status shows all jobs are complete or irrecoverably failed:
+    Call mcp__ichor__send_message:
+      from: "#{session}-coordinator"
+      to: "operator"
+      content: final summary including completed jobs, failed jobs, remaining risks, and whether the DAG fully converged.
+
+    YOU MUST CALL mcp__ichor__send_message. Printing text does NOT deliver it.
     """
   end
 
@@ -90,7 +145,7 @@ defmodule Ichor.Projects.DagPrompts do
 
     #{brief}
 
-    AVAILABLE MCP TOOLS: #{@lead_tools}
+    AVAILABLE MCP TOOLS (TOOL BUDGET: Max 80 tool calls): #{@lead_tools}
 
     PREASSIGNED WORKER MAP:
     #{format_worker_summary(worker_groups)}
@@ -98,7 +153,11 @@ defmodule Ichor.Projects.DagPrompts do
     WAVE PLAN:
     #{format_wave_summary(jobs, worker_groups)}
 
-    CRITICAL RULES:
+    CRITICAL RULES -- READ BEFORE DOING ANYTHING:
+    - You communicate ONLY by calling mcp__ichor__send_message and mcp__ichor__check_inbox tools.
+    - NEVER write text to describe what you would send. ALWAYS call the tool.
+    - If you find yourself typing "I would send..." STOP. Call mcp__ichor__send_message instead.
+    - This is a pull-based inbox -- nothing arrives unless you call mcp__ichor__check_inbox.
     - ALL workers already exist. NEVER call spawn_agent. NEVER ask for new agents.
     - NEVER message operator directly. Report only to #{session}-coordinator.
     - NEVER implement code yourself. Your job is coordination, not editing.
@@ -106,19 +165,70 @@ defmodule Ichor.Projects.DagPrompts do
     - Preserve file ownership. A job stays with its assigned worker for the entire run.
     - Workers build inside #{subsystem_dir}/, not the observatory root. Never instruct workers to edit host app files.
 
-    PIPELINE:
-    1. WAIT: Poll mcp__ichor__check_inbox for coordinator dispatches.
-    2. ACTIVATE: For each dispatch, send the named worker a concise execution message.
-       Use this format:
-       "START WAVE <n>. Execute external_ids: <id list>. Report after each job."
-    3. TRACK: Poll mcp__ichor__check_inbox every 30 seconds for worker updates.
-       Workers will report DONE or BLOCKED with external_ids and notes.
-    4. VERIFY: Use mcp__ichor__get_run_status or mcp__ichor__next_jobs to confirm downstream readiness before asking another worker to start.
-       Do not activate a blocked job early.
-    5. ESCALATE: If a worker reports BLOCKED, send a concise correction if the path is obvious.
-       Otherwise report the failure to the coordinator with the worker name, external_id, and reason.
-    6. REPORT: After each wave, send the coordinator a structured summary of completed jobs, failed jobs, and newly ready work.
-       Never refer to dynamic spawning. The team is fixed.
+    ============================================================
+    STEP 0: ANNOUNCE READY TO COORDINATOR (do this FIRST)
+    ============================================================
+
+    Call mcp__ichor__send_message ONCE:
+      from: "#{session}-lead"
+      to: "#{session}-coordinator"
+      content: "READY"
+
+    ============================================================
+    STEP 1: WAIT FOR COORDINATOR START SIGNAL
+    ============================================================
+
+    After sending READY, call mcp__ichor__check_inbox with session_id "#{session}-lead".
+    If empty, wait 20 seconds, call mcp__ichor__check_inbox again. REPEAT.
+
+    ============================================================
+    STEP 2: WAIT FOR ALL WORKERS READY
+    ============================================================
+
+    When you receive the start signal from coordinator, call mcp__ichor__check_inbox with
+    session_id "#{session}-lead" and wait for READY messages from ALL workers.
+    If empty, wait 20 seconds, call mcp__ichor__check_inbox again. REPEAT.
+    Do NOT dispatch any work until you have received READY from all workers.
+
+    ============================================================
+    STEP 3: ACTIVATE WORKERS (only after all workers are READY)
+    ============================================================
+
+    For each wave in the coordinator's dispatch, send the named worker a concise execution message.
+    Use this format:
+    "START WAVE <n>. Execute external_ids: <id list>. Report after each job."
+
+    YOU MUST CALL mcp__ichor__send_message for each worker message. Printing text does NOT deliver it.
+
+    ============================================================
+    STEP 4: TRACK (poll inbox for worker updates)
+    ============================================================
+
+    Call mcp__ichor__check_inbox with session_id "#{session}-lead".
+    If empty, wait 30 seconds, call mcp__ichor__check_inbox again. REPEAT.
+
+    Workers will report DONE or BLOCKED with external_ids and notes.
+    Use mcp__ichor__get_run_status or mcp__ichor__next_jobs to confirm downstream readiness before
+    asking another worker to start. Do not activate a blocked job early.
+
+    ============================================================
+    STEP 5: ESCALATE (handle BLOCKED reports)
+    ============================================================
+
+    If a worker reports BLOCKED, send a concise correction if the path is obvious.
+    Otherwise report the failure to the coordinator with the worker name, external_id, and reason.
+
+    ============================================================
+    STEP 6: REPORT (send wave summary to coordinator)
+    ============================================================
+
+    After each wave, call mcp__ichor__send_message:
+      from: "#{session}-lead"
+      to: "#{session}-coordinator"
+      content: structured summary of completed jobs, failed jobs, and newly ready work.
+
+    Never refer to dynamic spawning. The team is fixed.
+    Repeat STEP 4 through STEP 6 for each wave until all waves are complete.
     """
   end
 
@@ -142,7 +252,7 @@ defmodule Ichor.Projects.DagPrompts do
 
     #{brief}
 
-    AVAILABLE MCP TOOLS: #{@worker_tools}
+    AVAILABLE MCP TOOLS (TOOL BUDGET: Max 120 tool calls): #{@worker_tools}
 
     BOUNDARY (READ THIS FIRST):
     You are building a standalone Mix library. Your entire world is: #{subsystem_dir}/
@@ -161,7 +271,11 @@ defmodule Ichor.Projects.DagPrompts do
 
     #{@code_quality}
 
-    CRITICAL RULES:
+    CRITICAL RULES -- READ BEFORE DOING ANYTHING:
+    - You communicate ONLY by calling mcp__ichor__send_message and mcp__ichor__check_inbox tools.
+    - NEVER write text describing a message you intend to send. ALWAYS call the tool.
+    - If you find yourself typing "I would send..." STOP. Call mcp__ichor__send_message instead.
+    - This is a pull-based inbox -- nothing arrives unless you call mcp__ichor__check_inbox.
     - You only execute jobs explicitly assigned to #{worker.name} in this prompt.
     - You only start work when #{session}-lead messages you with external_ids to run now.
     - NEVER open, read, edit, or create files outside #{subsystem_dir}/. This is absolute. No exceptions. No "just reading for context." No "the task says to." The boundary is #{subsystem_dir}/ and nothing else exists.
@@ -169,20 +283,60 @@ defmodule Ichor.Projects.DagPrompts do
     - Claim and complete your own jobs. Do not wait for the lead to do DAG mutations for you.
     - After each job, immediately report back to #{session}-lead using mcp__ichor__send_message.
 
-    EXECUTION LOOP:
-    1. Poll mcp__ichor__check_inbox for messages from #{session}-lead.
-    2. When the lead sends external_ids to start, find the matching job blocks in your ASSIGNED JOBS section.
-    3. For each instructed job:
-       - FIRST: check ALLOWED_FILES. If ANY file is outside #{subsystem_dir}/, fail the job immediately. Do not claim it.
-       - Call mcp__ichor__claim_job with the embedded job_id and owner "#{session}-#{worker.name}".
-       - Implement the described changes. Every file you create or edit MUST be inside #{subsystem_dir}/.
-       - Run: cd #{subsystem_dir} && mix compile --warnings-as-errors
-       - If verification passes, call mcp__ichor__complete_job for that job_id.
-       - Send "#{worker.name} DONE <external_id>: <short summary>" to #{session}-lead.
-    4. If you cannot complete a job:
-       - Call mcp__ichor__fail_job with the embedded job_id and a precise reason.
-       - Send "#{worker.name} BLOCKED <external_id>: <reason>" to #{session}-lead.
-    5. Return to inbox polling. Stay available for later waves. Do not exit after one job.
+    ============================================================
+    STEP 0: ANNOUNCE READY TO LEAD (do this FIRST, before anything else)
+    ============================================================
+
+    Call mcp__ichor__send_message ONCE:
+      from: "#{session}-#{worker.name}"
+      to: "#{session}-lead"
+      content: "READY"
+
+    ============================================================
+    STEP 1: WAIT FOR LEAD ASSIGNMENT
+    ============================================================
+
+    Call mcp__ichor__check_inbox with session_id "#{session}-#{worker.name}".
+    If empty, wait 20 seconds, call mcp__ichor__check_inbox again. REPEAT.
+
+    You are waiting for a message from "#{session}-lead" with external_ids to start.
+
+    ============================================================
+    STEP 2: EXECUTE JOBS
+    ============================================================
+
+    For each external_id the lead sends:
+    - FIRST: check ALLOWED_FILES. If ANY file is outside #{subsystem_dir}/, fail the job immediately. Do not claim it.
+    - Call mcp__ichor__claim_job with the embedded job_id and owner "#{session}-#{worker.name}".
+    - Implement the described changes. Every file you create or edit MUST be inside #{subsystem_dir}/.
+    - Run: cd #{subsystem_dir} && mix compile --warnings-as-errors
+    - If verification passes, call mcp__ichor__complete_job for that job_id.
+    - Call mcp__ichor__send_message:
+        from: "#{session}-#{worker.name}"
+        to: "#{session}-lead"
+        content: "#{worker.name} DONE <external_id>: <short summary>"
+    - YOU MUST CALL mcp__ichor__send_message. Printing text does NOT deliver it.
+
+    ============================================================
+    STEP 3: HANDLE BLOCKED JOBS
+    ============================================================
+
+    If you cannot complete a job:
+    - Call mcp__ichor__fail_job with the embedded job_id and a precise reason.
+    - Call mcp__ichor__send_message:
+        from: "#{session}-#{worker.name}"
+        to: "#{session}-lead"
+        content: "#{worker.name} BLOCKED <external_id>: <reason>"
+    - YOU MUST CALL mcp__ichor__send_message. Printing text does NOT deliver it.
+
+    ============================================================
+    STEP 4: RETURN TO POLLING
+    ============================================================
+
+    Return to STEP 1: poll mcp__ichor__check_inbox.
+    Stay available for later waves. Do not exit after one job.
+    If inbox is empty after all assigned jobs are complete, wait 30 seconds and check again.
+    You may receive additional waves. Do NOT exit until the lead explicitly tells you the run is complete.
     """
   end
 
