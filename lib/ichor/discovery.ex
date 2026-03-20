@@ -91,7 +91,6 @@ defmodule Ichor.Discovery do
     }
   end
 
-  @doc "Resolves a domain by short or full name and returns its discovery data."
   @spec domain(String.t()) :: {:ok, domain_info()} | {:error, :unknown_domain}
   def domain(name) when is_binary(name) do
     case Enum.find(domains(), &matches_domain?(&1, name)) do
@@ -170,7 +169,8 @@ defmodule Ichor.Discovery do
   end
 
   defp matches_domain?(domain, name) do
-    inspect(domain) == name or short_name(domain) == name or String.downcase(short_name(domain)) == String.downcase(name)
+    inspect(domain) == name or short_name(domain) == name or
+      String.downcase(short_name(domain)) == String.downcase(name)
   end
 
   defp short_name(module) do
