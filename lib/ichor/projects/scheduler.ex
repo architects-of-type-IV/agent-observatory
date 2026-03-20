@@ -90,6 +90,7 @@ defmodule Ichor.Projects.Scheduler do
   def handle_call(:resume, _from, state) do
     File.rm(@pause_flag)
     Signals.emit(:mes_scheduler_resumed, %{tick: state.tick})
+    send(self(), :tick)
     {:reply, :ok, %{state | paused: false}}
   end
 

@@ -11,7 +11,7 @@ defmodule Ichor.QualityGate do
   use GenServer
   require Logger
 
-  alias Ichor.Projects.Status
+  alias Ichor.Projects.Runtime
   alias Ichor.Signals.Message
 
   @default_timeout 60_000
@@ -135,7 +135,7 @@ defmodule Ichor.QualityGate do
   defp find_done_when(nil, _event), do: nil
 
   defp find_done_when(task_id, event) do
-    dag_state = Status.state()
+    dag_state = Runtime.state()
     tasks = dag_state[:tasks] || []
 
     case Enum.find(tasks, fn t -> to_string(t["id"]) == to_string(task_id) end) do

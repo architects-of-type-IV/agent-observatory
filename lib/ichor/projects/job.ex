@@ -64,8 +64,9 @@ defmodule Ichor.Projects.Job do
       description("external_id strings within same run")
     end
 
-    attribute :status, Ichor.Projects.Types.JobStatus do
+    attribute :status, :atom do
       allow_nil?(false)
+      constraints(one_of: [:pending, :in_progress, :completed, :failed])
       default(:pending)
       public?(true)
     end
@@ -75,8 +76,9 @@ defmodule Ichor.Projects.Job do
       description("Agent session ID")
     end
 
-    attribute :priority, Ichor.Projects.Types.JobPriority do
+    attribute :priority, :atom do
       allow_nil?(false)
+      constraints(one_of: [:critical, :high, :medium, :low])
       default(:medium)
       public?(true)
     end

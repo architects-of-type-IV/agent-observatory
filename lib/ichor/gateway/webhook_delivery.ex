@@ -17,7 +17,13 @@ defmodule Ichor.Gateway.WebhookDelivery do
     attribute(:target_url, :string, allow_nil?: false, public?: true)
     attribute(:payload, :string, allow_nil?: false, public?: true)
     attribute(:signature, :string, public?: true)
-    attribute(:status, Ichor.Gateway.Types.DeliveryStatus, default: :pending, public?: true)
+
+    attribute :status, :atom do
+      constraints(one_of: [:pending, :delivered, :failed, :dead])
+      default(:pending)
+      public?(true)
+    end
+
     attribute(:attempt_count, :integer, default: 0, public?: true)
     attribute(:next_retry_at, :utc_datetime, public?: true)
     attribute(:agent_id, :string, allow_nil?: false, public?: true)

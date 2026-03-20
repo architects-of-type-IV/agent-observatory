@@ -22,8 +22,27 @@ defmodule Ichor.Observability.Event do
       public?(true)
     end
 
-    attribute :hook_event_type, Ichor.Observability.Types.HookEventType do
+    attribute :hook_event_type, :atom do
       allow_nil?(false)
+
+      constraints(
+        one_of: [
+          :SessionStart,
+          :SessionEnd,
+          :UserPromptSubmit,
+          :PreToolUse,
+          :PostToolUse,
+          :PostToolUseFailure,
+          :PermissionRequest,
+          :Notification,
+          :SubagentStart,
+          :SubagentStop,
+          :Stop,
+          :PreCompact,
+          :TaskCompleted
+        ]
+      )
+
       public?(true)
     end
 

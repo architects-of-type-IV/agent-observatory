@@ -20,7 +20,11 @@ defmodule Ichor.Control.Agent do
     attribute(:name, :string, public?: true)
     attribute(:role, :string, public?: true)
     attribute(:model, :string, public?: true)
-    attribute(:status, Ichor.Control.Types.AgentStatus, public?: true)
+
+    attribute :status, :atom do
+      constraints(one_of: [:active, :idle, :ended])
+      public?(true)
+    end
 
     attribute(:health, Ichor.Control.Types.HealthStatus,
       default: :unknown,

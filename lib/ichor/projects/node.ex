@@ -46,8 +46,9 @@ defmodule Ichor.Projects.Node do
       default([])
     end
 
-    attribute :status, Ichor.Projects.Types.NodeStatus do
+    attribute :status, :atom do
       allow_nil?(false)
+      constraints(one_of: [:discover, :define, :build, :complete])
       default(:discover)
       public?(true)
     end

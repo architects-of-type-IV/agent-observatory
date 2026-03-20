@@ -5,7 +5,7 @@ defmodule Ichor.Tools.Agent.Inbox do
   """
   use Ash.Resource, domain: Ichor.Tools
 
-  alias Ichor.Control
+  alias Ichor.Control.Agent
   alias Ichor.MessageRouter
 
   actions do
@@ -22,7 +22,7 @@ defmodule Ichor.Tools.Agent.Inbox do
       run(fn input, _context ->
         session_id = input.arguments.session_id
 
-        case Control.get_unread(session_id) do
+        case Agent.get_unread(session_id) do
           {:ok, messages} -> {:ok, messages}
           {:error, _} -> {:ok, []}
         end
@@ -43,7 +43,7 @@ defmodule Ichor.Tools.Agent.Inbox do
       end
 
       run(fn input, _context ->
-        Control.mark_read(input.arguments.session_id, input.arguments.message_id)
+        Agent.mark_read(input.arguments.session_id, input.arguments.message_id)
       end)
     end
 

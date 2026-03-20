@@ -33,8 +33,9 @@ defmodule Ichor.Gateway.HITLInterventionEvent do
       public?(true)
     end
 
-    attribute :action, Ichor.Gateway.Types.HITLAction do
+    attribute :action, :atom do
       allow_nil?(false)
+      constraints(one_of: [:pause, :unpause, :rewrite, :inject])
       public?(true)
     end
 

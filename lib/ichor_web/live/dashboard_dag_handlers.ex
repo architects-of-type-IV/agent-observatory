@@ -8,7 +8,7 @@ defmodule IchorWeb.DashboardDagHandlers do
   import Phoenix.Component, only: [assign: 3]
 
   alias Ichor.Control.RuntimeQuery
-  alias Ichor.Projects.{Runtime, Status}
+  alias Ichor.Projects.Runtime
 
   def dispatch("select_dag_project", p, s), do: handle_select_project(p, s)
   def dispatch("heal_dag_task", p, s), do: handle_heal_task(p, s)
@@ -24,13 +24,13 @@ defmodule IchorWeb.DashboardDagHandlers do
   def dispatch("clear_command_selection", p, s), do: handle_clear_command_selection(p, s)
 
   def handle_select_project(%{"project" => key}, socket) do
-    Status.set_active_project(key)
+    Runtime.set_active_project(key)
     socket
   end
 
   def handle_add_project(%{"path" => path}, socket) do
     key = Path.basename(path)
-    Status.add_project(key, path)
+    Runtime.add_project(key, path)
     socket
   end
 
@@ -65,7 +65,7 @@ defmodule IchorWeb.DashboardDagHandlers do
   end
 
   def handle_select_dag_node(%{"id" => task_id}, socket) do
-    dag = Status.state()
+    dag = Runtime.state()
     task = Enum.find(dag.tasks, &(&1.id == task_id))
 
     current = socket.assigns[:selected_dag_task]

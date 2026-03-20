@@ -21,7 +21,7 @@ defmodule IchorWeb.DashboardState do
   alias Ichor.Observability.Error
   alias Ichor.Observability.Message
   alias Ichor.Observability.Task, as: ObservabilityTask
-  alias Ichor.Projects.Status
+  alias Ichor.Projects.Runtime
 
   def default_assigns(disk_teams) do
     %{
@@ -47,7 +47,7 @@ defmodule IchorWeb.DashboardState do
       slideout_activity: [],
       expanded_sessions: MapSet.new(),
       disk_teams: disk_teams,
-      dag_state: Status.state(),
+      dag_state: Runtime.state(),
       protocol_stats: %{},
       selected_dag_task: nil,
       selected_command_agent: nil,

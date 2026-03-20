@@ -30,7 +30,8 @@ defmodule Ichor.Observability.Session do
       public?(true)
     end
 
-    attribute :status, Ichor.Observability.Types.SessionStatus do
+    attribute :status, :atom do
+      constraints(one_of: [:active, :ended])
       default(:active)
       public?(true)
     end
