@@ -1,4 +1,4 @@
-defmodule Ichor.Subsystems.PulseMonitor.MixProject do
+defmodule Ichor.Plugins.PulseMonitor.MixProject do
   use Mix.Project
 
   def project do
@@ -19,7 +19,7 @@ defmodule Ichor.Subsystems.PulseMonitor.MixProject do
 
   defp deps do
     [
-      {:ichor_contracts, path: "../ichor_contracts"}
+      {:ichor_contracts, path: "../../contracts/ichor_contracts"}
     ]
   end
 end

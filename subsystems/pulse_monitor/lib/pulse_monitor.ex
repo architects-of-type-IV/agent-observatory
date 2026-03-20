@@ -1,4 +1,4 @@
-defmodule Ichor.Subsystems.PulseMonitor do
+defmodule Ichor.Plugins.PulseMonitor do
   @moduledoc """
   Real-time signal frequency analyzer that detects anomalous burst
   patterns and sustained silence across the Ichor nervous system.
@@ -8,7 +8,7 @@ defmodule Ichor.Subsystems.PulseMonitor do
   A 5s tick prunes expired entries, recomputes baselines, and checks
   burst/silence thresholds.
 
-  The PubSub topic `subsystem:pulse_monitor` is this subsystem's address.
+  The PubSub topic `plugin:pulse_monitor` is this plugin's address.
   Any module can send control signals to it via Ichor.Signals.emit/3.
   """
 
@@ -16,7 +16,7 @@ defmodule Ichor.Subsystems.PulseMonitor do
 
   require Logger
 
-  @behaviour Ichor.Mes.Subsystem
+  @behaviour Ichor.Plugin
 
   @table :pulse_monitor_counters
   @tick_interval 5_000
@@ -24,14 +24,14 @@ defmodule Ichor.Subsystems.PulseMonitor do
   @burst_multiplier 3.0
   @silence_threshold_seconds 60
 
-  @impl Ichor.Mes.Subsystem
+  @impl Ichor.Plugin
   def info do
-    %Ichor.Mes.Subsystem.Info{
+    %Ichor.Plugin.Info{
       name: "Pulse Monitor",
       module: __MODULE__,
       description:
         "Real-time signal frequency analyzer that detects anomalous burst patterns and sustained silence.",
-      topic: "subsystem:pulse_monitor",
+      topic: "plugin:pulse_monitor",
       version: "0.1.0",
       architecture:
         "GenServer with ETS table for counters. 5s tick prunes windows and checks thresholds.",
@@ -53,7 +53,7 @@ defmodule Ichor.Subsystems.PulseMonitor do
     }
   end
 
-  @impl Ichor.Mes.Subsystem
+  @impl Ichor.Plugin
   def start do
     case GenServer.start_link(__MODULE__, [], name: __MODULE__) do
       {:ok, _pid} -> :ok
@@ -62,13 +62,13 @@ defmodule Ichor.Subsystems.PulseMonitor do
     end
   end
 
-  @impl Ichor.Mes.Subsystem
+  @impl Ichor.Plugin
   def handle_signal(%{name: name, data: data}) do
     GenServer.cast(__MODULE__, {:signal, name, data})
     :ok
   end
 
-  @impl Ichor.Mes.Subsystem
+  @impl Ichor.Plugin
   def stop do
     GenServer.stop(__MODULE__, :normal)
     :ok

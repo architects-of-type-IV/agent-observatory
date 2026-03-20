@@ -1,8 +1,8 @@
-defmodule Ichor.Subsystems.PulseMonitorTest do
+defmodule Ichor.Plugins.PulseMonitorTest do
   use ExUnit.Case
-  doctest Ichor.Subsystems.PulseMonitor
+  doctest Ichor.Plugins.PulseMonitor
 
   test "greets the world" do
-    assert Ichor.Subsystems.PulseMonitor.hello() == :world
+    assert Ichor.Plugins.PulseMonitor.hello() == :world
   end
 end
