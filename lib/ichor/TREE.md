@@ -1,174 +1,105 @@
  # lib/ichor/ Module Tree
 
-127 files. Annotations derived from @moduledoc (max 10 words each).
+Current high-level shape after the domain cleanup. This is intentionally
+condensed and only lists the active ownership boundaries and notable modules.
 
 ```
 lib/ichor/
 ├── application.ex                 # OTP application entry point
-├── agent_watchdog.ex              # Consolidated agent health monitor, single GenServer
-├── control.ex                     # Ash Domain: agent control plane
-├── event_buffer.ex                # Compatibility shim, delegates to Events.Runtime
 ├── memories_bridge.ex             # Bridges signal stream into Memories knowledge graph
 ├── memory_store.ex                # Letta-compatible three-tier agent memory GenServer
 ├── notes.ex                       # ETS-backed storage for event annotations
-├── observation_supervisor.ex      # Supervises causal DAG and event bridge
-├── observability.ex               # Ash Domain: everything that happened
-├── projects.ex                    # Ash Domain: project lifecycle through execution
-├── protocol_tracker.ex            # Correlates cross-protocol messages into traces
-├── quality_gate.ex                # Enforces quality gates on agent task completion
 ├── repo.ex                        # Ecto repository for Ichor SQLite database
-├── system_supervisor.ex           # Supervises all independent system services
-├── tools.ex                       # Ash Domain: MCP tool surfaces for agents
-│
-├── architecture/
-│   └── boundary_audit.ex          # Post-umbrella boundary cleanliness audit
+├── runtime_supervisor.ex          # Shared runtime services supervisor
 │
 ├── archon/
 │   ├── chat.ex                    # Archon conversation engine, LLM-backed
 │   ├── command_manifest.ex        # Archon command metadata source of truth
+│   ├── manager.ex                 # Ash action surface for Archon control
+│   ├── memory.ex                  # Ash resource for Archon memory access
 │   ├── memories_client.ex         # HTTP client for Memories knowledge graph API
 │   ├── signal_manager.ex          # Signal-fed managerial state for Archon
 │   └── team_watchdog.ex           # Signal-driven team lifecycle monitor
-│
-├── control/
-│   ├── agent.ex                   # Agent Ash resource (Simple data layer)
-│   ├── agent_process.ex           # Living agent GenServer, BEAM mailbox delivery
-│   ├── agent_type.ex              # Reusable agent archetype with defaults
-│   ├── blueprint.ex               # Saved team blueprint (SQLite)
-│   ├── blueprint_state.ex         # Pure state transitions for Workshop canvas
-│   ├── fleet_supervisor.ex        # DynamicSupervisor for teams and agents
-│   ├── host_registry.ex           # Tracks available BEAM nodes
-│   ├── presets.ex                 # Workshop blueprint presets and spawn ordering
-│   ├── team.ex                    # Team Ash resource (Simple data layer)
-│   ├── team_spec_builder.ex       # Builds TeamSpec from Workshop state
-│   ├── team_supervisor.ex         # DynamicSupervisor per team
-│   ├── tmux_helpers.ex            # Shared tmux spawning helpers
-│   ├── analysis/
-│   │   ├── agent_health.ex        # Pure failure-rate and loop detection
-│   │   ├── queries.ex             # Pure fleet data query functions
-│   │   └── session_eviction.ex    # Stale session eviction
-│   ├── lifecycle/
-│   │   ├── agent_launch.ex        # Launches individual agents
-│   │   ├── agent_spec.ex          # Agent runtime spec struct
-│   │   ├── cleanup.ex             # Agent/team/tmux cleanup ops
-│   │   ├── registration.ex        # Process registration for agents/teams
-│   │   ├── team_launch.ex         # Launches and tears down teams
-│   │   ├── team_spec.ex           # Team runtime spec struct
-│   │   ├── tmux_launcher.ex       # Tmux session/window lifecycle
-│   │   └── tmux_script.ex         # Prompt and script file writer
-│   ├── types/
-│   │   └── health_status.ex       # Ash enum for health status
-│   └── views/preparations/
-│       ├── load_agents.ex         # Loads agents from runtime registry
-│       └── load_teams.ex          # Loads teams from registry and events
-│
-├── events/
-│   ├── event.ex                   # In-memory event struct
-│   └── runtime.ex                 # Canonical event buffer + heartbeat + liveness
-│
-├── gateway/
-│   ├── channel.ex                 # Channel adapter behaviour
-│   ├── cron_job.ex                # Cron job Ash resource (SQLite)
-│   ├── cron_scheduler.ex          # Scheduled job firing GenServer
-│   ├── entropy_tracker.ex         # Per-session loop detection
-│   ├── event_bridge.ex            # Events to gateway messages bridge
-│   ├── hitl_intervention_event.ex # HITL intervention Ash resource (SQLite)
-│   ├── hitl_relay.ex              # HITL pause/unpause GenServer
-│   ├── output_capture.ex          # Tmux pane output poller
-│   ├── schema_interceptor.ex     # Inbound message validation gate
-│   ├── tmux_discovery.ex          # Tmux session discovery and agent sync
-│   ├── webhook_delivery.ex        # Webhook delivery Ash resource (SQLite)
-│   ├── webhook_router.ex          # Durable webhook delivery with backoff
-│   ├── agent_registry/
-│   │   └── agent_entry.ex         # Agent map constructor and helpers
-│   └── channels/
-│       ├── ansi_utils.ex          # ANSI escape sequence utilities
-│       ├── mailbox_adapter.ex     # BEAM mailbox delivery adapter
-│       ├── ssh_tmux.ex            # SSH tmux delivery adapter
-│       ├── tmux.ex                # Tmux paste-buffer delivery adapter
-│       └── webhook_adapter.ex     # Webhook HTTP delivery adapter
-│
-├── mesh/
-│   ├── causal_dag.ex              # Per-session causal event DAG (ETS)
-│   ├── decision_log.ex            # Agent message envelope (Ash embedded)
-│   └── decision_log/
-│       └── helpers.ex             # DecisionLog pure helpers
 │
 ├── memory_store/
 │   ├── persistence.ex             # Disk persistence for memory store
 │   └── storage.ex                 # ETS-level memory store operations
 │
-├── messages/
-│   └── bus.ex                     # Single delivery authority for messaging
+├── mesh/
+│   ├── causal_dag.ex              # Per-session causal topology DAG
+│   ├── decision_log.ex            # Causal message envelope (embedded)
+│   ├── decision_log/
+│   │   └── helpers.ex             # DecisionLog pure helpers
+│   └── supervisor.ex              # Supervises DAG + event bridge
 │
-├── observability/
-│   ├── error.ex                   # Tool error Ash resource (Simple)
-│   ├── event.ex                   # Event Ash resource (SQLite)
-│   ├── janitor.ex                 # Periodic event purge GenServer
-│   ├── message.ex                 # Message Ash resource (Simple)
-│   ├── session.ex                 # Session Ash resource (SQLite)
-│   ├── task.ex                    # Task Ash resource (Simple)
-│   └── preparations/
-│       ├── event_buffer_reader.ex # EventBuffer read shim
-│       ├── load_errors.ex         # Error preparation from hook events
-│       ├── load_messages.ex       # Message preparation from hook events
-│       └── load_tasks.ex          # Task preparation from hook events
+├── factory/
+│   ├── artifact.ex                # Embedded SDLC artifact
+│   ├── project.ex                 # Durable MES project resource
+│   ├── roadmap_item.ex            # Embedded planning tree item
+│   ├── pipeline.ex                # Pipeline resource
+│   ├── pipeline_task.ex           # Executable pipeline task resource
+│   ├── floor.ex                   # Factory operator/control actions
+│   ├── spawn.ex                   # Planning/pipeline team launch orchestration
+│   ├── runner.ex                  # MES/pipeline run lifecycle GenServer
+│   ├── project_stage.ex           # Project stage derivation
+│   ├── pipeline_graph.ex          # Pure pipeline graph functions
+│   ├── pipeline_compiler.ex       # Roadmap -> pipeline compilation
+│   ├── pipeline_monitor.ex        # Pipeline runtime monitor
+│   ├── mes_scheduler.ex           # MES run scheduler
+│   ├── planning_prompts.ex        # Planning team prompt templates
+│   ├── plugin_loader.ex           # Loads generated plugins
+│   ├── plugin_scaffold.ex         # Creates plugin project dirs
+│   └── workers/                   # Oban maintenance workers
 │
-├── plugs/
-│   └── operator_auth.ex           # Operator auth header plug
-│
-├── projects/
-│   ├── artifact.ex                # Unified Genesis artifact (SQLite)
-│   ├── completion_handler.ex      # DAG completion → subsystem hot-load
-│   ├── dag_generator.ex           # RoadmapItem hierarchy → tasks.jsonl
-│   ├── pipeline_prompts.ex        # Pipeline team prompt templates
-│   ├── date_utils.ex              # ISO 8601 timestamp parsing
-│   ├── graph.ex                   # Pure DAG computation
-│   ├── janitor.ex                 # Runner monitor + orphan cleanup
-│   ├── lifecycle_supervisor.ex    # MES subsystem supervisor
-│   ├── mode_prompts.ex            # Genesis mode prompt templates
-│   ├── node.ex                    # Genesis Node Ash resource (SQLite)
-│   ├── pipeline_stage.ex          # Pipeline stage derivation
-│   ├── project.ex                 # MES project brief (SQLite)
-│   ├── project_ingestor.ex        # MES payload → Ash resource
-│   ├── research_context.ex        # Dynamic research context for prompts
-│   ├── research_ingestor.ex       # Brief → Memories graph ingestion
-│   ├── research_store.ex          # Read-only Memories graph interface
-│   ├── roadmap_item.ex            # Unified roadmap item (SQLite)
-│   ├── run.ex                     # DAG execution session (SQLite)
-│   ├── runner.ex                  # Unified run lifecycle GenServer
-│   ├── runtime.ex                 # DAG pipeline runtime GenServer
-│   ├── scheduler.ex               # MES run spawner (60s tick)
-│   ├── spawn.ex                   # Team spawner for DAG + Genesis
-│   ├── subsystem_loader.ex        # Hot-loads BEAM modules
-│   ├── subsystem_scaffold.ex      # Creates Mix project dirs
-│   ├── team_prompts.ex            # MES team prompt templates
-│   ├── team_spec.ex               # TeamSpec builder across run modes
-│   ├── job.ex                     # DAG execution unit (SQLite)
-│   ├── job/changes/
-│   │   └── sync_run_process.ex    # Notifies RunProcess on job transition
-│   ├── job/preparations/
-│   │   └── filter_available.ex    # Filters unblocked jobs
-│   └── types/
-│       └── work_status.ex         # Ash enum for work lifecycle
+├── infrastructure/
+│   ├── operations.ex              # Ash action surface for infrastructure
+│   ├── cron_job.ex                # Durable cron job resource
+│   ├── webhook_delivery.ex        # Durable webhook delivery resource
+│   ├── hitl_intervention_event.ex # Durable HITL audit record
+│   ├── hitl_relay.ex              # HITL pause/unpause relay
+│   ├── agent_process.ex           # BEAM mailbox-backed agent process
+│   ├── agent_launch.ex            # Full agent launcher
+│   ├── team_launch.ex             # Team launch/teardown runtime
+│   ├── agent_spec.ex              # Generic runtime agent spec
+│   ├── team_spec.ex               # Generic runtime team spec
+│   ├── cleanup.ex                 # Runtime cleanup operations
+│   ├── registration.ex            # Agent/team registration helpers
+│   ├── tmux.ex                    # Tmux delivery/runtime adapter
+│   ├── tmux_discovery.ex          # Tmux session discovery
+│   ├── output_capture.ex          # Pane output poller
+│   ├── webhook_router.ex          # Durable webhook transport
+│   ├── cron_scheduler.ex          # Cron execution runtime
+│   └── plugs/operator_auth.ex     # Operator auth header plug
 │
 ├── signals/
-│   ├── buffer.ex                  # Signal ring buffer (200 events)
+│   ├── operations.ex              # Ash action surface for messaging/signals
+│   ├── event.ex                   # Signal emit/query actions
+│   ├── task_projection.ex         # Live task projection from event stream
+│   ├── tool_failure.ex            # Live tool-failure projection
+│   ├── bus.ex                     # Single message delivery authority
+│   ├── runtime.ex                 # Signal transport + PubSub broadcast
+│   ├── event_stream.ex            # Canonical event buffer + liveness
+│   ├── event_bridge.ex            # Event -> mesh topology bridge
+│   ├── agent_watchdog.ex          # Signal-driven agent watchdog
+│   ├── protocol_tracker.ex        # Debug trace correlation
+│   ├── entropy_tracker.ex         # Loop/entropy monitoring
 │   ├── catalog.ex                 # Declarative signal catalog
-│   ├── event.ex                   # Signal operations Ash resource
-│   ├── from_ash.ex                # Ash notifier → signal emission
-│   └── runtime.ex                 # Signal transport + PubSub broadcast
+│   ├── buffer.ex                  # Signal ring buffer
+│   ├── from_ash.ex                # Ash notifier -> signal emission
+│   └── preparations/              # Event-stream query projections
 │
-├── tasks/
-│   ├── board.ex                   # Team board task actions + signals
-│   └── jsonl_store.ex             # In-place tasks.jsonl mutations
-│
-└── tools/
-    ├── agent_memory.ex            # Agent memory MCP tools
-    ├── genesis.ex                 # Genesis pipeline MCP tools
-    ├── profiles.ex                # Tool exposure profiles
-    ├── project_execution.ex       # Project/DAG execution MCP tools
-    ├── runtime_ops.ex             # Fleet/messaging/diagnostics MCP tools
-    └── archon/
-        └── memory.ex              # Archon knowledge graph MCP tools
+└── workshop/
+    ├── team.ex                    # Durable authored team definition
+    ├── team_member.ex             # Durable team member definition
+    ├── agent_type.ex              # Reusable agent archetype
+    ├── agent.ex                   # Runtime/read action surface for agents
+    ├── active_team.ex             # Runtime/read action surface for active teams
+    ├── agent_memory.ex            # Workshop memory action surface
+    ├── canvas_state.ex            # Workshop editor state transitions
+    ├── team_spec.ex               # TeamSpec builder across current run modes
+    ├── team_prompts.ex            # MES team prompt templates
+    ├── pipeline_prompts.ex        # Pipeline team prompt templates
+    ├── presets.ex                 # Workshop presets
+    ├── team_spawn_handler.ex      # Signal-driven team spawn listener
+    └── analysis/                  # Fleet/team query helpers
 ```
