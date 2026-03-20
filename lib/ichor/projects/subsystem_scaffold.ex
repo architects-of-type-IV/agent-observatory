@@ -36,9 +36,7 @@ defmodule Ichor.Projects.SubsystemScaffold do
   @spec subsystem_path(String.t()) :: String.t()
   def subsystem_path(app_name), do: Path.join(@subsystems_dir, app_name)
 
-  # ---------------------------------------------------------------------------
   # Private -- file creation
-  # ---------------------------------------------------------------------------
 
   defp create_project(path, app_name, module_name) do
     lib_dir = Path.join(path, "lib")
@@ -70,9 +68,7 @@ defmodule Ichor.Projects.SubsystemScaffold do
     end
   end
 
-  # ---------------------------------------------------------------------------
   # Private -- template rendering (pure, String.t() -> String.t())
-  # ---------------------------------------------------------------------------
 
   defp tpl_mix_exs(app_name, module_name) do
     """

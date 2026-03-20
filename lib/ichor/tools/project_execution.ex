@@ -18,7 +18,7 @@ defmodule Ichor.Tools.ProjectExecution do
     Run,
     Runner,
     Scheduler,
-    TeamCleanup
+    Spawn
   }
 
   alias Ichor.Tasks.Board
@@ -32,7 +32,6 @@ defmodule Ichor.Tools.ProjectExecution do
   }
 
   actions do
-    # --- DAG Execution ---
 
     action :next_jobs, {:array, :map} do
       description("List available (unblocked, unclaimed) jobs for a run.")
@@ -211,8 +210,6 @@ defmodule Ichor.Tools.ProjectExecution do
       end)
     end
 
-    # --- Task Board ---
-
     action :get_tasks, {:array, :map} do
       description("Get your assigned tasks from the Ichor task board.")
 
@@ -294,8 +291,6 @@ defmodule Ichor.Tools.ProjectExecution do
         end
       end)
     end
-
-    # --- MES Floor Management ---
 
     action :list_projects, {:array, :map} do
       description(
@@ -515,7 +510,7 @@ defmodule Ichor.Tools.ProjectExecution do
 
       run(fn _input, _context ->
         try do
-          TeamCleanup.cleanup_orphaned_teams()
+          Spawn.cleanup_orphaned_teams()
           {:ok, %{"status" => "cleanup_complete"}}
         rescue
           e -> {:ok, %{"status" => "error", "reason" => Exception.message(e)}}

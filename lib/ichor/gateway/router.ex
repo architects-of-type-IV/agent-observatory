@@ -71,9 +71,7 @@ defmodule Ichor.Gateway.Router do
     :ok
   end
 
-  # ---------------------------------------------------------------------------
   # Broadcast pipeline
-  # ---------------------------------------------------------------------------
 
   defp validate(envelope) do
     case SchemaInterceptor.validate_envelope(envelope) do
@@ -201,9 +199,7 @@ defmodule Ichor.Gateway.Router do
     })
   end
 
-  # ---------------------------------------------------------------------------
   # Ingest pipeline
-  # ---------------------------------------------------------------------------
 
   defp handle_channel_events(%{hook_event_type: :SessionStart} = _event), do: :ok
 

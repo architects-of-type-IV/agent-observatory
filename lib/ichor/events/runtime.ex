@@ -57,9 +57,7 @@ defmodule Ichor.Events.Runtime do
     HeartbeatManager.get_session_state(session_id)
   end
 
-  # ---------------------------------------------------------------------------
   # Private helpers
-  # ---------------------------------------------------------------------------
 
   defp build_fact_event(name, attrs) do
     %Event{

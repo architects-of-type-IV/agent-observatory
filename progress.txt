@@ -305,3 +305,18 @@
 - [x] mix compile --warnings-as-errors: CLEAN (0 warnings)
 - [x] mix credo --strict: 0 issues (283 files)
 - [x] Server starts clean on port 4005
+
+## Project Orchestration Collapse: 6 → 2 modules (2026-03-20) -- COMPLETE
+- [x] Read all 8 files: spawner, mode_spawner, team_spec_builder, dag_team_spec_builder, genesis_team_spec_builder, team_cleanup, runner, scheduler
+- [x] Created lib/ichor/projects/team_spec.ex -- unified spec builder for :mes, :dag, :genesis + corrective
+- [x] Created lib/ichor/projects/spawn.ex -- unified spawner for :dag, :genesis + all TeamCleanup logic
+- [x] Updated runner.ex -- aliases TeamSpec + Spawn (was TeamSpecBuilder + TeamCleanup)
+- [x] Updated dashboard_mes_handlers.ex -- Spawn.spawn(:dag/genesis) (was ModeSpawner/Spawner)
+- [x] Updated project_execution.ex -- Spawn.cleanup_orphaned_teams (was TeamCleanup)
+- [x] Updated janitor.ex -- Spawn.kill_session/cleanup_orphaned_teams (was TeamCleanup)
+- [x] Moved 6 old files to tmp/trash/
+- [x] Fixed pre-existing: decision_log.ex cyclic error (Ash.Resource → Ecto.Schema, reverted by format hook)
+- [x] Fixed pre-existing: event_bridge.ex unused DLHelpers alias
+- [x] mix compile --warnings-as-errors: CLEAN (0 warnings)
+- [x] mix credo --strict: 0 new issues in new files
+- [x] Server smoke test: no errors on startup

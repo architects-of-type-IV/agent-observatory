@@ -248,7 +248,6 @@ defmodule Ichor.Control.AgentProcess do
     :ok
   end
 
-  # --- Lifecycle helpers (inlined from Lifecycle) ---
 
   defp schedule_liveness_check do
     Process.send_after(self(), :check_liveness, @liveness_interval)
@@ -285,7 +284,6 @@ defmodule Ichor.Control.AgentProcess do
     Ichor.Signals.emit(:agent_stopped, %{session_id: id, reason: reason})
   end
 
-  # --- Mailbox helpers (inlined from Mailbox) ---
 
   defp apply_incoming_message(state, message) do
     normalized = normalize_message(message, state.id)
@@ -308,7 +306,6 @@ defmodule Ichor.Control.AgentProcess do
     %{state | unread: [message | state.unread]}
   end
 
-  # --- Delivery helpers (inlined from Delivery) ---
 
   defp normalize_message(msg, to) when is_map(msg) do
     Map.merge(
@@ -359,7 +356,6 @@ defmodule Ichor.Control.AgentProcess do
     Ichor.Signals.emit(:message_delivered, %{agent_id: agent_id, msg_map: msg})
   end
 
-  # --- Registry helpers (inlined from Registry) ---
 
   defp build_initial_meta(id, state, meta) do
     tmux_target = extract_tmux_target(state.backend)

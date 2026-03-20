@@ -1,0 +1,324 @@
+defmodule Ichor.Projects.TeamSpec do
+  @moduledoc """
+  Pure builder for `TeamSpec` and `AgentSpec` runtime contracts across all run modes.
+
+  Consolidates MES, DAG, and Genesis spec construction. Per-mode differences
+  (preset name, prompt builder, metadata) are expressed as data, not separate modules.
+
+  Public API:
+    - build(:mes, run_id, team_name)
+    - build(:dag, run, session, brief, jobs, worker_groups, prompt_ctx)
+    - build(:genesis, run_id, mode, project_id, genesis_node_id, brief)
+    - build_corrective(run_id, session, reason, attempt)
+    - session_name(run_id) -- MES only
+    - prompt_dir(:mes, run_id) | prompt_dir(:dag, run_id) | prompt_dir(:genesis, run_id, mode)
+    - prompt_root_dir(:mes) | prompt_root_dir(:dag) | prompt_root_dir(:genesis)
+  """
+
+  alias Ichor.Control.BlueprintState
+  alias Ichor.Control.Lifecycle.AgentSpec
+  alias Ichor.Control.Lifecycle.TeamSpec, as: Spec
+  alias Ichor.Control.Presets
+  alias Ichor.Control.TeamBlueprint
+  alias Ichor.Control.TeamSpecBuilder, as: WorkshopBuilder
+  alias Ichor.Projects.{DagPrompts, ModePrompts, TeamPrompts}
+
+  # MES
+
+  @doc "Builds a TeamSpec for a MES run."
+  @spec build(:mes, String.t(), String.t()) :: Spec.t()
+  def build(:mes, run_id, team_name) do
+    session = session_name(run_id)
+    roster = TeamPrompts.roster(session)
+    state = mes_state(team_name)
+
+    WorkshopBuilder.build_from_state(
+      state,
+      session: session,
+      prompt_dir: prompt_dir(:mes, run_id),
+      team_metadata: %{run_id: run_id, source: :mes, blueprint: mes_blueprint_name()},
+      prompt_builder: fn agent, _state -> mes_prompt(agent, run_id, roster) end,
+      agent_metadata_builder: fn agent, state -> mes_agent_meta(agent, state, run_id) end,
+      window_name_builder: & &1.name,
+      agent_id_builder: fn agent, _win, session -> "#{session}-#{agent.name}" end
+    )
+  end
+
+  @doc "Builds a corrective TeamSpec for a failed MES quality gate."
+  @spec build_corrective(String.t(), String.t(), String.t() | nil, pos_integer()) :: Spec.t()
+  def build_corrective(run_id, session, reason, attempt) do
+    cwd = File.cwd!()
+    name = "corrective-#{attempt}"
+
+    Spec.new(%{
+      team_name: session_name(run_id),
+      session: session,
+      cwd: cwd,
+      agents: [
+        AgentSpec.new(%{
+          name: name,
+          window_name: name,
+          agent_id: "#{session}-#{name}",
+          capability: "builder",
+          model: "sonnet",
+          cwd: cwd,
+          team_name: session_name(run_id),
+          session: session,
+          prompt: TeamPrompts.corrective(run_id, session, reason),
+          metadata: %{run_id: run_id}
+        })
+      ],
+      prompt_dir: prompt_dir(:mes, run_id),
+      metadata: %{run_id: run_id}
+    })
+  end
+
+  @doc "Returns the tmux session name for a MES run."
+  @spec session_name(String.t()) :: String.t()
+  def session_name(run_id), do: "mes-#{run_id}"
+
+  # DAG
+
+  @doc "Builds a TeamSpec for a DAG execution run."
+  @spec build(:dag, map(), String.t(), String.t(), [map()], [map()], map()) :: Spec.t()
+  def build(:dag, run, session, brief, jobs, worker_groups, prompt_ctx) do
+    state = dag_state(session, worker_groups)
+
+    shared = %{
+      run_id: run.id,
+      session: session,
+      brief: brief,
+      jobs: jobs,
+      worker_groups: worker_groups,
+      subsystem_dir: prompt_ctx.subsystem_dir
+    }
+
+    roster = dag_roster(session, worker_groups)
+    prompt_map = dag_prompt_map(shared, roster, worker_groups)
+
+    WorkshopBuilder.build_from_state(
+      state,
+      session: session,
+      prompt_dir: prompt_dir(:dag, run.id),
+      team_metadata: %{run_id: run.id, source: :dag},
+      prompt_builder: fn agent, _state -> Map.fetch!(prompt_map, agent.name) end,
+      agent_metadata_builder: fn agent, state -> dag_agent_meta(agent, state, run.id) end,
+      window_name_builder: & &1.name,
+      agent_id_builder: fn agent, _win, session -> "#{session}-#{agent.name}" end
+    )
+  end
+
+  # Genesis
+
+  @doc "Builds a TeamSpec for a Genesis mode run."
+  @spec build(:genesis, String.t(), String.t(), String.t(), String.t() | nil, String.t()) ::
+          Spec.t()
+  def build(:genesis, run_id, mode, _project_id, genesis_node_id, brief) do
+    session = "genesis-#{mode}-#{run_id}"
+    state = genesis_state(session, mode)
+    roster = genesis_roster(session, mode)
+    prompt_map = genesis_prompt_map(mode, run_id, roster, genesis_node_id, brief)
+
+    WorkshopBuilder.build_from_state(
+      state,
+      session: session,
+      prompt_dir: prompt_dir(:genesis, run_id, mode),
+      team_metadata: %{run_id: run_id, source: :genesis, mode: mode},
+      prompt_builder: fn agent, _state -> Map.fetch!(prompt_map, agent.name) end,
+      window_name_builder: & &1.name,
+      agent_id_builder: fn agent, _win, session -> "#{session}-#{agent.name}" end
+    )
+  end
+
+  # Prompt dirs (used by cleanup)
+
+  @doc "Returns the prompt directory path for a run."
+  @spec prompt_dir(:mes, String.t()) :: String.t()
+  @spec prompt_dir(:dag, String.t()) :: String.t()
+  def prompt_dir(:mes, run_id), do: Path.join(prompt_root_dir(:mes), run_id)
+  def prompt_dir(:dag, run_id), do: Path.join(prompt_root_dir(:dag), run_id)
+
+  @doc "Returns the prompt directory path for a genesis mode run."
+  @spec prompt_dir(:genesis, String.t(), String.t()) :: String.t()
+  def prompt_dir(:genesis, run_id, mode), do: Path.join(prompt_root_dir(:genesis), "#{mode}-#{run_id}")
+
+  @doc "Returns the root prompt directory for the given run kind."
+  @spec prompt_root_dir(:mes | :dag | :genesis) :: String.t()
+  def prompt_root_dir(:mes),
+    do: Application.get_env(:ichor, :mes_prompt_root_dir, Path.expand("~/.ichor/mes"))
+
+  def prompt_root_dir(:dag),
+    do: Application.get_env(:ichor, :dag_prompt_root_dir, Path.expand("~/.ichor/dag"))
+
+  def prompt_root_dir(:genesis),
+    do: Application.get_env(:ichor, :genesis_prompt_root_dir, Path.expand("~/.ichor/genesis"))
+
+  # MES internals
+
+  defp mes_state(team_name) do
+    base =
+      case TeamBlueprint.by_name(mes_blueprint_name()) do
+        {:ok, blueprint} -> BlueprintState.apply_blueprint(BlueprintState.defaults(), blueprint)
+        {:error, _} -> Presets.apply(BlueprintState.defaults(), mes_blueprint_name())
+      end
+
+    base
+    |> Map.put(:ws_team_name, team_name)
+    |> Map.put(:ws_cwd, File.cwd!())
+  end
+
+  defp mes_blueprint_name do
+    Application.get_env(:ichor, :mes_workshop_blueprint_name, "mes")
+  end
+
+  defp mes_prompt(agent, run_id, roster) do
+    case agent.name do
+      "coordinator" -> TeamPrompts.coordinator(run_id, roster)
+      "lead" -> TeamPrompts.lead(run_id, roster)
+      "planner" -> TeamPrompts.planner(run_id, roster)
+      "researcher-1" -> TeamPrompts.researcher_1(run_id, roster)
+      "researcher-2" -> TeamPrompts.researcher_2(run_id, roster)
+      other -> "You are #{other} for MES run #{run_id}.\n\n#{roster}"
+    end
+  end
+
+  defp mes_agent_meta(agent, state, run_id) do
+    %{
+      run_id: run_id,
+      source: :mes,
+      blueprint: mes_blueprint_name(),
+      team_name: state.ws_team_name,
+      permission: agent.permission,
+      file_scope: agent.file_scope,
+      quality_gates: agent.quality_gates
+    }
+  end
+
+  # DAG internals
+
+  defp dag_state(session, worker_groups) do
+    base = Presets.apply(BlueprintState.defaults(), "dag")
+
+    injected =
+      worker_groups
+      |> Enum.with_index(base.ws_next_id)
+      |> Enum.reduce(base, fn {worker, slot_id}, acc ->
+        agent = %{
+          id: slot_id,
+          name: worker.name,
+          capability: "builder",
+          model: "sonnet",
+          permission: "default",
+          persona: "DAG worker. Implements only the jobs assigned to #{worker.name}.",
+          file_scope: Enum.join(worker.allowed_files, "\n"),
+          quality_gates: "mix compile --warnings-as-errors",
+          x: rem(slot_id - 3, 4) * 180 + 40,
+          y: 400
+        }
+
+        new_links = [%{from: 1, to: slot_id}, %{from: 2, to: slot_id}]
+        new_rules = [
+          %{from: 2, to: slot_id, policy: "allow", via: nil},
+          %{from: slot_id, to: 2, policy: "allow", via: nil}
+        ]
+
+        acc
+        |> Map.update!(:ws_agents, &(&1 ++ [agent]))
+        |> Map.update!(:ws_spawn_links, &(&1 ++ new_links))
+        |> Map.update!(:ws_comm_rules, &(&1 ++ new_rules))
+        |> Map.put(:ws_next_id, slot_id + 1)
+      end)
+
+    injected
+    |> Map.put(:ws_team_name, session)
+    |> Map.put(:ws_cwd, File.cwd!())
+  end
+
+  defp dag_roster(session, worker_groups) do
+    names = ["coordinator", "lead"] ++ Enum.map(worker_groups, & &1.name)
+    ids = Enum.map_join(names, "\n", fn name -> "  - #{name}: #{session}-#{name}" end)
+
+    """
+    TEAM ROSTER (use EXACT IDs with send_message/check_inbox):
+    #{ids}
+      - operator: operator
+    Your session ID is: #{session}-YOUR_NAME
+    """
+  end
+
+  defp dag_prompt_map(shared, roster, worker_groups) do
+    shared_r = Map.put(shared, :roster, roster)
+
+    workers =
+      Map.new(worker_groups, fn worker ->
+        {worker.name, DagPrompts.worker(Map.put(shared_r, :worker, worker))}
+      end)
+
+    Map.merge(workers, %{
+      "coordinator" => DagPrompts.coordinator(shared_r),
+      "lead" => DagPrompts.lead(shared_r)
+    })
+  end
+
+  defp dag_agent_meta(agent, state, run_id) do
+    %{
+      run_id: run_id,
+      source: :dag,
+      team_name: state.ws_team_name,
+      permission: agent.permission,
+      file_scope: agent.file_scope,
+      quality_gates: agent.quality_gates
+    }
+  end
+
+  # Genesis internals
+
+  defp genesis_state(session, mode) do
+    BlueprintState.defaults()
+    |> Presets.apply("genesis_#{mode}")
+    |> Map.put(:ws_team_name, session)
+    |> Map.put(:ws_cwd, File.cwd!())
+  end
+
+  defp genesis_roster(session, mode) do
+    entries =
+      mode
+      |> genesis_agent_names()
+      |> Enum.map_join("\n", fn name -> "  - #{name}: #{session}-#{name}" end)
+
+    """
+    TEAM ROSTER (use EXACT IDs with send_message/check_inbox):
+    #{entries}
+      - operator: operator
+    Your session ID is: #{session}-YOUR_NAME
+    """
+  end
+
+  defp genesis_prompt_map("a", run_id, roster, node_id, brief) do
+    %{
+      "coordinator" => ModePrompts.mode_a_coordinator(run_id, roster, node_id, brief),
+      "architect" => ModePrompts.mode_a_architect(run_id, roster, node_id, brief),
+      "reviewer" => ModePrompts.mode_a_reviewer(run_id, roster, node_id, brief)
+    }
+  end
+
+  defp genesis_prompt_map("b", run_id, roster, node_id, brief) do
+    %{
+      "coordinator" => ModePrompts.mode_b_coordinator(run_id, roster, node_id, brief),
+      "analyst" => ModePrompts.mode_b_analyst(run_id, roster, node_id, brief),
+      "designer" => ModePrompts.mode_b_designer(run_id, roster, node_id, brief)
+    }
+  end
+
+  defp genesis_prompt_map("c", run_id, roster, node_id, brief) do
+    %{
+      "coordinator" => ModePrompts.mode_c_coordinator(run_id, roster, node_id, brief),
+      "planner" => ModePrompts.mode_c_planner(run_id, roster, node_id, brief),
+      "architect" => ModePrompts.mode_c_architect(run_id, roster, node_id, brief)
+    }
+  end
+
+  defp genesis_agent_names("a"), do: ~w(coordinator architect reviewer)
+  defp genesis_agent_names("b"), do: ~w(coordinator analyst designer)
+  defp genesis_agent_names("c"), do: ~w(coordinator planner architect)
+end

@@ -13,35 +13,31 @@ defmodule Ichor.Gateway.SchemaInterceptor do
 
   alias Ichor.Gateway.{EntropyTracker, Envelope}
   alias Ichor.Mesh.DecisionLog
+  alias Ichor.Mesh.DecisionLog.Helpers, as: DLHelpers
 
   @doc """
-  Validates params and enriches the resulting DecisionLog with a Gateway-computed entropy score.
+  Parses params into a DecisionLog and enriches it with a Gateway-computed entropy score.
 
-  Calls `validate/1` first. On success, calls `EntropyTracker.record_and_score/2` synchronously
-  and overwrites `cognition.entropy_score` with the returned Gateway-authoritative value.
+  Calls `DecisionLog.Helpers.from_json/1` first. On success, calls
+  `EntropyTracker.record_and_score/2` synchronously and overwrites
+  `cognition.entropy_score` with the returned Gateway-authoritative value.
 
-  If entropy computation fails (missing agent registration), the original agent-reported score
-  is retained and a warning is logged.
+  If entropy computation fails (missing agent registration), the original
+  agent-reported score is retained.
 
-  Returns `{:ok, %DecisionLog{}}` or `{:error, changeset}`.
+  Returns `{:ok, %DecisionLog{}}`.
   """
-  @spec validate_and_enrich(map()) :: {:ok, DecisionLog.t()} | {:error, Ecto.Changeset.t()}
+  @spec validate_and_enrich(map()) :: {:ok, DecisionLog.t()}
   def validate_and_enrich(params) when is_map(params) do
-    case validate(params) do
-      {:error, changeset} ->
-        {:error, changeset}
-
-      {:ok, log} ->
-        enrich_with_entropy(log)
-    end
+    {:ok, log} = DLHelpers.from_json(params)
+    enrich_with_entropy(log)
   end
 
-  @doc "Build a schema violation audit event map from a failed changeset, params, and optional raw body."
-  @spec build_violation_event(Ecto.Changeset.t(), map(), binary() | nil) :: map()
-  def build_violation_event(changeset, params, raw_body) do
+  @doc "Build a schema violation audit event map from an error reason, params, and optional raw body."
+  @spec build_violation_event(String.t(), map(), binary() | nil) :: map()
+  def build_violation_event(reason, params, raw_body) do
     agent_id = get_in(params, ["identity", "agent_id"]) || "unknown"
     capability_version = get_in(params, ["identity", "capability_version"]) || "unknown"
-    violation_reason = format_first_error(changeset)
     raw_payload_hash = compute_hash(raw_body, params)
     timestamp = DateTime.utc_now() |> DateTime.to_iso8601()
 
@@ -50,7 +46,7 @@ defmodule Ichor.Gateway.SchemaInterceptor do
       "timestamp" => timestamp,
       "agent_id" => agent_id,
       "capability_version" => capability_version,
-      "violation_reason" => violation_reason,
+      "violation_reason" => reason,
       "raw_payload_hash" => raw_payload_hash
     }
   end
@@ -87,18 +83,6 @@ defmodule Ichor.Gateway.SchemaInterceptor do
     end
   end
 
-  # Private
-
-  defp validate(params) when is_map(params) do
-    changeset = DecisionLog.changeset(%DecisionLog{}, params)
-
-    if changeset.valid? do
-      {:ok, Ecto.Changeset.apply_changes(changeset)}
-    else
-      {:error, changeset}
-    end
-  end
-
   defp enrich_with_entropy(log) do
     case extract_entropy_fields(log) do
       nil ->
@@ -108,7 +92,7 @@ defmodule Ichor.Gateway.SchemaInterceptor do
         # Synchronous call per FR-9.9 and ADR-018. Must NOT be Task.async or GenServer.cast.
         case EntropyTracker.record_and_score(session_id, {intent, tool_call, action_status}) do
           {:ok, score, _severity} ->
-            {:ok, DecisionLog.put_gateway_entropy_score(log, score)}
+            {:ok, DLHelpers.put_gateway_entropy_score(log, score)}
 
           _ ->
             {:ok, log}
@@ -136,28 +120,5 @@ defmodule Ichor.Gateway.SchemaInterceptor do
     json_fallback = Jason.encode!(params)
     digest = :crypto.hash(:sha256, json_fallback)
     "sha256:" <> Base.encode16(digest, case: :lower)
-  end
-
-  defp format_first_error(changeset) do
-    changeset
-    |> Ecto.Changeset.traverse_errors(fn {msg, opts} ->
-      Enum.reduce(opts, msg, fn {k, v}, acc ->
-        String.replace(acc, "%{#{k}}", to_string(v))
-      end)
-    end)
-    |> flatten_error_paths()
-    |> List.first() || "schema validation failed"
-  end
-
-  defp flatten_error_paths(errors, prefix \\ nil) do
-    Enum.flat_map(errors, fn
-      {field, messages} when is_list(messages) ->
-        key = if prefix, do: "#{prefix}.#{field}", else: to_string(field)
-        ["missing required field: #{key} (#{Enum.join(messages, ", ")})"]
-
-      {field, nested} when is_map(nested) ->
-        key = if prefix, do: "#{prefix}.#{field}", else: to_string(field)
-        flatten_error_paths(nested, key)
-    end)
   end
 end

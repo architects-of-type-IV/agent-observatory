@@ -8,9 +8,7 @@ defmodule Ichor.MemoryStore.Storage do
 
   alias Ichor.MemoryStore.Persistence
 
-  # ---------------------------------------------------------------------------
   # Table constants (inlined from former Tables module)
-  # ---------------------------------------------------------------------------
 
   @blocks_table :letta_blocks
   @agents_table :letta_agents
@@ -62,9 +60,7 @@ defmodule Ichor.MemoryStore.Storage do
   @spec data_dir() :: String.t()
   def data_dir, do: Path.expand("~/.ichor/memory")
 
-  # ---------------------------------------------------------------------------
   # Block CRUD
-  # ---------------------------------------------------------------------------
 
   @doc "True if the block store has reached the maximum allowed blocks."
   @spec max_blocks_reached?() :: boolean()
@@ -203,9 +199,7 @@ defmodule Ichor.MemoryStore.Storage do
   @spec compile_blocks([map()]) :: String.t()
   def compile_blocks(blocks), do: Enum.map_join(blocks, "\n\n", &compile_block/1)
 
-  # ---------------------------------------------------------------------------
   # Agent CRUD
-  # ---------------------------------------------------------------------------
 
   @doc "True if agent count has reached the maximum."
   @spec max_agents_reached?() :: boolean()
@@ -244,9 +238,7 @@ defmodule Ichor.MemoryStore.Storage do
     |> Enum.sort_by(& &1.created_at)
   end
 
-  # ---------------------------------------------------------------------------
   # Recall operations
-  # ---------------------------------------------------------------------------
 
   @doc "Return all recall entries for an agent, newest first."
   @spec get_recall(String.t()) :: [map()]
@@ -298,9 +290,7 @@ defmodule Ichor.MemoryStore.Storage do
     |> Enum.take(limit)
   end
 
-  # ---------------------------------------------------------------------------
   # Archival operations
-  # ---------------------------------------------------------------------------
 
   @doc "Return all archival entries for an agent from ETS."
   @spec get_archival(String.t()) :: [map()]
@@ -383,9 +373,7 @@ defmodule Ichor.MemoryStore.Storage do
     }
   end
 
-  # ---------------------------------------------------------------------------
   # Private helpers
-  # ---------------------------------------------------------------------------
 
   defp archival_for_search(agent_name) do
     ets_entries = get_archival(agent_name)

@@ -89,7 +89,6 @@ defmodule Ichor.AgentWatchdog do
   @impl true
   def handle_info(_msg, state), do: {:noreply, state}
 
-  # --- Crash detection ---
 
   defp detect_and_handle_crashes(state) do
     now = DateTime.utc_now()
@@ -189,7 +188,6 @@ defmodule Ichor.AgentWatchdog do
     end
   end
 
-  # --- Escalation ---
 
   defp run_escalation_check(state) do
     now = DateTime.utc_now()
@@ -303,7 +301,6 @@ defmodule Ichor.AgentWatchdog do
 
   defp do_escalate(_level, _session_id, _agent_name), do: :ok
 
-  # --- Session state helpers (inlined from EventState) ---
 
   defp update_session_activity(%{hook_event_type: :SessionStart} = event, sessions) do
     team_name = extract_team_name(event)
@@ -333,7 +330,6 @@ defmodule Ichor.AgentWatchdog do
     end
   end
 
-  # --- Nudge policy helpers (inlined from NudgePolicy) ---
 
   defp stale?(agent, now, threshold) do
     agent_session_id(agent) != nil and
@@ -381,7 +377,6 @@ defmodule Ichor.AgentWatchdog do
     end
   end
 
-  # --- Pane scanning helpers (inlined from PaneParser) ---
 
   defp scan_all_panes(state) do
     AgentProcess.list_all()
@@ -508,7 +503,6 @@ defmodule Ichor.AgentWatchdog do
     end
   end
 
-  # --- Utilities ---
 
   defp config(key, default) do
     Application.get_env(:ichor, __MODULE__, [])

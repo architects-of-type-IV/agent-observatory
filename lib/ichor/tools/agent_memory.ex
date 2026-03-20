@@ -7,7 +7,6 @@ defmodule Ichor.Tools.AgentMemory do
   alias Ichor.MemoryStore
 
   actions do
-    # --- Core memory ---
 
     action :read_memory, :map do
       description(
@@ -144,7 +143,6 @@ defmodule Ichor.Tools.AgentMemory do
       end)
     end
 
-    # --- Recall ---
 
     action :conversation_search, {:array, :map} do
       description(
@@ -208,7 +206,6 @@ defmodule Ichor.Tools.AgentMemory do
       end)
     end
 
-    # --- Archival ---
 
     action :archival_memory_insert, :map do
       description(
@@ -264,7 +261,6 @@ defmodule Ichor.Tools.AgentMemory do
       end)
     end
 
-    # --- Agent registration ---
 
     action :create_agent, :map do
       description("Register a new specialist agent with initial memory blocks.")

@@ -13,6 +13,7 @@ defmodule Ichor.Gateway.EventBridge do
   alias Ichor.Gateway.{EntropyTracker, IntentMapper, TopologyBuilder}
   alias Ichor.Mesh.CausalDAG
   alias Ichor.Mesh.DecisionLog
+  alias Ichor.Mesh.DecisionLog.Helpers, as: DLHelpers
   alias Ichor.Signals.Message
 
   @doc "Start the EventBridge GenServer."
@@ -140,7 +141,7 @@ defmodule Ichor.Gateway.EventBridge do
          %{intent: intent} when is_binary(intent) <- log.cognition,
          %{tool_call: tool_call, status: action_status} <- log.action do
       case EntropyTracker.record_and_score(session_id, {intent, tool_call, action_status}) do
-        {:ok, score, _severity} -> DecisionLog.put_gateway_entropy_score(log, score)
+        {:ok, score, _severity} -> DLHelpers.put_gateway_entropy_score(log, score)
         _ -> log
       end
     else
