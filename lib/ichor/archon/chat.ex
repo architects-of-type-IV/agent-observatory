@@ -9,12 +9,12 @@ defmodule Ichor.Archon.Chat do
   Incorporates: ChainBuilder, TurnRunner, ContextBuilder, CommandRegistry.
   """
 
-  alias Ichor.Archon.CommandManifest
-  alias Ichor.Archon.MemoriesClient
+  alias Ichor.Archon.{CommandManifest, Manager, MemoriesClient, Memory}
   alias Ichor.Factory.{Floor, Project}
+  alias Ichor.Infrastructure.Operations, as: InfrastructureOps
   alias Ichor.Signals.Mailbox
-  alias Ichor.Tools.ArchonMemory
-  alias Ichor.Tools.RuntimeOps
+  alias Ichor.Signals.Operations, as: SignalOps
+  alias Ichor.Workshop.{ActiveTeam, Agent}
   alias LangChain.Chains.LLMChain
   alias LangChain.ChatModels.ChatOpenAI
   alias LangChain.Message
@@ -89,30 +89,31 @@ defmodule Ichor.Archon.Chat do
   end
 
   defp dispatch_command(%{command: "/agents"}),
-    do: run_action(:agents, RuntimeOps, :list_live_agents, %{})
+    do: run_action(:agents, Agent, :list_live_agents, %{})
 
   defp dispatch_command(%{command: "/teams"}),
-    do: run_action(:teams, RuntimeOps, :list_teams, %{})
+    do: run_action(:teams, ActiveTeam, :list_teams, %{})
 
   defp dispatch_command(%{command: "/inbox"}),
-    do: run_action(:inbox, RuntimeOps, :recent_messages, %{})
+    do: run_action(:inbox, SignalOps, :recent_messages, %{})
 
   defp dispatch_command(%{command: "/health"}),
-    do: run_action(:health, RuntimeOps, :system_health, %{})
+    do: run_action(:health, InfrastructureOps, :system_health, %{})
 
   defp dispatch_command(%{command: "/sessions"}),
-    do: run_action(:sessions, RuntimeOps, :tmux_sessions, %{})
+    do: run_action(:sessions, InfrastructureOps, :tmux_sessions, %{})
 
   defp dispatch_command(%{command: "/manager"}),
-    do: run_action(:manager_snapshot, RuntimeOps, :manager_snapshot, %{})
+    do: run_action(:manager_snapshot, Manager, :manager_snapshot, %{})
 
   defp dispatch_command(%{command: "/attention"}),
-    do: run_action(:attention_queue, RuntimeOps, :attention_queue, %{})
+    do: run_action(:attention_queue, Manager, :attention_queue, %{})
 
   defp dispatch_command(%{command: "/tasks", remainder: nil}),
-    do: run_action(:fleet_tasks, RuntimeOps, :fleet_tasks, %{})
+    do: run_action(:fleet_tasks, Floor, :fleet_tasks, %{})
 
-  defp dispatch_command(%{command: "/sweep"}), do: run_action(:sweep, RuntimeOps, :sweep, %{})
+  defp dispatch_command(%{command: "/sweep"}),
+    do: run_action(:sweep, InfrastructureOps, :sweep, %{})
 
   defp dispatch_command(%{command: "/projects", remainder: nil}),
     do: run_action(:projects, Project, :list_projects, %{})
@@ -156,58 +157,58 @@ defmodule Ichor.Archon.Chat do
     do: {:ok, usage_error("/query <question>")}
 
   defp dispatch_command(%{command: "/status", remainder: agent_id}) when is_binary(agent_id),
-    do: run_action(:agent_status, RuntimeOps, :agent_status, %{agent_id: String.trim(agent_id)})
+    do: run_action(:agent_status, Agent, :agent_status, %{agent_id: String.trim(agent_id)})
 
   defp dispatch_command(%{command: "/events", remainder: rest}) when is_binary(rest) do
     case String.split(rest, " ", parts: 2) do
       [agent_id, limit] ->
         case Integer.parse(String.trim(limit)) do
           {n, ""} ->
-            run_action(:agent_events, RuntimeOps, :agent_events, %{
+            run_action(:agent_events, SignalOps, :agent_events, %{
               agent_id: String.trim(agent_id),
               limit: n
             })
 
           _ ->
-            run_action(:agent_events, RuntimeOps, :agent_events, %{
+            run_action(:agent_events, SignalOps, :agent_events, %{
               agent_id: String.trim(agent_id)
             })
         end
 
       [agent_id] ->
-        run_action(:agent_events, RuntimeOps, :agent_events, %{agent_id: String.trim(agent_id)})
+        run_action(:agent_events, SignalOps, :agent_events, %{agent_id: String.trim(agent_id)})
     end
   end
 
   defp dispatch_command(%{command: "/tasks", remainder: team_name}) when is_binary(team_name),
-    do: run_action(:fleet_tasks, RuntimeOps, :fleet_tasks, %{team_name: String.trim(team_name)})
+    do: run_action(:fleet_tasks, Floor, :fleet_tasks, %{team_name: String.trim(team_name)})
 
   defp dispatch_command(%{command: "/stop", remainder: agent_id}) when is_binary(agent_id),
-    do: run_action(:stop_agent, RuntimeOps, :stop_agent, %{agent_id: String.trim(agent_id)})
+    do: run_action(:stop_agent, Agent, :stop_agent, %{agent_id: String.trim(agent_id)})
 
   defp dispatch_command(%{command: "/pause", remainder: rest}) when is_binary(rest) do
     case String.split(rest, " ", parts: 2) do
       [agent_id, reason] ->
-        run_action(:pause_agent, RuntimeOps, :pause_agent, %{
+        run_action(:pause_agent, Agent, :pause_agent, %{
           agent_id: String.trim(agent_id),
           reason: String.trim(reason)
         })
 
       [agent_id] ->
-        run_action(:pause_agent, RuntimeOps, :pause_agent, %{agent_id: String.trim(agent_id)})
+        run_action(:pause_agent, Agent, :pause_agent, %{agent_id: String.trim(agent_id)})
     end
   end
 
   defp dispatch_command(%{command: "/resume", remainder: agent_id}) when is_binary(agent_id),
-    do: run_action(:resume_agent, RuntimeOps, :resume_agent, %{agent_id: String.trim(agent_id)})
+    do: run_action(:resume_agent, Agent, :resume_agent, %{agent_id: String.trim(agent_id)})
 
   defp dispatch_command(%{command: "/spawn", remainder: prompt}) when is_binary(prompt),
-    do: run_action(:spawn_agent, RuntimeOps, :spawn_archon_agent, %{prompt: String.trim(prompt)})
+    do: run_action(:spawn_agent, Agent, :spawn_archon_agent, %{prompt: String.trim(prompt)})
 
   defp dispatch_command(%{command: "/msg", remainder: rest}) when is_binary(rest) do
     case String.split(rest, " ", parts: 2) do
       [to, content] ->
-        run_action(:msg_sent, RuntimeOps, :operator_send_message, %{to: to, content: content})
+        run_action(:msg_sent, SignalOps, :operator_send_message, %{to: to, content: content})
 
       [_to_only] ->
         {:ok, %{type: :error, data: "Usage: /msg <target> <message>"}}
@@ -218,13 +219,13 @@ defmodule Ichor.Archon.Chat do
     do: run_action(:projects, Project, :list_projects, %{status: String.trim(status)})
 
   defp dispatch_command(%{command: "/remember", remainder: content}) when is_binary(content),
-    do: run_action(:remember, ArchonMemory, :remember, %{content: String.trim(content)})
+    do: run_action(:remember, Memory, :remember, %{content: String.trim(content)})
 
   defp dispatch_command(%{command: "/recall", remainder: query}) when is_binary(query),
-    do: run_action(:recall, ArchonMemory, :search_memory, %{query: String.trim(query)})
+    do: run_action(:recall, Memory, :search_memory, %{query: String.trim(query)})
 
   defp dispatch_command(%{command: "/query", remainder: question}) when is_binary(question),
-    do: run_action(:query, ArchonMemory, :query_memory, %{query: String.trim(question)})
+    do: run_action(:query, Memory, :query_memory, %{query: String.trim(question)})
 
   defp dispatch_command(%{command: command}),
     do: {:ok, %{type: :error, data: CommandManifest.unknown_command_help(command)}}
@@ -252,11 +253,16 @@ defmodule Ichor.Archon.Chat do
           |> AshAi.setup_ash_ai(
             otp_app: :ichor,
             actions: [
-              {RuntimeOps, :*},
+              {Agent,
+               [:list_live_agents, :agent_status, :stop_agent, :pause_agent, :resume_agent]},
+              {ActiveTeam, [:list_teams]},
+              {SignalOps, [:recent_messages, :operator_send_message, :agent_events]},
+              {InfrastructureOps, [:system_health, :tmux_sessions, :sweep]},
+              {Manager, [:manager_snapshot, :attention_queue]},
               {Project, [:list_projects, :create_project]},
               {Floor, [:mes_status, :cleanup_mes]},
               {Mailbox, [:check_operator_inbox]},
-              {Ichor.Tools.Archon.Memory, [:remember]}
+              {Memory, [:remember]}
             ]
           )
 
