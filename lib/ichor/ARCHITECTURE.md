@@ -68,10 +68,8 @@ Ichor.Supervisor (one_for_one)
 |  |- Ichor.Projects.ResearchIngestor
 |  |- Ichor.Projects.CompletionHandler
 |  |- Ichor.Projects.Scheduler
-|- Ichor.Projects.PlanSupervisor
-|  |- DynamicSupervisor for Genesis PlanRunner children
-|- Ichor.Projects.ExecutionSupervisor
-|  |- DynamicSupervisor for DAG RunProcess children
+|- DynamicSupervisor (Ichor.Projects.PlanRunSupervisor)  # Genesis Runner :genesis children
+|- DynamicSupervisor (Ichor.Projects.DynRunSupervisor)   # DAG Runner :dag children
 |- Ichor.MemoriesBridge
 `- IchorWeb.Endpoint
 ```
@@ -82,7 +80,7 @@ Ichor.Supervisor (one_for_one)
 - `FleetSupervisor` owns BEAM-native live agents and teams.
 - `ObservationSupervisor` groups event-topology projection services with ordered restart semantics.
 - `LifecycleSupervisor` owns the MES subsystem.
-- `PlanSupervisor` and `ExecutionSupervisor` isolate Genesis planning runs from DAG execution runs.
+- `PlanRunSupervisor` and `DynRunSupervisor` isolate Genesis planning runs from DAG execution runs.
 
 ## Request Flow
 
@@ -111,8 +109,8 @@ Browser
 
 Examples:
 
-- Fleet/workshop actions go through `Ichor.Control.Agent`, `Ichor.Control.Team`, `Ichor.Control.Persistence`, and lifecycle builders.
-- MES actions go through `Ichor.Projects.Project`, `Ichor.Projects.Scheduler`, `Ichor.Projects.TeamLifecycle`, and `Ichor.Projects.Spawner`.
+- Fleet/workshop actions go through `Ichor.Control.Agent`, `Ichor.Control.Team`, and lifecycle builders.
+- MES actions go through `Ichor.Projects.Project`, `Ichor.Projects.Scheduler`, and `Ichor.Projects.Runner` (`:mes` kind).
 - Signal views subscribe through `Ichor.Signals.Buffer` and `Phoenix.PubSub`.
 
 ### Controller/API request flow
@@ -176,7 +174,7 @@ flowchart LR
 
 - `Ichor.Signals.FromAsh` for Ash resource mutations
 - `Ichor.Projects.RuntimeSignals` for DAG runtime events
-- MES runtime modules such as `Scheduler`, `BuildRunner`, `TeamLifecycle`
+- MES runtime modules such as `Scheduler` and `Runner` (MES kind)
 - Gateway and watchdog services
 
 ## Team Lifecycle
@@ -228,8 +226,7 @@ MES is the manufacturing/execution subsystem rooted at `Ichor.Projects.Lifecycle
 ### Main modules
 
 - `Ichor.Projects.Scheduler` ticks every minute and starts one build run if concurrency allows.
-- `Ichor.Projects.BuildRunner` is one GenServer per MES run.
-- `Ichor.Projects.TeamLifecycle` builds and launches the MES team through generic control lifecycle modules.
+- `Ichor.Projects.Runner` (`:mes` kind) is one GenServer per MES run.
 - `Ichor.Projects.TeamSpecBuilder` and `Ichor.Projects.TeamPrompts` build the MES team contract.
 - `Ichor.Projects.ProjectIngestor` detects project briefs arriving from teams.
 - `Ichor.Projects.CompletionHandler` compiles and hot-loads finished subsystems.
@@ -239,35 +236,32 @@ MES is the manufacturing/execution subsystem rooted at `Ichor.Projects.Lifecycle
 
 ```text
 Scheduler tick
-  -> BuildRunner child under BuildRunSupervisor
-  -> TeamLifecycle.spawn_run(run_id, team_name)
-  -> TeamSpecBuilder.build_team_spec
+  -> Runner child (kind: :mes) under BuildRunSupervisor
+  -> Runner init: TeamSpecBuilder.build_team_spec
   -> TeamLaunch.launch
   -> live MES team in tmux + fleet registry
   -> agents produce brief
   -> ProjectIngestor detects project creation
-  -> CompletionHandler compiles / loads subsystem
-  -> BuildRunner stops when session ends or project is created
+  -> Runner stops when session ends or project is created
   -> Janitor cleans residual team/session resources
 ```
 
 ```mermaid
 flowchart LR
-  A[Scheduler] --> B[BuildRunner]
-  B --> C[TeamLifecycle]
-  C --> D[TeamSpecBuilder]
-  C --> E[TeamLaunch]
-  E --> F[tmux session + Fleet team]
-  F --> G[ProjectIngestor]
-  G --> H[Project resource]
-  H --> I[CompletionHandler]
-  B --> J[Janitor / cleanup]
+  A[Scheduler] --> B[Runner :mes]
+  B --> C[TeamSpecBuilder]
+  B --> D[TeamLaunch]
+  D --> E[tmux session + Fleet team]
+  E --> F[ProjectIngestor]
+  F --> G[Project resource]
+  G --> H[CompletionHandler]
+  B --> I[Janitor / cleanup]
 ```
 
 ### MES design notes
 
 - Active-run counting comes from the registry rather than local scheduler state.
-- `BuildRunner` keeps the run alive while the tmux session is alive.
+- `Runner` (`:mes` kind) keeps the run alive while the tmux session is alive.
 - Quality gate failures can spawn corrective agents into the existing session.
 - `LifecycleSupervisor.start_link/1` also ensures an `operator` `AgentProcess` exists, because MES coordinators deliver back to that mailbox.
 
@@ -282,8 +276,7 @@ The DAG path turns a Genesis node or `tasks.jsonl` data into an executable run w
 - `Ichor.Projects.Validator` and `Ichor.Projects.Graph` check DAG integrity.
 - `Ichor.Projects.WorkerGroups` groups jobs by shared file ownership.
 - `Ichor.Projects.DagTeamSpecBuilder` creates the team contract.
-- `Ichor.Projects.RunSupervisor` starts the `RunProcess`.
-- `Ichor.Projects.RunProcess` monitors liveness, stale jobs, and completion.
+- `Ichor.Projects.Runner` (`:dag` kind) monitors liveness, stale jobs, and completion.
 - `Ichor.Projects.Exporter` writes job state back to `tasks.jsonl`.
 
 ### DAG flow
@@ -298,8 +291,8 @@ Spawner.spawn(node_id, project_id)
   -> WorkerGroups.group
   -> DagTeamSpecBuilder.build_team_spec
   -> TeamLaunch.launch
-  -> RunSupervisor.start_run
-  -> RunProcess monitors liveness, health, stale jobs
+  -> Runner.start(:dag, opts) under DynRunSupervisor
+  -> Runner monitors liveness, health, stale jobs
   -> coordinator sends completion to operator
   -> Run marked complete
   -> TeamLaunch.teardown
@@ -313,18 +306,17 @@ flowchart LR
   D --> E[WorkerGroups]
   E --> F[DagTeamSpecBuilder]
   F --> G[TeamLaunch]
-  G --> H[RunSupervisor]
-  H --> I[RunProcess]
-  I --> J[Exporter sync_job]
-  I --> K[Run.complete]
-  I --> L[TeamLaunch.teardown]
+  G --> H[Runner :dag]
+  H --> I[Exporter sync_job]
+  H --> J[Run.complete]
+  H --> K[TeamLaunch.teardown]
 ```
 
 ### DAG runtime behavior
 
-- `RunProcess` polls for stale jobs and resets them.
-- `RunProcess` emits health and lifecycle signals through `RuntimeSignals`.
-- `RunProcess` subscribes to delivered messages and treats a coordinator message to `operator` as completion.
+- `Runner` (`:dag` kind) polls for stale jobs and resets them.
+- `Runner` emits health and lifecycle signals through `RuntimeSignals`.
+- `Runner` subscribes to delivered messages and treats a coordinator message to `operator` as completion.
 - `sync_job/2` performs write-through file export asynchronously.
 
 ## Genesis Pipeline
@@ -334,11 +326,12 @@ Genesis is the planning pipeline that produces nodes, artifacts, roadmap items, 
 Main pieces:
 
 - `Ichor.Projects.Node` is the subsystem lifecycle anchor.
-- Artifact resources such as `Adr`, `Feature`, `UseCase`, `Checkpoint`, `Conversation`, `Phase`, `Section`, `RoadmapTask`, and `Subtask` hang off the node.
+- `Ichor.Projects.Artifact` tracks mode-produced deliverables against a node.
+- `Ichor.Projects.RoadmapItem` represents a planning item in the Genesis hierarchy.
 - `Ichor.Projects.ModeSpawner` launches Genesis mode teams.
 - `Ichor.Projects.GenesisTeamSpecBuilder` and `Ichor.Projects.ModePrompts` define those teams.
 - `Ichor.Projects.DagGenerator` converts the Mode C roadmap hierarchy into DAG jobs.
-- `Ichor.Projects.PlanRunner` owns one Genesis run process.
+- `Ichor.Projects.Runner` (`:genesis` kind) owns one Genesis run process.
 
 Genesis feeds DAG in two ways:
 
@@ -388,7 +381,7 @@ When orienting in the codebase, start here:
 - Live fleet: `Ichor.Control.FleetSupervisor`, `Ichor.Control.AgentProcess`
 - Team launch: `Ichor.Control.Lifecycle.TeamLaunch`
 - Signals: `Ichor.Signals.Runtime`, `Ichor.Signals.Catalog`, `Ichor.Signals.FromAsh`
-- MES: `Ichor.Projects.Scheduler`, `Ichor.Projects.BuildRunner`, `Ichor.Projects.TeamLifecycle`
-- DAG: `Ichor.Projects.Spawner`, `Ichor.Projects.DagTeamSpecBuilder`, `Ichor.Projects.RunProcess`
+- MES: `Ichor.Projects.Scheduler`, `Ichor.Projects.Runner` (`:mes` kind)
+- DAG: `Ichor.Projects.Spawner`, `Ichor.Projects.DagTeamSpecBuilder`, `Ichor.Projects.Runner` (`:dag` kind)
 - Observability: `Ichor.EventBuffer`, `Ichor.Observability`, `Ichor.Mesh.CausalDAG`
 - Tools: `Ichor.Tools`, `Ichor.Tools.Agent.*`, `Ichor.Tools.Archon.*`

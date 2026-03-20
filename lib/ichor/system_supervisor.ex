@@ -2,15 +2,14 @@ defmodule Ichor.SystemSupervisor do
   @moduledoc """
   Supervises all independent system services under a single one_for_one supervisor.
 
-  Combines the children previously spread across CoreSupervisor, GatewaySupervisor,
-  and MonitorSupervisor. All services here are independent -- no ordering dependency
-  exists between them, so one_for_one is appropriate.
+  All services here are independent -- no ordering dependency exists between
+  them, so one_for_one is appropriate.
 
   Children (in start order):
     Core:    Observability.Janitor, MemoryStore, EventBuffer
     Gateway: TmuxDiscovery, EntropyTracker, HeartbeatManager, CronScheduler,
              WebhookRouter, HITLRelay, OutputCapture
-    Monitor: AgentWatchdog, Dag.Runtime, ProtocolTracker, QualityGate,
+    Monitor: AgentWatchdog, Projects.Runtime, ProtocolTracker, QualityGate,
              Signals.Buffer, Archon.SignalManager, Archon.TeamWatchdog
   """
   use Supervisor

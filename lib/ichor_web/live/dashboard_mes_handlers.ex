@@ -8,10 +8,9 @@ defmodule IchorWeb.DashboardMesHandlers do
 
   alias Ichor.Projects.{
     DagGenerator,
-    ModeSpawner,
     Project,
     Scheduler,
-    Spawner,
+    Spawn,
     SubsystemLoader
   }
 
@@ -44,8 +43,8 @@ defmodule IchorWeb.DashboardMesHandlers do
 
     genesis_node_id = socket.assigns.genesis_node && socket.assigns.genesis_node.id
 
-    with {:ok, node_id} <- ModeSpawner.ensure_genesis_node(genesis_node_id, project),
-         {:ok, session} <- ModeSpawner.spawn_mode(mode, project_id, node_id) do
+    with {:ok, node_id} <- Spawn.ensure_genesis_node(genesis_node_id, project),
+         {:ok, session} <- Spawn.spawn(:genesis, mode, project_id, node_id) do
       socket
       |> assign(:genesis_node, load_genesis_node_by_id(node_id))
       |> put_flash(:info, "Mode #{String.upcase(mode)} team spawned: #{session}")
@@ -78,7 +77,7 @@ defmodule IchorWeb.DashboardMesHandlers do
   end
 
   def dispatch("mes_launch_dag", %{"node-id" => node_id, "project-id" => project_id}, socket) do
-    case Spawner.spawn(node_id, project_id) do
+    case Spawn.spawn(:dag, node_id, project_id) do
       {:ok, %{session: session}} ->
         Signals.emit(:mes_dag_launched, %{node_id: node_id, session: session})
 

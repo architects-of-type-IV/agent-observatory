@@ -2,18 +2,14 @@ defmodule Ichor.Projects.Runner do
   @moduledoc """
   Unified GenServer representing a single run lifecycle.
 
-  Replaces BuildRunner (MES), PlanRunner (Genesis), and RunProcess (DAG)
-  with a single data-driven implementation. Behavior differences are
+  Replaces the former BuildRunner (MES), PlanRunner (Genesis), and RunProcess
+  (DAG) with a single data-driven implementation. Behavioral differences are
   expressed through `%Runner.Mode{}` config structs and hook functions.
 
   Registry keys by kind:
     - :mes     -> {:run, run_id}
     - :genesis -> {:genesis_run, run_id}
     - :dag     -> {:dag_run, run_id}
-
-  All three runner kinds are still running their original modules.
-  This module is built alongside the originals; callers migrate in a
-  subsequent phase.
   """
 
   use GenServer, restart: :temporary

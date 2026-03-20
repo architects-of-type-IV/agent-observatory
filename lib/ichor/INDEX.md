@@ -11,7 +11,6 @@ Quick reference for the `lib/ichor` tree. This index is intentionally terse; see
 - `Ichor.EventBuffer` - In-memory event buffer used for timelines, projections, and dashboard state.
 - `Ichor.MemoriesBridge` - Bridges Ichor signals into the external Memories knowledge graph.
 - `Ichor.MemoryStore` - Local three-tier memory system for agent memory blocks, archival, and recall.
-- `Ichor.MessageRouter` - Single delivery authority for inter-agent and operator messaging.
 - `Ichor.Notes` - ETS-backed note store for operator annotations.
 - `Ichor.Observability` - Ash domain for events, messages, errors, sessions, and tasks.
 - `Ichor.ObservationSupervisor` - Supervises observation-side services such as the causal DAG and event bridge.
@@ -47,21 +46,6 @@ Quick reference for the `lib/ichor` tree. This index is intentionally terse; see
 - `Ichor.Archon.Chat.ContextBuilder` - Retrieves memory context snippets for Archon turns.
 - `Ichor.Archon.Chat.TurnRunner` - Executes a single LLM-backed Archon turn.
 
-### `archon/memories_client`
-
-- `Ichor.Archon.MemoriesClient.ChunkedIngestResult` - Value struct for chunked ingest responses.
-- `Ichor.Archon.MemoriesClient.IngestResult` - Value struct for single-episode ingest responses.
-- `Ichor.Archon.MemoriesClient.QueryResult` - Value struct for query/retrieval responses.
-- `Ichor.Archon.MemoriesClient.SearchResult` - Value struct for graph search results.
-
-### `archon/signal_manager`
-
-- `Ichor.Archon.SignalManager.Reactions` - Pure projection from signals to Archon manager state.
-
-### `archon/team_watchdog`
-
-- `Ichor.Archon.TeamWatchdog.Reactions` - Pure reaction planner for team lifecycle signals.
-
 ## `control`
 
 - `Ichor.Control.Agent` - Canonical Ash entrypoint for live agent reads and lifecycle actions.
@@ -72,9 +56,7 @@ Quick reference for the `lib/ichor` tree. This index is intentionally terse; see
 - `Ichor.Control.CommRule` - Persisted communication rule between agent blueprints.
 - `Ichor.Control.FleetSupervisor` - Root dynamic supervisor for teams and standalone agents.
 - `Ichor.Control.HostRegistry` - Tracks available BEAM hosts via `:pg`.
-- `Ichor.Control.Lifecycle` - Public boundary for team launch operations.
 - `Ichor.Control.Lookup` - Shared lookup helpers for teams and agents.
-- `Ichor.Control.Persistence` - Domain-facing persistence helpers for Workshop resources.
 - `Ichor.Control.Presets` - Canonical Workshop presets and launch ordering.
 - `Ichor.Control.RuntimeQuery` - Read-model queries over teams, sessions, events, and tasks.
 - `Ichor.Control.RuntimeView` - Display projections for team and agent runtime state.
@@ -126,6 +108,7 @@ Quick reference for the `lib/ichor` tree. This index is intentionally terse; see
 - `Ichor.Gateway.HeartbeatManager` - Tracks heartbeats and agent liveness timeouts.
 - `Ichor.Gateway.HITLInterventionEvent` - Ash resource recording HITL interventions.
 - `Ichor.Gateway.HITLRelay` - Manages HITL pause/unpause/rewrite/inject lifecycle by session.
+- `Ichor.Gateway.IntentMapper` - Maps gateway envelopes to delivery intents.
 - `Ichor.Gateway.OutputCapture` - Polls tmux output for watched agents and broadcasts deltas.
 - `Ichor.Gateway.Router` - Central message router for gateway traffic.
 - `Ichor.Gateway.SchemaInterceptor` - Validation gate for inbound gateway messages.
@@ -140,14 +123,11 @@ Quick reference for the `lib/ichor` tree. This index is intentionally terse; see
 
 ### `gateway/channels`
 
+- `Ichor.Gateway.Channels.AnsiUtils` - ANSI escape code helpers for channel output processing.
 - `Ichor.Gateway.Channels.MailboxAdapter` - Delivers through live `AgentProcess` mailboxes.
 - `Ichor.Gateway.Channels.SshTmux` - Delivers into tmux on remote hosts over SSH.
 - `Ichor.Gateway.Channels.Tmux` - Delivers into local tmux sessions using named buffers.
 - `Ichor.Gateway.Channels.WebhookAdapter` - Enqueues durable webhook-based delivery.
-
-### `gateway/router`
-
-- `Ichor.Gateway.Router.EventIngest` - Gateway-side handling for incoming hook/event payloads.
 
 ## `memory_store`
 
@@ -159,18 +139,9 @@ Quick reference for the `lib/ichor` tree. This index is intentionally terse; see
 - `Ichor.Mesh.CausalDAG` - ETS-backed causal DAG per active session.
 - `Ichor.Mesh.DecisionLog` - Ecto schema for the universal inter-agent decision log envelope.
 
-### `mesh/causal_dag`
-
-- `Ichor.Mesh.CausalDAG.Node` - Embedded node schema/value structure for DAG nodes.
-
 ### `mesh/decision_log`
 
-- `Ichor.Mesh.DecisionLog.Action` - Embedded schema for action details.
-- `Ichor.Mesh.DecisionLog.Cognition` - Embedded schema for cognition details.
-- `Ichor.Mesh.DecisionLog.Control` - Embedded schema for control metadata.
-- `Ichor.Mesh.DecisionLog.Identity` - Embedded schema for identity metadata.
-- `Ichor.Mesh.DecisionLog.Meta` - Embedded schema for decision-log metadata.
-- `Ichor.Mesh.DecisionLog.StateDelta` - Embedded schema for state-delta payloads.
+- `Ichor.Mesh.DecisionLog.Helpers` - Helper functions for decision-log construction and querying.
 
 ## `observability`
 
@@ -192,20 +163,16 @@ Quick reference for the `lib/ichor` tree. This index is intentionally terse; see
 ## `projects`
 
 - `Ichor.Projects.Actions` - Task mutation and corrective actions for the live DAG runtime.
-- `Ichor.Projects.Adr` - Architecture Decision Record resource for Genesis Mode A.
-- `Ichor.Projects.BuildRunner` - One GenServer per MES manufacturing run.
+- `Ichor.Projects.Artifact` - Genesis artifact resource for mode-produced deliverables.
 - `Ichor.Projects.Catalog` - Project discovery/selection helpers for DAG runtime state.
-- `Ichor.Projects.Checkpoint` - Gate checkpoint resource in the Genesis pipeline.
 - `Ichor.Projects.CompletionHandler` - Reacts to DAG completion by compiling and loading subsystems.
-- `Ichor.Projects.Conversation` - Design conversation resource for Genesis runs.
 - `Ichor.Projects.DagAnalysis` - Parses tasks and derives DAG runtime projections.
 - `Ichor.Projects.DagGenerator` - Builds DAG jobs from Genesis roadmap hierarchy.
 - `Ichor.Projects.DagPrompts` - Prompt templates for DAG coordinator/lead/worker teams.
 - `Ichor.Projects.DagTeamSpecBuilder` - Builds `TeamSpec` values for DAG execution teams.
+- `Ichor.Projects.DateUtils` - Date/time formatting and comparison helpers.
 - `Ichor.Projects.Discovery` - Discovers DAG-capable projects and archives on disk.
-- `Ichor.Projects.ExecutionSupervisor` - Supervisor for active DAG run processes.
 - `Ichor.Projects.Exporter` - Syncs DAG jobs back to `tasks.jsonl`.
-- `Ichor.Projects.Feature` - Feature Requirements Document resource for Genesis Mode B.
 - `Ichor.Projects.GenesisTeamSpecBuilder` - Builds `TeamSpec` values for Genesis planning teams.
 - `Ichor.Projects.Graph` - Pure DAG algorithms on normalized graph nodes.
 - `Ichor.Projects.HealthChecker` - Health checks for active DAG runs.
@@ -217,45 +184,35 @@ Quick reference for the `lib/ichor` tree. This index is intentionally terse; see
 - `Ichor.Projects.ModePrompts` - Prompt templates for Genesis planning teams.
 - `Ichor.Projects.ModeSpawner` - Spawns Genesis planning teams in tmux.
 - `Ichor.Projects.Node` - Genesis node resource tracking a subsystem through modes.
-- `Ichor.Projects.Phase` - Roadmap phase resource for Mode C.
 - `Ichor.Projects.PipelineStage` - Derives current pipeline stage from node associations.
-- `Ichor.Projects.PlanRunner` - One GenServer per Genesis mode team run.
-- `Ichor.Projects.PlanSupervisor` - Supervisor for Genesis plan-run processes.
-- `Ichor.Projects.ProjectIngestor` - Detects project briefs arriving from MES teams.
 - `Ichor.Projects.Project` - MES-generated subsystem project brief resource.
+- `Ichor.Projects.ProjectIngestor` - Detects project briefs arriving from MES teams.
 - `Ichor.Projects.ResearchContext` - Builds Memories-backed context for MES research prompts.
 - `Ichor.Projects.ResearchIngestor` - Ingests MES briefs into the Memories graph.
 - `Ichor.Projects.ResearchStore` - Read-only interface to Memories for project research.
-- `Ichor.Projects.RoadmapTask` - Roadmap task resource for Mode C.
-- `Ichor.Projects.RunProcess` - One GenServer per live DAG execution run.
-- `Ichor.Projects.RunSupervisor` - Facade for starting DAG `RunProcess` children.
+- `Ichor.Projects.RoadmapItem` - Roadmap item resource for Genesis planning hierarchy.
 - `Ichor.Projects.Run` - DAG execution session resource.
-- `Ichor.Projects.RunnerRegistry` - Registry helper for MES and DAG run processes.
+- `Ichor.Projects.Runner` - Unified GenServer for MES, Genesis, and DAG run lifecycles.
 - `Ichor.Projects.Runtime` - Live DAG runtime process behind discovery, refresh, and repair actions.
 - `Ichor.Projects.RuntimeCallbacks` - Boundary for side effects triggered by DAG runtime transitions.
 - `Ichor.Projects.RuntimeSignals` - Centralized signal emission for DAG runtime events.
 - `Ichor.Projects.Scheduler` - MES scheduler that ticks and starts build runs.
-- `Ichor.Projects.Section` - Roadmap section resource for Mode C.
+- `Ichor.Projects.Spawn` - Low-level team spawn helpers for DAG runs.
 - `Ichor.Projects.Spawner` - Spawns a full DAG execution team and run process.
 - `Ichor.Projects.SubsystemLoader` - Compiles and hot-loads generated subsystem projects.
 - `Ichor.Projects.SubsystemScaffold` - Creates standalone Mix projects for subsystems.
-- `Ichor.Projects.Subtask` - Atomic roadmap subtask resource.
 - `Ichor.Projects.TeamCleanup` - MES cleanup policy layered on generic lifecycle helpers.
-- `Ichor.Projects.TeamLifecycle` - MES team launch/cleanup orchestration.
 - `Ichor.Projects.TeamPrompts` - Prompt builders for MES team roles.
+- `Ichor.Projects.TeamSpec` - Data contract for a projects-domain team launch.
 - `Ichor.Projects.TeamSpecBuilder` - Builds `TeamSpec` values for MES teams.
 - `Ichor.Projects.Types.WorkStatus` - Ash enum type for Genesis work status.
-- `Ichor.Projects.UseCase` - Use-case resource with Gherkin scenarios for Genesis Mode B.
 - `Ichor.Projects.Validator` - Preflight DAG validation helpers.
 - `Ichor.Projects.WorkerGroups` - Groups jobs by shared file ownership into workers.
 
-### `projects/job/preparations`
+### `projects/job`
 
+- `Ichor.Projects.Job.Changes.SyncRunProcess` - Ash change that syncs job state to the run process.
 - `Ichor.Projects.Job.Preparations.FilterAvailable` - Post-query filter backing the `Job.available/1` read action.
-
-### `projects/subsystem_scaffold`
-
-- `Ichor.Projects.SubsystemScaffold.Templates` - Template rendering for generated subsystem projects.
 
 ## `signals`
 
@@ -265,41 +222,11 @@ Quick reference for the `lib/ichor` tree. This index is intentionally terse; see
 - `Ichor.Signals.FromAsh` - Ash notifier that turns resource mutations into signals.
 - `Ichor.Signals.Runtime` - Runtime implementation of signal emission, subscription, and PubSub fan-out.
 
-### `signals/catalog`
-
-- `Ichor.Signals.Catalog.GatewayAgentDefs` - Signal definitions for gateway and agent runtime events.
-- `Ichor.Signals.Catalog.GenesisDagDefs` - Signal definitions for Genesis and DAG workflows.
-- `Ichor.Signals.Catalog.MesDefs` - Signal definitions for MES scheduling and manufacturing flows.
-
 ## `tools`
 
-- `Ichor.Tools.AgentControl` - Shared spawn, stop, pause, and resume actions used by tool resources.
-- `Ichor.Tools.GenesisFormatter` - Shared formatting and normalization helpers for Genesis tool facades.
-- `Ichor.Tools.Profiles` - MCP profile lists deciding which tools each endpoint exposes.
-
-### `tools/agent`
-
-- `Ichor.Tools.Agent.Agents` - Agent registration and listing tools.
-- `Ichor.Tools.Agent.Archival` - Archival memory insert/search tools.
-- `Ichor.Tools.Agent.DagExecution` - DAG run/job claim, completion, status, and file sync tools.
-- `Ichor.Tools.Agent.GenesisArtifacts` - Genesis artifact creation and listing tools.
-- `Ichor.Tools.Agent.GenesisGates` - Genesis checkpoint and conversation tools.
-- `Ichor.Tools.Agent.GenesisNodes` - Genesis node lifecycle tools.
-- `Ichor.Tools.Agent.GenesisRoadmap` - Mode C roadmap hierarchy tools.
-- `Ichor.Tools.Agent.Inbox` - Agent inbox, acknowledgement, and send-message tools.
-- `Ichor.Tools.Agent.Memory` - Core memory read/edit tools.
-- `Ichor.Tools.Agent.Recall` - Conversation recall and search tools.
-- `Ichor.Tools.Agent.Spawn` - Observable tmux-backed agent spawning tool.
-- `Ichor.Tools.Agent.Tasks` - Task-board read and mutation tools for agents.
-
-### `tools/archon`
-
-- `Ichor.Tools.Archon.Agents` - Fleet agent query tools for Archon.
-- `Ichor.Tools.Archon.Control` - Fleet control tools for Archon.
-- `Ichor.Tools.Archon.Events` - Event stream and task-overview tools for Archon.
-- `Ichor.Tools.Archon.Manager` - Manager snapshot and attention tools for Archon.
+- `Ichor.Tools.AgentMemory` - Agent memory read/write tool resource.
 - `Ichor.Tools.Archon.Memory` - Knowledge-graph memory search and ingest tools for Archon.
-- `Ichor.Tools.Archon.Mes` - MES floor management tools for Archon.
-- `Ichor.Tools.Archon.Messages` - Recent message query and operator-send tools for Archon.
-- `Ichor.Tools.Archon.System` - System health and tmux diagnostics for Archon.
-- `Ichor.Tools.Archon.Teams` - Team query tools for Archon.
+- `Ichor.Tools.Genesis` - Genesis workflow tool resource.
+- `Ichor.Tools.Profiles` - MCP profile lists deciding which tools each endpoint exposes.
+- `Ichor.Tools.ProjectExecution` - DAG project execution tool resource.
+- `Ichor.Tools.RuntimeOps` - Runtime operations tool resource.
