@@ -57,13 +57,14 @@ defmodule Ichor.Infrastructure.AgentRegistryProjection do
   end
 
   @doc "Apply a map of field updates to the registry entry for `agent_id`."
-  @spec update(String.t(), map()) :: :ok | {:error, term()}
+  @spec update(String.t(), map()) :: :ok | {:error, :not_registered}
   def update(agent_id, fields) do
-    Registry.update_value(@type_iv_registry, {:agent, agent_id}, fn meta ->
-      Map.merge(meta, fields)
-    end)
-
-    :ok
+    case Registry.update_value(@type_iv_registry, {:agent, agent_id}, fn meta ->
+           Map.merge(meta, fields)
+         end) do
+      {_new, _old} -> :ok
+      :error -> {:error, :not_registered}
+    end
   end
 
   # ---------------------------------------------------------------------------

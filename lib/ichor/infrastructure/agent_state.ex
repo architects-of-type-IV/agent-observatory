@@ -37,24 +37,22 @@ defmodule Ichor.Infrastructure.AgentState do
     new_state =
       state
       |> prepend_to_log(msg)
-      |> prepend_to_inbox(msg)
+      |> maybe_inbox(msg)
       |> maybe_buffer(msg)
 
     {msg, new_state}
   end
 
   @doc """
-  Drain the `pending_delivery` buffer (returning it in arrival order) and
-  transition the agent to `:active` status.
+  Drain the `pending_delivery` buffer (returning it in arrival order).
 
   The caller is responsible for actually delivering the drained messages via
-  `AgentDelivery.deliver_many/2`.
+  `AgentDelivery.deliver_many/2` and transitioning status to `:active`.
   """
   @spec drain_pending(map()) :: {[map()], map()}
   def drain_pending(state) do
     messages = Enum.reverse(state.pending_delivery)
-    new_state = %{state | status: :active, pending_delivery: []}
-    {messages, new_state}
+    {messages, %{state | pending_delivery: []}}
   end
 
   @doc """
@@ -73,9 +71,14 @@ defmodule Ichor.Infrastructure.AgentState do
     %{state | message_log: Enum.take([msg | state.message_log], @max_message_log)}
   end
 
-  defp prepend_to_inbox(state, msg) do
+  # Only buffer in inbox when there is no backend -- inbox is the MCP polling
+  # buffer for agents without a transport. Backend-connected agents get messages
+  # delivered directly; adding them to inbox would cause duplicates via get_unread.
+  defp maybe_inbox(%{backend: nil} = state, msg) do
     %{state | inbox: [msg | state.inbox]}
   end
+
+  defp maybe_inbox(state, _msg), do: state
 
   defp maybe_buffer(%{status: :active} = state, _msg), do: state
 

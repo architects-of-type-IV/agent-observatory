@@ -201,6 +201,7 @@ defmodule Ichor.Infrastructure.AgentProcess do
     AgentRegistryProjection.update(state.id, %{status: :active})
     AgentLifecycle.agent_resumed(state.id)
     {pending, new_state} = AgentState.drain_pending(state)
+    new_state = %{new_state | status: :active}
     AgentDelivery.deliver_many(new_state.backend, pending)
     {:reply, :ok, new_state}
   end
