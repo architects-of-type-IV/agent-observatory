@@ -177,9 +177,9 @@ defmodule Ichor.Workshop.CanvasState do
   @doc "Apply a persisted team record to the canvas state."
   @spec apply_team(t(), map()) :: t()
   def apply_team(state, team) do
-    agents = safe_list(team.agents) |> Enum.map(&persisted_to_agent/1)
-    links = safe_list(team.spawn_links) |> Enum.map(&persisted_to_link/1)
-    rules = safe_list(team.comm_rules) |> Enum.map(&persisted_to_rule/1)
+    agents = Enum.map(team.agents || [], &Map.from_struct/1)
+    links = Enum.map(team.spawn_links || [], &Map.from_struct/1)
+    rules = Enum.map(team.comm_rules || [], &Map.from_struct/1)
     max_slot = agents |> Enum.map(& &1.id) |> Enum.max(fn -> 0 end)
 
     state
@@ -242,82 +242,13 @@ defmodule Ichor.Workshop.CanvasState do
       strategy: state.ws_strategy,
       default_model: state.ws_default_model,
       cwd: state.ws_cwd,
-      agents: Enum.map(state.ws_agents, &agent_to_persisted/1),
-      spawn_links: Enum.map(state.ws_spawn_links, &link_to_persisted/1),
-      comm_rules: Enum.map(state.ws_comm_rules, &rule_to_persisted/1)
+      agents: state.ws_agents,
+      spawn_links: state.ws_spawn_links,
+      comm_rules: state.ws_comm_rules
     }
   end
 
   defp update_agents(state, fun) do
     Map.update!(state, :ws_agents, fn agents -> Enum.map(agents, fun) end)
   end
-
-  # Embedded JSON maps come back from SQLite with string keys.
-  # Canvas state always uses atom-key maps.
-
-  defp agent_to_persisted(agent) do
-    %{
-      "slot" => agent.id,
-      "agent_type_id" => agent[:agent_type_id],
-      "name" => agent.name,
-      "capability" => agent.capability,
-      "model" => agent.model,
-      "permission" => agent.permission,
-      "persona" => agent.persona || "",
-      "file_scope" => agent.file_scope || "",
-      "quality_gates" => agent.quality_gates || "",
-      "tools" => Map.get(agent, :tools, []),
-      "canvas_x" => agent.x,
-      "canvas_y" => agent.y
-    }
-  end
-
-  defp persisted_to_agent(agent) do
-    %{
-      id: str_int(agent, "slot"),
-      agent_type_id: Map.get(agent, "agent_type_id"),
-      name: Map.get(agent, "name", ""),
-      capability: Map.get(agent, "capability", "builder"),
-      model: Map.get(agent, "model", "sonnet"),
-      permission: Map.get(agent, "permission", "default"),
-      persona: Map.get(agent, "persona") || "",
-      file_scope: Map.get(agent, "file_scope") || "",
-      quality_gates: Map.get(agent, "quality_gates") || "",
-      tools: safe_list(Map.get(agent, "tools")),
-      x: str_int(agent, "canvas_x"),
-      y: str_int(agent, "canvas_y")
-    }
-  end
-
-  defp link_to_persisted(link), do: %{"from_slot" => link.from, "to_slot" => link.to}
-
-  defp persisted_to_link(link),
-    do: %{from: str_int(link, "from_slot"), to: str_int(link, "to_slot")}
-
-  defp rule_to_persisted(rule),
-    do: %{
-      "from_slot" => rule.from,
-      "to_slot" => rule.to,
-      "policy" => rule.policy,
-      "via_slot" => rule.via
-    }
-
-  defp persisted_to_rule(rule),
-    do: %{
-      from: str_int(rule, "from_slot"),
-      to: str_int(rule, "to_slot"),
-      policy: Map.get(rule, "policy", "allow"),
-      via: Map.get(rule, "via_slot")
-    }
-
-  defp str_int(map, key) do
-    case Map.get(map, key) do
-      nil -> 0
-      v when is_integer(v) -> v
-      v when is_binary(v) -> String.to_integer(v)
-    end
-  end
-
-  defp safe_list(list) when is_list(list), do: list
-  defp safe_list(_), do: []
 end

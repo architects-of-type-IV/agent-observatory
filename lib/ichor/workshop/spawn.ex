@@ -93,8 +93,8 @@ defmodule Ichor.Workshop.Spawn do
   defp build_spec(%Team{} = team, members) do
     session = session_name(team.name)
     cwd = blank_to_cwd(team.cwd)
-    links = normalize_links(team.spawn_links)
-    rules = normalize_rules(team.comm_rules)
+    links = team.spawn_links || []
+    rules = team.comm_rules || []
     launch_agents = build_launch_agents(members)
     ordered_agents = Presets.spawn_order(launch_agents, links)
 
@@ -279,35 +279,6 @@ defmodule Ichor.Workshop.Spawn do
       type.default_tools || []
     else
       member_scope
-    end
-  end
-
-  defp normalize_links(links) when is_list(links) do
-    Enum.map(links, fn link ->
-      %{from: fetch_int(link, "from_slot"), to: fetch_int(link, "to_slot")}
-    end)
-  end
-
-  defp normalize_links(_), do: []
-
-  defp normalize_rules(rules) when is_list(rules) do
-    Enum.map(rules, fn rule ->
-      %{
-        from: fetch_int(rule, "from_slot"),
-        to: fetch_int(rule, "to_slot"),
-        policy: Map.get(rule, "policy", "allow"),
-        via: Map.get(rule, "via_slot")
-      }
-    end)
-  end
-
-  defp normalize_rules(_), do: []
-
-  defp fetch_int(map, key) do
-    case Map.get(map, key) do
-      value when is_integer(value) -> value
-      value when is_binary(value) -> String.to_integer(value)
-      _ -> 0
     end
   end
 

@@ -535,7 +535,6 @@ defmodule Ichor.Signals.AgentWatchdog do
 
   defp capture_target?("%" <> _), do: true
   defp capture_target?(target) when is_binary(target), do: String.contains?(target, ":")
-  defp capture_target?(_), do: false
 
   defp diff_output(prev, current) do
     prev_lines = String.split(prev, "\n", trim: true)

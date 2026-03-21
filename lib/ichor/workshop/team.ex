@@ -42,17 +42,17 @@ defmodule Ichor.Workshop.Team do
       public?(true)
     end
 
-    attribute :agents, {:array, :map} do
+    attribute :agents, {:array, Ichor.Workshop.AgentSlot} do
       default([])
       public?(true)
     end
 
-    attribute :spawn_links, {:array, :map} do
+    attribute :spawn_links, {:array, Ichor.Workshop.SpawnLink} do
       default([])
       public?(true)
     end
 
-    attribute :comm_rules, {:array, :map} do
+    attribute :comm_rules, {:array, Ichor.Workshop.CommRule} do
       default([])
       public?(true)
     end
