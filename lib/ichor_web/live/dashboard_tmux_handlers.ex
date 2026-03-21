@@ -33,6 +33,7 @@ defmodule IchorWeb.DashboardTmuxHandlers do
   def dispatch("set_panel_theme", p, s), do: handle_set_panel_theme(p, s)
   def dispatch("terminal_panel_init", p, s), do: handle_terminal_panel_init(p, s)
   def dispatch("terminal_panel_resize", _p, s), do: s
+  def dispatch("set_panel_layout", p, s), do: handle_set_panel_layout(p, s)
   def dispatch("toggle_session_picker", p, s), do: handle_toggle_session_picker(p, s)
   def dispatch("toggle_panel_settings", p, s), do: handle_toggle_panel_settings(p, s)
 
@@ -343,6 +344,22 @@ defmodule IchorWeb.DashboardTmuxHandlers do
     |> assign(:panel_theme, theme)
     |> push_event("terminal_apply_theme", %{theme: to_string(theme)})
     |> push_event("terminal_panel_update", %{theme: to_string(theme)})
+  end
+
+  def handle_set_panel_layout(%{"pos" => pos, "w" => w, "h" => h}, socket) do
+    position = parse_position(to_string(pos))
+    width = parse_dim(w)
+    height = parse_dim(h)
+
+    socket
+    |> assign(:panel_position, position)
+    |> assign(:panel_width, width)
+    |> assign(:panel_height, height)
+    |> push_event("terminal_panel_update", %{
+      position: to_string(position),
+      width: width,
+      height: height
+    })
   end
 
   def handle_toggle_session_picker(_params, socket) do

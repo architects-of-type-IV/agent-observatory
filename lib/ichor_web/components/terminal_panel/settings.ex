@@ -1,18 +1,32 @@
 defmodule IchorWeb.Components.TerminalPanel.Settings do
   @moduledoc """
-  Settings bar for the terminal panel.
-  Renders position, width, height, split, and theme option groups.
+  Settings panel for the terminal panel.
+  Visual 3x3 grid for position+size, plus split and theme controls.
   """
 
   use Phoenix.Component
 
   import IchorWeb.Components.TerminalPanel.Helpers,
-    only: [position_label: 1, split_label: 1, theme_label: 1]
+    only: [split_label: 1, theme_label: 1]
 
-  @positions [:center, :bottom, :top, :left, :right]
-  @dims [25, 33, 50, 75, 100]
   @splits [:none, :horizontal, :vertical]
   @themes [:ichor, :midnight, :aurora, :phosphor, :solarized, :rose]
+
+  # 3x3 grid: each cell maps to {position, width, height}
+  @grid [
+    # top row
+    %{pos: :left, w: 33, h: 33, label: "TL", row: 0, col: 0},
+    %{pos: :top, w: 100, h: 33, label: "Top", row: 0, col: 1},
+    %{pos: :right, w: 33, h: 33, label: "TR", row: 0, col: 2},
+    # middle row
+    %{pos: :left, w: 33, h: 100, label: "Left", row: 1, col: 0},
+    %{pos: :center, w: 70, h: 50, label: "Center", row: 1, col: 1},
+    %{pos: :right, w: 33, h: 100, label: "Right", row: 1, col: 2},
+    # bottom row
+    %{pos: :left, w: 33, h: 33, label: "BL", row: 2, col: 0},
+    %{pos: :bottom, w: 100, h: 33, label: "Bottom", row: 2, col: 1},
+    %{pos: :right, w: 33, h: 33, label: "BR", row: 2, col: 2}
+  ]
 
   attr :panel_position, :atom, required: true
   attr :panel_width, :integer, required: true
@@ -23,87 +37,113 @@ defmodule IchorWeb.Components.TerminalPanel.Settings do
   def settings_bar(assigns) do
     assigns =
       assigns
-      |> assign(:positions, @positions)
-      |> assign(:dims, @dims)
+      |> assign(:grid, @grid)
       |> assign(:splits, @splits)
       |> assign(:themes, @themes)
 
     ~H"""
     <div class="bg-[var(--term-surface)] border-b border-[var(--term-border)] px-3 py-2.5 shrink-0">
-      <div class="flex gap-x-5 gap-y-2.5 flex-wrap">
-        <.setting_group label="Position">
-          <.setting_btn
-            :for={pos <- @positions}
-            event="set_panel_position"
-            param="position"
-            value={pos}
-            label={position_label(pos)}
-            active={pos == @panel_position}
-          />
-        </.setting_group>
-        <.setting_group label="Width">
-          <.setting_btn
-            :for={d <- @dims}
-            event="set_panel_width"
-            param="width"
-            value={d}
-            label={"#{d}%"}
-            active={d == @panel_width}
-          />
-        </.setting_group>
-        <.setting_group label="Height">
-          <.setting_btn
-            :for={d <- @dims}
-            event="set_panel_height"
-            param="height"
-            value={d}
-            label={"#{d}%"}
-            active={d == @panel_height}
-          />
-        </.setting_group>
-        <.setting_group label="Split">
-          <.setting_btn
-            :for={split <- @splits}
-            event="set_panel_split"
-            param="split"
-            value={split}
-            label={split_label(split)}
-            active={split == @panel_split}
-          />
-        </.setting_group>
-        <.setting_group label="Theme">
-          <.setting_btn
-            :for={theme <- @themes}
-            event="set_panel_theme"
-            param="theme"
-            value={theme}
-            label={theme_label(theme)}
-            active={theme == @panel_theme}
-          />
-        </.setting_group>
+      <div class="flex gap-x-5 gap-y-2.5 items-start flex-wrap">
+        <%!-- Visual grid --%>
+        <div>
+          <div class="text-[9px] text-[var(--term-text-muted)] uppercase tracking-wider font-semibold mb-1.5">
+            Layout
+          </div>
+          <div class="grid grid-cols-3 gap-px w-[7.5rem]" style="background: var(--term-border);">
+            <%= for cell <- @grid do %>
+              <% active = grid_active?(cell, @panel_position, @panel_width, @panel_height) %>
+              <button
+                phx-click="set_panel_layout"
+                phx-value-pos={cell.pos}
+                phx-value-w={cell.w}
+                phx-value-h={cell.h}
+                class={[
+                  "h-6 flex items-center justify-center text-[8px] font-mono transition-colors cursor-pointer",
+                  if(active,
+                    do: "bg-brand/25 text-brand",
+                    else:
+                      "bg-[var(--term-surface)] text-[var(--term-text-dim)] hover:bg-[var(--term-hover)] hover:text-[var(--term-text)]"
+                  )
+                ]}
+                title={"#{cell.label}: #{cell.w}% x #{cell.h}%"}
+              >
+                {cell.label}
+              </button>
+            <% end %>
+          </div>
+        </div>
+
+        <%!-- Fine-tune width/height --%>
+        <div>
+          <div class="text-[9px] text-[var(--term-text-muted)] uppercase tracking-wider font-semibold mb-1.5">
+            Width
+          </div>
+          <div class="flex gap-1">
+            <.setting_btn
+              :for={d <- [25, 33, 50, 75, 100]}
+              event="set_panel_width"
+              value={d}
+              label={"#{d}%"}
+              active={d == @panel_width}
+            />
+          </div>
+        </div>
+        <div>
+          <div class="text-[9px] text-[var(--term-text-muted)] uppercase tracking-wider font-semibold mb-1.5">
+            Height
+          </div>
+          <div class="flex gap-1">
+            <.setting_btn
+              :for={d <- [25, 33, 50, 75, 100]}
+              event="set_panel_height"
+              value={d}
+              label={"#{d}%"}
+              active={d == @panel_height}
+            />
+          </div>
+        </div>
+
+        <%!-- Split --%>
+        <div>
+          <div class="text-[9px] text-[var(--term-text-muted)] uppercase tracking-wider font-semibold mb-1.5">
+            Split
+          </div>
+          <div class="flex gap-1">
+            <.setting_btn
+              :for={split <- @splits}
+              event="set_panel_split"
+              value={split}
+              label={split_label(split)}
+              active={split == @panel_split}
+            />
+          </div>
+        </div>
+
+        <%!-- Theme --%>
+        <div>
+          <div class="text-[9px] text-[var(--term-text-muted)] uppercase tracking-wider font-semibold mb-1.5">
+            Theme
+          </div>
+          <div class="flex gap-1">
+            <.setting_btn
+              :for={theme <- @themes}
+              event="set_panel_theme"
+              value={theme}
+              label={theme_label(theme)}
+              active={theme == @panel_theme}
+            />
+          </div>
+        </div>
       </div>
     </div>
     """
   end
 
-  attr :label, :string, required: true
-  slot :inner_block, required: true
-
-  defp setting_group(assigns) do
-    ~H"""
-    <div>
-      <div class="text-[9px] text-[var(--term-text-muted)] uppercase tracking-wider font-semibold mb-1.5">
-        {@label}
-      </div>
-      <div class="flex gap-1 flex-wrap">
-        {render_slot(@inner_block)}
-      </div>
-    </div>
-    """
+  defp grid_active?(%{pos: pos, w: w, h: h}, panel_pos, panel_w, panel_h) do
+    pos == panel_pos and w == panel_w and h == panel_h
   end
 
   attr :event, :string, required: true
-  attr :param, :string, required: true
   attr :value, :any, required: true
   attr :label, :string, required: true
   attr :active, :boolean, required: true

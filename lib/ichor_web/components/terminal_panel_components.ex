@@ -95,6 +95,14 @@ defmodule IchorWeb.Components.TerminalPanelComponents do
           </div>
         </nav>
 
+        <%!-- Presets --%>
+        <div class="flex items-center gap-0 border-l border-[var(--term-border)] px-0.5 shrink-0">
+          <.preset_btn label="Side" pos="left" w="33" h="100" />
+          <.preset_btn label="Bar" pos="bottom" w="100" h="33" />
+          <.preset_btn label="Med" pos="center" w="70" h="50" />
+          <.preset_btn label="Full" pos="center" w="100" h="100" />
+        </div>
+
         <div class="flex items-center gap-0 px-1.5 shrink-0">
           <button
             phx-click="toggle_panel_settings"
@@ -266,6 +274,26 @@ defmodule IchorWeb.Components.TerminalPanelComponents do
         </div>
       </div>
     </div>
+    """
+  end
+
+  attr :label, :string, required: true
+  attr :pos, :string, required: true
+  attr :w, :string, required: true
+  attr :h, :string, required: true
+
+  defp preset_btn(assigns) do
+    ~H"""
+    <button
+      phx-click="set_panel_layout"
+      phx-value-pos={@pos}
+      phx-value-w={@w}
+      phx-value-h={@h}
+      class="term-ctrl text-[9px] font-mono !w-auto px-1.5"
+      title={"#{@label}: #{@pos} #{@w}% x #{@h}%"}
+    >
+      {@label}
+    </button>
     """
   end
 
