@@ -26,13 +26,13 @@ defmodule IchorWeb.DashboardTmuxHandlers do
   def dispatch("toggle_terminal_panel", p, s), do: handle_toggle_terminal_panel(p, s)
   def dispatch("close_terminal_panel", p, s), do: handle_close_terminal_panel(p, s)
   def dispatch("cycle_panel_position", p, s), do: handle_cycle_panel_position(p, s)
-  def dispatch("cycle_panel_size", p, s), do: handle_cycle_panel_size(p, s)
   def dispatch("set_panel_position", p, s), do: handle_set_panel_position(p, s)
-  def dispatch("set_panel_size", p, s), do: handle_set_panel_size(p, s)
+  def dispatch("set_panel_width", p, s), do: handle_set_panel_width(p, s)
+  def dispatch("set_panel_height", p, s), do: handle_set_panel_height(p, s)
   def dispatch("set_panel_split", p, s), do: handle_set_panel_split(p, s)
   def dispatch("set_panel_theme", p, s), do: handle_set_panel_theme(p, s)
   def dispatch("terminal_panel_init", p, s), do: handle_terminal_panel_init(p, s)
-  def dispatch("terminal_panel_resize", p, s), do: handle_terminal_panel_resize(p, s)
+  def dispatch("terminal_panel_resize", _p, s), do: s
   def dispatch("toggle_session_picker", p, s), do: handle_toggle_session_picker(p, s)
   def dispatch("toggle_panel_settings", p, s), do: handle_toggle_panel_settings(p, s)
 
@@ -282,39 +282,25 @@ defmodule IchorWeb.DashboardTmuxHandlers do
     |> push_event("terminal_panel_update", %{position: to_string(next)})
   end
 
-  @size_cycle [25, 33, 50, 75, 100]
-
-  def handle_cycle_panel_size(_params, socket) do
-    current = socket.assigns.panel_size
-    idx = Enum.find_index(@size_cycle, &(&1 == current)) || 0
-    next = Enum.at(@size_cycle, rem(idx + 1, length(@size_cycle)))
-
-    socket
-    |> assign(:panel_size, next)
-    |> push_event("terminal_panel_update", %{size: next})
-  end
-
   def handle_terminal_panel_init(params, socket) do
     position = parse_position(params["position"])
-    size = parse_size(params["size"])
+    width = parse_dim(params["width"])
+    height = parse_dim(params["height"])
     visible = params["visible"] == true || params["visible"] == "true"
     split = parse_split(params["split"])
     theme = parse_theme(params["theme"])
 
     assign(socket,
       panel_position: position,
-      panel_size: size,
+      panel_width: width,
+      panel_height: height,
       panel_visible: visible,
       panel_split: split,
       panel_theme: theme
     )
   end
 
-  def handle_terminal_panel_resize(%{"size" => size}, socket) do
-    assign(socket, :panel_size, parse_size(size))
-  end
-
-  def handle_set_panel_position(%{"position" => pos}, socket) do
+  def handle_set_panel_position(%{"value" => pos}, socket) do
     position = parse_position(pos)
 
     socket
@@ -322,12 +308,24 @@ defmodule IchorWeb.DashboardTmuxHandlers do
     |> push_event("terminal_panel_update", %{position: to_string(position)})
   end
 
-  def handle_set_panel_size(%{"size" => size}, socket) do
-    parsed = parse_size(size)
+  def handle_set_panel_position(%{"position" => pos}, socket) do
+    handle_set_panel_position(%{"value" => pos}, socket)
+  end
+
+  def handle_set_panel_width(%{"value" => w}, socket) do
+    parsed = parse_dim(w)
 
     socket
-    |> assign(:panel_size, parsed)
-    |> push_event("terminal_panel_update", %{size: parsed})
+    |> assign(:panel_width, parsed)
+    |> push_event("terminal_panel_update", %{width: parsed})
+  end
+
+  def handle_set_panel_height(%{"value" => h}, socket) do
+    parsed = parse_dim(h)
+
+    socket
+    |> assign(:panel_height, parsed)
+    |> push_event("terminal_panel_update", %{height: parsed})
   end
 
   def handle_set_panel_split(%{"split" => split_str}, socket) do
@@ -362,9 +360,9 @@ defmodule IchorWeb.DashboardTmuxHandlers do
   defp parse_position("bottom"), do: :bottom
   defp parse_position(_), do: :center
 
-  defp parse_size(size) when is_integer(size), do: max(15, min(100, size))
-  defp parse_size(size) when is_binary(size), do: parse_size(String.to_integer(size))
-  defp parse_size(_), do: 50
+  defp parse_dim(size) when is_integer(size), do: max(15, min(100, size))
+  defp parse_dim(size) when is_binary(size), do: parse_dim(String.to_integer(size))
+  defp parse_dim(_), do: 50
 
   defp parse_split("horizontal"), do: :horizontal
   defp parse_split("vertical"), do: :vertical

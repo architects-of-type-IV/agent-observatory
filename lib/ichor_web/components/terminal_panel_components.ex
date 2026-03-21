@@ -15,7 +15,7 @@ defmodule IchorWeb.Components.TerminalPanelComponents do
   use Phoenix.Component
 
   import IchorWeb.Components.TerminalPanel.Helpers,
-    only: [floating_style: 2, split_sessions: 3]
+    only: [floating_style: 3, split_sessions: 3]
 
   import IchorWeb.Components.TerminalPanel.SessionTab, only: [session_tab: 1]
 
@@ -23,7 +23,8 @@ defmodule IchorWeb.Components.TerminalPanelComponents do
 
   attr :panel_visible, :boolean, required: true
   attr :panel_position, :atom, required: true
-  attr :panel_size, :integer, required: true
+  attr :panel_width, :integer, required: true
+  attr :panel_height, :integer, required: true
   attr :panel_split, :atom, required: true
   attr :panel_theme, :atom, required: true
   attr :tmux_panels, :list, required: true
@@ -64,7 +65,7 @@ defmodule IchorWeb.Components.TerminalPanelComponents do
         "shadow-[0_12px_48px_oklch(0%_0_0/0.6),0_2px_8px_oklch(0%_0_0/0.4)]",
         if(!@panel_visible, do: "opacity-0 scale-95 pointer-events-none", else: "")
       ]}
-      style={floating_style(@panel_position, @panel_size)}
+      style={floating_style(@panel_position, @panel_width, @panel_height)}
     >
       <%!-- Header --%>
       <header class="flex items-center h-8 bg-[var(--term-header)] border-b border-[var(--term-border-accent)] shrink-0 select-none">
@@ -140,7 +141,8 @@ defmodule IchorWeb.Components.TerminalPanelComponents do
       <Settings.settings_bar
         :if={@show_panel_settings}
         panel_position={@panel_position}
-        panel_size={@panel_size}
+        panel_width={@panel_width}
+        panel_height={@panel_height}
         panel_split={@panel_split}
         panel_theme={@panel_theme}
       />

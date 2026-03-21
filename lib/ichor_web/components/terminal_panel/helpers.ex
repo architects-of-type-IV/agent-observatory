@@ -3,10 +3,9 @@ defmodule IchorWeb.Components.TerminalPanel.Helpers do
   Positioning, theming, and label helpers for the terminal panel.
 
   All floating positions respect the app header clearance (6.5rem)
-  so the panel never overlaps navigation.
+  so the panel never overlaps navigation. Width and height are independent.
   """
 
-  # Header height + gap for panel positioning
   @header "6.5rem"
   @gap "1rem"
 
@@ -27,11 +26,9 @@ defmodule IchorWeb.Components.TerminalPanel.Helpers do
     end
   end
 
-  @doc "Compute inline CSS for floating panel position and size."
-  @spec floating_style(atom(), integer()) :: String.t()
-  def floating_style(:center, size) do
-    {w, h} = float_dimensions(size)
-
+  @doc "Compute inline CSS for floating panel with independent width and height."
+  @spec floating_style(atom(), integer(), integer()) :: String.t()
+  def floating_style(:center, w, h) do
     [
       "width: #{w}%; height: #{h}%;",
       "top: calc(#{@header} + (100vh - #{@header} - #{h}vh) / 2);",
@@ -41,9 +38,7 @@ defmodule IchorWeb.Components.TerminalPanel.Helpers do
     |> Enum.join(" ")
   end
 
-  def floating_style(:bottom, size) do
-    {w, h} = float_dimensions(size)
-
+  def floating_style(:bottom, w, h) do
     [
       "width: #{w}%; height: #{h}%;",
       "bottom: #{@gap}; left: 50%; transform: translateX(-50%);",
@@ -52,9 +47,7 @@ defmodule IchorWeb.Components.TerminalPanel.Helpers do
     |> Enum.join(" ")
   end
 
-  def floating_style(:top, size) do
-    {w, h} = float_dimensions(size)
-
+  def floating_style(:top, w, h) do
     [
       "width: #{w}%; height: #{h}%;",
       "top: calc(#{@header} + #{@gap}); left: 50%; transform: translateX(-50%);",
@@ -63,9 +56,7 @@ defmodule IchorWeb.Components.TerminalPanel.Helpers do
     |> Enum.join(" ")
   end
 
-  def floating_style(:left, size) do
-    {w, h} = float_dimensions(size)
-
+  def floating_style(:left, w, h) do
     [
       "width: #{w}%; height: #{h}%;",
       "top: calc(#{@header} + (100vh - #{@header} - #{h}vh) / 2);",
@@ -75,9 +66,7 @@ defmodule IchorWeb.Components.TerminalPanel.Helpers do
     |> Enum.join(" ")
   end
 
-  def floating_style(:right, size) do
-    {w, h} = float_dimensions(size)
-
+  def floating_style(:right, w, h) do
     [
       "width: #{w}%; height: #{h}%;",
       "top: calc(#{@header} + (100vh - #{@header} - #{h}vh) / 2);",
@@ -87,7 +76,7 @@ defmodule IchorWeb.Components.TerminalPanel.Helpers do
     |> Enum.join(" ")
   end
 
-  def floating_style(_, size), do: floating_style(:center, size)
+  def floating_style(_, w, h), do: floating_style(:center, w, h)
 
   @doc "Human-readable position label."
   @spec position_label(atom()) :: String.t()
@@ -114,9 +103,6 @@ defmodule IchorWeb.Components.TerminalPanel.Helpers do
   def theme_label(:solarized), do: "Solarized"
   def theme_label(:rose), do: "Rose"
   def theme_label(_), do: "ICHOR"
-
-  defp float_dimensions(100), do: {98, 90}
-  defp float_dimensions(size), do: {min(size + 20, 90), size}
 
   defp max_height, do: "max-height: calc(100vh - #{@header} - #{@gap});"
 end

@@ -1,7 +1,7 @@
 defmodule IchorWeb.Components.TerminalPanel.Settings do
   @moduledoc """
   Settings bar for the terminal panel.
-  Renders position, size, split, and theme option groups.
+  Renders position, width, height, split, and theme option groups.
   """
 
   use Phoenix.Component
@@ -10,12 +10,13 @@ defmodule IchorWeb.Components.TerminalPanel.Settings do
     only: [position_label: 1, split_label: 1, theme_label: 1]
 
   @positions [:center, :bottom, :top, :left, :right]
-  @sizes [25, 33, 50, 75, 100]
+  @dims [25, 33, 50, 75, 100]
   @splits [:none, :horizontal, :vertical]
   @themes [:ichor, :midnight, :aurora, :phosphor, :solarized, :rose]
 
   attr :panel_position, :atom, required: true
-  attr :panel_size, :integer, required: true
+  attr :panel_width, :integer, required: true
+  attr :panel_height, :integer, required: true
   attr :panel_split, :atom, required: true
   attr :panel_theme, :atom, required: true
 
@@ -23,35 +24,48 @@ defmodule IchorWeb.Components.TerminalPanel.Settings do
     assigns =
       assigns
       |> assign(:positions, @positions)
-      |> assign(:sizes, @sizes)
+      |> assign(:dims, @dims)
       |> assign(:splits, @splits)
       |> assign(:themes, @themes)
 
     ~H"""
     <div class="bg-[var(--term-surface)] border-b border-[var(--term-border)] px-3 py-2.5 shrink-0">
-      <div class="grid grid-cols-4 gap-x-4 gap-y-2.5">
+      <div class="flex gap-x-5 gap-y-2.5 flex-wrap">
         <.setting_group label="Position">
           <.setting_btn
             :for={pos <- @positions}
             event="set_panel_position"
+            param="position"
             value={pos}
             label={position_label(pos)}
             active={pos == @panel_position}
           />
         </.setting_group>
-        <.setting_group label="Size">
+        <.setting_group label="Width">
           <.setting_btn
-            :for={size <- @sizes}
-            event="set_panel_size"
-            value={size}
-            label={"#{size}%"}
-            active={size == @panel_size}
+            :for={d <- @dims}
+            event="set_panel_width"
+            param="width"
+            value={d}
+            label={"#{d}%"}
+            active={d == @panel_width}
+          />
+        </.setting_group>
+        <.setting_group label="Height">
+          <.setting_btn
+            :for={d <- @dims}
+            event="set_panel_height"
+            param="height"
+            value={d}
+            label={"#{d}%"}
+            active={d == @panel_height}
           />
         </.setting_group>
         <.setting_group label="Split">
           <.setting_btn
             :for={split <- @splits}
             event="set_panel_split"
+            param="split"
             value={split}
             label={split_label(split)}
             active={split == @panel_split}
@@ -61,6 +75,7 @@ defmodule IchorWeb.Components.TerminalPanel.Settings do
           <.setting_btn
             :for={theme <- @themes}
             event="set_panel_theme"
+            param="theme"
             value={theme}
             label={theme_label(theme)}
             active={theme == @panel_theme}
@@ -88,6 +103,7 @@ defmodule IchorWeb.Components.TerminalPanel.Settings do
   end
 
   attr :event, :string, required: true
+  attr :param, :string, required: true
   attr :value, :any, required: true
   attr :label, :string, required: true
   attr :active, :boolean, required: true
@@ -96,10 +112,8 @@ defmodule IchorWeb.Components.TerminalPanel.Settings do
     ~H"""
     <button
       phx-click={@event}
-      phx-value-position={if @event == "set_panel_position", do: @value}
-      phx-value-size={if @event == "set_panel_size", do: @value}
-      phx-value-split={if @event == "set_panel_split", do: @value}
-      phx-value-theme={if @event == "set_panel_theme", do: @value}
+      phx-value-param={@param}
+      phx-value-value={@value}
       class={["term-setting", if(@active, do: "active")]}
     >
       {@label}

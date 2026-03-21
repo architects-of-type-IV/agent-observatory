@@ -72,7 +72,8 @@ defmodule IchorWeb.DashboardState do
       # Terminal panel (VS Code-style)
       panel_visible: false,
       panel_position: :center,
-      panel_size: 50,
+      panel_width: 70,
+      panel_height: 50,
       panel_split: :none,
       panel_theme: :ichor,
       show_session_picker: false,

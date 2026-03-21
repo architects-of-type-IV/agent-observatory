@@ -2,7 +2,8 @@ export const TerminalPanelHook = {
   mounted() {
     this.panelState = {
       position: localStorage.getItem("ichor:term_position") || "center",
-      size: parseInt(localStorage.getItem("ichor:term_size")) || 50,
+      width: parseInt(localStorage.getItem("ichor:term_width")) || 70,
+      height: parseInt(localStorage.getItem("ichor:term_height")) || 50,
       visible: localStorage.getItem("ichor:term_visible") !== "false",
       split: localStorage.getItem("ichor:term_split") || "none",
       theme: localStorage.getItem("ichor:term_theme") || "ichor",
@@ -21,7 +22,6 @@ export const TerminalPanelHook = {
   },
 
   applyTheme(theme) {
-    // "ichor" is the default (no data-theme needed), others set the attribute
     if (theme === "ichor") {
       this.el.removeAttribute("data-theme")
     } else {
@@ -30,9 +30,10 @@ export const TerminalPanelHook = {
   },
 
   saveState() {
-    const { position, size, visible, split, theme } = this.panelState
+    const { position, width, height, visible, split, theme } = this.panelState
     localStorage.setItem("ichor:term_position", position)
-    localStorage.setItem("ichor:term_size", String(size))
+    localStorage.setItem("ichor:term_width", String(width))
+    localStorage.setItem("ichor:term_height", String(height))
     localStorage.setItem("ichor:term_visible", String(visible))
     localStorage.setItem("ichor:term_split", split)
     localStorage.setItem("ichor:term_theme", theme)
