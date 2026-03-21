@@ -2,13 +2,18 @@ defmodule Ichor.Infrastructure.HITLRelay do
   @moduledoc """
   GenServer managing HITL (Human-In-The-Loop) pause/unpause lifecycle per session.
 
-  When a session is paused, incoming messages are buffered in ETS.
-  On unpause, buffered messages are flushed in arrival order via PubSub.
+  When a session is paused, incoming messages are buffered in ETS via
+  `HITL.Buffer`.  On unpause, buffered messages are flushed in arrival order
+  via PubSub.  Session pause/resume state is managed by `HITL.SessionState`.
+  Signal emission is delegated to `HITL.Events`.
   """
 
   use GenServer
 
-  @ets_table :hitl_buffer
+  alias Ichor.Infrastructure.HITL.Buffer
+  alias Ichor.Infrastructure.HITL.Events
+  alias Ichor.Infrastructure.HITL.SessionState
+
   @sweep_interval :timer.minutes(30)
   @abandoned_ttl_seconds 1_800
 
@@ -58,9 +63,7 @@ defmodule Ichor.Infrastructure.HITLRelay do
   @doc "Return all buffered messages for a paused session."
   @spec buffered_messages(String.t()) :: [map()]
   def buffered_messages(session_id) do
-    :ets.match_object(@ets_table, {{session_id, :_}, :_})
-    |> Enum.sort_by(fn {{_sid, ts}, _msg} -> ts end)
-    |> Enum.map(fn {{_sid, _ts}, msg} -> msg end)
+    Buffer.fetch(session_id) |> Enum.map(fn {_key, msg} -> msg end)
   end
 
   @doc "Return all currently paused session IDs."
@@ -77,122 +80,74 @@ defmodule Ichor.Infrastructure.HITLRelay do
 
   @impl true
   def init(_opts) do
-    :ets.new(@ets_table, [:ordered_set, :public, :named_table])
+    Buffer.create_table()
     schedule_sweep()
-    {:ok, %{sessions: %{}, paused_at: %{}}}
+    {:ok, SessionState.new()}
   end
 
   @impl true
   def handle_call({:pause, session_id, _agent_id, _operator_id, _reason}, _from, state) do
-    case Map.get(state.sessions, session_id) do
-      :paused ->
-        {:reply, {:ok, :already_paused}, state}
-
-      _ ->
-        Ichor.Signals.emit(:gate_open, session_id, %{session_id: session_id})
-
-        new_sessions = Map.put(state.sessions, session_id, :paused)
-        new_paused_at = Map.put(state.paused_at, session_id, DateTime.utc_now())
-        {:reply, :ok, %{state | sessions: new_sessions, paused_at: new_paused_at}}
+    if SessionState.paused?(state, session_id) do
+      {:reply, {:ok, :already_paused}, state}
+    else
+      Events.gate_open(session_id)
+      {:reply, :ok, SessionState.pause(state, session_id)}
     end
   end
 
   def handle_call({:unpause, session_id, _agent_id, _operator_id}, _from, state) do
-    case Map.get(state.sessions, session_id) do
-      :paused ->
-        flushed_count = flush_buffer(session_id)
-
-        Ichor.Signals.emit(:gate_close, session_id, %{session_id: session_id})
-
-        new_sessions = Map.put(state.sessions, session_id, :normal)
-        new_paused_at = Map.delete(state.paused_at, session_id)
-
-        {:reply, {:ok, flushed_count},
-         %{state | sessions: new_sessions, paused_at: new_paused_at}}
-
-      _ ->
-        {:reply, {:ok, :not_paused}, state}
+    if SessionState.paused?(state, session_id) do
+      flushed_count = flush_buffer(session_id)
+      Events.gate_close(session_id)
+      {:reply, {:ok, flushed_count}, SessionState.resume(state, session_id)}
+    else
+      {:reply, {:ok, :not_paused}, state}
     end
   end
 
   def handle_call({:rewrite, session_id, trace_id, new_payload}, _from, state) do
-    matches =
-      :ets.match_object(@ets_table, {{session_id, :_}, :_})
-
-    case Enum.find(matches, fn {_key, msg} -> Map.get(msg, :trace_id) == trace_id end) do
-      {key, msg} ->
-        updated = Map.put(msg, :payload, new_payload)
-        :ets.insert(@ets_table, {key, updated})
-        {:reply, :ok, state}
-
-      nil ->
-        {:reply, {:error, :not_found}, state}
-    end
+    {:reply, Buffer.rewrite(session_id, trace_id, new_payload), state}
   end
 
   def handle_call({:inject, session_id, agent_id, payload}, _from, state) do
-    key = {session_id, System.monotonic_time()}
-    message = %{agent_id: agent_id, payload: payload, injected: true}
-    :ets.insert(@ets_table, {key, message})
+    Buffer.insert(session_id, %{agent_id: agent_id, payload: payload, injected: true})
     {:reply, :ok, state}
   end
 
   def handle_call({:buffer_message, session_id, message}, _from, state) do
-    case Map.get(state.sessions, session_id) do
-      :paused ->
-        key = {session_id, System.monotonic_time()}
-        :ets.insert(@ets_table, {key, message})
-        {:reply, :ok, state}
-
-      _ ->
-        {:reply, :pass_through, state}
+    if SessionState.paused?(state, session_id) do
+      Buffer.insert(session_id, message)
+      {:reply, :ok, state}
+    else
+      {:reply, :pass_through, state}
     end
   end
 
   def handle_call({:session_status, session_id}, _from, state) do
-    status = Map.get(state.sessions, session_id, :normal)
-    {:reply, status, state}
+    {:reply, SessionState.status(state, session_id), state}
   end
 
   def handle_call(:paused_sessions, _from, state) do
-    paused =
-      state.sessions |> Enum.filter(fn {_k, v} -> v == :paused end) |> Enum.map(&elem(&1, 0))
-
-    {:reply, paused, state}
+    {:reply, SessionState.paused_session_ids(state), state}
   end
 
   def handle_call({:reject, session_id, _agent_id, _operator_id}, _from, state) do
-    # Delete buffered messages without flushing
-    :ets.match_delete(@ets_table, {{session_id, :_}, :_})
-
-    Ichor.Signals.emit(:gate_close, session_id, %{session_id: session_id})
-
-    new_sessions = Map.put(state.sessions, session_id, :normal)
-    new_paused_at = Map.delete(state.paused_at, session_id)
-    {:reply, :ok, %{state | sessions: new_sessions, paused_at: new_paused_at}}
+    Buffer.discard(session_id)
+    Events.gate_close(session_id)
+    {:reply, :ok, SessionState.resume(state, session_id)}
   end
 
   @impl true
   def handle_info(:sweep, state) do
-    cutoff = DateTime.add(DateTime.utc_now(), -@abandoned_ttl_seconds, :second)
+    abandoned = SessionState.abandoned_since(state, @abandoned_ttl_seconds)
 
-    abandoned =
-      Enum.filter(state.paused_at, fn {_sid, paused_time} ->
-        DateTime.compare(paused_time, cutoff) == :lt
-      end)
-      |> Enum.map(&elem(&1, 0))
-
-    # Flush and clear abandoned paused sessions
     Enum.each(abandoned, fn sid ->
       flush_buffer(sid)
-      Ichor.Signals.emit(:hitl_auto_released, %{session_id: sid})
+      Events.auto_released(sid)
     end)
 
-    new_sessions = Map.drop(state.sessions, abandoned)
-    new_paused_at = Map.drop(state.paused_at, abandoned)
-
     schedule_sweep()
-    {:noreply, %{state | sessions: new_sessions, paused_at: new_paused_at}}
+    {:noreply, SessionState.drop(state, abandoned)}
   end
 
   def handle_info(_msg, state), do: {:noreply, state}
@@ -202,15 +157,13 @@ defmodule Ichor.Infrastructure.HITLRelay do
   end
 
   defp flush_buffer(session_id) do
-    messages =
-      :ets.match_object(@ets_table, {{session_id, :_}, :_})
-      |> Enum.sort_by(fn {{_sid, ts}, _msg} -> ts end)
+    entries = Buffer.fetch(session_id)
 
-    Enum.each(messages, fn {{_sid, _ts} = key, msg} ->
-      Ichor.Signals.emit(:decision_log, %{log: msg})
-      :ets.delete(@ets_table, key)
+    Enum.each(entries, fn {key, msg} ->
+      Events.decision_log(msg)
+      Buffer.delete(key)
     end)
 
-    length(messages)
+    length(entries)
   end
 end
