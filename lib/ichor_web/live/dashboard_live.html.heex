@@ -459,138 +459,16 @@
         />
       </div>
 
-      <%!-- ═══ Tmux Multi-Panel ═══ --%>
-      <div
-        :if={@tmux_panels != []}
-        class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
-        phx-click="close_all_tmux"
-      >
-        <div
-          class="w-[92vw] max-w-6xl h-[85vh] bg-base border border-border-subtle rounded-xl shadow-2xl flex flex-col overflow-hidden"
-          onclick="event.stopPropagation()"
-        >
-          <%!-- Header: tabs + controls --%>
-          <div class="flex items-center justify-between px-3 py-1.5 border-b border-border bg-base/95 shrink-0">
-            <div class="flex items-center gap-1 overflow-x-auto">
-              <span class="text-[10px] font-semibold text-brand uppercase tracking-wider mr-2 shrink-0">
-                tmux
-              </span>
-              <%= for session <- @tmux_panels do %>
-                <% is_active = session == @active_tmux_session %>
-                <button
-                  phx-click="switch_tmux_tab"
-                  phx-value-session={session}
-                  class={"flex items-center gap-1.5 px-2.5 py-1 rounded text-[11px] font-mono transition shrink-0 cursor-pointer #{if is_active, do: "bg-brand/15 text-brand border border-brand/30", else: "text-low hover:text-high hover:bg-raised"}"}
-                >
-                  <span class={"w-1.5 h-1.5 rounded-full #{if is_active, do: "bg-success", else: "bg-highlight"}"}>
-                  </span>
-                  {session}
-                </button>
-              <% end %>
-            </div>
-            <div class="flex items-center gap-1.5 shrink-0">
-              <span class="text-[9px] text-muted font-mono">{length(@tmux_panels)} open</span>
-              <button
-                phx-click="toggle_tmux_layout"
-                class={"ichor-btn ichor-btn-muted text-[10px] #{if @tmux_layout == :tiled, do: "!bg-brand/15 !text-brand", else: ""}"}
-                title={if @tmux_layout == :tabs, do: "Switch to tiled", else: "Switch to tabs"}
-              >
-                {if @tmux_layout == :tabs, do: "Tile", else: "Tabs"}
-              </button>
-              <button
-                :if={@active_tmux_session}
-                phx-click="kill_tmux_session"
-                class="ichor-btn ichor-btn-danger text-[10px]"
-                data-confirm={"Kill session #{@active_tmux_session}?"}
-              >
-                Kill
-              </button>
-              <button
-                phx-click="disconnect_tmux"
-                class="ichor-btn ichor-btn-muted text-[10px]"
-                title="Close active tab"
-              >
-                Close Tab
-              </button>
-              <button
-                phx-click="close_all_tmux"
-                class="ichor-btn ichor-btn-muted text-[10px]"
-                title="Close all"
-              >
-                x
-              </button>
-            </div>
-          </div>
-
-          <%!-- Terminal content --%>
-          <%= if @tmux_layout == :tabs do %>
-            <%!-- Tabbed: single active xterm pane --%>
-            <div
-              id={"xterm-tab-#{@active_tmux_session}"}
-              phx-hook="XtermTerminal"
-              phx-update="ignore"
-              data-session={@active_tmux_session}
-              class="flex-1 overflow-hidden"
-              style="background: #0f0f14; width: 100%; height: 100%; padding: 0; margin: 0;"
-            >
-            </div>
-          <% else %>
-            <%!-- Tiled: grid of all open xterm panes --%>
-            <% cols =
-              if length(@tmux_panels) <= 2, do: "grid-cols-1 md:grid-cols-2", else: "grid-cols-2" %>
-            <div class={"flex-1 grid #{cols} gap-px bg-raised overflow-hidden"}>
-              <%= for session <- @tmux_panels do %>
-                <% is_active = session == @active_tmux_session %>
-                <div
-                  class={"flex flex-col overflow-hidden #{if is_active, do: "ring-1 ring-brand/40", else: ""}"}
-                  phx-click="switch_tmux_tab"
-                  phx-value-session={session}
-                >
-                  <div class={"flex items-center justify-between px-2 py-1 shrink-0 #{if is_active, do: "bg-brand/10", else: "bg-base/80"}"}>
-                    <span class="text-[10px] font-mono text-default">{session}</span>
-                    <span class={"w-1.5 h-1.5 rounded-full #{if is_active, do: "bg-success", else: "bg-highlight"}"}>
-                    </span>
-                  </div>
-                  <div class="flex-1 overflow-hidden bg-[#0f0f14]" style="min-height: 120px;">
-                    <div
-                      id={"xterm-tile-#{session}"}
-                      phx-hook="XtermTerminal"
-                      phx-update="ignore"
-                      data-session={session}
-                      style="width: 100%; height: 100%;"
-                    >
-                    </div>
-                  </div>
-                </div>
-              <% end %>
-            </div>
-          <% end %>
-
-          <%!-- Input (always targets active session) --%>
-          <div
-            :if={@active_tmux_session}
-            class="px-4 py-2 border-t border-border bg-base/95 shrink-0"
-          >
-            <div class="flex items-center gap-2">
-              <span class="text-[10px] text-brand font-mono shrink-0">
-                {@active_tmux_session} >
-              </span>
-              <div id="tmux-input-stable" phx-update="ignore" class="flex-1">
-                <form phx-submit="send_tmux_keys" class="flex gap-2">
-                  <input
-                    type="text"
-                    name="keys"
-                    placeholder="Send keys..."
-                    autocomplete="off"
-                    class="flex-1 ichor-input"
-                  />
-                  <button type="submit" class="ichor-btn ichor-btn-primary">Send</button>
-                </form>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+      <%!-- ═══ Terminal Panel (VS Code-style) ═══ --%>
+      <IchorWeb.Components.TerminalPanelComponents.terminal_panel
+        panel_visible={@panel_visible}
+        panel_position={@panel_position}
+        panel_size={@panel_size}
+        tmux_panels={@tmux_panels}
+        active_tmux_session={@active_tmux_session}
+        tmux_sessions={@tmux_sessions}
+        show_session_picker={@show_session_picker}
+      />
     </main>
 
     <%!-- ═══ Sidebar Toggle ═══ --%>

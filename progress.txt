@@ -1,5 +1,18 @@
 # ICHOR IV Progress
 
+## Terminal Panel Implementation (2026-03-21) -- COMPLETE
+- [x] UI-TMUX-PANEL: VS Code-style terminal panel replacing old tmux modal
+- [x] New JS hook: terminal_panel_hook.js (resize drag, localStorage, layout management)
+- [x] New component: terminal_panel_components.ex (panel UI, session tabs, controls)
+- [x] T-key toggle via KeyboardShortcuts hook
+- [x] 5 positions: bottom/top/left/right/floating with cycle button
+- [x] 5 sizes: 25%/33%/50%/75%/100% with cycle button
+- [x] Session tabs with per-tab close, session picker dropdown
+- [x] Drag-to-resize via resize handle
+- [x] State persistence (position/size/visibility) in localStorage
+- [x] Auto-open panel when connecting tmux from sidebar
+- [x] Build: mix compile + mix assets.build both CLEAN
+
 ## Terminal + Playgrounds Phase (2026-03-21) -- COMPLETE
 - [x] xterm.js terminal emulator: full color (-e flag), fit addon, webgl renderer
 - [x] Terminal panel playground: VS Code-style with position/size/split/T-key toggle/session tabs

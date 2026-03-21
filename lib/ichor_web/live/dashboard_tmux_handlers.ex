@@ -14,6 +14,7 @@ defmodule IchorWeb.DashboardTmuxHandlers do
 
   def dispatch("connect_tmux", p, s), do: handle_connect_tmux(p, s)
   def dispatch("disconnect_tmux", p, s), do: handle_disconnect_tmux(p, s)
+  def dispatch("disconnect_tmux_tab", p, s), do: handle_disconnect_tmux_tab(p, s)
   def dispatch("close_all_tmux", p, s), do: handle_close_all_tmux(p, s)
   def dispatch("switch_tmux_tab", p, s), do: handle_switch_tmux_tab(p, s)
   def dispatch("toggle_tmux_layout", p, s), do: handle_toggle_tmux_layout(p, s)
@@ -21,6 +22,14 @@ defmodule IchorWeb.DashboardTmuxHandlers do
   def dispatch("kill_tmux_session", p, s), do: handle_kill_tmux_session(p, s)
   def dispatch("kill_sidebar_tmux", p, s), do: handle_kill_sidebar_tmux(p, s)
   def dispatch("launch_session", p, s), do: handle_launch_session(p, s)
+  # Terminal panel events
+  def dispatch("toggle_terminal_panel", p, s), do: handle_toggle_terminal_panel(p, s)
+  def dispatch("close_terminal_panel", p, s), do: handle_close_terminal_panel(p, s)
+  def dispatch("cycle_panel_position", p, s), do: handle_cycle_panel_position(p, s)
+  def dispatch("cycle_panel_size", p, s), do: handle_cycle_panel_size(p, s)
+  def dispatch("terminal_panel_init", p, s), do: handle_terminal_panel_init(p, s)
+  def dispatch("terminal_panel_resize", p, s), do: handle_terminal_panel_resize(p, s)
+  def dispatch("toggle_session_picker", p, s), do: handle_toggle_session_picker(p, s)
 
   def handle_connect_tmux(%{"session" => session_name}, socket) do
     panels = socket.assigns.tmux_panels
@@ -31,6 +40,8 @@ defmodule IchorWeb.DashboardTmuxHandlers do
 
       socket
       |> assign(active_tmux_session: session_name)
+      |> assign(:panel_visible, true)
+      |> assign(:show_session_picker, false)
       |> push_event("terminal_output", %{session: session_name, data: output})
     else
       output = capture_output(session_name)
@@ -39,6 +50,8 @@ defmodule IchorWeb.DashboardTmuxHandlers do
       |> assign(:tmux_panels, panels ++ [session_name])
       |> assign(:tmux_outputs, Map.put(socket.assigns.tmux_outputs, session_name, output))
       |> assign(:active_tmux_session, session_name)
+      |> assign(:panel_visible, true)
+      |> assign(:show_session_picker, false)
       |> push_event("terminal_output", %{session: session_name, data: output})
       |> push_event("toast", %{message: "Opened #{session_name}", type: "success"})
     end
@@ -205,6 +218,106 @@ defmodule IchorWeb.DashboardTmuxHandlers do
       end)
     end
   end
+
+  # ── Terminal panel handlers ──
+
+  def handle_disconnect_tmux_tab(%{"session" => session_name}, socket) do
+    panels = List.delete(socket.assigns.tmux_panels, session_name)
+    outputs = Map.delete(socket.assigns.tmux_outputs, session_name)
+
+    next_active =
+      if socket.assigns.active_tmux_session == session_name,
+        do: List.first(panels),
+        else: socket.assigns.active_tmux_session
+
+    socket =
+      socket
+      |> assign(:tmux_panels, panels)
+      |> assign(:tmux_outputs, outputs)
+      |> assign(:active_tmux_session, next_active)
+
+    case next_active do
+      nil -> socket
+      s -> push_event(socket, "terminal_output", %{session: s, data: Map.get(outputs, s, "")})
+    end
+  end
+
+  def handle_toggle_terminal_panel(_params, socket) do
+    new_visible = !socket.assigns.panel_visible
+    socket = assign(socket, :panel_visible, new_visible)
+
+    # If showing and no panels open, auto-open first available session
+    if new_visible && socket.assigns.tmux_panels == [] do
+      case socket.assigns.tmux_sessions do
+        [first | _] -> handle_connect_tmux(%{"session" => first}, socket)
+        [] -> socket
+      end
+    else
+      socket
+    end
+  end
+
+  def handle_close_terminal_panel(_params, socket) do
+    socket
+    |> assign(:panel_visible, false)
+    |> assign(:tmux_panels, [])
+    |> assign(:tmux_outputs, %{})
+    |> assign(:active_tmux_session, nil)
+  end
+
+  @position_cycle [:bottom, :right, :top, :left, :floating]
+
+  def handle_cycle_panel_position(_params, socket) do
+    current = socket.assigns.panel_position
+    idx = Enum.find_index(@position_cycle, &(&1 == current)) || 0
+    next = Enum.at(@position_cycle, rem(idx + 1, length(@position_cycle)))
+
+    socket
+    |> assign(:panel_position, next)
+    |> push_event("terminal_panel_update", %{position: to_string(next)})
+  end
+
+  @size_cycle [25, 33, 50, 75, 100]
+
+  def handle_cycle_panel_size(_params, socket) do
+    current = socket.assigns.panel_size
+    idx = Enum.find_index(@size_cycle, &(&1 == current)) || 0
+    next = Enum.at(@size_cycle, rem(idx + 1, length(@size_cycle)))
+
+    socket
+    |> assign(:panel_size, next)
+    |> push_event("terminal_panel_update", %{size: next})
+  end
+
+  def handle_terminal_panel_init(params, socket) do
+    position = parse_position(params["position"])
+    size = parse_size(params["size"])
+    visible = params["visible"] == true || params["visible"] == "true"
+
+    assign(socket,
+      panel_position: position,
+      panel_size: size,
+      panel_visible: visible
+    )
+  end
+
+  def handle_terminal_panel_resize(%{"size" => size}, socket) do
+    assign(socket, :panel_size, parse_size(size))
+  end
+
+  def handle_toggle_session_picker(_params, socket) do
+    assign(socket, :show_session_picker, !socket.assigns[:show_session_picker])
+  end
+
+  defp parse_position("top"), do: :top
+  defp parse_position("left"), do: :left
+  defp parse_position("right"), do: :right
+  defp parse_position("floating"), do: :floating
+  defp parse_position(_), do: :bottom
+
+  defp parse_size(size) when is_integer(size), do: max(15, min(100, size))
+  defp parse_size(size) when is_binary(size), do: parse_size(String.to_integer(size))
+  defp parse_size(_), do: 50
 
   defp capture_output(session_name) do
     case Tmux.capture_pane(session_name, lines: 80) do

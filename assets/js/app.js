@@ -26,10 +26,12 @@ import {hooks as colocatedHooks} from "phoenix-colocated/ichor"
 import topbar from "../vendor/topbar"
 import WorkshopCanvas from "./hooks/workshop_canvas"
 import { XtermHook } from "./hooks/xterm_hook"
+import { TerminalPanelHook } from "./hooks/terminal_panel_hook"
 
 let Hooks = {
   WorkshopCanvas,
   XtermTerminal: XtermHook,
+  TerminalPanel: TerminalPanelHook,
   StatePersistence: {
     mounted() {
       // Restore state from localStorage on mount
@@ -247,6 +249,13 @@ let Hooks = {
         if (e.key === "Escape") {
           e.preventDefault()
           this.pushEvent("keyboard_escape", {})
+          return
+        }
+
+        // t - toggle terminal panel
+        if ((e.key === "t" || e.key === "T") && !e.metaKey && !e.ctrlKey) {
+          e.preventDefault()
+          this.pushEvent("toggle_terminal_panel", {})
           return
         }
 

@@ -69,6 +69,11 @@ defmodule IchorWeb.DashboardState do
       tmux_panels: [],
       tmux_outputs: %{},
       tmux_layout: :tabs,
+      # Terminal panel (VS Code-style)
+      panel_visible: false,
+      panel_position: :bottom,
+      panel_size: 50,
+      show_session_picker: false,
       agent_index: %{},
       paused_sessions: MapSet.new(),
       mailbox_messages: [],
