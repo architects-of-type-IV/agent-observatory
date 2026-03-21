@@ -1,6 +1,8 @@
 defmodule Ichor.Workshop.PipelinePrompts do
   @moduledoc "Prompt templates for pipeline execution teams with all workers spawned upfront."
 
+  alias Ichor.Workshop.PromptProtocol
+
   @coord_tools "mcp__ichor__get_run_status, mcp__ichor__check_inbox, mcp__ichor__send_message, mcp__ichor__acknowledge_message"
   @lead_tools "mcp__ichor__get_run_status, mcp__ichor__next_tasks, mcp__ichor__check_inbox, mcp__ichor__send_message, mcp__ichor__acknowledge_message"
   @worker_tools "mcp__ichor__claim_task, mcp__ichor__complete_task, mcp__ichor__fail_task, mcp__ichor__check_inbox, mcp__ichor__send_message, mcp__ichor__acknowledge_message"
@@ -42,29 +44,13 @@ defmodule Ichor.Workshop.PipelinePrompts do
     PRECOMPUTED EXECUTION MAP:
     #{format_wave_summary(jobs, worker_groups)}
 
-    CRITICAL RULES -- READ BEFORE DOING ANYTHING:
-    - You communicate ONLY by calling mcp__ichor__send_message and mcp__ichor__check_inbox tools.
-    - NEVER write text describing a message you intend to send. ALWAYS call the tool.
-    - If you find yourself typing "I would send..." STOP. Call mcp__ichor__send_message instead.
-    - This is a pull-based inbox -- nothing arrives unless you call mcp__ichor__check_inbox.
+    #{PromptProtocol.critical_rules("mcp__ichor__")}
     - All agents already exist. NEVER invent, request, or imply new workers.
     - NEVER edit code, claim jobs, or message workers directly.
     - The lead is your only execution relay. Operator is your only external recipient.
     - Workers build inside #{plugin_dir}/, not the observatory root. Never instruct workers to edit host app files.
 
-    ============================================================
-    PHASE 0: ANNOUNCE READY (do this FIRST, before anything else)
-    ============================================================
-
-    Call mcp__ichor__send_message ONCE to announce you are ready:
-
-      from: "#{session}-coordinator"
-      to: "#{session}-coordinator"
-      content: "COORDINATOR READY"
-
-    This self-message confirms your messaging tools are working.
-    Your parent is the pipeline launcher -- it has already started you.
-    No READY message needs to go upstream.
+    #{PromptProtocol.announce_ready("#{session}-coordinator")}
 
     ============================================================
     PHASE 1: WAIT FOR LEAD READY SIGNAL
@@ -153,11 +139,7 @@ defmodule Ichor.Workshop.PipelinePrompts do
     WAVE PLAN:
     #{format_wave_summary(jobs, worker_groups)}
 
-    CRITICAL RULES -- READ BEFORE DOING ANYTHING:
-    - You communicate ONLY by calling mcp__ichor__send_message and mcp__ichor__check_inbox tools.
-    - NEVER write text to describe what you would send. ALWAYS call the tool.
-    - If you find yourself typing "I would send..." STOP. Call mcp__ichor__send_message instead.
-    - This is a pull-based inbox -- nothing arrives unless you call mcp__ichor__check_inbox.
+    #{PromptProtocol.critical_rules("mcp__ichor__")}
     - ALL workers already exist. NEVER call spawn_agent. NEVER ask for new agents.
     - NEVER message operator directly. Report only to #{session}-coordinator.
     - NEVER implement code yourself. Your job is coordination, not editing.
@@ -271,11 +253,7 @@ defmodule Ichor.Workshop.PipelinePrompts do
 
     #{@code_quality}
 
-    CRITICAL RULES -- READ BEFORE DOING ANYTHING:
-    - You communicate ONLY by calling mcp__ichor__send_message and mcp__ichor__check_inbox tools.
-    - NEVER write text describing a message you intend to send. ALWAYS call the tool.
-    - If you find yourself typing "I would send..." STOP. Call mcp__ichor__send_message instead.
-    - This is a pull-based inbox -- nothing arrives unless you call mcp__ichor__check_inbox.
+    #{PromptProtocol.critical_rules("mcp__ichor__")}
     - You only execute jobs explicitly assigned to #{worker.name} in this prompt.
     - You only start work when #{session}-lead messages you with external_ids to run now.
     - NEVER open, read, edit, or create files outside #{plugin_dir}/. This is absolute. No exceptions. No "just reading for context." No "the task says to." The boundary is #{plugin_dir}/ and nothing else exists.

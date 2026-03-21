@@ -4,19 +4,12 @@ defmodule Ichor.Workshop.TeamPrompts do
   """
 
   alias Ichor.Factory.ResearchContext
+  alias Ichor.Workshop.PromptProtocol
 
   @spec roster(String.t()) :: String.t()
   def roster(session) do
     names = ~w(coordinator lead planner researcher-1 researcher-2)
-    ids = Enum.map_join(names, "\n", fn name -> "  - #{name}: #{session}-#{name}" end)
-
-    """
-    TEAM ROSTER (use these EXACT IDs with send_message/check_inbox):
-    #{ids}
-      - operator: operator (for final deliverables to the dashboard)
-
-    Your session ID is: #{session}-YOUR_NAME (see below)
-    """
+    PromptProtocol.roster_block(session, names)
   end
 
   @spec coordinator(String.t(), String.t()) :: String.t()
@@ -28,25 +21,9 @@ defmodule Ichor.Workshop.TeamPrompts do
 
     #{roster}
 
-    CRITICAL RULES -- READ BEFORE DOING ANYTHING:
-    - You communicate ONLY by calling the send_message and check_inbox MCP tools.
-    - NEVER write text to describe what you would send. ALWAYS call the tool.
-    - If you find yourself typing "I would send..." STOP. Call send_message instead.
-    - Every message MUST go through send_message. No exceptions.
-    - This is a pull-based inbox -- nothing arrives unless you call check_inbox.
+    #{PromptProtocol.critical_rules("")}
 
-    ============================================================
-    PHASE 0: ANNOUNCE READY (do this FIRST, before anything else)
-    ============================================================
-
-    Call send_message ONCE to announce you are ready:
-
-      from: "mes-#{run_id}-coordinator"
-      to: "mes-#{run_id}-coordinator"
-      content: "COORDINATOR READY"
-
-    This self-message is a placeholder. Your parent is the MES scheduler -- it has
-    already started you. No READY message needs to go upstream.
+    #{PromptProtocol.announce_ready("mes-#{run_id}-coordinator")}
 
     ============================================================
     PHASE 1: WAIT FOR LEAD READY SIGNAL
@@ -117,10 +94,7 @@ defmodule Ichor.Workshop.TeamPrompts do
 
     #{roster}
 
-    CRITICAL RULES:
-    - You communicate ONLY by calling send_message and check_inbox MCP tools.
-    - NEVER write text to describe what you would send. ALWAYS call the tool.
-    - This is a pull-based inbox -- nothing arrives unless you call check_inbox.
+    #{PromptProtocol.critical_rules("")}
 
     YOUR JOB: You are the active hub of the research pipeline. You dispatch
     topic domains to researchers, collect their proposals, select the best,
@@ -214,11 +188,8 @@ defmodule Ichor.Workshop.TeamPrompts do
 
     #{roster}
 
-    CRITICAL RULES:
-    - You communicate ONLY by calling send_message and check_inbox MCP tools.
-    - NEVER write text to describe what you would send. ALWAYS call the tool.
+    #{PromptProtocol.critical_rules("")}
     - Do NOT read the codebase. Do NOT explore files. ONLY poll check_inbox and synthesize.
-    - This is a pull-based inbox -- nothing arrives unless you call check_inbox.
 
     STEP 0: ANNOUNCE READY TO LEAD (do this FIRST, before anything else)
     Call send_message ONCE:
@@ -274,11 +245,8 @@ defmodule Ichor.Workshop.TeamPrompts do
 
     #{roster}
 
-    CRITICAL RULES:
-    - You communicate ONLY by calling send_message and check_inbox MCP tools.
-    - NEVER write text to describe what you would send. ALWAYS call the tool.
+    #{PromptProtocol.critical_rules("")}
     - Do NOT read the codebase. Do NOT explore files.
-    - This is a pull-based inbox -- nothing arrives unless you call check_inbox.
 
     ============================================================
     WHAT IS ICHOR OBSERVATORY
@@ -409,11 +377,8 @@ defmodule Ichor.Workshop.TeamPrompts do
 
     #{roster}
 
-    CRITICAL RULES:
-    - You communicate ONLY by calling send_message and check_inbox MCP tools.
-    - NEVER write text to describe what you would send. ALWAYS call the tool.
+    #{PromptProtocol.critical_rules("")}
     - Do NOT read the codebase. Do NOT explore files.
-    - This is a pull-based inbox -- nothing arrives unless you call check_inbox.
 
     ============================================================
     SYSTEM BOUNDARY MAP

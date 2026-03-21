@@ -4,6 +4,8 @@ defmodule Ichor.Factory.PlanningPrompts do
   Each mode has 3 agents with scoped instructions and MCP tool references.
   """
 
+  alias Ichor.Workshop.PromptProtocol
+
   @mcp_tools_discover "create_project_draft, create_adr, update_adr, list_adrs, create_checkpoint, create_conversation, gate_check"
   @mcp_tools_define "create_feature, create_use_case, list_features, list_use_cases, create_checkpoint, create_conversation, gate_check"
   @mcp_tools_build "list_features, list_use_cases, create_phase, create_section, create_task, create_subtask, create_checkpoint, create_conversation, gate_check"
@@ -24,29 +26,13 @@ defmodule Ichor.Factory.PlanningPrompts do
 
     AVAILABLE MCP TOOLS: #{@mcp_tools_discover}
 
-    CRITICAL RULES -- READ BEFORE DOING ANYTHING:
-    - You communicate ONLY by calling the send_message and check_inbox MCP tools.
-    - NEVER write text to describe what you would send. ALWAYS call the tool.
-    - If you find yourself typing "I would send..." STOP. Call send_message instead.
-    - Every message MUST go through send_message. No exceptions.
-    - This is a pull-based inbox -- nothing arrives unless you call check_inbox.
+    #{PromptProtocol.critical_rules("")}
     - You MUST follow the pipeline steps IN ORDER. Do NOT skip steps.
     - You MUST wait for each team member to respond before moving to the next step.
     - NEVER create ADRs yourself. Only the architect drafts ADRs. You persist them after review.
     - If you break protocol (skip steps, self-synthesize, bypass review), the team will be destroyed.
 
-    ============================================================
-    PHASE 0: ANNOUNCE READY (do this FIRST, before anything else)
-    ============================================================
-
-    Call send_message ONCE to announce you are ready:
-
-      from: "planning-a-#{run_id}-coordinator"
-      to: "planning-a-#{run_id}-coordinator"
-      content: "COORDINATOR READY"
-
-    This self-message is a protocol smoke test. Your parent is the planning scheduler --
-    it has already started you. No READY message needs to go upstream.
+    #{PromptProtocol.announce_ready("planning-a-#{run_id}-coordinator")}
 
     ============================================================
     PHASE 1: WAIT FOR WORKER READY SIGNALS
@@ -140,11 +126,7 @@ defmodule Ichor.Factory.PlanningPrompts do
 
     AVAILABLE MCP TOOLS: #{@mcp_tools_discover}
 
-    CRITICAL RULES -- READ BEFORE DOING ANYTHING:
-    - You communicate ONLY by calling the send_message and check_inbox MCP tools.
-    - NEVER write text to describe what you would send. ALWAYS call the tool.
-    - If you find yourself typing "I would send..." STOP. Call send_message instead.
-    - This is a pull-based inbox -- nothing arrives unless you call check_inbox.
+    #{PromptProtocol.critical_rules("")}
     - You do NOT persist ADRs. The coordinator persists them after review.
     - Read the codebase to understand existing architecture before proposing.
     - ADRs must be about the PLUGIN described in the brief, NOT about the existing ICHOR infrastructure.
@@ -210,11 +192,7 @@ defmodule Ichor.Factory.PlanningPrompts do
 
     AVAILABLE MCP TOOLS: check_inbox, send_message, acknowledge_message
 
-    CRITICAL RULES -- READ BEFORE DOING ANYTHING:
-    - You communicate ONLY by calling the send_message and check_inbox MCP tools.
-    - NEVER write text to describe what you would send. ALWAYS call the tool.
-    - If you find yourself typing "I would send..." STOP. Call send_message instead.
-    - This is a pull-based inbox -- nothing arrives unless you call check_inbox.
+    #{PromptProtocol.critical_rules("")}
     - Do NOT edit code. Read-only access.
 
     ============================================================
@@ -271,29 +249,13 @@ defmodule Ichor.Factory.PlanningPrompts do
 
     AVAILABLE MCP TOOLS: #{@mcp_tools_define}
 
-    CRITICAL RULES -- READ BEFORE DOING ANYTHING:
-    - You communicate ONLY by calling the send_message and check_inbox MCP tools.
-    - NEVER write text to describe what you would send. ALWAYS call the tool.
-    - If you find yourself typing "I would send..." STOP. Call send_message instead.
-    - Every message MUST go through send_message. No exceptions.
-    - This is a pull-based inbox -- nothing arrives unless you call check_inbox.
+    #{PromptProtocol.critical_rules("")}
     - You MUST follow the pipeline steps IN ORDER. Do NOT skip steps.
     - You MUST wait for each team member to respond before moving to the next step.
     - NEVER create features or use cases yourself. Analyst extracts features, designer drafts UCs.
     - If you break protocol (skip steps, self-synthesize, bypass team), the team will be destroyed.
 
-    ============================================================
-    PHASE 0: ANNOUNCE READY (do this FIRST, before anything else)
-    ============================================================
-
-    Call send_message ONCE to announce you are ready:
-
-      from: "planning-b-#{run_id}-coordinator"
-      to: "planning-b-#{run_id}-coordinator"
-      content: "COORDINATOR READY"
-
-    This self-message is a protocol smoke test. Your parent is the planning scheduler --
-    it has already started you. No READY message needs to go upstream.
+    #{PromptProtocol.announce_ready("planning-b-#{run_id}-coordinator")}
 
     ============================================================
     PHASE 1: WAIT FOR WORKER READY SIGNALS
@@ -386,11 +348,7 @@ defmodule Ichor.Factory.PlanningPrompts do
 
     AVAILABLE MCP TOOLS: #{@mcp_tools_define}
 
-    CRITICAL RULES -- READ BEFORE DOING ANYTHING:
-    - You communicate ONLY by calling the send_message and check_inbox MCP tools.
-    - NEVER write text to describe what you would send. ALWAYS call the tool.
-    - If you find yourself typing "I would send..." STOP. Call send_message instead.
-    - This is a pull-based inbox -- nothing arrives unless you call check_inbox.
+    #{PromptProtocol.critical_rules("")}
 
     ============================================================
     STEP 0: ANNOUNCE READY TO COORDINATOR (do this FIRST)
@@ -446,11 +404,7 @@ defmodule Ichor.Factory.PlanningPrompts do
 
     AVAILABLE MCP TOOLS: #{@mcp_tools_define}
 
-    CRITICAL RULES -- READ BEFORE DOING ANYTHING:
-    - You communicate ONLY by calling the send_message and check_inbox MCP tools.
-    - NEVER write text to describe what you would send. ALWAYS call the tool.
-    - If you find yourself typing "I would send..." STOP. Call send_message instead.
-    - This is a pull-based inbox -- nothing arrives unless you call check_inbox.
+    #{PromptProtocol.critical_rules("")}
 
     ============================================================
     STEP 0: ANNOUNCE READY TO COORDINATOR (do this FIRST)
@@ -505,29 +459,13 @@ defmodule Ichor.Factory.PlanningPrompts do
 
     AVAILABLE MCP TOOLS: #{@mcp_tools_build}
 
-    CRITICAL RULES -- READ BEFORE DOING ANYTHING:
-    - You communicate ONLY by calling the send_message and check_inbox MCP tools.
-    - NEVER write text to describe what you would send. ALWAYS call the tool.
-    - If you find yourself typing "I would send..." STOP. Call send_message instead.
-    - Every message MUST go through send_message. No exceptions.
-    - This is a pull-based inbox -- nothing arrives unless you call check_inbox.
+    #{PromptProtocol.critical_rules("")}
     - You MUST follow the pipeline steps IN ORDER. Do NOT skip steps.
     - You MUST wait for each team member to respond before moving to the next step.
     - NEVER create phases, sections, or tasks yourself. Planner designs structure, architect details tasks.
     - If you break protocol (skip steps, self-synthesize, bypass team), the team will be destroyed.
 
-    ============================================================
-    PHASE 0: ANNOUNCE READY (do this FIRST, before anything else)
-    ============================================================
-
-    Call send_message ONCE to announce you are ready:
-
-      from: "planning-c-#{run_id}-coordinator"
-      to: "planning-c-#{run_id}-coordinator"
-      content: "COORDINATOR READY"
-
-    This self-message is a protocol smoke test. Your parent is the planning scheduler --
-    it has already started you. No READY message needs to go upstream.
+    #{PromptProtocol.announce_ready("planning-c-#{run_id}-coordinator")}
 
     ============================================================
     PHASE 1: WAIT FOR WORKER READY SIGNALS
@@ -611,11 +549,7 @@ defmodule Ichor.Factory.PlanningPrompts do
 
     AVAILABLE MCP TOOLS: #{@mcp_tools_build}
 
-    CRITICAL RULES -- READ BEFORE DOING ANYTHING:
-    - You communicate ONLY by calling the send_message and check_inbox MCP tools.
-    - NEVER write text to describe what you would send. ALWAYS call the tool.
-    - If you find yourself typing "I would send..." STOP. Call send_message instead.
-    - This is a pull-based inbox -- nothing arrives unless you call check_inbox.
+    #{PromptProtocol.critical_rules("")}
     - You do NOT persist phases. Send your phase design to the coordinator via send_message.
 
     ============================================================
@@ -678,11 +612,7 @@ defmodule Ichor.Factory.PlanningPrompts do
 
     AVAILABLE MCP TOOLS: #{@mcp_tools_build}
 
-    CRITICAL RULES -- READ BEFORE DOING ANYTHING:
-    - You communicate ONLY by calling the send_message and check_inbox MCP tools.
-    - NEVER write text to describe what you would send. ALWAYS call the tool.
-    - If you find yourself typing "I would send..." STOP. Call send_message instead.
-    - This is a pull-based inbox -- nothing arrives unless you call check_inbox.
+    #{PromptProtocol.critical_rules("")}
     - Tasks must be about the PLUGIN described in the brief, NOT about the existing ICHOR infrastructure.
     - You do NOT persist tasks. Send your task breakdown to the coordinator via send_message.
 
