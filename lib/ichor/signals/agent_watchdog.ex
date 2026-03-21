@@ -22,6 +22,7 @@ defmodule Ichor.Signals.AgentWatchdog do
   alias Ichor.Signals.AgentWatchdog.PaneScanner
   alias Ichor.Signals.Bus
   alias Ichor.Signals.Message
+  alias Ichor.Operator.Inbox
   alias Ichor.Workshop.AgentEntry
 
   @interval 5_000
@@ -150,7 +151,13 @@ defmodule Ichor.Signals.AgentWatchdog do
     Logger.warning("AgentWatchdog: Detected crash for session #{session_id} (#{team_name})")
     reassigned_count = reassign_agent_tasks(session_id, team_name)
     safe_emit(:agent_crashed, %{session_id: session_id, team_name: team_name})
-    write_inbox_notification(session_id, team_name, reassigned_count)
+
+    Inbox.write(:agent_crash, %{
+      context: team_name,
+      session_id: session_id,
+      team_name: team_name,
+      reassigned_tasks: reassigned_count
+    })
   end
 
   defp safe_emit(name, data) do
@@ -178,32 +185,6 @@ defmodule Ichor.Signals.AgentWatchdog do
       end
     end)
     |> Enum.sum()
-  end
-
-  defp write_inbox_notification(session_id, team_name, reassigned_count) do
-    inbox_dir = Path.expand("~/.claude/inbox")
-    File.mkdir_p(inbox_dir)
-
-    short_sid = AgentEntry.short_id(session_id)
-    timestamp = System.system_time(:millisecond)
-    filename = "crash_#{team_name}_#{short_sid}_#{timestamp}.json"
-
-    message = %{
-      "type" => "agent_crash",
-      "session_id" => session_id,
-      "team_name" => team_name,
-      "reassigned_tasks" => reassigned_count,
-      "timestamp" => DateTime.utc_now() |> DateTime.to_iso8601()
-    }
-
-    case Jason.encode(message, pretty: true) do
-      {:ok, json} ->
-        File.write(Path.join(inbox_dir, filename), json)
-        Logger.info("AgentWatchdog: Wrote crash notification to inbox for #{session_id}")
-
-      {:error, reason} ->
-        Logger.error("AgentWatchdog: Failed to write inbox notification: #{inspect(reason)}")
-    end
   end
 
   defp run_escalation_check(state) do

@@ -9,10 +9,9 @@ defmodule Ichor.Archon.TeamWatchdog do
 
   alias Ichor.Factory.{Pipeline, PipelineTask, Spawn}
   alias Ichor.Infrastructure.FleetSupervisor
+  alias Ichor.Operator.Inbox
   alias Ichor.Signals
   alias Ichor.Signals.Message
-
-  @inbox_dir Path.expand("~/.claude/inbox")
 
   @type action ::
           {:archive_run, String.t()}
@@ -165,15 +164,6 @@ defmodule Ichor.Archon.TeamWatchdog do
   end
 
   defp dispatch({:notify_operator, message}) do
-    File.mkdir_p!(@inbox_dir)
-
-    notification = %{
-      type: "team_watchdog",
-      message: message,
-      timestamp: DateTime.utc_now() |> DateTime.to_iso8601()
-    }
-
-    path = Path.join(@inbox_dir, "watchdog-#{System.unique_integer([:positive])}.json")
-    File.write!(path, Jason.encode!(notification))
+    Inbox.write(:team_watchdog, %{context: "watchdog", message: message})
   end
 end

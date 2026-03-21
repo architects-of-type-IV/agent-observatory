@@ -1,6 +1,6 @@
 # ICHOR IV - Handoff
 
-## Current Status: Architecture Docs Complete, Ready to Execute (2026-03-21)
+## Current Status: Wave 1 In Progress (2026-03-21)
 
 ### Session Accomplishments
 1. Ash idiomacy audit (16 fixes) + code review (20 fixes) + dead code removal
@@ -8,6 +8,8 @@
 3. Full architecture analysis: DDD, boundary violations, vertical slices, use cases
 4. Codex sparring (3 rounds, 8.5/10) -> AD-8 reliability boundary
 5. Comprehensive architecture docs: 9 files in docs/architecture/
+6. tasks.jsonl created with 25-task wave plan
+7. **W1-1 DONE**: Operator.Inbox module extracted
 
 ### Architecture Documentation
 ```
@@ -23,16 +25,19 @@ docs/architecture/
   infrastructure.md           -- host layer, tmux, CommPolicy
 ```
 
-### Key Insight: Prompt Separation
-- **Workshop stores**: persona + instructions (what the agent should do)
-- **Infrastructure injects at launch**: team name, session ID, member roster, tmux targets, communication protocol
-- Workshop = what you are. Infrastructure = where you are.
+### Wave 1 Status (Foundation)
+- [x] W1-1: Extract Operator.Inbox module -- DONE
+- [ ] W1-2: Extract Operator.Brain module
+- [ ] W1-3: Collapse ichor_contracts into main app
+- [ ] W1-4: Move Signals contracts into lib/ichor/signals/
+- [ ] W1-5: Workshop: wire AgentSlot + CommRule as embedded resources
+- [ ] W1-6: Introduce Ichor.Workshop.SpawnLink resource
+- [ ] W1-7: Extract Ichor.Workshop.Spawn.Link as value object
 
-### Next: Create Tasks -> Review -> Execute in Worktrees
-1. Create context-rich tasks.jsonl from the 25-task wave plan
-2. Send review agents + codex to validate tasks
-3. Dispatch workers in git worktrees for parallel execution
-4. Start with Wave 1 (7 foundation tasks, all parallel)
+### Key Files Changed (W1-1)
+- `lib/ichor/operator/inbox.ex` -- NEW: canonical write path for ~/.claude/inbox/
+- `lib/ichor/signals/agent_watchdog.ex` -- updated: uses Inbox.write instead of direct File.write
+- `lib/ichor/archon/team_watchdog.ex` -- updated: dispatch :notify_operator uses Inbox.write
 
 ### Build
-- `mix compile --force`: 0 new warnings, 0 errors
+- `mix compile --warnings-as-errors`: CLEAN (W1-1 complete)
