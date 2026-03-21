@@ -77,6 +77,4 @@ defmodule Ichor.Workshop.PromptProtocol do
     """
     |> String.trim_trailing()
   end
-
-  @callback build_prompt(agent :: map(), context :: map()) :: String.t()
 end
