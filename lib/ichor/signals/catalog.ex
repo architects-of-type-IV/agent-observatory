@@ -621,11 +621,25 @@ defmodule Ichor.Signals.Catalog do
     }
   }
 
+  @archon_cleanup_defs %{
+    run_cleanup_needed: %{
+      category: :archon,
+      keys: [:run_id, :action],
+      doc: "TeamWatchdog detected a run needing cleanup; Oban worker reacts"
+    },
+    session_cleanup_needed: %{
+      category: :archon,
+      keys: [:session, :action],
+      doc: "TeamWatchdog detected a session needing cleanup; Oban worker reacts"
+    }
+  }
+
   @signals @core_defs
            |> Map.merge(@gateway_agent_defs)
            |> Map.merge(@team_monitoring_defs)
            |> Map.merge(@mes_defs)
            |> Map.merge(@planning_pipeline_defs)
+           |> Map.merge(@archon_cleanup_defs)
 
   @catalog Map.new(@signals, fn {k, v} -> {k, Map.put_new(v, :dynamic, false)} end)
   @categories @catalog |> Map.values() |> Enum.map(& &1.category) |> Enum.uniq() |> Enum.sort()

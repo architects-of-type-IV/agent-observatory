@@ -7,8 +7,6 @@ defmodule Ichor.Archon.TeamWatchdog do
 
   use GenServer
 
-  alias Ichor.Factory.{Pipeline, PipelineTask, Spawn}
-  alias Ichor.Infrastructure.FleetSupervisor
   alias Ichor.Operator.Inbox
   alias Ichor.Signals
   alias Ichor.Signals.Message
@@ -128,39 +126,19 @@ defmodule Ichor.Archon.TeamWatchdog do
   defp dispatch(:noop), do: :ok
 
   defp dispatch({:archive_run, run_id}) do
-    case Pipeline.get(run_id) do
-      {:ok, %{status: :active} = pipeline} ->
-        Pipeline.archive(pipeline)
-
-        Signals.emit(:pipeline_archived, %{
-          run_id: run_id,
-          label: pipeline.label,
-          reason: "watchdog"
-        })
-
-      _ ->
-        :ok
-    end
+    Signals.emit(:run_cleanup_needed, %{run_id: run_id, action: :archive})
   end
 
   defp dispatch({:reset_tasks, run_id}) do
-    case PipelineTask.by_run(run_id) do
-      {:ok, pipeline_tasks} ->
-        pipeline_tasks
-        |> Enum.filter(&(&1.status == :in_progress))
-        |> Enum.each(&PipelineTask.reset/1)
-
-      _ ->
-        :ok
-    end
+    Signals.emit(:run_cleanup_needed, %{run_id: run_id, action: :reset_tasks})
   end
 
   defp dispatch({:disband_team, session}) do
-    FleetSupervisor.disband_team(session)
+    Signals.emit(:session_cleanup_needed, %{session: session, action: :disband})
   end
 
   defp dispatch({:kill_session, session}) do
-    Spawn.kill_session(session)
+    Signals.emit(:session_cleanup_needed, %{session: session, action: :kill})
   end
 
   defp dispatch({:notify_operator, message}) do
