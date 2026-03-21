@@ -270,7 +270,7 @@ defmodule IchorWeb.DashboardTmuxHandlers do
     |> assign(:active_tmux_session, nil)
   end
 
-  @position_cycle [:bottom, :right, :top, :left, :floating]
+  @position_cycle [:center, :bottom, :top, :left, :right]
 
   def handle_cycle_panel_position(_params, socket) do
     current = socket.assigns.panel_position
@@ -355,11 +355,12 @@ defmodule IchorWeb.DashboardTmuxHandlers do
     assign(socket, :show_panel_settings, !socket.assigns[:show_panel_settings])
   end
 
+  defp parse_position("center"), do: :center
   defp parse_position("top"), do: :top
   defp parse_position("left"), do: :left
   defp parse_position("right"), do: :right
-  defp parse_position("floating"), do: :floating
-  defp parse_position(_), do: :bottom
+  defp parse_position("bottom"), do: :bottom
+  defp parse_position(_), do: :center
 
   defp parse_size(size) when is_integer(size), do: max(15, min(100, size))
   defp parse_size(size) when is_binary(size), do: parse_size(String.to_integer(size))

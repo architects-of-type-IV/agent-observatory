@@ -61,12 +61,19 @@ defmodule Ichor.Infrastructure.Tmux do
 
   @doc """
   Capture the current pane output from a tmux session.
-  Returns `{:ok, output}` with raw ANSI codes preserved, or `{:error, reason}`.
-  Callers that need plain text should apply `AnsiUtils.strip_ansi/1` themselves.
+  Returns `{:ok, output}` or `{:error, reason}`.
+
+  Options:
+    * `:ansi` - when `true`, preserves ANSI escape codes (`-e` flag). Default `false`.
   """
   @spec capture_pane(String.t(), keyword()) :: {:ok, String.t()} | {:error, term()}
-  def capture_pane(session_name, _opts \\ []) do
-    case Command.try_all(["capture-pane", "-e", "-p", "-t", session_name]) do
+  def capture_pane(session_name, opts \\ []) do
+    args =
+      if Keyword.get(opts, :ansi, false),
+        do: ["capture-pane", "-e", "-p", "-t", session_name],
+        else: ["capture-pane", "-p", "-t", session_name]
+
+    case Command.try_all(args) do
       {:ok, output} -> {:ok, output}
       {:error, reason} -> {:error, {:capture_failed, reason}}
     end

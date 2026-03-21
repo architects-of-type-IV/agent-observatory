@@ -551,6 +551,186 @@
 .agent-node .port.comm-port { border-color: #22d3ee; }
 .agent-node .port.comm-port:hover { background: rgba(34,211,238,0.2); }
 
+/* ── Terminal Panel design tokens ── */
+
+#terminal-panel {
+  /* Chrome (header, settings, input -- independent of terminal theme) */
+  --term-surface: oklch(16% 0.01 254);
+  --term-header: oklch(18% 0.012 254);
+  --term-border: oklch(22% 0.01 254);
+  --term-border-accent: oklch(28% 0.012 254);
+  --term-text: oklch(95% 0.01 256);
+  --term-text-muted: oklch(55% 0.01 254);
+  --term-text-dim: oklch(45% 0.01 254);
+  --term-text-faint: oklch(40% 0.01 254);
+  --term-hover: oklch(22% 0.01 254);
+  --term-active: oklch(80% 0.01 254);
+
+  /* Terminal color palette (overridden per theme) */
+  --term-bg: #0f0f14;
+  --term-fg: #d4d4d8;
+  --term-cursor: #a1a1aa;
+  --term-selection: rgba(99, 102, 241, 0.3);
+  --term-black: #18181b;   --term-bright-black: #52525b;
+  --term-red: #ef4444;     --term-bright-red: #f87171;
+  --term-green: #22c55e;   --term-bright-green: #4ade80;
+  --term-yellow: #eab308;  --term-bright-yellow: #facc15;
+  --term-blue: #3b82f6;    --term-bright-blue: #60a5fa;
+  --term-magenta: #a855f7; --term-bright-magenta: #c084fc;
+  --term-cyan: #06b6d4;    --term-bright-cyan: #22d3ee;
+  --term-white: #d4d4d8;   --term-bright-white: #fafafa;
+}
+
+/* Terminal theme variants -- swap palette via data attribute */
+#terminal-panel[data-theme="midnight"] {
+  --term-bg: #0a0e14; --term-fg: #b3b1ad; --term-cursor: #e6b450;
+  --term-selection: rgba(230, 180, 80, 0.15);
+  --term-black: #01060e; --term-bright-black: #686868;
+  --term-red: #ea6c73;   --term-bright-red: #f07178;
+  --term-green: #91b362; --term-bright-green: #c2d94c;
+  --term-yellow: #f9af4f; --term-bright-yellow: #ffb454;
+  --term-blue: #53bdfa;  --term-bright-blue: #59c2ff;
+  --term-magenta: #fae994; --term-bright-magenta: #ffee99;
+  --term-cyan: #90e1c6;  --term-bright-cyan: #95e6cb;
+  --term-white: #c7c7c7; --term-bright-white: #ffffff;
+}
+#terminal-panel[data-theme="aurora"] {
+  --term-bg: #1a1b26; --term-fg: #a9b1d6; --term-cursor: #c0caf5;
+  --term-selection: rgba(192, 202, 245, 0.15);
+  --term-black: #15161e; --term-bright-black: #414868;
+  --term-red: #f7768e;   --term-bright-red: #f7768e;
+  --term-green: #9ece6a; --term-bright-green: #9ece6a;
+  --term-yellow: #e0af68; --term-bright-yellow: #e0af68;
+  --term-blue: #7aa2f7;  --term-bright-blue: #7aa2f7;
+  --term-magenta: #bb9af7; --term-bright-magenta: #bb9af7;
+  --term-cyan: #7dcfff;  --term-bright-cyan: #7dcfff;
+  --term-white: #a9b1d6; --term-bright-white: #c0caf5;
+}
+#terminal-panel[data-theme="phosphor"] {
+  --term-bg: #0c0c0c; --term-fg: #33ff00; --term-cursor: #33ff00;
+  --term-selection: rgba(51, 255, 0, 0.15);
+  --term-black: #0c0c0c; --term-bright-black: #808080;
+  --term-red: #ff0000;   --term-bright-red: #ff0000;
+  --term-green: #33ff00; --term-bright-green: #33ff00;
+  --term-yellow: #ffff00; --term-bright-yellow: #ffff00;
+  --term-blue: #0066ff;  --term-bright-blue: #0066ff;
+  --term-magenta: #cc00ff; --term-bright-magenta: #cc00ff;
+  --term-cyan: #00ffff;  --term-bright-cyan: #00ffff;
+  --term-white: #d0d0d0; --term-bright-white: #ffffff;
+}
+#terminal-panel[data-theme="solarized"] {
+  --term-bg: #002b36; --term-fg: #839496; --term-cursor: #93a1a1;
+  --term-selection: rgba(147, 161, 161, 0.2);
+  --term-black: #073642; --term-bright-black: #586e75;
+  --term-red: #dc322f;   --term-bright-red: #cb4b16;
+  --term-green: #859900; --term-bright-green: #586e75;
+  --term-yellow: #b58900; --term-bright-yellow: #657b83;
+  --term-blue: #268bd2;  --term-bright-blue: #839496;
+  --term-magenta: #d33682; --term-bright-magenta: #6c71c4;
+  --term-cyan: #2aa198;  --term-bright-cyan: #93a1a1;
+  --term-white: #eee8d5; --term-bright-white: #fdf6e3;
+}
+#terminal-panel[data-theme="rose"] {
+  --term-bg: #191724; --term-fg: #e0def4; --term-cursor: #524f67;
+  --term-selection: rgba(224, 222, 244, 0.1);
+  --term-black: #26233a; --term-bright-black: #6e6a86;
+  --term-red: #eb6f92;   --term-bright-red: #eb6f92;
+  --term-green: #31748f; --term-bright-green: #31748f;
+  --term-yellow: #f6c177; --term-bright-yellow: #f6c177;
+  --term-blue: #9ccfd8;  --term-bright-blue: #9ccfd8;
+  --term-magenta: #c4a7e7; --term-bright-magenta: #c4a7e7;
+  --term-cyan: #ebbcba;  --term-bright-cyan: #ebbcba;
+  --term-white: #e0def4; --term-bright-white: #e0def4;
+}
+
+/* Component: terminal tab (header session tabs + setting buttons) */
+.term-tab {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0 0.75rem;
+  font-size: 0.6875rem;
+  font-family: ui-monospace, monospace;
+  white-space: nowrap;
+  border-right: 1px solid var(--term-border);
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+  height: 100%;
+  position: relative;
+  color: var(--term-text-muted);
+}
+.term-tab:hover { background: var(--term-hover); color: var(--term-text); }
+.term-tab.active { background: var(--term-bg); color: var(--term-text); }
+.term-tab.active::after {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 2px;
+  background: hsl(var(--ichor-brand));
+}
+
+/* Component: terminal control button (header icons) */
+.term-ctrl {
+  width: 1.75rem;
+  height: 1.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--ichor-radius-sm);
+  color: var(--term-text-dim);
+  cursor: pointer;
+  transition: background 0.1s, color 0.1s;
+}
+.term-ctrl:hover { background: var(--term-hover); color: var(--term-text); }
+.term-ctrl.active { background: hsl(var(--ichor-brand) / 0.2); color: hsl(var(--ichor-brand)); }
+.term-ctrl.close:hover { background: hsl(var(--ichor-error)); color: white; }
+
+/* Component: terminal setting button (settings bar options) */
+.term-setting {
+  padding: 0.125rem 0.5rem;
+  border-radius: var(--ichor-radius-sm);
+  font-size: 0.625rem;
+  font-family: ui-monospace, monospace;
+  transition: color 0.12s, background 0.12s, border-color 0.12s;
+  cursor: pointer;
+  border: 1px solid oklch(25% 0.01 254);
+  background: oklch(20% 0.01 254);
+  color: var(--term-text-muted);
+}
+.term-setting:hover { color: var(--term-active); }
+.term-setting.active {
+  background: hsl(var(--ichor-brand) / 0.2);
+  color: hsl(var(--ichor-brand));
+  border-color: hsl(var(--ichor-brand) / 0.3);
+}
+
+/* Component: terminal tab close button */
+.term-tab-close {
+  width: 0.875rem;
+  height: 0.875rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 2px;
+  color: var(--term-text-dim);
+  font-size: 0.625rem;
+  transition: background 0.1s, color 0.1s;
+}
+.term-tab-close:hover { background: hsl(var(--ichor-error)); color: white; }
+
+/* Component: terminal input field */
+.term-input {
+  background: oklch(20% 0.012 254);
+  border: 1px solid var(--term-border-accent);
+  border-radius: var(--ichor-radius-sm);
+  padding: 0.25rem 0.5rem;
+  font-size: 0.6875rem;
+  font-family: ui-monospace, monospace;
+  color: var(--term-text);
+}
+.term-input::placeholder { color: var(--term-text-faint); }
+.term-input:focus { border-color: hsl(var(--ichor-brand)); outline: none; }
+
 /* ── Archon (Genesis Noir scoped design system) ── */
 
 /* Noir design tokens scoped to Archon */

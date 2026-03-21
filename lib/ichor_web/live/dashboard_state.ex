@@ -71,7 +71,7 @@ defmodule IchorWeb.DashboardState do
       tmux_layout: :tabs,
       # Terminal panel (VS Code-style)
       panel_visible: false,
-      panel_position: :bottom,
+      panel_position: :center,
       panel_size: 50,
       panel_split: :none,
       panel_theme: :ichor,
