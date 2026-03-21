@@ -9,9 +9,14 @@
 ## AD-8: Reliability Boundary
 Ash -> Oban -> PubSub. Mandatory reactions insert Oban jobs directly from notifiers OR directly in the process that detected the need. NEVER PubSub -> subscriber -> Oban.insert (volatile hop). PubSub for observation only. Reconciler catches crash-window failures.
 
-## AD-8 Volatile Hop Anti-Pattern (Wave 3 lesson)
-DO NOT: GenServer emits signal -> PubSub -> Subscriber -> Oban.insert. If subscriber is down, job never enqueued.
-DO: GenServer detects need -> Oban.insert directly in same process -> then emit observational signal for UI/logs.
+## AD-8 Volatile Hop -- Resolved
+Initial approach: GenServer -> Oban.insert directly. Codex flagged as X2 violation (cross-domain import).
+Final approach: Supervised domain-local dispatchers (GenServer subscribers under supervision tree). Negligible crash window because they restart immediately. Both AD-8 durability and X2 boundary satisfied.
+
+## Cross-Domain Dependency Injection (Wave 3-4 lesson)
+When module A needs data from domain B, pass data as a parameter -- don't import B.
+Example: TeamPrompts needed ResearchContext (Factory). Fix: Runner pre-fetches context, passes via opts.
+Pattern: caller in owning domain fetches, callee receives as param.
 
 ## spawn/1 Is Generic
 team name -> compile Workshop design -> launch. Constraints are pattern matches in subscribers. Don't name what Elixir already has.

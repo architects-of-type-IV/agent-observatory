@@ -1,5 +1,19 @@
 # ICHOR IV Progress
 
+## Final Cleanup (2026-03-21) -- COMPLETE
+- [x] 8 dialyzer errors fixed (dead clauses, type mismatches, unreachable patterns)
+- [x] 3 FIXMEs resolved (artifact notifier mappings added to FromAsh, stale ingestor comment removed)
+- [x] README.md rewritten for ICHOR IV
+- [x] Glossary updated (11 Oban workers, RunRef/AgentId, subscribers, PipelineQuery)
+- [x] Codebase fully clean: 0 compile warnings, 0 credo issues, 0 dialyzer errors
+
+## Low Findings Fixed (2026-03-21) -- COMPLETE
+- [x] #6: AgentWatchdog memory leak fixed (session-keyed capture tuples)
+- [x] #7: PipelineReconcilerWorker cron (AD-8 safety net, */5 schedule)
+- [x] #9: TeamPrompts ResearchContext passed as param (no Factory import in Workshop)
+- [x] #10: Signal category :archon -> :cleanup for cleanup dispatchers
+- [x] All architecture findings CLOSED
+
 ## Wave 4: Large Structural (2026-03-21) -- COMPLETE
 - [x] W4-1: PipelineMonitor eliminated (623L GenServer -> PipelineQuery pure module + 2 Oban cron workers) (0d9fe83)
 - [x] W4-2: Ash resource domain moves -- CronJob->Factory, HITLInterventionEvent->SignalBus (19e5c80)
