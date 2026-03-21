@@ -117,7 +117,10 @@
 - [x] Architecture-informed code review: spawn/signals/Discovery principles (2026-03-21)
 - [x] Architecture blueprint: 8 ADs, 25 tasks, 5 waves, ownership rules, gap analysis (2026-03-21)
 - [x] Codex sparring: 3 rounds, AD-8 reliability boundary, 8.5/10 rating (2026-03-21)
-- [ ] Comprehensive module-level architecture document (target file structure, all CRUD, supervision)
+- [x] Comprehensive architecture docs: 9 files, 1501 lines (target structure, supervision, memory, all domains) (2026-03-21)
+- [ ] Create tasks.jsonl from 25-task wave plan
+- [ ] Review tasks (agents + codex)
+- [ ] Execute Wave 1 in worktrees (7 parallel foundation tasks)
 - [ ] Oban worker migration (5 candidates)
 - [ ] Redesign: vertical slices + Ash domains (target ~55 files)
 - [ ] Oban worker migration (5 strong candidates)

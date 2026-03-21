@@ -1,26 +1,19 @@
 # BRAIN -- Session Knowledge
 
-## AD-8: Reliability Boundary (from codex sparring)
-Ash -> Oban -> PubSub. Three layers:
-- Mandatory reactions: Oban.insert directly from Ash notifier/action body. No PubSub hop.
-- Observational: PubSub signal -> UI/logs/topology. Loss acceptable.
-- Reconciler: Oban cron checks Ash state for orphaned intents.
-If something must happen, persist intent durably first. If merely interesting, publish a signal.
+## Prompt Separation (key insight from architect)
+- Workshop stores: persona + instructions (what the agent should do)
+- Infrastructure injects at launch: team name, session ID, member roster, tmux targets, comm protocol
+- Workshop = what you are. Infrastructure = where you are.
+- Do NOT store runtime context (session, roster, team members) in Workshop. That's injected dynamically at TeamSpec.compile time.
+
+## AD-8: Reliability Boundary
+Ash -> Oban -> PubSub. Mandatory reactions insert Oban jobs directly from notifiers. PubSub for observation only. Reconciler catches crash-window failures.
 
 ## spawn/1 Is Generic
-team name -> compile Workshop design -> launch. Current :mes/:pipeline/:planning are team configs, not code branches. Constraints are pattern matches in subscribers.
-
-## Signals Are Observational, Not Commands
-All signals say "this happened." Subscribers decide to act. For mandatory reactions, the durable intent (Oban job) is inserted directly, not through a volatile PubSub hop.
-
-## Don't Name What Elixir Already Has
-Pattern matching in a subscriber IS the constraint mechanism. No SpawnPolicy module. Concepts exist in conversation, not as modules.
+team name -> compile Workshop design -> launch. Constraints are pattern matches in subscribers. Don't name what Elixir already has.
 
 ## AshSqlite Limitations
 No aggregates. No ALTER COLUMN. Enforce at Ash level, remove from migrations.
 
-## Prompt Strategy Injection
-prompt_module per Team record. Boot-time + changeset validation that module exists and implements behaviour. Compile-time alone is not enough for persisted bindings.
-
 ## Every Oban Worker Must Be Idempotent
-Mandatory reactions go through Oban. Crash windows mean duplicate execution is possible. Design every worker to tolerate re-execution.
+Crash windows mean duplicate execution. Design for re-execution tolerance.
