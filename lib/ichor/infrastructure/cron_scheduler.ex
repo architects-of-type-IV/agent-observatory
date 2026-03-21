@@ -1,28 +1,8 @@
 defmodule Ichor.Infrastructure.CronScheduler do
-  @moduledoc """
-  GenServer that manages scheduled one-time and recurring jobs.
+  @moduledoc "Schedules jobs via Oban. No longer a GenServer."
 
-  On startup, recovers all persisted `cron_jobs` rows and schedules timers.
-  Jobs fire by emitting a `:scheduled_job` signal for `agent_id`.
-  One-time jobs are completed (destroyed) after firing; recurring jobs reschedule.
-
-  Schedule math is delegated to `CronSchedule`.
-  """
-
-  use GenServer
-
-  require Logger
-
-  alias Ichor.Infrastructure.CronJob
-  alias Ichor.Infrastructure.CronSchedule
-
-  @recurring_interval_ms 60_000
-
-  @doc "Start the CronScheduler GenServer."
-  @spec start_link(keyword()) :: GenServer.on_start()
-  def start_link(opts) do
-    GenServer.start_link(__MODULE__, opts, name: __MODULE__)
-  end
+  alias Ichor.Infrastructure.{CronJob, CronSchedule}
+  alias Ichor.Infrastructure.Workers.ScheduledJob
 
   @doc """
   Schedules a one-time job for `agent_id` that fires after `delay_ms` milliseconds.
@@ -32,92 +12,49 @@ defmodule Ichor.Infrastructure.CronScheduler do
   """
   @spec schedule_once(String.t(), pos_integer(), term()) :: :ok | {:error, :invalid_delay}
   def schedule_once(agent_id, delay_ms, payload) do
-    GenServer.call(__MODULE__, {:schedule_once, agent_id, delay_ms, payload})
-  end
-
-  @doc "Returns all jobs for the given `agent_id`."
-  @spec list_jobs(String.t()) :: [Ichor.Infrastructure.CronJob.t()]
-  def list_jobs(agent_id), do: CronJob.for_agent!(agent_id)
-
-  @doc "Returns all scheduled jobs across all agents."
-  @spec list_all_jobs() :: [Ichor.Infrastructure.CronJob.t()]
-  def list_all_jobs do
-    CronJob.all_scheduled!()
-  rescue
-    _ -> []
-  end
-
-  @impl true
-  def init(_opts) do
-    try do
-      Enum.each(list_all_jobs(), fn job ->
-        delay = CronSchedule.delay_until(job.next_fire_at)
-        Process.send_after(self(), {:fire_job, job.id, job.agent_id, job.payload}, delay)
-      end)
-    catch
-      kind, reason ->
-        Logger.debug("CronScheduler: skipping job recovery (#{kind}: #{inspect(reason)})")
-    end
-
-    {:ok, %{}}
-  end
-
-  @impl true
-  def handle_call({:schedule_once, agent_id, delay_ms, payload}, _from, state) do
     with :ok <- CronSchedule.validate_delay(delay_ms) do
       next_fire_at = CronSchedule.next_fire_at(delay_ms)
       encoded = Jason.encode!(payload)
 
       case CronJob.schedule_once(agent_id, encoded, next_fire_at) do
         {:ok, job} ->
-          Process.send_after(self(), {:fire_job, job.id, job.agent_id, job.payload}, delay_ms)
-          {:reply, :ok, state}
+          delay_seconds = div(delay_ms, 1000)
 
-        {:error, reason} ->
-          Logger.warning("CronScheduler: failed to insert job: #{inspect(reason)}")
-          {:reply, {:error, :insert_failed}, state}
+          %{"job_id" => job.id, "agent_id" => agent_id, "payload" => encoded}
+          |> ScheduledJob.new(schedule_in: delay_seconds)
+          |> Oban.insert()
+
+          :ok
+
+        {:error, _reason} ->
+          {:error, :insert_failed}
       end
-    else
-      error -> {:reply, error, state}
     end
   end
 
-  @impl true
-  def handle_info({:fire_job, job_id, agent_id, payload_json}, state) do
-    payload = Jason.decode!(payload_json)
+  @doc "Returns all jobs for the given `agent_id`."
+  @spec list_jobs(String.t()) :: [CronJob.t()]
+  def list_jobs(agent_id), do: CronJob.for_agent!(agent_id)
 
-    Ichor.Signals.emit(:scheduled_job, agent_id, %{agent_id: agent_id, payload: payload})
+  @doc "Returns all scheduled jobs across all agents."
+  @spec list_all_jobs() :: [CronJob.t()]
+  def list_all_jobs do
+    CronJob.all_scheduled!()
+  rescue
+    _ -> []
+  end
 
-    try do
-      case CronJob.get(job_id) do
-        {:ok, %{is_one_time: true} = job} ->
-          CronJob.complete(job)
+  @doc "Recover pending jobs on startup by enqueuing them into Oban."
+  @spec recover_jobs() :: :ok
+  def recover_jobs do
+    list_all_jobs()
+    |> Enum.each(fn job ->
+      delay = max(CronSchedule.delay_until(job.next_fire_at), 0)
+      delay_seconds = div(delay, 1000)
 
-        {:ok, job} ->
-          next_fire_at = CronSchedule.next_recurrence(@recurring_interval_ms)
-
-          case CronJob.reschedule(job, next_fire_at) do
-            {:ok, _} ->
-              Process.send_after(
-                self(),
-                {:fire_job, job.id, job.agent_id, job.payload},
-                @recurring_interval_ms
-              )
-
-            {:error, reason} ->
-              Logger.warning(
-                "CronScheduler: failed to reschedule job #{job_id}: #{inspect(reason)}"
-              )
-          end
-
-        {:error, _} ->
-          :ok
-      end
-    catch
-      kind, reason ->
-        Logger.debug("CronScheduler: DB error firing job #{job_id} (#{kind}: #{inspect(reason)})")
-    end
-
-    {:noreply, state}
+      %{"job_id" => job.id, "agent_id" => job.agent_id, "payload" => job.payload}
+      |> ScheduledJob.new(schedule_in: delay_seconds)
+      |> Oban.insert()
+    end)
   end
 end

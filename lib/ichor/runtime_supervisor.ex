@@ -20,8 +20,6 @@ defmodule Ichor.RuntimeSupervisor do
       # Infrastructure and signal-adjacent services
       {Ichor.Infrastructure.TmuxDiscovery, []},
       {Ichor.Signals.EntropyTracker, []},
-      {Ichor.Infrastructure.CronScheduler, []},
-      {Ichor.Infrastructure.WebhookRouter, []},
       {Ichor.Infrastructure.HITLRelay, []},
       {Ichor.Infrastructure.OutputCapture, []},
 
