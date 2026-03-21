@@ -3,6 +3,8 @@ defmodule Ichor.Factory.PipelineTask.Notifiers.SyncRunner do
 
   use Ash.Notifier
 
+  require Logger
+
   alias Ichor.Factory.Runner
 
   @impl true
@@ -19,7 +21,7 @@ defmodule Ichor.Factory.PipelineTask.Notifiers.SyncRunner do
       try do
         Runner.sync_task(run_id, task)
       rescue
-        _ -> :ok
+        e -> Logger.warning("SyncRunner: #{inspect(e)}")
       end
     end
   end

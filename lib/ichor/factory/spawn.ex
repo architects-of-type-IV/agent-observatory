@@ -97,7 +97,7 @@ defmodule Ichor.Factory.Spawn do
     brief = load_project_brief(project_id)
 
     spec =
-      TeamSpec.build(:planning, run_id, mode, project_id, planning_project_id, brief,
+      TeamSpec.build(:planning, run_id, mode, planning_project_id, brief,
         prompt_module: Ichor.Factory.PlanningPrompts
       )
 

@@ -120,20 +120,19 @@ defmodule Ichor.Infrastructure.TmuxDiscovery do
   defp maybe_update_tmux_channel(agent_id, meta, tmux_sessions, tmux_panes) do
     current_tmux = get_in(meta, [:channels, :tmux])
 
-    if current_tmux && target_alive?(current_tmux, tmux_sessions, tmux_panes) do
-      :ok
+    with false <-
+           not is_nil(current_tmux) and target_alive?(current_tmux, tmux_sessions, tmux_panes),
+         matched when not is_nil(matched) <- find_target(agent_id, tmux_sessions, tmux_panes),
+         true <- matched != current_tmux do
+      channels = Map.put(meta[:channels] || %{}, :tmux, matched)
+
+      AgentProcess.update_fields(agent_id, %{
+        channels: channels,
+        tmux_session: extract_session_name(matched),
+        tmux_target: matched
+      })
     else
-      matched = find_target(agent_id, tmux_sessions, tmux_panes)
-
-      if matched && matched != current_tmux do
-        channels = Map.put(meta[:channels] || %{}, :tmux, matched)
-
-        AgentProcess.update_fields(agent_id, %{
-          channels: channels,
-          tmux_session: extract_session_name(matched),
-          tmux_target: matched
-        })
-      end
+      _ -> :ok
     end
   end
 
@@ -152,6 +151,7 @@ defmodule Ichor.Infrastructure.TmuxDiscovery do
   end
 
   @doc "Returns true for tmux server infrastructure sessions (not agents)."
+  @spec infrastructure_session?(String.t()) :: boolean()
   def infrastructure_session?("obs"), do: true
   def infrastructure_session?("ichor-fleet"), do: true
   def infrastructure_session?(name), do: match?({_, ""}, Integer.parse(name))

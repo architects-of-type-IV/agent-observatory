@@ -27,8 +27,13 @@ defmodule Ichor.Signals.ToolFailure do
 
     action :by_tool, {:array, :map} do
       run(fn _input, _context ->
-        with {:ok, errors} <- __MODULE__.recent() do
-          {:ok, group_by_tool(errors)}
+        # Direct Ash.read -- avoid __MODULE__.recent() self-call which re-enters the
+        # authorization stack recursively (ash-thinking Decision 6 rule 2).
+        query = Ash.Query.for_read(__MODULE__, :recent)
+
+        case Ash.read(query) do
+          {:ok, errors} -> {:ok, group_by_tool(errors)}
+          {:error, reason} -> {:error, reason}
         end
       end)
     end

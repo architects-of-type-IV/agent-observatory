@@ -5,30 +5,8 @@ defmodule Ichor.Factory.Artifact do
 
   use Ash.Resource, data_layer: :embedded
 
-  actions do
-    defaults([:read, :update, :destroy])
-
-    create :create do
-      primary?(true)
-
-      accept([
-        :id,
-        :kind,
-        :title,
-        :content,
-        :code,
-        :status,
-        :mode,
-        :summary,
-        :adr_codes,
-        :feature_code,
-        :participants
-      ])
-    end
-  end
-
   attributes do
-    uuid_primary_key(:id)
+    uuid_primary_key(:id, writable?: true)
 
     attribute :kind, :atom do
       allow_nil?(false)

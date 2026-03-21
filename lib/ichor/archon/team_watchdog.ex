@@ -60,14 +60,16 @@ defmodule Ichor.Archon.TeamWatchdog do
 
   # Fleet team disbanded -- check if it was a pipeline team that didn't complete
   defp react(:team_disbanded, %{team_name: session}, state) do
-    if match?({:ok, %AgentId{kind: :pipeline}}, AgentId.parse(session)) do
-      if Enum.any?(state.completed_runs, &String.contains?(session, &1)) do
+    case AgentId.parse(session) do
+      {:ok, %AgentId{kind: :pipeline}} ->
+        if Enum.any?(state.completed_runs, &String.contains?(session, &1)) do
+          {[:noop], state}
+        else
+          {[{:notify_operator, "Pipeline team #{session} disbanded without completion."}], state}
+        end
+
+      _ ->
         {[:noop], state}
-      else
-        {[{:notify_operator, "Pipeline team #{session} disbanded without completion."}], state}
-      end
-    else
-      {[:noop], state}
     end
   end
 

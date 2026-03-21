@@ -64,6 +64,7 @@ defmodule Ichor.Infrastructure.Tmux do
   Returns `{:ok, output}` with raw ANSI codes preserved, or `{:error, reason}`.
   Callers that need plain text should apply `AnsiUtils.strip_ansi/1` themselves.
   """
+  @spec capture_pane(String.t(), keyword()) :: {:ok, String.t()} | {:error, term()}
   def capture_pane(session_name, opts \\ []) do
     lines = Keyword.get(opts, :lines, 50)
 
@@ -76,6 +77,7 @@ defmodule Ichor.Infrastructure.Tmux do
   @pane_format "\#{pane_id}\t\#{session_name}\t\#{pane_title}\t\#{pane_pid}"
 
   @doc "List all panes across all known servers/sockets with pane_id, session, and title."
+  @spec list_panes() :: [map()]
   def list_panes do
     ServerSelector.server_arg_sets()
     |> Enum.flat_map(fn args ->
@@ -94,6 +96,7 @@ defmodule Ichor.Infrastructure.Tmux do
   end
 
   @doc "List all active tmux sessions across all known servers/sockets."
+  @spec list_sessions() :: [String.t()]
   def list_sessions do
     ServerSelector.server_arg_sets()
     |> Enum.flat_map(fn args ->
@@ -106,8 +109,10 @@ defmodule Ichor.Infrastructure.Tmux do
   end
 
   @doc "Run a tmux command across all known server options, return first success."
+  @spec run_command([String.t()]) :: {:ok, String.t()} | {:error, term()}
   def run_command(cmd_args), do: Command.try_all(cmd_args)
 
   @doc "Return tmux args for the first responsive ichor server."
+  @spec socket_args() :: [String.t()]
   def socket_args, do: ServerSelector.first_responsive()
 end

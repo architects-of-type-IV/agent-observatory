@@ -10,19 +10,28 @@ defmodule Ichor.Workshop.TeamSync do
   @doc "Replace all persisted members for a team from Workshop state."
   @spec sync_from_workshop_state(Team.t(), map()) :: :ok | {:error, term()}
   def sync_from_workshop_state(%Team{} = team, state) do
-    existing =
-      TeamMember
-      |> Ash.Query.for_read(:for_team, %{team_id: team.id})
-      |> Ash.read!()
+    query = Ash.Query.for_read(TeamMember, :for_team, %{team_id: team.id})
 
-    Enum.each(existing, &Ash.destroy!/1)
+    with {:ok, existing} <- Ash.read(query),
+         :ok <- destroy_all(existing) do
+      create_members(team, Map.get(state, :ws_agents, []))
+    end
+  end
 
-    state
-    |> Map.get(:ws_agents, [])
+  defp destroy_all(members) do
+    Enum.reduce_while(members, :ok, fn member, :ok ->
+      case Ash.destroy(member) do
+        :ok -> {:cont, :ok}
+        {:error, reason} -> {:halt, {:error, reason}}
+      end
+    end)
+  end
+
+  defp create_members(team, agents) do
+    agents
     |> Enum.with_index()
-    |> Enum.each(fn {agent, index} ->
-      TeamMember
-      |> Ash.Changeset.for_create(:create, %{
+    |> Enum.reduce_while(:ok, fn {agent, index}, :ok ->
+      attrs = %{
         team_id: team.id,
         agent_type_id: agent[:agent_type_id],
         slot: agent.id,
@@ -37,12 +46,12 @@ defmodule Ichor.Workshop.TeamSync do
         tool_scope: Map.get(agent, :tools, []),
         canvas_x: agent.x,
         canvas_y: agent.y
-      })
-      |> Ash.create!()
-    end)
+      }
 
-    :ok
-  rescue
-    error -> {:error, error}
+      case TeamMember |> Ash.Changeset.for_create(:create, attrs) |> Ash.create() do
+        {:ok, _} -> {:cont, :ok}
+        {:error, reason} -> {:halt, {:error, reason}}
+      end
+    end)
   end
 end

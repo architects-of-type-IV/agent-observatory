@@ -323,10 +323,9 @@ defmodule Ichor.Signals.AgentWatchdog do
   defp extract_team_name(_event), do: nil
 
   defp touch_session_activity(session_id, sessions) do
-    if Map.has_key?(sessions, session_id) do
-      Map.update!(sessions, session_id, &%{&1 | last_event_at: DateTime.utc_now()})
-    else
-      sessions
+    case Map.fetch(sessions, session_id) do
+      {:ok, entry} -> Map.put(sessions, session_id, %{entry | last_event_at: DateTime.utc_now()})
+      :error -> sessions
     end
   end
 
@@ -385,12 +384,14 @@ defmodule Ichor.Signals.AgentWatchdog do
         session_id = agent[:session_id] || agent[:id]
         signal_key = {session_id, :done}
 
-        if Map.get(state.signals, signal_key) != summary do
-          Logger.info("AgentWatchdog: DONE signal from #{agent[:id]}: #{summary}")
-          Ichor.Signals.emit(:agent_done, %{session_id: session_id, summary: summary})
-          put_in(state.signals[signal_key], summary)
-        else
-          state
+        case state.signals do
+          %{^signal_key => ^summary} ->
+            state
+
+          _ ->
+            Logger.info("AgentWatchdog: DONE signal from #{agent[:id]}: #{summary}")
+            Ichor.Signals.emit(:agent_done, %{session_id: session_id, summary: summary})
+            put_in(state.signals[signal_key], summary)
         end
 
       :nomatch ->
@@ -404,12 +405,14 @@ defmodule Ichor.Signals.AgentWatchdog do
         session_id = agent[:session_id] || agent[:id]
         signal_key = {session_id, :blocked}
 
-        if Map.get(state.signals, signal_key) != reason do
-          Logger.info("AgentWatchdog: BLOCKED signal from #{agent[:id]}: #{reason}")
-          Ichor.Signals.emit(:agent_blocked, %{session_id: session_id, reason: reason})
-          put_in(state.signals[signal_key], reason)
-        else
-          state
+        case state.signals do
+          %{^signal_key => ^reason} ->
+            state
+
+          _ ->
+            Logger.info("AgentWatchdog: BLOCKED signal from #{agent[:id]}: #{reason}")
+            Ichor.Signals.emit(:agent_blocked, %{session_id: session_id, reason: reason})
+            put_in(state.signals[signal_key], reason)
         end
 
       :nomatch ->

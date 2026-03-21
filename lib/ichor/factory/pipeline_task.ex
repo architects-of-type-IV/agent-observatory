@@ -166,6 +166,8 @@ defmodule Ichor.Factory.PipelineTask do
     end
 
     update :claim do
+      # require_atomic? disabled: set_attribute(:claimed_at, &__MODULE__.now/0) uses an MFA
+      # callback -- Ash cannot translate a function-reference timestamp into an atomic SQL expression.
       require_atomic?(false)
       accept([])
 
@@ -182,6 +184,8 @@ defmodule Ichor.Factory.PipelineTask do
     end
 
     update :complete do
+      # require_atomic? disabled: set_attribute(:completed_at, &__MODULE__.now/0) uses an MFA
+      # callback -- same constraint as :claim above.
       require_atomic?(false)
       accept([:notes])
       change(set_attribute(:status, :completed))
@@ -252,7 +256,7 @@ defmodule Ichor.Factory.PipelineTask do
       description("Mark a task as completed and report newly unblocked tasks.")
 
       argument(:task_id, :string, allow_nil?: false)
-      argument(:notes, :string, allow_nil?: false, default: "")
+      argument(:notes, :string, allow_nil?: true, default: "")
 
       run(fn input, _context ->
         with {:ok, task} <- Ash.get(__MODULE__, input.arguments.task_id),

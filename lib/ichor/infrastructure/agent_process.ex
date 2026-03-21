@@ -235,13 +235,14 @@ defmodule Ichor.Infrastructure.AgentProcess do
   end
 
   @impl true
-  def handle_cast({:message, message}, state) do
+  def handle_cast({:message, message}, %{status: :active} = state) do
     {msg, new_state} = AgentState.record_message(state, message)
+    AgentDelivery.deliver(new_state.backend, msg)
+    {:noreply, new_state}
+  end
 
-    if state.status == :active do
-      AgentDelivery.deliver(state.backend, msg)
-    end
-
+  def handle_cast({:message, message}, state) do
+    {_msg, new_state} = AgentState.record_message(state, message)
     {:noreply, new_state}
   end
 

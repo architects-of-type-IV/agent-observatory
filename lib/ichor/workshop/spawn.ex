@@ -275,17 +275,12 @@ defmodule Ichor.Workshop.Spawn do
   defp effective_tools(nil, member), do: member.tool_scope || []
 
   defp effective_tools(type, member) do
-    member_scope = member.tool_scope || []
-
-    if member_scope == [] do
-      type.default_tools || []
-    else
-      member_scope
-    end
+    first_present(member.tool_scope || [], type.default_tools || [])
   end
 
   defp first_present("", fallback), do: fallback || ""
   defp first_present(nil, fallback), do: fallback || ""
+  defp first_present([], fallback), do: fallback
   defp first_present(value, _fallback), do: value
 
   defp blank_to_cwd(""), do: File.cwd!()

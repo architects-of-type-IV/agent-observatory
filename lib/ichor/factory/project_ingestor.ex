@@ -43,10 +43,14 @@ defmodule Ichor.Factory.ProjectIngestor do
       :skip ->
         from = get_in(data, [:msg_map, :from]) || ""
 
-        if match?({:ok, %AgentId{kind: :mes}}, AgentId.parse(from)) do
-          Logger.debug(
-            "[ProjectIngestor] Skipped MES message from #{from}: missing required fields"
-          )
+        case AgentId.parse(from) do
+          {:ok, %AgentId{kind: :mes}} ->
+            Logger.debug(
+              "[ProjectIngestor] Skipped MES message from #{from}: missing required fields"
+            )
+
+          _ ->
+            :ok
         end
     end
 
@@ -60,10 +64,9 @@ defmodule Ichor.Factory.ProjectIngestor do
        when is_binary(content) do
     from = msg[:from] || ""
 
-    if match?({:ok, %AgentId{kind: :mes}}, AgentId.parse(from)) do
-      extract_from_content(content, from)
-    else
-      :skip
+    case AgentId.parse(from) do
+      {:ok, %AgentId{kind: :mes}} -> extract_from_content(content, from)
+      _ -> :skip
     end
   end
 
@@ -119,18 +122,23 @@ defmodule Ichor.Factory.ProjectIngestor do
     |> convert_list_fields()
   end
 
-  defp maybe_append_continuation(acc, current_key, line) do
-    if current_key && list_field?(current_key) && continuation_line?(line) do
-      existing = Map.get(acc, current_key, "")
+  defp maybe_append_continuation(acc, current_key, line)
+       when not is_nil(current_key) do
+    case {list_field?(current_key), continuation_line?(line)} do
+      {true, true} ->
+        existing = Map.get(acc, current_key, "")
+        appended = append_value(existing, String.trim(line))
+        {Map.put(acc, current_key, appended), current_key}
 
-      appended =
-        if existing == "", do: String.trim(line), else: existing <> ", " <> String.trim(line)
-
-      {Map.put(acc, current_key, appended), current_key}
-    else
-      {acc, current_key}
+      _ ->
+        {acc, current_key}
     end
   end
+
+  defp maybe_append_continuation(acc, _current_key, _line), do: {acc, nil}
+
+  defp append_value("", value), do: value
+  defp append_value(existing, value), do: existing <> ", " <> value
 
   defp parse_key_line(line) do
     trimmed = String.trim(line)

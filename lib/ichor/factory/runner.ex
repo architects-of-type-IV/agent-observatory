@@ -450,20 +450,23 @@ defmodule Ichor.Factory.Runner do
   defp schedule_timers(timers, state) do
     schedule_liveness(timers)
 
-    if deadline_ms = Map.get(timers, :deadline_ms) do
-      Process.send_after(self(), :deadline, deadline_ms)
+    case Map.get(timers, :deadline_ms) do
+      nil -> :ok
+      deadline_ms -> Process.send_after(self(), :deadline, deadline_ms)
     end
 
-    if init_fn = Map.get(timers, :on_init) do
-      init_fn.(state)
+    case Map.get(timers, :on_init) do
+      nil -> :ok
+      init_fn -> init_fn.(state)
     end
   end
 
   defp schedule_liveness(nil), do: :ok
 
   defp schedule_liveness(timers) do
-    if ms = Map.get(timers, :liveness_ms) do
-      Process.send_after(self(), :check_liveness, ms)
+    case Map.get(timers, :liveness_ms) do
+      nil -> :ok
+      ms -> Process.send_after(self(), :check_liveness, ms)
     end
   end
 
@@ -549,16 +552,21 @@ defmodule Ichor.Factory.Runner do
     completion = state.config.completion
     coordinator_id = Map.get(completion, :coordinator_id_fn, &default_coordinator_id/1).(state)
 
-    if from == coordinator_id or String.starts_with?(from, coordinator_id) do
-      on_complete = get_in(state.config, [Access.key(:hooks), Access.key(:on_complete)])
-      if on_complete, do: on_complete.(state)
-      :complete
-    else
-      :continue
+    case from_coordinator?(from, coordinator_id) do
+      true ->
+        on_complete = get_in(state.config, [Access.key(:hooks), Access.key(:on_complete)])
+        if on_complete, do: on_complete.(state)
+        :complete
+
+      false ->
+        :continue
     end
   end
 
   defp maybe_complete_on_message(_msg, _state), do: :continue
+
+  defp from_coordinator?(from, coordinator_id),
+    do: from == coordinator_id or String.starts_with?(from, coordinator_id)
 
   defp default_coordinator_id(%{session: session}), do: "#{session}-coordinator"
 
@@ -572,8 +580,12 @@ defmodule Ichor.Factory.Runner do
     %{run_id: state.run_id}
   end
 
+  defp build_terminate_payload(%{kind: :planning, runtime: %{mode: mode}} = state) do
+    %{run_id: state.run_id, mode: mode}
+  end
+
   defp build_terminate_payload(%{kind: :planning} = state) do
-    %{run_id: state.run_id, mode: Map.get(state.runtime, :mode)}
+    %{run_id: state.run_id, mode: nil}
   end
 
   defp build_terminate_payload(%{kind: :pipeline} = state) do

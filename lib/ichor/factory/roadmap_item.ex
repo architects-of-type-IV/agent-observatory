@@ -8,34 +8,8 @@ defmodule Ichor.Factory.RoadmapItem do
 
   use Ash.Resource, data_layer: :embedded
 
-  actions do
-    defaults([:read, :update, :destroy])
-
-    create :create do
-      primary?(true)
-
-      accept([
-        :id,
-        :kind,
-        :number,
-        :title,
-        :status,
-        :governed_by,
-        :goals,
-        :goal,
-        :parent_uc,
-        :allowed_files,
-        :blocked_by,
-        :steps,
-        :done_when,
-        :owner,
-        :parent_id
-      ])
-    end
-  end
-
   attributes do
-    uuid_primary_key(:id)
+    uuid_primary_key(:id, writable?: true)
 
     attribute :kind, :atom do
       allow_nil?(false)

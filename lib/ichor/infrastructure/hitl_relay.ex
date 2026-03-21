@@ -87,21 +87,25 @@ defmodule Ichor.Infrastructure.HITLRelay do
 
   @impl true
   def handle_call({:pause, session_id, _agent_id, _operator_id, _reason}, _from, state) do
-    if SessionState.paused?(state, session_id) do
-      {:reply, {:ok, :already_paused}, state}
-    else
-      Events.gate_open(session_id)
-      {:reply, :ok, SessionState.pause(state, session_id)}
+    case SessionState.paused?(state, session_id) do
+      true ->
+        {:reply, {:ok, :already_paused}, state}
+
+      false ->
+        Events.gate_open(session_id)
+        {:reply, :ok, SessionState.pause(state, session_id)}
     end
   end
 
   def handle_call({:unpause, session_id, _agent_id, _operator_id}, _from, state) do
-    if SessionState.paused?(state, session_id) do
-      flushed_count = flush_buffer(session_id)
-      Events.gate_close(session_id)
-      {:reply, {:ok, flushed_count}, SessionState.resume(state, session_id)}
-    else
-      {:reply, {:ok, :not_paused}, state}
+    case SessionState.paused?(state, session_id) do
+      true ->
+        flushed_count = flush_buffer(session_id)
+        Events.gate_close(session_id)
+        {:reply, {:ok, flushed_count}, SessionState.resume(state, session_id)}
+
+      false ->
+        {:reply, {:ok, :not_paused}, state}
     end
   end
 
@@ -115,11 +119,13 @@ defmodule Ichor.Infrastructure.HITLRelay do
   end
 
   def handle_call({:buffer_message, session_id, message}, _from, state) do
-    if SessionState.paused?(state, session_id) do
-      Buffer.insert(session_id, message)
-      {:reply, :ok, state}
-    else
-      {:reply, :pass_through, state}
+    case SessionState.paused?(state, session_id) do
+      true ->
+        Buffer.insert(session_id, message)
+        {:reply, :ok, state}
+
+      false ->
+        {:reply, :pass_through, state}
     end
   end
 

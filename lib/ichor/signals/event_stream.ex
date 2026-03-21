@@ -143,11 +143,11 @@ defmodule Ichor.Signals.EventStream do
   @doc "Get events for a specific session."
   @spec events_for_session(String.t()) :: [map()]
   def events_for_session(session_id) do
-    :ets.tab2list(@table)
-    |> Enum.reduce([], fn
-      {_id, %{session_id: ^session_id} = event}, acc -> [event | acc]
-      _, acc -> acc
-    end)
+    match_spec = [{{:_, %{session_id: session_id}}, [], [:"$_"]}]
+
+    @table
+    |> :ets.select(match_spec)
+    |> Enum.map(&elem(&1, 1))
     |> Enum.sort_by(& &1.inserted_at, {:desc, DateTime})
   end
 
@@ -228,15 +228,16 @@ defmodule Ichor.Signals.EventStream do
 
   defp ingest_event(event) do
     agent_id = AgentLifecycle.resolve_or_create_agent(event.session_id, event)
-
-    if event.hook_event_type == :SessionEnd do
-      Signals.emit(:session_ended, %{session_id: agent_id, status: :ended})
-    end
-
+    maybe_emit_session_end(event.hook_event_type, agent_id)
     handle_channel_events(event)
     Signals.emit(:agent_event, agent_id, %{event: event})
     :ok
   end
+
+  defp maybe_emit_session_end(:SessionEnd, agent_id),
+    do: Signals.emit(:session_ended, %{session_id: agent_id, status: :ended})
+
+  defp maybe_emit_session_end(_type, _agent_id), do: :ok
 
   defp handle_channel_events(%{hook_event_type: :SessionStart}), do: :ok
 

@@ -29,15 +29,17 @@ defmodule Ichor.Infrastructure.AgentBackend do
   - All other backends — no-op.
   """
   @spec terminate(map() | nil) :: :ok
-  def terminate(%{type: :tmux, session: session}) when is_binary(session) do
-    if String.contains?(session, ":") do
-      Tmux.run_command(["kill-window", "-t", session])
-    else
-      Tmux.run_command(["kill-session", "-t", session])
+  def terminate(%{type: :tmux, session: session}) when is_binary(session),
+    do: terminate_tmux(session)
+
+  def terminate(_backend), do: :ok
+
+  defp terminate_tmux(session) do
+    case String.split(session, ":", parts: 2) do
+      [_session, _window] -> Tmux.run_command(["kill-window", "-t", session])
+      [_session] -> Tmux.run_command(["kill-session", "-t", session])
     end
 
     :ok
   end
-
-  def terminate(_backend), do: :ok
 end

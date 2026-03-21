@@ -29,7 +29,7 @@ defmodule Ichor.Factory.PipelineGraph do
 
   def to_graph_node(%{id: _} = task) do
     %{
-      id: Map.get(task, :id, ""),
+      id: task.id,
       status: Map.get(task, :status, "pending"),
       blocked_by: Map.get(task, :blocked_by, []),
       allowed_files: first_present(task, [:files, :allowed_files], []),

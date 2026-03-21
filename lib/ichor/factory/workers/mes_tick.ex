@@ -10,22 +10,23 @@ defmodule Ichor.Factory.Workers.MesTick do
 
   @impl Oban.Worker
   def perform(%Oban.Job{}) do
-    if File.exists?(@pause_flag) do
-      Signals.emit(:mes_tick, %{paused: true})
-      :ok
-    else
-      all = Runner.list_all(:mes)
-      active = count_active(all)
-      Signals.emit(:mes_tick, %{active_runs: active, total_runs: length(all)})
+    all = Runner.list_all(:mes)
+    active = count_active(all)
 
-      if active < @max_concurrent do
+    cond do
+      File.exists?(@pause_flag) ->
+        Signals.emit(:mes_tick, %{paused: true})
+
+      active < @max_concurrent ->
+        Signals.emit(:mes_tick, %{active_runs: active, total_runs: length(all)})
         spawn_run()
-      else
-        Signals.emit(:mes_cycle_skipped, %{active_runs: active})
-      end
 
-      :ok
+      true ->
+        Signals.emit(:mes_tick, %{active_runs: active, total_runs: length(all)})
+        Signals.emit(:mes_cycle_skipped, %{active_runs: active})
     end
+
+    :ok
   end
 
   defp count_active(runs) do

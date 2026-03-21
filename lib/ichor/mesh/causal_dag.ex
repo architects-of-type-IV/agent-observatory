@@ -342,12 +342,11 @@ defmodule Ichor.Mesh.CausalDAG do
 
   defp do_detect_cycle(table, incoming_trace_id, current_parent_id, hops) do
     case :ets.lookup(table, current_parent_id) do
+      [{_id, %{trace_id: ^incoming_trace_id}}] ->
+        :cycle
+
       [{_id, found_node}] ->
-        if found_node.trace_id == incoming_trace_id do
-          :cycle
-        else
-          do_detect_cycle(table, incoming_trace_id, found_node.parent_step_id, hops + 1)
-        end
+        do_detect_cycle(table, incoming_trace_id, found_node.parent_step_id, hops + 1)
 
       [] ->
         :no_cycle

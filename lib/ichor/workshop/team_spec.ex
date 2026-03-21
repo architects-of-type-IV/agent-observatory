@@ -120,12 +120,11 @@ defmodule Ichor.Workshop.TeamSpec do
           :planning,
           String.t(),
           String.t(),
-          String.t(),
           String.t() | nil,
           String.t(),
           keyword()
         ) :: Spec.t()
-  def build(:planning, run_id, mode, _project_id, planning_project_id, brief, opts) do
+  def build(:planning, run_id, mode, planning_project_id, brief, opts) do
     prompt_mod = Keyword.get(opts, :prompt_module)
     session = "planning-#{mode}-#{run_id}"
     state = planning_state(session, mode)

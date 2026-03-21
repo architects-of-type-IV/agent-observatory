@@ -167,11 +167,13 @@ defmodule Ichor.Workshop.CanvasState do
   @doc "Apply team-level param changes (name, strategy, default_model, cwd)."
   @spec update_team(t(), map()) :: t()
   def update_team(state, params) do
-    state
-    |> Map.put(:ws_team_name, Map.get(params, "name", state.ws_team_name))
-    |> Map.put(:ws_strategy, Map.get(params, "strategy", state.ws_strategy))
-    |> Map.put(:ws_default_model, Map.get(params, "default_model", state.ws_default_model))
-    |> Map.put(:ws_cwd, Map.get(params, "cwd", state.ws_cwd))
+    %{
+      state
+      | ws_team_name: Map.get(params, "name", state.ws_team_name),
+        ws_strategy: Map.get(params, "strategy", state.ws_strategy),
+        ws_default_model: Map.get(params, "default_model", state.ws_default_model),
+        ws_cwd: Map.get(params, "cwd", state.ws_cwd)
+    }
   end
 
   @doc "Apply a persisted team record to the canvas state."

@@ -213,6 +213,8 @@ defmodule Ichor.Factory.Project do
 
     update :update do
       primary?(true)
+      # require_atomic? disabled: :artifacts and :roadmap_items are {:array, EmbeddedResource}
+      # attributes -- Ash cannot express embedded array writes as atomic SQL updates.
       require_atomic?(false)
 
       accept([
@@ -299,13 +301,13 @@ defmodule Ichor.Factory.Project do
 
       argument(:title, :string, allow_nil?: false)
       argument(:description, :string, allow_nil?: false)
-      argument(:brief, :string, allow_nil?: false, default: "")
+      argument(:brief, :string, allow_nil?: true, default: "")
       argument(:output_kind, :string, allow_nil?: false, default: "plugin")
-      argument(:plugin, :string, allow_nil?: false, default: "")
-      argument(:signal_interface, :string, allow_nil?: false, default: "")
-      argument(:topic, :string, allow_nil?: false, default: "")
-      argument(:run_id, :string, allow_nil?: false, default: "")
-      argument(:team_name, :string, allow_nil?: false, default: "")
+      argument(:plugin, :string, allow_nil?: true, default: "")
+      argument(:signal_interface, :string, allow_nil?: true, default: "")
+      argument(:topic, :string, allow_nil?: true, default: "")
+      argument(:run_id, :string, allow_nil?: true, default: "")
+      argument(:team_name, :string, allow_nil?: true, default: "")
 
       run(fn input, _context ->
         args = input.arguments
@@ -399,26 +401,29 @@ defmodule Ichor.Factory.Project do
       end
 
       run(fn input, _context ->
-        projects =
+        result =
           case input.arguments.status do
             "" ->
               __MODULE__
               |> Ash.Query.for_read(:list_all)
-              |> Ash.read!()
+              |> Ash.read()
 
             status_str ->
               case Map.fetch(@project_status_map, status_str) do
                 {:ok, status} ->
                   __MODULE__
                   |> Ash.Query.for_read(:by_status, %{status: status})
-                  |> Ash.read!()
+                  |> Ash.read()
 
                 :error ->
-                  []
+                  {:ok, []}
               end
           end
 
-        {:ok, Enum.map(projects, &ProjectView.to_map/1)}
+        case result do
+          {:ok, projects} -> {:ok, Enum.map(projects, &ProjectView.to_map/1)}
+          {:error, reason} -> {:error, reason}
+        end
       end)
     end
 
@@ -477,7 +482,7 @@ defmodule Ichor.Factory.Project do
       argument(:project_id, :string, allow_nil?: false)
       argument(:code, :string, allow_nil?: false)
       argument(:title, :string, allow_nil?: false)
-      argument(:content, :string, allow_nil?: false, default: "")
+      argument(:content, :string, allow_nil?: true, default: "")
       argument(:status, :string, allow_nil?: false, default: "pending")
 
       run(fn input, _context ->
@@ -497,8 +502,8 @@ defmodule Ichor.Factory.Project do
 
       argument(:project_id, :string, allow_nil?: false)
       argument(:adr_id, :string, allow_nil?: false)
-      argument(:status, :string, allow_nil?: false, default: "")
-      argument(:content, :string, allow_nil?: false, default: "")
+      argument(:status, :string, allow_nil?: true, default: "")
+      argument(:content, :string, allow_nil?: true, default: "")
 
       run(fn input, _context ->
         with {:ok, project} <- Ash.get(__MODULE__, input.arguments.project_id),
@@ -536,8 +541,8 @@ defmodule Ichor.Factory.Project do
       argument(:project_id, :string, allow_nil?: false)
       argument(:code, :string, allow_nil?: false)
       argument(:title, :string, allow_nil?: false)
-      argument(:content, :string, allow_nil?: false, default: "")
-      argument(:adr_codes, :string, allow_nil?: false, default: "")
+      argument(:content, :string, allow_nil?: true, default: "")
+      argument(:adr_codes, :string, allow_nil?: true, default: "")
 
       run(fn input, _context ->
         args = input.arguments
@@ -567,8 +572,8 @@ defmodule Ichor.Factory.Project do
       argument(:project_id, :string, allow_nil?: false)
       argument(:code, :string, allow_nil?: false)
       argument(:title, :string, allow_nil?: false)
-      argument(:content, :string, allow_nil?: false, default: "")
-      argument(:feature_code, :string, allow_nil?: false, default: "")
+      argument(:content, :string, allow_nil?: true, default: "")
+      argument(:feature_code, :string, allow_nil?: true, default: "")
 
       run(fn input, _context ->
         args = input.arguments
@@ -598,8 +603,8 @@ defmodule Ichor.Factory.Project do
       argument(:project_id, :string, allow_nil?: false)
       argument(:title, :string, allow_nil?: false)
       argument(:mode, :string, allow_nil?: false)
-      argument(:content, :string, allow_nil?: false, default: "")
-      argument(:summary, :string, allow_nil?: false, default: "")
+      argument(:content, :string, allow_nil?: true, default: "")
+      argument(:summary, :string, allow_nil?: true, default: "")
 
       run(fn input, _context ->
         args = input.arguments
@@ -624,7 +629,7 @@ defmodule Ichor.Factory.Project do
       argument(:project_id, :string, allow_nil?: false)
       argument(:title, :string, allow_nil?: false)
       argument(:mode, :string, allow_nil?: false)
-      argument(:content, :string, allow_nil?: false, default: "")
+      argument(:content, :string, allow_nil?: true, default: "")
 
       run(fn input, _context ->
         args = input.arguments
@@ -658,8 +663,8 @@ defmodule Ichor.Factory.Project do
       argument(:project_id, :string, allow_nil?: false)
       argument(:number, :integer, allow_nil?: false)
       argument(:title, :string, allow_nil?: false)
-      argument(:goals, :string, allow_nil?: false, default: "")
-      argument(:governed_by, :string, allow_nil?: false, default: "")
+      argument(:goals, :string, allow_nil?: true, default: "")
+      argument(:governed_by, :string, allow_nil?: true, default: "")
 
       run(fn input, _context ->
         args = input.arguments
@@ -685,7 +690,7 @@ defmodule Ichor.Factory.Project do
       argument(:project_id, :string, allow_nil?: false)
       argument(:number, :integer, allow_nil?: false)
       argument(:title, :string, allow_nil?: false)
-      argument(:goal, :string, allow_nil?: false, default: "")
+      argument(:goal, :string, allow_nil?: true, default: "")
 
       run(fn input, _context ->
         args = input.arguments
@@ -711,8 +716,8 @@ defmodule Ichor.Factory.Project do
       argument(:project_id, :string, allow_nil?: false)
       argument(:number, :integer, allow_nil?: false)
       argument(:title, :string, allow_nil?: false)
-      argument(:governed_by, :string, allow_nil?: false, default: "")
-      argument(:parent_uc, :string, allow_nil?: false, default: "")
+      argument(:governed_by, :string, allow_nil?: true, default: "")
+      argument(:parent_uc, :string, allow_nil?: true, default: "")
 
       run(fn input, _context ->
         args = input.arguments
@@ -739,12 +744,12 @@ defmodule Ichor.Factory.Project do
       argument(:project_id, :string, allow_nil?: false)
       argument(:number, :integer, allow_nil?: false)
       argument(:title, :string, allow_nil?: false)
-      argument(:goal, :string, allow_nil?: false, default: "")
-      argument(:allowed_files, :string, allow_nil?: false, default: "")
-      argument(:blocked_by, :string, allow_nil?: false, default: "")
-      argument(:steps, :string, allow_nil?: false, default: "")
-      argument(:done_when, :string, allow_nil?: false, default: "")
-      argument(:owner, :string, allow_nil?: false, default: "")
+      argument(:goal, :string, allow_nil?: true, default: "")
+      argument(:allowed_files, :string, allow_nil?: true, default: "")
+      argument(:blocked_by, :string, allow_nil?: true, default: "")
+      argument(:steps, :string, allow_nil?: true, default: "")
+      argument(:done_when, :string, allow_nil?: true, default: "")
+      argument(:owner, :string, allow_nil?: true, default: "")
 
       run(fn input, _context ->
         args = input.arguments
@@ -846,6 +851,8 @@ defmodule Ichor.Factory.Project do
     define(:list_phases, args: [:project_id])
   end
 
+  @doc "Build a nested tree from a flat list of roadmap items using parent_id."
+  @spec hierarchy([map()]) :: [map()]
   def hierarchy(items) do
     by_parent = Enum.group_by(items, & &1.parent_id)
     Enum.map(by_parent[nil] || [], &attach_children(&1, by_parent))
@@ -853,6 +860,8 @@ defmodule Ichor.Factory.Project do
 
   defdelegate artifact_titles(project, kind), to: ProjectView
 
+  @doc "Return the content of the most recent brief artifact, or nil if none."
+  @spec latest_brief_text(map() | [map()]) :: String.t() | nil
   def latest_brief_text(%{artifacts: artifacts}), do: latest_brief_text(artifacts)
 
   def latest_brief_text(artifacts) when is_list(artifacts) do
@@ -899,6 +908,9 @@ defmodule Ichor.Factory.Project do
     end
   end
 
+  # Direct Ash API inside run block -- intentional per ash-thinking Decision 6 rule 5.
+  # Generic actions that coordinate embedded array writes call Ash.Changeset.for_update
+  # directly rather than going through code_interface, because the action IS the boundary.
   defp put_artifact(project, artifact) do
     project
     |> Ash.Changeset.for_update(:update, %{artifacts: (project.artifacts || []) ++ [artifact]})
