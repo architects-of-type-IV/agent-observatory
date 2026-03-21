@@ -13,6 +13,8 @@ defmodule Ichor.Workshop.PromptProtocol do
   role given the agent map and a context map appropriate to that team type.
   """
 
+  @callback build_prompt(agent :: map(), context :: map()) :: String.t()
+
   @doc "Returns the CRITICAL RULES block instructing the agent to use messaging tools only."
   @spec critical_rules(String.t()) :: String.t()
   def critical_rules(tool_prefix) do

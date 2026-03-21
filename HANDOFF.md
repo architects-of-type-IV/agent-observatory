@@ -1,6 +1,6 @@
 # ICHOR IV - Handoff
 
-## Current Status: W2 Fixes In Progress, Wave 3 Next (2026-03-21)
+## Current Status: Wave 2 DONE (8/10), Wave 3 Scoped (2026-03-21)
 
 ### Authoritative Architecture Documents
 
@@ -29,21 +29,55 @@ Every codex review prompt MUST include: "Validate against docs/architecture/deci
 ### Wave Status
 
 **Wave 1 (Foundation)** -- COMPLETE, Codex 7.5/10
-- W1-1 through W1-7 done
 
-**Wave 2 (Oban Migration)** -- COMPLETE, Codex 6/10 -> fixes in progress
-- W2-1/W2-2/W2-3: 3 GenServers replaced with Oban workers + plain APIs
-- W2-fix-1: Engine set to Oban.Engines.Lite (DONE)
-- W2-fix-2: Worker idempotency fixes (DONE, agents completed)
-- W2-fix-3: Crash window closed in webhook_adapter + cron_scheduler (DONE, agents completed)
-- W2-fix-4: Uniqueness on recover_jobs (DONE, agents completed)
-- Codex re-review dispatched, waiting for response
+**Wave 2 (Oban Migration)** -- COMPLETE, Codex 8/10
+- 3 GenServers replaced with Oban workers (MesTick, ScheduledJob, WebhookDeliveryWorker)
+- Reliability fixes: Lite engine, idempotency guards, emit-after-commit, orphan cleanup
+- Residual (accepted): webhook HTTP-before-DB inherent, startup-only recovery (not periodic reconciler)
 
-**Wave 3 (Structural)** -- NEXT
-- W3-1: EventStream decouple from fleet mutations (X1/Problem 2)
-- W3-2: TeamSpec strategy injection via compile/2 (AD-6)
-- W3-3: RunSpec + AgentId value objects (A1+A2)
-- W3-4: TeamWatchdog -> Oban cleanup jobs (X2/O3/AD-8 closure)
+**Wave 3 (Structural)** -- SCOPED, ready to execute
+- W3-1: EventStream decouple (X1) -- 7 coupling points, new SessionLifecycle subscriber, AgentLifecycle deleted
+- W3-2: TeamSpec prompt injection (AD-6) -- opts keyword with prompt_module:, 4 callers, PromptProtocol callback
+- W3-3: Value objects RunRef/AgentId (AD-7) -- not yet scoped in detail, medium effort
+- W3-4: TeamWatchdog Oban (X2/O3/AD-8) -- 4 new workers, 1 subscriber, consolidated signals
+
+### Wave 3 Execution Plan
+
+**Batch A** (parallel, independent files):
+- W3-2: TeamSpec injection (5 files: team_spec.ex, prompt_protocol.ex, runner.ex, spawn.ex, planning_prompts.ex)
+- W3-3: Value objects (defer detailed scope until Batch A done)
+
+**Batch B** (after A, touches catalog.ex):
+- W3-1: EventStream decouple (5 files + catalog.ex new signals)
+
+**Batch C** (after B, also touches catalog.ex + new Oban queues):
+- W3-4: TeamWatchdog Oban (7+ files: watchdog, 4 workers, 1 subscriber, catalog, application.ex)
+
+**Rationale**: W3-1 and W3-4 both add signals to catalog.ex -- must be sequential. W3-4 is the AD-8 closure task (highest architectural value). W3-2 is independent of both.
+
+### Wave 3 Detailed Scope (from scoping agents)
+
+**W3-1 EventStream Decouple** (X1, decisions.md:183):
+- 5 outbound couplings: EventStream/AgentLifecycle -> FleetSupervisor.spawn_agent, terminate_agent, create_team, disband_team, AgentProcess.update_fields
+- 1 reverse: AgentProcess.terminate -> EventStream.tombstone_session
+- Fix: New Infrastructure.Subscribers.SessionLifecycle subscribes to 4 signals
+- Delete: agent_lifecycle.ex (content becomes subscriber body)
+- Reverse fix: EventStream subscribes to existing :agent_stopped signal
+
+**W3-2 TeamSpec Injection** (AD-6, decisions.md:68):
+- 3 hardcoded prompt modules: PlanningPrompts (cross-domain!), PipelinePrompts, TeamPrompts
+- 4 callers: runner.ex:300 (:mes), runner.ex:332 (corrective), spawn.ex:57 (:pipeline), spawn.ex:96 (:planning)
+- Fix: Add opts keyword with prompt_module: to each build/N. Callers pass explicitly.
+- PromptProtocol needs @callback build_prompt/2 added
+- PlanningPrompts alias removed from Workshop namespace
+
+**W3-4 TeamWatchdog Oban** (X2+O3+AD-8, audit:188/105, decisions:92):
+- 4 direct cross-domain calls in dispatch/1: Pipeline.archive, PipelineTask.reset, FleetSupervisor.disband_team, Spawn.kill_session
+- Inbox.write stays (correct per A3)
+- Fix: 4 dispatch clauses emit signals instead
+- 4 new idempotent Oban workers: ArchiveRunWorker, ResetRunTasksWorker, DisbandTeamWorker, KillSessionWorker
+- 1 new RunCleanupSubscriber bridges signals to Oban.insert
+- Consolidated signals: :run_cleanup_needed + :session_cleanup_needed
 
 **Wave 4 (Large Structural)** -- after W3
 - W4-1: Eliminate PipelineMonitor GenServer (P1)
@@ -62,6 +96,7 @@ Every codex review prompt MUST include: "Validate against docs/architecture/deci
 - Invoke `ash-thinking` skill BEFORE dispatching agents for Ash/Elixir work
 - Never use `ash-elixir-expert` agents directly
 - Split work by file scope, no two agents edit the same file
+- Every task cross-references its governing architecture doc
 - Verify build after agents complete, resolve conflicts
 
 ### Build

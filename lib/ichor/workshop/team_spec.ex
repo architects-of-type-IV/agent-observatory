@@ -15,7 +15,6 @@ defmodule Ichor.Workshop.TeamSpec do
     - prompt_root_dir(:mes) | prompt_root_dir(:pipeline) | prompt_root_dir(:planning)
   """
 
-  alias Ichor.Factory.PlanningPrompts
   alias Ichor.Infrastructure.AgentSpec
   alias Ichor.Infrastructure.TeamSpec, as: Spec
   alias Ichor.Workshop.{CanvasState, PipelinePrompts, Presets, Team, TeamPrompts}
@@ -23,8 +22,9 @@ defmodule Ichor.Workshop.TeamSpec do
   # MES
 
   @doc "Builds a TeamSpec for a MES run."
-  @spec build(:mes, String.t(), String.t()) :: Spec.t()
-  def build(:mes, run_id, team_name) do
+  @spec build(:mes, String.t(), String.t(), keyword()) :: Spec.t()
+  def build(:mes, run_id, team_name, opts) do
+    prompt_mod = Keyword.get(opts, :prompt_module, TeamPrompts)
     session = session_name(run_id)
     roster = TeamPrompts.roster(session)
     state = mes_state(team_name)
@@ -34,7 +34,7 @@ defmodule Ichor.Workshop.TeamSpec do
       session: session,
       prompt_dir: prompt_dir(:mes, run_id),
       team_metadata: %{run_id: run_id, source: :mes, team_template: mes_team_name()},
-      prompt_builder: fn agent, _state -> mes_prompt(agent, run_id, roster) end,
+      prompt_builder: fn agent, _state -> mes_prompt(prompt_mod, agent, run_id, roster) end,
       agent_metadata_builder: fn agent, state -> mes_agent_meta(agent, state, run_id) end,
       window_name_builder: & &1.name,
       agent_id_builder: fn agent, _win, session -> "#{session}-#{agent.name}" end
@@ -42,8 +42,10 @@ defmodule Ichor.Workshop.TeamSpec do
   end
 
   @doc "Builds a corrective TeamSpec for a failed MES quality gate."
-  @spec build_corrective(String.t(), String.t(), String.t() | nil, pos_integer()) :: Spec.t()
-  def build_corrective(run_id, session, reason, attempt) do
+  @spec build_corrective(String.t(), String.t(), String.t() | nil, pos_integer(), keyword()) ::
+          Spec.t()
+  def build_corrective(run_id, session, reason, attempt, opts) do
+    prompt_mod = Keyword.get(opts, :prompt_module, TeamPrompts)
     cwd = File.cwd!()
     name = "corrective-#{attempt}"
 
@@ -61,7 +63,7 @@ defmodule Ichor.Workshop.TeamSpec do
           cwd: cwd,
           team_name: session_name(run_id),
           session: session,
-          prompt: TeamPrompts.corrective(run_id, session, reason),
+          prompt: prompt_mod.corrective(run_id, session, reason),
           metadata: %{run_id: run_id}
         })
       ],
@@ -77,8 +79,10 @@ defmodule Ichor.Workshop.TeamSpec do
   # Pipeline
 
   @doc "Builds a TeamSpec for a pipeline execution run."
-  @spec build(:pipeline, map(), String.t(), String.t(), [map()], [map()], map()) :: Spec.t()
-  def build(:pipeline, run, session, brief, tasks, worker_groups, prompt_ctx) do
+  @spec build(:pipeline, map(), String.t(), String.t(), [map()], [map()], map(), keyword()) ::
+          Spec.t()
+  def build(:pipeline, run, session, brief, tasks, worker_groups, prompt_ctx, opts) do
+    prompt_mod = Keyword.get(opts, :prompt_module, PipelinePrompts)
     state = pipeline_state(session, worker_groups)
 
     shared = %{
@@ -91,7 +95,7 @@ defmodule Ichor.Workshop.TeamSpec do
     }
 
     roster = pipeline_roster(session, worker_groups)
-    prompt_map = pipeline_prompt_map(shared, roster, worker_groups)
+    prompt_map = pipeline_prompt_map(prompt_mod, shared, roster, worker_groups)
 
     build_from_state(
       state,
@@ -108,13 +112,21 @@ defmodule Ichor.Workshop.TeamSpec do
   # Planning
 
   @doc "Builds a TeamSpec for a planning mode run."
-  @spec build(:planning, String.t(), String.t(), String.t(), String.t() | nil, String.t()) ::
-          Spec.t()
-  def build(:planning, run_id, mode, _project_id, planning_project_id, brief) do
+  @spec build(
+          :planning,
+          String.t(),
+          String.t(),
+          String.t(),
+          String.t() | nil,
+          String.t(),
+          keyword()
+        ) :: Spec.t()
+  def build(:planning, run_id, mode, _project_id, planning_project_id, brief, opts) do
+    prompt_mod = Keyword.get(opts, :prompt_module)
     session = "planning-#{mode}-#{run_id}"
     state = planning_state(session, mode)
     roster = planning_roster(session, mode)
-    prompt_map = planning_prompt_map(mode, run_id, roster, planning_project_id, brief)
+    prompt_map = planning_prompt_map(prompt_mod, mode, run_id, roster, planning_project_id, brief)
 
     build_from_state(
       state,
@@ -169,13 +181,13 @@ defmodule Ichor.Workshop.TeamSpec do
     Application.get_env(:ichor, :mes_workshop_team_name, "mes")
   end
 
-  defp mes_prompt(agent, run_id, roster) do
+  defp mes_prompt(prompt_mod, agent, run_id, roster) do
     case agent.name do
-      "coordinator" -> TeamPrompts.coordinator(run_id, roster)
-      "lead" -> TeamPrompts.lead(run_id, roster)
-      "planner" -> TeamPrompts.planner(run_id, roster)
-      "researcher-1" -> TeamPrompts.researcher_1(run_id, roster)
-      "researcher-2" -> TeamPrompts.researcher_2(run_id, roster)
+      "coordinator" -> prompt_mod.coordinator(run_id, roster)
+      "lead" -> prompt_mod.lead(run_id, roster)
+      "planner" -> prompt_mod.planner(run_id, roster)
+      "researcher-1" -> prompt_mod.researcher_1(run_id, roster)
+      "researcher-2" -> prompt_mod.researcher_2(run_id, roster)
       other -> "You are #{other} for MES run #{run_id}.\n\n#{roster}"
     end
   end
@@ -245,17 +257,17 @@ defmodule Ichor.Workshop.TeamSpec do
     """
   end
 
-  defp pipeline_prompt_map(shared, roster, worker_groups) do
+  defp pipeline_prompt_map(prompt_mod, shared, roster, worker_groups) do
     shared_r = Map.put(shared, :roster, roster)
 
     workers =
       Map.new(worker_groups, fn worker ->
-        {worker.name, PipelinePrompts.worker(Map.put(shared_r, :worker, worker))}
+        {worker.name, prompt_mod.worker(Map.put(shared_r, :worker, worker))}
       end)
 
     Map.merge(workers, %{
-      "coordinator" => PipelinePrompts.coordinator(shared_r),
-      "lead" => PipelinePrompts.lead(shared_r)
+      "coordinator" => prompt_mod.coordinator(shared_r),
+      "lead" => prompt_mod.lead(shared_r)
     })
   end
 
@@ -293,27 +305,27 @@ defmodule Ichor.Workshop.TeamSpec do
     """
   end
 
-  defp planning_prompt_map("a", run_id, roster, project_id, brief) do
+  defp planning_prompt_map(prompt_mod, "a", run_id, roster, project_id, brief) do
     %{
-      "coordinator" => PlanningPrompts.mode_a_coordinator(run_id, roster, project_id, brief),
-      "architect" => PlanningPrompts.mode_a_architect(run_id, roster, project_id, brief),
-      "reviewer" => PlanningPrompts.mode_a_reviewer(run_id, roster, project_id, brief)
+      "coordinator" => prompt_mod.mode_a_coordinator(run_id, roster, project_id, brief),
+      "architect" => prompt_mod.mode_a_architect(run_id, roster, project_id, brief),
+      "reviewer" => prompt_mod.mode_a_reviewer(run_id, roster, project_id, brief)
     }
   end
 
-  defp planning_prompt_map("b", run_id, roster, project_id, brief) do
+  defp planning_prompt_map(prompt_mod, "b", run_id, roster, project_id, brief) do
     %{
-      "coordinator" => PlanningPrompts.mode_b_coordinator(run_id, roster, project_id, brief),
-      "analyst" => PlanningPrompts.mode_b_analyst(run_id, roster, project_id, brief),
-      "designer" => PlanningPrompts.mode_b_designer(run_id, roster, project_id, brief)
+      "coordinator" => prompt_mod.mode_b_coordinator(run_id, roster, project_id, brief),
+      "analyst" => prompt_mod.mode_b_analyst(run_id, roster, project_id, brief),
+      "designer" => prompt_mod.mode_b_designer(run_id, roster, project_id, brief)
     }
   end
 
-  defp planning_prompt_map("c", run_id, roster, project_id, brief) do
+  defp planning_prompt_map(prompt_mod, "c", run_id, roster, project_id, brief) do
     %{
-      "coordinator" => PlanningPrompts.mode_c_coordinator(run_id, roster, project_id, brief),
-      "planner" => PlanningPrompts.mode_c_planner(run_id, roster, project_id, brief),
-      "architect" => PlanningPrompts.mode_c_architect(run_id, roster, project_id, brief)
+      "coordinator" => prompt_mod.mode_c_coordinator(run_id, roster, project_id, brief),
+      "planner" => prompt_mod.mode_c_planner(run_id, roster, project_id, brief),
+      "architect" => prompt_mod.mode_c_architect(run_id, roster, project_id, brief)
     }
   end
 

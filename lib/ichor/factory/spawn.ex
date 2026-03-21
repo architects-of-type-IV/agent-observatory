@@ -62,7 +62,8 @@ defmodule Ichor.Factory.Spawn do
              brief,
              pipeline_tasks,
              worker_groups,
-             prompt_ctx
+             prompt_ctx,
+             prompt_module: Ichor.Workshop.PipelinePrompts
            ),
          {:ok, ^session} <- TeamLaunch.launch(spec) do
       Runner.start(:pipeline,
@@ -93,7 +94,11 @@ defmodule Ichor.Factory.Spawn do
   def spawn(:planning, mode, project_id, planning_project_id) do
     run_id = short_id()
     brief = load_project_brief(project_id)
-    spec = TeamSpec.build(:planning, run_id, mode, project_id, planning_project_id, brief)
+
+    spec =
+      TeamSpec.build(:planning, run_id, mode, project_id, planning_project_id, brief,
+        prompt_module: Ichor.Factory.PlanningPrompts
+      )
 
     case TeamLaunch.launch(spec) do
       {:ok, _session} ->

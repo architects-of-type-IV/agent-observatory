@@ -297,7 +297,8 @@ defmodule Ichor.Factory.Runner do
     team_name =
       get_in(state.config, [Access.key(:hooks), Access.key(:team_name)]) || state.session
 
-    spec = TeamSpec.build(:mes, state.run_id, team_name)
+    spec =
+      TeamSpec.build(:mes, state.run_id, team_name, prompt_module: Ichor.Workshop.TeamPrompts)
 
     case mes_team_launch().launch(spec) do
       {:ok, _session} ->
@@ -329,7 +330,10 @@ defmodule Ichor.Factory.Runner do
   defp mes_on_signal(_msg, state), do: state
 
   defp mes_spawn_corrective_agent(run_id, session, reason, attempt) do
-    spec = TeamSpec.build_corrective(run_id, session, reason, attempt)
+    spec =
+      TeamSpec.build_corrective(run_id, session, reason, attempt,
+        prompt_module: Ichor.Workshop.TeamPrompts
+      )
 
     case mes_team_launch().launch_into_existing_session(spec, session) do
       :ok ->
