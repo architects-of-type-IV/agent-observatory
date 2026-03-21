@@ -11,8 +11,11 @@ defmodule Ichor.Signals.EventStream.AgentLifecycle do
 
   require Logger
 
-  alias Ichor.Infrastructure.AgentProcess
   alias Ichor.Signals
+
+  # ETS table names -- must match the constants declared in EventStream.
+  @table :event_buffer_events
+  @aliases :ichor_session_aliases
 
   @doc """
   Resolve or create an AgentProcess for the given session_id and event.
@@ -22,7 +25,7 @@ defmodule Ichor.Signals.EventStream.AgentLifecycle do
   @spec resolve_or_create_agent(String.t(), map()) :: String.t()
   def resolve_or_create_agent(session_id, event) do
     cond do
-      AgentProcess.alive?(session_id) ->
+      session_known?(session_id) ->
         session_id
 
       match = find_agent_by_tmux(event.tmux_session) ->
@@ -42,15 +45,15 @@ defmodule Ichor.Signals.EventStream.AgentLifecycle do
   def find_agent_by_tmux(""), do: nil
 
   def find_agent_by_tmux(tmux_session) do
-    AgentProcess.list_all()
-    |> Enum.find_value(fn {id, meta} ->
-      target = meta[:tmux_target] || ""
-      session = meta[:tmux_session] || ""
-
-      if session == tmux_session or String.starts_with?(target, tmux_session <> ":") do
-        id
-      end
-    end)
+    # @aliases stores {uuid_id, tmux_session_name} entries.
+    # Find a uuid whose canonical tmux session matches the requested session name.
+    :ets.foldl(
+      fn {id, stored_session}, acc ->
+        if acc == nil and stored_session == tmux_session, do: id, else: acc
+      end,
+      nil,
+      @aliases
+    )
   end
 
   @doc "Handle a TeamCreate tool input map by emitting team_create_requested."
@@ -76,6 +79,15 @@ defmodule Ichor.Signals.EventStream.AgentLifecycle do
   # ---------------------------------------------------------------------------
   # Private helpers
   # ---------------------------------------------------------------------------
+
+  # Returns true if EventStream already has any event recorded for this session_id,
+  # or if the session_id is registered as a canonical alias. This replaces the
+  # former AgentProcess.alive?/1 check, keeping the query inside EventStream's own
+  # ETS state instead of crossing into the Infrastructure domain.
+  defp session_known?(session_id) do
+    :ets.member(@aliases, session_id) or
+      :ets.match(@table, {:_, %{session_id: session_id}}) != []
+  end
 
   defp emit_session_started(session_id, event) do
     tmux_session = if event.tmux_session != "", do: event.tmux_session, else: nil
