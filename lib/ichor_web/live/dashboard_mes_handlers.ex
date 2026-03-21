@@ -5,8 +5,8 @@ defmodule IchorWeb.DashboardMesHandlers do
   import Phoenix.LiveView, only: [put_flash: 3]
 
   alias Ichor.Factory.{
-    PipelineCompiler,
     MesScheduler,
+    PipelineCompiler,
     Project,
     Spawn
   }
@@ -191,6 +191,10 @@ defmodule IchorWeb.DashboardMesHandlers do
   end
 
   defp normalize_gate_report(report) when is_map(report) do
+    Map.merge(gate_report_counts(report), gate_report_readiness(report))
+  end
+
+  defp gate_report_counts(report) do
     %{
       project_id: report["project_id"],
       current_status: report["planning_stage"],
@@ -200,7 +204,12 @@ defmodule IchorWeb.DashboardMesHandlers do
       features: report["features"] || 0,
       use_cases: report["use_cases"] || 0,
       checkpoints: report["checkpoints"] || 0,
-      phases: report["phases"] || 0,
+      phases: report["phases"] || 0
+    }
+  end
+
+  defp gate_report_readiness(report) do
+    %{
       ready_for_define: report["ready_for_define"] || false,
       ready_for_build: report["ready_for_build"] || false,
       ready_for_complete: report["ready_for_complete"] || false

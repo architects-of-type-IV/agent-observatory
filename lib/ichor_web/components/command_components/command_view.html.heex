@@ -11,6 +11,8 @@ total_agents = length(all_agents)
 
 hitl_paused = assigns[:paused_sessions] || MapSet.new()
 names = FH.name_map(@teams, all_agents)
+pipeline_state = assigns[:pipeline_state] || %{}
+watched_projects = Map.get(pipeline_state, :watched_projects, [])
 
 mailbox_messages = assigns[:mailbox_messages] || []
 comms_filter = assigns[:comms_team_filter]
@@ -112,7 +114,7 @@ selected = @selected_command_agent %>
           <div id="project-select-stable" phx-update="ignore">
             <select name="cwd" class="ichor-select">
               <option value="">Project...</option>
-              <%= for {key, path} <- @pipeline_state.watched_projects do %>
+              <%= for {key, path} <- watched_projects do %>
                 <option value={path}>{key}</option>
               <% end %>
             </select>
