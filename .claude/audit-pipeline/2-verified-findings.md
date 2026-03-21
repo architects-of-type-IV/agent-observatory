@@ -1,46 +1,83 @@
-# Stage 2: Verified Findings
+# Stage 2: Verified Findings -- Ash Idiomacy Audit
 
-CONFIRMED: 19
-REJECTED: 2 (false positives)
-REVIEW: 0
+```
+CONFIRMED: 16 high, 18 medium
+REJECTED:  1 (H13 false positive -- emit_scoped IS in code_interface)
+REVIEW:    0
+```
 
-## CONFIRMED -- Delete
+---
 
-### Unused functions (4)
-- F1: Repo.installed_extensions/0 (repo.ex:6-8)
-- F2: CommandQueue.poll_responses/1 (command_queue.ex:34-36)
-- F3: CommandQueue.get_pending_commands/1 (command_queue.ex:41-43)
-- F4: Channels.remove_team_channel/1 (channels.ex:149-153)
+## CONFIRMED HIGH (16)
 
-### Unused Ash domains + resources (6) -- also remove from config.exs
-- F5: Observatory.Messaging.Message (messaging/message.ex)
-- F6: Observatory.Messaging (messaging.ex)
-- F7: Observatory.TaskBoard.Task (task_board/task.ex)
-- F8: Observatory.TaskBoard (task_board.ex)
-- F9: Observatory.Annotations.Note (annotations/note.ex)
-- F10: Observatory.Annotations (annotations.ex)
+### H1. after_action side effect -> notifier
+- `sync_pipeline_process.ex:10-17` -- CONFIRMED. `after_action` calls GenServer, forces `require_atomic?(false)` on 4 actions.
 
-### Unused LiveView functions (4)
-- F11: add_search_to_history (dashboard_filter_handlers.ex:110)
-- F12: filter_threads_by_participant (dashboard_message_helpers.ex:55)
-- F13: extract_participants (dashboard_message_helpers.ex:129)
-- F14: handle_edit_task (dashboard_task_handlers.ex:122)
+### H2. task_count -> aggregate
+- `pipeline.ex:57-59` -- CONFIRMED. Stored integer with `has_many :pipeline_tasks` relationship. Should be `count :task_count, :pipeline_tasks`.
 
-### Dead components (3 files + 3 delegations in observatory_components.ex)
-- F19: toast_container.ex
-- F20: session_dot.ex
-- F21: event_type_badge.ex
+### H3. get_run_status counts -> aggregates
+- `pipeline.ex:117-151` -- CONFIRMED. Fetches all tasks, maps to graph nodes, computes stats. 5 aggregate declarations would replace this.
 
-### Dead infrastructure (3 files + 1 macro + 1 test)
-- F22: page_controller.ex, page_html.ex, page_html/home.html.heex
-- F23: ObservatoryWeb.channel/0 macro (observatory_web.ex:33-36)
-- page_controller_test.exs
+### H4. Signals.emit in action body -> notifier
+- `project.ex:877,901` -- CONFIRMED. `Signals.emit(:project_artifact_created, ...)` fires pre-commit.
 
-## CONFIRMED -- Change def to defp (3)
-- F16: group_events_by_session (dashboard_feed_helpers.ex)
-- F17: pair_tool_events (dashboard_feed_helpers.ex)
-- F18: detect_tool_loops (dashboard_agent_health_helpers.ex)
+### H5. __MODULE__ self-read with bang
+- `agent.ex:77-79`, `active_team.ex:48-49` -- CONFIRMED. `Ash.read!()` in generic action run.
 
-## REJECTED (false positives)
-- F15: short_model_name -- USED in model_badge.ex:24
-- Mailbox.broadcast_to_many -- USED in inspector handlers
+### H6. allow_nil? missing on tool arguments
+- `agent.ex:147-170,213-258`, `active_team.ex:74,114` -- CONFIRMED. `:team_name`, `:backend`, `:instructions`, `:project` lack `allow_nil?: false`.
+
+### H7. Private helpers in resource body
+- `agent.ex:392+` -- CONFIRMED (scout read full file). `spawn_in_fleet/2`, `find_agent/1`, `build_agent_match/3`.
+
+### H8. Resource as pure action container
+- `agent_memory.ex` -- CONFIRMED. Zero attributes, zero relationships, no data layer.
+
+### H9. Missing error clause in run fn
+- `agent_memory.ex:305-322` -- CONFIRMED (scout read). Only matches `{:ok, agents}`, no `{:error, _}`.
+
+### H10. normalize_status(:paused) -> :idle lossy
+- `load_agents.ex:53` -- CONFIRMED. `defp normalize_status(:paused), do: :idle`
+
+### H11. health: :healthy hardcoded
+- `load_agents.ex:31` -- CONFIRMED. All agents stamped `:healthy` without computation.
+
+### H12. Duplicated load logic
+- `tool_failure.ex:41-57` -- CONFIRMED. `load_recent_errors/0` duplicates `LoadToolFailures.prepare/3`.
+
+### H14. try/rescue for control flow
+- `operations.ex:17-33` -- CONFIRMED. Rescues RuntimeError/ArgumentError/KeyError instead of checking process state.
+
+### H15. Redundant fallback + Enum.take
+- `operations.ex:103,106,110` -- CONFIRMED. `default: 20` + `|| 20` + double `Enum.take`.
+
+### H16. allow_nil? with no default but body falls back
+- `operations.ex:151,154` -- CONFIRMED. `allow_nil?: false` but no default, body does `|| 30`.
+
+### H17. Redundant set_attribute
+- `webhook_delivery.ex:40-41` -- CONFIRMED. `:status` and `:attempt_count` changes duplicate attribute defaults.
+
+---
+
+## REJECTED (1)
+
+### ~~H13. emit_scoped missing from code_interface~~ -- FALSE POSITIVE
+- `event.ex:12` has `define(:emit_scoped, args: [:name, :scope_id])`. Scout misread.
+
+---
+
+## CONFIRMED MEDIUM (18)
+
+All medium findings confirmed by scout file reads. Key ones:
+
+- **M1**: `team.ex:78` `require_atomic?(false)` with no fn-based changes -- CONFIRMED
+- **M2**: Near-duplicate spawn actions in `agent.ex` -- CONFIRMED
+- **M8**: Helpers on resource should be in ProjectView -- CONFIRMED
+- **M9**: Generic actions call raw Changeset.for_update -- CONFIRMED
+- **M11**: Bang calls in `infrastructure/operations.ex` -- CONFIRMED
+- **M15**: No code_interface on 3 Operations resources -- CONFIRMED
+- **M17**: Optional `:category` lacks explicit allow_nil? -- CONFIRMED
+- **M18**: allow_nil? missing on attributes with defaults in `agent_type.ex` -- CONFIRMED
+
+Others (M3-M7, M10, M12-M14, M16): confirmed as noted in scout reports.

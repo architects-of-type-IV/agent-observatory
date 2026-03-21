@@ -1,47 +1,41 @@
-# Stage 5: Validation Report — Dead Code Audit
+# Stage 5: Validation Report -- Ash Idiomacy Audit
 
-## Build
-- `mix compile --warnings-as-errors`: **PASS** (0 warnings, 0 errors)
-- Fix iterations: 1 (removed @doc on 3 newly-private functions)
+## Results
+- **Found (Stage 1)**: 44 (17 high, 18 medium, 9 low)
+- **False positives removed (Stage 2)**: 1 (H13)
+- **Tasks executed (Stage 4)**: 12
+- **Build**: PASS (0 new warnings, 0 errors)
+- **Remaining high instances**: 0
 
-## Completeness Check
-- Re-grep for all removed symbols: **0 remaining matches**
+## Files Changed (20)
 
-## Results Summary
-| Metric | Count |
-|--------|-------|
-| Found (Stage 1) | 23 |
-| False positives removed (Stage 2) | 2 |
-| Confirmed findings | 19 |
-| Needs review (kept) | 2 |
-| Tasks executed (Stage 4) | 6 |
-| Build | PASS (1 fix iteration) |
-| Remaining instances | 0 |
+### Modified (16)
+1. `lib/ichor/signals/operations.ex` -- try/rescue -> alive? guard, redundant fallbacks removed
+2. `lib/ichor/infrastructure/webhook_delivery.ex` -- redundant set_attribute removed
+3. `lib/ichor/factory/pipeline.ex` -- task_count attribute removed, stats from tasks
+4. `lib/ichor/factory/pipeline_task.ex` -- SyncPipelineProcess change -> notifier
+5. `lib/ichor/workshop/agent.ex` -- bang -> non-bang, allow_nil?, helpers extracted
+6. `lib/ichor/workshop/active_team.ex` -- bang -> non-bang, allow_nil? added
+7. `lib/ichor/workshop/agent_memory.ex` -- error clause added
+8. `lib/ichor/workshop/preparations/load_agents.ex` -- health :unknown, status comment
+9. `lib/ichor/signals/tool_failure.ex` -- deduplicated via code interface
+10. `lib/ichor/factory/project.ex` -- Signals.emit removed (TODO for notifier)
+11. `lib/ichor/workshop/team.ex` -- require_atomic? removed
+12. `lib/ichor/archon/manager.ex` -- input.arguments.domain
+13. `lib/ichor/infrastructure/operations.ex` -- bang -> non-bang
+14. `lib/ichor/signals/event.ex` -- allow_nil?(true) on :category
+15. `lib/ichor/workshop/agent_type.ex` -- allow_nil?(false) on 6 attributes
+16. `lib/ichor/factory/spawn.ex` -- removed task_count from pipeline attrs
 
-## Files Changed (edits)
-- `lib/observatory/repo.ex` - Removed `installed_extensions/0`
-- `lib/observatory/command_queue.ex` - Removed `poll_responses/1`, `get_pending_commands/1`, `do_get_pending_commands/1`
-- `lib/observatory/channels.ex` - Removed `remove_team_channel/1`
-- `config/config.exs` - Removed 3 unused Ash domains (Messaging, TaskBoard, Annotations)
-- `lib/observatory_web/live/dashboard_filter_handlers.ex` - Removed `add_search_to_history/2`
-- `lib/observatory_web/live/dashboard_message_helpers.ex` - Removed `filter_threads_by_participant/2`, `extract_participants/1`
-- `lib/observatory_web/live/dashboard_task_handlers.ex` - Removed `handle_edit_task/2`
-- `lib/observatory_web/live/dashboard_feed_helpers.ex` - `group_events_by_session/1`, `pair_tool_events/1` changed to defp
-- `lib/observatory_web/live/dashboard_agent_health_helpers.ex` - `detect_tool_loops/1` changed to defp
-- `lib/observatory_web/components/observatory_components.ex` - Removed 3 dead delegations
-- `lib/observatory_web.ex` - Removed dead `channel/0` macro
+### Created (2)
+17. `lib/ichor/factory/pipeline_task/notifiers/sync_runner.ex`
+18. `lib/ichor/workshop/agent_lookup.ex`
 
-## Files Moved to tmp/trash/dead-code-audit/ (13 files)
-- `lib/observatory/messaging.ex` (unused Ash domain)
-- `lib/observatory/messaging/message.ex` (unused Ash resource)
-- `lib/observatory/task_board.ex` (unused Ash domain)
-- `lib/observatory/task_board/task.ex` (unused Ash resource)
-- `lib/observatory/annotations.ex` (unused Ash domain)
-- `lib/observatory/annotations/note.ex` (unused Ash resource)
-- `lib/observatory_web/components/observatory/toast_container.ex` (dead component)
-- `lib/observatory_web/components/observatory/session_dot.ex` (dead component)
-- `lib/observatory_web/components/observatory/event_type_badge.ex` (dead component)
-- `lib/observatory_web/controllers/page_controller.ex` (dead controller)
-- `lib/observatory_web/controllers/page_html.ex` (dead view)
-- `lib/observatory_web/controllers/page_html/home.html.heex` (dead template)
-- `test/observatory_web/controllers/page_controller_test.exs` (dead test)
+### Deleted (1)
+19. `lib/ichor/factory/pipeline_task/changes/sync_pipeline_process.ex` -> tmp/trash/
+
+### Migration (1)
+20. `priv/repo/migrations/20260321024007_remove_task_count_from_pipelines.exs`
+
+## Key Discovery
+AshSqlite does not support aggregates. Task 3 adapted by computing stats from fetched tasks.
