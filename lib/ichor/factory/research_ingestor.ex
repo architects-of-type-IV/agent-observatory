@@ -11,8 +11,8 @@ defmodule Ichor.Factory.ResearchIngestor do
 
   require Logger
 
-  alias Ichor.Infrastructure.MemoriesClient
   alias Ichor.Factory.Project
+  alias Ichor.Infrastructure.MemoriesClient
   alias Ichor.Signals
   alias Ichor.Signals.Message
 

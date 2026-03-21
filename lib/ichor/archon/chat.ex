@@ -10,8 +10,8 @@ defmodule Ichor.Archon.Chat do
   """
 
   alias Ichor.Archon.{CommandManifest, Manager, Memory}
-  alias Ichor.Infrastructure.MemoriesClient
   alias Ichor.Factory.{Floor, Project}
+  alias Ichor.Infrastructure.MemoriesClient
   alias Ichor.Infrastructure.Operations, as: InfrastructureOps
   alias Ichor.Signals.Operations, as: SignalOps
   alias Ichor.Workshop.{ActiveTeam, Agent}

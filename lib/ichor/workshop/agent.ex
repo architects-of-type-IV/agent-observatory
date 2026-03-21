@@ -75,27 +75,26 @@ defmodule Ichor.Workshop.Agent do
       description("List all live agents with their current runtime status.")
 
       run(fn _input, _context ->
-        with {:ok, agents} <-
-               __MODULE__
-               |> Ash.Query.for_read(:active)
-               |> Ash.read() do
-          {:ok,
-           Enum.map(agents, fn agent ->
-             %{
-               "id" => agent.agent_id,
-               "name" => agent.short_name || agent.name || agent.agent_id,
-               "session_id" => agent.session_id,
-               "team" => agent.team_name,
-               "role" => agent.role,
-               "status" => agent.status,
-               "model" => agent.model,
-               "cwd" => agent.cwd,
-               "current_tool" => agent.current_tool,
-               "last_event_at" => agent.last_event_at
-             }
-           end)}
-        else
-          {:error, reason} -> {:error, reason}
+        case __MODULE__ |> Ash.Query.for_read(:active) |> Ash.read() do
+          {:ok, agents} ->
+            {:ok,
+             Enum.map(agents, fn agent ->
+               %{
+                 "id" => agent.agent_id,
+                 "name" => agent.short_name || agent.name || agent.agent_id,
+                 "session_id" => agent.session_id,
+                 "team" => agent.team_name,
+                 "role" => agent.role,
+                 "status" => agent.status,
+                 "model" => agent.model,
+                 "cwd" => agent.cwd,
+                 "current_tool" => agent.current_tool,
+                 "last_event_at" => agent.last_event_at
+               }
+             end)}
+
+          {:error, reason} ->
+            {:error, reason}
         end
       end)
     end

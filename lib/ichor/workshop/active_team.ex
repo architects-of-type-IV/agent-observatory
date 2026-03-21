@@ -43,29 +43,28 @@ defmodule Ichor.Workshop.ActiveTeam do
       description("List all active teams with their members and health status.")
 
       run(fn _input, _context ->
-        with {:ok, teams} <-
-               __MODULE__
-               |> Ash.Query.for_read(:alive)
-               |> Ash.read() do
-          {:ok,
-           Enum.map(teams, fn team ->
-             %{
-               "name" => team.name,
-               "members" =>
-                 Enum.map(team.members, fn member ->
-                   %{
-                     "session_id" => member[:agent_id] || member[:session_id],
-                     "role" => member[:role] || member[:name],
-                     "status" => member[:status]
-                   }
-                 end),
-               "member_count" => team.member_count,
-               "health" => team.health,
-               "source" => team.source
-             }
-           end)}
-        else
-          {:error, reason} -> {:error, reason}
+        case __MODULE__ |> Ash.Query.for_read(:alive) |> Ash.read() do
+          {:ok, teams} ->
+            {:ok,
+             Enum.map(teams, fn team ->
+               %{
+                 "name" => team.name,
+                 "members" =>
+                   Enum.map(team.members, fn member ->
+                     %{
+                       "session_id" => member[:agent_id] || member[:session_id],
+                       "role" => member[:role] || member[:name],
+                       "status" => member[:status]
+                     }
+                   end),
+                 "member_count" => team.member_count,
+                 "health" => team.health,
+                 "source" => team.source
+               }
+             end)}
+
+          {:error, reason} ->
+            {:error, reason}
         end
       end)
     end

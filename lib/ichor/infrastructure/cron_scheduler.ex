@@ -14,31 +14,31 @@ defmodule Ichor.Infrastructure.CronScheduler do
   @spec schedule_once(String.t(), pos_integer(), term()) ::
           :ok | {:error, :invalid_delay | :insert_failed}
   def schedule_once(agent_id, delay_ms, payload) do
-    with :ok <- CronSchedule.validate_delay(delay_ms) do
-      next_fire_at = CronSchedule.next_fire_at(delay_ms)
-      encoded = Jason.encode!(payload)
+    with :ok <- CronSchedule.validate_delay(delay_ms),
+         next_fire_at = CronSchedule.next_fire_at(delay_ms),
+         encoded = Jason.encode!(payload),
+         {:ok, job} <- CronJob.schedule_once(agent_id, encoded, next_fire_at) do
+      enqueue_once_job(job, agent_id, encoded, delay_ms)
+    else
+      {:error, _} -> {:error, :insert_failed}
+    end
+  end
 
-      case CronJob.schedule_once(agent_id, encoded, next_fire_at) do
-        {:ok, job} ->
-          delay_seconds = div(delay_ms, 1000)
+  defp enqueue_once_job(job, agent_id, encoded, delay_ms) do
+    delay_seconds = div(delay_ms, 1000)
 
-          case %{"job_id" => job.id, "agent_id" => agent_id, "payload" => encoded}
-               |> ScheduledJob.new(
-                 schedule_in: delay_seconds,
-                 unique: [period: 120, keys: [:job_id]]
-               )
-               |> Oban.insert() do
-            {:ok, _} ->
-              :ok
+    case %{"job_id" => job.id, "agent_id" => agent_id, "payload" => encoded}
+         |> ScheduledJob.new(
+           schedule_in: delay_seconds,
+           unique: [period: 120, keys: [:job_id]]
+         )
+         |> Oban.insert() do
+      {:ok, _} ->
+        :ok
 
-            {:error, _reason} ->
-              CronJob.complete(job)
-              {:error, :insert_failed}
-          end
-
-        {:error, _reason} ->
-          {:error, :insert_failed}
-      end
+      {:error, _reason} ->
+        CronJob.complete(job)
+        {:error, :insert_failed}
     end
   end
 

@@ -873,7 +873,7 @@ defmodule Ichor.Factory.Project do
     with {:ok, project} <- Ash.get(__MODULE__, project_id),
          a <- artifact(attrs: Map.put(attrs, :kind, kind)),
          {:ok, updated} <- put_artifact(project, a) do
-      # TODO: emit :project_artifact_created signal via a notifier once a pattern for
+      # FIXME: emit :project_artifact_created signal via a notifier once a pattern for
       # extracting the new artifact id and kind from the update notification is established.
       # The embedded artifact id (a.id) and kind are not derivable from the generic update
       # notification data without diffing the artifacts array.
@@ -895,7 +895,7 @@ defmodule Ichor.Factory.Project do
     with {:ok, project} <- Ash.get(__MODULE__, project_id),
          item <- roadmap_item(attrs),
          {:ok, updated} <- put_roadmap_item(project, item) do
-      # TODO: emit :project_artifact_created signal via a notifier once a pattern for
+      # FIXME: emit :project_artifact_created signal via a notifier once a pattern for
       # extracting the new roadmap item id and kind from the update notification is established.
       # The embedded item id (item.id) and kind are not derivable from the generic update
       # notification data without diffing the roadmap_items array.

@@ -11,7 +11,7 @@ defmodule Ichor.Factory.ProjectIngestor do
   Messages arrive with atom keys from Delivery.normalize/2.
   Only processes messages sent TO "operator" FROM "mes-*" sessions.
   """
-  # todo: maybe remove all mes_ references.
+  # FIXME: maybe remove all mes_ references.
   use GenServer
 
   require Logger
@@ -44,7 +44,9 @@ defmodule Ichor.Factory.ProjectIngestor do
         from = get_in(data, [:msg_map, :from]) || ""
 
         if String.starts_with?(from, "mes-") do
-          Logger.debug("[ProjectIngestor] Skipped MES message from #{from}: missing required fields")
+          Logger.debug(
+            "[ProjectIngestor] Skipped MES message from #{from}: missing required fields"
+          )
         end
     end
 

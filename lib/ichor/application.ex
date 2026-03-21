@@ -6,6 +6,7 @@ defmodule Ichor.Application do
   use Application
 
   alias Ichor.Infrastructure.AgentLaunch
+  alias Ichor.Infrastructure.CronScheduler
   alias Ichor.Notes
   alias Ichor.Signals.Bus
 
@@ -79,7 +80,7 @@ defmodule Ichor.Application do
     Task.start(fn ->
       try do
         ensure_tmux_server()
-        Ichor.Infrastructure.CronScheduler.recover_jobs()
+        CronScheduler.recover_jobs()
       rescue
         _ -> :ok
       end

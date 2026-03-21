@@ -17,35 +17,42 @@ defmodule Ichor.Factory.Workers.ResetRunTasksWorker do
   @impl Oban.Worker
   def perform(%Oban.Job{args: %{"run_id" => run_id}}) do
     case PipelineTask.by_run(run_id) do
-      {:ok, pipeline_tasks} ->
-        in_progress = Enum.filter(pipeline_tasks, &(&1.status == :in_progress))
+      {:ok, pipeline_tasks} -> reset_in_progress(pipeline_tasks, run_id)
+      {:error, reason} -> fetch_failed(run_id, reason)
+    end
+  end
 
-        errors =
-          Enum.flat_map(in_progress, fn task ->
-            case PipelineTask.reset(task) do
-              {:ok, _} ->
-                []
+  defp reset_in_progress(pipeline_tasks, run_id) do
+    errors =
+      pipeline_tasks
+      |> Enum.filter(&(&1.status == :in_progress))
+      |> Enum.flat_map(&reset_task(&1, run_id))
 
-              {:error, reason} ->
-                Logger.warning(
-                  "[ResetRunTasksWorker] Failed to reset task #{task.id} for run #{run_id}: #{inspect(reason)}"
-                )
+    case errors do
+      [] -> :ok
+      [first | _] -> {:error, first}
+    end
+  end
 
-                [reason]
-            end
-          end)
-
-        case errors do
-          [] -> :ok
-          [first | _] -> {:error, first}
-        end
+  defp reset_task(task, run_id) do
+    case PipelineTask.reset(task) do
+      {:ok, _} ->
+        []
 
       {:error, reason} ->
         Logger.warning(
-          "[ResetRunTasksWorker] Failed to fetch tasks for run #{run_id}: #{inspect(reason)}"
+          "[ResetRunTasksWorker] Failed to reset task #{task.id} for run #{run_id}: #{inspect(reason)}"
         )
 
-        {:error, reason}
+        [reason]
     end
+  end
+
+  defp fetch_failed(run_id, reason) do
+    Logger.warning(
+      "[ResetRunTasksWorker] Failed to fetch tasks for run #{run_id}: #{inspect(reason)}"
+    )
+
+    {:error, reason}
   end
 end

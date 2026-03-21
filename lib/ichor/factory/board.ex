@@ -67,12 +67,7 @@ defmodule Ichor.Factory.Board do
       |> Enum.filter(&String.ends_with?(&1, ".json"))
       |> Enum.map(&read_task_or_nil(team_dir, &1))
       |> Enum.reject(&is_nil/1)
-      |> Enum.sort_by(fn task ->
-        case Integer.parse(task["id"] || "") do
-          {n, _} -> n
-          :error -> 0
-        end
-      end)
+      |> Enum.sort_by(&task_sort_key/1)
     else
       []
     end
@@ -88,12 +83,7 @@ defmodule Ichor.Factory.Board do
         team_dir
         |> File.ls!()
         |> Enum.filter(&String.ends_with?(&1, ".json"))
-        |> Enum.flat_map(fn file ->
-          case Integer.parse(String.replace_suffix(file, ".json", "")) do
-            {n, ""} -> [n]
-            _ -> []
-          end
-        end)
+        |> Enum.flat_map(&parse_task_id_from_file/1)
         |> Enum.max(fn -> 0 end)
 
       max_id + 1
@@ -217,6 +207,20 @@ defmodule Ichor.Factory.Board do
     Map.merge(map1, map2, fn _key, v1, v2 ->
       if is_map(v1) and is_map(v2), do: deep_merge(v1, v2), else: v2
     end)
+  end
+
+  defp task_sort_key(task) do
+    case Integer.parse(task["id"] || "") do
+      {n, _} -> n
+      :error -> 0
+    end
+  end
+
+  defp parse_task_id_from_file(file) do
+    case Integer.parse(String.replace_suffix(file, ".json", "")) do
+      {n, ""} -> [n]
+      _ -> []
+    end
   end
 
   defp emit(signal, team_name, payload) do

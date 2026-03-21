@@ -18,21 +18,36 @@ defmodule Ichor.Infrastructure.TeamLaunch.Session do
   """
   @spec create_all(map(), map()) :: :ok | {:error, term()}
   def create_all(%{session: session, cwd: cwd, agents: [first | rest]}, scripts) do
-    with :ok <- Launcher.create_session(session, cwd, first.window_name, Map.fetch!(scripts, first.window_name)),
-         :ok <- create_remaining_windows(session, cwd, rest, scripts) do
-      :ok
+    with :ok <-
+           Launcher.create_session(
+             session,
+             cwd,
+             first.window_name,
+             Map.fetch!(scripts, first.window_name)
+           ) do
+      create_remaining_windows(session, cwd, rest, scripts)
     end
   end
 
   @doc "Add a single window to an existing session for `agent`."
   @spec create_window(String.t(), String.t(), map(), map()) :: :ok | {:error, term()}
   def create_window(session, cwd, agent, scripts) do
-    Launcher.create_window(session, agent.window_name, cwd, Map.fetch!(scripts, agent.window_name))
+    Launcher.create_window(
+      session,
+      agent.window_name,
+      cwd,
+      Map.fetch!(scripts, agent.window_name)
+    )
   end
 
   defp create_remaining_windows(session, cwd, agents, scripts) do
     Enum.reduce_while(agents, :ok, fn agent, :ok ->
-      case Launcher.create_window(session, agent.window_name, cwd, Map.fetch!(scripts, agent.window_name)) do
+      case Launcher.create_window(
+             session,
+             agent.window_name,
+             cwd,
+             Map.fetch!(scripts, agent.window_name)
+           ) do
         :ok -> {:cont, :ok}
         {:error, reason} -> {:halt, {:error, reason}}
       end

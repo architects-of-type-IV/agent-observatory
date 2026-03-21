@@ -10,8 +10,8 @@ defmodule Ichor.Infrastructure.TeamLaunch do
   On failure, `TeamLaunch.Rollback` cleans up any partially-created resources.
   """
 
-  alias Ichor.Infrastructure.TeamSpec
   alias Ichor.Infrastructure.TeamLaunch.{Registration, Rollback, Scripts, Session}
+  alias Ichor.Infrastructure.TeamSpec
 
   @doc "Launch a full multi-agent team: creates tmux session, all windows, and registers all agents."
   @spec launch(TeamSpec.t()) :: {:ok, String.t()} | {:error, term()}
@@ -49,5 +49,6 @@ defmodule Ichor.Infrastructure.TeamLaunch do
 
   @doc "Tear down by explicit parts rather than a spec struct. Same idempotent semantics."
   @spec teardown(String.t(), String.t(), String.t() | nil) :: :ok
-  def teardown(session, team_name, prompt_dir), do: Rollback.teardown(session, team_name, prompt_dir)
+  def teardown(session, team_name, prompt_dir),
+    do: Rollback.teardown(session, team_name, prompt_dir)
 end
