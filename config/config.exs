@@ -75,6 +75,12 @@ config :ichor, Oban,
   notifier: Oban.Notifiers.PG,
   peer: Oban.Peers.Global,
   prefix: false,
+  plugins: [
+    {Oban.Plugins.Cron,
+     crontab: [
+       {"* * * * *", Ichor.Factory.Workers.MesTick}
+     ]}
+  ],
   queues: [
     webhooks: 10,
     quality_gate: 4,

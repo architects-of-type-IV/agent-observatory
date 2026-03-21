@@ -6,7 +6,8 @@ defmodule Ichor.Factory.LifecycleSupervisor do
   - run supervisors for planning and build runs
   - project ingestion and research ingestion
   - completion handling
-  - the MES scheduler
+
+  The MES tick is now driven by Oban cron (`Workers.MesTick`).
 
   Operator delivery depends on an `operator` AgentProcess existing in the
   unified fleet runtime, so this supervisor ensures that process on startup.
@@ -38,8 +39,7 @@ defmodule Ichor.Factory.LifecycleSupervisor do
       {DynamicSupervisor, name: Ichor.Factory.BuildRunSupervisor, strategy: :one_for_one},
       {Ichor.Factory.ProjectIngestor, []},
       {Ichor.Factory.ResearchIngestor, []},
-      {Ichor.Factory.CompletionHandler, []},
-      {Ichor.Factory.MesScheduler, []}
+      {Ichor.Factory.CompletionHandler, []}
     ]
 
     Supervisor.init(children, strategy: :rest_for_one, max_restarts: 10, max_seconds: 60)
