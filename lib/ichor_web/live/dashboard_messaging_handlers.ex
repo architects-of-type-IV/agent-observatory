@@ -73,10 +73,8 @@ defmodule IchorWeb.DashboardMessagingHandlers do
   end
 
   def handle_new_mailbox_message(_message, socket) do
-    {:noreply, refresh_mailbox_assigns(socket)}
+    {:noreply, socket}
   end
-
-  def refresh_mailbox_assigns(socket), do: socket
 
   def subscribe_to_mailboxes(sessions) do
     Enum.each(sessions, fn s ->

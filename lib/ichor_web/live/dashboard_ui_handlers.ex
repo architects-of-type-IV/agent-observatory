@@ -55,14 +55,6 @@ defmodule IchorWeb.DashboardUIHandlers do
     socket |> Phoenix.Component.assign(:show_shortcuts_help, !socket.assigns.show_shortcuts_help)
   end
 
-  def handle_close_detail(_params, socket) do
-    socket |> Phoenix.Component.assign(:selected_event, nil)
-  end
-
-  def handle_close_task_detail(_params, socket) do
-    socket |> Phoenix.Component.assign(:selected_task, nil)
-  end
-
   def handle_toggle_event_detail(%{"id" => id}, socket) do
     expanded = socket.assigns[:expanded_events] || []
     new_expanded = if id in expanded, do: List.delete(expanded, id), else: [id | expanded]

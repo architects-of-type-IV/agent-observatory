@@ -25,9 +25,9 @@ defmodule IchorWeb.DashboardViewRouter do
     "session_cluster" => {:command, []}
   }
 
-  def resolve(mode) when is_atom(mode), do: {mode, []}
+  defp resolve(mode) when is_atom(mode), do: {mode, []}
 
-  def resolve(mode) when is_binary(mode) do
+  defp resolve(mode) when is_binary(mode) do
     Map.get_lazy(@mode_mappings, mode, fn -> resolve_dynamic(mode) end)
   end
 

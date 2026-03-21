@@ -54,35 +54,4 @@ defmodule IchorWeb.Components.MesStatusComponents do
     </span>
     """
   end
-
-  attr :project, :map, required: true
-
-  def action_button(%{project: %{status: :proposed}} = assigns) do
-    ~H"""
-    <button
-      phx-click="mes_pick_up"
-      phx-value-id={@project.id}
-      class="px-2.5 py-1 text-[10px] font-semibold rounded bg-brand/15 text-brand hover:bg-brand/25 transition-colors"
-    >
-      Pick Up
-    </button>
-    """
-  end
-
-  def action_button(%{project: %{status: :compiled}} = assigns) do
-    ~H"""
-    <button
-      phx-click="mes_load_plugin"
-      phx-value-id={@project.id}
-      class="px-2.5 py-1 text-[10px] font-semibold rounded bg-success/15 text-success hover:bg-success/25 transition-colors"
-    >
-      Load into BEAM
-    </button>
-    """
-  end
-
-  def action_button(assigns) do
-    ~H"""
-    """
-  end
 end
