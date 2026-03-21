@@ -129,13 +129,13 @@ defmodule Ichor.Workshop.TeamPrompts do
 
     1. from: "mes-#{run_id}-lead", to: "mes-#{run_id}-researcher-1"
        content: "START NOW. Research ONE of these open gaps:
-    #{context.open_gaps}
+    #{Map.get(context, :open_gaps, "")}
     Pick the domain you find most promising. Do max 3 web searches.
     Send your proposal to mes-#{run_id}-lead when done."
 
     2. from: "mes-#{run_id}-lead", to: "mes-#{run_id}-researcher-2"
        content: "START NOW. Research a DIFFERENT open gap than researcher-1 will cover:
-    #{context.open_gaps}
+    #{Map.get(context, :open_gaps, "")}
     Pick a different angle. Do max 3 web searches.
     Send your proposal to mes-#{run_id}-lead when done."
 
@@ -222,7 +222,7 @@ defmodule Ichor.Workshop.TeamPrompts do
     You MUST call send_message to deliver this. Do NOT just write the brief as text output.
 
     EXISTING PLUGINS (do NOT brief any of these):
-    #{context.existing_plugins}
+    #{Map.get(context, :existing_plugins, "")}
 
     DO NOT produce a brief for any plugin listed above. If the winning proposal
     duplicates an existing plugin, reject it and ask lead for the next-best proposal.
@@ -270,7 +270,7 @@ defmodule Ichor.Workshop.TeamPrompts do
     - LiveView dashboard: real-time UI on port 4005
 
     OPEN GAPS (what the system cannot do yet):
-    #{context.open_gaps}
+    #{Map.get(context, :open_gaps, "")}
 
     YOUR JOB: Find a gap and fill it. Build the bridge between what
     the system CAN observe internally and what it CANNOT do externally.
@@ -284,18 +284,18 @@ defmodule Ichor.Workshop.TeamPrompts do
     ============================================================
     EXISTING PLUGINS (do NOT duplicate)
     ============================================================
-    #{context.existing_plugins}
+    #{Map.get(context, :existing_plugins, "")}
 
     ============================================================
     DEAD ZONES -- DO NOT PROPOSE ANY VARIANT OF THESE
     ============================================================
-    #{context.dead_zones}
+    #{Map.get(context, :dead_zones, "")}
 
     ============================================================
     REAL PROBLEMS THE OPERATOR WANTS SOLVED
     ============================================================
     These are actual pain points. Propose something that solves one:
-    #{context.pain_points}
+    #{Map.get(context, :pain_points, "")}
     These are examples, not requirements. Solve any real problem.
 
     ============================================================
@@ -387,20 +387,20 @@ defmodule Ichor.Workshop.TeamPrompts do
     SQLite persistence, LiveView dashboard.
 
     OPEN GAPS (what the system cannot do yet):
-    #{context.open_gaps}
+    #{Map.get(context, :open_gaps, "")}
 
     EXISTING PLUGINS (do NOT duplicate):
-    #{context.existing_plugins}
+    #{Map.get(context, :existing_plugins, "")}
 
     ============================================================
     DEAD ZONES -- REJECT ANY PROPOSAL IN THESE AREAS
     ============================================================
-    #{context.dead_zones}
+    #{Map.get(context, :dead_zones, "")}
 
     ============================================================
     REAL PROBLEMS TO SOLVE
     ============================================================
-    #{context.pain_points}
+    #{Map.get(context, :pain_points, "")}
 
     ============================================================
     WHAT MAKES A GOOD PLUGIN
