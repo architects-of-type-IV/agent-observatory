@@ -283,10 +283,24 @@ let Hooks = {
       this.archonObserver.observe(document.body, { childList: true, subtree: true })
 
       window.addEventListener("keydown", this.handleKeydown)
+
+      // Measure app header height and set CSS variable for floating panels
+      const measureHeader = () => {
+        const header = this.el.querySelector("header")
+        if (header) {
+          const h = header.getBoundingClientRect().bottom
+          document.documentElement.style.setProperty("--app-header-h", `${h}px`)
+        }
+      }
+      measureHeader()
+      this._headerRo = new ResizeObserver(measureHeader)
+      const header = this.el.querySelector("header")
+      if (header) this._headerRo.observe(header)
     },
     destroyed() {
       window.removeEventListener("keydown", this.handleKeydown)
       if (this.archonObserver) this.archonObserver.disconnect()
+      if (this._headerRo) this._headerRo.disconnect()
     }
   },
   ScrollBottom: {

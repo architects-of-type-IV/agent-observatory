@@ -6,7 +6,8 @@ defmodule IchorWeb.Components.TerminalPanel.Helpers do
   so the panel never overlaps navigation. Width and height are independent.
   """
 
-  @header "6.5rem"
+  # Dynamic: JS measures actual header and sets --app-header-h on :root
+  @header "var(--app-header-h, 7.5rem)"
   @gap "1rem"
 
   @spec split_sessions(list(), String.t() | nil, atom()) :: list()

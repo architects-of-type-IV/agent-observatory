@@ -6,7 +6,7 @@ defmodule IchorWeb.Components.ArchonComponents.PanelHelpers do
   Respects app header clearance (6.5rem).
   """
 
-  @header "6.5rem"
+  @header "var(--app-header-h, 7.5rem)"
   @gap "1rem"
 
   @positions [:center, :bottom, :top, :left, :right]
