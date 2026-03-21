@@ -2,7 +2,7 @@ defmodule Ichor.Factory.ResearchStore do
   @moduledoc """
   Read-only interface to the Memories knowledge graph for MES research.
   Wraps GET endpoints for entities, facts, and episodes scoped to the
-  research space. Uses the same config as `Ichor.Archon.MemoriesClient`.
+  research space. Uses the same config as `Ichor.Infrastructure.MemoriesClient`.
   """
 
   require Logger
