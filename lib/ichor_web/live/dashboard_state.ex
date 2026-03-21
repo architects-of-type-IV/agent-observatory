@@ -65,7 +65,6 @@ defmodule IchorWeb.DashboardState do
       comms_agent_filter: [],
       sidebar_collapsed: false,
       active_tmux_session: nil,
-      tmux_output: "",
       tmux_sessions: [],
       tmux_panels: [],
       tmux_outputs: %{},

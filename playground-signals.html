@@ -8,619 +8,506 @@
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
   :root {
-    --bg:         #0a0a0f;
-    --bg-panel:   #0e0e16;
-    --bg-row:     #11111a;
-    --bg-hover:   #17172a;
-    --border:     #1e1e2e;
-    --border-hi:  #2a2a40;
-    --text:       #c8c8d4;
-    --text-dim:   #5a5a7a;
-    --text-muted: #3a3a55;
-    --mono:       'Courier New', Courier, monospace;
+    /* === EXACT APP THEME (oklch) === */
+    --base-100:     oklch(30.33% 0.016 252.42);
+    --base-200:     oklch(25.26% 0.014 253.1);
+    --base-300:     oklch(20.15% 0.012 254.09);
+    --base-content: oklch(97.807% 0.029 256.847);
+    --primary:      oklch(58% 0.233 277.117);
+    --success:      oklch(60% 0.118 184.704);
+    --warning:      oklch(66% 0.179 58.318);
+    --error:        oklch(58% 0.253 17.585);
+    --info:         oklch(58% 0.158 241.966);
 
-    --c-green:    #22c55e;
-    --c-amber:    #f59e0b;
-    --c-red:      #ef4444;
-    --c-blue:     #3b82f6;
-    --c-purple:   #a855f7;
-    --c-cyan:     #06b6d4;
-    --c-orange:   #f97316;
-    --c-pink:     #ec4899;
-    --c-lime:     #84cc16;
-    --c-teal:     #14b8a6;
-    --c-indigo:   #6366f1;
-    --c-rose:     #f43f5e;
-    --c-yellow:   #eab308;
-    --c-sky:      #0ea5e9;
-    --c-slate:    #94a3b8;
+    /* derived surfaces */
+    --bg:         var(--base-100);
+    --bg-panel:   var(--base-200);
+    --bg-deep:    var(--base-300);
+    --bg-hover:   oklch(33% 0.017 252.42);
+    --bg-input:   oklch(22% 0.013 254.09);
+    --border:     oklch(36% 0.015 252.42);
+    --border-hi:  oklch(40% 0.018 252.42);
+    --text:       var(--base-content);
+    --text-dim:   oklch(72% 0.02 256.847);
+    --text-muted: oklch(50% 0.015 256.847);
+    --text-faint: oklch(38% 0.012 256.847);
 
-    --accent:     #22c55e;
-    --accent-dim: #166534;
+    /* category colors (hex for JS compat) */
+    --c-primary:  oklch(58% 0.233 277.117);
+    --c-green:    oklch(60% 0.118 184.704);
+    --c-amber:    oklch(66% 0.179 58.318);
+    --c-red:      oklch(58% 0.253 17.585);
+    --c-blue:     oklch(58% 0.158 241.966);
+    --c-cyan:     oklch(65% 0.15 200);
+    --c-indigo:   oklch(60% 0.2 270);
+
+    --radius-field: 0.25rem;
+    --radius-box:   0.5rem;
+    --border-w:     1.5px;
+
+    --font-ui:   system-ui, -apple-system, sans-serif;
+    --font-mono: ui-monospace, 'Cascadia Code', 'Fira Code', 'Courier New', monospace;
   }
 
-  html, body { height: 100%; background: var(--bg); color: var(--text); font-family: var(--mono); font-size: 13px; }
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-ui);
+    font-size: 13px;
+    -webkit-font-smoothing: antialiased;
+  }
 
-  /* ─── LAYOUT ─── */
+  /* ── LAYOUT ── */
   #app { display: flex; height: 100vh; overflow: hidden; }
 
+  /* ── LEFT PANEL ── */
   #left-panel {
-    width: 320px;
-    min-width: 320px;
+    width: 320px; min-width: 320px;
     background: var(--bg-panel);
-    border-right: 1px solid var(--border);
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
+    border-right: var(--border-w) solid var(--border);
+    display: flex; flex-direction: column; overflow: hidden;
   }
 
+  /* ── RIGHT PANEL ── */
   #right-panel {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    min-width: 0;
+    flex: 1; display: flex; flex-direction: column;
+    overflow: hidden; min-width: 0;
   }
 
-  /* ─── LEFT HEADER ─── */
+  /* ── SECTION HEADERS ── */
   .panel-header {
-    padding: 10px 12px;
-    border-bottom: 1px solid var(--border);
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex-shrink: 0;
+    padding: 9px 12px;
+    border-bottom: var(--border-w) solid var(--border);
+    display: flex; align-items: center; gap: 8px;
+    flex-shrink: 0; background: var(--bg-deep);
   }
   .panel-header h2 {
-    font-size: 11px;
-    letter-spacing: 0.15em;
-    text-transform: uppercase;
-    color: var(--text-dim);
-    flex: 1;
+    font-size: 10px; letter-spacing: 0.18em;
+    text-transform: uppercase; color: var(--text-dim);
+    font-family: var(--font-mono); flex: 1; font-weight: 600;
   }
-  .panel-header .status-dot {
-    width: 7px; height: 7px;
-    border-radius: 50%;
-    background: var(--c-green);
-    box-shadow: 0 0 5px var(--c-green);
-    animation: pulse-green 2s ease-in-out infinite;
+  .status-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--c-green); box-shadow: 0 0 5px var(--c-green);
+    animation: pulse-status 2s ease-in-out infinite; flex-shrink: 0;
+  }
+  .panel-header small {
+    font-size: 10px; color: var(--text-faint); font-family: var(--font-mono);
   }
 
-  /* ─── TABS ─── */
-  #left-tabs {
-    display: flex;
-    border-bottom: 1px solid var(--border);
-    flex-shrink: 0;
+  /* ── TABS (nav) ── */
+  nav#left-tabs {
+    display: flex; border-bottom: var(--border-w) solid var(--border);
+    flex-shrink: 0; background: var(--bg-panel);
   }
-  .tab-btn {
-    flex: 1;
-    padding: 7px 0;
-    background: none;
-    border: none;
-    color: var(--text-dim);
-    cursor: pointer;
-    font-family: var(--mono);
-    font-size: 11px;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    border-bottom: 2px solid transparent;
-    transition: all 0.15s;
+  nav#left-tabs button {
+    flex: 1; padding: 8px 0; background: none; border: none;
+    color: var(--text-muted); cursor: pointer;
+    font-family: var(--font-ui); font-size: 11px;
+    letter-spacing: 0.08em; text-transform: uppercase;
+    border-bottom: 2px solid transparent; transition: all 0.15s;
   }
-  .tab-btn:hover { color: var(--text); background: var(--bg-hover); }
-  .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+  nav#left-tabs button:hover { color: var(--text); background: var(--bg-hover); }
+  nav#left-tabs button.active { color: var(--c-primary); border-bottom-color: var(--c-primary); }
 
-  /* ─── SEARCH ─── */
-  #catalog-search-wrap {
-    padding: 8px 10px;
-    border-bottom: 1px solid var(--border);
-    flex-shrink: 0;
+  /* ── SEARCH SECTION ── */
+  section#catalog-search-wrap {
+    padding: 8px 10px; border-bottom: var(--border-w) solid var(--border);
+    flex-shrink: 0; background: var(--bg-panel);
   }
-  .search-input {
-    width: 100%;
-    background: var(--bg);
-    border: 1px solid var(--border-hi);
-    color: var(--text);
-    font-family: var(--mono);
-    font-size: 12px;
-    padding: 5px 8px;
-    outline: none;
-    transition: border-color 0.15s;
+  input.input {
+    width: 100%; background: var(--bg-input);
+    border: var(--border-w) solid var(--border-hi);
+    border-radius: var(--radius-field);
+    color: var(--text); font-family: var(--font-ui);
+    font-size: 12px; padding: 6px 10px; outline: none;
+    transition: border-color 0.15s, box-shadow 0.15s;
   }
-  .search-input:focus { border-color: var(--accent-dim); }
-  .search-input::placeholder { color: var(--text-muted); }
+  input.input:focus {
+    border-color: var(--c-primary);
+    box-shadow: 0 0 0 2px oklch(58% 0.233 277.117 / 0.15);
+  }
+  input.input::placeholder { color: var(--text-faint); }
 
-  /* ─── CATALOG SCROLL ─── */
+  /* ── CATALOG SCROLL ── */
   #catalog-content {
-    flex: 1;
-    overflow-y: auto;
-    overflow-x: hidden;
+    flex: 1; overflow-y: auto; overflow-x: hidden;
   }
   #catalog-content::-webkit-scrollbar { width: 4px; }
-  #catalog-content::-webkit-scrollbar-track { background: var(--bg); }
-  #catalog-content::-webkit-scrollbar-thumb { background: var(--border-hi); }
+  #catalog-content::-webkit-scrollbar-track { background: var(--bg-deep); }
+  #catalog-content::-webkit-scrollbar-thumb { background: var(--border-hi); border-radius: 2px; }
 
-  /* ─── ACCORDION ─── */
-  .category-group { border-bottom: 1px solid var(--border); }
-  .category-header {
-    display: flex;
-    align-items: center;
-    padding: 7px 10px;
-    cursor: pointer;
-    user-select: none;
-    transition: background 0.12s;
-    position: relative;
-    gap: 6px;
+  /* ── ACCORDION (section + header + article) ── */
+  section.category-group { border-bottom: var(--border-w) solid var(--border); }
+  header.category-header {
+    display: flex; align-items: center;
+    padding: 7px 10px; cursor: pointer; user-select: none;
+    transition: background 0.12s; gap: 7px;
   }
-  .category-header:hover { background: var(--bg-hover); }
+  header.category-header:hover { background: var(--bg-hover); }
+
   .cat-indicator {
-    width: 8px; height: 8px;
-    border-radius: 1px;
-    flex-shrink: 0;
+    width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0;
   }
   .cat-name {
-    flex: 1;
-    font-size: 11px;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    font-weight: bold;
+    flex: 1; font-size: 10px; letter-spacing: 0.12em;
+    text-transform: uppercase; font-weight: 600; font-family: var(--font-mono);
   }
-  .cat-count {
-    font-size: 10px;
-    color: var(--text-muted);
-    padding: 1px 4px;
-    border: 1px solid var(--border);
+  .badge {
+    font-size: 10px; color: var(--text-faint);
+    background: var(--bg-deep); border: 1px solid var(--border);
+    border-radius: var(--radius-field); padding: 0 5px;
+    font-family: var(--font-mono);
   }
   .cat-rate {
-    font-size: 10px;
-    color: var(--text-dim);
-    min-width: 36px;
-    text-align: right;
+    font-size: 10px; color: var(--text-faint);
+    min-width: 36px; text-align: right;
+    font-family: var(--font-mono); transition: color 0.3s;
   }
   .cat-rate.active { color: var(--c-green); }
   .cat-chevron {
-    font-size: 9px;
-    color: var(--text-muted);
-    transition: transform 0.2s;
-    margin-left: 2px;
+    font-size: 9px; color: var(--text-faint);
+    transition: transform 0.2s; margin-left: 2px; flex-shrink: 0;
   }
-  .category-group.open .cat-chevron { transform: rotate(90deg); }
+  section.category-group.open .cat-chevron { transform: rotate(90deg); }
+  article.category-body { display: none; }
+  section.category-group.open article.category-body { display: block; }
 
-  .category-body { display: none; }
-  .category-group.open .category-body { display: block; }
-
-  /* pulse on active category */
-  @keyframes cat-pulse {
-    0% { opacity: 1; }
-    50% { opacity: 0.4; }
-    100% { opacity: 1; }
+  /* pulse dot animation */
+  @keyframes cat-dot-pulse {
+    0%   { transform: scale(1); opacity: 1; }
+    40%  { transform: scale(1.65); opacity: 0.7; }
+    100% { transform: scale(1); opacity: 1; }
   }
-  .category-header.pulsing .cat-indicator { animation: cat-pulse 0.6s ease-in-out; }
+  header.category-header.pulsing .cat-indicator {
+    animation: cat-dot-pulse 0.65s ease-out;
+  }
 
-  /* ─── SIGNAL ITEMS ─── */
-  .signal-item {
-    padding: 5px 10px 5px 24px;
+  /* ── SIGNAL ITEMS (article children) ── */
+  article.signal-item {
+    padding: 5px 10px 5px 26px;
     border-top: 1px solid var(--bg-hover);
-    cursor: pointer;
-    transition: background 0.1s;
+    cursor: pointer; transition: background 0.1s;
   }
-  .signal-item:hover { background: var(--bg-hover); }
-  .signal-item.active-filter { background: rgba(34,197,94,0.07); border-left: 2px solid var(--c-green); }
+  article.signal-item:hover { background: var(--bg-hover); }
+  article.signal-item.active-filter {
+    background: oklch(60% 0.118 184.704 / 0.07);
+    border-left: 2px solid var(--c-green);
+    padding-left: 24px;
+  }
   .signal-name {
-    font-size: 11px;
-    color: #a0a0cc;
-    word-break: break-all;
+    font-size: 11px; font-family: var(--font-mono);
+    color: oklch(78% 0.025 256.847); word-break: break-all; line-height: 1.4;
   }
   .signal-keys {
-    font-size: 10px;
-    color: var(--text-muted);
-    margin-top: 1px;
+    font-size: 10px; color: var(--text-faint);
+    margin-top: 2px; font-family: var(--font-mono); line-height: 1.5;
   }
+  .signal-keys .key-tag { display: inline-block; color: var(--c-cyan); margin-right: 3px; }
   .signal-doc {
-    font-size: 10px;
-    color: var(--text-dim);
-    margin-top: 2px;
-    font-style: italic;
+    font-size: 10px; color: var(--text-muted); margin-top: 2px;
+    font-style: italic; overflow: hidden; text-overflow: ellipsis;
+    white-space: nowrap; max-width: 268px;
+  }
+  .badge-dyn {
+    display: inline-block; font-size: 9px; font-family: var(--font-mono);
+    color: var(--text-faint); border: 1px solid var(--border);
+    border-radius: var(--radius-field); padding: 0 3px;
+    margin-left: 4px; vertical-align: middle;
   }
 
-  /* ─── EMITTER PANEL ─── */
-  #emitter-panel {
-    flex: 1;
-    overflow-y: auto;
-    padding: 10px;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
+  /* ── EMITTER PANEL ── */
+  section#emitter-panel {
+    flex: 1; overflow-y: auto; padding: 12px;
+    display: flex; flex-direction: column; gap: 10px;
   }
-  #emitter-panel::-webkit-scrollbar { width: 4px; }
-  #emitter-panel::-webkit-scrollbar-track { background: var(--bg); }
-  #emitter-panel::-webkit-scrollbar-thumb { background: var(--border-hi); }
-  .emitter-label {
-    font-size: 10px;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--text-dim);
-    margin-bottom: 2px;
-  }
-  .emitter-select, .emitter-textarea {
-    width: 100%;
-    background: var(--bg);
-    border: 1px solid var(--border-hi);
-    color: var(--text);
-    font-family: var(--mono);
-    font-size: 11px;
-    padding: 5px 7px;
-    outline: none;
-  }
-  .emitter-select:focus, .emitter-textarea:focus { border-color: var(--accent-dim); }
-  .emitter-textarea { resize: vertical; min-height: 120px; }
-  #emit-btn {
-    padding: 8px 16px;
-    background: var(--accent-dim);
-    border: 1px solid var(--c-green);
-    color: var(--c-green);
-    font-family: var(--mono);
-    font-size: 12px;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    cursor: pointer;
-    transition: all 0.15s;
-  }
-  #emit-btn:hover { background: #166534; box-shadow: 0 0 10px rgba(34,197,94,0.3); }
-  #emit-btn:active { transform: scale(0.98); }
-  #emit-result {
-    font-size: 11px;
-    padding: 6px 8px;
-    border: 1px solid var(--border);
-    min-height: 32px;
-    color: var(--text-dim);
-  }
-  #emit-result.success { border-color: var(--accent-dim); color: var(--c-green); }
-  #emit-result.error { border-color: #7f1d1d; color: var(--c-red); }
+  section#emitter-panel::-webkit-scrollbar { width: 4px; }
+  section#emitter-panel::-webkit-scrollbar-track { background: var(--bg-deep); }
+  section#emitter-panel::-webkit-scrollbar-thumb { background: var(--border-hi); border-radius: 2px; }
 
-  /* ─── RIGHT: FILTER BAR ─── */
-  #filter-bar {
-    padding: 8px 12px;
-    border-bottom: 1px solid var(--border);
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex-shrink: 0;
-    flex-wrap: wrap;
-    background: var(--bg-panel);
+  label.form-label {
+    display: block; font-size: 10px; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--text-muted);
+    margin-bottom: 4px; font-family: var(--font-ui);
   }
-  #feed-search {
-    width: 200px;
-    background: var(--bg);
-    border: 1px solid var(--border-hi);
-    color: var(--text);
-    font-family: var(--mono);
-    font-size: 11px;
-    padding: 4px 7px;
-    outline: none;
+  label.form-label .opt-note {
+    color: var(--text-faint); font-style: italic;
+    text-transform: none; letter-spacing: 0;
   }
-  #feed-search:focus { border-color: var(--accent-dim); }
-  .filter-pills {
-    display: flex;
-    gap: 4px;
-    flex-wrap: wrap;
-    flex: 1;
-  }
-  .pill {
-    padding: 2px 7px;
-    border: 1px solid var(--border-hi);
-    font-size: 10px;
-    letter-spacing: 0.08em;
-    cursor: pointer;
-    transition: all 0.12s;
-    user-select: none;
-    color: var(--text-dim);
-    text-transform: lowercase;
-  }
-  .pill:hover { border-color: var(--text-muted); color: var(--text); }
-  .pill.active { color: #000; }
 
-  .feed-controls {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    flex-shrink: 0;
+  select.select, textarea.textarea, input.input-field {
+    width: 100%; background: var(--bg-input);
+    border: var(--border-w) solid var(--border-hi);
+    border-radius: var(--radius-field);
+    color: var(--text); font-family: var(--font-mono);
+    font-size: 11px; padding: 6px 8px; outline: none;
+    transition: border-color 0.15s, box-shadow 0.15s;
   }
-  #pause-btn {
-    padding: 3px 10px;
-    background: none;
-    border: 1px solid var(--border-hi);
-    color: var(--text-dim);
-    font-family: var(--mono);
-    font-size: 10px;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    cursor: pointer;
-    transition: all 0.15s;
+  select.select:focus, textarea.textarea:focus, input.input-field:focus {
+    border-color: var(--c-primary);
+    box-shadow: 0 0 0 2px oklch(58% 0.233 277.117 / 0.15);
   }
-  #pause-btn:hover { border-color: var(--c-amber); color: var(--c-amber); }
-  #pause-btn.paused { border-color: var(--c-amber); color: var(--c-amber); background: rgba(245,158,11,0.08); }
-  #clear-btn {
-    padding: 3px 10px;
-    background: none;
-    border: 1px solid var(--border-hi);
-    color: var(--text-dim);
-    font-family: var(--mono);
-    font-size: 10px;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    cursor: pointer;
-    transition: all 0.15s;
-  }
-  #clear-btn:hover { border-color: var(--c-red); color: var(--c-red); }
-  #feed-stats {
-    font-size: 10px;
-    color: var(--text-dim);
-    white-space: nowrap;
-  }
-  #feed-stats span { color: var(--c-green); }
+  textarea.textarea { resize: vertical; min-height: 120px; line-height: 1.5; }
 
-  /* ─── PRESETS ─── */
-  #preset-bar {
-    padding: 5px 12px;
-    border-bottom: 1px solid var(--border);
-    display: flex;
-    gap: 6px;
-    background: var(--bg-panel);
-    flex-shrink: 0;
+  button.btn-emit {
+    padding: 9px 16px; width: 100%;
+    background: oklch(60% 0.118 184.704 / 0.12);
+    border: var(--border-w) solid var(--c-green);
+    border-radius: var(--radius-field);
+    color: var(--c-green); font-family: var(--font-ui);
+    font-size: 12px; font-weight: 600;
+    letter-spacing: 0.08em; text-transform: uppercase;
+    cursor: pointer; transition: all 0.15s;
   }
-  .preset-btn {
-    padding: 2px 9px;
-    background: none;
-    border: 1px solid var(--border-hi);
-    color: var(--text-muted);
-    font-family: var(--mono);
-    font-size: 10px;
-    letter-spacing: 0.08em;
-    cursor: pointer;
-    transition: all 0.12s;
-    text-transform: uppercase;
+  button.btn-emit:hover {
+    background: oklch(60% 0.118 184.704 / 0.22);
+    box-shadow: 0 0 12px oklch(60% 0.118 184.704 / 0.25);
   }
-  .preset-btn:hover { border-color: var(--c-cyan); color: var(--c-cyan); }
-  .preset-btn.active { border-color: var(--c-cyan); color: var(--c-cyan); background: rgba(6,182,212,0.08); }
+  button.btn-emit:active { transform: scale(0.98); }
 
-  /* ─── FEED ─── */
+  output#emit-result {
+    display: block; font-size: 11px; font-family: var(--font-mono);
+    padding: 7px 9px; border: var(--border-w) solid var(--border);
+    border-radius: var(--radius-field); min-height: 34px;
+    color: var(--text-dim); background: var(--bg-input); line-height: 1.5;
+  }
+  output#emit-result.success { border-color: var(--c-green); color: var(--c-green); background: oklch(60% 0.118 184.704 / 0.06); }
+  output#emit-result.error   { border-color: var(--c-red);   color: var(--c-red);   background: oklch(58% 0.253 17.585 / 0.06); }
+
+  /* ── TAB CONTENT ── */
+  section.tab-content { display: none; flex: 1; overflow: hidden; flex-direction: column; }
+  section.tab-content.active { display: flex; }
+
+  /* ── RIGHT: FILTER BAR ── */
+  nav#filter-bar {
+    padding: 8px 12px; border-bottom: var(--border-w) solid var(--border);
+    display: flex; align-items: center; gap: 8px;
+    flex-shrink: 0; flex-wrap: wrap; background: var(--bg-panel);
+  }
+  input#feed-search {
+    width: 190px; background: var(--bg-input);
+    border: var(--border-w) solid var(--border-hi);
+    border-radius: var(--radius-field);
+    color: var(--text); font-family: var(--font-ui);
+    font-size: 11px; padding: 5px 8px; outline: none;
+    transition: border-color 0.15s;
+  }
+  input#feed-search:focus { border-color: var(--c-primary); }
+  input#feed-search::placeholder { color: var(--text-faint); }
+
+  .filter-pills { display: flex; gap: 4px; flex-wrap: wrap; flex: 1; }
+  button.pill {
+    padding: 2px 8px; border: var(--border-w) solid var(--border-hi);
+    border-radius: var(--radius-field); font-size: 10px;
+    letter-spacing: 0.06em; cursor: pointer; transition: all 0.12s;
+    background: none; color: var(--text-muted);
+    font-family: var(--font-mono); text-transform: lowercase;
+  }
+  button.pill:hover { border-color: var(--text-muted); color: var(--text); }
+  button.pill.active { color: oklch(20% 0.01 254); }
+
+  .feed-controls { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+  button.btn-sm {
+    padding: 4px 10px; background: none;
+    border: var(--border-w) solid var(--border-hi);
+    border-radius: var(--radius-field);
+    color: var(--text-muted); font-family: var(--font-ui);
+    font-size: 10px; letter-spacing: 0.08em;
+    text-transform: uppercase; cursor: pointer; transition: all 0.15s;
+  }
+  button#pause-btn:hover { border-color: var(--c-amber); color: var(--c-amber); }
+  button#pause-btn.paused { border-color: var(--c-amber); color: var(--c-amber); background: oklch(66% 0.179 58.318 / 0.08); }
+  button#clear-btn:hover { border-color: var(--c-red); color: var(--c-red); }
+
+  output#feed-stats {
+    display: inline; font-size: 10px; color: var(--text-dim);
+    white-space: nowrap; font-family: var(--font-mono);
+  }
+  output#feed-stats .stat-hi { color: var(--c-green); }
+
+  /* ── PRESETS BAR ── */
+  nav#preset-bar {
+    padding: 5px 12px; border-bottom: var(--border-w) solid var(--border);
+    display: flex; gap: 5px; background: var(--bg-panel); flex-shrink: 0;
+  }
+  button.btn-preset {
+    padding: 3px 10px; background: none;
+    border: var(--border-w) solid var(--border-hi);
+    border-radius: var(--radius-field);
+    color: var(--text-faint); font-family: var(--font-ui);
+    font-size: 10px; letter-spacing: 0.06em;
+    cursor: pointer; transition: all 0.12s; text-transform: uppercase;
+  }
+  button.btn-preset:hover { border-color: var(--c-blue); color: var(--c-blue); }
+  button.btn-preset.active {
+    border-color: var(--c-blue); color: var(--c-blue);
+    background: oklch(58% 0.158 241.966 / 0.1);
+  }
+
+  /* ── FEED ── */
   #feed-wrap {
-    flex: 1;
-    overflow-y: auto;
-    overflow-x: hidden;
-    position: relative;
+    flex: 1; overflow-y: auto; overflow-x: hidden;
+    position: relative; background: var(--bg);
   }
   #feed-wrap::-webkit-scrollbar { width: 5px; }
-  #feed-wrap::-webkit-scrollbar-track { background: var(--bg); }
-  #feed-wrap::-webkit-scrollbar-thumb { background: var(--border-hi); }
+  #feed-wrap::-webkit-scrollbar-track { background: var(--bg-deep); }
+  #feed-wrap::-webkit-scrollbar-thumb { background: var(--border-hi); border-radius: 2px; }
 
-  #feed-table {
-    width: 100%;
-    border-collapse: collapse;
+  table#feed-table { width: 100%; border-collapse: collapse; }
+  table#feed-table thead {
+    position: sticky; top: 0; z-index: 10; background: var(--bg-panel);
   }
-  #feed-table thead {
-    position: sticky;
-    top: 0;
-    z-index: 10;
-    background: var(--bg-panel);
-  }
-  #feed-table thead th {
-    padding: 5px 8px;
-    text-align: left;
-    font-size: 10px;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--text-muted);
-    border-bottom: 1px solid var(--border-hi);
-    white-space: nowrap;
+  table#feed-table thead th {
+    padding: 5px 8px; text-align: left; font-size: 10px;
+    letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-faint);
+    border-bottom: var(--border-w) solid var(--border-hi);
+    white-space: nowrap; font-family: var(--font-mono); font-weight: 500;
   }
   .col-time { width: 68px; }
-  .col-cat  { width: 90px; }
-  .col-name { width: 200px; }
-  .col-detail { /* flex */ }
+  .col-cat  { width: 92px; }
+  .col-name { width: 195px; }
 
-  .feed-row {
+  tr.feed-row {
     border-bottom: 1px solid var(--border);
-    cursor: pointer;
-    transition: background 0.08s;
+    cursor: pointer; transition: background 0.08s;
   }
-  .feed-row:hover { background: var(--bg-hover); }
-  .feed-row td {
-    padding: 4px 8px;
-    vertical-align: top;
-    font-size: 11px;
-  }
-  .feed-row.row-error   { background: rgba(239,68,68,0.06); }
-  .feed-row.row-warning { background: rgba(245,158,11,0.05); }
-  .feed-row.row-success { background: rgba(34,197,94,0.04); }
-  .feed-row.row-error:hover   { background: rgba(239,68,68,0.11); }
-  .feed-row.row-warning:hover { background: rgba(245,158,11,0.10); }
-  .feed-row.row-success:hover { background: rgba(34,197,94,0.09); }
+  tr.feed-row:hover { background: var(--bg-hover); }
+  tr.feed-row td { padding: 4px 8px; vertical-align: top; font-size: 11px; }
+  tr.feed-row.row-error   { background: oklch(58% 0.253 17.585 / 0.06); }
+  tr.feed-row.row-warning { background: oklch(66% 0.179 58.318 / 0.05); }
+  tr.feed-row.row-success { background: oklch(60% 0.118 184.704 / 0.04); }
+  tr.feed-row.row-error:hover   { background: oklch(58% 0.253 17.585 / 0.11); }
+  tr.feed-row.row-warning:hover { background: oklch(66% 0.179 58.318 / 0.10); }
+  tr.feed-row.row-success:hover { background: oklch(60% 0.118 184.704 / 0.09); }
+  tr.feed-row.new-flash { animation: row-flash 0.45s ease-out; }
 
-  .feed-row.new-flash {
-    animation: row-flash 0.4s ease-out;
-  }
   @keyframes row-flash {
-    0%   { background: rgba(34,197,94,0.2); }
+    0%   { background: oklch(60% 0.118 184.704 / 0.2); }
     100% { background: transparent; }
   }
 
-  .time-cell {
-    color: var(--text-muted);
-    font-size: 10px;
-    white-space: nowrap;
+  td.time-cell {
+    color: var(--text-faint); font-size: 10px;
+    white-space: nowrap; font-family: var(--font-mono);
   }
-  .cat-badge {
-    display: inline-block;
-    padding: 1px 5px;
-    font-size: 10px;
-    letter-spacing: 0.05em;
-    font-weight: bold;
-    white-space: nowrap;
+  span.cat-badge {
+    display: inline-block; padding: 1px 6px; font-size: 10px;
+    letter-spacing: 0.04em; font-weight: 600; white-space: nowrap;
+    border-radius: var(--radius-field); font-family: var(--font-mono);
   }
-  .signal-cell {
-    color: #b0b0d8;
-    font-size: 11px;
-  }
-  .detail-cell {
-    color: var(--text-dim);
-    font-size: 10px;
-    word-break: break-word;
-  }
-  .detail-cell .key { color: var(--text-muted); }
-  .detail-cell .val { color: #9090c0; }
+  td.signal-cell { color: oklch(82% 0.022 256.847); font-size: 11px; font-family: var(--font-mono); }
+  td.detail-cell { color: var(--text-dim); font-size: 10px; word-break: break-word; font-family: var(--font-mono); }
+  td.detail-cell .key { color: var(--text-faint); }
+  td.detail-cell .val { color: oklch(70% 0.02 256.847); }
 
-  /* Expanded row */
-  .expand-row { display: none; }
-  .expand-row.open { display: table-row; }
-  .expand-row td {
+  /* expanded row */
+  tr.expand-row { display: none; }
+  tr.expand-row.open { display: table-row; }
+  tr.expand-row td {
     padding: 6px 12px 10px 28px;
-    background: rgba(14,14,22,0.8);
-    border-bottom: 1px solid var(--border-hi);
+    background: var(--bg-deep);
+    border-bottom: var(--border-w) solid var(--border-hi);
   }
-  .expand-json {
-    font-size: 11px;
-    color: #8888bb;
-    white-space: pre;
-    overflow-x: auto;
+  pre.expand-json {
+    font-size: 11px; font-family: var(--font-mono);
+    color: oklch(65% 0.018 256.847); white-space: pre; overflow-x: auto;
   }
-
-  /* ─── EMPTY STATE ─── */
-  #feed-empty {
-    display: none;
-    text-align: center;
-    padding: 40px;
-    color: var(--text-muted);
-    font-size: 12px;
+  table#feed-table tbody tr td:not(:last-child) {
+    border-right: 1px solid oklch(36% 0.015 252.42 / 0.5);
   }
 
-  /* ─── ANIMATIONS ─── */
-  @keyframes pulse-green {
-    0%, 100% { opacity: 1; box-shadow: 0 0 5px var(--c-green); }
-    50% { opacity: 0.5; box-shadow: 0 0 2px var(--c-green); }
+  p#feed-empty {
+    display: none; text-align: center; padding: 40px;
+    color: var(--text-faint); font-size: 12px; font-family: var(--font-mono);
   }
 
-  /* ─── SCROLLBAR for catalog ─── */
-  .tab-content { display: none; flex: 1; overflow: hidden; flex-direction: column; }
-  .tab-content.active { display: flex; }
-
-  /* ─── TITLE BAR ─── */
-  #title-bar {
-    padding: 8px 14px;
-    border-bottom: 1px solid var(--border);
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    background: var(--bg-panel);
-    flex-shrink: 0;
+  /* ── TITLE BAR ── */
+  header#title-bar {
+    padding: 8px 14px; border-bottom: var(--border-w) solid var(--border);
+    display: flex; align-items: center; gap: 12px;
+    background: var(--bg-deep); flex-shrink: 0;
   }
-  #title-bar .app-name {
-    font-size: 12px;
-    letter-spacing: 0.2em;
-    color: var(--c-green);
-    text-transform: uppercase;
+  header#title-bar .app-name {
+    font-size: 12px; letter-spacing: 0.22em; color: var(--c-primary);
+    text-transform: uppercase; font-family: var(--font-mono); font-weight: 700;
   }
-  #title-bar .page-name {
-    font-size: 11px;
-    color: var(--text-muted);
-    letter-spacing: 0.15em;
-    text-transform: uppercase;
+  header#title-bar .page-name {
+    font-size: 11px; color: var(--text-muted);
+    letter-spacing: 0.15em; text-transform: uppercase; font-family: var(--font-mono);
   }
-  #title-bar .divider { color: var(--border-hi); }
+  header#title-bar .divider { color: var(--border-hi); }
   .title-spacer { flex: 1; }
-  .impl-hint-btn {
-    padding: 3px 10px;
-    background: none;
-    border: 1px solid var(--c-indigo);
-    color: var(--c-indigo);
-    font-family: var(--mono);
-    font-size: 10px;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    cursor: pointer;
-    transition: all 0.15s;
+  button.btn-spec {
+    padding: 4px 11px; background: none;
+    border: var(--border-w) solid var(--c-indigo);
+    border-radius: var(--radius-field); color: var(--c-indigo);
+    font-family: var(--font-ui); font-size: 10px;
+    letter-spacing: 0.1em; text-transform: uppercase;
+    cursor: pointer; transition: all 0.15s;
   }
-  .impl-hint-btn:hover { background: rgba(99,102,241,0.12); }
+  button.btn-spec:hover { background: oklch(60% 0.2 270 / 0.12); }
 
-  /* ─── IMPL MODAL ─── */
-  #impl-modal {
-    display: none;
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,0.7);
-    z-index: 100;
-    align-items: center;
-    justify-content: center;
+  /* ── MODAL ── */
+  dialog#impl-modal {
+    display: none; position: fixed; inset: 0;
+    background: transparent; border: none; padding: 0; max-width: none; max-height: none;
+    width: 100%; height: 100%; z-index: 100;
+    align-items: center; justify-content: center;
   }
-  #impl-modal.open { display: flex; }
+  dialog#impl-modal.open {
+    display: flex;
+    background: oklch(20% 0.012 254.09 / 0.82);
+  }
   .modal-box {
-    background: var(--bg-panel);
-    border: 1px solid var(--border-hi);
-    width: 780px;
-    max-width: 95vw;
-    max-height: 85vh;
-    overflow-y: auto;
-    padding: 24px;
+    background: var(--bg-panel); border: var(--border-w) solid var(--border-hi);
+    border-radius: var(--radius-box); width: 820px; max-width: 95vw;
+    max-height: 88vh; overflow-y: auto; padding: 28px;
   }
   .modal-box::-webkit-scrollbar { width: 5px; }
-  .modal-box::-webkit-scrollbar-thumb { background: var(--border-hi); }
+  .modal-box::-webkit-scrollbar-thumb { background: var(--border-hi); border-radius: 2px; }
   .modal-title {
-    font-size: 13px;
-    letter-spacing: 0.15em;
-    text-transform: uppercase;
-    color: var(--c-cyan);
-    margin-bottom: 16px;
-    border-bottom: 1px solid var(--border-hi);
-    padding-bottom: 8px;
+    font-size: 12px; letter-spacing: 0.15em; text-transform: uppercase;
+    color: var(--c-cyan); margin-bottom: 20px;
+    border-bottom: var(--border-w) solid var(--border-hi);
+    padding-bottom: 10px; font-family: var(--font-mono);
   }
-  .modal-section { margin-bottom: 18px; }
+  .modal-section { margin-bottom: 22px; }
   .modal-section h3 {
-    font-size: 11px;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: var(--c-amber);
-    margin-bottom: 8px;
+    font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--c-amber); margin-bottom: 9px; font-family: var(--font-mono);
   }
   .modal-section p, .modal-section li {
-    font-size: 12px;
-    color: var(--text-dim);
-    line-height: 1.6;
-    margin-bottom: 4px;
+    font-size: 12px; color: var(--text-dim); line-height: 1.65;
+    margin-bottom: 5px; font-family: var(--font-ui);
   }
-  .modal-section ul { padding-left: 16px; }
+  .modal-section ul { padding-left: 18px; }
   .modal-section code {
-    background: var(--bg);
-    border: 1px solid var(--border);
-    padding: 1px 4px;
-    font-family: var(--mono);
-    font-size: 11px;
-    color: #a0a0cc;
+    background: var(--bg-deep); border: 1px solid var(--border);
+    border-radius: var(--radius-field); padding: 1px 5px;
+    font-family: var(--font-mono); font-size: 11px;
+    color: oklch(78% 0.025 256.847);
   }
   .modal-section pre {
-    background: var(--bg);
-    border: 1px solid var(--border);
-    padding: 10px;
-    font-size: 11px;
-    color: #9090bb;
-    overflow-x: auto;
-    white-space: pre;
+    background: var(--bg-deep); border: var(--border-w) solid var(--border);
+    border-radius: var(--radius-field); padding: 12px; font-size: 11px;
+    font-family: var(--font-mono); color: oklch(70% 0.018 256.847);
+    overflow-x: auto; white-space: pre; line-height: 1.55;
   }
-  .modal-close {
-    float: right;
-    background: none;
-    border: 1px solid var(--border-hi);
-    color: var(--text-dim);
-    font-family: var(--mono);
-    font-size: 11px;
-    padding: 3px 9px;
-    cursor: pointer;
-    letter-spacing: 0.1em;
+  button.btn-modal-close {
+    float: right; background: none;
+    border: var(--border-w) solid var(--border-hi);
+    border-radius: var(--radius-field);
+    color: var(--text-muted); font-family: var(--font-ui);
+    font-size: 11px; padding: 4px 10px; cursor: pointer;
+    letter-spacing: 0.08em; transition: all 0.15s;
   }
-  .modal-close:hover { color: var(--c-red); border-color: var(--c-red); }
+  button.btn-modal-close:hover { color: var(--c-red); border-color: var(--c-red); }
 
-  /* grid lines on feed */
-  #feed-table tbody tr td:not(:last-child) {
-    border-right: 1px solid rgba(30,30,46,0.5);
+  /* ── ANIMATIONS ── */
+  @keyframes pulse-status {
+    0%, 100% { opacity: 1; box-shadow: 0 0 5px var(--c-green); }
+    50%       { opacity: 0.5; box-shadow: 0 0 2px var(--c-green); }
   }
 
 </style>
@@ -629,234 +516,333 @@
 
 <div id="app">
 
-  <!-- ═══════════════════════════════════════════════════ LEFT PANEL -->
-  <div id="left-panel">
-    <div class="panel-header">
-      <div class="status-dot"></div>
+  <!-- ════ LEFT PANEL ════ -->
+  <aside id="left-panel">
+    <header class="panel-header">
+      <span class="status-dot" aria-hidden="true"></span>
       <h2>Signal Catalog</h2>
-      <small id="catalog-total" style="color:var(--text-muted);font-size:10px;"></small>
-    </div>
+      <small id="catalog-total"></small>
+    </header>
 
-    <div id="left-tabs">
-      <button class="tab-btn active" onclick="switchTab('catalog')">Catalog</button>
-      <button class="tab-btn" onclick="switchTab('emitter')">Emitter</button>
-    </div>
+    <nav id="left-tabs">
+      <button type="button" class="active" onclick="switchTab('catalog')">Catalog</button>
+      <button type="button" onclick="switchTab('emitter')">Emitter</button>
+    </nav>
 
     <!-- CATALOG TAB -->
-    <div id="tab-catalog" class="tab-content active">
-      <div id="catalog-search-wrap">
-        <input class="search-input" id="catalog-search" type="text" placeholder="filter signals..." autocomplete="off" oninput="filterCatalog(this.value)">
-      </div>
-      <div id="catalog-content"></div>
-    </div>
+    <section id="tab-catalog" class="tab-content active">
+      <section id="catalog-search-wrap">
+        <input
+          class="input"
+          id="catalog-search"
+          type="search"
+          placeholder="search signals, keys, docs..."
+          autocomplete="off"
+          oninput="filterCatalog(this.value)"
+          aria-label="Filter signal catalog"
+        >
+      </section>
+      <div id="catalog-content" role="tree" aria-label="Signal catalog"></div>
+    </section>
 
     <!-- EMITTER TAB -->
-    <div id="tab-emitter" class="tab-content">
-      <div id="emitter-panel">
-        <div>
-          <div class="emitter-label">Signal</div>
-          <select class="emitter-select" id="emitter-signal" onchange="populateEmitterPayload()">
-            <option value="">-- select signal --</option>
-          </select>
-        </div>
-        <div>
-          <div class="emitter-label">Payload JSON</div>
-          <textarea class="emitter-textarea" id="emitter-payload" rows="7" placeholder='{"key": "value"}'></textarea>
-        </div>
-        <div>
-          <div class="emitter-label">Scope ID <span style="color:var(--text-muted)">(optional)</span></div>
-          <input class="emitter-select" id="emitter-scope" type="text" placeholder="agent_session_id or blank" style="font-family:var(--mono);font-size:11px;padding:5px 7px;">
-        </div>
-        <button id="emit-btn" onclick="emitSignal()">&#9654; Emit Signal</button>
-        <div>
-          <div class="emitter-label">Last Result</div>
-          <div id="emit-result">—</div>
-        </div>
-      </div>
-    </div>
-  </div>
+    <section id="tab-emitter" class="tab-content">
+      <section id="emitter-panel">
+        <form id="emitter-form" onsubmit="emitSignal(); return false;">
 
-  <!-- ═══════════════════════════════════════════════════ RIGHT PANEL -->
-  <div id="right-panel">
-    <div id="title-bar">
+          <div>
+            <label class="form-label" for="emitter-signal">Signal</label>
+            <select class="select" id="emitter-signal" onchange="populateEmitterPayload()">
+              <option value="">-- select signal --</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="form-label" for="emitter-payload">Payload JSON</label>
+            <textarea class="textarea" id="emitter-payload" rows="7" placeholder='{"key": "value"}' spellcheck="false"></textarea>
+          </div>
+
+          <div>
+            <label class="form-label" for="emitter-scope">
+              Scope ID <span class="opt-note">(optional)</span>
+            </label>
+            <input class="input-field" id="emitter-scope" type="text" placeholder="agent_session_id or blank">
+          </div>
+
+          <button type="submit" class="btn-emit">&#9654; Emit Signal</button>
+
+          <div>
+            <label class="form-label">Last Result</label>
+            <output id="emit-result" for="emitter-signal emitter-payload">—</output>
+          </div>
+
+        </form>
+      </section>
+    </section>
+  </aside>
+
+  <!-- ════ RIGHT PANEL ════ -->
+  <main id="right-panel">
+    <header id="title-bar">
       <span class="app-name">ICHOR IV</span>
-      <span class="divider">/</span>
+      <span class="divider" aria-hidden="true">/</span>
       <span class="page-name">Signals</span>
       <div class="title-spacer"></div>
-      <button class="impl-hint-btn" onclick="document.getElementById('impl-modal').classList.add('open')">&#9998; LiveView Spec</button>
-    </div>
+      <button type="button" class="btn-spec" onclick="document.getElementById('impl-modal').classList.add('open')">
+        &#9998; LiveView Spec
+      </button>
+    </header>
 
-    <div id="filter-bar">
-      <input id="feed-search" type="text" placeholder="search feed..." autocomplete="off" oninput="applyFeedFilters()">
-      <div class="filter-pills" id="category-pills"></div>
+    <nav id="filter-bar" aria-label="Feed filters">
+      <input
+        id="feed-search"
+        type="search"
+        placeholder="search feed..."
+        autocomplete="off"
+        oninput="applyFeedFilters()"
+        aria-label="Search live feed"
+      >
+      <div class="filter-pills" id="category-pills" role="group" aria-label="Category filters"></div>
       <div class="feed-controls">
-        <button id="pause-btn" onclick="togglePause()">&#9646;&#9646; Pause</button>
-        <button id="clear-btn" onclick="clearFeed()">&#x2715; Clear</button>
-        <div id="feed-stats"><span id="stat-count">0</span> signals | <span id="stat-rate">0</span>/min</div>
+        <button type="button" id="pause-btn" class="btn-sm" onclick="togglePause()">&#9646;&#9646; Pause</button>
+        <button type="button" id="clear-btn" class="btn-sm" onclick="clearFeed()">&#x2715; Clear</button>
+        <output id="feed-stats"><span class="stat-hi" id="stat-count">0</span> signals | <span class="stat-hi" id="stat-rate">0</span>/min</output>
       </div>
-    </div>
+    </nav>
 
-    <div id="preset-bar">
-      <button class="preset-btn active" onclick="applyPreset('all')" data-preset="all">All</button>
-      <button class="preset-btn" onclick="applyPreset('agent-health')" data-preset="agent-health">Agent Health</button>
-      <button class="preset-btn" onclick="applyPreset('pipeline-ops')" data-preset="pipeline-ops">Pipeline Ops</button>
-      <button class="preset-btn" onclick="applyPreset('errors-only')" data-preset="errors-only">Errors Only</button>
-      <button class="preset-btn" onclick="applyPreset('emitter-mode')" data-preset="emitter-mode">Emitter Mode</button>
-    </div>
+    <nav id="preset-bar" aria-label="Feed presets">
+      <button type="button" class="btn-preset active" onclick="applyPreset('all')" data-preset="all">All</button>
+      <button type="button" class="btn-preset" onclick="applyPreset('agent-health')" data-preset="agent-health">Agent Health</button>
+      <button type="button" class="btn-preset" onclick="applyPreset('pipeline-ops')" data-preset="pipeline-ops">Pipeline Ops</button>
+      <button type="button" class="btn-preset" onclick="applyPreset('errors-only')" data-preset="errors-only">Errors Only</button>
+      <button type="button" class="btn-preset" onclick="applyPreset('emitter-mode')" data-preset="emitter-mode">Emitter Mode</button>
+    </nav>
 
-    <div id="feed-wrap">
-      <div id="feed-empty">no signals match current filters</div>
-      <table id="feed-table">
+    <section id="feed-wrap" aria-label="Live signal feed">
+      <p id="feed-empty" role="status">no signals match current filters</p>
+      <table id="feed-table" aria-label="Signal feed">
         <thead>
           <tr>
-            <th class="col-time">Time</th>
-            <th class="col-cat">Category</th>
-            <th class="col-name">Signal</th>
-            <th class="col-detail">Detail</th>
+            <th class="col-time" scope="col">Time</th>
+            <th class="col-cat" scope="col">Category</th>
+            <th class="col-name" scope="col">Signal</th>
+            <th scope="col">Detail</th>
           </tr>
         </thead>
         <tbody id="feed-tbody"></tbody>
       </table>
-    </div>
-  </div>
+    </section>
+  </main>
 </div>
 
-<!-- ═══════════════════════════════════════════════════ IMPL MODAL -->
-<div id="impl-modal">
-  <div class="modal-box">
-    <button class="modal-close" onclick="document.getElementById('impl-modal').classList.remove('open')">&#x2715; Close</button>
-    <div class="modal-title">Phoenix LiveView — Signals Page Implementation Spec</div>
+<!-- ════ IMPL MODAL ════ -->
+<dialog id="impl-modal" aria-modal="true" aria-labelledby="modal-title">
+  <article class="modal-box">
+    <button type="button" class="btn-modal-close" onclick="document.getElementById('impl-modal').classList.remove('open')" aria-label="Close modal">&#x2715; Close</button>
+    <h2 class="modal-title" id="modal-title">Phoenix LiveView — Catalog Sidebar Implementation Spec</h2>
 
-    <div class="modal-section">
+    <section class="modal-section">
       <h3>Module Structure</h3>
       <ul>
-        <li><code>IchorWeb.SignalsLive</code> — root LiveView, owns feed state and filter assigns</li>
-        <li><code>IchorWeb.Components.SignalCatalog</code> — stateless functional component; renders accordion catalog</li>
-        <li><code>IchorWeb.Components.SignalEmitter</code> — stateful live component; handles emit form state</li>
+        <li><code>IchorWeb.SignalsLive</code> — root LiveView; owns feed state, filter assigns, and sidebar assigns</li>
+        <li><code>IchorWeb.Components.SignalCatalog</code> — stateless functional component; renders accordion catalog with search, rates, and pulse</li>
+        <li><code>IchorWeb.Components.SignalEmitter</code> — stateful live component; handles emit form state and result display</li>
         <li><code>IchorWeb.Components.SignalFeedRow</code> — functional component; renders one feed row with expansion</li>
-        <li><code>IchorWeb.Components.CategoryPill</code> — functional; renders a filter pill</li>
+        <li><code>IchorWeb.Hooks.CatalogSearch</code> — JS hook for client-side catalog filtering (avoids server round-trips)</li>
       </ul>
-    </div>
+    </section>
 
-    <div class="modal-section">
-      <h3>Key Assigns (SignalsLive)</h3>
-      <pre>@signals           [%{id, name, category, data, ts, level}]  # ring buffer, max 500
-@filtered_signals  derived from @signals + @filters
-@filters           %{search: "", categories: [], signal_name: nil}
-@paused            boolean
-@category_rates    %{atom => float}    # signals/min per category
-@active_preset     atom
-@expanded_row_id   string | nil</pre>
-    </div>
+    <section class="modal-section">
+      <h3>Catalog Sidebar Assigns</h3>
+      <pre>@catalog          [%{name, category, keys, doc, dynamic?}]  # from Ichor.Signals.Catalog
+@catalog_search   ""                  # JS hook + server filter
+@category_rates   %{atom => integer}  # signals/min per category
+@active_cat_pulse atom | nil          # category that just fired (CSS animation)
+@open_categories  MapSet.t()          # expanded accordion groups</pre>
+    </section>
 
-    <div class="modal-section">
-      <h3>PubSub Subscriptions (mount/3)</h3>
-      <pre>Enum.each(Ichor.Signals.categories(), fn cat ->
-  Phoenix.PubSub.subscribe(Ichor.PubSub, Ichor.Signals.category_topic(cat))
-end)</pre>
-    </div>
+    <section class="modal-section">
+      <h3>Catalog Component HEEX Structure</h3>
+      <pre>&lt;!-- Search bar (JS hook: CatalogSearch) --&gt;
+&lt;input type="search" class="input input-sm" phx-hook="CatalogSearch"
+       id="catalog-search" phx-debounce="200" phx-change="catalog_search"
+       placeholder="search signals, keys, docs..." /&gt;
 
-    <div class="modal-section">
-      <h3>handle_info/2 — Live Feed Ingest</h3>
-      <pre>def handle_info({:signal, name, data}, socket) do
-  if socket.assigns.paused do
-    {:noreply, socket}
-  else
-    entry = %{
-      id:       System.unique_integer([:positive, :monotonic]),
-      name:     name,
-      category: Ichor.Signals.Catalog.lookup!(name).category,
-      data:     data,
-      ts:       DateTime.utc_now(),
-      level:    classify_level(name)
-    }
-    signals = [entry | socket.assigns.signals] |> Enum.take(500)
-    {:noreply, assign(socket, signals: signals, filtered_signals: apply_filters(signals, socket.assigns.filters))}
-  end
-end</pre>
-    </div>
+&lt;!-- Category accordion groups (nav > section per category) --&gt;
+&lt;nav role="tree" aria-label="Signal catalog"&gt;
+  &lt;%= for {cat, signals} &lt;- @catalog_by_category do %&gt;
+    &lt;section class={["category-group", MapSet.member?(@open_categories, cat) &amp;&amp; "open"]}
+             id={"cat-group-#{cat}"}&gt;
 
-    <div class="modal-section">
-      <h3>handle_event/3 Handlers</h3>
+      &lt;header class={["category-header", @active_cat_pulse == cat &amp;&amp; "pulsing"]}
+              phx-click="toggle_category_group" phx-value-cat={cat}
+              role="treeitem" aria-expanded={MapSet.member?(@open_categories, cat)}&gt;
+        &lt;span class="cat-indicator" style={"background:#{cat_color(cat)}"} aria-hidden="true"&gt;&lt;/span&gt;
+        &lt;span class="cat-name" style={"color:#{cat_color(cat)}"}&gt;&lt;%= cat %&gt;&lt;/span&gt;
+        &lt;span class="badge"&gt;&lt;%= length(signals) %&gt;&lt;/span&gt;
+        &lt;span class={["cat-rate", Map.get(@category_rates, cat, 0) &gt; 0 &amp;&amp; "active"]}
+              id={"cat-rate-#{cat}"}&gt;
+          &lt;%= Map.get(@category_rates, cat, 0) %&gt;/m
+        &lt;/span&gt;
+        &lt;span class="cat-chevron" aria-hidden="true"&gt;&amp;#9658;&lt;/span&gt;
+      &lt;/header&gt;
+
+      &lt;article class="category-body" role="group"&gt;
+        &lt;%= for sig &lt;- signals do %&gt;
+          &lt;article class={["signal-item", @filters.signal_name == sig.name &amp;&amp; "active-filter"]}
+                   phx-click="filter_signal" phx-value-name={sig.name}
+                   role="treeitem" tabindex="0"
+                   aria-label={sig.name}&gt;
+            &lt;p class="signal-name"&gt;
+              &lt;%= sig.name %&gt;
+              &lt;%= if sig.dynamic? do %&gt;
+                &lt;span class="badge-dyn"&gt;dyn&lt;/span&gt;
+              &lt;% end %&gt;
+            &lt;/p&gt;
+            &lt;%= if sig.keys != [] do %&gt;
+              &lt;p class="signal-keys"&gt;
+                &lt;%= for k &lt;- sig.keys do %&gt;
+                  &lt;span class="key-tag"&gt;:&lt;%= k %&gt;&lt;/span&gt;
+                &lt;% end %&gt;
+              &lt;/p&gt;
+            &lt;% end %&gt;
+            &lt;p class="signal-doc" title={sig.doc}&gt;&lt;%= sig.doc %&gt;&lt;/p&gt;
+          &lt;/article&gt;
+        &lt;% end %&gt;
+      &lt;/article&gt;
+    &lt;/section&gt;
+  &lt;% end %&gt;
+&lt;/nav&gt;</pre>
+    </section>
+
+    <section class="modal-section">
+      <h3>Signal Emitter HEEX (LiveComponent)</h3>
+      <pre>&lt;section id={@id} class="emitter-panel"&gt;
+  &lt;form phx-submit="emit" phx-target={@myself}&gt;
+
+    &lt;div&gt;
+      &lt;label class="form-label" for="emitter-signal"&gt;Signal&lt;/label&gt;
+      &lt;select class="select select-sm" id="emitter-signal" name="signal_name"
+              phx-change="select_signal" phx-target={@myself}&gt;
+        &lt;option value=""&gt;-- select signal --&lt;/option&gt;
+        &lt;%= for name &lt;- @signal_names do %&gt;
+          &lt;option value={name} selected={@selected == name}&gt;&lt;%= name %&gt;&lt;/option&gt;
+        &lt;% end %&gt;
+      &lt;/select&gt;
+    &lt;/div&gt;
+
+    &lt;!-- phx-update="ignore" prevents timer ticks from clearing user input --&gt;
+    &lt;div id="emitter-payload-stable" phx-update="ignore"&gt;
+      &lt;label class="form-label" for="emitter-payload"&gt;Payload JSON&lt;/label&gt;
+      &lt;textarea class="textarea textarea-sm" id="emitter-payload"
+                name="payload" spellcheck="false"&gt;&lt;%= @example_payload %&gt;&lt;/textarea&gt;
+    &lt;/div&gt;
+
+    &lt;button type="submit" class="btn btn-sm btn-success w-full"&gt;
+      Emit Signal
+    &lt;/button&gt;
+
+    &lt;div&gt;
+      &lt;label class="form-label"&gt;Last Result&lt;/label&gt;
+      &lt;output class={["emit-result", @result_class]}&gt;&lt;%= @result_text %&gt;&lt;/output&gt;
+    &lt;/div&gt;
+  &lt;/form&gt;
+&lt;/section&gt;</pre>
+    </section>
+
+    <section class="modal-section">
+      <h3>handle_event/3 — Catalog + Emitter</h3>
       <ul>
-        <li><code>"toggle_category"</code> — toggle category in <code>@filters.categories</code></li>
-        <li><code>"search_feed"</code> — update <code>@filters.search</code>, recompute <code>@filtered_signals</code></li>
-        <li><code>"filter_signal"</code> — set <code>@filters.signal_name</code> from catalog click</li>
-        <li><code>"toggle_pause"</code> — flip <code>@paused</code></li>
-        <li><code>"clear_feed"</code> — set <code>@signals = []</code></li>
-        <li><code>"apply_preset"</code> — set <code>@filters</code> to preset values</li>
-        <li><code>"expand_row"</code> — set <code>@expanded_row_id</code></li>
-        <li><code>"emit_signal"</code> — call <code>Ichor.Signals.emit/2</code> with validated payload</li>
-        <li><code>"catalog_search"</code> — filter catalog accordion (client-side via JS hook)</li>
+        <li><code>"toggle_category_group"</code> — toggle cat atom in <code>@open_categories</code> MapSet</li>
+        <li><code>"catalog_search"</code> — update <code>@catalog_search</code>; JS hook handles DOM visibility client-side</li>
+        <li><code>"filter_signal"</code> — set or clear <code>@filters.signal_name</code> (toggle on same)</li>
+        <li><code>"select_signal"</code> — update selected signal, regenerate <code>@example_payload</code></li>
+        <li><code>"emit"</code> — validate JSON, call <code>Ichor.Signals.emit/2</code>, update <code>@result_text</code></li>
       </ul>
-    </div>
+    </section>
 
-    <div class="modal-section">
-      <h3>Row Classification (classify_level/1)</h3>
-      <pre>@error_signals   ~w[agent_crashed dead_letter schema_violation mes_cycle_failed
-                     gate_failed nudge_zombie mes_quality_gate_failed
-                     mes_tmux_spawn_failed mes_team_spawn_failed
-                     pipeline_task_failed mes_plugin_compile_failed]a
-@warning_signals ~w[nudge_warning nudge_escalated entropy_alert
-                     watchdog_sweep mes_cycle_skipped mes_maintenance_error
-                     hitl_intervention_recorded]a
-@success_signals ~w[agent_done gate_passed pipeline_completed mes_team_ready
-                     planning_run_complete session_started run_complete]a</pre>
-    </div>
+    <section class="modal-section">
+      <h3>Rate Calculation + Pulse</h3>
+      <pre>def handle_info(:recalc_rates, socket) do
+  cutoff = DateTime.add(DateTime.utc_now(), -60, :second)
+  rates =
+    socket.assigns.signals
+    |&gt; Enum.filter(&amp;(DateTime.compare(&amp;1.ts, cutoff) == :gt))
+    |&gt; Enum.group_by(&amp; &amp;1.category)
+    |&gt; Map.new(fn {cat, sigs} -&gt; {cat, length(sigs)} end)
+  Process.send_after(self(), :recalc_rates, 10_000)
+  {:noreply, assign(socket, category_rates: rates)}
+end
 
-    <div class="modal-section">
-      <h3>Preset Definitions</h3>
-      <pre>%{
-  all:           %{search: "", categories: [], signal_name: nil},
-  agent_health:  %{search: "", categories: [:agent, :monitoring], signal_name: nil},
-  pipeline_ops:  %{search: "", categories: [:pipeline, :mes, :planning], signal_name: nil},
-  errors_only:   %{search: "failed|crashed|dead_letter|violation|error", categories: [], signal_name: nil},
-  emitter_mode:  %{search: "", categories: [], signal_name: nil}  # + switch left tab to :emitter
-}</pre>
-    </div>
+def handle_info({:signal, name, data}, socket) do
+  cat = Ichor.Signals.Catalog.lookup!(name).category
+  Process.send_after(self(), {:clear_pulse, cat}, 700)
+  # ... ingest signal ...
+  {:noreply, assign(socket, active_cat_pulse: cat)}
+end</pre>
+    </section>
 
-    <div class="modal-section">
-      <h3>Rate Calculation (category_rates)</h3>
-      <p>Tick every 10s via <code>Process.send_after(self(), :recalc_rates, 10_000)</code>. Count signals in last 60s per category, divide by 1.</p>
-    </div>
-
-    <div class="modal-section">
+    <section class="modal-section">
       <h3>JS Hook: CatalogSearch</h3>
-      <p>Client-side filtering of <code>.category-group</code> and <code>.signal-item</code> elements. Uses <code>phx-hook="CatalogSearch"</code> on the search input. Avoids unnecessary server round-trips for catalog accordion filtering.</p>
-    </div>
+      <pre>// assets/js/hooks/catalog_search.js
+const CatalogSearch = {
+  mounted() {
+    this.el.addEventListener("input", e =&gt; {
+      const q = e.target.value.toLowerCase();
+      document.querySelectorAll("section.category-group").forEach(group =&gt; {
+        let anyVisible = false;
+        group.querySelectorAll("article.signal-item").forEach(item =&gt; {
+          const name = item.querySelector(".signal-name")?.textContent.toLowerCase() ?? "";
+          const doc  = item.querySelector(".signal-doc")?.textContent.toLowerCase()  ?? "";
+          const keys = item.querySelector(".signal-keys")?.textContent.toLowerCase() ?? "";
+          const show = !q || name.includes(q) || doc.includes(q) || keys.includes(q);
+          item.style.display = show ? "" : "none";
+          if (show) anyVisible = true;
+        });
+        group.style.display = anyVisible ? "" : "none";
+        if (q &amp;&amp; anyVisible) group.classList.add("open");
+      });
+    });
+  }
+};
+export default CatalogSearch;</pre>
+    </section>
 
-    <div class="modal-section">
-      <h3>Category Color Map (replicate in CSS)</h3>
-      <pre>agent:      #a855f7   fleet:    #3b82f6   pipeline: #22c55e
-mes:        #f97316   gateway:  #06b6d4   hitl:     #f43f5e
-monitoring: #f59e0b   mesh:     #6366f1   cleanup:  #94a3b8
-system:     #eab308   events:   #14b8a6   messages: #ec4899
-memory:     #84cc16   team:     #0ea5e9   planning: #8b5cf6</pre>
-    </div>
-  </div>
-</div>
+    <section class="modal-section">
+      <h3>Category Color Map</h3>
+      <pre>agent:      oklch(62% 0.22 300)  # purple   fleet:    oklch(60% 0.18 240)  # blue
+pipeline:   oklch(60% 0.12 185)  # green    mes:      oklch(65% 0.20 40)   # orange
+gateway:    oklch(65% 0.15 200)  # cyan     hitl:     oklch(60% 0.24 15)   # rose
+monitoring: oklch(66% 0.18 58)   # amber    mesh:     oklch(60% 0.20 270)  # indigo
+cleanup:    oklch(65% 0.01 256)  # slate    system:   oklch(68% 0.18 100)  # yellow
+events:     oklch(62% 0.14 185)  # teal     messages: oklch(62% 0.22 340)  # pink
+memory:     oklch(68% 0.18 130)  # lime     team:     oklch(63% 0.17 225)  # sky
+planning:   oklch(60% 0.22 295)  # violet</pre>
+    </section>
+  </article>
+</dialog>
 
 <script>
 // ═══════════════════════════════════════════════════════════════════
-// CATALOG DATA (from Ichor.Signals.Catalog)
+// CATALOG DATA
 // ═══════════════════════════════════════════════════════════════════
 
 const CATEGORY_COLORS = {
-  agent:      '#a855f7',
-  fleet:      '#3b82f6',
-  pipeline:   '#22c55e',
-  mes:        '#f97316',
-  gateway:    '#06b6d4',
-  hitl:       '#f43f5e',
-  monitoring: '#f59e0b',
-  mesh:       '#6366f1',
+  agent:      '#c084fc',
+  fleet:      '#60a5fa',
+  pipeline:   '#34d399',
+  mes:        '#fb923c',
+  gateway:    '#22d3ee',
+  hitl:       '#fb7185',
+  monitoring: '#fbbf24',
+  mesh:       '#818cf8',
   cleanup:    '#94a3b8',
-  system:     '#eab308',
-  events:     '#14b8a6',
-  messages:   '#ec4899',
-  memory:     '#84cc16',
-  team:       '#0ea5e9',
-  planning:   '#8b5cf6',
+  system:     '#facc15',
+  events:     '#2dd4bf',
+  messages:   '#f472b6',
+  memory:     '#a3e635',
+  team:       '#38bdf8',
+  planning:   '#a78bfa',
 };
 
 const CATALOG = {
@@ -866,49 +852,46 @@ const CATALOG = {
   nudge_warning:              { category: 'agent',     keys: ['session_id','agent_name','level'],            doc: 'Nudge escalation: warn' },
   nudge_sent:                 { category: 'agent',     keys: ['session_id','agent_name','level'],            doc: 'Nudge escalation: tmux nudge sent' },
   nudge_escalated:            { category: 'agent',     keys: ['session_id','agent_name','level'],            doc: 'Nudge escalation: HITL pause' },
-  nudge_zombie:               { category: 'agent',     keys: ['session_id','agent_name','level'],            doc: 'Nudge escalation: zombie' },
+  nudge_zombie:               { category: 'agent',     keys: ['session_id','agent_name','level'],            doc: 'Nudge escalation: zombie detected' },
   agent_event:                { category: 'agent',     keys: ['event'],                                      doc: 'Per-agent event stream', dynamic: true },
   agent_message_intercepted:  { category: 'agent',     keys: ['from','to','content','type'],                 doc: 'Hook-intercepted SendMessage', dynamic: true },
-  terminal_output:            { category: 'agent',     keys: ['session_id','output'],                        doc: 'Tmux output', dynamic: true },
-  mailbox_message:            { category: 'agent',     keys: ['message'],                                    doc: 'Direct message to agent', dynamic: true },
-  agent_instructions:         { category: 'agent',     keys: ['agent_class','instructions'],                 doc: 'Pushed instructions', dynamic: true },
-  scheduled_job:              { category: 'agent',     keys: ['agent_id','payload'],                         doc: 'Cron job fired', dynamic: true },
+  terminal_output:            { category: 'agent',     keys: ['session_id','output'],                        doc: 'Tmux pane output captured', dynamic: true },
+  mailbox_message:            { category: 'agent',     keys: ['message'],                                    doc: 'Direct message to agent inbox', dynamic: true },
+  agent_instructions:         { category: 'agent',     keys: ['agent_class','instructions'],                 doc: 'Pushed instructions to agent', dynamic: true },
+  scheduled_job:              { category: 'agent',     keys: ['agent_id','payload'],                         doc: 'Cron job fired for agent', dynamic: true },
   // fleet
-  agent_started:              { category: 'fleet',     keys: ['session_id','role','team'],                   doc: 'AgentProcess init' },
+  agent_started:              { category: 'fleet',     keys: ['session_id','role','team'],                   doc: 'AgentProcess init complete' },
   agent_paused:               { category: 'fleet',     keys: ['session_id'],                                 doc: 'Agent paused via HITL' },
-  agent_resumed:              { category: 'fleet',     keys: ['session_id'],                                 doc: 'Agent resumed' },
+  agent_resumed:              { category: 'fleet',     keys: ['session_id'],                                 doc: 'Agent resumed from pause' },
   agent_stopped:              { category: 'fleet',     keys: ['session_id','reason'],                        doc: 'AgentProcess terminated' },
   agent_evicted:              { category: 'fleet',     keys: ['session_id'],                                 doc: 'Agent evicted due to missed heartbeats' },
   agent_reaped:               { category: 'fleet',     keys: ['session_id'],                                 doc: 'Dead agent reaped by TmuxDiscovery' },
-  agent_discovered:           { category: 'fleet',     keys: ['session_id'],                                 doc: 'Agent discovered via tmux session scan' },
+  agent_discovered:           { category: 'fleet',     keys: ['session_id'],                                 doc: 'Agent found via tmux session scan' },
   session_started:            { category: 'fleet',     keys: ['session_id','tmux_session','cwd','model','os_pid'], doc: 'New agent session started' },
-  session_ended:              { category: 'fleet',     keys: ['session_id','status'],                        doc: 'Agent session ended' },
+  session_ended:              { category: 'fleet',     keys: ['session_id','status'],                        doc: 'Agent session ended cleanly' },
   team_created:               { category: 'fleet',     keys: ['name','project','strategy'],                  doc: 'New team started' },
   team_disbanded:             { category: 'fleet',     keys: ['team_name'],                                  doc: 'Team removed' },
   team_spawn_requested:       { category: 'fleet',     keys: ['team_name','spec','source'],                  doc: 'Team spawn requested', dynamic: true },
   team_spawn_started:         { category: 'fleet',     keys: ['team_name','agent_count','source'],           doc: 'Spawn request accepted', dynamic: true },
   team_spawn_ready:           { category: 'fleet',     keys: ['session','team_name','agent_count','source'], doc: 'Team spawn completed', dynamic: true },
   team_spawn_failed:          { category: 'fleet',     keys: ['team_name','reason','source'],                doc: 'Team spawn failed', dynamic: true },
-  team_create_requested:      { category: 'fleet',     keys: ['team_name'],                                  doc: 'TeamCreate intercepted' },
-  team_delete_requested:      { category: 'fleet',     keys: ['team_name'],                                  doc: 'TeamDelete intercepted' },
   run_complete:               { category: 'fleet',     keys: ['kind','run_id','session'],                    doc: 'Run completed cleanly' },
   run_terminated:             { category: 'fleet',     keys: ['kind','run_id','session'],                    doc: 'Run process terminated' },
-  hosts_changed:              { category: 'fleet',     keys: [],                                             doc: 'Cluster node joined/departed' },
+  hosts_changed:              { category: 'fleet',     keys: [],                                             doc: 'Cluster node joined or departed' },
   fleet_changed:              { category: 'fleet',     keys: ['agent_id'],                                   doc: 'Agent Registry metadata changed' },
   // gateway
   decision_log:               { category: 'gateway',   keys: ['log'],                                        doc: 'Inter-agent message routed' },
   schema_violation:           { category: 'gateway',   keys: ['event_map'],                                  doc: 'Schema validation failure' },
   node_state_update:          { category: 'gateway',   keys: ['agent_id','state'],                           doc: 'Topology node change' },
-  entropy_alert:              { category: 'gateway',   keys: ['session_id','entropy_score'],                 doc: 'Repeated pattern detected' },
-  topology_snapshot:          { category: 'gateway',   keys: ['nodes','edges'],                              doc: 'Full topology snapshot' },
+  entropy_alert:              { category: 'gateway',   keys: ['session_id','entropy_score'],                 doc: 'Repeated pattern detected in messages' },
+  topology_snapshot:          { category: 'gateway',   keys: ['nodes','edges'],                              doc: 'Full topology snapshot emitted' },
   capability_update:          { category: 'gateway',   keys: ['state_map'],                                  doc: 'Agent capability map changed' },
-  dead_letter:                { category: 'gateway',   keys: ['delivery'],                                   doc: 'Failed webhook to DLQ' },
+  dead_letter:                { category: 'gateway',   keys: ['delivery'],                                   doc: 'Failed webhook moved to DLQ' },
   webhook_delivery_enqueued:  { category: 'gateway',   keys: ['delivery_id','agent_id','target_url','status','attempt_count'], doc: 'Webhook delivery job enqueued' },
   webhook_delivery_delivered: { category: 'gateway',   keys: ['delivery_id','agent_id','target_url','status','attempt_count'], doc: 'Webhook delivery confirmed' },
-  gateway_audit:              { category: 'gateway',   keys: ['envelope_id','channel'],                      doc: 'Message routing audit' },
-  mesh_pause:                 { category: 'gateway',   keys: ['initiated_by'],                               doc: 'God-mode mesh pause' },
+  gateway_audit:              { category: 'gateway',   keys: ['envelope_id','channel'],                      doc: 'Message routing audit entry' },
+  mesh_pause:                 { category: 'gateway',   keys: ['initiated_by'],                               doc: 'God-mode mesh pause initiated' },
   cron_job_scheduled:         { category: 'gateway',   keys: ['job_id','agent_id','next_fire_at'],           doc: 'Cron job created' },
-  cron_job_rescheduled:       { category: 'gateway',   keys: ['job_id','agent_id','next_fire_at'],           doc: 'Cron job rescheduled' },
   // hitl
   gate_open:                  { category: 'hitl',      keys: ['session_id'],                                 doc: 'Agent paused, gate opened', dynamic: true },
   gate_close:                 { category: 'hitl',      keys: ['session_id'],                                 doc: 'Agent resumed, gate closed', dynamic: true },
@@ -916,12 +899,12 @@ const CATALOG = {
   hitl_operator_approved:     { category: 'hitl',      keys: ['session_id'],                                 doc: 'Operator approved buffered messages' },
   hitl_operator_rejected:     { category: 'hitl',      keys: ['session_id'],                                 doc: 'Operator rejected buffered messages' },
   hitl_intervention_recorded: { category: 'hitl',      keys: ['event_id','session_id','agent_id','operator_id','action','details'], doc: 'HITL operator intervention persisted' },
-  // mes (sample)
+  // mes
   mes_tick:                   { category: 'mes',       keys: ['tick','active_runs'],                         doc: 'MES scheduler tick fired' },
   mes_cycle_started:          { category: 'mes',       keys: ['run_id','team_name'],                         doc: 'MES spawned manufacturing team' },
   mes_cycle_failed:           { category: 'mes',       keys: ['run_id','reason'],                            doc: 'MES run failed to start' },
   mes_run_started:            { category: 'mes',       keys: ['run_id','session'],                           doc: 'MES RunProcess team spawned' },
-  mes_team_ready:             { category: 'mes',       keys: ['session','agent_count'],                      doc: 'All agents spawned in tmux' },
+  mes_team_ready:             { category: 'mes',       keys: ['session','agent_count'],                      doc: 'All agents spawned in tmux session' },
   mes_team_killed:            { category: 'mes',       keys: ['session'],                                    doc: 'MES tmux session killed' },
   mes_quality_gate_passed:    { category: 'mes',       keys: ['run_id','gate','session_id'],                 doc: 'MES quality gate passed' },
   mes_quality_gate_failed:    { category: 'mes',       keys: ['run_id','gate','session_id','reason'],        doc: 'MES quality gate failed' },
@@ -938,7 +921,7 @@ const CATALOG = {
   pipeline_created:           { category: 'pipeline',  keys: ['run_id','source','label','task_count'],       doc: 'Pipeline created' },
   pipeline_ready:             { category: 'pipeline',  keys: ['run_id','session','project_id'],              doc: 'Pipeline spawned with lead agent' },
   pipeline_completed:         { category: 'pipeline',  keys: ['run_id','label'],                             doc: 'All pipeline tasks completed' },
-  pipeline_task_claimed:      { category: 'pipeline',  keys: ['run_id','task_id','external_id','owner','wave'], doc: 'Pipeline task claimed' },
+  pipeline_task_claimed:      { category: 'pipeline',  keys: ['run_id','task_id','external_id','owner','wave'], doc: 'Pipeline task claimed by agent' },
   pipeline_task_completed:    { category: 'pipeline',  keys: ['run_id','task_id','external_id','owner'],     doc: 'Pipeline task completed' },
   pipeline_task_failed:       { category: 'pipeline',  keys: ['run_id','task_id','external_id','notes'],     doc: 'Pipeline task failed' },
   pipeline_health_report:     { category: 'pipeline',  keys: ['run_id','healthy','issue_count'],             doc: 'Periodic health check result' },
@@ -947,7 +930,7 @@ const CATALOG = {
   planning_run_complete:      { category: 'planning',  keys: ['run_id','mode','session','delivered_by'],     doc: 'Planning mode run completed' },
   project_created:            { category: 'planning',  keys: ['id','project_id','title','type'],             doc: 'Project created' },
   project_advanced:           { category: 'planning',  keys: ['id','project_id','title','type'],             doc: 'Project advanced to next stage' },
-  pipeline_generated_for_mes: { category: 'planning',  keys: ['project_id'],                                 doc: 'Pipeline tasks.jsonl generated' },
+  pipeline_generated_for_mes: { category: 'planning',  keys: ['project_id'],                                 doc: 'Pipeline tasks.jsonl generated for MES' },
   // mesh
   dag_delta:                  { category: 'mesh',      keys: ['session_id','added_nodes'],                   doc: 'Causal DAG update', dynamic: true },
   // system
@@ -962,7 +945,7 @@ const CATALOG = {
   block_changed:              { category: 'memory',    keys: ['block_id','label'],                           doc: 'Memory block modified' },
   memory_changed:             { category: 'memory',    keys: ['agent_name','event'],                         doc: 'Per-agent memory change', dynamic: true },
   // team
-  task_created:               { category: 'team',      keys: ['task'],                                       doc: 'New task added', dynamic: true },
+  task_created:               { category: 'team',      keys: ['task'],                                       doc: 'New task added to team board', dynamic: true },
   task_updated:               { category: 'team',      keys: ['task'],                                       doc: 'Task status changed', dynamic: true },
   tasks_updated:              { category: 'team',      keys: ['team_name'],                                  doc: 'Team task list changed' },
   // cleanup
@@ -974,14 +957,12 @@ const CATALOG = {
 // STATE
 // ═══════════════════════════════════════════════════════════════════
 
-let feedEntries = [];       // all received signals
+let feedEntries = [];
 let paused = false;
 let expandedRowId = null;
 let activeFilters = { search: '', categories: new Set(), signalName: null };
 let activePreset = 'all';
-let categoryRates = {};     // cat -> events in last 60s timestamps[]
-let totalPerMin = 0;
-let tickIntervals = [];
+let categoryRates = {};
 
 // ═══════════════════════════════════════════════════════════════════
 // CATALOG RENDER
@@ -1004,40 +985,54 @@ function buildCatalog() {
     totalCount += signals.length;
     const color = CATEGORY_COLORS[cat] || '#888';
 
-    const group = document.createElement('div');
-    group.className = 'category-group';
-    group.id = `cat-group-${cat}`;
+    const section = document.createElement('section');
+    section.className = 'category-group';
+    section.id = `cat-group-${cat}`;
 
-    const header = document.createElement('div');
-    header.className = 'category-header';
-    header.id = `cat-header-${cat}`;
-    header.innerHTML = `
-      <div class="cat-indicator" style="background:${color}"></div>
-      <div class="cat-name" style="color:${color}">${cat}</div>
-      <div class="cat-count">${signals.length}</div>
-      <div class="cat-rate" id="cat-rate-${cat}">0/m</div>
-      <div class="cat-chevron">&#9658;</div>
+    const hdr = document.createElement('header');
+    hdr.className = 'category-header';
+    hdr.id = `cat-header-${cat}`;
+    hdr.setAttribute('role', 'treeitem');
+    hdr.setAttribute('aria-expanded', 'false');
+    hdr.innerHTML = `
+      <span class="cat-indicator" style="background:${color};box-shadow:0 0 4px ${color}66" aria-hidden="true"></span>
+      <span class="cat-name" style="color:${color}">${cat}</span>
+      <span class="badge">${signals.length}</span>
+      <span class="cat-rate" id="cat-rate-${cat}">0/m</span>
+      <span class="cat-chevron" aria-hidden="true">&#9658;</span>
     `;
-    header.addEventListener('click', () => toggleCategoryGroup(cat));
+    hdr.addEventListener('click', () => toggleCategoryGroup(cat));
 
-    const body = document.createElement('div');
+    const body = document.createElement('article');
     body.className = 'category-body';
+    body.setAttribute('role', 'group');
+
     for (const sig of signals) {
-      const item = document.createElement('div');
+      const item = document.createElement('article');
       item.className = 'signal-item';
       item.id = `sig-item-${sig.name}`;
+      item.setAttribute('role', 'treeitem');
+      item.setAttribute('tabindex', '0');
+      item.setAttribute('aria-label', sig.name);
+
+      const dynBadge = sig.dynamic ? '<span class="badge-dyn">dyn</span>' : '';
+      const keysHtml = sig.keys.length
+        ? `<p class="signal-keys">${sig.keys.map(k => `<span class="key-tag">:${k}</span>`).join('')}</p>`
+        : '';
+
       item.innerHTML = `
-        <div class="signal-name">${sig.name}${sig.dynamic ? ' <span style="color:var(--text-muted);font-size:9px">[dyn]</span>' : ''}</div>
-        ${sig.keys.length ? `<div class="signal-keys">${sig.keys.map(k => `<span style="color:var(--c-cyan)">:${k}</span>`).join(' ')}</div>` : ''}
-        <div class="signal-doc">${sig.doc}</div>
+        <p class="signal-name">${sig.name}${dynBadge}</p>
+        ${keysHtml}
+        <p class="signal-doc" title="${escapeHtml(sig.doc)}">${escapeHtml(sig.doc)}</p>
       `;
       item.addEventListener('click', () => filterBySignal(sig.name));
+      item.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') filterBySignal(sig.name); });
       body.appendChild(item);
     }
 
-    group.appendChild(header);
-    group.appendChild(body);
-    container.appendChild(group);
+    section.appendChild(hdr);
+    section.appendChild(body);
+    container.appendChild(section);
   }
 
   document.getElementById('catalog-total').textContent = `${totalCount} signals`;
@@ -1047,26 +1042,27 @@ function buildCatalog() {
 
 function toggleCategoryGroup(cat) {
   const group = document.getElementById(`cat-group-${cat}`);
-  group.classList.toggle('open');
+  const hdr   = document.getElementById(`cat-header-${cat}`);
+  const isOpen = group.classList.toggle('open');
+  hdr.setAttribute('aria-expanded', String(isOpen));
 }
 
 function filterCatalog(search) {
   const q = search.toLowerCase();
-  const groups = document.querySelectorAll('.category-group');
-  for (const group of groups) {
-    const items = group.querySelectorAll('.signal-item');
+  document.querySelectorAll('section.category-group').forEach(group => {
     let anyVisible = false;
-    for (const item of items) {
-      const name = item.querySelector('.signal-name').textContent.toLowerCase();
-      const doc  = item.querySelector('.signal-doc').textContent.toLowerCase();
-      const show = !q || name.includes(q) || doc.includes(q);
+    group.querySelectorAll('article.signal-item').forEach(item => {
+      const name = item.querySelector('.signal-name')?.textContent.toLowerCase() ?? '';
+      const doc  = item.querySelector('.signal-doc')?.textContent.toLowerCase()  ?? '';
+      const keys = item.querySelector('.signal-keys')?.textContent.toLowerCase() ?? '';
+      const show = !q || name.includes(q) || doc.includes(q) || keys.includes(q);
       item.style.display = show ? '' : 'none';
       if (show) anyVisible = true;
-    }
+    });
     group.style.display = anyVisible ? '' : 'none';
     if (q && anyVisible) group.classList.add('open');
     else if (q && !anyVisible) group.classList.remove('open');
-  }
+  });
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -1078,31 +1074,33 @@ function buildCategoryPills(categories) {
   container.innerHTML = '';
   for (const cat of categories) {
     const color = CATEGORY_COLORS[cat] || '#888';
-    const pill = document.createElement('div');
-    pill.className = 'pill';
-    pill.id = `pill-${cat}`;
-    pill.textContent = cat;
-    pill.style.borderColor = color + '55';
-    pill.style.color = color + 'aa';
-    pill.addEventListener('click', () => toggleCategoryFilter(cat));
-    container.appendChild(pill);
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'pill';
+    btn.id = `pill-${cat}`;
+    btn.textContent = cat;
+    btn.style.borderColor = color + '55';
+    btn.style.color = color + 'aa';
+    btn.addEventListener('click', () => toggleCategoryFilter(cat));
+    container.appendChild(btn);
   }
 }
 
 function toggleCategoryFilter(cat) {
-  const pill = document.getElementById(`pill-${cat}`);
+  const btn = document.getElementById(`pill-${cat}`);
+  const color = CATEGORY_COLORS[cat] || '#888';
   if (activeFilters.categories.has(cat)) {
     activeFilters.categories.delete(cat);
-    const color = CATEGORY_COLORS[cat] || '#888';
-    pill.classList.remove('active');
-    pill.style.background = '';
-    pill.style.color = color + 'aa';
+    btn.classList.remove('active');
+    btn.style.background = '';
+    btn.style.color = color + 'aa';
+    btn.style.borderColor = color + '55';
   } else {
     activeFilters.categories.add(cat);
-    const color = CATEGORY_COLORS[cat] || '#888';
-    pill.classList.add('active');
-    pill.style.background = color;
-    pill.style.color = '#000';
+    btn.classList.add('active');
+    btn.style.background = color;
+    btn.style.color = '#0a0a14';
+    btn.style.borderColor = color;
   }
   activePreset = 'custom';
   updatePresetButtons();
@@ -1115,51 +1113,65 @@ function toggleCategoryFilter(cat) {
 
 function buildEmitterSelect() {
   const select = document.getElementById('emitter-signal');
-  const allNames = Object.keys(CATALOG).sort();
-  for (const name of allNames) {
+  Object.keys(CATALOG).sort().forEach(name => {
     const opt = document.createElement('option');
     opt.value = name;
     opt.textContent = name;
     select.appendChild(opt);
-  }
+  });
 }
 
 function populateEmitterPayload() {
   const name = document.getElementById('emitter-signal').value;
-  if (!name) { document.getElementById('emitter-payload').value = '{}'; return; }
+  const ta = document.getElementById('emitter-payload');
+  if (!name) { ta.value = '{}'; return; }
   const def = CATALOG[name];
-  if (!def) { document.getElementById('emitter-payload').value = '{}'; return; }
+  if (!def) { ta.value = '{}'; return; }
   const obj = {};
-  for (const k of def.keys) obj[k] = exampleValue(k, name);
-  document.getElementById('emitter-payload').value = JSON.stringify(obj, null, 2);
+  for (const k of def.keys) obj[k] = exampleValue(k);
+  ta.value = JSON.stringify(obj, null, 2);
 }
 
-function exampleValue(key, signalName) {
-  if (key === 'session_id' || key === 'agent_id') return 'agent_' + Math.random().toString(36).slice(2,8);
-  if (key === 'run_id')     return 'run_' + Math.random().toString(36).slice(2,8);
-  if (key === 'project_id') return 'proj_' + Math.random().toString(36).slice(2,8);
-  if (key === 'team_name')  return 'alpha-team';
-  if (key === 'session')    return 'ichor_' + Math.random().toString(36).slice(2,8);
-  if (key === 'count')      return Math.floor(Math.random() * 1000);
-  if (key === 'tick')       return Math.floor(Math.random() * 500);
-  if (key === 'level')      return 1;
-  if (key === 'agent_name') return 'arch-001';
-  if (key === 'reason')     return 'timeout';
-  if (key === 'status')     return 'ok';
-  if (key === 'nodes')      return [];
-  if (key === 'edges')      return [];
-  if (key === 'entropy_score') return parseFloat((Math.random() * 0.9).toFixed(2));
-  if (key === 'role')       return 'implementer';
-  if (key === 'model')      return 'claude-sonnet-4-6';
-  if (key === 'summary')    return 'Task completed successfully.';
-  if (key === 'gate')       return 'compile_clean';
-  if (key === 'action')     return 'kill';
-  if (key === 'title')      return 'Feature: auth flow';
-  if (key === 'label')      return 'build-pipeline-001';
-  if (key === 'active_runs') return 3;
-  if (key === 'agent_count') return 4;
-  if (key === 'orphaned_count') return 0;
-  return 'value';
+function exampleValue(key) {
+  const map = {
+    session_id: () => 'agent_' + Math.random().toString(36).slice(2,8),
+    agent_id:   () => 'agent_' + Math.random().toString(36).slice(2,8),
+    run_id:     () => 'run_' + Math.random().toString(36).slice(2,8),
+    project_id: () => 'proj_' + Math.random().toString(36).slice(2,8),
+    delivery_id:() => 'del_' + Math.random().toString(36).slice(2,8),
+    team_name:  () => 'alpha-team',
+    session:    () => 'ichor_' + Math.random().toString(36).slice(2,8),
+    tmux_session:()=> 'ichor_' + Math.random().toString(36).slice(2,8),
+    count:      () => Math.floor(Math.random() * 1000),
+    tick:       () => Math.floor(Math.random() * 500),
+    active_runs:() => Math.floor(Math.random() * 5),
+    level:      () => 1,
+    agent_name: () => 'arch-001',
+    reason:     () => 'timeout',
+    status:     () => 'ok',
+    nodes:      () => 5,
+    edges:      () => 7,
+    entropy_score: () => parseFloat((Math.random() * 0.9).toFixed(2)),
+    role:       () => 'implementer',
+    model:      () => 'claude-sonnet-4-6',
+    os_pid:     () => Math.floor(Math.random() * 99999),
+    cwd:        () => '/projects/observatory',
+    summary:    () => 'Task completed successfully.',
+    gate:       () => 'compile_clean',
+    action:     () => 'kill',
+    title:      () => 'Feature: auth flow',
+    label:      () => 'build-pipeline-001',
+    agent_count:() => 4,
+    task_count: () => 12,
+    orphaned_count: () => 0,
+    source:     () => 'mes',
+    type:       () => 'feature',
+    mode:       () => 'C',
+    wave:       () => 1,
+    attempt_count: () => 1,
+    target_url: () => 'https://hooks.example.com/notify',
+  };
+  return (map[key] || (() => 'value'))();
 }
 
 function emitSignal() {
@@ -1181,9 +1193,7 @@ function emitSignal() {
     return;
   }
 
-  // inject into feed directly (simulates server-side emit)
   ingestSignal(name, payload, true);
-
   resultEl.className = 'success';
   resultEl.textContent = `OK: ${name} emitted at ${new Date().toISOString()}`;
   setTimeout(() => { resultEl.className = ''; resultEl.textContent = '—'; }, 4000);
@@ -1193,20 +1203,22 @@ function emitSignal() {
 // FEED
 // ═══════════════════════════════════════════════════════════════════
 
-const ERROR_SIGNALS = new Set(['agent_crashed','dead_letter','schema_violation','mes_cycle_failed',
-  'gate_failed','nudge_zombie','mes_quality_gate_failed','mes_tmux_spawn_failed',
-  'mes_team_spawn_failed','pipeline_task_failed','mes_plugin_compile_failed',
-  'team_spawn_failed','planning_team_spawn_failed','mes_corrective_agent_failed']);
-
-const WARNING_SIGNALS = new Set(['nudge_warning','nudge_escalated','entropy_alert',
-  'watchdog_sweep','mes_cycle_skipped','mes_maintenance_error',
+const ERROR_SIGNALS = new Set([
+  'agent_crashed','dead_letter','schema_violation','mes_cycle_failed',
+  'gate_failed','nudge_zombie','mes_quality_gate_failed',
+  'pipeline_task_failed','team_spawn_failed',
+]);
+const WARNING_SIGNALS = new Set([
+  'nudge_warning','nudge_escalated','entropy_alert','watchdog_sweep',
   'hitl_intervention_recorded','gate_open','agent_blocked','agent_evicted',
-  'run_cleanup_needed','session_cleanup_needed']);
-
-const SUCCESS_SIGNALS = new Set(['agent_done','gate_passed','pipeline_completed',
-  'mes_team_ready','planning_run_complete','session_started','run_complete',
-  'pipeline_task_completed','mes_quality_gate_passed','mes_project_compiled',
-  'mes_team_ready','hitl_operator_approved']);
+  'run_cleanup_needed','session_cleanup_needed',
+]);
+const SUCCESS_SIGNALS = new Set([
+  'agent_done','gate_passed','pipeline_completed','mes_team_ready',
+  'planning_run_complete','session_started','run_complete',
+  'pipeline_task_completed','mes_quality_gate_passed','hitl_operator_approved',
+  'team_spawn_ready',
+]);
 
 function classifyLevel(name) {
   if (ERROR_SIGNALS.has(name))   return 'error';
@@ -1219,29 +1231,21 @@ let nextId = 1;
 
 function ingestSignal(name, data, isEmitted = false) {
   if (paused && !isEmitted) return;
-
   const def = CATALOG[name] || { category: 'system', keys: [], doc: 'unknown' };
   const entry = {
-    id:       nextId++,
-    name,
+    id: nextId++, name,
     category: def.category,
-    data,
-    ts:       Date.now(),
-    level:    classifyLevel(name),
-    isNew:    true,
+    data, ts: Date.now(),
+    level: classifyLevel(name),
   };
-
   feedEntries.unshift(entry);
   if (feedEntries.length > 600) feedEntries.pop();
 
-  // track rates
   if (!categoryRates[entry.category]) categoryRates[entry.category] = [];
   categoryRates[entry.category].push(Date.now());
 
-  // pulse catalog category header
   pulseCategoryHeader(entry.category);
 
-  // prepend row to table (filtered)
   if (matchesFilters(entry)) {
     prependRow(entry);
     updateStats();
@@ -1249,14 +1253,14 @@ function ingestSignal(name, data, isEmitted = false) {
 }
 
 function pulseCategoryHeader(cat) {
-  const header = document.getElementById(`cat-header-${cat}`);
-  if (!header) return;
-  header.classList.remove('pulsing');
-  void header.offsetWidth;
-  header.classList.add('pulsing');
+  const hdr = document.getElementById(`cat-header-${cat}`);
+  if (!hdr) return;
+  hdr.classList.remove('pulsing');
+  void hdr.offsetWidth;
+  hdr.classList.add('pulsing');
   const rateEl = document.getElementById(`cat-rate-${cat}`);
   if (rateEl) rateEl.classList.add('active');
-  setTimeout(() => { header.classList.remove('pulsing'); }, 650);
+  setTimeout(() => { hdr.classList.remove('pulsing'); }, 700);
 }
 
 function matchesFilters(entry) {
@@ -1264,9 +1268,9 @@ function matchesFilters(entry) {
   if (signalName && entry.name !== signalName) return false;
   if (categories.size > 0 && !categories.has(entry.category)) return false;
   if (search) {
-    const q = search.toLowerCase();
-    const inName = entry.name.toLowerCase().includes(q);
-    const inData = JSON.stringify(entry.data).toLowerCase().includes(q);
+    const patterns = search.toLowerCase().split('|').filter(Boolean);
+    const inName = patterns.some(p => entry.name.toLowerCase().includes(p));
+    const inData = patterns.some(p => JSON.stringify(entry.data).toLowerCase().includes(p));
     if (!inName && !inData) return false;
   }
   return true;
@@ -1277,29 +1281,25 @@ function prependRow(entry) {
   const color = CATEGORY_COLORS[entry.category] || '#888';
   const levelClass = entry.level !== 'normal' ? ` row-${entry.level}` : '';
 
-  // Main row
   const tr = document.createElement('tr');
   tr.className = `feed-row${levelClass} new-flash`;
   tr.id = `row-${entry.id}`;
   tr.innerHTML = `
     <td class="time-cell" id="time-${entry.id}">${relTime(entry.ts)}</td>
-    <td><span class="cat-badge" style="background:${color}22;color:${color};border:1px solid ${color}44">${entry.category}</span></td>
+    <td><span class="cat-badge" style="background:${color}22;color:${color};border:1.5px solid ${color}44">${entry.category}</span></td>
     <td class="signal-cell">${entry.name}</td>
     <td class="detail-cell">${formatDataInline(entry.data)}</td>
   `;
   tr.addEventListener('click', () => toggleExpandRow(entry.id));
 
-  // Expand row
   const expandTr = document.createElement('tr');
   expandTr.className = 'expand-row';
   expandTr.id = `expand-${entry.id}`;
   expandTr.innerHTML = `<td colspan="4"><pre class="expand-json">${escapeHtml(JSON.stringify(entry.data, null, 2))}</pre></td>`;
 
-  // Insert at top
   tbody.insertBefore(expandTr, tbody.firstChild);
   tbody.insertBefore(tr, tbody.firstChild);
 
-  // Clean up old rows (keep visible table lean)
   const allRows = tbody.querySelectorAll('tr.feed-row');
   if (allRows.length > 300) {
     const last = allRows[allRows.length - 1];
@@ -1307,9 +1307,7 @@ function prependRow(entry) {
     if (lastExpand) lastExpand.remove();
     last.remove();
   }
-
   document.getElementById('feed-empty').style.display = 'none';
-  document.getElementById('feed-table').style.display = '';
 }
 
 function toggleExpandRow(id) {
@@ -1324,12 +1322,13 @@ function toggleExpandRow(id) {
 }
 
 function formatDataInline(data) {
-  if (!data || Object.keys(data).length === 0) return '<span style="color:var(--text-muted)">—</span>';
+  if (!data || Object.keys(data).length === 0) return '<span style="color:var(--text-faint)">—</span>';
   const parts = Object.entries(data).slice(0, 4).map(([k,v]) => {
-    const vStr = typeof v === 'object' ? '[obj]' : String(v).slice(0,40);
+    const vStr = typeof v === 'object' ? '[obj]' : String(v).slice(0, 40);
     return `<span class="key">${k}:</span><span class="val">${escapeHtml(vStr)}</span>`;
   });
-  const more = Object.keys(data).length > 4 ? ` <span style="color:var(--text-muted)">+${Object.keys(data).length - 4}</span>` : '';
+  const more = Object.keys(data).length > 4
+    ? ` <span style="color:var(--text-faint)">+${Object.keys(data).length - 4}</span>` : '';
   return parts.join('  ') + more;
 }
 
@@ -1344,15 +1343,12 @@ function relTime(ts) {
   if (diff < 5)  return 'just now';
   if (diff < 60) return `${diff}s ago`;
   const m = Math.floor(diff / 60);
-  if (m < 60)    return `${m}m ago`;
-  return `${Math.floor(m/60)}h ago`;
+  return m < 60 ? `${m}m ago` : `${Math.floor(m/60)}h ago`;
 }
 
 function updateStats() {
   const count = document.getElementById('feed-tbody').querySelectorAll('tr.feed-row').length;
   document.getElementById('stat-count').textContent = count;
-
-  // rate: signals in last 60s
   const cutoff = Date.now() - 60000;
   let total = 0;
   for (const [cat, times] of Object.entries(categoryRates)) {
@@ -1377,16 +1373,9 @@ function renderFeed() {
   const tbody = document.getElementById('feed-tbody');
   tbody.innerHTML = '';
   expandedRowId = null;
-
   const visible = feedEntries.filter(matchesFilters);
   for (const entry of visible.slice(0, 300)) prependRow(entry);
-
-  if (visible.length === 0) {
-    document.getElementById('feed-empty').style.display = 'block';
-    document.getElementById('feed-table').style.display = visible.length === 0 ? '' : '';
-  } else {
-    document.getElementById('feed-empty').style.display = 'none';
-  }
+  document.getElementById('feed-empty').style.display = visible.length === 0 ? 'block' : 'none';
   updateStats();
 }
 
@@ -1399,18 +1388,15 @@ function clearFeed() {
   document.getElementById('feed-empty').style.display = 'block';
 }
 
-// ─── Update relative times every 15s
 setInterval(() => {
-  const tbody = document.getElementById('feed-tbody');
-  const rows = tbody.querySelectorAll('tr.feed-row');
-  for (const row of rows) {
+  document.getElementById('feed-tbody').querySelectorAll('tr.feed-row').forEach(row => {
     const id = row.id.replace('row-','');
     const entry = feedEntries.find(e => e.id == id);
     if (entry) {
-      const timeEl = document.getElementById(`time-${id}`);
-      if (timeEl) timeEl.textContent = relTime(entry.ts);
+      const el = document.getElementById(`time-${id}`);
+      if (el) el.textContent = relTime(entry.ts);
     }
-  }
+  });
 }, 15000);
 
 // ═══════════════════════════════════════════════════════════════════
@@ -1421,15 +1407,15 @@ function togglePause() {
   paused = !paused;
   const btn = document.getElementById('pause-btn');
   btn.textContent = paused ? '▶ Resume' : '⏸ Pause';
-  btn.className = paused ? 'paused' : '';
+  btn.className = 'btn-sm' + (paused ? ' paused' : '');
 }
 
 function filterBySignal(name) {
   if (activeFilters.signalName === name) {
     activeFilters.signalName = null;
-    document.querySelectorAll('.signal-item.active-filter').forEach(el => el.classList.remove('active-filter'));
+    document.querySelectorAll('article.signal-item.active-filter').forEach(el => el.classList.remove('active-filter'));
   } else {
-    document.querySelectorAll('.signal-item.active-filter').forEach(el => el.classList.remove('active-filter'));
+    document.querySelectorAll('article.signal-item.active-filter').forEach(el => el.classList.remove('active-filter'));
     activeFilters.signalName = name;
     const item = document.getElementById(`sig-item-${name}`);
     if (item) item.classList.add('active-filter');
@@ -1454,28 +1440,28 @@ function applyPreset(name) {
   if (!preset) return;
   activePreset = name;
 
-  // Reset category pills
-  document.querySelectorAll('.pill').forEach(p => {
-    p.classList.remove('active');
-    const cat = p.id.replace('pill-','');
+  document.querySelectorAll('button.pill').forEach(btn => {
+    btn.classList.remove('active');
+    const cat = btn.id.replace('pill-','');
     const color = CATEGORY_COLORS[cat] || '#888';
-    p.style.background = '';
-    p.style.color = color + 'aa';
+    btn.style.background = '';
+    btn.style.color = color + 'aa';
+    btn.style.borderColor = color + '55';
   });
 
   activeFilters.categories = new Set(preset.categories);
   activeFilters.search = preset.search || '';
   activeFilters.signalName = null;
-
   document.getElementById('feed-search').value = activeFilters.search;
 
   for (const cat of activeFilters.categories) {
-    const pill = document.getElementById(`pill-${cat}`);
-    if (pill) {
+    const btn = document.getElementById(`pill-${cat}`);
+    if (btn) {
       const color = CATEGORY_COLORS[cat] || '#888';
-      pill.classList.add('active');
-      pill.style.background = color;
-      pill.style.color = '#000';
+      btn.classList.add('active');
+      btn.style.background = color;
+      btn.style.color = '#0a0a14';
+      btn.style.borderColor = color;
     }
   }
 
@@ -1485,7 +1471,7 @@ function applyPreset(name) {
 }
 
 function updatePresetButtons() {
-  document.querySelectorAll('.preset-btn').forEach(btn => {
+  document.querySelectorAll('button.btn-preset').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.preset === activePreset);
   });
 }
@@ -1495,93 +1481,80 @@ function updatePresetButtons() {
 // ═══════════════════════════════════════════════════════════════════
 
 function switchTab(name) {
-  document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-  document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('section.tab-content').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('nav#left-tabs button').forEach(el => el.classList.remove('active'));
   document.getElementById(`tab-${name}`).classList.add('active');
   const idx = name === 'catalog' ? 0 : 1;
-  document.querySelectorAll('.tab-btn')[idx].classList.add('active');
+  document.querySelectorAll('nav#left-tabs button')[idx].classList.add('active');
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// DEMO: AUTO-PLAY SIGNAL STREAM
+// DEMO AUTO-PLAY
 // ═══════════════════════════════════════════════════════════════════
 
 const DEMO_SIGNALS = [
-  { name: 'heartbeat',             data: { count: 1 } },
-  { name: 'session_started',       data: { session_id: 'agent_a1b2', tmux_session: 'ichor_a1b2', cwd: '/projects/observatory', model: 'claude-sonnet-4-6', os_pid: 12345 } },
-  { name: 'agent_started',         data: { session_id: 'agent_a1b2', role: 'implementer', team: 'alpha-team' } },
-  { name: 'team_created',          data: { name: 'alpha-team', project: 'observatory', strategy: 'round-robin' } },
-  { name: 'mes_tick',              data: { tick: 42, active_runs: 2 } },
-  { name: 'pipeline_created',      data: { run_id: 'run_x9', source: 'mes', label: 'build-phase-3', task_count: 18 } },
-  { name: 'pipeline_task_claimed', data: { run_id: 'run_x9', task_id: '7', external_id: '7', owner: 'agent_a1b2', wave: 1 } },
-  { name: 'agent_done',            data: { session_id: 'agent_a1b2', summary: 'Completed refactor of signals catalog' } },
+  { name: 'heartbeat',               data: { count: 1 } },
+  { name: 'session_started',         data: { session_id: 'agent_a1b2', tmux_session: 'ichor_a1b2', cwd: '/projects/observatory', model: 'claude-sonnet-4-6', os_pid: 12345 } },
+  { name: 'agent_started',           data: { session_id: 'agent_a1b2', role: 'implementer', team: 'alpha-team' } },
+  { name: 'team_created',            data: { name: 'alpha-team', project: 'observatory', strategy: 'round-robin' } },
+  { name: 'mes_tick',                data: { tick: 42, active_runs: 2 } },
+  { name: 'pipeline_created',        data: { run_id: 'run_x9', source: 'mes', label: 'build-phase-3', task_count: 18 } },
+  { name: 'pipeline_task_claimed',   data: { run_id: 'run_x9', task_id: '7', external_id: '7', owner: 'agent_a1b2', wave: 1 } },
+  { name: 'agent_done',              data: { session_id: 'agent_a1b2', summary: 'Completed refactor of signals catalog' } },
   { name: 'pipeline_task_completed', data: { run_id: 'run_x9', task_id: '7', external_id: '7', owner: 'agent_a1b2' } },
   { name: 'mes_quality_gate_passed', data: { run_id: 'run_x9', gate: 'compile_clean', session_id: 'agent_a1b2' } },
-  { name: 'entropy_alert',         data: { session_id: 'agent_b3c4', entropy_score: 0.87 } },
-  { name: 'nudge_warning',         data: { session_id: 'agent_b3c4', agent_name: 'arch-002', level: 1 } },
-  { name: 'agent_crashed',         data: { session_id: 'agent_d5e6', team_name: 'beta-team' } },
-  { name: 'dead_letter',           data: { delivery: { url: 'https://hooks.example.com/notify', status: 500 } } },
-  { name: 'gate_open',             data: { session_id: 'agent_f7g8' } },
-  { name: 'hitl_operator_approved', data: { session_id: 'agent_f7g8' } },
-  { name: 'gate_close',            data: { session_id: 'agent_f7g8' } },
-  { name: 'message_delivered',     data: { agent_id: 'agent_a1b2', msg_map: { type: 'task', content: 'Fix the compile error in signals.ex' } } },
-  { name: 'memory_changed',        data: { agent_name: 'arch-001', event: 'block_written' } },
-  { name: 'task_created',          data: { task: { id: '42', subject: 'Add rate limiting', status: 'pending' } } },
-  { name: 'watchdog_sweep',        data: { orphaned_count: 0 } },
-  { name: 'topology_snapshot',     data: { nodes: 5, edges: 7 } },
-  { name: 'decision_log',          data: { log: { from: 'agent_a1b2', to: 'agent_b3c4', channel: 'direct' } } },
-  { name: 'planning_run_complete', data: { run_id: 'plan_001', mode: 'C', session: 'ichor_plan01', delivered_by: 'coordinator' } },
-  { name: 'mes_cycle_started',     data: { run_id: 'mes_cycle_17', team_name: 'gamma-team' } },
-  { name: 'mes_team_ready',        data: { session: 'ichor_gamma', agent_count: 3 } },
-  { name: 'pipeline_completed',    data: { run_id: 'run_x9', label: 'build-phase-3' } },
-  { name: 'run_complete',          data: { kind: 'mes', run_id: 'run_x9', session: 'ichor_gamma' } },
-  { name: 'registry_changed',      data: {} },
-  { name: 'block_changed',         data: { block_id: 'persona', label: 'human_1' } },
-  { name: 'fleet_changed',         data: { agent_id: 'agent_a1b2' } },
-  { name: 'dag_delta',             data: { session_id: 'agent_a1b2', added_nodes: ['step_12','step_13'] } },
+  { name: 'entropy_alert',           data: { session_id: 'agent_b3c4', entropy_score: 0.87 } },
+  { name: 'nudge_warning',           data: { session_id: 'agent_b3c4', agent_name: 'arch-002', level: 1 } },
+  { name: 'agent_crashed',           data: { session_id: 'agent_d5e6', team_name: 'beta-team' } },
+  { name: 'dead_letter',             data: { delivery: { url: 'https://hooks.example.com/notify', status: 500 } } },
+  { name: 'gate_open',               data: { session_id: 'agent_f7g8' } },
+  { name: 'hitl_operator_approved',  data: { session_id: 'agent_f7g8' } },
+  { name: 'gate_close',              data: { session_id: 'agent_f7g8' } },
+  { name: 'message_delivered',       data: { agent_id: 'agent_a1b2', msg_map: { type: 'task', content: 'Fix compile error in signals.ex' } } },
+  { name: 'memory_changed',          data: { agent_name: 'arch-001', event: 'block_written' } },
+  { name: 'task_created',            data: { task: { id: '42', subject: 'Add rate limiting', status: 'pending' } } },
+  { name: 'watchdog_sweep',          data: { orphaned_count: 0 } },
+  { name: 'topology_snapshot',       data: { nodes: 5, edges: 7 } },
+  { name: 'decision_log',            data: { log: { from: 'agent_a1b2', to: 'agent_b3c4', channel: 'direct' } } },
+  { name: 'planning_run_complete',   data: { run_id: 'plan_001', mode: 'C', session: 'ichor_plan01', delivered_by: 'coordinator' } },
+  { name: 'mes_cycle_started',       data: { run_id: 'mes_cycle_17', team_name: 'gamma-team' } },
+  { name: 'mes_team_ready',          data: { session: 'ichor_gamma', agent_count: 3 } },
+  { name: 'pipeline_completed',      data: { run_id: 'run_x9', label: 'build-phase-3' } },
+  { name: 'run_complete',            data: { kind: 'mes', run_id: 'run_x9', session: 'ichor_gamma' } },
+  { name: 'registry_changed',        data: {} },
+  { name: 'block_changed',           data: { block_id: 'persona', label: 'human_1' } },
+  { name: 'fleet_changed',           data: { agent_id: 'agent_a1b2' } },
+  { name: 'dag_delta',               data: { session_id: 'agent_a1b2', added_nodes: ['step_12','step_13'] } },
   { name: 'webhook_delivery_enqueued', data: { delivery_id: 'del_001', agent_id: 'agent_a1b2', target_url: 'https://hooks.example.com', status: 'enqueued', attempt_count: 1 } },
   { name: 'mes_quality_gate_failed', data: { run_id: 'mes_cycle_17', gate: 'test_pass', session_id: 'agent_g9h0', reason: 'mix test failed with 3 errors' } },
-  { name: 'project_created',       data: { id: 'pj_123', project_id: 'proj_abc', title: 'Gateway Rate Limiter', type: 'feature' } },
-  { name: 'pipeline_health_report', data: { run_id: 'run_x9', healthy: true, issue_count: 0 } },
-  { name: 'nudge_zombie',          data: { session_id: 'agent_z99', agent_name: 'zombie-003', level: 4 } },
-  { name: 'schema_violation',      data: { event_map: { type: 'tool_result', error: 'missing required field: role' } } },
-  { name: 'mes_corrective_agent_spawned', data: { run_id: 'mes_cycle_17', session: 'ichor_gamma', attempt: 1 } },
-  { name: 'run_cleanup_needed',    data: { run_id: 'run_old', action: 'kill_tmux' } },
+  { name: 'project_created',         data: { id: 'pj_123', project_id: 'proj_abc', title: 'Gateway Rate Limiter', type: 'feature' } },
+  { name: 'pipeline_health_report',  data: { run_id: 'run_x9', healthy: true, issue_count: 0 } },
+  { name: 'nudge_zombie',            data: { session_id: 'agent_z99', agent_name: 'zombie-003', level: 4 } },
+  { name: 'schema_violation',        data: { event_map: { type: 'tool_result', error: 'missing required field: role' } } },
+  { name: 'run_cleanup_needed',      data: { run_id: 'run_old', action: 'kill_tmux' } },
+  { name: 'cron_job_scheduled',      data: { job_id: 'cron_001', agent_id: 'agent_a1b2', next_fire_at: '2026-03-21T03:00:00Z' } },
 ];
 
 let demoIndex = 0;
 let demoHeartbeatCount = 0;
 
 function demoTick() {
-  // heartbeat every 5 signals
-  if (demoHeartbeatCount % 5 === 0) {
-    ingestSignal('heartbeat', { count: demoHeartbeatCount });
-  }
+  if (demoHeartbeatCount % 5 === 0) ingestSignal('heartbeat', { count: demoHeartbeatCount });
   demoHeartbeatCount++;
-
   const sig = DEMO_SIGNALS[demoIndex % DEMO_SIGNALS.length];
   demoIndex++;
-
-  // slightly vary payloads
   const data = JSON.parse(JSON.stringify(sig.data));
-  // inject some randomness into IDs
   for (const k of Object.keys(data)) {
-    if (typeof data[k] === 'number' && k === 'count') data[k] = demoHeartbeatCount;
-    if (typeof data[k] === 'number' && k === 'tick') data[k] = Math.floor(Math.random() * 1000);
-    if (typeof data[k] === 'number' && k === 'active_runs') data[k] = Math.floor(Math.random() * 5);
-    if (typeof data[k] === 'number' && k === 'entropy_score') data[k] = parseFloat((0.5 + Math.random() * 0.49).toFixed(2));
+    if (k === 'count')         data[k] = demoHeartbeatCount;
+    if (k === 'tick')          data[k] = Math.floor(Math.random() * 1000);
+    if (k === 'active_runs')   data[k] = Math.floor(Math.random() * 5);
+    if (k === 'entropy_score') data[k] = parseFloat((0.5 + Math.random() * 0.49).toFixed(2));
   }
-
   ingestSignal(sig.name, data);
 }
 
-// Variable intervals for realism
 function scheduleNext() {
-  const delay = 300 + Math.random() * 1200;
-  tickIntervals.push(setTimeout(() => {
-    demoTick();
-    scheduleNext();
-  }, delay));
+  setTimeout(() => { demoTick(); scheduleNext(); }, 320 + Math.random() * 1100);
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -1591,37 +1564,31 @@ function scheduleNext() {
 buildCatalog();
 updatePresetButtons();
 
-// Seed some initial signals before auto-play
 const SEED = [
-  { name: 'session_started',    data: { session_id: 'agent_seed1', tmux_session: 'ichor_seed1', cwd: '/projects/observatory', model: 'claude-sonnet-4-6', os_pid: 9000 } },
-  { name: 'agent_started',      data: { session_id: 'agent_seed1', role: 'coordinator', team: 'seed-team' } },
-  { name: 'team_created',       data: { name: 'seed-team', project: 'ichor-iv', strategy: 'parallel' } },
-  { name: 'mes_tick',           data: { tick: 1, active_runs: 1 } },
-  { name: 'pipeline_created',   data: { run_id: 'run_seed', source: 'mes', label: 'seed-pipeline', task_count: 5 } },
+  { name: 'session_started',       data: { session_id: 'agent_seed1', tmux_session: 'ichor_seed1', cwd: '/projects/observatory', model: 'claude-sonnet-4-6', os_pid: 9000 } },
+  { name: 'agent_started',         data: { session_id: 'agent_seed1', role: 'coordinator', team: 'seed-team' } },
+  { name: 'team_created',          data: { name: 'seed-team', project: 'ichor-iv', strategy: 'parallel' } },
+  { name: 'mes_tick',              data: { tick: 1, active_runs: 1 } },
+  { name: 'pipeline_created',      data: { run_id: 'run_seed', source: 'mes', label: 'seed-pipeline', task_count: 5 } },
   { name: 'pipeline_task_claimed', data: { run_id: 'run_seed', task_id: '1', external_id: '1', owner: 'agent_seed1', wave: 1 } },
-  { name: 'agent_done',         data: { session_id: 'agent_seed1', summary: 'Catalog migration complete' } },
+  { name: 'agent_done',            data: { session_id: 'agent_seed1', summary: 'Catalog migration complete' } },
   { name: 'pipeline_task_completed', data: { run_id: 'run_seed', task_id: '1', external_id: '1', owner: 'agent_seed1' } },
-  { name: 'heartbeat',          data: { count: 0 } },
-  { name: 'watchdog_sweep',     data: { orphaned_count: 0 } },
-  { name: 'registry_changed',   data: {} },
-  { name: 'fleet_changed',      data: { agent_id: 'agent_seed1' } },
-  { name: 'memory_changed',     data: { agent_name: 'coordinator', event: 'block_written' } },
-  { name: 'decision_log',       data: { log: { from: 'agent_seed1', to: 'operator', channel: 'hitl' } } },
-  { name: 'topology_snapshot',  data: { nodes: 3, edges: 2 } },
+  { name: 'heartbeat',             data: { count: 0 } },
+  { name: 'watchdog_sweep',        data: { orphaned_count: 0 } },
+  { name: 'registry_changed',      data: {} },
+  { name: 'fleet_changed',         data: { agent_id: 'agent_seed1' } },
+  { name: 'memory_changed',        data: { agent_name: 'coordinator', event: 'block_written' } },
+  { name: 'decision_log',          data: { log: { from: 'agent_seed1', to: 'operator', channel: 'hitl' } } },
+  { name: 'topology_snapshot',     data: { nodes: 3, edges: 2 } },
   { name: 'planning_run_complete', data: { run_id: 'plan_seed', mode: 'A', session: 'ichor_seed1', delivered_by: 'coordinator' } },
-  { name: 'pipeline_completed', data: { run_id: 'run_seed', label: 'seed-pipeline' } },
-  { name: 'run_complete',       data: { kind: 'pipeline', run_id: 'run_seed', session: 'ichor_seed1' } },
-  { name: 'session_ended',      data: { session_id: 'agent_old1', status: 'done' } },
-  { name: 'mes_cycle_started',  data: { run_id: 'mes_001', team_name: 'seed-team' } },
+  { name: 'pipeline_completed',    data: { run_id: 'run_seed', label: 'seed-pipeline' } },
+  { name: 'run_complete',          data: { kind: 'pipeline', run_id: 'run_seed', session: 'ichor_seed1' } },
+  { name: 'session_ended',         data: { session_id: 'agent_old1', status: 'done' } },
+  { name: 'mes_cycle_started',     data: { run_id: 'mes_001', team_name: 'seed-team' } },
 ];
 
-// Seed with slight delays to simulate a live stream
-SEED.forEach((sig, i) => {
-  setTimeout(() => ingestSignal(sig.name, sig.data), i * 60);
-});
-
-// Start live demo stream after seed
-setTimeout(scheduleNext, SEED.length * 60 + 200);
+SEED.forEach((sig, i) => setTimeout(() => ingestSignal(sig.name, sig.data), i * 55));
+setTimeout(scheduleNext, SEED.length * 55 + 200);
 
 </script>
 </body>

@@ -26,8 +26,12 @@ defmodule IchorWeb.DashboardTmuxHandlers do
     panels = socket.assigns.tmux_panels
 
     if session_name in panels do
-      # Already open -- just switch to it
-      assign(socket, active_tmux_session: session_name)
+      # Already open -- just switch to it and replay output
+      output = Map.get(socket.assigns.tmux_outputs, session_name, "")
+
+      socket
+      |> assign(active_tmux_session: session_name)
+      |> push_event("terminal_output", %{session: session_name, data: output})
     else
       output = capture_output(session_name)
 
@@ -35,7 +39,7 @@ defmodule IchorWeb.DashboardTmuxHandlers do
       |> assign(:tmux_panels, panels ++ [session_name])
       |> assign(:tmux_outputs, Map.put(socket.assigns.tmux_outputs, session_name, output))
       |> assign(:active_tmux_session, session_name)
-      |> assign(:tmux_output, output)
+      |> push_event("terminal_output", %{session: session_name, data: output})
       |> push_event("toast", %{message: "Opened #{session_name}", type: "success"})
     end
   end
@@ -48,11 +52,22 @@ defmodule IchorWeb.DashboardTmuxHandlers do
     # Switch to next panel or close
     next_active = List.first(panels)
 
-    socket
-    |> assign(:tmux_panels, panels)
-    |> assign(:tmux_outputs, outputs)
-    |> assign(:active_tmux_session, next_active)
-    |> assign(:tmux_output, Map.get(outputs, next_active, ""))
+    socket =
+      socket
+      |> assign(:tmux_panels, panels)
+      |> assign(:tmux_outputs, outputs)
+      |> assign(:active_tmux_session, next_active)
+
+    case next_active do
+      nil ->
+        socket
+
+      session ->
+        push_event(socket, "terminal_output", %{
+          session: session,
+          data: Map.get(outputs, session, "")
+        })
+    end
   end
 
   def handle_close_all_tmux(_params, socket) do
@@ -60,7 +75,6 @@ defmodule IchorWeb.DashboardTmuxHandlers do
     |> assign(:tmux_panels, [])
     |> assign(:tmux_outputs, %{})
     |> assign(:active_tmux_session, nil)
-    |> assign(:tmux_output, "")
   end
 
   def handle_switch_tmux_tab(%{"session" => session_name}, socket) do
@@ -68,7 +82,7 @@ defmodule IchorWeb.DashboardTmuxHandlers do
 
     socket
     |> assign(:active_tmux_session, session_name)
-    |> assign(:tmux_output, output)
+    |> push_event("terminal_output", %{session: session_name, data: output})
   end
 
   def handle_toggle_tmux_layout(_params, socket) do
@@ -86,8 +100,8 @@ defmodule IchorWeb.DashboardTmuxHandlers do
         output = capture_output(session)
 
         socket
-        |> assign(:tmux_output, output)
         |> assign(:tmux_outputs, Map.put(socket.assigns.tmux_outputs, session, output))
+        |> push_event("terminal_output", %{session: session, data: output})
     end
   end
 
@@ -103,12 +117,17 @@ defmodule IchorWeb.DashboardTmuxHandlers do
         outputs = Map.delete(socket.assigns.tmux_outputs, session)
         next_active = List.first(panels)
 
-        socket
-        |> assign(:tmux_panels, panels)
-        |> assign(:tmux_outputs, outputs)
-        |> assign(:active_tmux_session, next_active)
-        |> assign(:tmux_output, Map.get(outputs, next_active, ""))
-        |> push_event("toast", %{message: "Killed #{session}", type: "warning"})
+        socket =
+          socket
+          |> assign(:tmux_panels, panels)
+          |> assign(:tmux_outputs, outputs)
+          |> assign(:active_tmux_session, next_active)
+          |> push_event("toast", %{message: "Killed #{session}", type: "warning"})
+
+        case next_active do
+          nil -> socket
+          s -> push_event(socket, "terminal_output", %{session: s, data: Map.get(outputs, s, "")})
+        end
     end
   end
 
@@ -175,12 +194,15 @@ defmodule IchorWeb.DashboardTmuxHandlers do
           Map.put(acc, session, capture_output(session))
         end)
 
-      active = socket.assigns.active_tmux_session
-      active_output = Map.get(outputs, active, "")
+      # Push output for all panels so tiled mode stays fresh; tabs mode only shows active
+      socket = assign(socket, :tmux_outputs, outputs)
 
-      socket
-      |> assign(:tmux_outputs, outputs)
-      |> assign(:tmux_output, active_output)
+      Enum.reduce(panels, socket, fn session, acc ->
+        push_event(acc, "terminal_output", %{
+          session: session,
+          data: Map.get(outputs, session, "")
+        })
+      end)
     end
   end
 

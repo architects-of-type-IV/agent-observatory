@@ -25,9 +25,11 @@ import {LiveSocket} from "phoenix_live_view"
 import {hooks as colocatedHooks} from "phoenix-colocated/ichor"
 import topbar from "../vendor/topbar"
 import WorkshopCanvas from "./hooks/workshop_canvas"
+import { XtermHook } from "./hooks/xterm_hook"
 
 let Hooks = {
   WorkshopCanvas,
+  XtermTerminal: XtermHook,
   StatePersistence: {
     mounted() {
       // Restore state from localStorage on mount

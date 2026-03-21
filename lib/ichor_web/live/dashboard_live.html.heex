@@ -524,12 +524,19 @@
 
           <%!-- Terminal content --%>
           <%= if @tmux_layout == :tabs do %>
-            <%!-- Tabbed: single active pane --%>
-            <div class="flex-1 overflow-y-auto p-4 bg-base">
-              <pre class="text-[12px] font-mono text-high leading-relaxed whitespace-pre-wrap"><%= raw(AnsiUtils.to_html(@tmux_output)) %></pre>
+            <%!-- Tabbed: single active xterm pane --%>
+            <div class="flex-1 overflow-hidden bg-[#0f0f14]">
+              <div
+                id={"xterm-tab-#{@active_tmux_session}"}
+                phx-hook="XtermTerminal"
+                phx-update="ignore"
+                data-session={@active_tmux_session}
+                style="width: 100%; height: 100%;"
+              >
+              </div>
             </div>
           <% else %>
-            <%!-- Tiled: grid of all open panes --%>
+            <%!-- Tiled: grid of all open xterm panes --%>
             <% cols =
               if length(@tmux_panels) <= 2, do: "grid-cols-1 md:grid-cols-2", else: "grid-cols-2" %>
             <div class={"flex-1 grid #{cols} gap-px bg-raised overflow-hidden"}>
@@ -545,8 +552,15 @@
                     <span class={"w-1.5 h-1.5 rounded-full #{if is_active, do: "bg-success", else: "bg-highlight"}"}>
                     </span>
                   </div>
-                  <div class="flex-1 overflow-y-auto p-2 bg-base">
-                    <pre class="text-[10px] font-mono text-default leading-relaxed whitespace-pre-wrap"><%= raw(AnsiUtils.to_html(Map.get(@tmux_outputs, session, ""))) %></pre>
+                  <div class="flex-1 overflow-hidden bg-[#0f0f14]" style="min-height: 120px;">
+                    <div
+                      id={"xterm-tile-#{session}"}
+                      phx-hook="XtermTerminal"
+                      phx-update="ignore"
+                      data-session={session}
+                      style="width: 100%; height: 100%;"
+                    >
+                    </div>
                   </div>
                 </div>
               <% end %>
