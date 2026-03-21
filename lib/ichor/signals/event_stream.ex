@@ -229,7 +229,7 @@ defmodule Ichor.Signals.EventStream do
   defp ingest_event(event) do
     agent_id = AgentLifecycle.resolve_or_create_agent(event.session_id, event)
 
-    if event.hook_event_type in [:SessionEnd, "SessionEnd"] do
+    if event.hook_event_type == :SessionEnd do
       Signals.emit(:session_ended, %{session_id: agent_id, status: :ended})
     end
 

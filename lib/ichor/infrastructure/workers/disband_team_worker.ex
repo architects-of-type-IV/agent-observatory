@@ -10,8 +10,6 @@ defmodule Ichor.Infrastructure.Workers.DisbandTeamWorker do
     max_attempts: 3,
     unique: [period: 60, keys: [:session]]
 
-  require Logger
-
   alias Ichor.Infrastructure.FleetSupervisor
 
   @impl Oban.Worker
@@ -23,13 +21,6 @@ defmodule Ichor.Infrastructure.Workers.DisbandTeamWorker do
       {:error, :not_found} ->
         # Team already gone -- idempotent no-op
         :ok
-
-      {:error, reason} ->
-        Logger.warning(
-          "[DisbandTeamWorker] Failed to disband team #{session}: #{inspect(reason)}"
-        )
-
-        {:error, reason}
     end
   end
 end

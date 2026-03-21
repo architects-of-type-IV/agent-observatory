@@ -28,11 +28,7 @@ defmodule Ichor.Signals.Bus do
     message = normalize(from, content, attrs)
     target = resolve(to)
 
-    delivered =
-      case deliver(target, message) do
-        {:ok, n} -> n
-        _error -> 0
-      end
+    {:ok, delivered} = deliver(target, message)
 
     log_delivery(from, to, message, attrs)
     broadcast_delivery(to, from, message, delivered)

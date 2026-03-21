@@ -11,7 +11,6 @@ defmodule Ichor.Factory.ProjectIngestor do
   Messages arrive with atom keys from Delivery.normalize/2.
   Only processes messages sent TO "operator" FROM "mes-*" sessions.
   """
-  # FIXME: maybe remove all mes_ references.
   use GenServer
 
   require Logger

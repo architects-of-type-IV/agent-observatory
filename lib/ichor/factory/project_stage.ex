@@ -115,8 +115,6 @@ defmodule Ichor.Factory.ProjectStage do
     Enum.any?(checkpoints, fn cp -> cp.mode == mode or cp.mode == to_string(mode) end)
   end
 
-  defp has_checkpoint_mode?(_checkpoints, _mode), do: false
-
   defp has_active_pipeline?(nil), do: false
 
   defp has_active_pipeline?(%{id: project_id}) when is_binary(project_id) do

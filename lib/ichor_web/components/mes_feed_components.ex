@@ -94,8 +94,6 @@ defmodule IchorWeb.Components.MesFeedComponents do
 
   defp feed_row_class(_selected, _project), do: "hover:bg-brand/[0.03]"
 
-  defp short_module(nil), do: ""
-
   defp short_module(module) when is_binary(module) do
     module |> String.split(".") |> List.last()
   end

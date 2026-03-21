@@ -398,7 +398,6 @@ defmodule Ichor.Workshop.TeamSpec do
   defp default_session_name(team_name), do: "workshop-#{slug(team_name)}"
 
   defp blank_to_cwd(""), do: File.cwd!()
-  defp blank_to_cwd(nil), do: File.cwd!()
   defp blank_to_cwd(value), do: value
 
   defp slug(value) do

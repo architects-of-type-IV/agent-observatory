@@ -567,8 +567,13 @@ defmodule Ichor.Signals.Catalog do
     },
     project_artifact_created: %{
       category: :planning,
-      keys: [:id, :project_id, :type],
-      doc: "Project artifact created (ADR, Feature, UseCase, Phase, etc.)"
+      keys: [:project_id],
+      doc: "Project artifact added; consumers query the project for specifics"
+    },
+    project_roadmap_item_created: %{
+      category: :planning,
+      keys: [:project_id],
+      doc: "Project roadmap item added; consumers query the project for specifics"
     },
     pipeline_created: %{
       category: :pipeline,

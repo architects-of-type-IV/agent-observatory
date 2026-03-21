@@ -448,16 +448,14 @@ defmodule Ichor.Factory.Runner do
   end
 
   defp schedule_timers(timers, state) do
-    if is_map(timers) do
-      schedule_liveness(timers)
+    schedule_liveness(timers)
 
-      if deadline_ms = Map.get(timers, :deadline_ms) do
-        Process.send_after(self(), :deadline, deadline_ms)
-      end
+    if deadline_ms = Map.get(timers, :deadline_ms) do
+      Process.send_after(self(), :deadline, deadline_ms)
+    end
 
-      if init_fn = Map.get(timers, :on_init) do
-        init_fn.(state)
-      end
+    if init_fn = Map.get(timers, :on_init) do
+      init_fn.(state)
     end
   end
 
