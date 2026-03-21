@@ -22,7 +22,7 @@ defmodule Ichor.Infrastructure.Workers.ScheduledJob do
 
   defp perform_one_time(job, job_id, agent_id, payload) do
     case CronJob.complete(job) do
-      {:ok, _} ->
+      :ok ->
         Ichor.Signals.emit(:scheduled_job, agent_id, %{agent_id: agent_id, payload: payload})
         :ok
 

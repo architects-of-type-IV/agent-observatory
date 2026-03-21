@@ -192,6 +192,16 @@ defmodule Ichor.Signals.Catalog do
       doc: "Agent capability map changed"
     },
     dead_letter: %{category: :gateway, keys: [:delivery], doc: "Failed webhook to DLQ"},
+    webhook_delivery_enqueued: %{
+      category: :gateway,
+      keys: [:delivery_id, :agent_id, :target_url, :status, :attempt_count],
+      doc: "Webhook delivery job enqueued into Oban"
+    },
+    webhook_delivery_delivered: %{
+      category: :gateway,
+      keys: [:delivery_id, :agent_id, :target_url, :status, :attempt_count],
+      doc: "Webhook delivery confirmed delivered by worker"
+    },
     gateway_audit: %{
       category: :gateway,
       keys: [:envelope_id, :channel],
@@ -306,6 +316,11 @@ defmodule Ichor.Signals.Catalog do
       category: :hitl,
       keys: [:session_id],
       doc: "Operator rejected buffered messages"
+    },
+    hitl_intervention_recorded: %{
+      category: :hitl,
+      keys: [:event_id, :session_id, :agent_id, :operator_id, :action, :details],
+      doc: "HITL operator intervention event persisted"
     }
   }
 
@@ -516,6 +531,16 @@ defmodule Ichor.Signals.Catalog do
       category: :mes,
       keys: [:project_id, :session],
       doc: "Pipeline build team launched for MES project"
+    },
+    mes_corrective_agent_spawned: %{
+      category: :mes,
+      keys: [:run_id, :session, :attempt],
+      doc: "Corrective agent spawned into existing MES session after coordinator failure"
+    },
+    mes_corrective_agent_failed: %{
+      category: :mes,
+      keys: [:run_id, :session, :reason],
+      doc: "Corrective agent spawn into existing MES session failed"
     }
   }
 

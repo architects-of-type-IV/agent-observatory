@@ -49,7 +49,7 @@ defmodule Ichor.Factory.Runner.Modes do
       cleanup: %{policy: :signal},
       signals: %{
         ready: :mes_run_started,
-        completed: :mes_run_complete,
+        completed: :run_complete,
         tmux_gone: :mes_tmux_gone,
         terminated: :mes_run_terminated,
         deadline_reached: :mes_deadline_reached
@@ -58,7 +58,8 @@ defmodule Ichor.Factory.Runner.Modes do
       hooks: %{
         on_signal: Map.get(runner_hooks, :mes_on_signal),
         on_complete: fn state ->
-          Signals.emit(:mes_run_complete, %{
+          Signals.emit(:run_complete, %{
+            kind: :mes,
             run_id: state.run_id,
             session: state.session
           })

@@ -87,7 +87,7 @@ defmodule Ichor.Signals.FromAsh do
   end
 
   defp run_data(data, _action) do
-    %{run_id: data.id, label: data.label, source: data.source, task_count: data.task_count}
+    %{run_id: data.id, label: data.label, source: data.source}
   end
 
   defp run_archive_data(data, _action) do

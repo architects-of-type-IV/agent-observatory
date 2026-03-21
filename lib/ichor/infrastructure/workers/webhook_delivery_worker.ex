@@ -14,7 +14,7 @@ defmodule Ichor.Infrastructure.Workers.WebhookDeliveryWorker do
       {:ok, %{status: :delivered}} -> :ok
       {:ok, %{status: :dead}} -> :ok
       {:ok, delivery} -> attempt_delivery(delivery, attempt)
-      {:error, _} -> :ok
+      {:error, _} -> {:error, "delivery not found: #{delivery_id}"}
     end
   end
 

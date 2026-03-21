@@ -1,6 +1,8 @@
 defmodule Ichor.Infrastructure.CronScheduler do
   @moduledoc "Schedules jobs via Oban. No longer a GenServer."
 
+  require Logger
+
   alias Ichor.Factory.CronJob
   alias Ichor.Infrastructure.CronSchedule
   alias Ichor.Infrastructure.Workers.ScheduledJob
@@ -63,9 +65,20 @@ defmodule Ichor.Infrastructure.CronScheduler do
       delay = max(CronSchedule.delay_until(job.next_fire_at), 0)
       delay_seconds = div(delay, 1000)
 
-      %{"job_id" => job.id, "agent_id" => job.agent_id, "payload" => job.payload}
-      |> ScheduledJob.new(schedule_in: delay_seconds, unique: [period: 120, keys: [:job_id]])
-      |> Oban.insert()
+      result =
+        %{"job_id" => job.id, "agent_id" => job.agent_id, "payload" => job.payload}
+        |> ScheduledJob.new(schedule_in: delay_seconds, unique: [period: 120, keys: [:job_id]])
+        |> Oban.insert()
+
+      case result do
+        {:ok, _} ->
+          :ok
+
+        {:error, reason} ->
+          Logger.warning(
+            "[CronScheduler] recover_jobs failed to re-enqueue job #{job.id} for agent #{job.agent_id}: #{inspect(reason)}"
+          )
+      end
     end)
   end
 end

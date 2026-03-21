@@ -14,6 +14,8 @@ defmodule Ichor.Infrastructure.AgentProcess do
 
   use GenServer
 
+  require Logger
+
   alias Ichor.Infrastructure.AgentBackend
   alias Ichor.Infrastructure.AgentDelivery
   alias Ichor.Infrastructure.AgentLifecycle
@@ -172,7 +174,16 @@ defmodule Ichor.Infrastructure.AgentProcess do
       metadata: meta
     }
 
-    AgentRegistryProjection.update(id, AgentRegistryProjection.build_initial(id, state, meta))
+    case AgentRegistryProjection.update(
+           id,
+           AgentRegistryProjection.build_initial(id, state, meta)
+         ) do
+      {:error, :not_registered} ->
+        Logger.warning("[AgentProcess] registry update on init failed: #{id} not registered")
+
+      _ ->
+        :ok
+    end
 
     Ichor.Signals.subscribe(:agent_event, id)
     :pg.join(@pg_scope, {:agent, id}, self())
@@ -191,13 +202,31 @@ defmodule Ichor.Infrastructure.AgentProcess do
   end
 
   def handle_call(:pause, _from, state) do
-    AgentRegistryProjection.update(state.id, %{status: :paused})
+    case AgentRegistryProjection.update(state.id, %{status: :paused}) do
+      {:error, :not_registered} ->
+        Logger.warning(
+          "[AgentProcess] registry update on pause failed: #{state.id} not registered"
+        )
+
+      _ ->
+        :ok
+    end
+
     AgentLifecycle.agent_paused(state.id)
     {:reply, :ok, %{state | status: :paused}}
   end
 
   def handle_call(:resume, _from, state) do
-    AgentRegistryProjection.update(state.id, %{status: :active})
+    case AgentRegistryProjection.update(state.id, %{status: :active}) do
+      {:error, :not_registered} ->
+        Logger.warning(
+          "[AgentProcess] registry update on resume failed: #{state.id} not registered"
+        )
+
+      _ ->
+        :ok
+    end
+
     AgentLifecycle.agent_resumed(state.id)
     {pending, new_state} = AgentState.drain_pending(state)
     new_state = %{new_state | status: :active}
@@ -225,7 +254,14 @@ defmodule Ichor.Infrastructure.AgentProcess do
   end
 
   def handle_cast({:update_fields, fields}, state) do
-    AgentRegistryProjection.update(state.id, fields)
+    case AgentRegistryProjection.update(state.id, fields) do
+      {:error, :not_registered} ->
+        Logger.warning("[AgentProcess] registry update_fields failed: #{state.id} not registered")
+
+      _ ->
+        :ok
+    end
+
     {:noreply, state}
   end
 
@@ -243,7 +279,19 @@ defmodule Ichor.Infrastructure.AgentProcess do
   end
 
   def handle_info(%Ichor.Signals.Message{name: :agent_event, data: %{event: event}}, state) do
-    AgentRegistryProjection.update(state.id, AgentRegistryProjection.fields_from_event(event))
+    case AgentRegistryProjection.update(
+           state.id,
+           AgentRegistryProjection.fields_from_event(event)
+         ) do
+      {:error, :not_registered} ->
+        Logger.warning(
+          "[AgentProcess] registry update on agent_event failed: #{state.id} not registered"
+        )
+
+      _ ->
+        :ok
+    end
+
     Ichor.Signals.emit(:fleet_changed, %{agent_id: state.id})
     {:noreply, state}
   end
