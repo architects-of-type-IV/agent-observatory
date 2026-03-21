@@ -5,2069 +5,866 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ICHOR IV -- Workshop Designer</title>
 <style>
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   :root {
-    --zinc-950: #09090b; --zinc-900: #18181b; --zinc-800: #27272a; --zinc-700: #3f3f46;
-    --zinc-600: #52525b; --zinc-500: #71717a; --zinc-400: #a1a1aa; --zinc-300: #d4d4d8;
-    --zinc-200: #e4e4e7; --zinc-100: #f4f4f5;
-    --indigo-300: #a5b4fc; --indigo-400: #818cf8; --indigo-500: #6366f1; --indigo-600: #4f46e5;
-    --emerald-400: #34d399; --emerald-500: #10b981;
-    --amber-400: #fbbf24; --amber-500: #f59e0b;
-    --cyan-400: #22d3ee; --cyan-500: #06b6d4;
-    --red-400: #f87171; --red-500: #ef4444;
-    --purple-400: #c084fc; --purple-500: #a855f7;
-    --blue-400: #60a5fa; --blue-500: #3b82f6;
-    --green-400: #4ade80; --green-500: #22c55e;
+    --bg: hsl(240 6% 10%);
+    --bg-raised: hsl(240 4% 16%);
+    --bg-surface: hsl(240 5% 12%);
+    --bg-highlight: hsl(240 4% 27%);
+    --text-high: hsl(240 5% 84%);
+    --text: hsl(240 4% 65%);
+    --text-low: hsl(240 4% 46%);
+    --text-muted: hsl(240 5% 34%);
+    --border: hsl(240 4% 16%);
+    --border-subtle: hsl(240 4% 22%);
+    --brand: hsl(38 92% 50%);
+    --success: hsl(160 84% 39%);
+    --error: hsl(0 84% 60%);
+    --warning: hsl(38 92% 50%);
+    --info: hsl(217 91% 60%);
+    --violet: hsl(258 90% 66%);
+    --cyan: hsl(192 91% 36%);
+    --role-builder: hsl(187 86% 53%);
+    --role-scout: hsl(160 64% 52%);
+    --role-reviewer: hsl(43 96% 56%);
+    --role-lead: hsl(263 70% 76%);
+    --role-coordinator: hsl(231 76% 75%);
+    --role-planner: hsl(258 90% 66%);
+    --role-coder: hsl(187 86% 53%);
+    --role-tester: hsl(160 64% 52%);
+    --role-writer: hsl(192 91% 60%);
+    --role-analyst: hsl(30 90% 55%);
+    --role-specialist: hsl(320 70% 60%);
   }
+  * { margin:0; padding:0; box-sizing:border-box; }
   body {
-    font-family: ui-monospace, 'SF Mono', 'Cascadia Code', 'Fira Code', monospace;
-    background: var(--zinc-950);
-    color: var(--zinc-300);
-    height: 100vh;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
+    font-family: ui-monospace,'SF Mono','Cascadia Code','Fira Code',Consolas,monospace;
+    background: var(--bg); color: var(--text); font-size:12px; line-height:1.5;
+    height:100vh; overflow:hidden; display:flex; flex-direction:column;
   }
+  ::-webkit-scrollbar { width:6px; height:6px; }
+  ::-webkit-scrollbar-track { background:transparent; }
+  ::-webkit-scrollbar-thumb { background:hsl(240 4% 16%); border-radius:3px; }
+  ::-webkit-scrollbar-thumb:hover { background:hsl(240 4% 22%); }
 
-  /* ── Top bar ── */
-  .topbar {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 6px 14px;
-    border-bottom: 1px solid var(--zinc-800);
-    background: rgba(24,24,27,0.95);
-    flex-shrink: 0;
-    height: 40px;
+  header.pg-bar {
+    display:flex; align-items:center; padding:6px 12px;
+    border-bottom:1px solid var(--border-subtle); background:var(--bg-surface); gap:12px; flex-shrink:0;
   }
-  .brand { font-size: 11px; font-weight: 700; color: var(--zinc-500); text-transform: uppercase; letter-spacing: 0.1em; }
-  .brand span { color: var(--indigo-400); }
-  .topbar-sep { width: 1px; height: 18px; background: var(--zinc-800); }
+  header.pg-bar h1 { font-size:11px; font-weight:700; color:var(--brand); letter-spacing:0.05em; text-transform:uppercase; }
+  .pg-bar .sub { font-size:10px; color:var(--text-low); }
+  .status-dot { display:inline-block; width:6px; height:6px; border-radius:50%; background:var(--success); box-shadow:0 0 5px var(--success); margin-right:4px; vertical-align:middle; animation:pulse-g 2.5s ease-in-out infinite; }
+  @keyframes pulse-g { 0%,100%{opacity:1} 50%{opacity:0.3} }
 
-  /* Team browser bar */
-  .team-browser {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex: 1;
-  }
-  .team-select-wrap {
-    position: relative;
-    display: flex;
-    align-items: center;
-  }
-  .team-search-input {
-    font-size: 11px;
-    font-family: inherit;
-    background: var(--zinc-800);
-    color: var(--zinc-300);
-    border: 1px solid var(--zinc-700);
-    border-radius: 4px;
-    padding: 3px 8px;
-    width: 200px;
-    outline: none;
-    transition: border-color 0.15s;
-  }
-  .team-search-input:focus { border-color: var(--indigo-500); }
-  .team-dropdown {
-    position: absolute;
-    top: calc(100% + 4px);
-    left: 0;
-    min-width: 220px;
-    background: var(--zinc-900);
-    border: 1px solid var(--zinc-700);
-    border-radius: 4px;
-    z-index: 100;
-    display: none;
-    max-height: 200px;
-    overflow-y: auto;
-  }
-  .team-dropdown.open { display: block; }
-  .team-dropdown-item {
-    padding: 6px 10px;
-    font-size: 11px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    transition: background 0.1s;
-  }
-  .team-dropdown-item:hover { background: var(--zinc-800); }
-  .team-dropdown-item.active { color: var(--indigo-400); background: rgba(99,102,241,0.08); }
+  .pg-main { display:flex; flex:1; overflow:hidden; }
 
-  .topbar-btn {
-    font-size: 10px;
-    padding: 3px 9px;
-    background: var(--zinc-800);
-    color: var(--zinc-400);
-    border: 1px solid var(--zinc-700);
-    border-radius: 4px;
-    cursor: pointer;
-    transition: all 0.15s;
-    font-family: inherit;
-    white-space: nowrap;
-  }
-  .topbar-btn:hover { background: var(--zinc-700); color: var(--zinc-200); }
-  .topbar-btn.primary { background: rgba(99,102,241,0.15); color: var(--indigo-400); border-color: rgba(99,102,241,0.3); }
-  .topbar-btn.primary:hover { background: rgba(99,102,241,0.25); }
-  .topbar-btn.danger { background: rgba(239,68,68,0.1); color: var(--red-400); border-color: rgba(239,68,68,0.2); }
-  .topbar-btn.danger:hover { background: rgba(239,68,68,0.2); }
+  nav.pg-controls { width:220px; flex-shrink:0; border-right:1px solid var(--border-subtle); overflow-y:auto; background:var(--bg-surface); }
+  .ctrl-sec { padding:8px 12px; border-bottom:1px solid var(--border); }
+  .ctrl-sec h3 { font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; color:var(--text-low); margin-bottom:8px; }
+  .ctrl-grp { margin-bottom:8px; }
+  .ctrl-grp label { display:block; font-size:10px; color:var(--text-low); margin-bottom:3px; }
+  .ctrl-grp select, .ctrl-grp input[type="range"] { width:100%; background:var(--bg-raised); border:1px solid var(--border-subtle); color:var(--text-high); padding:4px 6px; border-radius:4px; font-size:10px; font-family:inherit; }
+  .ctrl-grp input[type="range"] { padding:0; height:20px; accent-color:var(--cyan); }
+  .ctrl-grp .rv { font-size:9px; color:var(--cyan); float:right; margin-top:-16px; }
+  .tgl { display:flex; align-items:center; justify-content:space-between; padding:3px 0; }
+  .tgl label { font-size:10px; color:var(--text); margin:0; }
+  .tgl input[type="checkbox"] { accent-color:var(--cyan); width:14px; height:14px; }
+  .preset-row { display:flex; flex-wrap:wrap; gap:4px; margin-top:6px; }
+  button.preset-btn { font-size:9px; padding:3px 8px; border-radius:4px; border:1px solid var(--border-subtle); background:var(--bg-raised); color:var(--text); cursor:pointer; font-family:inherit; transition:all 0.15s; }
+  button.preset-btn:hover { background:var(--bg-highlight); color:var(--text-high); border-color:var(--cyan); }
+  button.preset-btn.active { background:hsl(192 91% 36%/0.15); border-color:var(--cyan); color:var(--cyan); }
 
-  .preset-select {
-    font-size: 10px;
-    font-family: inherit;
-    background: var(--zinc-800);
-    color: var(--zinc-400);
-    border: 1px solid var(--zinc-700);
-    border-radius: 4px;
-    padding: 3px 7px;
-    outline: none;
-    cursor: pointer;
-  }
-  .preset-select:focus { border-color: var(--indigo-500); }
+  .pg-preview { flex:1; display:flex; flex-direction:column; overflow:hidden; }
+  .pg-preview-frame { flex:1; overflow:hidden; }
 
-  .team-name-badge {
-    font-size: 11px;
-    font-weight: 600;
-    color: var(--zinc-300);
-    display: flex;
-    align-items: center;
-    gap: 5px;
-  }
-  .save-dot {
-    width: 6px; height: 6px;
-    border-radius: 50%;
-    background: var(--amber-400);
-    display: none;
-  }
-  .save-dot.dirty { display: inline-block; }
+  .prompt-bar { border-top:1px solid var(--border-subtle); background:var(--bg-surface); flex-shrink:0; max-height:160px; }
+  .prompt-bar-hdr { display:flex; align-items:center; padding:5px 12px; gap:8px; }
+  .prompt-bar-hdr h3 { font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:var(--text-low); }
+  button.copy-btn { margin-left:auto; font-size:9px; padding:2px 10px; border:1px solid var(--border-subtle); border-radius:4px; background:var(--bg-raised); color:var(--text); cursor:pointer; font-family:inherit; }
+  button.copy-btn:hover { background:var(--bg-highlight); color:var(--text-high); }
+  button.copy-btn.copied { border-color:var(--success); color:var(--success); }
+  .prompt-txt { padding:0 12px 8px; font-size:10px; color:var(--text); line-height:1.6; max-height:110px; overflow-y:auto; white-space:pre-wrap; }
 
-  /* ── Main layout ── */
-  .main { display: flex; flex: 1; overflow: hidden; }
+  .ws { height:100%; display:flex; flex-direction:column; overflow:hidden; }
+  nav.ws-nav { display:flex; align-items:center; padding:0 8px; border-bottom:1px solid var(--border); background:var(--bg-surface); flex-shrink:0; }
+  button.ws-nav-tab { font-size:10px; padding:8px 14px; border:none; background:transparent; color:var(--text-low); cursor:pointer; font-family:inherit; border-bottom:2px solid transparent; transition:all 0.15s; }
+  button.ws-nav-tab:hover { color:var(--text); background:hsl(240 4% 16%/0.3); }
+  button.ws-nav-tab.active { color:var(--cyan); border-bottom-color:var(--cyan); }
+  .ws-nav-tab .badge { font-size:8px; padding:0 4px; border-radius:8px; background:hsl(240 4% 22%/0.6); color:var(--text-muted); margin-left:4px; }
+  button.ws-nav-tab.active .badge { background:hsl(192 91% 36%/0.15); color:var(--cyan); }
+  .ws-nav-right { margin-left:auto; display:flex; align-items:center; gap:6px; padding:4px 0; }
 
-  /* ── Canvas area ── */
-  .canvas-wrap {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    position: relative;
-  }
+  .ws-page { display:flex; flex:1; overflow:hidden; }
+  .ws-canvas-area { flex:1; display:flex; flex-direction:column; overflow:hidden; }
+  .ws-canvas { flex:1; position:relative; overflow:auto; background:var(--bg); background-image:radial-gradient(circle, hsl(240 4% 22%/0.15) 1px, transparent 1px); background-size:24px 24px; }
+  .ws-page-sidebar { width:var(--sw,340px); flex-shrink:0; border-left:1px solid var(--border); background:hsl(240 6% 10%/0.3); display:flex; flex-direction:column; overflow:hidden; }
+  header.ws-sidebar-hdr { padding:10px 12px 8px; border-bottom:1px solid var(--border); flex-shrink:0; }
+  header.ws-sidebar-hdr h3 { font-size:11px; font-weight:700; color:var(--text-high); margin-bottom:2px; }
+  header.ws-sidebar-hdr .desc { font-size:9px; color:var(--text-muted); line-height:1.4; }
+  .ws-sidebar-body { flex:1; overflow-y:auto; padding:10px 12px; }
 
-  .canvas-area {
-    flex: 1;
-    position: relative;
-    overflow: hidden;
-    background:
-      linear-gradient(rgba(63,63,70,0.15) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(63,63,70,0.15) 1px, transparent 1px);
-    background-size: 32px 32px;
-    background-color: var(--zinc-950);
-    cursor: default;
-  }
+  .ws-toolbar { display:flex; align-items:center; padding:4px 10px; border-bottom:1px solid var(--border); gap:6px; background:hsl(240 6% 10%/0.3); flex-shrink:0; }
+  .ws-toolbar h4 { font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:var(--text-low); }
+  .ws-toolbar .sep { width:1px; height:12px; background:var(--bg-raised); }
+  .ws-toolbar .stats { margin-left:auto; font-size:9px; color:var(--text-low); }
+  .ws-toolbar .stats b { color:var(--text-high); }
+  button.add-btn { font-size:9px; padding:2px 8px; border:1px solid var(--border-subtle); border-radius:3px; background:var(--bg-raised); color:var(--text); cursor:pointer; font-family:inherit; display:flex; align-items:center; gap:3px; }
+  button.add-btn:hover { background:var(--bg-highlight); color:var(--text-high); }
 
-  .canvas-svg {
-    position: absolute;
-    top: 0; left: 0;
-    width: 100%; height: 100%;
-    pointer-events: none;
-    overflow: visible;
-  }
+  .node { position:absolute; border-radius:6px; border:1px solid var(--border-subtle); background:var(--bg-raised); cursor:grab; transition:box-shadow 0.15s,border-color 0.15s; min-width:160px; user-select:none; }
+  .node:hover { border-color:var(--text-muted); box-shadow:0 2px 12px hsl(0 0% 0%/0.3); }
+  .node.sel { border-color:var(--cyan); box-shadow:0 0 0 1px var(--cyan),0 2px 12px hsl(192 91% 36%/0.15); }
+  .node:active { cursor:grabbing; }
+  .node-hdr { display:flex; align-items:center; gap:5px; padding:6px 8px 4px; }
+  .dot { width:6px; height:6px; border-radius:50%; flex-shrink:0; }
+  .dot-sm { width:5px; height:5px; border-radius:50%; flex-shrink:0; }
+  .node-name { font-size:10px; font-weight:600; color:var(--text-high); flex:1; }
+  .cap-b { font-size:7px; font-weight:700; text-transform:uppercase; padding:1px 4px; border-radius:3px; letter-spacing:0.04em; }
+  .node-body { padding:2px 8px 6px; font-size:9px; color:var(--text-low); }
+  .mtag { font-size:8px; padding:1px 4px; border-radius:2px; background:hsl(240 4% 22%/0.5); color:var(--text); margin-right:4px; }
+  .ports { display:flex; justify-content:space-around; padding:3px 8px 5px; gap:8px; }
+  .port { width:8px; height:8px; border-radius:50%; cursor:crosshair; border:1.5px solid; transition:transform 0.15s; }
+  .port:hover { transform:scale(1.4); }
+  .port-s { background:hsl(160 84% 39%/0.3); border-color:var(--success); }
+  .port-c { background:hsl(192 91% 36%/0.3); border-color:var(--cyan); }
 
-  /* Agent nodes */
-  .agent-node {
-    position: absolute;
-    width: 180px;
-    background: var(--zinc-900);
-    border: 1px solid var(--zinc-700);
-    border-radius: 6px;
-    cursor: pointer;
-    user-select: none;
-    transition: border-color 0.15s, box-shadow 0.15s;
-  }
-  .agent-node:hover { border-color: var(--zinc-500); }
-  .agent-node.selected {
-    border-color: var(--indigo-400);
-    box-shadow: 0 0 0 1px var(--indigo-400), 0 0 16px rgba(99,102,241,0.25);
-  }
-  .agent-node-header {
-    padding: 7px 9px 5px;
-    border-bottom: 1px solid var(--zinc-800);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    cursor: move;
-  }
-  .agent-node-name {
-    font-size: 11px;
-    font-weight: 600;
-    color: var(--zinc-200);
-    flex: 1;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  .agent-node-body { padding: 6px 9px 7px; display: flex; flex-direction: column; gap: 4px; }
-  .agent-node-row { display: flex; align-items: center; gap: 5px; font-size: 10px; }
-  .agent-node-row .label { color: var(--zinc-600); min-width: 40px; }
-  .agent-node-row .val { color: var(--zinc-400); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ps { margin-bottom:12px; }
+  .ps h4 { font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:var(--text-low); margin-bottom:6px; }
+  .pf { margin-bottom:6px; }
+  .pf label { display:block; font-size:9px; color:var(--text-low); margin-bottom:2px; text-transform:uppercase; letter-spacing:0.04em; font-weight:600; }
+  .pf input,.pf select,.pf textarea { width:100%; background:var(--bg-raised); border:1px solid var(--border-subtle); color:var(--text-high); padding:4px 6px; border-radius:4px; font-size:10px; font-family:inherit; resize:vertical; }
+  .pf input:focus,.pf select:focus,.pf textarea:focus { outline:none; border-color:var(--cyan); box-shadow:0 0 0 1px hsl(192 91% 36%/0.2); }
+  .fr { display:flex; gap:6px; }
+  .fr>* { flex:1; }
+  .li { display:flex; align-items:center; gap:6px; padding:5px 8px; border-radius:4px; font-size:10px; background:hsl(240 4% 16%/0.5); margin-bottom:3px; cursor:pointer; transition:background 0.1s; }
+  .li:hover { background:var(--bg-raised); }
+  .li.act { background:hsl(192 91% 36%/0.1); border:1px solid hsl(192 91% 36%/0.2); }
+  .li .nm { flex:1; color:var(--text-high); }
+  .li .mt { font-size:9px; color:var(--text-muted); }
+  .li .ax { display:flex; gap:4px; opacity:0; transition:opacity 0.1s; }
+  .li:hover .ax { opacity:1; }
+  .li .ax button { font-size:9px; padding:1px 4px; border:none; border-radius:2px; cursor:pointer; font-family:inherit; background:transparent; }
+  .li .ax .eb { color:var(--cyan); }
+  .li .ax .db { color:var(--error); }
+  button.btn { font-size:9px; padding:4px 10px; border-radius:4px; border:1px solid var(--border-subtle); background:var(--bg-raised); color:var(--text); cursor:pointer; font-family:inherit; transition:all 0.15s; }
+  button.btn:hover { background:var(--bg-highlight); color:var(--text-high); }
+  button.btn-s { background:hsl(160 84% 39%/0.15); border-color:hsl(160 84% 39%/0.3); color:var(--success); }
+  button.btn-d { background:hsl(0 84% 60%/0.1); border-color:hsl(0 84% 60%/0.2); color:var(--error); }
+  button.btn-c { background:hsl(192 91% 36%/0.1); border-color:hsl(192 91% 36%/0.2); color:var(--cyan); }
+  button.btn-c:hover { background:hsl(192 91% 36%/0.2); }
+  button.btn-fw { width:100%; }
+  .divider { height:1px; background:var(--border); margin:10px 0; }
 
-  .health-dot {
-    width: 7px; height: 7px;
-    border-radius: 50%;
-    flex-shrink: 0;
-  }
-  .health-dot.ok { background: var(--emerald-400); box-shadow: 0 0 4px rgba(52,211,153,0.5); }
-  .health-dot.warn { background: var(--amber-400); }
-  .health-dot.idle { background: var(--zinc-600); }
+  table.tbl { width:100%; border-collapse:collapse; font-size:10px; }
+  table.tbl thead th { padding:4px 8px; text-align:left; font-size:9px; letter-spacing:0.08em; text-transform:uppercase; color:var(--text-muted); border-bottom:1px solid var(--border-subtle); background:var(--bg-surface); font-weight:400; white-space:nowrap; }
+  table.tbl tbody tr { border-bottom:1px solid var(--border); transition:background 0.1s; cursor:pointer; }
+  table.tbl tbody tr:hover { background:var(--bg-raised); }
+  table.tbl tbody tr.sel { background:hsl(192 91% 36%/0.08); }
+  table.tbl tbody td { padding:5px 8px; color:var(--text); vertical-align:middle; white-space:nowrap; }
+  table.tbl tbody td.dim { color:var(--text-muted); }
 
-  /* Ports */
-  .port-row {
-    display: flex;
-    justify-content: space-between;
-    padding: 4px 0;
-  }
-  .port {
-    width: 10px; height: 10px;
-    border-radius: 50%;
-    border: 2px solid;
-    cursor: crosshair;
-    transition: transform 0.15s;
-    flex-shrink: 0;
-  }
-  .port:hover { transform: scale(1.4); }
-  .port.spawn { border-color: var(--emerald-400); background: rgba(52,211,153,0.2); }
-  .port.comm { border-color: var(--cyan-400); background: rgba(34,211,238,0.2); }
-  .port.spawn.active { background: var(--emerald-400); }
-  .port.comm.active { background: var(--cyan-400); }
+  .lk-item { display:flex; align-items:center; gap:5px; padding:4px 8px; background:hsl(240 4% 16%/0.5); border-radius:3px; font-size:10px; margin-bottom:3px; }
+  .lk-item .from { color:var(--cyan); }
+  .lk-item .arr { color:var(--text-muted); }
+  .lk-item .to { color:var(--violet); }
+  button.rm { font-size:8px; padding:1px 5px; border:none; border-radius:2px; cursor:pointer; font-family:inherit; background:transparent; color:var(--error); margin-left:4px; }
+  button.rm:hover { background:hsl(0 84% 60%/0.1); }
 
-  /* Capability badges */
-  .cap-badge {
-    font-size: 9px;
-    font-weight: 700;
-    text-transform: uppercase;
-    padding: 1px 5px;
-    border-radius: 3px;
-    letter-spacing: 0.04em;
-    flex-shrink: 0;
-  }
-  .cap-badge.builder  { background: rgba(74,222,128,0.12); color: var(--green-400); }
-  .cap-badge.scout    { background: rgba(34,211,238,0.12); color: var(--cyan-400); }
-  .cap-badge.reviewer { background: rgba(251,191,36,0.12); color: var(--amber-400); }
-  .cap-badge.coordinator { background: rgba(99,102,241,0.12); color: var(--indigo-400); }
-  .cap-badge.lead     { background: rgba(192,132,252,0.12); color: var(--purple-400); }
+  .empty { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); text-align:center; pointer-events:none; }
+  .empty .t { font-size:11px; color:var(--text-low); margin-bottom:4px; }
+  .empty .h { font-size:9px; color:var(--text-muted); line-height:1.5; }
 
-  .model-badge {
-    font-size: 9px;
-    color: var(--indigo-300);
-    background: rgba(99,102,241,0.08);
-    padding: 1px 4px;
-    border-radius: 2px;
-  }
+  .launch-bar { padding:8px 12px; border-top:1px solid var(--border); display:flex; gap:6px; flex-shrink:0; }
+  button.launch-btn { flex:1; padding:8px 16px; border:1px solid hsl(160 84% 39%/0.3); border-radius:5px; background:hsl(160 84% 39%/0.12); color:var(--success); font-size:11px; font-weight:600; font-family:inherit; cursor:pointer; transition:all 0.15s; text-align:center; }
+  button.launch-btn:hover { background:hsl(160 84% 39%/0.22); box-shadow:0 0 12px hsl(160 84% 39%/0.1); }
+  button.save-btn { padding:8px 12px; border:1px solid var(--border-subtle); border-radius:5px; background:var(--bg-raised); color:var(--text); font-size:11px; font-family:inherit; cursor:pointer; }
+  button.save-btn:hover { background:var(--bg-highlight); color:var(--text-high); }
 
-  /* Canvas controls overlay */
-  .canvas-controls {
-    position: absolute;
-    bottom: 12px;
-    left: 12px;
-    display: flex;
-    gap: 6px;
-    z-index: 10;
-  }
-  .canvas-btn {
-    font-size: 11px;
-    padding: 4px 9px;
-    background: rgba(24,24,27,0.9);
-    color: var(--zinc-400);
-    border: 1px solid var(--zinc-700);
-    border-radius: 4px;
-    cursor: pointer;
-    font-family: inherit;
-    transition: all 0.15s;
-    backdrop-filter: blur(4px);
-  }
-  .canvas-btn:hover { background: rgba(39,39,42,0.95); color: var(--zinc-200); }
+  #toast { position:fixed; bottom:18px; right:18px; padding:7px 14px; background:var(--bg-surface); border:1px solid var(--border-subtle); font-size:11px; color:var(--text); z-index:1000; transition:opacity 0.3s; pointer-events:none; opacity:0; border-radius:4px; }
+  #toast.show { opacity:1; }
+  #toast.ok { border-color:hsl(160 84% 39%/0.5); color:var(--success); }
+  #toast.err { border-color:hsl(0 84% 60%/0.5); color:var(--error); }
+  #toast.info { border-color:hsl(192 91% 36%/0.5); color:var(--cyan); }
 
-  /* ── Right Panel ── */
-  .right-panel {
-    width: 360px;
-    flex-shrink: 0;
-    display: flex;
-    flex-direction: column;
-    border-left: 1px solid var(--zinc-800);
-    background: rgba(24,24,27,0.5);
-    overflow: hidden;
-  }
+  .modal-back { position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:900; display:none; align-items:center; justify-content:center; }
+  .modal-back.open { display:flex; }
+  .modal { background:var(--bg-surface); border:1px solid var(--border-subtle); width:440px; max-width:95vw; max-height:80vh; display:flex; flex-direction:column; border-radius:6px; overflow:hidden; }
+  .modal-hdr { padding:10px 14px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:8px; flex-shrink:0; }
+  .modal-hdr h2 { font-size:11px; letter-spacing:0.1em; text-transform:uppercase; color:var(--text-high); flex:1; }
+  button.modal-close { font-size:14px; background:none; border:none; color:var(--text-muted); cursor:pointer; line-height:1; }
+  button.modal-close:hover { color:var(--text-high); }
+  .modal-body { flex:1; overflow-y:auto; padding:12px 14px; }
+  .modal-foot { padding:8px 14px; border-top:1px solid var(--border); display:flex; gap:5px; justify-content:flex-end; flex-shrink:0; }
 
-  /* Tabs */
-  .tab-nav {
-    display: flex;
-    border-bottom: 1px solid var(--zinc-800);
-    flex-shrink: 0;
-    background: rgba(18,18,20,0.8);
-  }
-  .tab-btn {
-    flex: 1;
-    padding: 8px 4px;
-    font-size: 10px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--zinc-600);
-    background: none;
-    border: none;
-    border-bottom: 2px solid transparent;
-    cursor: pointer;
-    font-family: inherit;
-    transition: all 0.15s;
-    white-space: nowrap;
-  }
-  .tab-btn:hover { color: var(--zinc-400); }
-  .tab-btn.active { color: var(--indigo-400); border-bottom-color: var(--indigo-500); }
-
-  .tab-panel { display: none; flex: 1; overflow-y: auto; flex-direction: column; }
-  .tab-panel.active { display: flex; }
-
-  /* Panel content */
-  .panel-section { padding: 12px 14px; border-bottom: 1px solid var(--zinc-800); }
-  .panel-section:last-child { border-bottom: none; }
-  .panel-section-title {
-    font-size: 9px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: var(--zinc-600);
-    margin-bottom: 10px;
-  }
-
-  .form-row {
-    display: flex;
-    flex-direction: column;
-    gap: 3px;
-    margin-bottom: 9px;
-  }
-  .form-row:last-child { margin-bottom: 0; }
-  .form-label {
-    font-size: 9px;
-    color: var(--zinc-500);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-  }
-  .form-input {
-    font-size: 11px;
-    font-family: inherit;
-    background: var(--zinc-800);
-    color: var(--zinc-300);
-    border: 1px solid var(--zinc-700);
-    border-radius: 4px;
-    padding: 5px 8px;
-    outline: none;
-    width: 100%;
-    transition: border-color 0.15s;
-  }
-  .form-input:focus { border-color: var(--indigo-500); }
-  .form-input::placeholder { color: var(--zinc-600); }
-  .form-select {
-    font-size: 11px;
-    font-family: inherit;
-    background: var(--zinc-800);
-    color: var(--zinc-300);
-    border: 1px solid var(--zinc-700);
-    border-radius: 4px;
-    padding: 5px 8px;
-    outline: none;
-    width: 100%;
-    cursor: pointer;
-  }
-  .form-select:focus { border-color: var(--indigo-500); }
-  .form-textarea {
-    font-size: 11px;
-    font-family: inherit;
-    background: var(--zinc-800);
-    color: var(--zinc-300);
-    border: 1px solid var(--zinc-700);
-    border-radius: 4px;
-    padding: 5px 8px;
-    outline: none;
-    width: 100%;
-    resize: vertical;
-    min-height: 60px;
-    max-height: 160px;
-    line-height: 1.5;
-    transition: border-color 0.15s;
-  }
-  .form-textarea:focus { border-color: var(--indigo-500); }
-  .form-textarea::placeholder { color: var(--zinc-600); }
-  .form-row-inline { display: flex; gap: 8px; }
-  .form-row-inline .form-row { flex: 1; }
-
-  .tag-input-wrap {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
-    background: var(--zinc-800);
-    border: 1px solid var(--zinc-700);
-    border-radius: 4px;
-    padding: 4px 6px;
-    min-height: 32px;
-    cursor: text;
-  }
-  .tag-input-wrap:focus-within { border-color: var(--indigo-500); }
-  .tag-chip {
-    font-size: 10px;
-    padding: 1px 6px;
-    background: rgba(99,102,241,0.15);
-    color: var(--indigo-300);
-    border-radius: 3px;
-    display: flex;
-    align-items: center;
-    gap: 3px;
-  }
-  .tag-chip .remove { cursor: pointer; color: var(--indigo-400); font-size: 9px; }
-  .tag-chip .remove:hover { color: var(--red-400); }
-  .tag-real-input {
-    background: none;
-    border: none;
-    outline: none;
-    font-size: 10px;
-    color: var(--zinc-300);
-    font-family: inherit;
-    min-width: 60px;
-    flex: 1;
-  }
-  .tag-real-input::placeholder { color: var(--zinc-600); }
-
-  /* Action buttons */
-  .btn {
-    font-size: 11px;
-    font-family: inherit;
-    padding: 5px 12px;
-    border-radius: 4px;
-    border: 1px solid;
-    cursor: pointer;
-    transition: all 0.15s;
-    white-space: nowrap;
-  }
-  .btn-primary { background: rgba(99,102,241,0.2); color: var(--indigo-400); border-color: rgba(99,102,241,0.3); }
-  .btn-primary:hover { background: rgba(99,102,241,0.3); }
-  .btn-launch { background: rgba(16,185,129,0.2); color: var(--emerald-400); border-color: rgba(16,185,129,0.3); font-size: 12px; font-weight: 700; letter-spacing: 0.04em; width: 100%; padding: 8px; }
-  .btn-launch:hover { background: rgba(16,185,129,0.3); }
-  .btn-muted { background: var(--zinc-800); color: var(--zinc-400); border-color: var(--zinc-700); }
-  .btn-muted:hover { background: var(--zinc-700); color: var(--zinc-200); }
-  .btn-danger { background: rgba(239,68,68,0.1); color: var(--red-400); border-color: rgba(239,68,68,0.2); }
-  .btn-danger:hover { background: rgba(239,68,68,0.2); }
-  .btn-sm { font-size: 10px; padding: 3px 8px; }
-  .btn-icon { padding: 3px 7px; font-size: 12px; }
-
-  /* Connection list items */
-  .conn-item {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 6px 8px;
-    background: var(--zinc-800);
-    border-radius: 4px;
-    margin-bottom: 5px;
-    font-size: 10px;
-  }
-  .conn-item:last-child { margin-bottom: 0; }
-  .conn-item .conn-type { font-size: 9px; font-weight: 700; text-transform: uppercase; padding: 1px 5px; border-radius: 2px; flex-shrink: 0; }
-  .conn-item .conn-type.spawn { background: rgba(52,211,153,0.12); color: var(--emerald-400); }
-  .conn-item .conn-type.comm { background: rgba(34,211,238,0.12); color: var(--cyan-400); }
-  .conn-item .conn-detail { flex: 1; color: var(--zinc-400); overflow: hidden; }
-  .conn-item .conn-detail strong { color: var(--zinc-200); }
-  .conn-actions { display: flex; gap: 3px; }
-
-  /* Add connection form */
-  .add-conn-form {
-    margin-top: 8px;
-    padding: 8px;
-    background: rgba(24,24,27,0.7);
-    border: 1px solid var(--zinc-700);
-    border-radius: 4px;
-    display: none;
-  }
-  .add-conn-form.open { display: block; }
-
-  /* Type list in tab 4 */
-  .type-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 7px 8px;
-    background: var(--zinc-800);
-    border-radius: 4px;
-    margin-bottom: 5px;
-    cursor: pointer;
-    transition: background 0.15s;
-  }
-  .type-row:hover { background: var(--zinc-700); }
-  .type-row.selected { background: rgba(99,102,241,0.1); border: 1px solid rgba(99,102,241,0.2); }
-  .type-color-swatch {
-    width: 12px; height: 12px;
-    border-radius: 3px;
-    flex-shrink: 0;
-  }
-  .type-name { flex: 1; font-size: 11px; color: var(--zinc-300); font-weight: 600; }
-  .type-count { font-size: 9px; color: var(--zinc-600); }
-
-  /* Color picker */
-  .color-picker-row {
-    display: flex;
-    gap: 5px;
-    flex-wrap: wrap;
-    margin-top: 4px;
-  }
-  .color-swatch {
-    width: 20px; height: 20px;
-    border-radius: 4px;
-    cursor: pointer;
-    border: 2px solid transparent;
-    transition: border-color 0.1s, transform 0.1s;
-  }
-  .color-swatch:hover { transform: scale(1.15); }
-  .color-swatch.selected { border-color: white; }
-
-  /* No-selection state */
-  .no-selection {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    color: var(--zinc-600);
-    font-size: 11px;
-    gap: 8px;
-    padding: 24px;
-    text-align: center;
-  }
-  .no-selection .icon { font-size: 28px; opacity: 0.4; }
-
-  /* Topology summary */
-  .topology-node {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 4px 0;
-    font-size: 10px;
-  }
-  .topo-indent { width: 16px; flex-shrink: 0; position: relative; }
-  .topo-indent::before { content: ''; position: absolute; left: 6px; top: -100%; bottom: 50%; width: 1px; background: var(--zinc-700); }
-  .topo-indent::after { content: ''; position: absolute; left: 6px; top: 50%; width: 8px; height: 1px; background: var(--zinc-700); }
-  .topo-name { color: var(--zinc-300); font-weight: 600; }
-  .topo-type { color: var(--zinc-600); font-size: 9px; }
-
-  /* Prompt output bar */
-  .prompt-bar {
-    border-top: 1px solid var(--zinc-800);
-    background: var(--zinc-900);
-    padding: 10px 14px;
-    flex-shrink: 0;
-    display: flex;
-    gap: 10px;
-    align-items: flex-start;
-  }
-  .prompt-label { font-size: 9px; color: var(--zinc-600); text-transform: uppercase; letter-spacing: 0.05em; flex-shrink: 0; padding-top: 1px; }
-  .prompt-text {
-    flex: 1;
-    font-size: 11px;
-    color: var(--zinc-400);
-    line-height: 1.6;
-    max-height: 72px;
-    overflow-y: auto;
-  }
-  .prompt-text strong { color: var(--zinc-200); }
-  .copy-btn {
-    font-size: 10px;
-    padding: 4px 12px;
-    background: var(--zinc-800);
-    color: var(--zinc-400);
-    border: 1px solid var(--zinc-700);
-    border-radius: 4px;
-    cursor: pointer;
-    font-family: inherit;
-    white-space: nowrap;
-    transition: all 0.15s;
-    flex-shrink: 0;
-  }
-  .copy-btn:hover { background: var(--zinc-700); color: var(--zinc-200); }
-  .copy-btn.copied { background: rgba(16,185,129,0.2); color: var(--emerald-400); border-color: rgba(16,185,129,0.3); }
-
-  /* Scrollbar */
-  ::-webkit-scrollbar { width: 5px; height: 5px; }
-  ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: var(--zinc-700); border-radius: 3px; }
-  ::-webkit-scrollbar-thumb:hover { background: var(--zinc-600); }
-
-  /* Comm rule line labels */
-  .edge-label {
-    font-size: 9px;
-    fill: var(--zinc-500);
-  }
-
-  /* Canvas empty hint */
-  .canvas-hint {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    color: var(--zinc-700);
-    font-size: 11px;
-    text-align: center;
-    pointer-events: none;
-    line-height: 2;
-  }
-
-  /* Inline edit active state */
-  .form-input.unsaved, .form-select.unsaved, .form-textarea.unsaved { border-color: var(--amber-500); }
-
-  /* Divider */
-  .divider { height: 1px; background: var(--zinc-800); margin: 8px 0; }
-
-  /* Stat row */
-  .stat-row { display: flex; justify-content: space-between; font-size: 10px; padding: 3px 0; }
-  .stat-row dt { color: var(--zinc-500); }
-  .stat-row dd { color: var(--zinc-300); font-variant-numeric: tabular-nums; }
-
-  /* Canvas drag cursor */
-  .dragging { cursor: grabbing !important; }
-  .dragging .agent-node { pointer-events: none; }
-
-  .panel-actions-row { display: flex; gap: 6px; flex-wrap: wrap; }
+  .lv { font-size:9px; color:var(--text-muted); font-style:italic; padding:2px 0; }
+  .tree-node { display:flex; align-items:center; gap:4px; padding:2px 0; }
 </style>
 </head>
 <body>
 
-<!-- Top Bar -->
-<div class="topbar">
-  <div class="brand">ICHOR<span>IV</span></div>
-  <div class="brand" style="color:var(--zinc-600)">WORKSHOP</div>
-  <div class="topbar-sep"></div>
+<header class="pg-bar">
+  <h1>ICHOR IV</h1>
+  <span class="sub">Workshop Designer</span>
+  <span style="flex:1"></span>
+  <span class="sub"><span class="status-dot"></span>sqlite // workshop</span>
+  <span class="sub" id="tb-counts">5 teams &middot; 8 types</span>
+</header>
 
-  <div class="team-browser">
-    <div class="team-select-wrap">
-      <input class="team-search-input" id="teamSearch" placeholder="Search teams..." autocomplete="off"
-             onfocus="openDropdown()" oninput="filterTeams(this.value)">
-      <div class="team-dropdown" id="teamDropdown"></div>
-    </div>
-
-    <button class="topbar-btn primary btn-sm" onclick="newTeam()">+ New</button>
-    <button class="topbar-btn btn-sm" onclick="duplicateTeam()">Duplicate</button>
-    <button class="topbar-btn danger btn-sm" onclick="deleteTeam()">Delete</button>
-
-    <div class="topbar-sep"></div>
-
-    <select class="preset-select" id="presetSelect" onchange="loadPreset(this.value)">
-      <option value="">-- Load Preset --</option>
-      <option value="empty">Empty Canvas</option>
-      <option value="mes">MES Team</option>
-      <option value="pipeline">Pipeline Team</option>
-      <option value="solo">Solo Agent</option>
-      <option value="review">Review Chain</option>
-    </select>
-
-    <div class="topbar-sep"></div>
-
-    <div class="team-name-badge">
-      <span id="activeTeamName">Untitled Team</span>
-      <span class="save-dot" id="saveDot"></span>
-    </div>
-    <button class="topbar-btn primary btn-sm" onclick="saveTeam()">Save</button>
-  </div>
-</div>
-
-<!-- Main -->
-<div class="main">
-
-  <!-- Canvas -->
-  <div class="canvas-wrap">
-    <div class="canvas-area" id="canvas" onclick="canvasClick(event)">
-      <svg class="canvas-svg" id="canvasSvg"></svg>
-      <div class="canvas-hint" id="canvasHint">Drop agents here<br><span style="font-size:9px;color:var(--zinc-800)">Click canvas to deselect</span></div>
-    </div>
-
-    <div class="canvas-controls">
-      <button class="canvas-btn" onclick="addAgentToCanvas()">+ Agent</button>
-      <button class="canvas-btn" onclick="layoutAuto()">Auto Layout</button>
-      <button class="canvas-btn" onclick="fitView()">Fit View</button>
-      <span style="font-size:10px;color:var(--zinc-600);padding:4px 6px;">
-        <span id="agentCount">0</span> agents
-      </span>
-    </div>
-  </div>
-
-  <!-- Right Panel -->
-  <div class="right-panel">
-    <div class="tab-nav">
-      <button class="tab-btn active" onclick="switchTab('team', this)">Team</button>
-      <button class="tab-btn" onclick="switchTab('agent', this)">Agent</button>
-      <button class="tab-btn" onclick="switchTab('connections', this)">Connect</button>
-      <button class="tab-btn" onclick="switchTab('types', this)">Types</button>
-    </div>
-
-    <!-- TAB 1: Team Config -->
-    <div class="tab-panel active" id="tab-team">
-      <div class="panel-section">
-        <div class="panel-section-title">Team Configuration</div>
-        <div class="form-row">
-          <div class="form-label">Team Name</div>
-          <input class="form-input" id="tname" placeholder="e.g. MES Alpha" oninput="markDirty();updateTeamName(this.value)">
-        </div>
-        <div class="form-row-inline">
-          <div class="form-row">
-            <div class="form-label">Strategy</div>
-            <select class="form-select" id="tstrategy" onchange="markDirty()">
-              <option value="sequential">sequential</option>
-              <option value="parallel">parallel</option>
-              <option value="hierarchical">hierarchical</option>
-            </select>
-          </div>
-          <div class="form-row">
-            <div class="form-label">Default Model</div>
-            <select class="form-select" id="tmodel" onchange="markDirty()">
-              <option value="claude-opus-4-5">opus-4-5</option>
-              <option value="claude-sonnet-4-5" selected>sonnet-4-5</option>
-              <option value="claude-haiku-4-5">haiku-4-5</option>
-              <option value="gpt-4o">gpt-4o</option>
-            </select>
-          </div>
-        </div>
-        <div class="form-row">
-          <div class="form-label">Working Directory</div>
-          <input class="form-input" id="tcwd" placeholder="/path/to/project" oninput="markDirty()">
-        </div>
-        <div class="form-row">
-          <div class="form-label">Description</div>
-          <textarea class="form-textarea" id="tdesc" placeholder="What does this team do?" oninput="markDirty()" style="min-height:48px"></textarea>
-        </div>
-      </div>
-      <div class="panel-section">
-        <div class="panel-section-title">Team Stats</div>
-        <div class="stat-row"><dt>Agents</dt><dd id="statAgents">0</dd></div>
-        <div class="stat-row"><dt>Spawn Links</dt><dd id="statSpawn">0</dd></div>
-        <div class="stat-row"><dt>Comm Rules</dt><dd id="statComm">0</dd></div>
-        <div class="stat-row"><dt>Strategy</dt><dd id="statStrategy">—</dd></div>
-      </div>
-      <div class="panel-section" style="flex:1"></div>
-      <div class="panel-section" style="border-top:1px solid var(--zinc-800);margin-top:auto">
-        <button class="btn btn-launch" onclick="launchTeam()">LAUNCH TEAM</button>
+<div class="pg-main">
+  <nav class="pg-controls">
+    <div class="ctrl-sec">
+      <h3>Team Presets</h3>
+      <div class="preset-row">
+        <button class="preset-btn" onclick="applyPreset('empty',this)">empty</button>
+        <button class="preset-btn active" onclick="applyPreset('mes',this)">mes-team</button>
+        <button class="preset-btn" onclick="applyPreset('pipeline',this)">pipeline</button>
+        <button class="preset-btn" onclick="applyPreset('solo',this)">solo</button>
+        <button class="preset-btn" onclick="applyPreset('review',this)">review-chain</button>
+        <button class="preset-btn" onclick="applyPreset('dag',this)">dag-pipeline</button>
       </div>
     </div>
-
-    <!-- TAB 2: Agent Config -->
-    <div class="tab-panel" id="tab-agent">
-      <div id="agentPanelInner">
-        <div class="no-selection">
-          <div class="icon">◈</div>
-          <div>Select an agent node<br>on the canvas</div>
-        </div>
+    <div class="ctrl-sec">
+      <h3>Sidebar</h3>
+      <div class="ctrl-grp">
+        <label>Width</label>
+        <input type="range" min="260" max="480" value="340" id="sw" oninput="U()">
+        <span class="rv" id="swv">340px</span>
       </div>
-    </div>
-
-    <!-- TAB 3: Connections -->
-    <div class="tab-panel" id="tab-connections">
-      <div class="panel-section">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-          <div class="panel-section-title" style="margin:0">Spawn Links</div>
-          <button class="btn btn-muted btn-sm" onclick="toggleAddConn('spawn')">+ Add</button>
-        </div>
-        <div id="spawnList"></div>
-        <div class="add-conn-form" id="spawnForm">
-          <div class="form-row-inline">
-            <div class="form-row">
-              <div class="form-label">Parent</div>
-              <select class="form-select" id="spawnFrom"></select>
-            </div>
-            <div class="form-row">
-              <div class="form-label">Child</div>
-              <select class="form-select" id="spawnTo"></select>
-            </div>
-          </div>
-          <div class="panel-actions-row" style="margin-top:6px">
-            <button class="btn btn-primary btn-sm" onclick="addSpawnLink()">Add Link</button>
-            <button class="btn btn-muted btn-sm" onclick="toggleAddConn('spawn')">Cancel</button>
-          </div>
-        </div>
-      </div>
-
-      <div class="panel-section">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-          <div class="panel-section-title" style="margin:0">Comm Rules</div>
-          <button class="btn btn-muted btn-sm" onclick="toggleAddConn('comm')">+ Add</button>
-        </div>
-        <div id="commList"></div>
-        <div class="add-conn-form" id="commForm">
-          <div class="form-row">
-            <div class="form-label">Policy</div>
-            <select class="form-select" id="commPolicy">
-              <option value="allow">allow</option>
-              <option value="deny">deny</option>
-              <option value="route_via">route_via</option>
-              <option value="broadcast">broadcast</option>
-            </select>
-          </div>
-          <div class="form-row-inline">
-            <div class="form-row">
-              <div class="form-label">From</div>
-              <select class="form-select" id="commFrom"></select>
-            </div>
-            <div class="form-row">
-              <div class="form-label">To</div>
-              <select class="form-select" id="commTo"></select>
-            </div>
-          </div>
-          <div class="form-row">
-            <div class="form-label">Via (relay agent, optional)</div>
-            <select class="form-select" id="commVia">
-              <option value="">-- none --</option>
-            </select>
-          </div>
-          <div class="panel-actions-row" style="margin-top:6px">
-            <button class="btn btn-primary btn-sm" onclick="addCommRule()">Add Rule</button>
-            <button class="btn btn-muted btn-sm" onclick="toggleAddConn('comm')">Cancel</button>
-          </div>
-        </div>
-      </div>
-
-      <div class="panel-section">
-        <div class="panel-section-title">Topology</div>
-        <div id="topologyView"></div>
-      </div>
-    </div>
-
-    <!-- TAB 4: Types & Templates -->
-    <div class="tab-panel" id="tab-types">
-      <div class="panel-section">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-          <div class="panel-section-title" style="margin:0">Agent Types</div>
-          <div style="display:flex;gap:5px">
-            <button class="btn btn-primary btn-sm" onclick="applyTypeToSelected()">Apply</button>
-            <button class="btn btn-muted btn-sm" onclick="newAgentType()">+ New</button>
-          </div>
-        </div>
-        <div id="typeList"></div>
-      </div>
-      <div class="panel-section" id="typeEditPanel" style="display:none">
-        <div class="panel-section-title">Edit Type</div>
-        <div class="form-row">
-          <div class="form-label">Name</div>
-          <input class="form-input" id="typeName" placeholder="e.g. researcher" oninput="typeFieldChanged()">
-        </div>
-        <div class="form-row">
-          <div class="form-label">Capability</div>
-          <select class="form-select" id="typeCapability" onchange="typeFieldChanged()">
-            <option value="builder">builder</option>
-            <option value="scout">scout</option>
-            <option value="reviewer">reviewer</option>
-            <option value="coordinator">coordinator</option>
-            <option value="lead">lead</option>
-          </select>
-        </div>
-        <div class="form-row">
-          <div class="form-label">Default Model</div>
-          <select class="form-select" id="typeModel" onchange="typeFieldChanged()">
-            <option value="claude-opus-4-5">opus-4-5</option>
-            <option value="claude-sonnet-4-5" selected>sonnet-4-5</option>
-            <option value="claude-haiku-4-5">haiku-4-5</option>
-          </select>
-        </div>
-        <div class="form-row">
-          <div class="form-label">Sort Order</div>
-          <input class="form-input" id="typeSortOrder" type="number" min="0" max="99" placeholder="0" oninput="typeFieldChanged()">
-        </div>
-        <div class="form-row">
-          <div class="form-label">Color</div>
-          <div class="color-picker-row" id="typeColorPicker"></div>
-        </div>
-        <div class="form-row">
-          <div class="form-label">Default Persona</div>
-          <textarea class="form-textarea" id="typePersona" placeholder="Default system prompt for this type..." oninput="typeFieldChanged()"></textarea>
-        </div>
-        <div class="panel-actions-row" style="margin-top:8px">
-          <button class="btn btn-primary btn-sm" onclick="saveAgentType()">Save Type</button>
-          <button class="btn btn-danger btn-sm" onclick="deleteAgentType()">Delete</button>
-        </div>
-      </div>
-    </div>
-
-  </div><!-- end right-panel -->
-</div><!-- end main -->
-
-<!-- Prompt output bar -->
-<div class="prompt-bar">
-  <div class="prompt-label">Phoenix<br>Output</div>
-  <div class="prompt-text" id="promptText">
-    Select components or make changes to see <strong>LiveView implementation instructions</strong>...
-  </div>
-  <button class="copy-btn" id="copyBtn" onclick="copyPrompt()">Copy</button>
-</div>
-
-<script>
-// ─────────────────────────────────────────────────────────
-// DATA
-// ─────────────────────────────────────────────────────────
-
-const COLORS = [
-  '#6366f1','#22d3ee','#34d399','#fbbf24','#f87171',
-  '#c084fc','#60a5fa','#fb923c','#a3e635','#e879f9'
-];
-
-const agentTypes = [
-  { id: 't1', name: 'Coordinator', capability: 'coordinator', model: 'claude-opus-4-5',  color: '#6366f1', sort_order: 0, persona: 'You coordinate agent teams. Route tasks, synthesize results, manage scope.' },
-  { id: 't2', name: 'Lead',        capability: 'lead',        model: 'claude-sonnet-4-5', color: '#c084fc', sort_order: 1, persona: 'You lead a domain. Own architecture decisions, break down tasks for workers.' },
-  { id: 't3', name: 'Builder',     capability: 'builder',     model: 'claude-sonnet-4-5', color: '#34d399', sort_order: 2, persona: 'You implement. Write production code. Follow instructions precisely.' },
-  { id: 't4', name: 'Scout',       capability: 'scout',       model: 'claude-haiku-4-5',  color: '#22d3ee', sort_order: 3, persona: 'You explore and research. Read codebase, gather context, report findings.' },
-  { id: 't5', name: 'Reviewer',    capability: 'reviewer',    model: 'claude-sonnet-4-5', color: '#fbbf24', sort_order: 4, persona: 'You review code and outputs for correctness, style, and completeness.' },
-];
-
-const savedTeams = [
-  { id: 'team1', name: 'MES Alpha',      strategy: 'hierarchical', model: 'claude-sonnet-4-5', cwd: '/projects/mes', desc: 'MES project team with coordinator + lead + 3 researchers' },
-  { id: 'team2', name: 'Review Chain',   strategy: 'sequential',   model: 'claude-sonnet-4-5', cwd: '',             desc: 'Sequential review pipeline' },
-  { id: 'team3', name: 'Solo Builder',   strategy: 'sequential',   model: 'claude-opus-4-5',   cwd: '',             desc: 'Single agent builder' },
-];
-
-const presets = {
-  empty: { name: 'Empty Canvas', agents: [], spawnLinks: [], commRules: [] },
-  mes: {
-    name: 'MES Team',
-    agents: [
-      { id: 'a1', name: 'Coordinator',   typeId: 't1', capability: 'coordinator', model: 'claude-opus-4-5',  permission: 'full',    persona: 'Oversee MES project. Delegate to lead and researchers.', file_scope: '', extra_instructions: '', tool_scope: ['bash', 'read', 'write'], x: 280, y: 60, health: 'idle' },
-      { id: 'a2', name: 'Tech Lead',     typeId: 't2', capability: 'lead',        model: 'claude-sonnet-4-5', permission: 'write',   persona: 'Lead technical implementation. Own architecture.',         file_scope: 'lib/**', extra_instructions: 'Always run mix compile after changes', tool_scope: ['bash', 'read', 'write', 'edit'], x: 120, y: 200, health: 'idle' },
-      { id: 'a3', name: 'Researcher A',  typeId: 't4', capability: 'scout',       model: 'claude-haiku-4-5',  permission: 'read',    persona: 'Explore codebase and gather context.',                    file_scope: 'lib/**', extra_instructions: '', tool_scope: ['bash', 'read', 'glob', 'grep'], x: 380, y: 200, health: 'idle' },
-      { id: 'a4', name: 'Researcher B',  typeId: 't4', capability: 'scout',       model: 'claude-haiku-4-5',  permission: 'read',    persona: 'Research external dependencies and APIs.',                file_scope: '', extra_instructions: '', tool_scope: ['bash', 'read'], x: 80, y: 340, health: 'idle' },
-    ],
-    spawnLinks: [
-      { id: 's1', from: 'a1', to: 'a2' },
-      { id: 's2', from: 'a1', to: 'a3' },
-      { id: 's3', from: 'a2', to: 'a4' },
-    ],
-    commRules: [
-      { id: 'c1', from: 'a2', to: 'a1', policy: 'allow',    via: '' },
-      { id: 'c2', from: 'a3', to: 'a1', policy: 'allow',    via: '' },
-      { id: 'c3', from: 'a4', to: 'a2', policy: 'route_via', via: 'a1' },
-    ],
-  },
-  pipeline: {
-    name: 'Pipeline Team',
-    agents: [
-      { id: 'a1', name: 'Coordinator', typeId: 't1', capability: 'coordinator', model: 'claude-opus-4-5',  permission: 'full',  persona: '', file_scope: '', extra_instructions: '', tool_scope: [], x: 240, y: 60,  health: 'idle' },
-      { id: 'a2', name: 'Lead',        typeId: 't2', capability: 'lead',        model: 'claude-sonnet-4-5', permission: 'write', persona: '', file_scope: '', extra_instructions: '', tool_scope: [], x: 240, y: 180, health: 'idle' },
-      { id: 'a3', name: 'Worker A',    typeId: 't3', capability: 'builder',     model: 'claude-haiku-4-5',  permission: 'write', persona: '', file_scope: '', extra_instructions: '', tool_scope: [], x: 100, y: 300, health: 'idle' },
-      { id: 'a4', name: 'Worker B',    typeId: 't3', capability: 'builder',     model: 'claude-haiku-4-5',  permission: 'write', persona: '', file_scope: '', extra_instructions: '', tool_scope: [], x: 380, y: 300, health: 'idle' },
-    ],
-    spawnLinks: [
-      { id: 's1', from: 'a1', to: 'a2' },
-      { id: 's2', from: 'a2', to: 'a3' },
-      { id: 's3', from: 'a2', to: 'a4' },
-    ],
-    commRules: [
-      { id: 'c1', from: 'a2', to: 'a1', policy: 'allow', via: '' },
-      { id: 'c2', from: 'a3', to: 'a2', policy: 'allow', via: '' },
-      { id: 'c3', from: 'a4', to: 'a2', policy: 'allow', via: '' },
-    ],
-  },
-  solo: {
-    name: 'Solo Agent',
-    agents: [
-      { id: 'a1', name: 'Builder', typeId: 't3', capability: 'builder', model: 'claude-opus-4-5', permission: 'full', persona: 'You are a solo implementation agent. Work autonomously.', file_scope: '', extra_instructions: '', tool_scope: ['bash','read','write','edit'], x: 240, y: 150, health: 'idle' },
-    ],
-    spawnLinks: [],
-    commRules: [],
-  },
-  review: {
-    name: 'Review Chain',
-    agents: [
-      { id: 'a1', name: 'Coordinator', typeId: 't1', capability: 'coordinator', model: 'claude-opus-4-5',  permission: 'full',  persona: '', file_scope: '', extra_instructions: '', tool_scope: [], x: 260, y: 50,  health: 'idle' },
-      { id: 'a2', name: 'Reviewer A',  typeId: 't5', capability: 'reviewer',    model: 'claude-sonnet-4-5', permission: 'read',  persona: 'First pass: check logic and correctness.', file_scope: '', extra_instructions: '', tool_scope: [], x: 120, y: 200, health: 'idle' },
-      { id: 'a3', name: 'Reviewer B',  typeId: 't5', capability: 'reviewer',    model: 'claude-sonnet-4-5', permission: 'read',  persona: 'Second pass: check style and completeness.', file_scope: '', extra_instructions: '', tool_scope: [], x: 400, y: 200, health: 'idle' },
-    ],
-    spawnLinks: [
-      { id: 's1', from: 'a1', to: 'a2' },
-      { id: 's2', from: 'a1', to: 'a3' },
-    ],
-    commRules: [
-      { id: 'c1', from: 'a2', to: 'a1', policy: 'allow', via: '' },
-      { id: 'c2', from: 'a3', to: 'a1', policy: 'allow', via: '' },
-    ],
-  },
-};
-
-// ─────────────────────────────────────────────────────────
-// STATE
-// ─────────────────────────────────────────────────────────
-
-let state = {
-  teamName: 'Untitled Team',
-  strategy: 'hierarchical',
-  model: 'claude-sonnet-4-5',
-  cwd: '',
-  desc: '',
-  agents: [],
-  spawnLinks: [],
-  commRules: [],
-  selectedAgentId: null,
-  selectedTypeId: null,
-  dirty: false,
-  agentTypes: JSON.parse(JSON.stringify(agentTypes)),
-};
-
-let idCounter = 100;
-function nextId(prefix) { return prefix + (++idCounter); }
-
-// ─────────────────────────────────────────────────────────
-// INIT
-// ─────────────────────────────────────────────────────────
-
-function init() {
-  populateDropdowns();
-  renderTypeList();
-  renderColorPicker();
-  renderTeamDropdown(savedTeams);
-  loadPresetData(presets.mes, 'MES Alpha');
-  updatePrompt('welcome');
-}
-
-function populateDropdowns() {
-  const ts = document.getElementById('tstrategy');
-  const tm = document.getElementById('tmodel');
-  if (state.strategy) ts.value = state.strategy;
-  if (state.model) tm.value = state.model;
-}
-
-// ─────────────────────────────────────────────────────────
-// TEAM BROWSER
-// ─────────────────────────────────────────────────────────
-
-function renderTeamDropdown(teams) {
-  const dd = document.getElementById('teamDropdown');
-  dd.innerHTML = teams.map(t => `
-    <div class="team-dropdown-item ${state.teamName === t.name ? 'active' : ''}" onclick="selectTeam('${t.id}')">
-      <span style="color:var(--zinc-500)">◈</span>
-      <span>${t.name}</span>
-      <span style="color:var(--zinc-700);font-size:9px;margin-left:auto">${t.strategy}</span>
-    </div>`).join('');
-}
-
-function openDropdown() {
-  const dd = document.getElementById('teamDropdown');
-  dd.classList.add('open');
-  document.addEventListener('click', closeDropdown, { once: true });
-}
-
-function closeDropdown(e) {
-  const dd = document.getElementById('teamDropdown');
-  if (!dd.contains(e.target)) dd.classList.remove('open');
-}
-
-function filterTeams(q) {
-  const filtered = savedTeams.filter(t => t.name.toLowerCase().includes(q.toLowerCase()));
-  renderTeamDropdown(filtered);
-  document.getElementById('teamDropdown').classList.add('open');
-}
-
-function selectTeam(id) {
-  const team = savedTeams.find(t => t.id === id);
-  if (!team) return;
-  document.getElementById('teamDropdown').classList.remove('open');
-  document.getElementById('teamSearch').value = team.name;
-  // Simulate loading team
-  state.teamName = team.name;
-  state.strategy = team.strategy;
-  state.model = team.model;
-  state.cwd = team.cwd;
-  state.desc = team.desc;
-  syncTeamForm();
-  updateTeamName(team.name);
-  clearDirty();
-  updatePrompt('team-load');
-}
-
-function newTeam() {
-  state = { ...state, teamName: 'New Team', strategy: 'hierarchical', model: 'claude-sonnet-4-5', cwd: '', desc: '', agents: [], spawnLinks: [], commRules: [], selectedAgentId: null };
-  syncTeamForm();
-  renderCanvas();
-  renderConnections();
-  updateStats();
-  clearDirty();
-  document.getElementById('teamSearch').value = '';
-  updatePrompt('team-new');
-}
-
-function duplicateTeam() {
-  state.teamName = state.teamName + ' (copy)';
-  syncTeamForm();
-  markDirty();
-  updatePrompt('team-duplicate');
-}
-
-function deleteTeam() {
-  if (confirm(`Delete "${state.teamName}"?`)) {
-    newTeam();
-    updatePrompt('team-delete');
-  }
-}
-
-function saveTeam() {
-  clearDirty();
-  updatePrompt('team-save');
-}
-
-function updateTeamName(name) {
-  state.teamName = name;
-  document.getElementById('activeTeamName').textContent = name || 'Untitled';
-  document.getElementById('tname').value = name;
-}
-
-function syncTeamForm() {
-  document.getElementById('tname').value = state.teamName;
-  document.getElementById('tstrategy').value = state.strategy;
-  document.getElementById('tmodel').value = state.model;
-  document.getElementById('tcwd').value = state.cwd;
-  document.getElementById('tdesc').value = state.desc;
-  document.getElementById('activeTeamName').textContent = state.teamName;
-  updateStats();
-}
-
-function markDirty() {
-  state.dirty = true;
-  document.getElementById('saveDot').classList.add('dirty');
-}
-
-function clearDirty() {
-  state.dirty = false;
-  document.getElementById('saveDot').classList.remove('dirty');
-}
-
-// ─────────────────────────────────────────────────────────
-// PRESETS
-// ─────────────────────────────────────────────────────────
-
-function loadPreset(key) {
-  if (!key) return;
-  const p = presets[key];
-  if (!p) return;
-  loadPresetData(p, p.name);
-  document.getElementById('presetSelect').value = '';
-  updatePrompt('preset-' + key);
-}
-
-function loadPresetData(p, name) {
-  state.teamName = name;
-  state.agents = JSON.parse(JSON.stringify(p.agents));
-  state.spawnLinks = JSON.parse(JSON.stringify(p.spawnLinks));
-  state.commRules = JSON.parse(JSON.stringify(p.commRules));
-  state.selectedAgentId = null;
-  syncTeamForm();
-  renderCanvas();
-  renderConnections();
-  updateStats();
-  clearDirty();
-}
-
-// ─────────────────────────────────────────────────────────
-// CANVAS RENDERING
-// ─────────────────────────────────────────────────────────
-
-function renderCanvas() {
-  const canvas = document.getElementById('canvas');
-  // Remove existing nodes
-  canvas.querySelectorAll('.agent-node').forEach(n => n.remove());
-
-  const hint = document.getElementById('canvasHint');
-  hint.style.display = state.agents.length === 0 ? 'block' : 'none';
-  document.getElementById('agentCount').textContent = state.agents.length;
-
-  state.agents.forEach(agent => {
-    const node = createAgentNode(agent);
-    canvas.appendChild(node);
-  });
-
-  renderEdges();
-}
-
-function createAgentNode(agent) {
-  const div = document.createElement('div');
-  div.className = 'agent-node' + (agent.id === state.selectedAgentId ? ' selected' : '');
-  div.id = 'node-' + agent.id;
-  div.style.left = (agent.x || 100) + 'px';
-  div.style.top  = (agent.y || 100) + 'px';
-
-  const type = state.agentTypes.find(t => t.id === agent.typeId);
-  const healthClass = agent.health || 'idle';
-
-  div.innerHTML = `
-    <div class="agent-node-header">
-      <span class="agent-node-name">${agent.name}</span>
-      <span class="health-dot ${healthClass}" title="${healthClass}"></span>
-    </div>
-    <div class="agent-node-body">
-      <div class="agent-node-row">
-        <span class="cap-badge ${agent.capability}">${agent.capability}</span>
-        <span class="model-badge">${shortModel(agent.model)}</span>
-      </div>
-      ${type ? `<div class="agent-node-row"><span class="label" style="color:${type.color};font-size:9px">◈ ${type.name}</span></div>` : ''}
-      <div class="port-row">
-        <span class="port spawn" title="Spawn port (green)"></span>
-        <span class="port comm" title="Comm port (cyan)"></span>
-      </div>
-    </div>`;
-
-  div.addEventListener('mousedown', e => startDrag(e, agent));
-  div.addEventListener('click', e => { e.stopPropagation(); selectAgent(agent.id); });
-
-  return div;
-}
-
-function shortModel(m) {
-  if (!m) return '?';
-  return m.replace('claude-','').replace('-4-5','');
-}
-
-function selectAgent(id) {
-  state.selectedAgentId = id;
-  document.querySelectorAll('.agent-node').forEach(n => n.classList.remove('selected'));
-  const node = document.getElementById('node-' + id);
-  if (node) node.classList.add('selected');
-  renderAgentPanel();
-  switchTab('agent', document.querySelector('.tab-btn:nth-child(2)'));
-  updatePrompt('agent-select');
-}
-
-function canvasClick() {
-  state.selectedAgentId = null;
-  document.querySelectorAll('.agent-node').forEach(n => n.classList.remove('selected'));
-  renderAgentPanel();
-}
-
-// ─────────────────────────────────────────────────────────
-// EDGE RENDERING (SVG)
-// ─────────────────────────────────────────────────────────
-
-function getNodeCenter(agentId) {
-  const agent = state.agents.find(a => a.id === agentId);
-  if (!agent) return { x: 0, y: 0 };
-  return { x: (agent.x || 0) + 90, y: (agent.y || 0) + 50 };
-}
-
-function renderEdges() {
-  const svg = document.getElementById('canvasSvg');
-  svg.innerHTML = '';
-
-  // Spawn links (green)
-  state.spawnLinks.forEach(link => {
-    const from = getNodeCenter(link.from);
-    const to   = getNodeCenter(link.to);
-    const mid  = { x: (from.x + to.x) / 2, y: (from.y + to.y) / 2 };
-
-    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-    const d = `M ${from.x} ${from.y} C ${from.x} ${mid.y}, ${to.x} ${mid.y}, ${to.x} ${to.y}`;
-    path.setAttribute('d', d);
-    path.setAttribute('stroke', '#34d399');
-    path.setAttribute('stroke-width', '1.5');
-    path.setAttribute('fill', 'none');
-    path.setAttribute('opacity', '0.5');
-    path.setAttribute('stroke-dasharray', '5 3');
-    svg.appendChild(path);
-
-    // Arrowhead
-    addArrow(svg, from, to, '#34d399');
-  });
-
-  // Comm rules (cyan)
-  state.commRules.forEach(rule => {
-    const from = getNodeCenter(rule.from);
-    const to   = getNodeCenter(rule.to);
-
-    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-    line.setAttribute('x1', from.x); line.setAttribute('y1', from.y);
-    line.setAttribute('x2', to.x);   line.setAttribute('y2', to.y);
-    line.setAttribute('stroke', '#22d3ee');
-    line.setAttribute('stroke-width', '1');
-    line.setAttribute('opacity', '0.4');
-    svg.appendChild(line);
-
-    // Policy label
-    const mx = (from.x + to.x) / 2;
-    const my = (from.y + to.y) / 2;
-    const txt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-    txt.setAttribute('x', mx); txt.setAttribute('y', my - 4);
-    txt.setAttribute('text-anchor', 'middle');
-    txt.setAttribute('class', 'edge-label');
-    txt.textContent = rule.policy;
-    svg.appendChild(txt);
-  });
-}
-
-function addArrow(svg, from, to, color) {
-  const dx = to.x - from.x, dy = to.y - from.y;
-  const len = Math.sqrt(dx*dx + dy*dy);
-  if (len < 1) return;
-  const ux = dx/len, uy = dy/len;
-  const ax = to.x - ux*14, ay = to.y - uy*14;
-  const perp = { x: -uy*5, y: ux*5 };
-
-  const poly = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
-  poly.setAttribute('points', `${to.x},${to.y} ${ax+perp.x},${ay+perp.y} ${ax-perp.x},${ay-perp.y}`);
-  poly.setAttribute('fill', color);
-  poly.setAttribute('opacity', '0.6');
-  svg.appendChild(poly);
-}
-
-// ─────────────────────────────────────────────────────────
-// DRAG
-// ─────────────────────────────────────────────────────────
-
-let drag = null;
-
-function startDrag(e, agent) {
-  if (e.target.classList.contains('port')) return;
-  e.preventDefault();
-  const node = document.getElementById('node-' + agent.id);
-  const rect = node.getBoundingClientRect();
-  const canvasRect = document.getElementById('canvas').getBoundingClientRect();
-  drag = {
-    agentId: agent.id,
-    startX: e.clientX,
-    startY: e.clientY,
-    origX: agent.x,
-    origY: agent.y,
-    canvasLeft: canvasRect.left,
-    canvasTop:  canvasRect.top,
-  };
-  document.addEventListener('mousemove', onDrag);
-  document.addEventListener('mouseup', endDrag);
-}
-
-function onDrag(e) {
-  if (!drag) return;
-  const dx = e.clientX - drag.startX;
-  const dy = e.clientY - drag.startY;
-  const agent = state.agents.find(a => a.id === drag.agentId);
-  if (!agent) return;
-  agent.x = Math.max(0, drag.origX + dx);
-  agent.y = Math.max(0, drag.origY + dy);
-  const node = document.getElementById('node-' + drag.agentId);
-  if (node) {
-    node.style.left = agent.x + 'px';
-    node.style.top  = agent.y + 'px';
-  }
-  renderEdges();
-}
-
-function endDrag(e) {
-  drag = null;
-  document.removeEventListener('mousemove', onDrag);
-  document.removeEventListener('mouseup', endDrag);
-  markDirty();
-}
-
-// ─────────────────────────────────────────────────────────
-// ADD AGENT
-// ─────────────────────────────────────────────────────────
-
-function addAgentToCanvas() {
-  const id = nextId('a');
-  const agent = {
-    id,
-    name: 'New Agent',
-    typeId: 't3',
-    capability: 'builder',
-    model: 'claude-haiku-4-5',
-    permission: 'write',
-    persona: '',
-    file_scope: '',
-    extra_instructions: '',
-    tool_scope: [],
-    x: 80 + Math.random() * 300,
-    y: 80 + Math.random() * 200,
-    health: 'idle',
-  };
-  state.agents.push(agent);
-  document.getElementById('agentCount').textContent = state.agents.length;
-  document.getElementById('canvasHint').style.display = 'none';
-  const node = createAgentNode(agent);
-  document.getElementById('canvas').appendChild(node);
-  renderEdges();
-  updateStats();
-  selectAgent(id);
-  populateConnSelects();
-  markDirty();
-}
-
-// ─────────────────────────────────────────────────────────
-// AGENT PANEL
-// ─────────────────────────────────────────────────────────
-
-function renderAgentPanel() {
-  const panel = document.getElementById('agentPanelInner');
-  const agent = state.agents.find(a => a.id === state.selectedAgentId);
-
-  if (!agent) {
-    panel.innerHTML = `<div class="no-selection"><div class="icon">◈</div><div>Select an agent node<br>on the canvas</div></div>`;
-    return;
-  }
-
-  const toolTags = (agent.tool_scope || []).map(t =>
-    `<span class="tag-chip">${t}<span class="remove" data-tool="${t}" onclick="removeToolTag(this, '${agent.id}')">×</span></span>`
-  ).join('');
-
-  panel.innerHTML = `
-    <div class="panel-section">
-      <div class="panel-section-title">Identity</div>
-      <div class="form-row">
-        <div class="form-label">Name</div>
-        <input class="form-input" value="${esc(agent.name)}" oninput="agentField('${agent.id}','name',this.value)">
-      </div>
-      <div class="form-row-inline">
-        <div class="form-row">
-          <div class="form-label">Capability</div>
-          <select class="form-select" onchange="agentField('${agent.id}','capability',this.value)">
-            ${['builder','scout','reviewer','coordinator','lead'].map(c =>
-              `<option value="${c}" ${agent.capability===c?'selected':''}>${c}</option>`).join('')}
-          </select>
-        </div>
-        <div class="form-row">
-          <div class="form-label">Permission</div>
-          <select class="form-select" onchange="agentField('${agent.id}','permission',this.value)">
-            ${['read','write','full'].map(p =>
-              `<option value="${p}" ${agent.permission===p?'selected':''}>${p}</option>`).join('')}
-          </select>
-        </div>
-      </div>
-      <div class="form-row">
-        <div class="form-label">Model</div>
-        <select class="form-select" onchange="agentField('${agent.id}','model',this.value)">
-          ${['claude-opus-4-5','claude-sonnet-4-5','claude-haiku-4-5','gpt-4o'].map(m =>
-            `<option value="${m}" ${agent.model===m?'selected':''}>${m}</option>`).join('')}
+      <div class="ctrl-grp">
+        <label>Position</label>
+        <select id="sp" onchange="U()">
+          <option value="right">Right</option>
+          <option value="left">Left</option>
         </select>
       </div>
     </div>
-    <div class="panel-section">
-      <div class="panel-section-title">Persona</div>
-      <div class="form-row">
-        <div class="form-label">System Prompt</div>
-        <textarea class="form-textarea" style="min-height:80px" placeholder="Agent persona / system prompt..." oninput="agentField('${agent.id}','persona',this.value)">${esc(agent.persona)}</textarea>
+    <div class="ctrl-sec">
+      <h3>Canvas</h3>
+      <div class="ctrl-grp">
+        <label>Node Detail</label>
+        <select id="nodeDetail" onchange="U()">
+          <option value="full">Full</option>
+          <option value="compact">Compact</option>
+          <option value="mini">Mini</option>
+        </select>
       </div>
-      <div class="form-row">
-        <div class="form-label">Extra Instructions</div>
-        <textarea class="form-textarea" placeholder="Runtime instructions appended to persona..." oninput="agentField('${agent.id}','extra_instructions',this.value)">${esc(agent.extra_instructions||'')}</textarea>
-      </div>
+      <div class="tgl"><label>Spawn edges</label><input type="checkbox" id="showSpawn" checked onchange="U()"></div>
+      <div class="tgl"><label>Comm edges</label><input type="checkbox" id="showComm" checked onchange="U()"></div>
     </div>
-    <div class="panel-section">
-      <div class="panel-section-title">Scope</div>
-      <div class="form-row">
-        <div class="form-label">File Scope</div>
-        <input class="form-input" placeholder="lib/**/*.ex" value="${esc(agent.file_scope||'')}" oninput="agentField('${agent.id}','file_scope',this.value)">
-      </div>
-      <div class="form-row">
-        <div class="form-label">Quality Gates</div>
-        <input class="form-input" placeholder="mix compile --warnings-as-errors" value="${esc(agent.quality_gates||'')}" oninput="agentField('${agent.id}','quality_gates',this.value)">
-      </div>
-      <div class="form-row">
-        <div class="form-label">Tool Scope</div>
-        <div class="tag-input-wrap" onclick="this.querySelector('.tag-real-input').focus()">
-          ${toolTags}
-          <input class="tag-real-input" placeholder="add tool..." onkeydown="toolScopeKeydown(event,'${agent.id}')">
-        </div>
-      </div>
+    <div class="ctrl-sec">
+      <h3>Panels</h3>
+      <div class="tgl"><label>Team list</label><input type="checkbox" id="showTeamList" checked onchange="U()"></div>
+      <div class="tgl"><label>Spawn links</label><input type="checkbox" id="showSpawnLinks" checked onchange="U()"></div>
+      <div class="tgl"><label>Comm rules</label><input type="checkbox" id="showCommRules" checked onchange="U()"></div>
+      <div class="tgl"><label>LV hints</label><input type="checkbox" id="showLvHints" checked onchange="U()"></div>
     </div>
-    <div class="panel-section">
-      <div class="panel-section-title">Actions</div>
-      <div class="panel-actions-row">
-        <button class="btn btn-muted btn-sm" onclick="duplicateAgent('${agent.id}')">Duplicate</button>
-        <button class="btn btn-danger btn-sm" onclick="removeAgent('${agent.id}')">Remove Agent</button>
+  </nav>
+
+  <div class="pg-preview">
+    <div class="pg-preview-frame"><div id="out" style="height:100%"></div></div>
+    <div class="prompt-bar">
+      <div class="prompt-bar-hdr">
+        <h3>Phoenix LiveView Implementation Prompt</h3>
+        <span style="font-size:9px;color:var(--text-muted)">Copy to an implementation agent</span>
+        <button class="copy-btn" onclick="CP()">Copy</button>
       </div>
-    </div>`;
-}
+      <div class="prompt-txt" id="pt"></div>
+    </div>
+  </div>
+</div>
 
-function agentField(id, field, val) {
-  const agent = state.agents.find(a => a.id === id);
-  if (!agent) return;
-  agent[field] = val;
-  // Re-render node header if name changed
-  if (field === 'name' || field === 'capability' || field === 'model') {
-    const node = document.getElementById('node-' + id);
-    if (node) {
-      const old = node;
-      const newNode = createAgentNode(agent);
-      old.replaceWith(newNode);
-    }
-  }
-  markDirty();
-  updatePrompt('agent-edit');
-}
-
-function removeToolTag(el, agentId) {
-  const tool = el.dataset.tool;
-  const agent = state.agents.find(a => a.id === agentId);
-  if (!agent) return;
-  agent.tool_scope = (agent.tool_scope || []).filter(t => t !== tool);
-  renderAgentPanel();
-  markDirty();
-}
-
-function toolScopeKeydown(e, agentId) {
-  if (e.key === 'Enter' || e.key === ',') {
-    e.preventDefault();
-    const val = e.target.value.trim().replace(',','');
-    if (!val) return;
-    const agent = state.agents.find(a => a.id === agentId);
-    if (!agent) return;
-    if (!agent.tool_scope) agent.tool_scope = [];
-    if (!agent.tool_scope.includes(val)) agent.tool_scope.push(val);
-    renderAgentPanel();
-    markDirty();
-  }
-}
-
-function duplicateAgent(id) {
-  const orig = state.agents.find(a => a.id === id);
-  if (!orig) return;
-  const copy = { ...JSON.parse(JSON.stringify(orig)), id: nextId('a'), name: orig.name + ' (copy)', x: orig.x + 30, y: orig.y + 30 };
-  state.agents.push(copy);
-  const node = createAgentNode(copy);
-  document.getElementById('canvas').appendChild(node);
-  renderEdges();
-  updateStats();
-  populateConnSelects();
-  selectAgent(copy.id);
-  markDirty();
-}
-
-function removeAgent(id) {
-  state.agents = state.agents.filter(a => a.id !== id);
-  state.spawnLinks = state.spawnLinks.filter(l => l.from !== id && l.to !== id);
-  state.commRules  = state.commRules.filter(r => r.from !== id && r.to !== id && r.via !== id);
-  state.selectedAgentId = null;
-  renderCanvas();
-  renderConnections();
-  renderAgentPanel();
-  updateStats();
-  markDirty();
-}
-
-// ─────────────────────────────────────────────────────────
-// CONNECTIONS
-// ─────────────────────────────────────────────────────────
-
-function renderConnections() {
-  renderSpawnList();
-  renderCommList();
-  renderTopology();
-  populateConnSelects();
-}
-
-function agentName(id) {
-  const a = state.agents.find(a => a.id === id);
-  return a ? a.name : id;
-}
-
-function renderSpawnList() {
-  const el = document.getElementById('spawnList');
-  if (state.spawnLinks.length === 0) {
-    el.innerHTML = '<div style="color:var(--zinc-700);font-size:10px;padding:4px 0">No spawn links defined</div>';
-    return;
-  }
-  el.innerHTML = state.spawnLinks.map(l => `
-    <div class="conn-item">
-      <span class="conn-type spawn">spawn</span>
-      <span class="conn-detail"><strong>${agentName(l.from)}</strong> → ${agentName(l.to)}</span>
-      <div class="conn-actions">
-        <button class="btn btn-danger btn-icon" onclick="removeSpawnLink('${l.id}')">×</button>
+<div class="modal-back" id="create-modal">
+  <div class="modal">
+    <div class="modal-hdr"><h2 id="modal-title">New Team</h2><button class="modal-close" onclick="closeModal()">&times;</button></div>
+    <div class="modal-body">
+      <div class="pf"><label>Name</label><input id="ct-name" type="text" placeholder="my-feature-team"></div>
+      <div class="fr">
+        <div class="pf"><label>Strategy</label><select id="ct-strategy"><option>sequential</option><option>parallel</option><option>dag</option><option>pipeline</option></select></div>
+        <div class="pf"><label>Default Model</label><input id="ct-model" value="claude-sonnet-4-5"></div>
       </div>
-    </div>`).join('');
-}
+      <div class="pf"><label>Working Dir</label><input id="ct-cwd" placeholder="/path/to/project"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-c" onclick="commitCreateTeam()">Create</button>
+      <button class="btn" onclick="closeModal()">Cancel</button>
+    </div>
+  </div>
+</div>
 
-function renderCommList() {
-  const el = document.getElementById('commList');
-  if (state.commRules.length === 0) {
-    el.innerHTML = '<div style="color:var(--zinc-700);font-size:10px;padding:4px 0">No comm rules defined</div>';
-    return;
-  }
-  el.innerHTML = state.commRules.map(r => {
-    const viaStr = r.via ? ` via ${agentName(r.via)}` : '';
-    return `
-    <div class="conn-item">
-      <span class="conn-type comm">${r.policy}</span>
-      <span class="conn-detail"><strong>${agentName(r.from)}</strong> → ${agentName(r.to)}${viaStr}</span>
-      <div class="conn-actions">
-        <button class="btn btn-muted btn-icon" onclick="editCommRule('${r.id}')">✎</button>
-        <button class="btn btn-danger btn-icon" onclick="removeCommRule('${r.id}')">×</button>
-      </div>
-    </div>`;
-  }).join('');
-}
+<div id="toast"></div>
 
-function renderTopology() {
-  const el = document.getElementById('topologyView');
-  if (state.agents.length === 0) {
-    el.innerHTML = '<div style="color:var(--zinc-700);font-size:10px;padding:4px 0">No agents</div>';
-    return;
-  }
-
-  // Build simple tree from spawn links
-  const children = {};
-  const hasParent = new Set();
-  state.spawnLinks.forEach(l => {
-    if (!children[l.from]) children[l.from] = [];
-    children[l.from].push(l.to);
-    hasParent.add(l.to);
-  });
-  const roots = state.agents.filter(a => !hasParent.has(a.id));
-
-  function renderNode(id, depth) {
-    const agent = state.agents.find(a => a.id === id);
-    if (!agent) return '';
-    const indent = depth > 0 ? `<span class="topo-indent"></span>`.repeat(depth) : '';
-    const kids = (children[id] || []).map(cid => renderNode(cid, depth + 1)).join('');
-    return `
-      <div class="topology-node" style="padding-left:${depth*14}px">
-        <span class="cap-badge ${agent.capability}" style="font-size:8px">${agent.capability[0].toUpperCase()}</span>
-        <span class="topo-name">${agent.name}</span>
-        <span class="topo-type">${shortModel(agent.model)}</span>
-      </div>${kids}`;
-  }
-
-  el.innerHTML = roots.map(r => renderNode(r.id, 0)).join('') || '<div style="color:var(--zinc-700);font-size:10px">No hierarchy defined</div>';
-}
-
-function populateConnSelects() {
-  const agents = state.agents;
-  const opts = agents.map(a => `<option value="${a.id}">${a.name}</option>`).join('');
-  const viaOpts = '<option value="">-- none --</option>' + opts;
-
-  ['spawnFrom','spawnTo','commFrom','commTo'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.innerHTML = opts;
-  });
-  const via = document.getElementById('commVia');
-  if (via) via.innerHTML = viaOpts;
-}
-
-function toggleAddConn(type) {
-  const form = document.getElementById(type + 'Form');
-  form.classList.toggle('open');
-  if (form.classList.contains('open')) populateConnSelects();
-}
-
-function addSpawnLink() {
-  const from = document.getElementById('spawnFrom').value;
-  const to   = document.getElementById('spawnTo').value;
-  if (!from || !to || from === to) return;
-  const exists = state.spawnLinks.find(l => l.from === from && l.to === to);
-  if (exists) return;
-  state.spawnLinks.push({ id: nextId('s'), from, to });
-  renderConnections();
-  renderEdges();
-  updateStats();
-  document.getElementById('spawnForm').classList.remove('open');
-  markDirty();
-  updatePrompt('conn-add');
-}
-
-function removeSpawnLink(id) {
-  state.spawnLinks = state.spawnLinks.filter(l => l.id !== id);
-  renderConnections();
-  renderEdges();
-  updateStats();
-  markDirty();
-}
-
-function addCommRule() {
-  const from   = document.getElementById('commFrom').value;
-  const to     = document.getElementById('commTo').value;
-  const policy = document.getElementById('commPolicy').value;
-  const via    = document.getElementById('commVia').value;
-  if (!from || !to) return;
-  state.commRules.push({ id: nextId('c'), from, to, policy, via });
-  renderConnections();
-  renderEdges();
-  updateStats();
-  document.getElementById('commForm').classList.remove('open');
-  markDirty();
-  updatePrompt('conn-add');
-}
-
-function removeCommRule(id) {
-  state.commRules = state.commRules.filter(r => r.id !== id);
-  renderConnections();
-  renderEdges();
-  updateStats();
-  markDirty();
-}
-
-function editCommRule(id) {
-  const rule = state.commRules.find(r => r.id === id);
-  if (!rule) return;
-  // Open form and pre-fill
-  populateConnSelects();
-  document.getElementById('commFrom').value   = rule.from;
-  document.getElementById('commTo').value     = rule.to;
-  document.getElementById('commPolicy').value = rule.policy;
-  document.getElementById('commVia').value    = rule.via || '';
-  document.getElementById('commForm').classList.add('open');
-  // Remove existing and re-add on save
-  state.commRules = state.commRules.filter(r => r.id !== id);
-  renderCommList();
-  renderEdges();
-}
-
-// ─────────────────────────────────────────────────────────
-// TYPES
-// ─────────────────────────────────────────────────────────
-
-function renderTypeList() {
-  const el = document.getElementById('typeList');
-  el.innerHTML = state.agentTypes.sort((a,b) => a.sort_order - b.sort_order).map(t => {
-    const usage = state.agents.filter(a => a.typeId === t.id).length;
-    return `
-    <div class="type-row ${state.selectedTypeId === t.id ? 'selected' : ''}" onclick="selectType('${t.id}')">
-      <span class="type-color-swatch" style="background:${t.color}"></span>
-      <span class="type-name">${t.name}</span>
-      <span class="cap-badge ${t.capability}" style="font-size:8px">${t.capability}</span>
-      <span class="type-count">${usage} agent${usage !== 1 ? 's' : ''}</span>
-    </div>`;
-  }).join('');
-}
-
-function selectType(id) {
-  state.selectedTypeId = id;
-  const type = state.agentTypes.find(t => t.id === id);
-  if (!type) return;
-  renderTypeList();
-  document.getElementById('typeEditPanel').style.display = 'block';
-  document.getElementById('typeName').value       = type.name;
-  document.getElementById('typeCapability').value = type.capability;
-  document.getElementById('typeModel').value      = type.model;
-  document.getElementById('typeSortOrder').value  = type.sort_order;
-  document.getElementById('typePersona').value    = type.persona || '';
-  // Highlight selected color
-  document.querySelectorAll('.color-swatch').forEach(s => {
-    s.classList.toggle('selected', s.dataset.color === type.color);
-  });
-  updatePrompt('type-select');
-}
-
-function newAgentType() {
-  const id = nextId('t');
-  const type = { id, name: 'New Type', capability: 'builder', model: 'claude-haiku-4-5', color: COLORS[0], sort_order: state.agentTypes.length, persona: '' };
-  state.agentTypes.push(type);
-  renderTypeList();
-  selectType(id);
-}
-
-function saveAgentType() {
-  const type = state.agentTypes.find(t => t.id === state.selectedTypeId);
-  if (!type) return;
-  type.name        = document.getElementById('typeName').value;
-  type.capability  = document.getElementById('typeCapability').value;
-  type.model       = document.getElementById('typeModel').value;
-  type.sort_order  = parseInt(document.getElementById('typeSortOrder').value) || 0;
-  type.persona     = document.getElementById('typePersona').value;
-  renderTypeList();
-  renderCanvas();
-  markDirty();
-  updatePrompt('type-save');
-}
-
-function deleteAgentType() {
-  if (!state.selectedTypeId) return;
-  if (confirm('Delete this agent type?')) {
-    state.agentTypes = state.agentTypes.filter(t => t.id !== state.selectedTypeId);
-    state.selectedTypeId = null;
-    document.getElementById('typeEditPanel').style.display = 'none';
-    renderTypeList();
-    markDirty();
-  }
-}
-
-function typeFieldChanged() {
-  // live update color swatch preview in type row
-}
-
-function applyTypeToSelected() {
-  const agent = state.agents.find(a => a.id === state.selectedAgentId);
-  const type  = state.agentTypes.find(t => t.id === state.selectedTypeId);
-  if (!agent || !type) {
-    alert('Select both an agent (on canvas) and a type (from the list)');
-    return;
-  }
-  agent.typeId     = type.id;
-  agent.capability = type.capability;
-  agent.model      = type.model;
-  if (!agent.persona) agent.persona = type.persona;
-  const node = document.getElementById('node-' + agent.id);
-  if (node) node.replaceWith(createAgentNode(agent));
-  renderAgentPanel();
-  markDirty();
-  updatePrompt('type-apply');
-}
-
-function renderColorPicker() {
-  const el = document.getElementById('typeColorPicker');
-  el.innerHTML = COLORS.map(c =>
-    `<span class="color-swatch" data-color="${c}" style="background:${c}" onclick="pickColor('${c}')"></span>`
-  ).join('');
-}
-
-function pickColor(color) {
-  const type = state.agentTypes.find(t => t.id === state.selectedTypeId);
-  if (!type) return;
-  type.color = color;
-  document.querySelectorAll('.color-swatch').forEach(s => {
-    s.classList.toggle('selected', s.dataset.color === color);
-  });
-  renderTypeList();
-  markDirty();
-}
-
-// ─────────────────────────────────────────────────────────
-// LAYOUT HELPERS
-// ─────────────────────────────────────────────────────────
-
-function layoutAuto() {
-  if (state.agents.length === 0) return;
-
-  // Build adjacency for topo sort
-  const children = {};
-  const hasParent = new Set();
-  state.spawnLinks.forEach(l => {
-    if (!children[l.from]) children[l.from] = [];
-    children[l.from].push(l.to);
-    hasParent.add(l.to);
-  });
-
-  const roots = state.agents.filter(a => !hasParent.has(a.id));
-  const placed = new Set();
-  const levelMap = {};
-
-  function assignLevel(id, level) {
-    if (placed.has(id)) return;
-    placed.add(id);
-    if (!levelMap[level]) levelMap[level] = [];
-    levelMap[level].push(id);
-    (children[id] || []).forEach(c => assignLevel(c, level + 1));
-  }
-
-  roots.forEach(r => assignLevel(r.id, 0));
-  // Any unplaced agents go to last level
-  state.agents.forEach(a => { if (!placed.has(a.id)) { const l = Object.keys(levelMap).length; if (!levelMap[l]) levelMap[l] = []; levelMap[l].push(a.id); } });
-
-  const levelH = 160, startY = 60;
-  Object.entries(levelMap).forEach(([level, ids]) => {
-    const count = ids.length;
-    const totalW = count * 200 + (count - 1) * 30;
-    const startX = Math.max(40, (document.getElementById('canvas').offsetWidth - totalW) / 2);
-    ids.forEach((id, i) => {
-      const agent = state.agents.find(a => a.id === id);
-      if (agent) {
-        agent.x = startX + i * 230;
-        agent.y = startY + parseInt(level) * levelH;
-      }
-    });
-  });
-
-  renderCanvas();
-  renderConnections();
-  updatePrompt('layout-auto');
-}
-
-function fitView() {
-  // Simple: just re-render in place
-  renderCanvas();
-  renderConnections();
-}
-
-// ─────────────────────────────────────────────────────────
-// STATS
-// ─────────────────────────────────────────────────────────
-
-function updateStats() {
-  document.getElementById('statAgents').textContent   = state.agents.length;
-  document.getElementById('statSpawn').textContent    = state.spawnLinks.length;
-  document.getElementById('statComm').textContent     = state.commRules.length;
-  document.getElementById('statStrategy').textContent = state.strategy || '—';
-  document.getElementById('agentCount').textContent   = state.agents.length;
-  document.getElementById('canvasHint').style.display = state.agents.length === 0 ? 'block' : 'none';
-}
-
-// ─────────────────────────────────────────────────────────
-// TABS
-// ─────────────────────────────────────────────────────────
-
-function switchTab(name, btn) {
-  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-  document.getElementById('tab-' + name).classList.add('active');
-  if (btn) btn.classList.add('active');
-  else {
-    const btns = document.querySelectorAll('.tab-btn');
-    const map = { team: 0, agent: 1, connections: 2, types: 3 };
-    if (map[name] !== undefined) btns[map[name]].classList.add('active');
-  }
-  if (name === 'connections') renderConnections();
-  if (name === 'types') renderTypeList();
-}
-
-// ─────────────────────────────────────────────────────────
-// LAUNCH
-// ─────────────────────────────────────────────────────────
-
-function launchTeam() {
-  updatePrompt('launch');
-}
-
-// ─────────────────────────────────────────────────────────
-// PROMPT OUTPUT
-// ─────────────────────────────────────────────────────────
-
-const PROMPTS = {
-  welcome: () => `<strong>ICHOR IV Workshop Designer</strong> — Loaded preset <em>MES Alpha</em>.
-    This playground maps directly to <code>Ichor.Workshop</code> domain Ash resources:
-    <code>Team</code>, <code>TeamMember</code>, <code>AgentType</code>, <code>SpawnLink</code>, <code>CommRule</code>.
-    Use tabs to configure. Canvas is drag-and-drop.`,
-
-  'team-load': () => `<strong>ws_list_teams</strong> event triggered — team selected from browser.
-    In LiveView: <code>handle_event("ws_list_teams", %{"team_id" => id}, socket)</code>.
-    Load via <code>Ichor.Workshop.Team |> Ash.get!(id, actor: socket.assigns.current_user)</code>,
-    assign result to <code>@active_team</code>.`,
-
-  'team-new': () => `<strong>New team</strong> — LiveView: <code>handle_event("ws_new_team", _params, socket)</code>.
-    Call <code>Ichor.Workshop.Team |> Ash.Changeset.for_create(:create, %{name: "New Team"}, actor: socket.assigns.current_user) |> Ash.create!()</code>.
-    Push LiveView patch to <code>/workshop/teams/:id/edit</code>.`,
-
-  'team-save': () => `<strong>Team saved</strong> — LiveView: <code>handle_event("ws_save_team", params, socket)</code>.
-    Use <code>Ash.Changeset.for_update(team, :update, attrs, actor: actor) |> Ash.update!()</code>.
-    Broadcast change via <code>Phoenix.PubSub.broadcast(Ichor.PubSub, "workshop:teams", {:team_updated, team.id})</code>.
-    UI clears dirty indicator.`,
-
-  'preset-mes': () => `<strong>Preset: MES Team</strong> loaded.
-    Coordinator (opus-4-5) spawns Tech Lead + Researcher A. Tech Lead spawns Researcher B.
-    Comm rules: upward reporting allowed; Researcher B routes via Coordinator.
-    In Phoenix: seed via <code>Ichor.Workshop.Team.seed_mes_preset(actor)</code> — call
-    <code>Ash.create!</code> for team, then 4× <code>TeamMember</code> creates, then spawn/comm junction creates.`,
-
-  'preset-pipeline': () => `<strong>Preset: Pipeline Team</strong> loaded.
-    Linear spawn chain: Coordinator → Lead → Worker A + B.
-    All comm rules are upward allow.
-    Strategy: <code>sequential</code>. Suitable for phased implementation tasks.`,
-
-  'preset-solo': () => `<strong>Preset: Solo Agent</strong> loaded.
-    Single builder, full permissions, opus-4-5.
-    No spawn or comm rules needed.
-    LiveView renders canvas with one node, connections tab shows empty state.`,
-
-  'preset-review': () => `<strong>Preset: Review Chain</strong> loaded.
-    Coordinator spawns Reviewer A (first pass) and Reviewer B (second pass).
-    Both report upward via allow comm rules.
-    Sequential strategy: reviewers run in order defined by spawn link sort_order.`,
-
-  'preset-empty': () => `<strong>Empty Canvas</strong> loaded.
-    Use <em>+ Agent</em> button or drag from the Types panel to build from scratch.
-    Save as new team when done.`,
-
-  'team-new': () => `<strong>New team created</strong>. Fill in Team Config (Tab 1),
-    then add agents from the canvas.
-    In LiveView: <code>Ichor.Workshop.Team |> Ash.Changeset.for_create(:create, params, actor: actor) |> Ash.create!()</code>.`,
-
-  'team-duplicate': () => `<strong>Duplicate team</strong> — deep-copy all agents + links.
-    In LiveView: custom action <code>:duplicate</code> on Team resource.
-    Use <code>Ash.Changeset.for_create(:duplicate, %{source_team_id: id})</code> +
-    custom <code>Ichor.Workshop.Changes.DuplicateTeam</code> change module.`,
-
-  'team-delete': () => `<strong>Delete team</strong> — LiveView: confirm modal, then
-    <code>Ash.destroy!(team, actor: actor)</code>.
-    Team resource should use <code>require_atomic?: false</code> with cascade destroy on
-    TeamMember, SpawnLink, CommRule via <code>has_many ... do; destroy_action :destroy; end</code>.`,
-
-  'agent-select': () => {
-    const a = state.agents.find(x => x.id === state.selectedAgentId);
-    if (!a) return 'No agent selected.';
-    return `<strong>Agent selected: ${a.name}</strong> (${a.capability}, ${shortModel(a.model)}).
-      In LiveView: <code>handle_event("ws_select_agent", %{"id" => id}, socket)</code> →
-      <code>assign(socket, :selected_member, Ash.get!(TeamMember, id, actor: actor))</code>.
-      Right panel re-renders with <code>&lt;.agent_config_form member={@selected_member} /&gt;</code>.`;
-  },
-
-  'agent-edit': () => `<strong>Agent field updated</strong>.
-    In LiveView: <code>handle_event("ws_update_member", %{"field" => f, "value" => v}, socket)</code>.
-    Use <code>Ash.Changeset.for_update(member, :update, %{field => value}, actor: actor) |> Ash.update!()</code>.
-    Canvas node re-renders via <code>phx-hook="WorkshopCanvas"</code> push_event to JS.`,
-
-  'conn-add': () => `<strong>Connection added</strong>.
-    SpawnLinks map to <code>Ichor.Workshop.SpawnLink</code> resource (fields: <code>team_id, parent_member_id, child_member_id</code>).
-    CommRules map to <code>Ichor.Workshop.CommRule</code> (fields: <code>team_id, from_member_id, to_member_id, policy, via_member_id</code>).
-    Both support add/remove but not inline edit — delete and re-create for changes.`,
-
-  'type-select': () => {
-    const t = state.agentTypes.find(x => x.id === state.selectedTypeId);
-    if (!t) return '';
-    return `<strong>AgentType: ${t.name}</strong> — Ash resource <code>Ichor.Workshop.AgentType</code>.
-      Fields: <code>name, capability, default_model, color, sort_order, default_persona</code>.
-      color stored as hex string. sort_order used for UI ordering — add <code>default_sort_value</code>
-      calculation. Use <code>:read</code> action with <code>sort: [sort_order: :asc]</code>.`;
-  },
-
-  'type-save': () => `<strong>AgentType saved</strong>.
-    LiveView: <code>handle_event("ws_save_agent_type", params, socket)</code>.
-    <code>Ash.Changeset.for_update(type, :update, attrs, actor: actor) |> Ash.update!()</code>.
-    color field: validate with <code>match(~r/^#[0-9a-f]{6}$/i)</code> in Ash validation.
-    sort_order: use <code>integer_between(0, 99)</code> constraint.`,
-
-  'type-apply': () => {
-    const a = state.agents.find(x => x.id === state.selectedAgentId);
-    const t = state.agentTypes.find(x => x.id === state.selectedTypeId);
-    if (!a || !t) return 'Select an agent and a type to apply.';
-    return `<strong>Type applied: ${t.name} → ${a.name}</strong>.
-      LiveView: <code>handle_event("ws_apply_type", %{"member_id" => mid, "type_id" => tid}, socket)</code>.
-      Custom Ash action <code>:apply_type</code> on TeamMember — stamps capability, model, and optionally merges persona.
-      <code>change Ichor.Workshop.Changes.ApplyAgentType</code>.`;
-  },
-
-  'layout-auto': () => `<strong>Auto layout applied</strong>.
-    Canvas layout is client-side only (positions stored on <code>TeamMember.canvas_x/canvas_y</code> fields).
-    In LiveView JS hook <code>WorkshopCanvas</code>: after layout recalc, call
-    <code>this.pushEvent("ws_save_positions", {positions: [{id, x, y}, ...]})</code>.
-    Handler: batch update all positions in a single transaction.`,
-
-  'launch': () => `<strong>LAUNCH TEAM</strong> — triggers <code>handle_event("ws_launch_team", %{"team_id" => id}, socket)</code>.
-    Calls <code>Ichor.Workshop.Team |> Ash.Changeset.for_update(:launch, %{}, actor: actor) |> Ash.update!()</code>.
-    <code>:launch</code> action sets <code>status: :running</code>, broadcasts
-    <code>"workshop:team:#{id}:launched"</code> via PubSub.
-    Factory/Archon subscribes and materializes the agent processes.`,
+<script>
+// ═══ ROLE COLORS ═══
+const RC = {
+  coordinator:'var(--role-coordinator)', lead:'var(--role-lead)',
+  builder:'var(--role-builder)', scout:'var(--role-scout)', reviewer:'var(--role-reviewer)',
+  planner:'var(--role-planner)', coder:'var(--role-coder)', tester:'var(--role-tester)',
+  writer:'var(--role-writer)', analyst:'var(--role-analyst)', specialist:'var(--role-specialist)',
 };
+const CB = {
+  coordinator:'background:hsl(231 76% 75%/0.15);color:var(--role-coordinator)',
+  lead:'background:hsl(263 70% 76%/0.15);color:var(--role-lead)',
+  builder:'background:hsl(187 86% 53%/0.15);color:var(--role-builder)',
+  scout:'background:hsl(160 64% 52%/0.15);color:var(--role-scout)',
+  reviewer:'background:hsl(43 96% 56%/0.15);color:var(--role-reviewer)',
+  planner:'background:hsl(258 90% 66%/0.15);color:var(--violet)',
+  coder:'background:hsl(187 86% 53%/0.15);color:var(--role-coder)',
+  tester:'background:hsl(160 64% 52%/0.15);color:var(--role-tester)',
+  writer:'background:hsl(192 91% 60%/0.15);color:var(--role-writer)',
+  analyst:'background:hsl(30 90% 55%/0.15);color:var(--role-analyst)',
+  specialist:'background:hsl(320 70% 60%/0.15);color:var(--role-specialist)',
+};
+const AB = {coordinator:'COORD',lead:'LEAD',builder:'BLD',scout:'SCT',reviewer:'REV',
+  planner:'PLN',coder:'COD',tester:'TST',writer:'WRT',analyst:'ANL',specialist:'SPL'};
 
-function updatePrompt(key) {
-  const fn = PROMPTS[key];
-  if (!fn) return;
-  const text = typeof fn === 'function' ? fn() : fn;
-  document.getElementById('promptText').innerHTML = text;
+// ═══ SAMPLE DATA ═══
+const AGENT_TYPES_INIT = [
+  {id:'at-1',name:'ash-elixir-expert',capability:'coder',default_model:'claude-sonnet-4-5',default_permission:'rw',default_persona:'You are an expert Elixir + Ash Framework developer.',default_file_scope:'lib/**/*.ex',default_tools:'bash,read,edit,glob,grep',color:'#14b8a6',sort_order:1},
+  {id:'at-2',name:'code-planner',capability:'planner',default_model:'claude-opus-4-5',default_permission:'ro',default_persona:'You are a senior technical architect.',default_file_scope:'**/*',default_tools:'read,glob,grep',color:'#a855f7',sort_order:2},
+  {id:'at-3',name:'code-reviewer',capability:'reviewer',default_model:'claude-sonnet-4-5',default_permission:'ro',default_persona:'You are a meticulous code reviewer.',default_file_scope:'lib/**/*.ex',default_tools:'read,glob,grep',color:'#eab308',sort_order:3},
+  {id:'at-4',name:'test-writer',capability:'tester',default_model:'claude-haiku-4-5',default_permission:'rw',default_persona:'You write comprehensive ExUnit tests.',default_file_scope:'test/**/*.exs',default_tools:'bash,read,edit,glob',color:'#22c55e',sort_order:4},
+  {id:'at-5',name:'doc-writer',capability:'writer',default_model:'claude-haiku-4-5',default_permission:'rw',default_persona:'You write clear technical documentation.',default_file_scope:'docs/**/*',default_tools:'read,edit,write',color:'#06b6d4',sort_order:5},
+  {id:'at-6',name:'archon',capability:'coordinator',default_model:'claude-opus-4-5',default_permission:'admin',default_persona:'You are the Archon, a meta-cognitive AI agent coordinator.',default_file_scope:'**/*',default_tools:'bash,read,edit,glob,grep,mcp',color:'#818cf8',sort_order:0},
+  {id:'at-7',name:'data-analyst',capability:'analyst',default_model:'claude-sonnet-4-5',default_permission:'ro',default_persona:'You analyze data patterns and produce reports.',default_file_scope:'priv/**/*',default_tools:'bash,read,glob,grep',color:'#f97316',sort_order:6},
+  {id:'at-8',name:'infra-specialist',capability:'specialist',default_model:'claude-sonnet-4-5',default_permission:'admin',default_persona:'You manage infrastructure and deployment.',default_file_scope:'**/*',default_tools:'bash,read,edit',color:'#ec4899',sort_order:7},
+];
+
+const TEAMS_INIT = [
+  {id:'tm-001',name:'mes-production-team',strategy:'dag',default_model:'claude-sonnet-4-5',cwd:'/projects/mes',inserted_at:'2026-03-18T10:24:00Z',
+   slots:[{id:'planner',name:'Planner Agent',cap:'planner',model:'claude-opus-4-5',perm:'ro',tools:'read,glob,grep'},{id:'coder-1',name:'Coder Alpha',cap:'coder',model:'claude-sonnet-4-5',perm:'rw',tools:'bash,read,edit'},{id:'coder-2',name:'Coder Beta',cap:'coder',model:'claude-sonnet-4-5',perm:'rw',tools:'bash,read,edit'},{id:'reviewer',name:'Reviewer',cap:'reviewer',model:'',perm:'ro',tools:'read,glob,grep'},{id:'tester',name:'Test Writer',cap:'tester',model:'claude-haiku-4-5',perm:'rw',tools:'bash,read,edit'}],
+   members:[{name:'planner-1',slot:'planner',type_id:'at-2',cap:'planner',model:'claude-opus-4-5',perm:'ro',file_scope:'**/*',quality_gates:'',x:40,y:100},{name:'coder-1',slot:'coder-1',type_id:'at-1',cap:'coder',model:'claude-sonnet-4-5',perm:'rw',file_scope:'lib/**/*.ex',quality_gates:'mix compile',x:240,y:40},{name:'coder-2',slot:'coder-2',type_id:'at-1',cap:'coder',model:'claude-sonnet-4-5',perm:'rw',file_scope:'lib/**/*.ex',quality_gates:'mix compile',x:240,y:160},{name:'reviewer-1',slot:'reviewer',type_id:'at-3',cap:'reviewer',model:'',perm:'ro',file_scope:'lib/**/*.ex',quality_gates:'',x:460,y:100},{name:'tester-1',slot:'tester',type_id:'at-4',cap:'tester',model:'claude-haiku-4-5',perm:'rw',file_scope:'test/**/*',quality_gates:'mix test',x:660,y:100}],
+   spawn_links:[{from:'planner',to:'coder-1'},{from:'planner',to:'coder-2'},{from:'coder-1',to:'reviewer'},{from:'coder-2',to:'reviewer'},{from:'reviewer',to:'tester'}],
+   comm_rules:[{from:'planner',to:'coder-1',policy:'allow',via:null},{from:'planner',to:'coder-2',policy:'allow',via:null},{from:'coder-1',to:'reviewer',policy:'allow',via:null},{from:'coder-2',to:'reviewer',policy:'allow',via:null},{from:'coder-1',to:'coder-2',policy:'block',via:null}]},
+  {id:'tm-002',name:'pipeline-3',strategy:'pipeline',default_model:'claude-haiku-4-5',cwd:'/projects/pipeline',inserted_at:'2026-03-19T08:10:00Z',
+   slots:[{id:'stage-1',name:'Stage 1',cap:'planner',model:'',perm:'ro',tools:'read,glob'},{id:'stage-2',name:'Stage 2',cap:'coder',model:'',perm:'rw',tools:'bash,read,edit'},{id:'stage-3',name:'Stage 3',cap:'reviewer',model:'',perm:'ro',tools:'read,glob'}],
+   members:[{name:'stage-1',slot:'stage-1',type_id:'at-2',cap:'planner',model:'',perm:'ro',file_scope:'**/*',quality_gates:'',x:60,y:120},{name:'stage-2',slot:'stage-2',type_id:'at-1',cap:'coder',model:'',perm:'rw',file_scope:'lib/**/*',quality_gates:'mix compile',x:280,y:120},{name:'stage-3',slot:'stage-3',type_id:'at-3',cap:'reviewer',model:'',perm:'ro',file_scope:'lib/**/*',quality_gates:'',x:500,y:120}],
+   spawn_links:[{from:'stage-1',to:'stage-2'},{from:'stage-2',to:'stage-3'}],
+   comm_rules:[{from:'stage-1',to:'stage-2',policy:'allow',via:null},{from:'stage-2',to:'stage-3',policy:'allow',via:null}]},
+  {id:'tm-003',name:'solo-archon',strategy:'sequential',default_model:'claude-opus-4-5',cwd:'/projects/solo',inserted_at:'2026-03-19T14:33:00Z',
+   slots:[{id:'archon',name:'Archon',cap:'coordinator',model:'claude-opus-4-5',perm:'admin',tools:'bash,read,edit,mcp'}],
+   members:[{name:'archon',slot:'archon',type_id:'at-6',cap:'coordinator',model:'claude-opus-4-5',perm:'admin',file_scope:'**/*',quality_gates:'',x:240,y:120}],
+   spawn_links:[],comm_rules:[]},
+  {id:'tm-004',name:'review-chain',strategy:'sequential',default_model:'claude-sonnet-4-5',cwd:'/projects/review',inserted_at:'2026-03-20T09:15:00Z',
+   slots:[{id:'author',name:'Author',cap:'coder',model:'',perm:'rw',tools:'bash,read,edit'},{id:'reviewer-a',name:'Reviewer A',cap:'reviewer',model:'',perm:'ro',tools:'read,glob'},{id:'reviewer-b',name:'Reviewer B',cap:'reviewer',model:'',perm:'ro',tools:'read,glob'},{id:'approver',name:'Approver',cap:'planner',model:'claude-opus-4-5',perm:'ro',tools:'read,glob'}],
+   members:[{name:'author',slot:'author',type_id:'at-1',cap:'coder',model:'',perm:'rw',file_scope:'lib/**/*',quality_gates:'mix compile',x:40,y:120},{name:'reviewer-a',slot:'reviewer-a',type_id:'at-3',cap:'reviewer',model:'',perm:'ro',file_scope:'lib/**/*',quality_gates:'',x:260,y:60},{name:'reviewer-b',slot:'reviewer-b',type_id:'at-3',cap:'reviewer',model:'',perm:'ro',file_scope:'lib/**/*',quality_gates:'',x:260,y:180},{name:'approver',slot:'approver',type_id:'at-2',cap:'planner',model:'claude-opus-4-5',perm:'ro',file_scope:'**/*',quality_gates:'',x:480,y:120}],
+   spawn_links:[{from:'author',to:'reviewer-a'},{from:'author',to:'reviewer-b'},{from:'reviewer-a',to:'approver'},{from:'reviewer-b',to:'approver'}],
+   comm_rules:[{from:'author',to:'reviewer-a',policy:'allow',via:null},{from:'author',to:'reviewer-b',policy:'allow',via:null},{from:'reviewer-a',to:'approver',policy:'allow',via:null},{from:'reviewer-b',to:'approver',policy:'allow',via:null},{from:'reviewer-a',to:'reviewer-b',policy:'relay',via:'approver'}]},
+  {id:'tm-005',name:'dag-pipeline-v2',strategy:'dag',default_model:'claude-sonnet-4-5',cwd:'/projects/dag',inserted_at:'2026-03-21T07:00:00Z',
+   slots:[{id:'coordinator',name:'Coordinator',cap:'coordinator',model:'claude-opus-4-5',perm:'admin',tools:'bash,read,mcp'},{id:'worker-1',name:'Worker 1',cap:'coder',model:'',perm:'rw',tools:'bash,read,edit'},{id:'worker-2',name:'Worker 2',cap:'coder',model:'',perm:'rw',tools:'bash,read,edit'}],
+   members:[{name:'coordinator',slot:'coordinator',type_id:'at-6',cap:'coordinator',model:'claude-opus-4-5',perm:'admin',file_scope:'**/*',quality_gates:'',x:240,y:40},{name:'worker-1',slot:'worker-1',type_id:'at-1',cap:'coder',model:'',perm:'rw',file_scope:'lib/**/*',quality_gates:'mix compile',x:80,y:180},{name:'worker-2',slot:'worker-2',type_id:'at-1',cap:'coder',model:'',perm:'rw',file_scope:'lib/**/*',quality_gates:'mix compile',x:400,y:180}],
+   spawn_links:[{from:'coordinator',to:'worker-1'},{from:'coordinator',to:'worker-2'}],
+   comm_rules:[{from:'coordinator',to:'worker-1',policy:'allow',via:null},{from:'coordinator',to:'worker-2',policy:'allow',via:null},{from:'worker-1',to:'coordinator',policy:'allow',via:null},{from:'worker-2',to:'coordinator',policy:'allow',via:null},{from:'worker-1',to:'worker-2',policy:'block',via:null}]},
+];
+
+// ═══ STATE ═══
+let S = {
+  page:'team', sw:340, sp:'right', nodeDetail:'full',
+  showSpawn:true, showComm:true, showTeamList:true, showSpawnLinks:true, showCommRules:true, showLvHints:true,
+  teams: JSON.parse(JSON.stringify(TEAMS_INIT)),
+  agentTypes: JSON.parse(JSON.stringify(AGENT_TYPES_INIT)),
+  selectedTeamId:'tm-001', selectedSlotId:null, selectedTypeId:null,
+  idCounter:100,
+};
+function nextId(p){return p+'-'+(++S.idCounter);}
+function team(){return S.teams.find(t=>t.id===S.selectedTeamId);}
+function atype(id){return S.agentTypes.find(t=>t.id===id);}
+function rc(cap){return RC[cap]||'var(--text-muted)';}
+function capBadge(cap){return '<span class="cap-b" style="'+(CB[cap]||'')+'">'+((AB[cap]||cap.toUpperCase().slice(0,3)))+'</span>';}
+
+function toast(msg,type='info'){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.className='show '+type;
+  clearTimeout(t._t);t._t=setTimeout(()=>t.className='',2000);
 }
 
-function copyPrompt() {
-  const text = document.getElementById('promptText').innerText;
-  navigator.clipboard.writeText(text).then(() => {
-    const btn = document.getElementById('copyBtn');
-    btn.textContent = 'Copied!';
-    btn.classList.add('copied');
-    setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 1800);
+// ═══ CONTROLS READ ═══
+function G(){
+  S.sw=+document.getElementById('sw').value;
+  S.sp=document.getElementById('sp').value;
+  S.nodeDetail=document.getElementById('nodeDetail').value;
+  document.getElementById('swv').textContent=S.sw+'px';
+  ['showSpawn','showComm','showTeamList','showSpawnLinks','showCommRules','showLvHints'].forEach(k=>{S[k]=document.getElementById(k).checked;});
+  document.getElementById('tb-counts').textContent=S.teams.length+' teams \xb7 '+S.agentTypes.length+' types';
+}
+
+// ═══ NODE RENDER ═══
+function renderNode(m){
+  const d=S.nodeDetail, col=rc(m.cap), isSel=m.slot===S.selectedSlotId;
+  const at=atype(m.type_id);
+  const modelLabel=(m.model||(at?at.name:'')).slice(0,18);
+  if(d==='mini')return '<div class="node'+(isSel?' sel':'')+'" data-slot="'+m.slot+'" style="left:'+m.x+'px;top:'+m.y+'px;min-width:90px;padding:4px 8px" onmousedown="startDrag(event,this)" onclick="selectNode(\''+m.slot+'\')"><div style="display:flex;align-items:center;gap:4px"><span class="dot" style="background:'+col+'"></span><span style="font-size:10px;color:var(--text-high);font-weight:600">'+m.name+'</span></div></div>';
+  if(d==='compact')return '<div class="node'+(isSel?' sel':'')+'" data-slot="'+m.slot+'" style="left:'+m.x+'px;top:'+m.y+'px;min-width:130px" onmousedown="startDrag(event,this)" onclick="selectNode(\''+m.slot+'\')"><div class="node-hdr"><span class="dot" style="background:'+col+'"></span><span class="node-name">'+m.name+'</span>'+capBadge(m.cap)+'</div><div class="ports"><span class="port port-s" title="spawn"></span><span class="port port-c" title="comm"></span></div></div>';
+  return '<div class="node'+(isSel?' sel':'')+'" data-slot="'+m.slot+'" style="left:'+m.x+'px;top:'+m.y+'px" onmousedown="startDrag(event,this)" onclick="selectNode(\''+m.slot+'\')"><div class="node-hdr"><span class="dot" style="background:'+col+'"></span><span class="node-name">'+m.name+'</span>'+capBadge(m.cap)+'</div><div class="node-body"><span class="mtag">'+modelLabel+'</span><span style="color:var(--text-muted);font-size:8px">'+m.perm+'</span></div><div class="ports"><span class="port port-s" title="spawn port"></span><span class="port port-c" title="comm port"></span></div></div>';
+}
+
+// ═══ SVG EDGES ═══
+function nc(t,slotId){
+  const m=t.members.find(m=>m.slot===slotId);
+  if(!m)return null;
+  const w=S.nodeDetail==='mini'?90:S.nodeDetail==='compact'?130:160;
+  const h=S.nodeDetail==='mini'?28:S.nodeDetail==='compact'?54:72;
+  return{x:m.x+w/2,y:m.y+h/2};
+}
+function renderEdges(t){
+  let h='<svg width="1200" height="600" style="position:absolute;inset:0;pointer-events:none;z-index:1"><defs><marker id="ag" markerWidth="6" markerHeight="4" refX="5" refY="2" orient="auto"><path d="M0,0 L6,2 L0,4" fill="hsl(160 84% 39%)"/></marker><marker id="ac" markerWidth="6" markerHeight="4" refX="5" refY="2" orient="auto"><path d="M0,0 L6,2 L0,4" fill="hsl(192 91% 36%)"/></marker><marker id="ar" markerWidth="6" markerHeight="4" refX="5" refY="2" orient="auto"><path d="M0,0 L6,2 L0,4" fill="hsl(0 84% 60%)"/></marker></defs>';
+  if(S.showSpawn){t.spawn_links.forEach(l=>{const f=nc(t,l.from),to=nc(t,l.to);if(!f||!to)return;h+='<path d="M'+f.x+','+f.y+' C'+(f.x+to.x)/2+','+f.y+' '+(f.x+to.x)/2+','+to.y+' '+to.x+','+to.y+'" stroke="hsl(160 84% 39%)" stroke-width="1.5" fill="none" marker-end="url(#ag)"/>';});}
+  if(S.showComm){t.comm_rules.forEach(r=>{const f=nc(t,r.from),to=nc(t,r.to);if(!f||!to)return;const isSpawn=t.spawn_links.some(l=>l.from===r.from&&l.to===r.to);if(r.policy==='block'){h+='<path d="M'+f.x+','+f.y+' C'+(f.x+to.x)/2+','+(f.y+20)+' '+(f.x+to.x)/2+','+(to.y-20)+' '+to.x+','+to.y+'" stroke="hsl(0 84% 60%)" stroke-width="1" stroke-dasharray="4,3" fill="none" marker-end="url(#ar)" opacity="0.5"/>';}else if(r.policy==='relay'){h+='<path d="M'+f.x+','+f.y+' C'+(f.x+to.x)/2+','+(f.y+30)+' '+(f.x+to.x)/2+','+(to.y-30)+' '+to.x+','+to.y+'" stroke="hsl(38 92% 50%)" stroke-width="1" stroke-dasharray="3,3" fill="none" marker-end="url(#ag)" opacity="0.5"/>';}else if(!isSpawn){h+='<path d="M'+f.x+','+f.y+' C'+(f.x+to.x)/2+','+(f.y-20)+' '+(f.x+to.x)/2+','+(to.y+20)+' '+to.x+','+to.y+'" stroke="hsl(192 91% 36%)" stroke-width="1" stroke-dasharray="4,3" fill="none" marker-end="url(#ac)" opacity="0.6"/>';}});}
+  return h+'</svg>';
+}
+
+// ═══ AUTO-LAYOUT ═══
+function computeLevels(t){
+  const allSlots=t.slots.map(s=>s.id);
+  const targets=new Set(t.spawn_links.map(l=>l.to));
+  const roots=allSlots.filter(s=>!targets.has(s));
+  const levelOf={};
+  const queue=roots.map(s=>({s,level:0}));
+  const visited=new Set();
+  while(queue.length){const{s,level}=queue.shift();if(visited.has(s))continue;visited.add(s);levelOf[s]=level;t.spawn_links.filter(l=>l.from===s).forEach(l=>queue.push({s:l.to,level:level+1}));}
+  allSlots.forEach(s=>{if(!(s in levelOf))levelOf[s]=0;});
+  return levelOf;
+}
+function autoLayout(t){
+  if(!t.members.length)return;
+  const levelOf=computeLevels(t);
+  const maxLevel=Math.max(...Object.values(levelOf),0);
+  const levelCounts={};
+  Object.values(levelOf).forEach(l=>{levelCounts[l]=(levelCounts[l]||0)+1;});
+  const levelIdx={};
+  t.members.forEach(m=>{
+    const level=levelOf[m.slot]||0;
+    levelIdx[level]=levelIdx[level]||0;
+    const count=levelCounts[level]||1;
+    const xStep=maxLevel>0?700/(maxLevel+1):0;
+    const yStep=count>1?Math.min(140,280/count):0;
+    const yStart=count>1?(280-yStep*(count-1))/2:120;
+    m.x=40+level*xStep;
+    m.y=yStart+levelIdx[level]*yStep;
+    levelIdx[level]++;
+  });
+  toast('Auto-layout applied','ok');
+  R();UP();
+}
+function doAutoLayout(){const t=team();if(t)autoLayout(t);}
+
+// ═══ DRAG-DROP ═══
+function startDrag(e,el){
+  e.stopPropagation();
+  const t=team();if(!t)return;
+  const slotId=el.dataset.slot;
+  const member=t.members.find(m=>m.slot===slotId);
+  if(!member)return;
+  const canvas=el.closest('.ws-canvas');
+  if(!canvas)return;
+  const startX=e.clientX-member.x, startY=e.clientY-member.y;
+  function onMove(ev){
+    member.x=Math.max(0,ev.clientX-startX);
+    member.y=Math.max(0,ev.clientY-startY);
+    el.style.left=member.x+'px';el.style.top=member.y+'px';
+    const sv=canvas.querySelector('svg');
+    if(sv){const tmp=document.createElement('div');tmp.innerHTML=renderEdges(t);const newSvg=tmp.firstChild;canvas.replaceChild(newSvg,sv);}
+  }
+  function onUp(){document.removeEventListener('mousemove',onMove);document.removeEventListener('mouseup',onUp);}
+  document.addEventListener('mousemove',onMove);document.addEventListener('mouseup',onUp);
+}
+function selectNode(slotId){
+  S.selectedSlotId=slotId;
+  document.querySelectorAll('.node').forEach(n=>n.classList.remove('sel'));
+  const n=document.querySelector('.node[data-slot="'+slotId+'"]');
+  if(n)n.classList.add('sel');
+  document.querySelectorAll('.li[data-slot]').forEach(li=>li.classList.remove('act'));
+  const li=document.querySelector('.li[data-slot="'+slotId+'"]');
+  if(li)li.classList.add('act');
+}
+
+// ═══ TEAM COLOR ═══
+function teamColor(t){const cols=['#14b8a6','#a855f7','#22c55e','#f59e0b','#06b6d4','#ec4899'];return cols[S.teams.indexOf(t)%cols.length]||'#6366f1';}
+
+// ═══ PAGE: TEAM ═══
+function pageTeam(){
+  const t=team();
+  let c='<div class="ws-toolbar"><h4>Team Builder</h4><span class="sep"></span>';
+  c+='<button class="add-btn" onclick="switchPage(\'members\')">+ Member</button>';
+  c+='<button class="add-btn" onclick="switchPage(\'slots\')">+ Slot</button>';
+  c+='<button class="add-btn btn-c" style="color:var(--cyan);border-color:hsl(192 91% 36%/0.3)" onclick="doAutoLayout()">Auto-layout</button>';
+  c+='<span class="stats"><b>'+(t?t.members.length:0)+'</b> agents | <b>'+(t?t.spawn_links.length:0)+'</b> spawn | <b>'+(t?t.comm_rules.length:0)+'</b> comm</span></div>';
+  c+='<div class="ws-canvas" id="main-canvas" style="height:calc(100% - 33px)">';
+  if(!t){c+='<div class="empty"><div class="t">No team selected</div><div class="h">Create a team from the sidebar</div></div>';}
+  else if(!t.members.length){c+='<div class="empty"><div class="t">No agents yet</div><div class="h">Click + Member to add the first agent</div></div>';}
+  else{t.members.forEach(m=>{c+=renderNode(m);});c+=renderEdges(t);}
+  c+='</div>';
+
+  let s='<header class="ws-sidebar-hdr"><h3>'+(t?t.name:'No Selection')+'</h3><div class="desc">'+(t?t.strategy+' strategy \xb7 '+t.default_model:'Select or create a team')+'</div></header><div class="ws-sidebar-body">';
+  s+='<div class="ps"><h4>Team Config</h4>';
+  s+='<form onsubmit="saveTeamConfig(event)">';
+  s+='<div class="pf"><label>Name</label><input id="tc-name" value="'+(t?t.name:'')+'" placeholder="team-name"></div>';
+  s+='<div class="fr"><div class="pf"><label>Strategy</label><select id="tc-strategy">'+['sequential','parallel','dag','pipeline'].map(v=>'<option'+(t&&t.strategy===v?' selected':'')+'>'+v+'</option>').join('')+'</select></div>';
+  s+='<div class="pf"><label>Model</label><input id="tc-model" value="'+(t?t.default_model:'claude-sonnet-4-5')+'"></div></div>';
+  s+='<div class="pf"><label>CWD</label><input id="tc-cwd" value="'+(t?(t.cwd||''):'')+'" placeholder="/path/to/project"></div>';
+  s+='<div style="display:flex;gap:4px;margin-top:6px"><button type="submit" class="btn btn-s" style="flex:1">Save</button><button type="button" class="btn btn-d" onclick="deleteTeam()">Delete</button></div>';
+  if(S.showLvHints)s+='<p class="lv" style="margin-top:4px">Workshop.Team.update / destroy</p>';
+  s+='</form></div>';
+
+  if(S.showTeamList){
+    s+='<div class="divider"></div><div class="ps"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><h4 style="margin:0">All Teams</h4><button class="btn btn-c" style="font-size:8px" onclick="openCreateTeamModal()">+ New</button></div>';
+    S.teams.forEach(tm=>{
+      s+='<div class="li'+(tm.id===S.selectedTeamId?' act':'')+'"><span class="dot-sm" style="background:'+teamColor(tm)+'"></span><span class="nm">'+tm.name+'</span><span class="mt">'+tm.members.length+'m \xb7 '+tm.strategy+'</span><div class="ax"><button class="eb" onclick="event.stopPropagation();switchTeam(\''+tm.id+'\')">load</button><button class="db" onclick="event.stopPropagation();deleteTeamById(\''+tm.id+'\')">del</button></div></div>';
+    });
+    s+='</div>';
+  }
+
+  if(t&&S.showSpawnLinks){
+    s+='<div class="divider"></div><div class="ps"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><h4 style="margin:0">Spawn Links</h4><button class="btn btn-c" style="font-size:8px" onclick="openAddLinkPrompt()">+ Link</button></div>';
+    if(!t.spawn_links.length)s+='<p style="font-size:10px;color:var(--text-muted)">No links yet.</p>';
+    t.spawn_links.forEach((l,i)=>{s+='<div class="lk-item"><span class="from">'+l.from+'</span><span class="arr">&rarr;</span><span class="to">'+l.to+'</span><button class="rm" onclick="removeSpawnLink('+i+')">rm</button></div>';});
+    if(S.showLvHints)s+='<p class="lv" style="margin-top:4px">Team.update (spawn_links JSON)</p>';
+    s+='</div>';
+  }
+
+  if(t&&S.showCommRules){
+    s+='<div class="divider"></div><div class="ps"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><h4 style="margin:0">Comm Rules</h4><button class="btn btn-c" style="font-size:8px" onclick="openAddCommPrompt()">+ Rule</button></div>';
+    if(!t.comm_rules.length)s+='<p style="font-size:10px;color:var(--text-muted)">No rules yet.</p>';
+    t.comm_rules.forEach((r,i)=>{
+      const pc=r.policy==='allow'?'var(--success)':r.policy==='block'?'var(--error)':'var(--warning)';
+      const pb=r.policy==='allow'?'hsl(160 84% 39%/0.15)':r.policy==='block'?'hsl(0 84% 60%/0.1)':'hsl(38 92% 50%/0.1)';
+      s+='<div class="lk-item"><span style="font-size:9px;padding:1px 5px;border-radius:3px;background:'+pb+';color:'+pc+'">'+r.policy+'</span><span class="from">'+r.from+'</span><span class="arr">&rarr;</span><span class="to">'+r.to+'</span>'+(r.via?'<span style="font-size:9px;color:var(--warning);margin-left:2px">via '+r.via+'</span>':'')+'<button class="rm" onclick="removeCommRule('+i+')">rm</button></div>';
+    });
+    if(S.showLvHints)s+='<p class="lv" style="margin-top:4px">Team.update (comm_rules JSON)</p>';
+    s+='</div>';
+  }
+
+  s+='</div>';
+  return{canvas:c,sidebar:s};
+}
+
+// ═══ PAGE: MEMBERS ═══
+function pageMembers(){
+  const t=team();
+  let c='<div class="ws-toolbar"><h4>Team Members</h4><span class="sep"></span><span class="stats">Workshop.TeamMember (SQLite) belongs_to Team + AgentType</span></div>';
+  c+='<div class="ws-canvas" style="height:calc(100% - 33px)">';
+  if(t&&t.members.length){t.members.forEach(m=>{c+=renderNode(m);});c+=renderEdges(t);}
+  else c+='<div class="empty"><div class="t">No members yet</div></div>';
+  c+='</div>';
+
+  let s='<header class="ws-sidebar-hdr"><h3>Member Editor</h3><div class="desc">TeamMember rows: belongs_to Team + AgentType. Each member fills a slot.</div></header><div class="ws-sidebar-body">';
+  s+='<div class="ps"><h4>Add Member</h4>';
+  s+='<div class="pf"><label>Name</label><input id="m-name" placeholder="coder-1"></div>';
+  s+='<div class="fr"><div class="pf"><label>Slot ID</label><input id="m-slot" placeholder="coder-1"></div>';
+  s+='<div class="pf"><label>Agent Type</label><select id="m-type"><option value="">-- select --</option>'+S.agentTypes.map(at=>'<option value="'+at.id+'">'+at.name+'</option>').join('')+'</select></div></div>';
+  s+='<div class="fr"><div class="pf"><label>Capability</label><select id="m-cap">'+['planner','coder','reviewer','tester','writer','coordinator','analyst','specialist'].map(c=>'<option>'+c+'</option>').join('')+'</select></div>';
+  s+='<div class="pf"><label>Perm</label><select id="m-perm"><option>rw</option><option>ro</option><option>admin</option></select></div></div>';
+  s+='<div class="pf"><label>Model override</label><input id="m-model" placeholder="blank = inherit from type"></div>';
+  s+='<div class="fr"><div class="pf"><label>File Scope</label><input id="m-file-scope" placeholder="lib/**/*.ex"></div>';
+  s+='<div class="pf"><label>Quality Gates</label><input id="m-quality-gates" placeholder="mix compile"></div></div>';
+  s+='<button class="btn btn-s btn-fw" style="margin-top:4px" onclick="saveMember()">Add Member</button>';
+  if(S.showLvHints)s+='<p class="lv" style="margin-top:4px">Workshop.TeamMember.create &rarr; INSERT team_members</p>';
+  s+='</div>';
+
+  if(t&&t.members.length){
+    s+='<div class="divider"></div><div class="ps"><h4>Members</h4>';
+    t.members.forEach((m,i)=>{
+      const at=atype(m.type_id);
+      s+='<div class="li'+(m.slot===S.selectedSlotId?' act':'')+'" data-slot="'+m.slot+'" onclick="selectNode(\''+m.slot+'\')"><span class="dot-sm" style="background:'+rc(m.cap)+'"></span><span class="nm">'+m.name+'</span><span class="mt">'+(at?at.name.slice(0,12):'--')+'</span><div class="ax"><button class="db" onclick="event.stopPropagation();removeMember('+i+')">del</button></div></div>';
+    });
+    s+='</div>';
+  }
+
+  const sel=t&&S.selectedSlotId?t.members.find(m=>m.slot===S.selectedSlotId):null;
+  if(sel){
+    const at=atype(sel.type_id);
+    s+='<div class="divider"></div><div class="ps"><h4>Selected: '+sel.name+'</h4>';
+    s+='<div class="pf"><label>Type</label><input value="'+(at?at.name:'--')+'" readonly style="color:var(--text-muted);cursor:default"></div>';
+    s+='<div class="fr"><div class="pf"><label>Slot</label><input value="'+sel.slot+'" readonly style="color:var(--text-muted)"></div>';
+    s+='<div class="pf"><label>Perm</label><input value="'+sel.perm+'" readonly style="color:var(--text-muted)"></div></div>';
+    s+='<div class="pf"><label>Model</label><input value="'+(sel.model||'(inherit)')+'" readonly style="color:var(--text-muted)"></div>';
+    s+='<div class="pf"><label>File Scope</label><input value="'+(sel.file_scope||'--')+'" readonly style="color:var(--text-muted)"></div>';
+    s+='<div class="pf"><label>Quality Gates</label><input value="'+(sel.quality_gates||'--')+'" readonly style="color:var(--text-muted)"></div>';
+    s+='<button class="btn btn-d btn-fw" style="margin-top:6px" onclick="removeMemberBySlot(\''+sel.slot+'\')">Remove Member</button>';
+    s+='</div>';
+  }
+  s+='</div>';
+  return{canvas:c,sidebar:s};
+}
+
+// ═══ PAGE: AGENT TYPES ═══
+function pageTypes(){
+  let c='<div class="ws-toolbar"><h4>Agent Type Catalog</h4><span class="sep"></span><span class="stats">Workshop.AgentType (SQLite) -- standalone resource</span></div>';
+  c+='<div class="ws-canvas" style="height:calc(100% - 33px);overflow-y:auto"><div style="padding:14px">';
+  c+='<table class="tbl"><thead><tr><th></th><th>Name</th><th>Capability</th><th>Model</th><th>Perm</th><th>Sort</th><th></th></tr></thead><tbody>';
+  S.agentTypes.sort((a,b)=>a.sort_order-b.sort_order).forEach(at=>{
+    c+='<tr onclick="selectType(\''+at.id+'\')" class="'+(at.id===S.selectedTypeId?'sel':'')+'"><td><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:'+at.color+'"></span></td><td style="color:var(--text-high)">'+at.name+'</td><td>'+capBadge(at.capability)+'</td><td class="dim">'+at.default_model+'</td><td class="dim">'+at.default_permission+'</td><td class="dim">'+at.sort_order+'</td><td><button class="rm" onclick="event.stopPropagation();deleteType(\''+at.id+'\')">del</button></td></tr>';
+  });
+  c+='</tbody></table></div></div>';
+
+  const et=S.selectedTypeId?S.agentTypes.find(t=>t.id===S.selectedTypeId):null;
+  let s='<header class="ws-sidebar-hdr"><h3>AgentType CRUD</h3><div class="desc">Standalone resource. Referenced by TeamMember.belongs_to AgentType.</div></header><div class="ws-sidebar-body">';
+  s+='<div class="ps"><h4>'+(et?'Edit: '+et.name:'New Agent Type')+'</h4>';
+  s+='<form onsubmit="saveAgentType(event)">';
+  s+='<div class="pf"><label>Name</label><input id="at-name" value="'+(et?et.name:'')+'" placeholder="ash-elixir-expert" required></div>';
+  s+='<div class="fr"><div class="pf"><label>Capability</label><select id="at-cap">'+['planner','coder','reviewer','tester','writer','coordinator','analyst','specialist'].map(v=>'<option'+(et&&et.capability===v?' selected':'')+'>'+v+'</option>').join('')+'</select></div>';
+  s+='<div class="pf"><label>Perm</label><select id="at-perm">'+['rw','ro','admin'].map(v=>'<option'+(et&&et.default_permission===v?' selected':'')+'>'+v+'</option>').join('')+'</select></div></div>';
+  s+='<div class="pf"><label>Default Model</label><input id="at-model" value="'+(et?et.default_model:'claude-sonnet-4-5')+'"></div>';
+  s+='<div class="pf"><label>Default Persona</label><textarea id="at-persona" rows="3">'+(et?et.default_persona:'')+'</textarea></div>';
+  s+='<div class="pf"><label>File Scope</label><input id="at-file-scope" value="'+(et?et.default_file_scope:'lib/**/*.ex')+'"></div>';
+  s+='<div class="pf"><label>Tools</label><input id="at-tools" value="'+(et?et.default_tools:'bash,read,edit,glob,grep')+'"></div>';
+  s+='<div class="fr"><div class="pf"><label>Color</label><div style="display:flex;gap:4px;align-items:center"><input type="color" id="at-color" value="'+(et?et.color:'#6366f1')+'" style="width:28px;height:24px;padding:1px;border:1px solid var(--border-subtle);background:var(--bg);cursor:pointer" oninput="document.getElementById(\'at-color-hex\').value=this.value"><input id="at-color-hex" value="'+(et?et.color:'#6366f1')+'" style="flex:1" oninput="document.getElementById(\'at-color\').value=this.value"></div></div>';
+  s+='<div class="pf"><label>Sort</label><input id="at-sort" type="number" value="'+(et?et.sort_order:0)+'" min="0" style="width:60px"></div></div>';
+  s+='<input type="hidden" id="at-editing-id" value="'+(et?et.id:'')+'"><div style="display:flex;gap:4px;margin-top:8px">';
+  s+='<button type="submit" class="btn btn-s btn-fw">'+(et?'Save Changes':'Create Type')+'</button>';
+  if(et)s+='<button type="button" class="btn btn-d" onclick="deleteType(\''+et.id+'\')">Del</button><button type="button" class="btn" onclick="clearTypeForm()">New</button>';
+  s+='</div>';
+  if(S.showLvHints)s+='<p class="lv" style="margin-top:4px">Workshop.AgentType.create / update</p>';
+  s+='</form></div></div>';
+  return{canvas:c,sidebar:s};
+}
+
+// ═══ PAGE: SLOTS ═══
+function pageSlots(){
+  const t=team();
+  let c='<div class="ws-toolbar"><h4>Agent Slots</h4><span class="sep"></span><span class="stats">Embedded JSON on Team -- blueprint shape</span></div>';
+  c+='<div class="ws-canvas" style="height:calc(100% - 33px);overflow-y:auto"><div style="padding:14px">';
+  if(t&&t.slots.length){
+    c+='<table class="tbl"><thead><tr><th>Slot ID</th><th>Name</th><th>Capability</th><th>Model</th><th>Perm</th><th>Tools</th><th></th></tr></thead><tbody>';
+    t.slots.forEach((sl,i)=>{c+='<tr><td style="color:var(--text-muted);font-size:9px">'+sl.id+'</td><td style="color:var(--text-high)">'+sl.name+'</td><td>'+capBadge(sl.cap)+'</td><td class="dim">'+(sl.model||'inherit')+'</td><td class="dim">'+sl.perm+'</td><td class="dim" style="font-size:9px">'+(sl.tools||'--')+'</td><td><button class="rm" onclick="removeSlot('+i+')">rm</button></td></tr>';});
+    c+='</tbody></table>';
+  }else c+='<div class="empty"><div class="t">No slots defined</div><div class="h">Slots define the team shape</div></div>';
+  c+='</div></div>';
+
+  let s='<header class="ws-sidebar-hdr"><h3>AgentSlot Editor</h3><div class="desc">Embedded on Team JSON. Slots define blueprint shape; Members fill them.</div></header><div class="ws-sidebar-body">';
+  s+='<div class="ps"><h4>Add Slot</h4><form onsubmit="saveSlot(event)">';
+  s+='<div class="fr"><div class="pf"><label>Slot ID</label><input id="sl-id" placeholder="coder-1" required></div><div class="pf"><label>Name</label><input id="sl-name" placeholder="Coder Alpha"></div></div>';
+  s+='<div class="fr"><div class="pf"><label>Capability</label><select id="sl-cap">'+['planner','coder','reviewer','tester','writer','coordinator','analyst','specialist'].map(c=>'<option>'+c+'</option>').join('')+'</select></div>';
+  s+='<div class="pf"><label>Perm</label><select id="sl-perm"><option>rw</option><option>ro</option><option>admin</option></select></div></div>';
+  s+='<div class="fr"><div class="pf"><label>Model</label><input id="sl-model" placeholder="inherit"></div><div class="pf"><label>Tools</label><input id="sl-tools" placeholder="bash,read,edit"></div></div>';
+  s+='<button type="submit" class="btn btn-c btn-fw" style="margin-top:4px">Add Slot</button>';
+  if(S.showLvHints)s+='<p class="lv" style="margin-top:4px">Workshop.Team.update (agents JSON field)</p>';
+  s+='</form></div>';
+
+  if(t&&t.slots.length){
+    s+='<div class="divider"></div><div class="ps"><h4>Spawn Topology</h4>';
+    const levelOf=computeLevels(t);
+    const byLevel={};
+    t.slots.forEach(sl=>{const l=levelOf[sl.id]||0;if(!byLevel[l])byLevel[l]=[];byLevel[l].push(sl);});
+    Object.keys(byLevel).sort((a,b)=>a-b).forEach(lv=>{
+      byLevel[lv].forEach(sl=>{
+        s+='<div class="tree-node" style="padding-left:'+(+lv*14)+'px">'+(+lv>0?'<span style="font-size:9px;color:var(--text-muted);font-family:monospace;width:12px">&#x2514;</span>':'')+capBadge(sl.cap)+'<span style="font-size:10px;color:var(--text-high);margin-left:3px">'+sl.id+'</span></div>';
+      });
+    });
+    s+='</div>';
+  }
+  s+='</div>';
+  return{canvas:c,sidebar:s};
+}
+
+// ═══ PAGE: LAUNCH ═══
+function pageLaunch(){
+  const t=team();
+  let c='<div class="ws-toolbar"><h4>Launch Preview</h4><span class="sep"></span><span class="stats">Workshop.Team.spawn_team &rarr; Ichor.Workshop.Spawn.spawn/1</span></div>';
+  c+='<div class="ws-canvas" style="height:calc(100% - 33px)">';
+  if(t&&t.members.length){t.members.forEach(m=>{c+=renderNode(m);});c+=renderEdges(t);}
+  else c+='<div class="empty"><div class="t">Configure team first</div></div>';
+  c+='</div>';
+
+  let s='<header class="ws-sidebar-hdr"><h3>Spawn Team</h3><div class="desc">Launch flow: select &rarr; compile spec &rarr; spawn agents via OTP DynamicSupervisor</div></header><div class="ws-sidebar-body">';
+  if(t){
+    s+='<div class="ps"><h4>Target</h4><div style="background:hsl(240 4% 16%/0.5);border:1px solid var(--border-subtle);border-radius:4px;padding:8px;font-size:10px;margin-bottom:8px">';
+    [['team',t.name],['members',t.members.length],['strategy',t.strategy],['model',t.default_model],['cwd',t.cwd||'--']].forEach(([k,v])=>{
+      s+='<div style="display:flex;justify-content:space-between;padding:2px 0;border-bottom:1px solid var(--border)"><span style="color:var(--text-muted)">'+k+'</span><span style="color:var(--text-high)">'+v+'</span></div>';
+    });
+    s+='</div></div>';
+    s+='<div class="ps"><h4>Steps</h4>';
+    const steps=[{n:'1',label:'Select team',done:true},{n:'2',label:'Compile spec',done:t.slots.length>0},{n:'3',label:'Validate comms',done:true},{n:'4',label:'Spawn agents',done:false,active:t.members.length>0}];
+    steps.forEach(st=>{
+      const col=st.done?'var(--success)':st.active?'var(--cyan)':'var(--text-muted)';
+      const bg=st.done?'hsl(160 84% 39%/0.1)':st.active?'hsl(192 91% 36%/0.1)':'transparent';
+      s+='<div style="display:flex;align-items:center;gap:8px;padding:5px 0;font-size:10px"><span style="width:16px;height:16px;border:1px solid '+col+';border-radius:2px;display:flex;align-items:center;justify-content:center;font-size:9px;color:'+col+';background:'+bg+';flex-shrink:0">'+(st.done?'&#10003;':st.n)+'</span><span style="color:'+(st.done||st.active?'var(--text-high)':'var(--text-muted)')+'">'+st.label+'</span></div>';
+    });
+    s+='</div>';
+    s+='<button class="launch-btn" onclick="doSpawn()" style="margin-top:4px"'+(t.members.length===0?' disabled':'')+'>Spawn Team &rarr;</button>';
+    if(S.showLvHints)s+='<p class="lv" style="margin-top:8px">Team.spawn_team &rarr; Spawn.spawn/1 &rarr; DynamicSupervisor.start_child</p>';
+  }else s+='<p style="color:var(--text-muted);font-size:10px">No team selected.</p>';
+  s+='</div>';
+  return{canvas:c,sidebar:s};
+}
+
+// ═══ RENDER ═══
+const PAGES={team:pageTeam,members:pageMembers,types:pageTypes,slots:pageSlots,launch:pageLaunch};
+const PL={team:'Team',members:'Members',types:'Agent Types',slots:'Slots',launch:'Launch'};
+
+function R(){
+  const t=team();
+  const counts={team:S.teams.length,members:t?t.members.length:0,types:S.agentTypes.length,slots:t?t.slots.length:0,launch:t?t.members.length:0};
+  let h='<div class="ws">';
+  h+='<nav class="ws-nav">';
+  Object.keys(PAGES).forEach(k=>{h+='<button class="ws-nav-tab'+(S.page===k?' active':'')+'" onclick="switchPage(\''+k+'\')">'+PL[k]+'<span class="badge">'+counts[k]+'</span></button>';});
+  h+='<div class="ws-nav-right"><span style="font-size:9px;color:var(--text-muted)">'+(t?t.name:'no team')+'</span><span style="font-size:9px;color:var(--text-muted)">|</span><span style="font-size:9px;color:var(--text-low)">'+(t?t.members.length+' agents':'--')+'</span></div></nav>';
+  const pg=PAGES[S.page]();
+  h+='<div class="ws-page" style="--sw:'+S.sw+'px">';
+  if(S.sp==='left'){h+='<div class="ws-page-sidebar" style="border-left:none;border-right:1px solid var(--border)">'+pg.sidebar+'</div><div class="ws-canvas-area">'+pg.canvas+'</div>';}
+  else{h+='<div class="ws-canvas-area">'+pg.canvas+'</div><div class="ws-page-sidebar">'+pg.sidebar+'</div>';}
+  h+='</div>';
+  h+='<div class="launch-bar"><button class="save-btn" onclick="saveDraft()">Save Blueprint</button><button class="launch-btn" onclick="doSpawn()">Launch Team</button></div>';
+  h+='</div>';
+  document.getElementById('out').innerHTML=h;
+}
+
+function switchPage(pg){S.page=pg;R();UP();}
+function U(){G();R();UP();}
+
+// ═══ TEAM CRUD ═══
+function switchTeam(id){S.selectedTeamId=id;S.selectedSlotId=null;R();UP();}
+function deleteTeam(){const t=team();if(!t)return;if(S.teams.length<=1){toast('Cannot delete last team','err');return;}deleteTeamById(t.id);}
+function deleteTeamById(id){S.teams=S.teams.filter(t=>t.id!==id);if(S.selectedTeamId===id)S.selectedTeamId=S.teams[0]?.id||null;toast('Team deleted','ok');R();UP();}
+function saveTeamConfig(e){e.preventDefault();const t=team();if(!t)return;t.name=document.getElementById('tc-name').value.trim()||t.name;t.strategy=document.getElementById('tc-strategy').value;t.default_model=document.getElementById('tc-model').value.trim()||t.default_model;t.cwd=document.getElementById('tc-cwd').value.trim();toast('Config saved','ok');R();UP();}
+function openCreateTeamModal(){document.getElementById('create-modal').classList.add('open');}
+function closeModal(){document.getElementById('create-modal').classList.remove('open');}
+function commitCreateTeam(){
+  const name=document.getElementById('ct-name').value.trim();
+  if(!name){toast('Name required','err');return;}
+  const t={id:nextId('tm'),name,strategy:document.getElementById('ct-strategy').value,default_model:document.getElementById('ct-model').value.trim()||'claude-sonnet-4-5',cwd:document.getElementById('ct-cwd').value.trim(),inserted_at:new Date().toISOString(),slots:[],members:[],spawn_links:[],comm_rules:[]};
+  S.teams.push(t);S.selectedTeamId=t.id;closeModal();toast('Team created: '+name,'ok');R();UP();
+}
+document.getElementById('create-modal').addEventListener('click',e=>{if(e.target===document.getElementById('create-modal'))closeModal();});
+
+// ═══ MEMBER CRUD ═══
+function saveMember(){
+  const t=team();if(!t)return;
+  const name=document.getElementById('m-name').value.trim();
+  const slot=document.getElementById('m-slot').value.trim();
+  if(!name||!slot){toast('Name and slot required','err');return;}
+  const typeId=document.getElementById('m-type').value;
+  t.members.push({name,slot,type_id:typeId,cap:document.getElementById('m-cap').value,perm:document.getElementById('m-perm').value,model:document.getElementById('m-model').value.trim(),file_scope:document.getElementById('m-file-scope').value.trim(),quality_gates:document.getElementById('m-quality-gates').value.trim(),x:40+t.members.length*180,y:80+(t.members.length%2)*120});
+  toast('Member added: '+name,'ok');R();UP();
+}
+function removeMember(i){const t=team();if(!t)return;const n=t.members[i].name;t.members.splice(i,1);toast('Removed: '+n,'ok');R();UP();}
+function removeMemberBySlot(slotId){const t=team();if(!t)return;const i=t.members.findIndex(m=>m.slot===slotId);if(i>=0){const n=t.members[i].name;t.members.splice(i,1);toast('Removed: '+n,'ok');}R();UP();}
+
+// ═══ SLOT CRUD ═══
+function saveSlot(e){
+  e.preventDefault();const t=team();if(!t)return;
+  const id=document.getElementById('sl-id').value.trim();
+  const name=document.getElementById('sl-name').value.trim();
+  if(!id||!name){toast('ID and name required','err');return;}
+  if(t.slots.some(s=>s.id===id)){toast('Slot ID exists','err');return;}
+  t.slots.push({id,name,cap:document.getElementById('sl-cap').value,perm:document.getElementById('sl-perm').value,model:document.getElementById('sl-model').value.trim(),tools:document.getElementById('sl-tools').value.trim()});
+  toast('Slot added: '+id,'ok');R();UP();
+}
+function removeSlot(i){const t=team();if(!t)return;const id=t.slots[i].id;t.slots.splice(i,1);toast('Slot removed: '+id,'ok');R();UP();}
+
+// ═══ SPAWN LINK CRUD ═══
+function openAddLinkPrompt(){
+  const t=team();if(!t)return;
+  const from=prompt('From slot ID (e.g. planner):');if(!from)return;
+  const to=prompt('To slot ID (e.g. coder-1):');if(!to)return;
+  if(from===to){toast('From and to cannot be same','err');return;}
+  t.spawn_links.push({from,to});toast('Link: '+from+' -> '+to,'ok');R();UP();
+}
+function removeSpawnLink(i){const t=team();if(!t)return;const l=t.spawn_links[i];t.spawn_links.splice(i,1);toast('Link removed','ok');R();UP();}
+
+// ═══ COMM RULE CRUD ═══
+function openAddCommPrompt(){
+  const t=team();if(!t)return;
+  const from=prompt('From slot ID:');if(!from)return;
+  const to=prompt('To slot ID:');if(!to)return;
+  const policy=prompt('Policy (allow/block/relay):','allow');if(!policy)return;
+  const via=policy==='relay'?(prompt('Via slot ID:')||null):null;
+  t.comm_rules.push({from,to,policy,via});toast('Comm rule added','ok');R();UP();
+}
+function removeCommRule(i){const t=team();if(!t)return;t.comm_rules.splice(i,1);toast('Rule removed','ok');R();UP();}
+
+// ═══ AGENT TYPE CRUD ═══
+function selectType(id){S.selectedTypeId=id;S.page='types';R();UP();}
+function clearTypeForm(){S.selectedTypeId=null;R();UP();}
+function saveAgentType(e){
+  e.preventDefault();
+  const editId=document.getElementById('at-editing-id').value;
+  const data={name:document.getElementById('at-name').value.trim(),capability:document.getElementById('at-cap').value,default_permission:document.getElementById('at-perm').value,default_model:document.getElementById('at-model').value.trim(),default_persona:document.getElementById('at-persona').value.trim(),default_file_scope:document.getElementById('at-file-scope').value.trim(),default_tools:document.getElementById('at-tools').value.trim(),color:document.getElementById('at-color-hex').value.trim()||document.getElementById('at-color').value,sort_order:parseInt(document.getElementById('at-sort').value)||0};
+  if(!data.name){toast('Name required','err');return;}
+  if(editId){const idx=S.agentTypes.findIndex(t=>t.id===editId);if(idx>=0)S.agentTypes[idx]={...S.agentTypes[idx],...data};toast('Updated: '+data.name,'ok');}
+  else{S.agentTypes.push({id:nextId('at'),...data});toast('Created: '+data.name,'ok');}
+  S.selectedTypeId=null;R();UP();
+}
+function deleteType(id){const at=S.agentTypes.find(t=>t.id===id);if(!at)return;S.agentTypes=S.agentTypes.filter(t=>t.id!==id);if(S.selectedTypeId===id)S.selectedTypeId=null;toast('Deleted: '+at.name,'ok');R();UP();}
+
+// ═══ SPAWN / DRAFT ═══
+function doSpawn(){const t=team();if(!t)return;if(!t.members.length){toast('No members','err');return;}toast('Spawning '+t.name+'...','info');setTimeout(()=>toast(t.name+' spawned ('+t.members.length+' agents)','ok'),1400);}
+function saveDraft(){const t=team();if(!t)return;toast('Blueprint saved: '+t.name,'ok');}
+
+// ═══ PRESETS ═══
+function applyPreset(name,el){
+  document.querySelectorAll('.preset-btn').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+  if(name==='empty'){
+    const t={id:nextId('tm'),name:'empty-team',strategy:'sequential',default_model:'claude-sonnet-4-5',cwd:'',inserted_at:new Date().toISOString(),slots:[],members:[],spawn_links:[],comm_rules:[]};
+    S.teams.push(t);S.selectedTeamId=t.id;toast('Preset: empty team','ok');
+  }else{
+    const nm={mes:'mes-production-team',pipeline:'pipeline-3',solo:'solo-archon',review:'review-chain',dag:'dag-pipeline-v2'};
+    const tname=nm[name];
+    let existing=S.teams.find(t=>t.name===tname);
+    if(!existing){const init=TEAMS_INIT.find(t=>t.name===tname);if(init){existing=JSON.parse(JSON.stringify(init));S.teams.push(existing);}}
+    if(existing){S.selectedTeamId=existing.id;toast('Preset loaded: '+name,'info');}
+    else toast('Not found: '+name,'err');
+  }
+  R();UP();
+}
+
+// ═══ PROMPT ═══
+function UP(){
+  const t=team();
+  const p=[];
+  p.push('Implement the ICHOR IV Workshop page as Phoenix LiveView:');
+  p.push('');
+  p.push('LAYOUT:');
+  p.push('- 5 full-width page tabs: Team | Members | Agent Types | Slots | Launch');
+  p.push('- Each tab: canvas area (left, flex:1) + sidebar (right, '+S.sw+'px, position: '+S.sp+')');
+  p.push('- Global launch bar at bottom: Save Blueprint | Launch Team buttons');
+  p.push('- Sidebar position: '+S.sp);
+  p.push('');
+  p.push('RESOURCES (Workshop domain, SQLite):');
+  p.push('  Team: name, strategy, default_model, cwd, agents/spawn_links/comm_rules (embedded JSON)');
+  p.push('  TeamMember: belongs_to Team + AgentType, slot, name, capability, model, permission, persona, file_scope, quality_gates, canvas_x/y');
+  p.push('  AgentType: name, capability, default_model, default_permission, default_persona, default_file_scope, default_tools, color, sort_order');
+  p.push('  AgentSlot (embedded on Team JSON): id, name, capability, model, permission, tools');
+  p.push('  SpawnLink (embedded on Team JSON): from, to (slot IDs)');
+  p.push('  CommRule (embedded on Team JSON): from, to, policy (allow/block/relay), via (relay slot ID)');
+  p.push('');
+  p.push('CANVAS (all tabs with agents):');
+  p.push('- Draggable agent nodes (phx-hook="Draggable", push_event to update canvas_x/y)');
+  p.push('- Node detail levels: full (name+model+perm+ports) / compact (name+ports) / mini (name only)');
+  p.push('- SVG edges drawn behind nodes: spawn=green solid cubic bezier, comm=cyan dashed, block=red dashed, relay=amber dashed');
+  p.push('- Auto-layout: BFS from roots (no incoming spawn links), level x-positions, distribute y by count');
+  p.push('- Green ports (bottom): spawn connection points. Cyan ports: comm connection points.');
+  p.push('');
+  p.push('PAGE DETAILS:');
+  p.push('  TEAM: canvas nodes + sidebar: team config form, team list CRUD, spawn links list+add, comm rules list+add');
+  p.push('  MEMBERS: canvas nodes + sidebar: add-member form (all TeamMember fields), member list with select/remove, selected member details');
+  p.push('  AGENT TYPES: canvas = type catalog table; sidebar = full CRUD form with color picker + sort_order');
+  p.push('  SLOTS: canvas = slot table; sidebar = add-slot form, spawn topology tree (BFS levels)');
+  p.push('  LAUNCH: canvas = readonly node graph; sidebar = spawn target summary, 4-step checklist, Spawn Team button');
+  p.push('');
+  if(t)p.push('CURRENT: '+t.name+' ('+t.strategy+', '+t.members.length+' members, '+t.spawn_links.length+' spawn, '+t.comm_rules.length+' comm)');
+  p.push('');
+  p.push('LIVEVIEW ACTIONS:');
+  p.push('  "create_team"     -> Workshop.Team.create');
+  p.push('  "update_team"     -> Workshop.Team.update');
+  p.push('  "delete_team"     -> Workshop.Team.destroy');
+  p.push('  "add_member"      -> Workshop.TeamMember.create');
+  p.push('  "remove_member"   -> Workshop.TeamMember.destroy');
+  p.push('  "add_slot"        -> Workshop.Team.update (embedded JSON)');
+  p.push('  "add_spawn_link"  -> Workshop.Team.update (embedded JSON)');
+  p.push('  "add_comm_rule"   -> Workshop.Team.update (embedded JSON)');
+  p.push('  "save_agent_type" -> Workshop.AgentType.create / update');
+  p.push('  "spawn_team"      -> Workshop.Team.spawn_team -> Spawn.spawn/1');
+  document.getElementById('pt').textContent=p.join('\n');
+}
+
+function CP(){
+  navigator.clipboard.writeText(document.getElementById('pt').textContent).then(()=>{
+    const b=document.querySelector('.copy-btn');b.textContent='Copied!';b.classList.add('copied');
+    setTimeout(()=>{b.textContent='Copy';b.classList.remove('copied');},2000);
   });
 }
 
-// ─────────────────────────────────────────────────────────
-// UTILS
-// ─────────────────────────────────────────────────────────
-
-function esc(s) {
-  if (!s) return '';
-  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
-
-// ─────────────────────────────────────────────────────────
-// BOOT
-// ─────────────────────────────────────────────────────────
-
-document.addEventListener('DOMContentLoaded', init);
+U();
 </script>
 </body>
 </html>

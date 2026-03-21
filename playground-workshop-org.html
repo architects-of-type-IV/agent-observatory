@@ -1,0 +1,2324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ICHOR IV -- Workshop Designer</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:         #0a0a0f;
+    --bg-panel:   #0e0e16;
+    --bg-row:     #11111a;
+    --bg-hover:   #17172a;
+    --border:     #1e1e2e;
+    --border-hi:  #2a2a40;
+    --text:       #c8c8d4;
+    --text-dim:   #5a5a7a;
+    --text-muted: #3a3a55;
+    --mono:       'Courier New', Courier, monospace;
+
+    --c-green:    #22c55e;
+    --c-amber:    #f59e0b;
+    --c-red:      #ef4444;
+    --c-blue:     #3b82f6;
+    --c-purple:   #a855f7;
+    --c-cyan:     #06b6d4;
+    --c-orange:   #f97316;
+    --c-pink:     #ec4899;
+    --c-lime:     #84cc16;
+    --c-teal:     #14b8a6;
+    --c-indigo:   #6366f1;
+    --c-rose:     #f43f5e;
+    --c-yellow:   #eab308;
+    --c-sky:      #0ea5e9;
+    --c-slate:    #94a3b8;
+
+    --accent:     #6366f1;
+    --accent-dim: #312e81;
+    --accent-glow: rgba(99,102,241,0.25);
+  }
+
+  html, body { height: 100%; background: var(--bg); color: var(--text); font-family: var(--mono); font-size: 12px; }
+
+  /* ─── TOP BAR ─── */
+  header#topbar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0 14px;
+    border-bottom: 1.5px solid var(--border);
+    background: var(--bg-panel);
+    flex-shrink: 0;
+    height: 38px;
+  }
+  .brand {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    white-space: nowrap;
+  }
+  .brand span { color: var(--accent); }
+  .topbar-sep { width: 1px; height: 18px; background: var(--border-hi); flex-shrink: 0; }
+  .topbar-spacer { flex: 1; }
+  .topbar-status {
+    font-size: 10px;
+    color: var(--text-dim);
+    letter-spacing: 0.08em;
+  }
+  .status-dot {
+    display: inline-block;
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--c-green);
+    box-shadow: 0 0 5px var(--c-green);
+    margin-right: 4px;
+    vertical-align: middle;
+    animation: pulse-green 2.5s ease-in-out infinite;
+  }
+  @keyframes pulse-green { 0%,100% { opacity:1; } 50% { opacity:0.3; } }
+
+  /* ─── MAIN 3-COLUMN LAYOUT ─── */
+  #app { display: flex; height: calc(100vh - 38px); overflow: hidden; }
+
+  /* ─── LEFT: TEAM BROWSER ─── */
+  nav#team-browser {
+    width: 260px;
+    min-width: 260px;
+    background: var(--bg-panel);
+    border-right: 1.5px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* ─── CENTER: TEAM DETAIL ─── */
+  main#team-detail {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-width: 0;
+    background: var(--bg);
+  }
+
+  /* ─── RIGHT: AGENT TYPES + LAUNCH ─── */
+  aside#right-panel {
+    width: 300px;
+    min-width: 300px;
+    background: var(--bg-panel);
+    border-left: 1.5px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* ─── PANEL HEADER ─── */
+  .panel-header {
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+  }
+  .panel-header h2 {
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    flex: 1;
+  }
+  .panel-header .count-badge {
+    font-size: 9px;
+    color: var(--text-muted);
+    padding: 1px 5px;
+    border: 1px solid var(--border-hi);
+  }
+
+  /* ─── SEARCH BAR ─── */
+  .search-wrap {
+    padding: 6px 8px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  input.search-input {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border-hi);
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 4px 7px;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  input.search-input:focus { border-color: var(--accent); }
+  input.search-input::placeholder { color: var(--text-muted); }
+
+  /* ─── SCROLLABLE LISTS ─── */
+  .scroll-list {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+  .scroll-list::-webkit-scrollbar { width: 3px; }
+  .scroll-list::-webkit-scrollbar-track { background: var(--bg); }
+  .scroll-list::-webkit-scrollbar-thumb { background: var(--border-hi); }
+
+  /* ─── PRESET SECTION ─── */
+  .preset-section {
+    padding: 6px 8px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .preset-label {
+    font-size: 9px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 4px;
+  }
+  .preset-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px;
+  }
+  button.preset-btn {
+    font-size: 9px;
+    font-family: var(--mono);
+    padding: 2px 6px;
+    background: var(--bg-row);
+    border: 1px solid var(--border-hi);
+    color: var(--text-dim);
+    cursor: pointer;
+    letter-spacing: 0.06em;
+    text-transform: lowercase;
+    transition: all 0.12s;
+    white-space: nowrap;
+  }
+  button.preset-btn:hover { border-color: var(--accent); color: var(--accent); background: rgba(99,102,241,0.08); }
+
+  /* ─── TEAM LIST ITEMS ─── */
+  .team-item {
+    display: flex;
+    align-items: center;
+    padding: 7px 10px;
+    border-bottom: 1px solid var(--bg-row);
+    cursor: pointer;
+    user-select: none;
+    gap: 7px;
+    transition: background 0.1s;
+  }
+  .team-item:hover { background: var(--bg-hover); }
+  .team-item.selected { background: rgba(99,102,241,0.1); border-left: 2px solid var(--accent); }
+  .team-item-indicator {
+    width: 8px; height: 8px;
+    border-radius: 1px;
+    flex-shrink: 0;
+  }
+  .team-item-name {
+    flex: 1;
+    font-size: 11px;
+    color: #a0a0cc;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .team-item.selected .team-item-name { color: var(--text); }
+  .team-item-meta {
+    font-size: 9px;
+    color: var(--text-muted);
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 1px;
+  }
+  .member-count { color: var(--text-dim); }
+
+  /* ─── TEAM BROWSER ACTIONS ─── */
+  .browser-actions {
+    padding: 6px 8px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    gap: 4px;
+    flex-shrink: 0;
+  }
+
+  /* ─── BUTTONS ─── */
+  button.btn {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    padding: 4px 10px;
+    border: 1px solid var(--border-hi);
+    background: var(--bg-row);
+    color: var(--text-dim);
+    cursor: pointer;
+    text-transform: uppercase;
+    transition: all 0.12s;
+    white-space: nowrap;
+  }
+  button.btn:hover { background: var(--bg-hover); color: var(--text); border-color: var(--text-muted); }
+  button.btn-primary { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+  button.btn-primary:hover { background: rgba(99,102,241,0.3); box-shadow: 0 0 8px var(--accent-glow); }
+  button.btn-danger { background: rgba(239,68,68,0.08); border-color: rgba(239,68,68,0.3); color: var(--c-red); }
+  button.btn-danger:hover { background: rgba(239,68,68,0.18); }
+  button.btn-success { background: rgba(34,197,94,0.08); border-color: rgba(34,197,94,0.3); color: var(--c-green); }
+  button.btn-success:hover { background: rgba(34,197,94,0.18); box-shadow: 0 0 8px rgba(34,197,94,0.2); }
+  button.btn-sm { padding: 2px 7px; font-size: 9px; }
+  button.btn-xs { padding: 1px 5px; font-size: 9px; letter-spacing: 0.05em; }
+  button.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  /* ─── DETAIL HEADER ─── */
+  header#detail-header {
+    padding: 8px 14px;
+    border-bottom: 1.5px solid var(--border);
+    background: var(--bg-panel);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+  }
+  .detail-team-name {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text);
+    flex: 1;
+  }
+  .detail-team-name .team-id {
+    font-size: 10px;
+    font-weight: 400;
+    color: var(--text-muted);
+    margin-left: 8px;
+  }
+  .strategy-badge {
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    padding: 2px 7px;
+    letter-spacing: 0.1em;
+    border: 1px solid;
+  }
+  .strategy-badge.sequential { border-color: var(--c-cyan); color: var(--c-cyan); }
+  .strategy-badge.parallel { border-color: var(--c-purple); color: var(--c-purple); }
+  .strategy-badge.dag { border-color: var(--c-amber); color: var(--c-amber); }
+  .strategy-badge.pipeline { border-color: var(--c-blue); color: var(--c-blue); }
+
+  /* ─── SECTION TABS ─── */
+  nav#detail-tabs {
+    display: flex;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-panel);
+    flex-shrink: 0;
+  }
+  button.detail-tab {
+    flex: none;
+    padding: 7px 14px;
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: var(--text-dim);
+    cursor: pointer;
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  button.detail-tab:hover { color: var(--text); background: var(--bg-hover); }
+  button.detail-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  /* ─── DETAIL CONTENT ─── */
+  .detail-content {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 0;
+  }
+  .detail-content::-webkit-scrollbar { width: 3px; }
+  .detail-content::-webkit-scrollbar-track { background: var(--bg); }
+  .detail-content::-webkit-scrollbar-thumb { background: var(--border-hi); }
+
+  .tab-pane { display: none; }
+  .tab-pane.active { display: block; }
+
+  /* ─── FORM ELEMENTS ─── */
+  .form-section {
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--border);
+  }
+  .form-section-title {
+    font-size: 9px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 10px;
+  }
+  .form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .form-grid.cols-3 { grid-template-columns: 1fr 1fr 1fr; }
+  .form-grid.cols-1 { grid-template-columns: 1fr; }
+  .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+  .form-group.span-2 { grid-column: span 2; }
+  label.field-label {
+    font-size: 9px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+  input.field-input,
+  select.field-select,
+  textarea.field-textarea {
+    background: var(--bg);
+    border: 1px solid var(--border-hi);
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 4px 7px;
+    outline: none;
+    transition: border-color 0.15s;
+    width: 100%;
+  }
+  input.field-input:focus,
+  select.field-select:focus,
+  textarea.field-textarea:focus { border-color: var(--accent); }
+  input.field-input::placeholder,
+  textarea.field-textarea::placeholder { color: var(--text-muted); }
+  select.field-select { appearance: none; cursor: pointer; }
+  textarea.field-textarea { resize: vertical; min-height: 60px; }
+  input.color-input {
+    width: 32px;
+    height: 24px;
+    padding: 1px;
+    border: 1px solid var(--border-hi);
+    background: var(--bg);
+    cursor: pointer;
+  }
+
+  /* ─── MEMBERS TABLE ─── */
+  .members-section {
+    padding: 0;
+  }
+  .section-action-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 14px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-panel);
+  }
+  .section-action-bar h3 {
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+  }
+  table.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 11px;
+  }
+  table.data-table thead th {
+    padding: 6px 10px;
+    text-align: left;
+    font-size: 9px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    border-bottom: 1px solid var(--border-hi);
+    background: var(--bg-panel);
+    font-weight: 400;
+    white-space: nowrap;
+  }
+  table.data-table tbody tr {
+    border-bottom: 1px solid var(--bg-row);
+    transition: background 0.1s;
+    cursor: pointer;
+  }
+  table.data-table tbody tr:hover { background: var(--bg-hover); }
+  table.data-table tbody tr.selected { background: rgba(99,102,241,0.08); }
+  table.data-table tbody td {
+    padding: 6px 10px;
+    color: var(--text);
+    vertical-align: middle;
+    white-space: nowrap;
+  }
+  table.data-table tbody td.dim { color: var(--text-dim); }
+  table.data-table tbody td.mono-id { color: var(--text-muted); font-size: 10px; }
+  .table-actions { display: flex; gap: 4px; }
+
+  /* ─── AGENT TYPE COLOR SWATCH ─── */
+  .color-swatch {
+    width: 10px; height: 10px;
+    border-radius: 1px;
+    display: inline-block;
+    margin-right: 4px;
+    vertical-align: middle;
+    flex-shrink: 0;
+  }
+
+  /* ─── CAPABILITY BADGE ─── */
+  .cap-badge {
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    padding: 1px 5px;
+    letter-spacing: 0.08em;
+    border: 1px solid;
+    white-space: nowrap;
+    display: inline-block;
+  }
+  .cap-badge.planner { border-color: var(--c-purple); color: var(--c-purple); }
+  .cap-badge.coder { border-color: var(--c-blue); color: var(--c-blue); }
+  .cap-badge.reviewer { border-color: var(--c-amber); color: var(--c-amber); }
+  .cap-badge.tester { border-color: var(--c-green); color: var(--c-green); }
+  .cap-badge.writer { border-color: var(--c-cyan); color: var(--c-cyan); }
+  .cap-badge.coordinator { border-color: var(--c-indigo); color: var(--c-indigo); }
+  .cap-badge.analyst { border-color: var(--c-orange); color: var(--c-orange); }
+  .cap-badge.specialist { border-color: var(--c-pink); color: var(--c-pink); }
+
+  /* ─── PERMISSION BADGE ─── */
+  .perm-badge {
+    font-size: 9px;
+    text-transform: uppercase;
+    padding: 1px 5px;
+    letter-spacing: 0.06em;
+    white-space: nowrap;
+    display: inline-block;
+  }
+  .perm-badge.rw { color: var(--c-amber); }
+  .perm-badge.ro { color: var(--text-dim); }
+  .perm-badge.admin { color: var(--c-red); }
+
+  /* ─── EMBEDDED RESOURCES (SPAWN LINKS / COMM RULES) ─── */
+  .embedded-section {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+  }
+  .embedded-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+  }
+  .embedded-header h4 {
+    font-size: 9px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+  .link-list {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+  .link-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 8px;
+    background: var(--bg-row);
+    border: 1px solid var(--border);
+    font-size: 11px;
+  }
+  .link-item .link-from { color: var(--c-cyan); }
+  .link-item .link-arrow { color: var(--text-muted); }
+  .link-item .link-to { color: var(--c-purple); }
+  .link-item .link-policy { margin-left: auto; font-size: 9px; color: var(--text-muted); text-transform: uppercase; }
+  .link-item .link-via { font-size: 9px; color: var(--c-amber); margin-left: 4px; }
+
+  /* ─── COMM RULE MATRIX ─── */
+  .comm-matrix-wrap {
+    overflow-x: auto;
+    margin-top: 6px;
+  }
+  table.comm-matrix {
+    border-collapse: collapse;
+    font-size: 10px;
+  }
+  table.comm-matrix th,
+  table.comm-matrix td {
+    padding: 4px 8px;
+    border: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  table.comm-matrix thead th { background: var(--bg-panel); color: var(--text-muted); font-weight: 400; }
+  table.comm-matrix tbody td { text-align: center; }
+  table.comm-matrix tbody td.allowed { color: var(--c-green); }
+  table.comm-matrix tbody td.blocked { color: var(--c-red); }
+  table.comm-matrix tbody td.via-relay { color: var(--c-amber); }
+  table.comm-matrix tbody td.self-cell { color: var(--text-muted); }
+
+  /* ─── TOPOLOGY DIAGRAM (inline SVG) ─── */
+  .topology-section {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+  }
+  .topology-section h4 {
+    font-size: 9px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+  }
+  .topology-svg-wrap {
+    background: var(--bg-row);
+    border: 1px solid var(--border);
+    padding: 8px;
+    overflow: hidden;
+  }
+
+  /* ─── RIGHT PANEL SECTIONS ─── */
+  .right-section {
+    border-bottom: 1px solid var(--border);
+  }
+  .right-section-header {
+    padding: 7px 10px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    user-select: none;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-panel);
+  }
+  .right-section-header h3 {
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    flex: 1;
+  }
+  .right-section-header .chevron {
+    font-size: 9px;
+    color: var(--text-muted);
+    transition: transform 0.2s;
+  }
+  .right-section.open .right-section-header .chevron { transform: rotate(90deg); }
+  .right-section-body { display: none; }
+  .right-section.open .right-section-body { display: block; }
+
+  /* ─── AGENT TYPE ROW ─── */
+  .agent-type-row {
+    display: flex;
+    align-items: center;
+    padding: 5px 10px;
+    gap: 7px;
+    border-bottom: 1px solid var(--bg-row);
+    cursor: pointer;
+    transition: background 0.1s;
+  }
+  .agent-type-row:hover { background: var(--bg-hover); }
+  .agent-type-row.selected { background: rgba(99,102,241,0.08); }
+  .agent-type-name { flex: 1; font-size: 11px; color: #a0a0cc; }
+  .agent-type-sort { font-size: 10px; color: var(--text-muted); min-width: 18px; text-align: right; }
+
+  /* ─── LAUNCH PANEL ─── */
+  .launch-section {
+    padding: 10px 10px;
+    border-top: 1px solid var(--border);
+    flex-shrink: 0;
+    background: var(--bg-panel);
+  }
+  .launch-title {
+    font-size: 9px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+  }
+  .launch-info {
+    padding: 6px 8px;
+    background: var(--bg-row);
+    border: 1px solid var(--border);
+    font-size: 11px;
+    margin-bottom: 6px;
+  }
+  .launch-info-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 1px 0;
+  }
+  .launch-info-row .lk { color: var(--text-muted); font-size: 10px; }
+  .launch-info-row .lv { color: var(--text-dim); }
+  .launch-info-row .lv.ok { color: var(--c-green); }
+  .launch-steps {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    margin-bottom: 8px;
+  }
+  .launch-step {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 10px;
+    color: var(--text-dim);
+  }
+  .launch-step .step-num {
+    width: 14px; height: 14px;
+    border: 1px solid var(--border-hi);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 9px;
+    color: var(--text-muted);
+    flex-shrink: 0;
+  }
+  .launch-step.done .step-num { border-color: var(--c-green); color: var(--c-green); }
+  .launch-step.active .step-num { border-color: var(--accent); color: var(--accent); animation: pulse-green 1s infinite; }
+
+  /* ─── INLINE EDIT FORM ─── */
+  .inline-form {
+    padding: 10px 14px;
+    background: rgba(99,102,241,0.05);
+    border-bottom: 1.5px solid var(--accent-dim);
+    display: none;
+  }
+  .inline-form.open { display: block; }
+  .inline-form-title {
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .form-actions {
+    display: flex;
+    gap: 5px;
+    margin-top: 8px;
+  }
+
+  /* ─── EMPTY STATE ─── */
+  .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    gap: 8px;
+    color: var(--text-muted);
+  }
+  .empty-state .empty-icon { font-size: 28px; opacity: 0.5; }
+  .empty-state p { font-size: 11px; letter-spacing: 0.08em; }
+  .empty-state small { font-size: 10px; color: var(--text-muted); }
+
+  /* ─── NO SELECTION STATE ─── */
+  #no-selection {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    gap: 12px;
+    color: var(--text-muted);
+  }
+  #no-selection .ns-label {
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  #no-selection .ns-hint { font-size: 10px; color: var(--text-muted); opacity: 0.6; }
+
+  /* ─── TOAST NOTIFICATION ─── */
+  #toast {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    padding: 8px 14px;
+    background: var(--bg-panel);
+    border: 1px solid var(--border-hi);
+    font-size: 11px;
+    color: var(--text);
+    z-index: 1000;
+    transition: opacity 0.3s;
+    pointer-events: none;
+    opacity: 0;
+  }
+  #toast.show { opacity: 1; }
+  #toast.toast-ok { border-color: var(--c-green); color: var(--c-green); }
+  #toast.toast-err { border-color: var(--c-red); color: var(--c-red); }
+  #toast.toast-info { border-color: var(--accent); color: var(--accent); }
+
+  /* ─── LIVEVIEW HINT ─── */
+  .lv-hint {
+    font-size: 9px;
+    color: var(--text-muted);
+    font-style: italic;
+    padding: 3px 0;
+  }
+
+  /* ─── SCROLLBAR GLOBAL ─── */
+  ::-webkit-scrollbar { width: 3px; height: 3px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border-hi); }
+
+  /* ─── MODAL ─── */
+  .modal-backdrop {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.7);
+    z-index: 900;
+    display: none;
+    align-items: center;
+    justify-content: center;
+  }
+  .modal-backdrop.open { display: flex; }
+  .modal {
+    background: var(--bg-panel);
+    border: 1.5px solid var(--border-hi);
+    width: 480px;
+    max-width: 95vw;
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .modal-header {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+  .modal-header h2 {
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    flex: 1;
+  }
+  button.modal-close {
+    font-size: 14px;
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    line-height: 1;
+    padding: 0 2px;
+  }
+  button.modal-close:hover { color: var(--text); }
+  .modal-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px 14px;
+  }
+  .modal-footer {
+    padding: 8px 14px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    gap: 5px;
+    justify-content: flex-end;
+    flex-shrink: 0;
+  }
+
+  /* ─── MISC ─── */
+  .text-muted { color: var(--text-muted); }
+  .text-dim { color: var(--text-dim); }
+  .mono { font-family: var(--mono); }
+</style>
+</head>
+<body>
+
+<header id="topbar">
+  <span class="brand">ICHOR IV &mdash; <span>Workshop</span></span>
+  <span class="topbar-sep"></span>
+  <span class="topbar-status">sqlite://workshop</span>
+  <span class="topbar-sep"></span>
+  <span class="topbar-status"><span class="status-dot"></span>live</span>
+  <span class="topbar-spacer"></span>
+  <span class="topbar-status" id="topbar-team-count">5 teams</span>
+  <span class="topbar-sep"></span>
+  <span class="topbar-status" id="topbar-type-count">8 agent types</span>
+</header>
+
+<div id="app">
+
+  <!-- ═══ LEFT: TEAM BROWSER ═══ -->
+  <nav id="team-browser">
+    <div class="panel-header">
+      <h2>Teams</h2>
+      <span class="count-badge" id="team-count-badge">5</span>
+    </div>
+
+    <div class="search-wrap">
+      <input class="search-input" id="team-search" type="text" placeholder="search teams..." oninput="filterTeams(this.value)">
+    </div>
+
+    <div class="preset-section">
+      <p class="preset-label">Presets</p>
+      <div class="preset-grid">
+        <button class="preset-btn" onclick="applyPreset('empty')">empty</button>
+        <button class="preset-btn" onclick="applyPreset('mes')">mes-team</button>
+        <button class="preset-btn" onclick="applyPreset('pipeline')">pipeline</button>
+        <button class="preset-btn" onclick="applyPreset('solo')">solo</button>
+        <button class="preset-btn" onclick="applyPreset('review')">review-chain</button>
+        <button class="preset-btn" onclick="applyPreset('dag')">dag-pipeline</button>
+      </div>
+    </div>
+
+    <div class="scroll-list" id="team-list">
+      <!-- rendered by JS -->
+    </div>
+
+    <div class="browser-actions">
+      <button class="btn btn-primary" style="flex:1" onclick="openCreateTeamModal()">+ New Team</button>
+      <button class="btn btn-danger btn-sm" id="delete-team-btn" disabled onclick="deleteSelectedTeam()">Delete</button>
+    </div>
+  </nav>
+
+  <!-- ═══ CENTER: TEAM DETAIL ═══ -->
+  <main id="team-detail">
+
+    <div id="no-selection">
+      <span class="ns-label">No Team Selected</span>
+      <span class="ns-hint">Select a team from the browser or create a new one</span>
+    </div>
+
+    <div id="team-detail-inner" style="display:none; flex-direction:column; height:100%;">
+
+      <header id="detail-header">
+        <span class="detail-team-name" id="detail-team-name">
+          --
+          <span class="team-id" id="detail-team-id"></span>
+        </span>
+        <span class="strategy-badge" id="detail-strategy-badge">--</span>
+        <button class="btn btn-sm" onclick="openEditTeamModal()">Edit</button>
+        <button class="btn btn-sm btn-danger" onclick="deleteSelectedTeam()">Delete</button>
+      </header>
+
+      <nav id="detail-tabs">
+        <button class="detail-tab active" onclick="switchTab('members', this)">Members</button>
+        <button class="detail-tab" onclick="switchTab('slots', this)">Agent Slots</button>
+        <button class="detail-tab" onclick="switchTab('topology', this)">Spawn Links</button>
+        <button class="detail-tab" onclick="switchTab('comms', this)">Comm Rules</button>
+        <button class="detail-tab" onclick="switchTab('team-config', this)">Config</button>
+      </nav>
+
+      <div class="detail-content" id="detail-content">
+
+        <!-- MEMBERS TAB -->
+        <div class="tab-pane active" id="pane-members">
+          <div class="members-section">
+            <div class="section-action-bar">
+              <h3>Team Members</h3>
+              <div style="display:flex;gap:5px">
+                <button class="btn btn-sm btn-primary" onclick="openAddMemberModal()">+ Add Member</button>
+              </div>
+            </div>
+
+            <!-- Add Member Inline Form -->
+            <div class="inline-form" id="add-member-form">
+              <p class="inline-form-title">+ Add Member</p>
+              <fieldset style="border:none">
+                <div class="form-grid">
+                  <div class="form-group">
+                    <label class="field-label" for="m-name">Name</label>
+                    <input class="field-input" id="m-name" type="text" placeholder="e.g. planner-1">
+                  </div>
+                  <div class="form-group">
+                    <label class="field-label" for="m-slot">Slot</label>
+                    <input class="field-input" id="m-slot" type="text" placeholder="slot-id">
+                  </div>
+                  <div class="form-group">
+                    <label class="field-label" for="m-type">Agent Type</label>
+                    <select class="field-select" id="m-type">
+                      <option value="">-- select type --</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label class="field-label" for="m-model">Model Override</label>
+                    <input class="field-input" id="m-model" type="text" placeholder="inherit from type">
+                  </div>
+                  <div class="form-group">
+                    <label class="field-label" for="m-permission">Permission</label>
+                    <select class="field-select" id="m-permission">
+                      <option>rw</option>
+                      <option>ro</option>
+                      <option>admin</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label class="field-label" for="m-capability">Capability</label>
+                    <select class="field-select" id="m-capability">
+                      <option>planner</option>
+                      <option>coder</option>
+                      <option>reviewer</option>
+                      <option>tester</option>
+                      <option>writer</option>
+                      <option>coordinator</option>
+                      <option>analyst</option>
+                      <option>specialist</option>
+                    </select>
+                  </div>
+                  <div class="form-group span-2">
+                    <label class="field-label" for="m-persona">Persona</label>
+                    <input class="field-input" id="m-persona" type="text" placeholder="You are a...">
+                  </div>
+                  <div class="form-group span-2">
+                    <label class="field-label" for="m-extra">Extra Instructions</label>
+                    <textarea class="field-textarea" id="m-extra" rows="2" placeholder="Additional instructions..."></textarea>
+                  </div>
+                  <div class="form-group">
+                    <label class="field-label" for="m-file-scope">File Scope</label>
+                    <input class="field-input" id="m-file-scope" type="text" placeholder="lib/**/*.ex">
+                  </div>
+                  <div class="form-group">
+                    <label class="field-label" for="m-quality-gates">Quality Gates</label>
+                    <input class="field-input" id="m-quality-gates" type="text" placeholder="mix compile">
+                  </div>
+                </div>
+              </fieldset>
+              <div class="form-actions">
+                <button class="btn btn-primary btn-sm" onclick="saveMember()">Save Member</button>
+                <button class="btn btn-sm" onclick="closeMemberForm()">Cancel</button>
+              </div>
+              <p class="lv-hint">LiveView: phx-submit="add_member" &rarr; Workshop.TeamMember.create</p>
+            </div>
+
+            <table class="data-table" id="members-table">
+              <thead>
+                <tr>
+                  <th>Slot</th>
+                  <th>Name</th>
+                  <th>Type</th>
+                  <th>Capability</th>
+                  <th>Model</th>
+                  <th>Perm</th>
+                  <th style="width:70px"></th>
+                </tr>
+              </thead>
+              <tbody id="members-tbody">
+                <!-- rendered by JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- AGENT SLOTS TAB -->
+        <div class="tab-pane" id="pane-slots">
+          <div class="section-action-bar">
+            <h3>Agent Slots <span class="text-muted" style="font-size:9px;">(embedded on Team)</span></h3>
+            <button class="btn btn-sm btn-primary" onclick="openAddSlotInline()">+ Add Slot</button>
+          </div>
+
+          <div class="inline-form" id="add-slot-form">
+            <p class="inline-form-title">+ New Agent Slot</p>
+            <fieldset style="border:none">
+              <div class="form-grid">
+                <div class="form-group">
+                  <label class="field-label" for="sl-id">Slot ID</label>
+                  <input class="field-input" id="sl-id" type="text" placeholder="planner">
+                </div>
+                <div class="form-group">
+                  <label class="field-label" for="sl-name">Display Name</label>
+                  <input class="field-input" id="sl-name" type="text" placeholder="Planner Agent">
+                </div>
+                <div class="form-group">
+                  <label class="field-label" for="sl-cap">Capability</label>
+                  <select class="field-select" id="sl-cap">
+                    <option>planner</option><option>coder</option><option>reviewer</option>
+                    <option>tester</option><option>writer</option><option>coordinator</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label class="field-label" for="sl-model">Model</label>
+                  <input class="field-input" id="sl-model" type="text" placeholder="claude-sonnet-4-5">
+                </div>
+                <div class="form-group">
+                  <label class="field-label" for="sl-perm">Permission</label>
+                  <select class="field-select" id="sl-perm">
+                    <option>rw</option><option>ro</option><option>admin</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label class="field-label" for="sl-tools">Tools</label>
+                  <input class="field-input" id="sl-tools" type="text" placeholder="bash,read,edit">
+                </div>
+              </div>
+            </fieldset>
+            <div class="form-actions">
+              <button class="btn btn-primary btn-sm" onclick="saveSlot()">Save Slot</button>
+              <button class="btn btn-sm" onclick="document.getElementById('add-slot-form').classList.remove('open')">Cancel</button>
+            </div>
+            <p class="lv-hint">LiveView: phx-submit="add_slot" &rarr; Workshop.Team.update (embedded AgentSlot)</p>
+          </div>
+
+          <table class="data-table" id="slots-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Capability</th>
+                <th>Model</th>
+                <th>Permission</th>
+                <th>Tools</th>
+                <th style="width:60px"></th>
+              </tr>
+            </thead>
+            <tbody id="slots-tbody">
+              <!-- rendered by JS -->
+            </tbody>
+          </table>
+        </div>
+
+        <!-- SPAWN LINKS TAB -->
+        <div class="tab-pane" id="pane-topology">
+          <div class="section-action-bar">
+            <h3>Spawn Links <span class="text-muted" style="font-size:9px;">(embedded JSON on Team)</span></h3>
+            <button class="btn btn-sm btn-primary" onclick="openAddLinkInline()">+ Add Link</button>
+          </div>
+
+          <div class="inline-form" id="add-link-form">
+            <p class="inline-form-title">+ New Spawn Link</p>
+            <fieldset style="border:none">
+              <div class="form-grid">
+                <div class="form-group">
+                  <label class="field-label" for="lk-from">From (slot ID)</label>
+                  <select class="field-select" id="lk-from"></select>
+                </div>
+                <div class="form-group">
+                  <label class="field-label" for="lk-to">To (slot ID)</label>
+                  <select class="field-select" id="lk-to"></select>
+                </div>
+              </div>
+            </fieldset>
+            <div class="form-actions">
+              <button class="btn btn-primary btn-sm" onclick="saveSpawnLink()">Save Link</button>
+              <button class="btn btn-sm" onclick="document.getElementById('add-link-form').classList.remove('open')">Cancel</button>
+            </div>
+            <p class="lv-hint">LiveView: phx-submit="add_spawn_link" &rarr; Workshop.Team.update (SpawnLink embedded)</p>
+          </div>
+
+          <div style="padding: 12px 14px;">
+            <div class="embedded-header">
+              <h4>Links</h4>
+            </div>
+            <div class="link-list" id="spawn-links-list">
+              <!-- rendered by JS -->
+            </div>
+          </div>
+
+          <div class="topology-section">
+            <h4>Topology Diagram</h4>
+            <div class="topology-svg-wrap">
+              <svg id="topology-svg" width="100%" height="160" style="display:block;"></svg>
+            </div>
+          </div>
+        </div>
+
+        <!-- COMM RULES TAB -->
+        <div class="tab-pane" id="pane-comms">
+          <div class="section-action-bar">
+            <h3>Comm Rules <span class="text-muted" style="font-size:9px;">(embedded JSON on Team)</span></h3>
+            <button class="btn btn-sm btn-primary" onclick="openAddCommRule()">+ Add Rule</button>
+          </div>
+
+          <div class="inline-form" id="add-comm-form">
+            <p class="inline-form-title">+ New Comm Rule</p>
+            <fieldset style="border:none">
+              <div class="form-grid cols-3">
+                <div class="form-group">
+                  <label class="field-label" for="cr-from">From</label>
+                  <select class="field-select" id="cr-from"></select>
+                </div>
+                <div class="form-group">
+                  <label class="field-label" for="cr-to">To</label>
+                  <select class="field-select" id="cr-to"></select>
+                </div>
+                <div class="form-group">
+                  <label class="field-label" for="cr-policy">Policy</label>
+                  <select class="field-select" id="cr-policy">
+                    <option value="allow">allow</option>
+                    <option value="block">block</option>
+                    <option value="relay">relay</option>
+                  </select>
+                </div>
+                <div class="form-group span-2">
+                  <label class="field-label" for="cr-via">Via (relay agent slot, if relay)</label>
+                  <select class="field-select" id="cr-via">
+                    <option value="">-- direct --</option>
+                  </select>
+                </div>
+              </div>
+            </fieldset>
+            <div class="form-actions">
+              <button class="btn btn-primary btn-sm" onclick="saveCommRule()">Save Rule</button>
+              <button class="btn btn-sm" onclick="document.getElementById('add-comm-form').classList.remove('open')">Cancel</button>
+            </div>
+            <p class="lv-hint">LiveView: phx-submit="add_comm_rule" &rarr; Workshop.Team.update (CommRule embedded)</p>
+          </div>
+
+          <div style="padding: 12px 14px;">
+            <div class="embedded-header">
+              <h4>Rules List</h4>
+            </div>
+            <div class="link-list" id="comm-rules-list">
+              <!-- rendered by JS -->
+            </div>
+
+            <div style="margin-top:14px;">
+              <div class="embedded-header"><h4>Communication Matrix</h4></div>
+              <div class="comm-matrix-wrap" id="comm-matrix-wrap">
+                <!-- rendered by JS -->
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- TEAM CONFIG TAB -->
+        <div class="tab-pane" id="pane-team-config">
+          <form id="team-config-form" onsubmit="saveTeamConfig(event)">
+            <div class="form-section">
+              <p class="form-section-title">Identity</p>
+              <div class="form-grid">
+                <div class="form-group">
+                  <label class="field-label" for="tc-name">Name</label>
+                  <input class="field-input" id="tc-name" type="text">
+                </div>
+                <div class="form-group">
+                  <label class="field-label" for="tc-strategy">Strategy</label>
+                  <select class="field-select" id="tc-strategy">
+                    <option value="sequential">sequential</option>
+                    <option value="parallel">parallel</option>
+                    <option value="dag">dag</option>
+                    <option value="pipeline">pipeline</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label class="field-label" for="tc-model">Default Model</label>
+                  <input class="field-input" id="tc-model" type="text" placeholder="claude-sonnet-4-5">
+                </div>
+                <div class="form-group">
+                  <label class="field-label" for="tc-cwd">Working Directory</label>
+                  <input class="field-input" id="tc-cwd" type="text" placeholder="/path/to/project">
+                </div>
+              </div>
+            </div>
+
+            <div class="form-section">
+              <p class="form-section-title">Identifiers</p>
+              <div class="form-grid">
+                <div class="form-group">
+                  <label class="field-label">ID</label>
+                  <input class="field-input" id="tc-id-display" type="text" readonly style="color:var(--text-muted);cursor:default">
+                </div>
+                <div class="form-group">
+                  <label class="field-label">Inserted At</label>
+                  <input class="field-input" id="tc-inserted" type="text" readonly style="color:var(--text-muted);cursor:default">
+                </div>
+              </div>
+            </div>
+
+            <div class="form-section">
+              <div class="form-actions">
+                <button type="submit" class="btn btn-primary">Save Config</button>
+                <span class="lv-hint" style="flex:1">LiveView: phx-submit="update_team" &rarr; Workshop.Team.update</span>
+              </div>
+            </div>
+          </form>
+        </div>
+
+      </div>
+    </div>
+  </main>
+
+  <!-- ═══ RIGHT: AGENT TYPES + LAUNCH ═══ -->
+  <aside id="right-panel">
+
+    <div class="panel-header">
+      <h2>Agent Types</h2>
+      <span class="count-badge" id="type-count-badge">8</span>
+    </div>
+
+    <div class="search-wrap">
+      <input class="search-input" id="type-search" type="text" placeholder="search types..." oninput="filterTypes(this.value)">
+    </div>
+
+    <!-- Agent Type List -->
+    <div class="scroll-list" id="agent-types-list" style="flex:none;max-height:220px;border-bottom:1px solid var(--border)">
+      <!-- rendered by JS -->
+    </div>
+
+    <!-- Agent Type Form -->
+    <div class="right-section open" id="type-form-section" style="flex:1;overflow:hidden;display:flex;flex-direction:column;">
+      <div class="right-section-header" onclick="toggleSection('type-form-section')">
+        <h3 id="type-form-title">New Agent Type</h3>
+        <span class="chevron">&#9658;</span>
+      </div>
+      <div class="right-section-body" style="flex:1;overflow-y:auto;padding:10px">
+        <form id="agent-type-form" onsubmit="saveAgentType(event)">
+          <fieldset style="border:none">
+            <div class="form-grid cols-1" style="gap:7px">
+              <div class="form-group">
+                <label class="field-label" for="at-name">Name</label>
+                <input class="field-input" id="at-name" type="text" placeholder="ash-elixir-expert">
+              </div>
+              <div class="form-grid" style="gap:7px">
+                <div class="form-group">
+                  <label class="field-label" for="at-cap">Capability</label>
+                  <select class="field-select" id="at-cap">
+                    <option>planner</option><option>coder</option><option>reviewer</option>
+                    <option>tester</option><option>writer</option><option>coordinator</option>
+                    <option>analyst</option><option>specialist</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label class="field-label" for="at-perm">Permission</label>
+                  <select class="field-select" id="at-perm">
+                    <option>rw</option><option>ro</option><option>admin</option>
+                  </select>
+                </div>
+              </div>
+              <div class="form-group">
+                <label class="field-label" for="at-model">Default Model</label>
+                <input class="field-input" id="at-model" type="text" placeholder="claude-sonnet-4-5">
+              </div>
+              <div class="form-group">
+                <label class="field-label" for="at-persona">Default Persona</label>
+                <textarea class="field-textarea" id="at-persona" rows="2" placeholder="You are an expert..."></textarea>
+              </div>
+              <div class="form-group">
+                <label class="field-label" for="at-file-scope">Default File Scope</label>
+                <input class="field-input" id="at-file-scope" type="text" placeholder="lib/**/*.ex">
+              </div>
+              <div class="form-group">
+                <label class="field-label" for="at-tools">Default Tools</label>
+                <input class="field-input" id="at-tools" type="text" placeholder="bash,read,edit,glob,grep">
+              </div>
+              <div class="form-grid" style="gap:7px">
+                <div class="form-group">
+                  <label class="field-label" for="at-color">Color</label>
+                  <div style="display:flex;gap:5px;align-items:center">
+                    <input class="color-input" id="at-color" type="color" value="#6366f1">
+                    <input class="field-input" id="at-color-hex" type="text" value="#6366f1" style="flex:1" oninput="document.getElementById('at-color').value=this.value">
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label class="field-label" for="at-sort">Sort Order</label>
+                  <input class="field-input" id="at-sort" type="number" value="0" min="0">
+                </div>
+              </div>
+            </div>
+          </fieldset>
+          <div class="form-actions" style="margin-top:8px">
+            <button type="submit" class="btn btn-primary btn-sm">Save Type</button>
+            <button type="button" class="btn btn-sm" onclick="clearTypeForm()">Clear</button>
+            <button type="button" class="btn btn-danger btn-sm" id="delete-type-btn" style="display:none" onclick="deleteAgentType()">Delete</button>
+          </div>
+          <p class="lv-hint" style="margin-top:5px">Workshop.AgentType.create / update</p>
+          <input type="hidden" id="at-editing-id" value="">
+        </form>
+      </div>
+    </div>
+
+    <!-- Launch Panel -->
+    <div class="launch-section">
+      <p class="launch-title">Spawn Team</p>
+      <div class="launch-info" id="launch-info">
+        <div class="launch-info-row">
+          <span class="lk">team</span>
+          <span class="lv" id="li-team">--</span>
+        </div>
+        <div class="launch-info-row">
+          <span class="lk">members</span>
+          <span class="lv" id="li-members">--</span>
+        </div>
+        <div class="launch-info-row">
+          <span class="lk">strategy</span>
+          <span class="lv" id="li-strategy">--</span>
+        </div>
+        <div class="launch-info-row">
+          <span class="lk">model</span>
+          <span class="lv" id="li-model">--</span>
+        </div>
+      </div>
+      <div class="launch-steps">
+        <div class="launch-step done" id="step-select">
+          <span class="step-num">1</span>
+          <span>Select team</span>
+        </div>
+        <div class="launch-step" id="step-compile">
+          <span class="step-num">2</span>
+          <span>Compile spec</span>
+        </div>
+        <div class="launch-step" id="step-launch">
+          <span class="step-num">3</span>
+          <span>Spawn agents</span>
+        </div>
+      </div>
+      <button class="btn btn-success" style="width:100%" id="spawn-btn" disabled onclick="spawnTeam()">
+        Spawn Team
+      </button>
+      <p class="lv-hint" style="margin-top:5px">Workshop.Team.spawn_team &rarr; Ichor.Workshop.Spawn.spawn/1</p>
+    </div>
+
+  </aside>
+</div>
+
+<!-- ═══ CREATE TEAM MODAL ═══ -->
+<div class="modal-backdrop" id="create-team-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="team-modal-title">Create Team</h2>
+      <button class="modal-close" onclick="closeCreateTeamModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <form id="create-team-form">
+        <div class="form-grid cols-1" style="gap:10px">
+          <div class="form-group">
+            <label class="field-label" for="ct-name">Name *</label>
+            <input class="field-input" id="ct-name" type="text" placeholder="my-feature-team" required>
+          </div>
+          <div class="form-grid" style="gap:8px">
+            <div class="form-group">
+              <label class="field-label" for="ct-strategy">Strategy</label>
+              <select class="field-select" id="ct-strategy">
+                <option value="sequential">sequential</option>
+                <option value="parallel">parallel</option>
+                <option value="dag">dag</option>
+                <option value="pipeline">pipeline</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="field-label" for="ct-model">Default Model</label>
+              <input class="field-input" id="ct-model" type="text" value="claude-sonnet-4-5">
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="field-label" for="ct-cwd">Working Directory</label>
+            <input class="field-input" id="ct-cwd" type="text" placeholder="/path/to/project">
+          </div>
+        </div>
+      </form>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" onclick="createTeam()">Create Team</button>
+      <button class="btn" onclick="closeCreateTeamModal()">Cancel</button>
+    </div>
+    <div style="padding:6px 14px 10px;"><p class="lv-hint">Workshop.Team.create &rarr; INSERT teams</p></div>
+  </div>
+</div>
+
+<!-- ═══ TOAST ═══ -->
+<div id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+// SAMPLE DATA
+// ═══════════════════════════════════════════════════════════
+
+const AGENT_TYPES = [
+  { id:'at-1', name:'ash-elixir-expert', capability:'coder', default_model:'claude-sonnet-4-5', default_permission:'rw', default_persona:'You are an expert Elixir + Ash Framework developer.', default_file_scope:'lib/**/*.ex', default_tools:'bash,read,edit,glob,grep', color:'#6366f1', sort_order:1 },
+  { id:'at-2', name:'code-planner', capability:'planner', default_model:'claude-opus-4-5', default_permission:'ro', default_persona:'You are a senior technical architect.', default_file_scope:'**/*', default_tools:'read,glob,grep', color:'#a855f7', sort_order:2 },
+  { id:'at-3', name:'code-reviewer', capability:'reviewer', default_model:'claude-sonnet-4-5', default_permission:'ro', default_persona:'You are a meticulous code reviewer.', default_file_scope:'lib/**/*.ex', default_tools:'read,glob,grep', color:'#f59e0b', sort_order:3 },
+  { id:'at-4', name:'test-writer', capability:'tester', default_model:'claude-haiku-4-5', default_permission:'rw', default_persona:'You write comprehensive ExUnit tests.', default_file_scope:'test/**/*.exs', default_tools:'bash,read,edit,glob', color:'#22c55e', sort_order:4 },
+  { id:'at-5', name:'doc-writer', capability:'writer', default_model:'claude-haiku-4-5', default_permission:'rw', default_persona:'You write clear technical documentation.', default_file_scope:'docs/**/*', default_tools:'read,edit,write', color:'#06b6d4', sort_order:5 },
+  { id:'at-6', name:'archon', capability:'coordinator', default_model:'claude-opus-4-5', default_permission:'admin', default_persona:'You are the Archon, a meta-cognitive AI agent coordinator.', default_file_scope:'**/*', default_tools:'bash,read,edit,glob,grep,mcp', color:'#6366f1', sort_order:0 },
+  { id:'at-7', name:'data-analyst', capability:'analyst', default_model:'claude-sonnet-4-5', default_permission:'ro', default_persona:'You analyze data patterns and produce reports.', default_file_scope:'priv/**/*', default_tools:'bash,read,glob,grep', color:'#f97316', sort_order:6 },
+  { id:'at-8', name:'infra-specialist', capability:'specialist', default_model:'claude-sonnet-4-5', default_permission:'admin', default_persona:'You manage infrastructure and deployment.', default_file_scope:'**/*', default_tools:'bash,read,edit', color:'#ec4899', sort_order:7 },
+];
+
+const TEAMS = [
+  {
+    id:'tm-001', name:'mes-production-team', strategy:'dag', default_model:'claude-sonnet-4-5', cwd:'/projects/mes',
+    inserted_at:'2026-03-18T10:24:00Z',
+    agents: [
+      { slot:'planner', name:'planner-1', type_id:'at-2', capability:'planner', model:'claude-opus-4-5', permission:'ro', persona:'', file_scope:'**/*', quality_gates:'', tool_scope:'read,glob,grep', canvas_x:100, canvas_y:80 },
+      { slot:'coder-1', name:'coder-1', type_id:'at-1', capability:'coder', model:'claude-sonnet-4-5', permission:'rw', persona:'', file_scope:'lib/**/*.ex', quality_gates:'mix compile --warnings-as-errors', tool_scope:'bash,read,edit', canvas_x:260, canvas_y:50 },
+      { slot:'coder-2', name:'coder-2', type_id:'at-1', capability:'coder', model:'claude-sonnet-4-5', permission:'rw', persona:'', file_scope:'lib/**/*.ex', quality_gates:'mix compile --warnings-as-errors', tool_scope:'bash,read,edit', canvas_x:260, canvas_y:130 },
+      { slot:'reviewer', name:'reviewer-1', type_id:'at-3', capability:'reviewer', model:'', permission:'ro', persona:'', file_scope:'lib/**/*.ex', quality_gates:'', tool_scope:'read,glob,grep', canvas_x:420, canvas_y:80 },
+      { slot:'tester', name:'tester-1', type_id:'at-4', capability:'tester', model:'claude-haiku-4-5', permission:'rw', persona:'', file_scope:'test/**/*', quality_gates:'mix test', tool_scope:'bash,read,edit', canvas_x:580, canvas_y:80 },
+    ],
+    spawn_links: [
+      { from:'planner', to:'coder-1' },
+      { from:'planner', to:'coder-2' },
+      { from:'coder-1', to:'reviewer' },
+      { from:'coder-2', to:'reviewer' },
+      { from:'reviewer', to:'tester' },
+    ],
+    comm_rules: [
+      { from:'planner', to:'coder-1', policy:'allow', via:null },
+      { from:'planner', to:'coder-2', policy:'allow', via:null },
+      { from:'coder-1', to:'reviewer', policy:'allow', via:null },
+      { from:'coder-2', to:'reviewer', policy:'allow', via:null },
+      { from:'coder-1', to:'coder-2', policy:'block', via:null },
+    ],
+    slots: [
+      { id:'planner', name:'Planner Agent', capability:'planner', model:'claude-opus-4-5', permission:'ro', persona:'', file_scope:'**/*', quality_gates:'', tools:'read,glob,grep' },
+      { id:'coder-1', name:'Coder Alpha', capability:'coder', model:'claude-sonnet-4-5', permission:'rw', persona:'', file_scope:'lib/**/*.ex', quality_gates:'mix compile', tools:'bash,read,edit' },
+      { id:'coder-2', name:'Coder Beta', capability:'coder', model:'claude-sonnet-4-5', permission:'rw', persona:'', file_scope:'lib/**/*.ex', quality_gates:'mix compile', tools:'bash,read,edit' },
+      { id:'reviewer', name:'Reviewer', capability:'reviewer', model:'', permission:'ro', persona:'', file_scope:'lib/**/*.ex', quality_gates:'', tools:'read,glob,grep' },
+      { id:'tester', name:'Test Writer', capability:'tester', model:'claude-haiku-4-5', permission:'rw', persona:'', file_scope:'test/**/*', quality_gates:'mix test', tools:'bash,read,edit' },
+    ]
+  },
+  {
+    id:'tm-002', name:'pipeline-3', strategy:'pipeline', default_model:'claude-haiku-4-5', cwd:'/projects/pipeline',
+    inserted_at:'2026-03-19T08:10:00Z',
+    agents: [
+      { slot:'stage-1', name:'stage-1', type_id:'at-2', capability:'planner', model:'', permission:'ro', persona:'', file_scope:'**/*', quality_gates:'', tool_scope:'read,glob', canvas_x:80, canvas_y:80 },
+      { slot:'stage-2', name:'stage-2', type_id:'at-1', capability:'coder', model:'', permission:'rw', persona:'', file_scope:'lib/**/*', quality_gates:'mix compile', tool_scope:'bash,read,edit', canvas_x:280, canvas_y:80 },
+      { slot:'stage-3', name:'stage-3', type_id:'at-3', capability:'reviewer', model:'', permission:'ro', persona:'', file_scope:'lib/**/*', quality_gates:'', tool_scope:'read,glob', canvas_x:480, canvas_y:80 },
+    ],
+    spawn_links: [
+      { from:'stage-1', to:'stage-2' },
+      { from:'stage-2', to:'stage-3' },
+    ],
+    comm_rules: [
+      { from:'stage-1', to:'stage-2', policy:'allow', via:null },
+      { from:'stage-2', to:'stage-3', policy:'allow', via:null },
+    ],
+    slots: [
+      { id:'stage-1', name:'Stage 1', capability:'planner', model:'', permission:'ro', persona:'', file_scope:'**/*', quality_gates:'', tools:'read,glob' },
+      { id:'stage-2', name:'Stage 2', capability:'coder', model:'', permission:'rw', persona:'', file_scope:'lib/**/*', quality_gates:'mix compile', tools:'bash,read,edit' },
+      { id:'stage-3', name:'Stage 3', capability:'reviewer', model:'', permission:'ro', persona:'', file_scope:'lib/**/*', quality_gates:'', tools:'read,glob' },
+    ]
+  },
+  {
+    id:'tm-003', name:'solo-archon', strategy:'sequential', default_model:'claude-opus-4-5', cwd:'/projects/solo',
+    inserted_at:'2026-03-19T14:33:00Z',
+    agents: [
+      { slot:'archon', name:'archon', type_id:'at-6', capability:'coordinator', model:'claude-opus-4-5', permission:'admin', persona:'', file_scope:'**/*', quality_gates:'', tool_scope:'bash,read,edit,mcp', canvas_x:240, canvas_y:100 },
+    ],
+    spawn_links: [],
+    comm_rules: [],
+    slots: [
+      { id:'archon', name:'Archon', capability:'coordinator', model:'claude-opus-4-5', permission:'admin', persona:'', file_scope:'**/*', quality_gates:'', tools:'bash,read,edit,mcp' },
+    ]
+  },
+  {
+    id:'tm-004', name:'review-chain', strategy:'sequential', default_model:'claude-sonnet-4-5', cwd:'/projects/review',
+    inserted_at:'2026-03-20T09:15:00Z',
+    agents: [
+      { slot:'author', name:'author', type_id:'at-1', capability:'coder', model:'', permission:'rw', persona:'', file_scope:'lib/**/*', quality_gates:'mix compile', tool_scope:'bash,read,edit', canvas_x:80, canvas_y:80 },
+      { slot:'reviewer-a', name:'reviewer-a', type_id:'at-3', capability:'reviewer', model:'', permission:'ro', persona:'', file_scope:'lib/**/*', quality_gates:'', tool_scope:'read,glob', canvas_x:280, canvas_y:50 },
+      { slot:'reviewer-b', name:'reviewer-b', type_id:'at-3', capability:'reviewer', model:'', permission:'ro', persona:'', file_scope:'lib/**/*', quality_gates:'', tool_scope:'read,glob', canvas_x:280, canvas_y:130 },
+      { slot:'approver', name:'approver', type_id:'at-2', capability:'planner', model:'claude-opus-4-5', permission:'ro', persona:'', file_scope:'**/*', quality_gates:'', tool_scope:'read,glob', canvas_x:480, canvas_y:80 },
+    ],
+    spawn_links: [
+      { from:'author', to:'reviewer-a' },
+      { from:'author', to:'reviewer-b' },
+      { from:'reviewer-a', to:'approver' },
+      { from:'reviewer-b', to:'approver' },
+    ],
+    comm_rules: [
+      { from:'author', to:'reviewer-a', policy:'allow', via:null },
+      { from:'author', to:'reviewer-b', policy:'allow', via:null },
+      { from:'reviewer-a', to:'approver', policy:'allow', via:null },
+      { from:'reviewer-b', to:'approver', policy:'allow', via:null },
+      { from:'reviewer-a', to:'reviewer-b', policy:'relay', via:'approver' },
+    ],
+    slots: [
+      { id:'author', name:'Author', capability:'coder', model:'', permission:'rw', persona:'', file_scope:'lib/**/*', quality_gates:'mix compile', tools:'bash,read,edit' },
+      { id:'reviewer-a', name:'Reviewer A', capability:'reviewer', model:'', permission:'ro', persona:'', file_scope:'lib/**/*', quality_gates:'', tools:'read,glob' },
+      { id:'reviewer-b', name:'Reviewer B', capability:'reviewer', model:'', permission:'ro', persona:'', file_scope:'lib/**/*', quality_gates:'', tools:'read,glob' },
+      { id:'approver', name:'Approver', capability:'planner', model:'claude-opus-4-5', permission:'ro', persona:'', file_scope:'**/*', quality_gates:'', tools:'read,glob' },
+    ]
+  },
+  {
+    id:'tm-005', name:'dag-pipeline-v2', strategy:'dag', default_model:'claude-sonnet-4-5', cwd:'/projects/dag',
+    inserted_at:'2026-03-21T07:00:00Z',
+    agents: [
+      { slot:'coordinator', name:'coordinator', type_id:'at-6', capability:'coordinator', model:'claude-opus-4-5', permission:'admin', persona:'', file_scope:'**/*', quality_gates:'', tool_scope:'bash,read,mcp', canvas_x:240, canvas_y:40 },
+      { slot:'worker-1', name:'worker-1', type_id:'at-1', capability:'coder', model:'', permission:'rw', persona:'', file_scope:'lib/**/*', quality_gates:'mix compile', tool_scope:'bash,read,edit', canvas_x:80, canvas_y:140 },
+      { slot:'worker-2', name:'worker-2', type_id:'at-1', capability:'coder', model:'', permission:'rw', persona:'', file_scope:'lib/**/*', quality_gates:'mix compile', tool_scope:'bash,read,edit', canvas_x:400, canvas_y:140 },
+    ],
+    spawn_links: [
+      { from:'coordinator', to:'worker-1' },
+      { from:'coordinator', to:'worker-2' },
+    ],
+    comm_rules: [
+      { from:'coordinator', to:'worker-1', policy:'allow', via:null },
+      { from:'coordinator', to:'worker-2', policy:'allow', via:null },
+      { from:'worker-1', to:'coordinator', policy:'allow', via:null },
+      { from:'worker-2', to:'coordinator', policy:'allow', via:null },
+      { from:'worker-1', to:'worker-2', policy:'block', via:null },
+    ],
+    slots: [
+      { id:'coordinator', name:'Coordinator', capability:'coordinator', model:'claude-opus-4-5', permission:'admin', persona:'', file_scope:'**/*', quality_gates:'', tools:'bash,read,mcp' },
+      { id:'worker-1', name:'Worker 1', capability:'coder', model:'', permission:'rw', persona:'', file_scope:'lib/**/*', quality_gates:'mix compile', tools:'bash,read,edit' },
+      { id:'worker-2', name:'Worker 2', capability:'coder', model:'', permission:'rw', persona:'', file_scope:'lib/**/*', quality_gates:'mix compile', tools:'bash,read,edit' },
+    ]
+  },
+];
+
+// ═══════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════
+let state = {
+  teams: JSON.parse(JSON.stringify(TEAMS)),
+  agentTypes: JSON.parse(JSON.stringify(AGENT_TYPES)),
+  selectedTeamId: null,
+  selectedTypeId: null,
+  teamSearch: '',
+  typeSearch: '',
+  idCounter: 100,
+};
+
+function nextId(prefix) { return prefix + '-' + (++state.idCounter); }
+
+// ═══════════════════════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════════════════════
+function getSelectedTeam() {
+  return state.teams.find(t => t.id === state.selectedTeamId);
+}
+function getAgentType(id) {
+  return state.agentTypes.find(t => t.id === id);
+}
+function capClass(cap) {
+  const map = { planner:'planner', coder:'coder', reviewer:'reviewer', tester:'tester', writer:'writer', coordinator:'coordinator', analyst:'analyst', specialist:'specialist' };
+  return map[cap] || 'coder';
+}
+function strategyClass(s) {
+  const map = { sequential:'sequential', parallel:'parallel', dag:'dag', pipeline:'pipeline' };
+  return map[s] || 'sequential';
+}
+function showToast(msg, type='info') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'show toast-' + type;
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => t.className = '', 2000);
+}
+function getTeamColor(team) {
+  const colors = ['#6366f1','#a855f7','#22c55e','#f59e0b','#06b6d4','#f97316','#ec4899','#3b82f6'];
+  const idx = state.teams.indexOf(team) % colors.length;
+  return colors[idx < 0 ? 0 : idx];
+}
+
+// ═══════════════════════════════════════════════════════════
+// RENDER: TEAM BROWSER
+// ═══════════════════════════════════════════════════════════
+function renderTeamBrowser() {
+  const q = state.teamSearch.toLowerCase();
+  const list = document.getElementById('team-list');
+  const filtered = state.teams.filter(t => t.name.toLowerCase().includes(q));
+
+  list.innerHTML = filtered.map(t => `
+    <div class="team-item ${t.id === state.selectedTeamId ? 'selected' : ''}" onclick="selectTeam('${t.id}')">
+      <span class="team-item-indicator" style="background:${getTeamColor(t)}"></span>
+      <span class="team-item-name">${t.name}</span>
+      <span class="team-item-meta">
+        <span class="member-count">${t.agents.length}m</span>
+        <span style="font-size:9px;color:var(--text-muted)">${t.strategy}</span>
+      </span>
+    </div>
+  `).join('');
+
+  document.getElementById('team-count-badge').textContent = state.teams.length;
+  document.getElementById('topbar-team-count').textContent = state.teams.length + ' teams';
+
+  const deleteBtn = document.getElementById('delete-team-btn');
+  deleteBtn.disabled = !state.selectedTeamId;
+}
+
+function filterTeams(q) {
+  state.teamSearch = q;
+  renderTeamBrowser();
+}
+
+// ═══════════════════════════════════════════════════════════
+// SELECT TEAM
+// ═══════════════════════════════════════════════════════════
+function selectTeam(id) {
+  state.selectedTeamId = id;
+  renderTeamBrowser();
+  renderTeamDetail();
+}
+
+// ═══════════════════════════════════════════════════════════
+// RENDER: TEAM DETAIL
+// ═══════════════════════════════════════════════════════════
+function renderTeamDetail() {
+  const team = getSelectedTeam();
+  const noSel = document.getElementById('no-selection');
+  const inner = document.getElementById('team-detail-inner');
+
+  if (!team) {
+    noSel.style.display = 'flex';
+    inner.style.display = 'none';
+    updateLaunchPanel(null);
+    return;
+  }
+
+  noSel.style.display = 'none';
+  inner.style.display = 'flex';
+
+  // Header
+  document.getElementById('detail-team-name').childNodes[0].textContent = team.name + ' ';
+  document.getElementById('detail-team-id').textContent = team.id;
+  const sb = document.getElementById('detail-strategy-badge');
+  sb.textContent = team.strategy;
+  sb.className = 'strategy-badge ' + strategyClass(team.strategy);
+
+  // Config tab
+  document.getElementById('tc-name').value = team.name;
+  document.getElementById('tc-strategy').value = team.strategy;
+  document.getElementById('tc-model').value = team.default_model;
+  document.getElementById('tc-cwd').value = team.cwd || '';
+  document.getElementById('tc-id-display').value = team.id;
+  document.getElementById('tc-inserted').value = team.inserted_at ? new Date(team.inserted_at).toLocaleString() : '--';
+
+  renderMembersTable(team);
+  renderSlotsTable(team);
+  renderSpawnLinks(team);
+  renderCommRules(team);
+  updateSlotSelects(team);
+  updateLaunchPanel(team);
+}
+
+// ═══════════════════════════════════════════════════════════
+// RENDER: MEMBERS TABLE
+// ═══════════════════════════════════════════════════════════
+function renderMembersTable(team) {
+  const tbody = document.getElementById('members-tbody');
+  if (!team.agents.length) {
+    tbody.innerHTML = '<tr><td colspan="7" style="color:var(--text-muted);text-align:center;padding:16px;font-size:11px;">No members yet. Add one above.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = team.agents.map((a, i) => {
+    const type = getAgentType(a.type_id);
+    return `
+    <tr onclick="selectMemberRow(this)">
+      <td class="mono-id">${a.slot}</td>
+      <td>${a.name}</td>
+      <td>
+        ${type ? `<span class="color-swatch" style="background:${type.color}"></span>${type.name}` : '<span style="color:var(--text-muted)">--</span>'}
+      </td>
+      <td><span class="cap-badge ${capClass(a.capability)}">${a.capability}</span></td>
+      <td class="dim">${a.model || '<span style="color:var(--text-muted)">inherit</span>'}</td>
+      <td><span class="perm-badge ${a.permission}">${a.permission}</span></td>
+      <td>
+        <div class="table-actions">
+          <button class="btn btn-xs btn-danger" onclick="event.stopPropagation();removeMember(${i})">rm</button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+
+  // Populate member type dropdown
+  const sel = document.getElementById('m-type');
+  sel.innerHTML = '<option value="">-- select type --</option>' +
+    state.agentTypes.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+}
+
+function selectMemberRow(tr) {
+  document.querySelectorAll('#members-tbody tr').forEach(r => r.classList.remove('selected'));
+  tr.classList.add('selected');
+}
+
+// ═══════════════════════════════════════════════════════════
+// RENDER: SLOTS TABLE
+// ═══════════════════════════════════════════════════════════
+function renderSlotsTable(team) {
+  const tbody = document.getElementById('slots-tbody');
+  if (!team.slots || !team.slots.length) {
+    tbody.innerHTML = '<tr><td colspan="7" style="color:var(--text-muted);text-align:center;padding:16px;font-size:11px;">No agent slots defined.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = team.slots.map((s, i) => `
+    <tr>
+      <td class="mono-id">${s.id}</td>
+      <td>${s.name}</td>
+      <td><span class="cap-badge ${capClass(s.capability)}">${s.capability}</span></td>
+      <td class="dim">${s.model || '<span style="color:var(--text-muted)">inherit</span>'}</td>
+      <td><span class="perm-badge ${s.permission}">${s.permission}</span></td>
+      <td class="dim">${s.tools || '--'}</td>
+      <td>
+        <div class="table-actions">
+          <button class="btn btn-xs btn-danger" onclick="removeSlot(${i})">rm</button>
+        </div>
+      </td>
+    </tr>
+  `).join('');
+}
+
+// ═══════════════════════════════════════════════════════════
+// RENDER: SPAWN LINKS
+// ═══════════════════════════════════════════════════════════
+function renderSpawnLinks(team) {
+  const list = document.getElementById('spawn-links-list');
+  if (!team.spawn_links.length) {
+    list.innerHTML = '<p style="color:var(--text-muted);font-size:11px;padding:4px 0">No spawn links defined.</p>';
+  } else {
+    list.innerHTML = team.spawn_links.map((l, i) => `
+      <div class="link-item">
+        <span class="link-from">${l.from}</span>
+        <span class="link-arrow">&rarr;</span>
+        <span class="link-to">${l.to}</span>
+        <button class="btn btn-xs btn-danger" style="margin-left:auto" onclick="removeSpawnLink(${i})">rm</button>
+      </div>
+    `).join('');
+  }
+  renderTopologySVG(team);
+}
+
+// ═══════════════════════════════════════════════════════════
+// TOPOLOGY SVG
+// ═══════════════════════════════════════════════════════════
+function renderTopologySVG(team) {
+  const svg = document.getElementById('topology-svg');
+  const slots = team.slots || [];
+  const links = team.spawn_links || [];
+
+  if (!slots.length) { svg.innerHTML = '<text x="50%" y="50%" text-anchor="middle" fill="#3a3a55" font-size="11" font-family="monospace">no slots</text>'; return; }
+
+  const W = svg.parentElement.clientWidth - 16;
+  const H = 160;
+  const nodeW = 80, nodeH = 28;
+  const positions = {};
+
+  // Compute positions: distribute evenly
+  slots.forEach((s, i) => {
+    const x = (W / (slots.length + 1)) * (i + 1) - nodeW / 2;
+    const y = (H - nodeH) / 2;
+    positions[s.id] = { x, y };
+  });
+
+  // Override with canvas positions if agent has them
+  team.agents.forEach(a => {
+    if (positions[a.slot]) {
+      positions[a.slot] = { x: Math.min(a.canvas_x, W - nodeW), y: Math.min(a.canvas_y, H - nodeH) };
+    }
+  });
+
+  const CAP_COLORS = { planner:'#a855f7', coder:'#6366f1', reviewer:'#f59e0b', tester:'#22c55e', writer:'#06b6d4', coordinator:'#6366f1', analyst:'#f97316', specialist:'#ec4899' };
+
+  let arrowsHTML = links.map(l => {
+    const f = positions[l.from], t = positions[l.to];
+    if (!f || !t) return '';
+    const fx = f.x + nodeW / 2, fy = f.y + nodeH / 2;
+    const tx = t.x + nodeW / 2, ty = t.y + nodeH / 2;
+    return `<line x1="${fx}" y1="${fy}" x2="${tx}" y2="${ty}" stroke="#2a2a40" stroke-width="1.5" marker-end="url(#arrow)"/>`;
+  }).join('');
+
+  let nodesHTML = slots.map(s => {
+    const p = positions[s.id];
+    if (!p) return '';
+    const col = CAP_COLORS[s.capability] || '#6366f1';
+    return `
+      <rect x="${p.x}" y="${p.y}" width="${nodeW}" height="${nodeH}" fill="#11111a" stroke="${col}" stroke-width="1" rx="1"/>
+      <text x="${p.x + nodeW/2}" y="${p.y + 11}" text-anchor="middle" fill="${col}" font-size="9" font-family="monospace" font-weight="bold">${s.id}</text>
+      <text x="${p.x + nodeW/2}" y="${p.y + 22}" text-anchor="middle" fill="#5a5a7a" font-size="8" font-family="monospace">${s.capability}</text>
+    `;
+  }).join('');
+
+  svg.innerHTML = `
+    <defs>
+      <marker id="arrow" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+        <path d="M0,0 L0,6 L6,3 z" fill="#3a3a55"/>
+      </marker>
+    </defs>
+    ${arrowsHTML}
+    ${nodesHTML}
+  `;
+}
+
+// ═══════════════════════════════════════════════════════════
+// RENDER: COMM RULES
+// ═══════════════════════════════════════════════════════════
+function renderCommRules(team) {
+  const list = document.getElementById('comm-rules-list');
+  if (!team.comm_rules.length) {
+    list.innerHTML = '<p style="color:var(--text-muted);font-size:11px;padding:4px 0">No comm rules defined.</p>';
+  } else {
+    list.innerHTML = team.comm_rules.map((r, i) => {
+      const policyCol = r.policy === 'allow' ? 'var(--c-green)' : r.policy === 'block' ? 'var(--c-red)' : 'var(--c-amber)';
+      return `
+      <div class="link-item">
+        <span class="link-from">${r.from}</span>
+        <span class="link-arrow">&rarr;</span>
+        <span class="link-to">${r.to}</span>
+        <span class="link-policy" style="color:${policyCol}">${r.policy}</span>
+        ${r.via ? `<span class="link-via">via ${r.via}</span>` : ''}
+        <button class="btn btn-xs btn-danger" style="margin-left:8px" onclick="removeCommRule(${i})">rm</button>
+      </div>`;
+    }).join('');
+  }
+
+  // Render matrix
+  renderCommMatrix(team);
+}
+
+function renderCommMatrix(team) {
+  const wrap = document.getElementById('comm-matrix-wrap');
+  const slots = team.slots || [];
+  if (slots.length < 2) { wrap.innerHTML = '<p style="color:var(--text-muted);font-size:10px">Need 2+ slots for matrix</p>'; return; }
+
+  const ids = slots.map(s => s.id);
+  const ruleMap = {};
+  team.comm_rules.forEach(r => { ruleMap[r.from + ':' + r.to] = r; });
+
+  let html = '<table class="comm-matrix"><thead><tr><th>from \\ to</th>';
+  ids.forEach(id => { html += `<th>${id}</th>`; });
+  html += '</tr></thead><tbody>';
+
+  ids.forEach(from => {
+    html += `<tr><th>${from}</th>`;
+    ids.forEach(to => {
+      if (from === to) { html += '<td class="self-cell">&#x25A0;</td>'; return; }
+      const rule = ruleMap[from + ':' + to];
+      if (!rule) { html += '<td class="dim" style="color:var(--text-muted)">--</td>'; return; }
+      if (rule.policy === 'allow') html += '<td class="allowed">&#x2713;</td>';
+      else if (rule.policy === 'block') html += '<td class="blocked">&#x2717;</td>';
+      else html += `<td class="via-relay" title="via ${rule.via}">~</td>`;
+    });
+    html += '</tr>';
+  });
+
+  html += '</tbody></table>';
+  wrap.innerHTML = html;
+}
+
+// ═══════════════════════════════════════════════════════════
+// UPDATE SLOT SELECTS
+// ═══════════════════════════════════════════════════════════
+function updateSlotSelects(team) {
+  const slots = team.slots || [];
+  const opts = slots.map(s => `<option value="${s.id}">${s.id}</option>`).join('');
+  const noOpt = '<option value="">-- select slot --</option>';
+
+  ['lk-from','lk-to','cr-from','cr-to','cr-via'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+      if (id === 'cr-via') el.innerHTML = '<option value="">-- direct --</option>' + opts;
+      else el.innerHTML = noOpt + opts;
+    }
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
+// RENDER: AGENT TYPES
+// ═══════════════════════════════════════════════════════════
+function renderAgentTypes() {
+  const q = state.typeSearch.toLowerCase();
+  const list = document.getElementById('agent-types-list');
+  const filtered = state.agentTypes
+    .filter(t => t.name.toLowerCase().includes(q))
+    .sort((a,b) => a.sort_order - b.sort_order);
+
+  list.innerHTML = filtered.map(t => `
+    <div class="agent-type-row ${t.id === state.selectedTypeId ? 'selected' : ''}" onclick="selectAgentType('${t.id}')">
+      <span class="color-swatch" style="background:${t.color}"></span>
+      <span class="agent-type-name">${t.name}</span>
+      <span class="cap-badge ${capClass(t.capability)}" style="font-size:8px">${t.capability}</span>
+      <span class="agent-type-sort">${t.sort_order}</span>
+    </div>
+  `).join('');
+
+  document.getElementById('type-count-badge').textContent = state.agentTypes.length;
+  document.getElementById('topbar-type-count').textContent = state.agentTypes.length + ' agent types';
+}
+
+function filterTypes(q) {
+  state.typeSearch = q;
+  renderAgentTypes();
+}
+
+function selectAgentType(id) {
+  state.selectedTypeId = id;
+  renderAgentTypes();
+  const type = state.agentTypes.find(t => t.id === id);
+  if (!type) return;
+  document.getElementById('at-name').value = type.name;
+  document.getElementById('at-cap').value = type.capability;
+  document.getElementById('at-perm').value = type.default_permission;
+  document.getElementById('at-model').value = type.default_model;
+  document.getElementById('at-persona').value = type.default_persona;
+  document.getElementById('at-file-scope').value = type.default_file_scope;
+  document.getElementById('at-tools').value = type.default_tools;
+  document.getElementById('at-color').value = type.color;
+  document.getElementById('at-color-hex').value = type.color;
+  document.getElementById('at-sort').value = type.sort_order;
+  document.getElementById('at-editing-id').value = type.id;
+  document.getElementById('type-form-title').textContent = 'Edit: ' + type.name;
+  document.getElementById('delete-type-btn').style.display = 'inline-flex';
+}
+
+function clearTypeForm() {
+  state.selectedTypeId = null;
+  renderAgentTypes();
+  document.getElementById('agent-type-form').reset();
+  document.getElementById('at-color').value = '#6366f1';
+  document.getElementById('at-color-hex').value = '#6366f1';
+  document.getElementById('at-editing-id').value = '';
+  document.getElementById('type-form-title').textContent = 'New Agent Type';
+  document.getElementById('delete-type-btn').style.display = 'none';
+}
+
+function saveAgentType(e) {
+  e.preventDefault();
+  const editingId = document.getElementById('at-editing-id').value;
+  const data = {
+    name: document.getElementById('at-name').value.trim(),
+    capability: document.getElementById('at-cap').value,
+    default_permission: document.getElementById('at-perm').value,
+    default_model: document.getElementById('at-model').value.trim(),
+    default_persona: document.getElementById('at-persona').value.trim(),
+    default_file_scope: document.getElementById('at-file-scope').value.trim(),
+    default_tools: document.getElementById('at-tools').value.trim(),
+    color: document.getElementById('at-color-hex').value.trim() || document.getElementById('at-color').value,
+    sort_order: parseInt(document.getElementById('at-sort').value) || 0,
+  };
+  if (!data.name) { showToast('Name required', 'err'); return; }
+
+  if (editingId) {
+    const idx = state.agentTypes.findIndex(t => t.id === editingId);
+    if (idx >= 0) state.agentTypes[idx] = { ...state.agentTypes[idx], ...data };
+    showToast('Agent type updated: ' + data.name, 'ok');
+  } else {
+    state.agentTypes.push({ id: nextId('at'), ...data });
+    showToast('Agent type created: ' + data.name, 'ok');
+  }
+  renderAgentTypes();
+  clearTypeForm();
+}
+
+function deleteAgentType() {
+  const id = document.getElementById('at-editing-id').value;
+  if (!id) return;
+  const type = state.agentTypes.find(t => t.id === id);
+  if (!type) return;
+  state.agentTypes = state.agentTypes.filter(t => t.id !== id);
+  showToast('Deleted: ' + type.name, 'ok');
+  renderAgentTypes();
+  clearTypeForm();
+}
+
+// ═══════════════════════════════════════════════════════════
+// LAUNCH PANEL
+// ═══════════════════════════════════════════════════════════
+function updateLaunchPanel(team) {
+  const spawnBtn = document.getElementById('spawn-btn');
+  const step2 = document.getElementById('step-compile');
+  const step3 = document.getElementById('step-launch');
+
+  if (!team) {
+    document.getElementById('li-team').textContent = '--';
+    document.getElementById('li-members').textContent = '--';
+    document.getElementById('li-strategy').textContent = '--';
+    document.getElementById('li-model').textContent = '--';
+    spawnBtn.disabled = true;
+    step2.className = 'launch-step';
+    step3.className = 'launch-step';
+    return;
+  }
+
+  document.getElementById('li-team').textContent = team.name;
+  document.getElementById('li-members').textContent = team.agents.length;
+  document.getElementById('li-strategy').textContent = team.strategy;
+  document.getElementById('li-model').textContent = team.default_model;
+  spawnBtn.disabled = team.agents.length === 0;
+  step2.className = 'launch-step ' + (team.agents.length > 0 ? 'done' : '');
+  step3.className = 'launch-step ' + (team.agents.length > 0 ? 'active' : '');
+}
+
+function spawnTeam() {
+  const team = getSelectedTeam();
+  if (!team) return;
+  showToast('Spawning ' + team.name + '...', 'info');
+  setTimeout(() => {
+    showToast('Team ' + team.name + ' spawned (' + team.agents.length + ' agents)', 'ok');
+  }, 1200);
+}
+
+// ═══════════════════════════════════════════════════════════
+// TEAM CRUD
+// ═══════════════════════════════════════════════════════════
+function openCreateTeamModal() {
+  document.getElementById('team-modal-title').textContent = 'Create Team';
+  document.getElementById('create-team-modal').classList.add('open');
+}
+function closeCreateTeamModal() {
+  document.getElementById('create-team-modal').classList.remove('open');
+}
+function createTeam() {
+  const name = document.getElementById('ct-name').value.trim();
+  if (!name) { showToast('Name required', 'err'); return; }
+  const team = {
+    id: nextId('tm'),
+    name,
+    strategy: document.getElementById('ct-strategy').value,
+    default_model: document.getElementById('ct-model').value.trim() || 'claude-sonnet-4-5',
+    cwd: document.getElementById('ct-cwd').value.trim(),
+    inserted_at: new Date().toISOString(),
+    agents: [], spawn_links: [], comm_rules: [], slots: [],
+  };
+  state.teams.push(team);
+  closeCreateTeamModal();
+  selectTeam(team.id);
+  showToast('Team created: ' + name, 'ok');
+  document.getElementById('create-team-form').reset();
+}
+
+function openEditTeamModal() {
+  document.getElementById('team-modal-title').textContent = 'Edit Team';
+  document.getElementById('create-team-modal').classList.add('open');
+}
+
+function deleteSelectedTeam() {
+  const team = getSelectedTeam();
+  if (!team) return;
+  state.teams = state.teams.filter(t => t.id !== team.id);
+  state.selectedTeamId = null;
+  renderTeamBrowser();
+  renderTeamDetail();
+  showToast('Deleted: ' + team.name, 'ok');
+}
+
+function saveTeamConfig(e) {
+  e.preventDefault();
+  const team = getSelectedTeam();
+  if (!team) return;
+  team.name = document.getElementById('tc-name').value.trim();
+  team.strategy = document.getElementById('tc-strategy').value;
+  team.default_model = document.getElementById('tc-model').value.trim();
+  team.cwd = document.getElementById('tc-cwd').value.trim();
+  renderTeamBrowser();
+  renderTeamDetail();
+  showToast('Config saved', 'ok');
+}
+
+// ═══════════════════════════════════════════════════════════
+// MEMBER CRUD
+// ═══════════════════════════════════════════════════════════
+function openAddMemberModal() {
+  const form = document.getElementById('add-member-form');
+  form.classList.toggle('open');
+  // Populate type select
+  const team = getSelectedTeam();
+  if (team) {
+    const sel = document.getElementById('m-type');
+    sel.innerHTML = '<option value="">-- select type --</option>' +
+      state.agentTypes.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+  }
+}
+function closeMemberForm() {
+  document.getElementById('add-member-form').classList.remove('open');
+}
+function saveMember() {
+  const team = getSelectedTeam();
+  if (!team) return;
+  const name = document.getElementById('m-name').value.trim();
+  const slot = document.getElementById('m-slot').value.trim();
+  if (!name || !slot) { showToast('Name and slot required', 'err'); return; }
+  const typeId = document.getElementById('m-type').value;
+  const type = getAgentType(typeId);
+  team.agents.push({
+    slot, name,
+    type_id: typeId,
+    capability: document.getElementById('m-capability').value,
+    model: document.getElementById('m-model').value.trim() || (type ? type.default_model : ''),
+    permission: document.getElementById('m-permission').value,
+    persona: document.getElementById('m-persona').value.trim(),
+    extra_instructions: document.getElementById('m-extra').value.trim(),
+    file_scope: document.getElementById('m-file-scope').value.trim(),
+    quality_gates: document.getElementById('m-quality-gates').value.trim(),
+    tool_scope: type ? type.default_tools : '',
+    canvas_x: 100 + team.agents.length * 120,
+    canvas_y: 80,
+  });
+  closeMemberForm();
+  renderMembersTable(team);
+  updateLaunchPanel(team);
+  showToast('Member added: ' + name, 'ok');
+}
+function removeMember(i) {
+  const team = getSelectedTeam();
+  if (!team) return;
+  const name = team.agents[i].name;
+  team.agents.splice(i, 1);
+  renderMembersTable(team);
+  updateLaunchPanel(team);
+  showToast('Removed: ' + name, 'ok');
+}
+
+// ═══════════════════════════════════════════════════════════
+// SLOT CRUD
+// ═══════════════════════════════════════════════════════════
+function openAddSlotInline() {
+  document.getElementById('add-slot-form').classList.toggle('open');
+}
+function saveSlot() {
+  const team = getSelectedTeam();
+  if (!team) return;
+  const id = document.getElementById('sl-id').value.trim();
+  const name = document.getElementById('sl-name').value.trim();
+  if (!id || !name) { showToast('ID and name required', 'err'); return; }
+  if (!team.slots) team.slots = [];
+  team.slots.push({
+    id, name,
+    capability: document.getElementById('sl-cap').value,
+    model: document.getElementById('sl-model').value.trim(),
+    permission: document.getElementById('sl-perm').value,
+    persona: '',
+    file_scope: '',
+    quality_gates: '',
+    tools: document.getElementById('sl-tools').value.trim(),
+  });
+  document.getElementById('add-slot-form').classList.remove('open');
+  renderSlotsTable(team);
+  renderTopologySVG(team);
+  updateSlotSelects(team);
+  showToast('Slot added: ' + id, 'ok');
+}
+function removeSlot(i) {
+  const team = getSelectedTeam();
+  if (!team || !team.slots) return;
+  const id = team.slots[i].id;
+  team.slots.splice(i, 1);
+  renderSlotsTable(team);
+  renderTopologySVG(team);
+  updateSlotSelects(team);
+  showToast('Slot removed: ' + id, 'ok');
+}
+
+// ═══════════════════════════════════════════════════════════
+// SPAWN LINK CRUD
+// ═══════════════════════════════════════════════════════════
+function openAddLinkInline() {
+  const team = getSelectedTeam();
+  if (team) updateSlotSelects(team);
+  document.getElementById('add-link-form').classList.toggle('open');
+}
+function saveSpawnLink() {
+  const team = getSelectedTeam();
+  if (!team) return;
+  const from = document.getElementById('lk-from').value;
+  const to = document.getElementById('lk-to').value;
+  if (!from || !to) { showToast('Select from and to slots', 'err'); return; }
+  if (from === to) { showToast('From and to cannot be the same', 'err'); return; }
+  team.spawn_links.push({ from, to });
+  document.getElementById('add-link-form').classList.remove('open');
+  renderSpawnLinks(team);
+  showToast('Link added: ' + from + ' -> ' + to, 'ok');
+}
+function removeSpawnLink(i) {
+  const team = getSelectedTeam();
+  if (!team) return;
+  const l = team.spawn_links[i];
+  team.spawn_links.splice(i, 1);
+  renderSpawnLinks(team);
+  showToast('Link removed: ' + l.from + ' -> ' + l.to, 'ok');
+}
+
+// ═══════════════════════════════════════════════════════════
+// COMM RULE CRUD
+// ═══════════════════════════════════════════════════════════
+function openAddCommRule() {
+  const team = getSelectedTeam();
+  if (team) updateSlotSelects(team);
+  document.getElementById('add-comm-form').classList.toggle('open');
+}
+function saveCommRule() {
+  const team = getSelectedTeam();
+  if (!team) return;
+  const from = document.getElementById('cr-from').value;
+  const to = document.getElementById('cr-to').value;
+  const policy = document.getElementById('cr-policy').value;
+  const via = document.getElementById('cr-via').value || null;
+  if (!from || !to) { showToast('Select from and to', 'err'); return; }
+  if (from === to) { showToast('From and to cannot be same', 'err'); return; }
+  team.comm_rules.push({ from, to, policy, via });
+  document.getElementById('add-comm-form').classList.remove('open');
+  renderCommRules(team);
+  showToast('Comm rule added', 'ok');
+}
+function removeCommRule(i) {
+  const team = getSelectedTeam();
+  if (!team) return;
+  team.comm_rules.splice(i, 1);
+  renderCommRules(team);
+  showToast('Rule removed', 'ok');
+}
+
+// ═══════════════════════════════════════════════════════════
+// PRESET APPLICATION
+// ═══════════════════════════════════════════════════════════
+function applyPreset(name) {
+  const presets = {
+    empty: { name:'empty-team', strategy:'sequential', default_model:'claude-sonnet-4-5', cwd:'', agents:[], spawn_links:[], comm_rules:[], slots:[] },
+    mes: null, // use existing sample
+    pipeline: null,
+    solo: null,
+    review: null,
+    dag: null,
+  };
+
+  if (name === 'empty') {
+    const t = { ...presets.empty, id: nextId('tm'), inserted_at: new Date().toISOString() };
+    state.teams.push(t);
+    selectTeam(t.id);
+    showToast('Preset applied: empty', 'ok');
+    return;
+  }
+
+  // Find existing team matching preset
+  const teamMap = { mes:'mes-production-team', pipeline:'pipeline-3', solo:'solo-archon', review:'review-chain', dag:'dag-pipeline-v2' };
+  const teamName = teamMap[name];
+  const existing = state.teams.find(t => t.name === teamName);
+  if (existing) {
+    selectTeam(existing.id);
+    showToast('Preset loaded: ' + name, 'info');
+  } else {
+    showToast('Preset not found: ' + name, 'err');
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// SECTION TOGGLE
+// ═══════════════════════════════════════════════════════════
+function toggleSection(id) {
+  document.getElementById(id).classList.toggle('open');
+}
+
+// ═══════════════════════════════════════════════════════════
+// TAB SWITCHING
+// ═══════════════════════════════════════════════════════════
+function switchTab(name, btn) {
+  document.querySelectorAll('.detail-tab').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('pane-' + name).classList.add('active');
+}
+
+// ═══════════════════════════════════════════════════════════
+// COLOR SYNC
+// ═══════════════════════════════════════════════════════════
+document.getElementById('at-color').addEventListener('input', function() {
+  document.getElementById('at-color-hex').value = this.value;
+});
+
+// ═══════════════════════════════════════════════════════════
+// MODAL BACKDROP CLOSE
+// ═══════════════════════════════════════════════════════════
+document.getElementById('create-team-modal').addEventListener('click', function(e) {
+  if (e.target === this) closeCreateTeamModal();
+});
+
+// ═══════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════
+renderTeamBrowser();
+renderAgentTypes();
+// Select first team by default
+if (state.teams.length > 0) selectTeam(state.teams[0].id);
+</script>
+</body>
+</html>
