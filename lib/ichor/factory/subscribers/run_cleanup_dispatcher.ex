@@ -2,7 +2,7 @@ defmodule Ichor.Factory.Subscribers.RunCleanupDispatcher do
   @moduledoc """
   Factory subscriber for run cleanup signals emitted by TeamWatchdog.
 
-  Subscribes to the `:archon` signal category and reacts to
+  Subscribes to the `:cleanup` signal category and reacts to
   `:run_cleanup_needed` signals by inserting the appropriate Factory
   Oban worker jobs.  All Oban inserts are domain-local -- no cross-domain
   imports.
@@ -23,7 +23,7 @@ defmodule Ichor.Factory.Subscribers.RunCleanupDispatcher do
 
   @impl true
   def init(_opts) do
-    Signals.subscribe(:archon)
+    Signals.subscribe(:cleanup)
     {:ok, %{}}
   end
 

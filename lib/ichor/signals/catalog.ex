@@ -624,17 +624,22 @@ defmodule Ichor.Signals.Catalog do
       category: :pipeline,
       keys: [:run_id, :label, :reason],
       doc: "Pipeline run archived by watchdog after unexpected death"
+    },
+    pipeline_reconciled: %{
+      category: :pipeline,
+      keys: [:pipeline_id, :run_id, :action],
+      doc: "Pipeline reconciler took action on an orphaned pipeline (AD-8 safety net)"
     }
   }
 
   @archon_cleanup_defs %{
     run_cleanup_needed: %{
-      category: :archon,
+      category: :cleanup,
       keys: [:run_id, :action],
       doc: "TeamWatchdog detected a run needing cleanup; Oban worker reacts"
     },
     session_cleanup_needed: %{
-      category: :archon,
+      category: :cleanup,
       keys: [:session, :action],
       doc: "TeamWatchdog detected a session needing cleanup; Oban worker reacts"
     }

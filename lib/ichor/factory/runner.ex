@@ -14,7 +14,7 @@ defmodule Ichor.Factory.Runner do
 
   use GenServer, restart: :temporary
 
-  alias Ichor.Factory.{Pipeline, PipelineGraph, PipelineTask, RunRef}
+  alias Ichor.Factory.{Pipeline, PipelineGraph, PipelineTask, ResearchContext, RunRef}
   alias Ichor.Factory.Runner.{Exporter, HealthChecker, Modes}
   alias Ichor.Infrastructure.TeamLaunch
   alias Ichor.Infrastructure.Tmux.Launcher, as: TmuxLauncher
@@ -298,8 +298,18 @@ defmodule Ichor.Factory.Runner do
     team_name =
       get_in(state.config, [Access.key(:hooks), Access.key(:team_name)]) || state.session
 
+    research_context = %{
+      open_gaps: ResearchContext.open_gaps(),
+      existing_plugins: ResearchContext.existing_plugins(),
+      dead_zones: ResearchContext.dead_zones(),
+      pain_points: ResearchContext.pain_points()
+    }
+
     spec =
-      TeamSpec.build(:mes, state.run_id, team_name, prompt_module: Ichor.Workshop.TeamPrompts)
+      TeamSpec.build(:mes, state.run_id, team_name,
+        prompt_module: Ichor.Workshop.TeamPrompts,
+        research_context: research_context
+      )
 
     case mes_team_launch().launch(spec) do
       {:ok, _session} ->

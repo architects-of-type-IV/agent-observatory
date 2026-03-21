@@ -37,7 +37,7 @@ defmodule Ichor.Signals.AgentWatchdog do
   #   count: integer,
   #   sessions: %{session_id => %{last_event_at: DateTime, team_name: string | nil}},
   #   escalations: %{session_id => %{level: integer, last_nudge_at: DateTime, stale_since: DateTime}},
-  #   captures: %{tmux_target => string},
+  #   captures: %{tmux_target => {session_id, string}},
   #   signals: %{{session_id, :done | :blocked} => string}
   # }
 
@@ -347,10 +347,12 @@ defmodule Ichor.Signals.AgentWatchdog do
   end
 
   defp scan_agent(agent, tmux_target, capture_fn, state) do
+    session_id = agent[:session_id] || agent[:id]
+
     case capture_fn.(tmux_target) do
       {:ok, output} ->
-        prev_output = Map.get(state.captures, tmux_target, "")
-        state = put_in(state.captures[tmux_target], output)
+        {_prev_session_id, prev_output} = Map.get(state.captures, tmux_target, {session_id, ""})
+        state = put_in(state.captures[tmux_target], {session_id, output})
         new_lines = PaneScanner.diff_output(prev_output, output)
 
         if new_lines != "" do
@@ -428,7 +430,7 @@ defmodule Ichor.Signals.AgentWatchdog do
   defp drop_session_state(state, session_id) do
     captures =
       state.captures
-      |> Enum.reject(fn {target, _output} -> target == session_id end)
+      |> Enum.reject(fn {_target, {sid, _output}} -> sid == session_id end)
       |> Map.new()
 
     signals =

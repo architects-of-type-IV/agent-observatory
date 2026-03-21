@@ -26,6 +26,7 @@ defmodule Ichor.Workshop.TeamSpec do
   @spec build(:mes, String.t(), String.t(), keyword()) :: Spec.t()
   def build(:mes, run_id, team_name, opts) do
     prompt_mod = Keyword.get(opts, :prompt_module, TeamPrompts)
+    research_context = Keyword.get(opts, :research_context, %{})
     session = session_name(run_id)
     roster = TeamPrompts.roster(session)
     state = mes_state(team_name)
@@ -35,7 +36,9 @@ defmodule Ichor.Workshop.TeamSpec do
       session: session,
       prompt_dir: prompt_dir(:mes, run_id),
       team_metadata: %{run_id: run_id, source: :mes, team_template: mes_team_name()},
-      prompt_builder: fn agent, _state -> mes_prompt(prompt_mod, agent, run_id, roster) end,
+      prompt_builder: fn agent, _state ->
+        mes_prompt(prompt_mod, agent, run_id, roster, research_context)
+      end,
       agent_metadata_builder: fn agent, state -> mes_agent_meta(agent, state, run_id) end,
       window_name_builder: & &1.name,
       agent_id_builder: fn agent, _win, session -> "#{session}-#{agent.name}" end
@@ -182,13 +185,13 @@ defmodule Ichor.Workshop.TeamSpec do
     Application.get_env(:ichor, :mes_workshop_team_name, "mes")
   end
 
-  defp mes_prompt(prompt_mod, agent, run_id, roster) do
+  defp mes_prompt(prompt_mod, agent, run_id, roster, context) do
     case agent.name do
       "coordinator" -> prompt_mod.coordinator(run_id, roster)
-      "lead" -> prompt_mod.lead(run_id, roster)
-      "planner" -> prompt_mod.planner(run_id, roster)
-      "researcher-1" -> prompt_mod.researcher_1(run_id, roster)
-      "researcher-2" -> prompt_mod.researcher_2(run_id, roster)
+      "lead" -> prompt_mod.lead(run_id, roster, context)
+      "planner" -> prompt_mod.planner(run_id, roster, context)
+      "researcher-1" -> prompt_mod.researcher_1(run_id, roster, context)
+      "researcher-2" -> prompt_mod.researcher_2(run_id, roster, context)
       other -> "You are #{other} for MES run #{run_id}.\n\n#{roster}"
     end
   end

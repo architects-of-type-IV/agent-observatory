@@ -79,7 +79,8 @@ config :ichor, Oban,
        {"* * * * *", Ichor.Factory.Workers.MesTick},
        {"* * * * *", Ichor.Factory.Workers.HealthCheckWorker},
        {"* * * * *", Ichor.Factory.Workers.ProjectDiscoveryWorker},
-       {"*/5 * * * *", Ichor.Factory.Workers.OrphanSweepWorker}
+       {"*/5 * * * *", Ichor.Factory.Workers.OrphanSweepWorker},
+       {"*/5 * * * *", Ichor.Factory.Workers.PipelineReconcilerWorker}
      ]}
   ],
   queues: [

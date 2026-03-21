@@ -3,7 +3,6 @@ defmodule Ichor.Workshop.TeamPrompts do
   Pure prompt builders for MES team roles.
   """
 
-  alias Ichor.Factory.ResearchContext
   alias Ichor.Workshop.PromptProtocol
 
   @spec roster(String.t()) :: String.t()
@@ -86,8 +85,8 @@ defmodule Ichor.Workshop.TeamPrompts do
     """
   end
 
-  @spec lead(String.t(), String.t()) :: String.t()
-  def lead(run_id, roster) do
+  @spec lead(String.t(), String.t(), map()) :: String.t()
+  def lead(run_id, roster, context) do
     """
     You are the MES Lead (active dispatcher) for manufacturing run #{run_id}.
     Your session_id is: mes-#{run_id}-lead
@@ -130,13 +129,13 @@ defmodule Ichor.Workshop.TeamPrompts do
 
     1. from: "mes-#{run_id}-lead", to: "mes-#{run_id}-researcher-1"
        content: "START NOW. Research ONE of these open gaps:
-    #{ResearchContext.open_gaps()}
+    #{context.open_gaps}
     Pick the domain you find most promising. Do max 3 web searches.
     Send your proposal to mes-#{run_id}-lead when done."
 
     2. from: "mes-#{run_id}-lead", to: "mes-#{run_id}-researcher-2"
        content: "START NOW. Research a DIFFERENT open gap than researcher-1 will cover:
-    #{ResearchContext.open_gaps()}
+    #{context.open_gaps}
     Pick a different angle. Do max 3 web searches.
     Send your proposal to mes-#{run_id}-lead when done."
 
@@ -180,8 +179,8 @@ defmodule Ichor.Workshop.TeamPrompts do
     """
   end
 
-  @spec planner(String.t(), String.t()) :: String.t()
-  def planner(run_id, roster) do
+  @spec planner(String.t(), String.t(), map()) :: String.t()
+  def planner(run_id, roster, context) do
     """
     You are the MES Planner for manufacturing run #{run_id}.
     Your session_id is: mes-#{run_id}-planner
@@ -223,7 +222,7 @@ defmodule Ichor.Workshop.TeamPrompts do
     You MUST call send_message to deliver this. Do NOT just write the brief as text output.
 
     EXISTING PLUGINS (do NOT brief any of these):
-    #{ResearchContext.existing_plugins()}
+    #{context.existing_plugins}
 
     DO NOT produce a brief for any plugin listed above. If the winning proposal
     duplicates an existing plugin, reject it and ask lead for the next-best proposal.
@@ -237,8 +236,8 @@ defmodule Ichor.Workshop.TeamPrompts do
     """
   end
 
-  @spec researcher_1(String.t(), String.t()) :: String.t()
-  def researcher_1(run_id, roster) do
+  @spec researcher_1(String.t(), String.t(), map()) :: String.t()
+  def researcher_1(run_id, roster, context) do
     """
     You are MES Researcher-1 for manufacturing run #{run_id}.
     Your session_id is: mes-#{run_id}-researcher-1
@@ -271,7 +270,7 @@ defmodule Ichor.Workshop.TeamPrompts do
     - LiveView dashboard: real-time UI on port 4005
 
     OPEN GAPS (what the system cannot do yet):
-    #{ResearchContext.open_gaps()}
+    #{context.open_gaps}
 
     YOUR JOB: Find a gap and fill it. Build the bridge between what
     the system CAN observe internally and what it CANNOT do externally.
@@ -285,18 +284,18 @@ defmodule Ichor.Workshop.TeamPrompts do
     ============================================================
     EXISTING PLUGINS (do NOT duplicate)
     ============================================================
-    #{ResearchContext.existing_plugins()}
+    #{context.existing_plugins}
 
     ============================================================
     DEAD ZONES -- DO NOT PROPOSE ANY VARIANT OF THESE
     ============================================================
-    #{ResearchContext.dead_zones()}
+    #{context.dead_zones}
 
     ============================================================
     REAL PROBLEMS THE OPERATOR WANTS SOLVED
     ============================================================
     These are actual pain points. Propose something that solves one:
-    #{ResearchContext.pain_points()}
+    #{context.pain_points}
     These are examples, not requirements. Solve any real problem.
 
     ============================================================
@@ -369,8 +368,8 @@ defmodule Ichor.Workshop.TeamPrompts do
     """
   end
 
-  @spec researcher_2(String.t(), String.t()) :: String.t()
-  def researcher_2(run_id, roster) do
+  @spec researcher_2(String.t(), String.t(), map()) :: String.t()
+  def researcher_2(run_id, roster, context) do
     """
     You are MES Researcher-2 for manufacturing run #{run_id}.
     Your session_id is: mes-#{run_id}-researcher-2
@@ -388,20 +387,20 @@ defmodule Ichor.Workshop.TeamPrompts do
     SQLite persistence, LiveView dashboard.
 
     OPEN GAPS (what the system cannot do yet):
-    #{ResearchContext.open_gaps()}
+    #{context.open_gaps}
 
     EXISTING PLUGINS (do NOT duplicate):
-    #{ResearchContext.existing_plugins()}
+    #{context.existing_plugins}
 
     ============================================================
     DEAD ZONES -- REJECT ANY PROPOSAL IN THESE AREAS
     ============================================================
-    #{ResearchContext.dead_zones()}
+    #{context.dead_zones}
 
     ============================================================
     REAL PROBLEMS TO SOLVE
     ============================================================
-    #{ResearchContext.pain_points()}
+    #{context.pain_points}
 
     ============================================================
     WHAT MAKES A GOOD PLUGIN
