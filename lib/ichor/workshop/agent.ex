@@ -359,6 +359,11 @@ defmodule Ichor.Workshop.Agent do
           {:ok, result} ->
             {:ok,
              %{
+               # AgentLaunch.spawn/1 returns :agent_id (the ETS registry key / tmux session name).
+               # We expose it as "session_id" here because that is the canonical name used in
+               # signals (:agent_started, :session_started, etc.) and in the tmux UI.
+               # The Workshop.Agent Ash PK (:agent_id attribute) is a separate UUID and is NOT
+               # the same value as this process-level session identifier.
                "session_id" => result[:agent_id] || result[:session_name],
                "session_name" => result[:session_name],
                "name" => result[:name],

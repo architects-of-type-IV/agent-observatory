@@ -2,7 +2,7 @@ defmodule Ichor.Factory.Workers.MesTick do
   @moduledoc "Oban cron worker that spawns MES planning runs on a 1-minute schedule."
   use Oban.Worker, queue: :scheduled, max_attempts: 1, unique: [period: 50]
 
-  alias Ichor.Factory.Runner
+  alias Ichor.Factory.{RunRef, Runner}
   alias Ichor.Signals
 
   @max_concurrent 1
@@ -40,7 +40,7 @@ defmodule Ichor.Factory.Workers.MesTick do
 
   defp spawn_run do
     run_id = :crypto.strong_rand_bytes(4) |> Base.encode16(case: :lower)
-    team_name = "mes-#{run_id}"
+    team_name = RunRef.session_name(RunRef.new(:mes, run_id))
 
     case Runner.start(:mes, run_id: run_id, team_name: team_name) do
       {:ok, _pid} ->

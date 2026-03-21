@@ -15,6 +15,7 @@ defmodule Ichor.Workshop.TeamSpec do
     - prompt_root_dir(:mes) | prompt_root_dir(:pipeline) | prompt_root_dir(:planning)
   """
 
+  alias Ichor.Factory.RunRef
   alias Ichor.Infrastructure.AgentSpec
   alias Ichor.Infrastructure.TeamSpec, as: Spec
   alias Ichor.Workshop.{CanvasState, PipelinePrompts, Presets, Team, TeamPrompts}
@@ -74,7 +75,7 @@ defmodule Ichor.Workshop.TeamSpec do
 
   @doc "Returns the tmux session name for a MES run."
   @spec session_name(String.t()) :: String.t()
-  def session_name(run_id), do: "mes-#{run_id}"
+  def session_name(run_id), do: RunRef.session_name(RunRef.new(:mes, run_id))
 
   # Pipeline
 

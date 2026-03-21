@@ -25,6 +25,7 @@ defmodule Ichor.Factory.Spawn do
     Pipeline,
     PipelineTask,
     Project,
+    RunRef,
     Runner,
     Validator,
     WorkerGroups
@@ -42,7 +43,7 @@ defmodule Ichor.Factory.Spawn do
   @spec spawn(:pipeline, String.t(), String.t()) ::
           {:ok, %{session: String.t(), run: map()}} | {:error, term()}
   def spawn(:pipeline, project_id, _selected_project_id) do
-    session = "pipeline-#{short_id()}"
+    session = RunRef.new(:pipeline, short_id()) |> RunRef.session_name()
     brief = load_project_brief(project_id)
 
     with {:ok, project} <- Project.get(project_id),
@@ -167,7 +168,14 @@ defmodule Ichor.Factory.Spawn do
   def kill_session(session) do
     Signals.emit(:mes_team_killed, %{session: session})
     _ = cleanup_module().kill_session(session)
-    cleanup_prompt_files(String.replace_prefix(session, "mes-", ""))
+
+    run_id =
+      case RunRef.parse(session) do
+        {:ok, %RunRef{run_id: id}} -> id
+        :error -> session
+      end
+
+    cleanup_prompt_files(run_id)
     :ok
   end
 
@@ -237,7 +245,7 @@ defmodule Ichor.Factory.Spawn do
   def orphaned_team_names(active_teams, team_entries) do
     team_entries
     |> Enum.map(fn {name, _meta} -> name end)
-    |> Enum.filter(&String.starts_with?(&1, "mes-"))
+    |> Enum.filter(&mes_session?/1)
     |> Enum.reject(&MapSet.member?(active_teams, &1))
   end
 
@@ -245,7 +253,7 @@ defmodule Ichor.Factory.Spawn do
   @spec orphaned_sessions(MapSet.t(String.t()), [String.t()]) :: [String.t()]
   def orphaned_sessions(active_teams, sessions) do
     sessions
-    |> Enum.filter(&String.starts_with?(&1, "mes-"))
+    |> Enum.filter(&mes_session?/1)
     |> Enum.reject(&MapSet.member?(active_teams, &1))
   end
 
@@ -291,6 +299,13 @@ defmodule Ichor.Factory.Spawn do
 
   defp tmux_launcher do
     Application.get_env(:ichor, :mes_tmux_launcher_module, Ichor.Infrastructure.Tmux.Launcher)
+  end
+
+  defp mes_session?(name) do
+    case RunRef.parse(name) do
+      {:ok, %RunRef{kind: :mes}} -> true
+      _ -> false
+    end
   end
 
   defp short_id, do: :crypto.strong_rand_bytes(4) |> Base.encode16(case: :lower)

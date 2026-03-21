@@ -38,6 +38,10 @@ defmodule Ichor.Workshop.AgentLookup do
   @doc false
   @spec build_agent_match(String.t(), String.t(), map()) :: map()
   def build_agent_match(agent_id, name, meta) do
+    # :agent_id here is the ETS registry key (typically the tmux session name or a short ID),
+    # used as a lookup handle. :session_id is the canonical process identifier stored in the
+    # agent entry by AgentEntry.new/1. In practice they are usually the same value, but
+    # :session_id may be a full UUID while :agent_id is the abbreviated form used for routing.
     %{
       agent_id: agent_id,
       session_id: meta[:session_id] || agent_id,

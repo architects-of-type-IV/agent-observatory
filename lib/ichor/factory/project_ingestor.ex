@@ -18,6 +18,7 @@ defmodule Ichor.Factory.ProjectIngestor do
 
   alias Ichor.Factory.Project
   alias Ichor.Signals
+  alias Ichor.Workshop.AgentId
 
   @required_keys ~w(title description plugin signal_interface)
   @all_keys ~w(title description plugin signal_interface topic version
@@ -43,7 +44,7 @@ defmodule Ichor.Factory.ProjectIngestor do
       :skip ->
         from = get_in(data, [:msg_map, :from]) || ""
 
-        if String.starts_with?(from, "mes-") do
+        if match?({:ok, %AgentId{kind: :mes}}, AgentId.parse(from)) do
           Logger.debug(
             "[ProjectIngestor] Skipped MES message from #{from}: missing required fields"
           )
@@ -60,7 +61,7 @@ defmodule Ichor.Factory.ProjectIngestor do
        when is_binary(content) do
     from = msg[:from] || ""
 
-    if String.starts_with?(from, "mes-") do
+    if match?({:ok, %AgentId{kind: :mes}}, AgentId.parse(from)) do
       extract_from_content(content, from)
     else
       :skip
@@ -186,9 +187,9 @@ defmodule Ichor.Factory.ProjectIngestor do
   defp maybe_put(map, key, value), do: Map.put(map, key, value)
 
   defp extract_run_id(from_session) do
-    case Regex.run(~r/^mes-([^-]+)/, from_session) do
-      [_, run_id] -> run_id
-      _ -> from_session
+    case AgentId.run_id(from_session) do
+      {:ok, run_id} -> run_id
+      :error -> from_session
     end
   end
 
@@ -212,7 +213,7 @@ defmodule Ichor.Factory.ProjectIngestor do
         plugin: payload["plugin"],
         signal_interface: payload["signal_interface"],
         run_id: run_id,
-        team_name: "mes-#{run_id}"
+        team_name: AgentId.build(:mes, run_id, "coordinator") |> AgentId.format()
       }
       |> maybe_put(:topic, payload["topic"])
       |> maybe_put(:version, payload["version"])

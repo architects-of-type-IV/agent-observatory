@@ -10,6 +10,7 @@ defmodule Ichor.Archon.TeamWatchdog do
   alias Ichor.Operator.Inbox
   alias Ichor.Signals
   alias Ichor.Signals.Message
+  alias Ichor.Workshop.AgentId
 
   @type action ::
           {:archive_run, String.t()}
@@ -58,24 +59,30 @@ defmodule Ichor.Archon.TeamWatchdog do
   end
 
   # Fleet team disbanded -- check if it was a pipeline team that didn't complete
-  defp react(:team_disbanded, %{team_name: "pipeline-" <> _ = session}, state) do
-    if Enum.any?(state.completed_runs, &String.contains?(session, &1)) do
-      {[:noop], state}
+  defp react(:team_disbanded, %{team_name: session}, state) do
+    if match?({:ok, %AgentId{kind: :pipeline}}, AgentId.parse(session)) do
+      if Enum.any?(state.completed_runs, &String.contains?(session, &1)) do
+        {[:noop], state}
+      else
+        {[{:notify_operator, "Pipeline team #{session} disbanded without completion."}], state}
+      end
     else
-      {[{:notify_operator, "Pipeline team #{session} disbanded without completion."}], state}
+      {[:noop], state}
     end
   end
 
   # Agent stopped -- if it's a coordinator/lead, the team is headless
   defp react(:agent_stopped, %{session_id: id, role: role}, state)
        when role in [:coordinator, :lead] do
-    case extract_pipeline_session(id) do
-      nil ->
-        {[:noop], state}
+    case AgentId.parse(id) do
+      {:ok, %AgentId{kind: :pipeline, run_id: run_id}} ->
+        session = "pipeline-#{run_id}"
 
-      session ->
         {[{:notify_operator, "Pipeline #{role} #{id} stopped. Team #{session} may be headless."}],
          state}
+
+      _ ->
+        {[:noop], state}
     end
   end
 
@@ -114,15 +121,6 @@ defmodule Ichor.Archon.TeamWatchdog do
       {:notify_operator, "Run #{session} cleaned up: #{reason}."}
     ]
   end
-
-  defp extract_pipeline_session("pipeline-" <> _ = id) do
-    case String.split(id, "-", parts: 3) do
-      ["pipeline", hex, _role] -> "pipeline-#{hex}"
-      _ -> nil
-    end
-  end
-
-  defp extract_pipeline_session(_), do: nil
 
   defp dispatch(:noop), do: :ok
 

@@ -14,7 +14,7 @@ defmodule Ichor.Factory.Runner do
 
   use GenServer, restart: :temporary
 
-  alias Ichor.Factory.{Pipeline, PipelineGraph, PipelineTask}
+  alias Ichor.Factory.{Pipeline, PipelineGraph, PipelineTask, RunRef}
   alias Ichor.Factory.Runner.{Exporter, HealthChecker, Modes}
   alias Ichor.Infrastructure.TeamLaunch
   alias Ichor.Infrastructure.Tmux.Launcher, as: TmuxLauncher
@@ -111,12 +111,13 @@ defmodule Ichor.Factory.Runner do
   @doc "Returns the via-tuple for Registry-based name lookup."
   @spec via(:mes | :planning | :pipeline, String.t()) ::
           {:via, Registry, {Ichor.Registry, {atom(), String.t()}}}
-  def via(kind, run_id), do: {:via, Registry, {Ichor.Registry, {registry_key(kind), run_id}}}
+  def via(kind, run_id),
+    do: {:via, Registry, {Ichor.Registry, {RunRef.registry_key(kind), run_id}}}
 
   @doc "Returns the pid for the given kind and run_id if alive, or nil."
   @spec lookup(:mes | :planning | :pipeline, String.t()) :: pid() | nil
   def lookup(kind, run_id) do
-    case Registry.lookup(Ichor.Registry, {registry_key(kind), run_id}) do
+    case Registry.lookup(Ichor.Registry, {RunRef.registry_key(kind), run_id}) do
       [{pid, _}] -> pid
       [] -> nil
     end
@@ -125,7 +126,7 @@ defmodule Ichor.Factory.Runner do
   @doc "Lists all active run IDs and PIDs for the given kind."
   @spec list_all(:mes | :planning | :pipeline) :: [{String.t(), pid()}]
   def list_all(kind) do
-    key = registry_key(kind)
+    key = RunRef.registry_key(kind)
 
     Registry.select(Ichor.Registry, [
       {{{key, :"$1"}, :"$2", :_}, [], [{{:"$1", :"$2"}}]}
@@ -136,7 +137,7 @@ defmodule Ichor.Factory.Runner do
   @spec start(:mes | :planning | :pipeline, keyword()) ::
           {:ok, pid()} | {:error, term()}
   def start(kind, opts) do
-    supervisor = supervisor_for(kind)
+    supervisor = RunRef.supervisor(kind)
     DynamicSupervisor.start_child(supervisor, {__MODULE__, [kind: kind] ++ opts})
   end
 
@@ -423,15 +424,7 @@ defmodule Ichor.Factory.Runner do
   # Core GenServer helpers
   # ---------------------------------------------------------------------------
 
-  defp registry_key(:mes), do: :run
-  defp registry_key(:planning), do: :planning_run
-  defp registry_key(:pipeline), do: :pipeline_run
-
-  defp supervisor_for(:mes), do: Ichor.Factory.BuildRunSupervisor
-  defp supervisor_for(:planning), do: Ichor.Factory.PlanRunSupervisor
-  defp supervisor_for(:pipeline), do: Ichor.Factory.DynRunSupervisor
-
-  defp session_for(:mes, run_id, _opts), do: "mes-#{run_id}"
+  defp session_for(:mes, run_id, _opts), do: RunRef.session_name(RunRef.new(:mes, run_id))
 
   defp session_for(_kind, _run_id, opts) do
     case Keyword.get(opts, :team_spec) do

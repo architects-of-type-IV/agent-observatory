@@ -3,7 +3,7 @@ defmodule Ichor.Factory.Floor do
 
   use Ash.Resource, domain: Ichor.Factory
 
-  alias Ichor.Factory.{Board, MesScheduler, Runner, Spawn}
+  alias Ichor.Factory.{Board, MesScheduler, RunRef, Runner, Spawn}
   alias Ichor.Workshop.ActiveTeam
 
   actions do
@@ -96,7 +96,7 @@ defmodule Ichor.Factory.Floor do
 
             %{
               "run_id" => run_id,
-              "team" => "mes-#{run_id}",
+              "team" => RunRef.session_name(RunRef.new(:mes, run_id)),
               "alive" => Process.alive?(pid),
               "past_deadline" => deadline_passed
             }

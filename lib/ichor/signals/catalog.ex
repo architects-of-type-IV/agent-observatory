@@ -63,6 +63,12 @@ defmodule Ichor.Signals.Catalog do
       doc: "Run process terminated (any kind: mes, planning, pipeline)"
     },
     hosts_changed: %{category: :fleet, keys: [], doc: "Cluster node joined/departed"},
+    # NOTE: :agent_id key here is intentionally named differently from :session_id used in
+    # agent lifecycle signals (:agent_started, :agent_stopped, etc.). In agent lifecycle signals
+    # :session_id is the canonical process identifier. Here :agent_id is the ETS registry key
+    # that changed. No current consumers read this key (both dashboard_info_handlers and the
+    # signal renderer react to the signal name only), so renaming would be safe but low-value.
+    # Tracked as AD-7. If a consumer ever needs to read this field, standardise to :session_id.
     fleet_changed: %{category: :fleet, keys: [:agent_id], doc: "Agent Registry metadata changed"},
     heartbeat: %{category: :system, keys: [:count], doc: "Monotonic counter every 5s"},
     registry_changed: %{category: :system, keys: [], doc: "Agent registry modified"},

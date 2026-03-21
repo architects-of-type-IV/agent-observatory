@@ -16,7 +16,7 @@ defmodule Ichor.Factory.Runner.Modes do
   - `:pipeline_on_complete`  — `fn state -> :ok end`
   """
 
-  alias Ichor.Factory.Runner.Mode
+  alias Ichor.Factory.{RunRef, Runner.Mode}
   alias Ichor.Signals
 
   @doc """
@@ -30,7 +30,7 @@ defmodule Ichor.Factory.Runner.Modes do
   def build(kind, run_id, opts, runner_hooks \\ %{})
 
   def build(:mes, run_id, opts, runner_hooks) do
-    team_name = Keyword.get(opts, :team_name, "mes-#{run_id}")
+    team_name = Keyword.get(opts, :team_name, RunRef.session_name(RunRef.new(:mes, run_id)))
 
     %Mode{
       kind: :mes,
