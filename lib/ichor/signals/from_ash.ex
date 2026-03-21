@@ -38,6 +38,12 @@ defmodule Ichor.Signals.FromAsh do
   defp signal_for(Ichor.Factory.Project, :create), do: {:project_created, &project_data/2}
   defp signal_for(Ichor.Factory.Project, :advance), do: {:project_advanced, &project_data/2}
 
+  defp signal_for(Ichor.Factory.Project, :add_artifact),
+    do: {:project_artifact_created, &project_id_data/2}
+
+  defp signal_for(Ichor.Factory.Project, :add_roadmap_item),
+    do: {:project_roadmap_item_created, &project_id_data/2}
+
   defp signal_for(Ichor.Factory.Project, :pick_up), do: {:mes_project_picked_up, &project_data/2}
 
   defp signal_for(Ichor.Factory.Project, :mark_compiled),
@@ -86,6 +92,10 @@ defmodule Ichor.Signals.FromAsh do
 
   defp run_archive_data(data, _action) do
     %{run_id: data.id, label: data.label, reason: "notifier"}
+  end
+
+  defp project_id_data(data, _action) do
+    %{project_id: data.id}
   end
 
   defp project_data(data, %{name: name}) when name in [:create, :advance] do

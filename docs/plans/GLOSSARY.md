@@ -61,13 +61,13 @@ Related: [Database Schema](../diagrams/database-schema.md) | [Architecture Diagr
 | **Run** | A single execution of a planning mode or pipeline. Has a `run_id`, a `kind`, and a lifecycle | A project (a project can have many runs) |
 | **Pipeline** | An Ash resource tracking a pipeline execution run. One per build attempt | A Unix pipeline or data pipeline |
 | **PipelineTask** | An Ash resource representing one task in a pipeline. Has status, owner, dependencies | A background job (PipelineTasks are tracked units of work for agents, not Oban jobs) |
-| **PipelineMonitor** | GenServer that polls external `tasks.jsonl` files and computes board state | A health monitor (it tracks task status from files, not agent health) |
+| **PipelineQuery** | Pure module that reads `tasks.jsonl` and computes board state on demand. Replaced PipelineMonitor GenServer | A GenServer (PipelineQuery has no process; LiveView calls it directly) |
 
 ## Technical Concepts
 
 | Term | Definition | Not to be confused with |
 |------|-----------|----------------------|
-| **TeamSpec** | A compiled runtime launch contract. Contains agent specs, prompts, metadata, session config | A team definition (the Team Ash resource is the design; TeamSpec is the compiled-for-launch artifact) |
+| **TeamSpec** | A compiled runtime launch contract. Contains agent specs, prompts, metadata, session config. Accepts `prompt_module` opt for strategy injection (AD-6) | A team definition (the Team Ash resource is the design; TeamSpec is the compiled-for-launch artifact) |
 | **AgentSpec** | A single agent's launch specification within a TeamSpec | An agent type (AgentType is a template; AgentSpec is a concrete launch instruction) |
 | **CanvasState** | The Workshop canvas state: agent positions, spawn links, comm rules. Used to compile TeamSpecs | The UI state (CanvasState is the data model, not the React/LiveView component state) |
 | **Preset** | A named team template (e.g., "mes", "pipeline", "review"). Pre-configured team designs | A default value (presets are full team configurations, not single-field defaults) |
@@ -92,7 +92,18 @@ Related: [Database Schema](../diagrams/database-schema.md) | [Architecture Diagr
 | **AgentProcess** | GenServer representing a live agent in the BEAM. Holds mailbox, backend, status | The Claude process (AgentProcess is the BEAM side; the Claude agent runs in tmux) |
 | **TeamLaunch** | Infrastructure module that executes a TeamSpec: writes scripts, creates tmux, registers agents | Workshop.Spawn (TeamLaunch is the infrastructure execution; Spawn is the domain orchestrator) |
 | **Registry** | `Ichor.Registry` -- Elixir Registry for agent process lookup by ID | A service registry or DNS |
-| **Board** | File-backed task board (`tasks.jsonl`). Used by PipelineMonitor for external project interop | Dashboard (the Board is the data; the Dashboard is the UI) |
+| **Board** | File-backed task board (`tasks.jsonl`). Used by PipelineQuery for external project interop | Dashboard (the Board is the data; the Dashboard is the UI) |
+| **SessionLifecycle** | Infrastructure subscriber that reacts to session/team signals by spawning/terminating fleet processes | AgentWatchdog (SessionLifecycle handles fleet mutations; AgentWatchdog monitors health) |
+| **RunCleanupDispatcher** | Factory subscriber that bridges `:run_cleanup_needed` signals to Oban cleanup workers | TeamWatchdog (the dispatcher inserts jobs; TeamWatchdog emits signals) |
+| **SessionCleanupDispatcher** | Infrastructure subscriber that bridges `:session_cleanup_needed` signals to Oban cleanup workers | SessionLifecycle (different concern: lifecycle vs cleanup) |
+
+## Implemented (formerly planned)
+
+| Term | Definition |
+|------|-----------|
+| **RunRef** | `Ichor.Factory.RunRef` -- plain struct with `parse/1`, `session_name/1`, `registry_key/1`, `supervisor/1`. Replaces 5x3 clause trees and string parsing across 7 files (AD-7) |
+| **AgentId** | `Ichor.Workshop.AgentId` -- plain struct with `parse/1`, `format/1`, `build/3`. Parses session ID strings like `"mes-abc123-coordinator"` into `%{kind, run_id, role}` (AD-7) |
+| **Operator.Inbox** | `Ichor.Operator.Inbox` -- owns `~/.claude/inbox/` write path with schema. Single write authority (A3) |
 
 ## Planned
 
@@ -100,6 +111,19 @@ Related: [Database Schema](../diagrams/database-schema.md) | [Architecture Diagr
 |------|-----------|
 | **Discovery** | `Ichor.Discovery` -- will expose all Ash actions grouped by Domain for dynamic workflow composition through the UI |
 | **Workflow** | A user-composed pipeline of Ash actions, built in the UI by piping action outputs to action inputs |
-| **Operator.Inbox** | Planned module to own the `~/.claude/inbox/` notification directory with schema and write path |
-| **RunSpec** | Planned value object replacing bare `run_id`/`kind`/`session` strings scattered across modules |
-| **AgentId** | Planned value object replacing bare session ID strings with structured parse/format |
+
+## Oban Workers
+
+| Worker | Queue | Schedule | Purpose |
+|--------|-------|----------|---------|
+| **MesTick** | scheduled | cron 1m | MES planning run scheduler tick |
+| **ScheduledJob** | scheduled | on-demand | Fires a scheduled job signal for agents |
+| **WebhookDeliveryWorker** | webhooks | on-demand | HTTP POST with HMAC, exponential backoff, max 5 attempts |
+| **ArchiveRunWorker** | maintenance | on-demand | Archives completed pipeline run (AD-8 cleanup) |
+| **ResetRunTasksWorker** | maintenance | on-demand | Resets in_progress tasks for a failed run (AD-8 cleanup) |
+| **DisbandTeamWorker** | maintenance | on-demand | Disbands team supervisor (AD-8 cleanup) |
+| **KillSessionWorker** | maintenance | on-demand | Kills tmux session (AD-8 cleanup) |
+| **HealthCheckWorker** | maintenance | cron 1m | Runs health check script, emits :pipeline_health_report |
+| **ProjectDiscoveryWorker** | maintenance | cron 1m | Scans for tasks.jsonl files, emits :pipeline_status |
+| **OrphanSweepWorker** | maintenance | cron 5m | Cleans up orphaned teams with no live agents |
+| **PipelineReconcilerWorker** | maintenance | cron 5m | AD-8 safety net: archives pipelines stuck in :active with no Runner |

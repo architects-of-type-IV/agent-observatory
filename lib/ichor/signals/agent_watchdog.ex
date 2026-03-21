@@ -235,7 +235,6 @@ defmodule Ichor.Signals.AgentWatchdog do
   defp maybe_unpause(session_id, _entry) do
     case HITLRelay.unpause(session_id, session_id, "ichor-auto") do
       {:ok, _} -> :ok
-      {:error, _} -> :ok
     end
   catch
     :exit, _ -> :ok
