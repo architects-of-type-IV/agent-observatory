@@ -1,4 +1,4 @@
-defmodule Ichor.Signals.EventBridge do
+defmodule Ichor.Mesh.EventBridge do
   @moduledoc """
   Bridges the events:stream into gateway:messages by transforming
   persisted event records into DecisionLog format.
@@ -50,7 +50,7 @@ defmodule Ichor.Signals.EventBridge do
     {:noreply, state}
   end
 
-  def handle_info(%{event: "dag_delta", session_id: session_id}, state) do
+  def handle_info(%Message{name: :dag_delta, data: %{session_id: session_id}}, state) do
     state = put_in(state.last_seen[session_id], System.monotonic_time(:second))
 
     case CausalDAG.get_session_dag(session_id) do
@@ -74,7 +74,7 @@ defmodule Ichor.Signals.EventBridge do
       |> Enum.map(&elem(&1, 0))
 
     Enum.each(stale_sids, fn sid ->
-      Phoenix.PubSub.unsubscribe(Ichor.PubSub, "session:dag:#{sid}")
+      Ichor.Signals.unsubscribe(:dag_delta, sid)
     end)
 
     new_last_event = Map.drop(state.last_event, stale_sids)
@@ -285,7 +285,7 @@ defmodule Ichor.Signals.EventBridge do
     if MapSet.member?(sessions, session_id) do
       state
     else
-      Phoenix.PubSub.subscribe(Ichor.PubSub, "session:dag:#{session_id}")
+      Ichor.Signals.subscribe(:dag_delta, session_id)
       %{state | dag_sessions: MapSet.put(sessions, session_id)}
     end
   end

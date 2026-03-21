@@ -18,7 +18,7 @@ defmodule Ichor.Mesh.Supervisor do
   def init(_opts) do
     children = [
       {Ichor.Mesh.CausalDAG, []},
-      {Ichor.Signals.EventBridge, []}
+      {Ichor.Mesh.EventBridge, []}
     ]
 
     Supervisor.init(children, strategy: :rest_for_one, max_restarts: 5, max_seconds: 60)
