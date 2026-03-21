@@ -14,46 +14,53 @@ defmodule Ichor.Infrastructure.Workers.ScheduledJob do
         args: %{"job_id" => job_id, "agent_id" => agent_id, "payload" => payload}
       }) do
     case CronJob.get(job_id) do
-      {:ok, %{is_one_time: true} = job} ->
-        case CronJob.complete(job) do
-          {:ok, _} ->
-            Ichor.Signals.emit(:scheduled_job, agent_id, %{agent_id: agent_id, payload: payload})
-            :ok
+      {:ok, %{is_one_time: true} = job} -> perform_one_time(job, job_id, agent_id, payload)
+      {:ok, job} -> perform_recurring(job, job_id, agent_id, payload)
+      {:error, _} -> :ok
+    end
+  end
 
-          {:error, reason} ->
-            Logger.warning("ScheduledJob: failed to complete #{job_id}: #{inspect(reason)}")
-            {:error, reason}
-        end
+  defp perform_one_time(job, job_id, agent_id, payload) do
+    case CronJob.complete(job) do
+      {:ok, _} ->
+        Ichor.Signals.emit(:scheduled_job, agent_id, %{agent_id: agent_id, payload: payload})
+        :ok
 
-      {:ok, job} ->
-        next_fire_at = CronSchedule.next_recurrence(@recurring_interval_ms)
+      {:error, reason} ->
+        Logger.warning("ScheduledJob: failed to complete #{job_id}: #{inspect(reason)}")
+        {:error, reason}
+    end
+  end
 
-        case CronJob.reschedule(job, next_fire_at) do
-          {:ok, _} ->
-            Ichor.Signals.emit(:scheduled_job, agent_id, %{agent_id: agent_id, payload: payload})
-            delay_seconds = div(@recurring_interval_ms, 1000)
+  defp perform_recurring(job, job_id, agent_id, payload) do
+    next_fire_at = CronSchedule.next_recurrence(@recurring_interval_ms)
 
-            case %{"job_id" => job_id, "agent_id" => agent_id, "payload" => payload}
-                 |> __MODULE__.new(schedule_in: delay_seconds)
-                 |> Oban.insert() do
-              {:ok, _} ->
-                :ok
+    case CronJob.reschedule(job, next_fire_at) do
+      {:ok, _} ->
+        Ichor.Signals.emit(:scheduled_job, agent_id, %{agent_id: agent_id, payload: payload})
+        enqueue_next_recurring(job_id, agent_id, payload)
 
-              {:error, reason} ->
-                Logger.warning(
-                  "ScheduledJob: Oban insert failed for #{job_id}: #{inspect(reason)}. " <>
-                    "DB rescheduled; recover_jobs will re-enqueue on restart."
-                )
+      {:error, reason} ->
+        Logger.warning("ScheduledJob: failed to reschedule #{job_id}: #{inspect(reason)}")
+        {:error, reason}
+    end
+  end
 
-                :ok
-            end
+  defp enqueue_next_recurring(job_id, agent_id, payload) do
+    delay_seconds = div(@recurring_interval_ms, 1000)
 
-          {:error, reason} ->
-            Logger.warning("ScheduledJob: failed to reschedule #{job_id}: #{inspect(reason)}")
-            {:error, reason}
-        end
+    case %{"job_id" => job_id, "agent_id" => agent_id, "payload" => payload}
+         |> __MODULE__.new(schedule_in: delay_seconds)
+         |> Oban.insert() do
+      {:ok, _} ->
+        :ok
 
-      {:error, _} ->
+      {:error, reason} ->
+        Logger.warning(
+          "ScheduledJob: Oban insert failed for #{job_id}: #{inspect(reason)}. " <>
+            "DB rescheduled; recover_jobs will re-enqueue on restart."
+        )
+
         :ok
     end
   end

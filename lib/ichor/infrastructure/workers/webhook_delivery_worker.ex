@@ -28,33 +28,43 @@ defmodule Ichor.Infrastructure.Workers.WebhookDeliveryWorker do
 
     case delivery_fn().(delivery.target_url, body: delivery.payload, headers: headers) do
       {:ok, %{status: status}} when status >= 200 and status < 300 ->
-        case WebhookDelivery.mark_delivered(delivery) do
-          {:ok, _} -> :ok
-          {:error, reason} -> {:error, "mark_delivered failed: #{inspect(reason)}"}
-        end
+        handle_delivered(delivery)
 
       error ->
-        new_count = delivery.attempt_count + 1
+        handle_failed(delivery, attempt, error)
+    end
+  end
 
-        if new_count >= 5 do
-          case WebhookDelivery.mark_dead(delivery, %{attempt_count: new_count}) do
-            {:ok, _} -> :ok
-            {:error, reason} -> {:error, "mark_dead failed: #{inspect(reason)}"}
-          end
-        else
-          next_backoff = Enum.at(@backoff_seconds, attempt - 1, 21_600)
+  defp handle_delivered(delivery) do
+    case WebhookDelivery.mark_delivered(delivery) do
+      {:ok, _} -> :ok
+      {:error, reason} -> {:error, "mark_delivered failed: #{inspect(reason)}"}
+    end
+  end
 
-          next_retry =
-            DateTime.utc_now() |> DateTime.add(next_backoff) |> DateTime.truncate(:second)
+  defp handle_failed(delivery, attempt, error) do
+    new_count = delivery.attempt_count + 1
 
-          case WebhookDelivery.schedule_retry(delivery, %{
-                 attempt_count: new_count,
-                 next_retry_at: next_retry
-               }) do
-            {:ok, _} -> {:error, "delivery failed: #{inspect(error)}"}
-            {:error, reason} -> {:error, "schedule_retry failed: #{inspect(reason)}"}
-          end
-        end
+    if new_count >= 5 do
+      case WebhookDelivery.mark_dead(delivery, %{attempt_count: new_count}) do
+        {:ok, _} -> :ok
+        {:error, reason} -> {:error, "mark_dead failed: #{inspect(reason)}"}
+      end
+    else
+      schedule_retry(delivery, attempt, new_count, error)
+    end
+  end
+
+  defp schedule_retry(delivery, attempt, new_count, error) do
+    next_backoff = Enum.at(@backoff_seconds, attempt - 1, 21_600)
+    next_retry = DateTime.utc_now() |> DateTime.add(next_backoff) |> DateTime.truncate(:second)
+
+    case WebhookDelivery.schedule_retry(delivery, %{
+           attempt_count: new_count,
+           next_retry_at: next_retry
+         }) do
+      {:ok, _} -> {:error, "delivery failed: #{inspect(error)}"}
+      {:error, reason} -> {:error, "schedule_retry failed: #{inspect(reason)}"}
     end
   end
 
