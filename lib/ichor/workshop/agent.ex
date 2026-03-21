@@ -7,6 +7,8 @@ defmodule Ichor.Workshop.Agent do
   This is the canonical entry point for all agent operations.
   """
 
+  import Ichor.Util, only: [maybe_put: 3]
+
   use Ash.Resource, domain: Ichor.Workshop
 
   alias Ichor.Infrastructure.AgentLaunch
@@ -72,7 +74,9 @@ defmodule Ichor.Workshop.Agent do
 
       run(fn _input, _context ->
         {:ok,
-         active!()
+         __MODULE__
+         |> Ash.Query.for_read(:active)
+         |> Ash.read!()
          |> Enum.map(fn agent ->
            %{
              "id" => agent.agent_id,
@@ -398,11 +402,10 @@ defmodule Ichor.Workshop.Agent do
     TeamSupervisor.spawn_member(team_name, opts)
   end
 
-  defp maybe_put(map, _key, nil), do: map
-  defp maybe_put(map, key, value), do: Map.put(map, key, value)
-
   defp find_agent(query) when is_binary(query) do
-    all!()
+    __MODULE__
+    |> Ash.Query.for_read(:all)
+    |> Ash.read!()
     |> Enum.find(fn agent ->
       agent.agent_id == query or agent.session_id == query or
         agent.short_name == query or agent.name == query

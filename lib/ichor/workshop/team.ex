@@ -78,12 +78,6 @@ defmodule Ichor.Workshop.Team do
       require_atomic?(false)
     end
 
-    read :by_id do
-      argument(:id, :uuid, allow_nil?: false)
-      get?(true)
-      filter(expr(id == ^arg(:id)))
-    end
-
     read :by_name do
       argument(:name, :string, allow_nil?: false)
       get?(true)
@@ -108,7 +102,7 @@ defmodule Ichor.Workshop.Team do
     define(:read)
     define(:update)
     define(:destroy)
-    define(:by_id, args: [:id])
+    define(:by_id, action: :read, get_by: [:id])
     define(:by_name, args: [:name])
     define(:list_all)
     define(:spawn_team, args: [:name])

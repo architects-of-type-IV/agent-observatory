@@ -153,12 +153,6 @@ defmodule Ichor.Workshop.TeamMember do
       ])
     end
 
-    read :by_id do
-      argument(:id, :uuid, allow_nil?: false)
-      get?(true)
-      filter(expr(id == ^arg(:id)))
-    end
-
     read :for_team do
       argument(:team_id, :uuid, allow_nil?: false)
       filter(expr(team_id == ^arg(:team_id)))
@@ -176,7 +170,7 @@ defmodule Ichor.Workshop.TeamMember do
     define(:create)
     define(:update)
     define(:destroy)
-    define(:by_id, args: [:id])
+    define(:by_id, action: :read, get_by: [:id])
     define(:for_team, args: [:team_id])
     define(:for_team_with_type, args: [:team_id])
   end

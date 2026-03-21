@@ -110,12 +110,6 @@ defmodule Ichor.Workshop.AgentType do
       ])
     end
 
-    read :by_id do
-      argument(:id, :uuid, allow_nil?: false)
-      get?(true)
-      filter(expr(id == ^arg(:id)))
-    end
-
     read :sorted do
       prepare(build(sort: [sort_order: :asc, name: :asc]))
     end
@@ -130,7 +124,7 @@ defmodule Ichor.Workshop.AgentType do
     define(:read)
     define(:update)
     define(:destroy)
-    define(:by_id, args: [:id])
+    define(:by_id, action: :read, get_by: [:id])
     define(:sorted)
   end
 end

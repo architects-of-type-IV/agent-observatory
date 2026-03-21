@@ -44,7 +44,9 @@ defmodule Ichor.Workshop.ActiveTeam do
 
       run(fn _input, _context ->
         {:ok,
-         alive!()
+         __MODULE__
+         |> Ash.Query.for_read(:alive)
+         |> Ash.read!()
          |> Enum.map(fn team ->
            %{
              "name" => team.name,
