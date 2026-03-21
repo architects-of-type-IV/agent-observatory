@@ -84,7 +84,7 @@ That includes:
 
 - `mesh:dag_delta`
 - `Ichor.Mesh.CausalDag`
-- `Ichor.Signals.EventBridge`
+- `Ichor.Mesh.EventBridge`
 
 This is separate from the `Pipeline` / `PipelineTask` execution model in
 Factory.
