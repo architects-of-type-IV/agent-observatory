@@ -16,7 +16,7 @@ defmodule Ichor.Factory.Runner.Modes do
   - `:pipeline_on_complete`  — `fn state -> :ok end`
   """
 
-  alias Ichor.Factory.{RunRef, Runner.Mode}
+  alias Ichor.Factory.{Runner.Mode, RunRef}
   alias Ichor.Signals
 
   @doc """

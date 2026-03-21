@@ -25,8 +25,8 @@ defmodule Ichor.Factory.Spawn do
     Pipeline,
     PipelineTask,
     Project,
-    RunRef,
     Runner,
+    RunRef,
     Validator,
     WorkerGroups
   }

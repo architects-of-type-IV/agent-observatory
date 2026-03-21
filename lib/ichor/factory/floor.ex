@@ -3,7 +3,7 @@ defmodule Ichor.Factory.Floor do
 
   use Ash.Resource, domain: Ichor.Factory
 
-  alias Ichor.Factory.{Board, MesScheduler, RunRef, Runner, Spawn}
+  alias Ichor.Factory.{Board, MesScheduler, Runner, RunRef, Spawn}
   alias Ichor.Workshop.ActiveTeam
 
   actions do

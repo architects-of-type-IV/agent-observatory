@@ -2,7 +2,7 @@ defmodule Ichor.Factory.Workers.MesTick do
   @moduledoc "Oban cron worker that spawns MES planning runs on a 1-minute schedule."
   use Oban.Worker, queue: :scheduled, max_attempts: 1, unique: [period: 50]
 
-  alias Ichor.Factory.{RunRef, Runner}
+  alias Ichor.Factory.{Runner, RunRef}
   alias Ichor.Signals
 
   @max_concurrent 1
