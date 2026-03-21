@@ -111,9 +111,9 @@ defmodule IchorWeb.Components.MesComponents do
           class="inline-block w-1.5 h-1.5 rounded-full bg-brand animate-pulse"
         />
         <span :if={@paused} class="inline-block w-1.5 h-1.5 rounded-full bg-warning" />
-        <span class="font-mono text-[10px]">Tick {@scheduler_status.tick}</span>
-        <span class="text-muted">|</span>
-        <span :if={!@paused}>{@scheduler_status.active_runs} active</span>
+        <span :if={!@paused} class="font-mono text-[10px]">
+          {@scheduler_status.active_runs} active
+        </span>
         <span :if={@paused} class="text-warning">Paused</span>
       </div>
 
