@@ -104,6 +104,11 @@
 - [x] Frontend dead code removal: 8 files deleted, 15+ dead functions removed (2026-03-21)
 - [x] Migration: removed task_count from pipelines (computed from tasks now)
 - [x] New: SyncRunner notifier, AgentLookup utility module
+- [x] Full code review: 20 findings fixed (7 critical, 13 high) (2026-03-21)
+  - 4 security: jq injection, shell injection, path traversal, CSV injection
+  - 6 backend crashes: bare matches, bang calls, contract violations
+  - 5 frontend crashes: LiveView stream guard, error clauses, logging
+  - 5 reliability: unbounded memory, blocking boot, tombstone signals
 - [ ] Redesign: vertical slices + Ash domains (target ~55 files)
 - [ ] Oban worker migration (5 strong candidates)
 - [ ] ichor_contracts cleanup (stale beam files)

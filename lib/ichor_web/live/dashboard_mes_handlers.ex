@@ -67,9 +67,14 @@ defmodule IchorWeb.DashboardMesHandlers do
       {:ok, tasks} ->
         jsonl = PipelineCompiler.to_jsonl_string(tasks)
         tasks_path = Path.join(File.cwd!(), "tasks.jsonl")
-        File.write!(tasks_path, jsonl <> "\n", [:append])
-        Signals.emit(:mes_pipeline_generated, %{project_id: project_id})
-        put_flash(socket, :info, "DAG generated: #{length(tasks)} tasks appended to tasks.jsonl")
+        case File.write(tasks_path, jsonl <> "\n", [:append]) do
+          :ok ->
+            Signals.emit(:mes_pipeline_generated, %{project_id: project_id})
+            put_flash(socket, :info, "DAG generated: #{length(tasks)} tasks appended to tasks.jsonl")
+
+          {:error, reason} ->
+            put_flash(socket, :error, "Could not write tasks.jsonl: #{inspect(reason)}")
+        end
 
       {:error, reason} ->
         put_flash(socket, :error, "DAG generation failed: #{inspect(reason)}")

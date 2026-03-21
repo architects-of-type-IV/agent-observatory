@@ -25,11 +25,15 @@ defmodule IchorWeb.EventController do
       os_pid: os_pid
     }
 
-    {:ok, event} = EventStream.ingest_raw(event_attrs)
-
-    conn
-    |> put_status(:created)
-    |> json(%{ok: true, id: event.id})
+    try do
+      {:ok, event} = EventStream.ingest_raw(event_attrs)
+      conn |> put_status(:created) |> json(%{ok: true, id: event.id})
+    rescue
+      e ->
+        conn
+        |> put_status(:unprocessable_entity)
+        |> json(%{ok: false, error: Exception.message(e)})
+    end
   end
 
   defp extract_envelope(%{"raw" => raw} = params) do

@@ -67,7 +67,12 @@ defmodule Ichor.Factory.Board do
       |> Enum.filter(&String.ends_with?(&1, ".json"))
       |> Enum.map(&read_task_or_nil(team_dir, &1))
       |> Enum.reject(&is_nil/1)
-      |> Enum.sort_by(fn task -> String.to_integer(task["id"]) end)
+      |> Enum.sort_by(fn task ->
+        case Integer.parse(task["id"] || "") do
+          {n, _} -> n
+          :error -> 0
+        end
+      end)
     else
       []
     end
@@ -83,10 +88,11 @@ defmodule Ichor.Factory.Board do
         team_dir
         |> File.ls!()
         |> Enum.filter(&String.ends_with?(&1, ".json"))
-        |> Enum.map(fn file ->
-          file
-          |> String.replace_suffix(".json", "")
-          |> String.to_integer()
+        |> Enum.flat_map(fn file ->
+          case Integer.parse(String.replace_suffix(file, ".json", "")) do
+            {n, ""} -> [n]
+            _ -> []
+          end
         end)
         |> Enum.max(fn -> 0 end)
 

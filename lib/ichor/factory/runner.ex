@@ -234,8 +234,15 @@ defmodule Ichor.Factory.Runner do
   @impl true
   def handle_cast({:command, name, args}, state) do
     case get_in(state.config, [Access.key(:commands), name]) do
-      nil -> {:noreply, state}
-      fun -> apply(fun, [state | args])
+      nil ->
+        {:noreply, state}
+
+      fun ->
+        case apply(fun, [state | args]) do
+          {:noreply, new_state} -> {:noreply, new_state}
+          new_state when is_map(new_state) -> {:noreply, new_state}
+          _ -> {:noreply, state}
+        end
     end
   end
 

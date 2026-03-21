@@ -52,8 +52,12 @@ defmodule Ichor.Signals.EventStream do
   @spec ingest_raw(map()) :: {:ok, map()}
   def ingest_raw(raw_map) when is_map(raw_map) do
     {:ok, event} = ingest(raw_map)
-    Signals.emit(:new_event, %{event: event})
-    ingest_event(event)
+
+    unless tombstoned?(event.session_id) do
+      Signals.emit(:new_event, %{event: event})
+      ingest_event(event)
+    end
+
     {:ok, event}
   end
 

@@ -1,22 +1,28 @@
 # BRAIN -- Session Knowledge
 
 ## AshSqlite Aggregate Limitation
-AshSqlite's `can?/2` returns `false` for `{:aggregate_relationship, _}`. The `aggregates do count end` block is NOT supported by the SQLite data layer. Workaround: compute counts from fetched records in the action's run function.
+AshSqlite's `can?/2` returns `false` for `{:aggregate_relationship, _}`. Aggregates block is NOT supported. Workaround: compute counts from fetched records.
 
 ## AshSqlite ALTER COLUMN Limitation
-SQLite does not support ALTER COLUMN. Migrations that add NOT NULL constraints to existing columns via `modify :col, :type, null: false` will fail with `(ArgumentError) ALTER COLUMN not supported by SQLite3`. For `allow_nil?(false)` on existing attributes, either: (1) remove the modify from the migration (enforce at Ash level only), or (2) recreate the table.
+SQLite does not support ALTER COLUMN. Remove `modify` lines from auto-generated migrations for allow_nil? changes. Enforce at Ash level only.
 
 ## Ash Notifier Data Availability
-When converting `Signals.emit` from action bodies to notifiers, the notification only contains the result record and changeset. If the signal needs data that exists only as local variables in the action body (e.g., a newly-constructed embedded resource's ID before it's persisted as part of an array), the notifier cannot extract it without diffing arrays. Use TODO + comment when this happens.
+Notifiers receive the result record and changeset. Data existing only as local variables in action bodies (e.g., newly-constructed embedded resource IDs) cannot be extracted without array diffing. Use TODO when this blocks notifier conversion.
 
-## Inline Pattern (Control Wrappers)
-When inlining a module that is itself used by another module being inlined, handle the dependency chain in the right order: inline the leaf first, then the intermediate.
-
-## format hook / alias sorting side-effect
-The mix format hook re-sorts aliases alphabetically when it fires after an Edit. Trust the file state after hook fires.
-
-## set_attribute with MFA vs attribute defaults
-`set_attribute(:status, :pending)` in a create action is redundant when the attribute already has `default(:pending)`. Ash applies attribute defaults automatically. Only use `set_attribute` in create actions when the value differs from the default or is dynamic.
+## set_attribute vs attribute defaults
+`set_attribute(:status, :pending)` in create is redundant when attribute has `default(:pending)`. Ash applies defaults automatically.
 
 ## require_atomic?(false) triggers
-Only fn-based changes (`change fn changeset, _ ->`) and function-capture changes (`set_attribute(:field, &Module.fun/0)`) require `require_atomic?(false)`. DSL builtins like `set_attribute(:field, value)` and `atomic_update` are atomic-safe.
+Only fn-based changes and function-capture changes require it. DSL builtins (`set_attribute`, `atomic_update`) are atomic-safe.
+
+## jq Injection Prevention
+Never interpolate external values into jq program strings. Use `--arg` flags: `["--arg", "tid", task_id, "--arg", "ow", new_owner]` with `$tid` / `$ow` in the jq expression.
+
+## Shell Script Sanitization
+Agent names flow into shell scripts via tmux. Always sanitize: `String.replace(name, ~r/[^a-zA-Z0-9_-]/, "")` and single-quote paths in shell scripts.
+
+## Elixir 1.19 Typing and Dead Error Clauses
+Elixir 1.19's type system flags `{:error, _}` clauses as "will never match" when the function spec only declares `{:ok, _}`. Use `try/rescue` instead of `case` when the function can only raise (not return error tuples) but you want graceful degradation.
+
+## ETS Reads Outside GenServer
+`:public` ETS reads from non-owning processes are safe for concurrent reads but may see partial state during concurrent writes. For snapshot consistency, route through `GenServer.call`. For best-effort, document the staleness risk.

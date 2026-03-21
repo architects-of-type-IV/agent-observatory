@@ -302,8 +302,12 @@ defmodule Ichor.Infrastructure.AgentProcess do
   end
 
   defp route_message(message, state) do
-    if state.backend, do: deliver_to_backend(state.backend, message)
-    %{state | unread: [message | state.unread]}
+    if state.backend do
+      deliver_to_backend(state.backend, message)
+      state
+    else
+      %{state | unread: [message | state.unread]}
+    end
   end
 
   defp normalize_message(msg, to) when is_map(msg) do

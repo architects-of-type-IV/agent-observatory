@@ -9,9 +9,11 @@ defmodule Ichor.Infrastructure.Tmux.Script do
   @spec write_agent_files(String.t(), String.t(), String.t(), String.t(), String.t()) ::
           {:ok, map()} | {:error, term()}
   def write_agent_files(base_dir, file_name, prompt, model, capability) do
+    safe_name = sanitize_name(file_name)
+
     with :ok <- File.mkdir_p(base_dir),
-         prompt_path <- Path.join(base_dir, "#{file_name}.txt"),
-         script_path <- Path.join(base_dir, "#{file_name}.sh"),
+         prompt_path <- Path.join(base_dir, "#{safe_name}.txt"),
+         script_path <- Path.join(base_dir, "#{safe_name}.sh"),
          :ok <- File.write(prompt_path, prompt),
          script = render_script(prompt_path, model, capability),
          :ok <- File.write(script_path, script),
@@ -33,8 +35,10 @@ defmodule Ichor.Infrastructure.Tmux.Script do
   @doc "Remove the .txt and .sh files for a single agent from `base_dir`. Idempotent."
   @spec cleanup_agent_files(String.t(), String.t()) :: :ok
   def cleanup_agent_files(base_dir, file_name) do
+    safe_name = sanitize_name(file_name)
+
     Enum.each([".txt", ".sh"], fn ext ->
-      path = Path.join(base_dir, "#{file_name}#{ext}")
+      path = Path.join(base_dir, "#{safe_name}#{ext}")
       if File.exists?(path), do: File.rm(path)
     end)
   end
@@ -47,6 +51,10 @@ defmodule Ichor.Infrastructure.Tmux.Script do
       |> Helpers.add_permission_args(capability)
       |> Enum.join(" ")
 
-    "#!/bin/sh\ncat #{prompt_path} | env -u CLAUDECODE claude #{cli_args}\n"
+    "#!/bin/sh\ncat '#{prompt_path}' | env -u CLAUDECODE claude #{cli_args}\n"
+  end
+
+  defp sanitize_name(name) do
+    String.replace(name, ~r/[^a-zA-Z0-9_-]/, "")
   end
 end

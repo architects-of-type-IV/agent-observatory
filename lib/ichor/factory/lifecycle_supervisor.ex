@@ -21,10 +21,15 @@ defmodule Ichor.Factory.LifecycleSupervisor do
   @doc false
   @spec start_link(keyword()) :: Supervisor.on_start()
   def start_link(opts) do
-    result = Supervisor.start_link(__MODULE__, opts, name: __MODULE__)
-    ensure_operator_process()
-    ensure_orphan_sweep()
-    result
+    case Supervisor.start_link(__MODULE__, opts, name: __MODULE__) do
+      {:ok, _pid} = result ->
+        ensure_operator_process()
+        ensure_orphan_sweep()
+        result
+
+      error ->
+        error
+    end
   end
 
   @impl true

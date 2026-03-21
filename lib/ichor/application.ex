@@ -11,7 +11,6 @@ defmodule Ichor.Application do
 
   @impl true
   def start(_type, _args) do
-    ensure_tmux_server()
     AgentLaunch.init_counter()
     Bus.start_message_log()
     Notes.init()
@@ -67,7 +66,18 @@ defmodule Ichor.Application do
     ]
 
     opts = [strategy: :one_for_one, name: Ichor.Supervisor]
-    Supervisor.start_link(children, opts)
+    result = Supervisor.start_link(children, opts)
+
+    # Non-blocking -- tmux init must not block or crash the supervision tree
+    Task.start(fn ->
+      try do
+        ensure_tmux_server()
+      rescue
+        _ -> :ok
+      end
+    end)
+
+    result
   end
 
   # Tell Phoenix to update the endpoint configuration

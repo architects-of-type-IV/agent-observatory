@@ -107,16 +107,16 @@ defmodule IchorWeb.ExportController do
     rows =
       Enum.map(events, fn e ->
         [
-          to_string(e.id),
-          to_string(e.inserted_at),
-          to_string(e.hook_event_type),
-          e.tool_name || "",
-          e.source_app || "",
-          e.session_id || "",
-          e.summary || "",
-          to_string(e.duration_ms || ""),
-          e.cwd || "",
-          e.permission_mode || ""
+          csv_escape(e.id),
+          csv_escape(e.inserted_at),
+          csv_escape(e.hook_event_type),
+          csv_escape(e.tool_name),
+          csv_escape(e.source_app),
+          csv_escape(e.session_id),
+          csv_escape(e.summary),
+          csv_escape(e.duration_ms),
+          csv_escape(e.cwd),
+          csv_escape(e.permission_mode)
         ]
       end)
 
@@ -127,6 +127,13 @@ defmodule IchorWeb.ExportController do
     |> put_resp_content_type("text/csv")
     |> put_resp_header("content-disposition", "attachment; filename=\"events.csv\"")
     |> send_resp(200, csv_content)
+  end
+
+  defp csv_escape(nil), do: "\"\""
+
+  defp csv_escape(v) do
+    s = to_string(v)
+    "\"" <> String.replace(s, "\"", "\"\"") <> "\""
   end
 
   defp serialize_event(event) do

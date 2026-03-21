@@ -21,7 +21,11 @@ defmodule Ichor.Signals.Runtime do
   @spec emit(atom(), String.t(), map()) :: :ok
   def emit(name, scope_id, data) when is_atom(name) and is_binary(scope_id) do
     info = Catalog.lookup!(name)
-    true = info.dynamic
+
+    unless info.dynamic do
+      raise ArgumentError, "Signal #{name} is not dynamic; cannot emit with scope_id"
+    end
+
     message = Message.build(name, info.category, Map.put(data, :scope_id, scope_id))
 
     pubsub_broadcast(Topics.category(info.category), message)

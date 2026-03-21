@@ -30,6 +30,9 @@ defmodule IchorWeb.DashboardSessionControlHandlers do
 
   def handle_pause_agent(%{"session_id" => session_id}, socket) do
     HITLRelay.pause(session_id, session_id, "operator", "Operator paused from dashboard")
+    # Phoenix.PubSub.subscribe is idempotent for the same {pid, topic} pair.
+    # Duplicate subscriptions result in duplicate deliveries, which the catch-all
+    # dispatcher handles safely. No unsubscribe is needed on resume.
     Signals.subscribe(:gate_open, session_id)
     Signals.subscribe(:gate_close, session_id)
 

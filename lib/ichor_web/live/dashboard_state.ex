@@ -123,7 +123,10 @@ defmodule IchorWeb.DashboardState do
   def recompute(socket) do
     do_recompute(socket)
   rescue
-    ArgumentError -> socket
+    e in ArgumentError ->
+      require Logger
+      Logger.warning("[DashboardState] recompute failed: #{Exception.message(e)}\n#{Exception.format_stacktrace(__STACKTRACE__)}")
+      socket
   end
 
   defp runtime_state do

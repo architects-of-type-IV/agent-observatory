@@ -28,7 +28,12 @@ defmodule Ichor.Signals.Bus do
     message = normalize(from, content, attrs)
     target = resolve(to)
 
-    {:ok, delivered} = deliver(target, message)
+    delivered =
+      case deliver(target, message) do
+        {:ok, n} -> n
+        _error -> 0
+      end
+
     log_delivery(from, to, message, attrs)
     broadcast_delivery(to, from, message, delivered)
     {:ok, %{status: "sent", to: to, delivered: delivered}}
@@ -197,7 +202,9 @@ defmodule Ichor.Signals.Bus do
     Signals.emit(:message_delivered, %{agent_id: to, msg_map: msg_map})
 
     if delivered == 0 do
-      Logger.warning("[Bus] Message to #{inspect(to)} from #{inspect(from)} dropped: no agent or tmux target found")
+      Logger.warning(
+        "[Bus] Message to #{inspect(to)} from #{inspect(from)} dropped: no agent or tmux target found"
+      )
     end
   end
 end

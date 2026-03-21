@@ -25,8 +25,10 @@ defmodule Ichor.Workshop.Spawn do
 
   @spec spawn_team(Team.t()) :: {:ok, map()} | {:error, term()}
   def spawn_team(%Team{} = team) do
-    members = TeamMember.for_team_with_type!(team.id)
-    spawn_team(team, members)
+    case TeamMember.for_team_with_type(team.id) do
+      {:ok, members} -> spawn_team(team, members)
+      {:error, reason} -> {:error, reason}
+    end
   end
 
   defp spawn_team(%Team{} = team, members) do

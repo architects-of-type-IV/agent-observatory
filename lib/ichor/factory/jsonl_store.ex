@@ -13,11 +13,9 @@ defmodule Ichor.Factory.JsonlStore do
   @spec reassign_task(String.t(), String.t(), String.t()) :: :ok | {:error, term()}
   def reassign_task(path, task_id, new_owner) do
     now = DateTime.utc_now() |> DateTime.to_iso8601()
-
-    expr =
-      ~s(if .id == "#{task_id}" then .owner = "#{new_owner}" | .updated = "#{now}" else . end)
-
-    jq_in_place(path, expr)
+    expr = ~s(if .id == $tid then .owner = $ow | .updated = $ts else . end)
+    args = ["--arg", "tid", task_id, "--arg", "ow", new_owner, "--arg", "ts", now]
+    jq_in_place(path, expr, args)
   end
 
   @doc "Atomically claim a task using the claim-task.sh script."
@@ -40,17 +38,30 @@ defmodule Ichor.Factory.JsonlStore do
           :ok | {:error, term()}
   def update_task_status(path, task_id, status, owner) do
     now = DateTime.utc_now() |> DateTime.to_iso8601()
+    expr = ~s(if .id == $tid then .status = $st | .owner = $ow | .updated = $ts else . end)
 
-    expr =
-      ~s(if .id == "#{task_id}" then .status = "#{status}" | .owner = "#{owner}" | .updated = "#{now}" else . end)
+    args = [
+      "--arg",
+      "tid",
+      task_id,
+      "--arg",
+      "st",
+      status,
+      "--arg",
+      "ow",
+      owner,
+      "--arg",
+      "ts",
+      now
+    ]
 
-    jq_in_place(path, expr)
+    jq_in_place(path, expr, args)
   end
 
-  defp jq_in_place(path, expr) do
+  defp jq_in_place(path, expr, extra_args) do
     tmp = path <> ".tmp"
 
-    case System.cmd("jq", ["-c", expr, path], stderr_to_stdout: true) do
+    case System.cmd("jq", extra_args ++ ["-c", expr, path], stderr_to_stdout: true) do
       {output, 0} ->
         case File.write(tmp, output) do
           :ok ->

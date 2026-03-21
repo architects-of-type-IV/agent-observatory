@@ -54,21 +54,28 @@ defmodule IchorWeb.DashboardMessagingHandlers do
   end
 
   def handle_push_context(%{"session_id" => sid, "file_path" => path}, socket) do
-    case File.read(path) do
-      {:ok, content} ->
-        MessageBus.send(%{
-          from: "operator",
-          to: sid,
-          content: content,
-          type: :context_push,
-          metadata: %{file_path: path},
-          transport: :operator
-        })
+    expanded = Path.expand(path)
+    cwd = File.cwd!()
 
-        {:noreply, socket}
+    if String.starts_with?(expanded, cwd) do
+      case File.read(expanded) do
+        {:ok, content} ->
+          MessageBus.send(%{
+            from: "operator",
+            to: sid,
+            content: content,
+            type: :context_push,
+            metadata: %{file_path: expanded},
+            transport: :operator
+          })
 
-      {:error, _reason} ->
-        {:noreply, socket}
+          {:noreply, socket}
+
+        {:error, _reason} ->
+          {:noreply, socket}
+      end
+    else
+      {:noreply, socket}
     end
   end
 

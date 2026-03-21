@@ -148,6 +148,9 @@ defmodule IchorWeb.DashboardLive do
       not passes_filter?(message, socket.assigns.stream_filter) ->
         {:noreply, socket}
 
+      not Map.has_key?(socket.assigns[:streams] || %{}, :signals) ->
+        {:noreply, socket}
+
       true ->
         {:noreply, stream_insert(socket, :signals, {seq, message}, at: 0, limit: 200)}
     end

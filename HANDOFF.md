@@ -1,47 +1,59 @@
 # ICHOR IV - Handoff
 
-## Current Status: Ash Idiomacy Audit + Dead Code Cleanup (2026-03-21)
+## Current Status: Full Code Review + Security Fixes (2026-03-21)
 
 ### Summary
-Two audits completed in one session: (1) Ash Domains & Resources idiomacy audit across all 5 domains/33 resources, (2) Frontend dead code removal. Build clean. Migration applied.
+Three audits in one session: (1) Ash idiomacy audit, (2) frontend dead code removal, (3) full code review with security/crash/reliability fixes. Build clean.
 
-### What Was Done
+### What Was Done This Session
 
-#### Ash Idiomacy Audit (16 high findings fixed)
-1. SyncPipelineProcess after_action -> Ash.Notifier (new: `notifiers/sync_runner.ex`)
-2. Pipeline `task_count` stored attribute removed (computed from tasks, migration applied)
-3. Pipeline `get_run_status` refactored to compute stats from tasks (AshSqlite doesn't support aggregates)
-4. Project.ex `Signals.emit` removed from action bodies (TODO for notifier -- artifact IDs not available in notification)
-5. `Ash.read!()` -> `Ash.read()` with error handling in Agent, ActiveTeam
-6. `allow_nil?: false` with defaults added to all tool arguments (OpenAI schema compat)
-7. Private helpers extracted from Agent resource -> `AgentLookup` utility module
-8. Missing error clauses added to AgentMemory
-9. LoadAgents health changed from hardcoded `:healthy` to `:unknown`
-10. LoadAgents `:paused -> :idle` mapping documented
-11. ToolFailure deduplicated (uses code interface instead of duplicated load logic)
-12. Redundant code removed (WebhookDelivery set_attribute, Operations fallbacks)
-13. `require_atomic?(false)` removed where no fn-based changes exist
-14. Consistent argument access patterns (input.arguments.field)
-15. `allow_nil?(false)` added to 6 agent_type attributes with defaults
+#### 1. Ash Idiomacy Audit (16 high findings)
+- SyncPipelineProcess after_action -> notifier
+- Pipeline task_count removed (computed from tasks)
+- Bang calls -> non-bang with error handling
+- allow_nil? added to tool arguments
+- Helpers extracted from Agent resource -> AgentLookup
+- Redundant code removed, error clauses added
 
-#### Frontend Dead Code Removal
-1. 8 dead files removed (7 modules + 1 template)
-2. Dead delegates removed from FeedComponents, IchorComponents
-3. Dead functions removed from FleetHelpers (7 public + 4 private), MesStatusComponents, DashboardUIHandlers, DashboardMessagingHandlers
-4. `resolve/1` made private in DashboardViewRouter
+#### 2. Frontend Dead Code Removal
+- 8 dead files removed, dead delegates/functions cleaned
+
+#### 3. Full Code Review (20 findings: 7 critical, 13 high)
+
+**Security fixes (4):**
+- C1: jq injection in jsonl_store.ex -> --arg flags
+- C2: Shell injection in tmux/script.ex -> sanitize_name + single-quote
+- C3: Path traversal in messaging_handlers -> cwd validation
+- H1: CSV injection in export_controller -> csv_escape helper
+
+**Backend crash fixes (6):**
+- C4: Bus.send bare match -> case with error handling
+- C5: AgentWatchdog unpause -> try/catch for dead HITLRelay
+- C6: Signals.emit dynamic check -> ArgumentError instead of MatchError
+- H3: Runner handle_cast -> wrapped apply result
+- H4: Board.ex String.to_integer -> Integer.parse with filter
+- H5: Spawn.ex bang -> non-bang with error tuple
+
+**Frontend crash fixes (5):**
+- C7: EventController bare match -> try/rescue
+- H2: LiveView stream_insert guard -> check stream exists
+- H8: MES handler File.write! -> File.write with error handling
+- H9: Team broadcast missing error clause -> added
+- H11: DashboardState silent rescue -> added logging
+
+**Reliability fixes (5):**
+- H6: AgentProcess unbounded unread -> only buffer without backend
+- H7: Blocking tmux in app start -> async Task.start
+- H10: PubSub subscription leak -> documented idempotent behavior
+- H12: LifecycleSupervisor side effects -> guard on {:ok, _}
+- H13: EventStream tombstone signals -> guard emission
 
 ### Build
-- `mix compile`: 0 new warnings, 0 errors (8 pre-existing redefining-module from ichor_contracts)
-- Migration `20260321024007` applied (removed task_count from pipelines)
-
-### Key Discovery
-- AshSqlite does not support `{:aggregate_relationship, _}` -- aggregates block cannot be used with SQLite data layer
-- SQLite cannot ALTER COLUMN (NOT NULL constraint changes require table recreation)
-
-### File Count: ~127 (+ 2 new, - 9 deleted)
+- `mix compile`: 0 new warnings, 0 errors
+- Migration `20260321024007` applied (task_count removed)
 
 ### Next
-- Commit these changes
-- Continue redesign toward ~55 files (vertical slices + Ash domains)
-- Oban worker migration (5 strong candidates)
-- ichor_contracts cleanup (stale beam files causing redefining-module warnings)
+- Commit all changes
+- Design & boundary improvements (user requested)
+- ichor_contracts cleanup
+- Oban worker migration
