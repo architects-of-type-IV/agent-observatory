@@ -1,6 +1,6 @@
 defmodule Ichor.Mesh.DecisionLog do
   @moduledoc """
-  Universal message envelope transmitted by every agent in the Hypervisor network.
+  Universal message envelope transmitted by every agent.
 
   Implemented as an Ash embedded resource (not a database table). DecisionLog
   instances are received as HTTP payloads, validated in memory, and forwarded over PubSub. They are never persisted directly to Postgres.

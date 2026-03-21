@@ -140,7 +140,7 @@ defmodule IchorWeb.DashboardPipelineHandlers do
         Presentation.short_id(session_id)
 
       agent ->
-        agent[:name] || agent["name"] || agent.session_id || agent.agent_id ||
+        agent.name || agent.session_id || agent.agent_id ||
           Presentation.short_id(session_id)
     end
   end
