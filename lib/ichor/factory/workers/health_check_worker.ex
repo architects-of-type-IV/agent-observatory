@@ -34,9 +34,7 @@ defmodule Ichor.Factory.Workers.HealthCheckWorker do
   end
 
   defp resolve_project_path do
-    projects = PipelineQuery.projects()
-
-    case Map.values(projects) do
+    case PipelineQuery.projects() |> Map.values() do
       [path | _] -> path
       [] -> nil
     end

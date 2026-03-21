@@ -13,10 +13,6 @@ defmodule Ichor.Factory.PipelineQuery do
   @teams_dir Path.expand("~/.claude/teams")
   @archive_dir Path.expand("~/.claude/teams/.archive")
 
-  # ---------------------------------------------------------------------------
-  # Board state
-  # ---------------------------------------------------------------------------
-
   @doc "Computes the full pipeline board state for the given project map and active project key."
   @spec board_state(map(), String.t() | nil) :: map()
   def board_state(watched_projects, active_project) do
@@ -59,10 +55,6 @@ defmodule Ichor.Factory.PipelineQuery do
     })
   end
 
-  # ---------------------------------------------------------------------------
-  # Project discovery
-  # ---------------------------------------------------------------------------
-
   @doc "Scans all known discovery directories and returns a project key => path map."
   @spec projects() :: map()
   def projects do
@@ -78,10 +70,6 @@ defmodule Ichor.Factory.PipelineQuery do
   @doc "Returns archived team summaries from the archive directory."
   @spec archives() :: list()
   def archives, do: scan_archives()
-
-  # ---------------------------------------------------------------------------
-  # Task mutations (delegate to JsonlStore)
-  # ---------------------------------------------------------------------------
 
   @doc "Resets a task to pending status with no owner."
   @spec heal_task(String.t(), String.t()) :: :ok | {:error, term()}
@@ -103,13 +91,11 @@ defmodule Ichor.Factory.PipelineQuery do
     now = DateTime.utc_now()
 
     reset_count =
-      find_stale_tasks(tasks, now)
-      |> Enum.filter(fn task -> stale_with_threshold?(task, now, threshold_min) end)
-      |> Enum.reduce(0, fn task, acc ->
-        case JsonlStore.update_task_status(tasks_path, task.id, "pending", "") do
-          :ok -> acc + 1
-          _ -> acc
-        end
+      tasks
+      |> find_stale_tasks(now)
+      |> Enum.filter(&stale_with_threshold?(&1, now, threshold_min))
+      |> Enum.count(fn task ->
+        JsonlStore.update_task_status(tasks_path, task.id, "pending", "") == :ok
       end)
 
     {:ok, reset_count}
@@ -118,10 +104,6 @@ defmodule Ichor.Factory.PipelineQuery do
   @doc "Triggers GC for a named team."
   @spec trigger_gc(String.t(), String.t()) :: :ok | {:error, term()}
   def trigger_gc(team_name, tasks_path), do: Cleanup.trigger_gc(team_name, tasks_path)
-
-  # ---------------------------------------------------------------------------
-  # Parsing helpers
-  # ---------------------------------------------------------------------------
 
   @doc "Parses a tasks.jsonl file, returning normalized task maps (excludes deleted)."
   @spec parse_tasks_jsonl(String.t()) :: list()
@@ -156,22 +138,16 @@ defmodule Ichor.Factory.PipelineQuery do
 
   @doc "Returns the tasks.jsonl path for the active project."
   @spec active_project_tasks_path(map(), String.t() | nil) :: String.t() | nil
-  def active_project_tasks_path(watched_projects, active_project) do
-    case active_project do
-      nil ->
-        nil
+  def active_project_tasks_path(_watched_projects, nil), do: nil
 
-      key ->
-        case Map.get(watched_projects, key) do
-          nil -> nil
-          path -> Path.join(path, "tasks.jsonl")
-        end
+  def active_project_tasks_path(watched_projects, key) do
+    case Map.get(watched_projects, key) do
+      nil -> nil
+      path -> Path.join(path, "tasks.jsonl")
     end
   end
 
-  # ---------------------------------------------------------------------------
   # Discovery internals
-  # ---------------------------------------------------------------------------
 
   defp discover_from_events do
     EventStream.unique_project_cwds()
@@ -252,9 +228,7 @@ defmodule Ichor.Factory.PipelineQuery do
 
   defp total_from_summary(_), do: 0
 
-  # ---------------------------------------------------------------------------
   # Pipeline analysis helpers
-  # ---------------------------------------------------------------------------
 
   defp find_stale_tasks(tasks, now) do
     tasks

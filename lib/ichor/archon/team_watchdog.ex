@@ -41,6 +41,7 @@ defmodule Ichor.Archon.TeamWatchdog do
     {:noreply, new_state}
   end
 
+  @impl true
   def handle_info(_, state), do: {:noreply, state}
 
   defp react(:run_complete, %{kind: kind, run_id: run_id, session: session}, state) do

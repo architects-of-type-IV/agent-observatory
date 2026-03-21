@@ -51,9 +51,7 @@ defmodule Ichor.Infrastructure.Subscribers.SessionCleanupDispatcher do
   @impl true
   def handle_info(_msg, state), do: {:noreply, state}
 
-  # ---------------------------------------------------------------------------
   # Private helpers
-  # ---------------------------------------------------------------------------
 
   defp insert_job(args, worker, unique_opts) do
     case args |> worker.new(unique: unique_opts) |> Oban.insert() do

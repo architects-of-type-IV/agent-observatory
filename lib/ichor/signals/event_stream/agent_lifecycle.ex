@@ -76,9 +76,7 @@ defmodule Ichor.Signals.EventStream.AgentLifecycle do
     :ok
   end
 
-  # ---------------------------------------------------------------------------
   # Private helpers
-  # ---------------------------------------------------------------------------
 
   # Returns true if EventStream already has any event recorded for this session_id,
   # or if the session_id is registered as a canonical alias. This replaces the

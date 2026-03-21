@@ -22,14 +22,10 @@ defmodule Ichor.Signals.EventStream do
   require Logger
 
   alias Ichor.Signals
-  alias Ichor.Signals.TraceEvent
   alias Ichor.Signals.EventStream.{AgentLifecycle, Normalizer}
   alias Ichor.Workshop.AgentEntry
 
-  # ---------------------------------------------------------------------------
   # ETS table names (preserved for compatibility)
-  # ---------------------------------------------------------------------------
-
   @table :event_buffer_events
   @tools :ichor_tool_starts
   @aliases :ichor_session_aliases
@@ -37,16 +33,9 @@ defmodule Ichor.Signals.EventStream do
   @max_events 5_000
   @tombstone_ttl_ms 30_000
 
-  # ---------------------------------------------------------------------------
   # Heartbeat constants
-  # ---------------------------------------------------------------------------
-
   @eviction_threshold_seconds 90
   @check_interval_ms 30_000
-
-  # ---------------------------------------------------------------------------
-  # Public API -- event ingestion
-  # ---------------------------------------------------------------------------
 
   @doc "Ingest a raw hook event map. Normalizes, stores, emits signals, and runs side effects."
   @spec ingest_raw(map()) :: {:ok, map()}
@@ -71,7 +60,6 @@ defmodule Ichor.Signals.EventStream do
   @doc "Publish an internal fact (watchdog probes, system events, etc.)."
   @spec publish_fact(atom(), map()) :: :ok
   def publish_fact(name, attrs \\ %{}) when is_atom(name) and is_map(attrs) do
-    _event = build_fact_event(name, attrs)
     Signals.emit(:new_event, %{name: name, attrs: attrs})
     :ok
   end
@@ -91,9 +79,7 @@ defmodule Ichor.Signals.EventStream do
     GenServer.call(__MODULE__, {:get_session_state, session_id})
   end
 
-  # ---------------------------------------------------------------------------
   # Public API -- event buffer reads (ETS, no GenServer round-trip)
-  # ---------------------------------------------------------------------------
 
   @doc "Ingest a hook event map into the ETS buffer. Drops events for tombstoned sessions."
   @spec ingest(map()) :: {:ok, map()}
@@ -179,9 +165,7 @@ defmodule Ichor.Signals.EventStream do
     :ok
   end
 
-  # ---------------------------------------------------------------------------
   # GenServer lifecycle
-  # ---------------------------------------------------------------------------
 
   @doc false
   @spec start_link(keyword()) :: GenServer.on_start()
@@ -236,11 +220,10 @@ defmodule Ichor.Signals.EventStream do
     {:noreply, state}
   end
 
+  @impl true
   def handle_info(_msg, state), do: {:noreply, state}
 
-  # ---------------------------------------------------------------------------
   # Ingest pipeline
-  # ---------------------------------------------------------------------------
 
   defp ingest_event(event) do
     agent_id = AgentLifecycle.resolve_or_create_agent(event.session_id, event)
@@ -304,9 +287,7 @@ defmodule Ichor.Signals.EventStream do
 
   defp emit_intercepted_mcp(_event, _args), do: :ok
 
-  # ---------------------------------------------------------------------------
   # ETS helpers -- session aliases and tool timing
-  # ---------------------------------------------------------------------------
 
   defp resolve_session_id(raw_id, tmux) when tmux in [nil, ""] do
     case {AgentEntry.uuid?(raw_id), :ets.lookup(@aliases, raw_id)} do
@@ -338,9 +319,7 @@ defmodule Ichor.Signals.EventStream do
 
   defp track_tool_start(attrs), do: attrs
 
-  # ---------------------------------------------------------------------------
   # ETS buffer helpers
-  # ---------------------------------------------------------------------------
 
   defp keep_latest(acc, event) do
     sid = event.session_id
@@ -380,17 +359,6 @@ defmodule Ichor.Signals.EventStream do
       [] ->
         false
     end
-  end
-
-  defp build_fact_event(name, attrs) do
-    %TraceEvent{
-      id: Ash.UUID.generate(),
-      kind: :fact,
-      name: name,
-      session_id: attrs[:session_id],
-      payload: attrs,
-      timestamp: DateTime.utc_now()
-    }
   end
 
   defp ensure_ets(name) do

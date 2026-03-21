@@ -39,36 +39,7 @@ defmodule Ichor.Infrastructure.Subscribers.SessionLifecycle do
         %Message{name: :session_started, data: %{session_id: session_id} = data},
         state
       ) do
-    unless AgentProcess.alive?(session_id) do
-      tmux_session = Map.get(data, :tmux_session)
-      tmux_session = if tmux_session == "" or tmux_session == nil, do: nil, else: tmux_session
-
-      opts = [
-        id: session_id,
-        role: :worker,
-        backend: if(tmux_session, do: %{type: :tmux, session: tmux_session}, else: nil),
-        metadata: %{
-          cwd: Map.get(data, :cwd),
-          model: Map.get(data, :model),
-          os_pid: Map.get(data, :os_pid),
-          name: session_id
-        }
-      ]
-
-      case FleetSupervisor.spawn_agent(opts) do
-        {:ok, _pid} ->
-          Logger.debug("[SessionLifecycle] Spawned AgentProcess for session #{session_id}")
-
-        {:error, {:already_started, _}} ->
-          :ok
-
-        {:error, reason} ->
-          Logger.warning(
-            "[SessionLifecycle] Failed to spawn AgentProcess for #{session_id}: #{inspect(reason)}"
-          )
-      end
-    end
-
+    unless AgentProcess.alive?(session_id), do: spawn_agent(session_id, data)
     {:noreply, state}
   end
 
@@ -87,21 +58,7 @@ defmodule Ichor.Infrastructure.Subscribers.SessionLifecycle do
         %Message{name: :team_create_requested, data: %{team_name: team_name}},
         state
       ) do
-    unless TeamSupervisor.exists?(team_name) do
-      case FleetSupervisor.create_team(name: team_name) do
-        {:ok, _pid} ->
-          Logger.debug("[SessionLifecycle] Created TeamSupervisor for #{team_name}")
-
-        {:error, :already_exists} ->
-          :ok
-
-        {:error, reason} ->
-          Logger.debug(
-            "[SessionLifecycle] Could not create TeamSupervisor for #{team_name}: #{inspect(reason)}"
-          )
-      end
-    end
-
+    unless TeamSupervisor.exists?(team_name), do: create_team(team_name)
     {:noreply, state}
   end
 
@@ -120,9 +77,51 @@ defmodule Ichor.Infrastructure.Subscribers.SessionLifecycle do
   @impl true
   def handle_info(_msg, state), do: {:noreply, state}
 
-  # ---------------------------------------------------------------------------
   # Private helpers
-  # ---------------------------------------------------------------------------
+
+  defp spawn_agent(session_id, data) do
+    tmux_session = data |> Map.get(:tmux_session) |> normalize_tmux()
+
+    opts = [
+      id: session_id,
+      role: :worker,
+      backend: if(tmux_session, do: %{type: :tmux, session: tmux_session}, else: nil),
+      metadata: %{
+        cwd: Map.get(data, :cwd),
+        model: Map.get(data, :model),
+        os_pid: Map.get(data, :os_pid),
+        name: session_id
+      }
+    ]
+
+    case FleetSupervisor.spawn_agent(opts) do
+      {:ok, _pid} ->
+        Logger.debug("[SessionLifecycle] Spawned AgentProcess for session #{session_id}")
+
+      {:error, {:already_started, _}} ->
+        :ok
+
+      {:error, reason} ->
+        Logger.warning(
+          "[SessionLifecycle] Failed to spawn AgentProcess for #{session_id}: #{inspect(reason)}"
+        )
+    end
+  end
+
+  defp create_team(team_name) do
+    case FleetSupervisor.create_team(name: team_name) do
+      {:ok, _pid} ->
+        Logger.debug("[SessionLifecycle] Created TeamSupervisor for #{team_name}")
+
+      {:error, :already_exists} ->
+        :ok
+
+      {:error, reason} ->
+        Logger.debug(
+          "[SessionLifecycle] Could not create TeamSupervisor for #{team_name}: #{inspect(reason)}"
+        )
+    end
+  end
 
   defp terminate_agent_process(session_id) do
     case AgentProcess.lookup(session_id) do
@@ -137,11 +136,16 @@ defmodule Ichor.Infrastructure.Subscribers.SessionLifecycle do
         :ok
 
       {:error, :not_found} ->
-        try do
-          GenServer.stop(pid, :normal)
-        catch
-          :exit, _ -> :ok
-        end
+        catch_exit(fn -> GenServer.stop(pid, :normal) end)
     end
   end
+
+  defp catch_exit(fun) do
+    fun.()
+  catch
+    :exit, _ -> :ok
+  end
+
+  defp normalize_tmux(value) when value in [nil, ""], do: nil
+  defp normalize_tmux(value), do: value
 end
