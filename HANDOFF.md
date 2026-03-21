@@ -1,47 +1,36 @@
 # ICHOR IV - Handoff
 
-## Current Status: Architecture Understanding Complete (2026-03-21)
+## Current Status: Architecture Blueprint Complete (2026-03-21)
 
-### Session Summary
-Three phases in one session: (1) tactical fixes, (2) structural decomposition, (3) deep architecture understanding.
+### What Was Done This Session
 
-### Phase 1: Tactical Fixes (complete)
-- Ash idiomacy audit: 16 high findings fixed across 5 domains, 33 resources
-- Code review: 20 findings fixed (7 critical security/crash, 13 high)
-- Frontend dead code: 8 files removed, 15+ dead functions cleaned
-- Migration applied: task_count removed from pipelines
-- PR #1 merged: AgentProcess decomposed into 6 helpers + inbox fix
+1. **Tactical fixes**: Ash idiomacy (16), code review (20 security/crash/reliability), dead code removal (8 files + 15 functions)
+2. **Module decompositions**: Runner, AgentWatchdog, EventStream, Spawn -> 10 focused helpers. PR #1 merged (AgentProcess -> 6 helpers).
+3. **Architecture analysis**: DDD analysis, boundary violations, vertical slices, use case mapping
+4. **Architecture understanding**: spawn/1 is generic, Signals is reactive backbone, Workshop owns design, don't name what Elixir has
+5. **Documentation**: Blueprint (8 ADs), glossary (50+ terms), 15 mermaid diagrams, 4 ERD diagrams, vertical slices
+6. **Codex sparring**: 3 rounds. Key outcome: AD-8 reliability boundary (Ash -> Oban -> PubSub). Blueprint rated 8.5/10.
 
-### Phase 2: Module Decompositions (complete)
-- Runner -> +HealthChecker, +Exporter, +Modes (806->577)
-- AgentWatchdog -> +EscalationEngine, +PaneScanner (580->487)
-- EventStream -> +Normalizer, +AgentLifecycle (562->320)
-- Spawn -> +Loader, +Validator, +WorkerGroups (521->220)
+### Key Architectural Decisions (from blueprint)
+- AD-1: Ash as business boundary (Discovery-ready actions)
+- AD-2: Signals for cross-boundary facts only, direct calls within subsystems
+- AD-3: spawn/1 is generic (team name -> compile -> launch)
+- AD-4: Three strata (pure model, orchestrators, runtime adapters)
+- AD-5: Authority model (Ash/Registry/files/signals each own different truth)
+- AD-6: Prompt strategy injection (not hardcoded in compiler)
+- AD-7: Typed value objects over stringly-typed identifiers
+- AD-8: Reliability boundary (mandatory reactions via Oban directly, PubSub for observation only)
 
-### Phase 3: Architecture Understanding (complete, documented)
-Key insights discovered through dialogue with user:
-
-1. **spawn/1 is generic**: team name -> compile Workshop design -> launch. Page-independent. What the team does is defined by prompts configured in Workshop. Current :mes/:pipeline/:planning are team configs, not code branches.
-
-2. **Signals is the reactive backbone**: producers emit, subscribers react. No direct cross-domain calls. Constraints on spawning are just pattern matches in subscriber handle_info clauses -- no "Policy" abstraction needed.
-
-3. **Workshop owns design, not execution**: the canvas configures agents, prompts, spawn links, comm rules. Spawn compiles and launches. The prompt builder belongs in Workshop per agent slot.
-
-4. **Don't name what Elixir already has**: pattern matching in a subscriber IS the constraint mechanism. No SpawnPolicy, no PolicyEngine. Concepts exist in conversation but not as modules.
-
-5. **Discovery (planned)**: Ichor.Discovery will expose all Ash actions by Domain for dynamic workflow composition in UI. Actions become pluggable pipeline steps.
-
-### Documentation Created
-- `docs/plans/2026-03-21-architecture-audit.md` -- findings + execution waves
-- `docs/plans/2026-03-21-vertical-slices.md` -- use cases + spawn insight + boundary problems
-- `docs/plans/GLOSSARY.md` -- 50+ terms with overloaded term disambiguation
-- `docs/plans/INDEX.md` -- active docs + archive pointer
-- `docs/diagrams/architecture.md` -- 15 mermaid diagrams (5 concept + 10 current-state)
-- `docs/diagrams/database-schema.md` -- 4 ERD diagrams
-- 29 old plan docs archived to `docs/plans/archive/`
+### Next Task: Comprehensive Module-Level Architecture Document
+The user wants a complete module-level plan: every file, every module, every behaviour, boundaries, business logic, folder structure, supervision tree, memory/streaming strategy, and full Workshop CRUD (prompts, agents, teams, git-project scoping, MCP tools, comm policies). This is the final target state document that all implementation work builds toward.
 
 ### Build
 - `mix compile --force`: 0 new warnings, 0 errors
 
-### Next: Architecture-Informed Code Review
-Use the documented understanding (spawn insight, signals backbone, Workshop ownership, Discovery readiness) as the lens for a targeted code review. Find code that contradicts these principles and make it actionable.
+### Key Documents
+- `docs/plans/2026-03-21-architecture-blueprint.md` -- THE BLUEPRINT (8 ADs, 25 tasks, 5 waves)
+- `docs/plans/2026-03-21-vertical-slices.md` -- use cases + spawn insight
+- `docs/plans/GLOSSARY.md` -- canonical terms
+- `docs/diagrams/architecture.md` -- 15 mermaid diagrams
+- `docs/diagrams/database-schema.md` -- 4 ERDs
+- `docs/reviews/2026-03-21-codex-sparring.md` -- 3-round sparring transcript

@@ -114,7 +114,10 @@
 - [x] Architecture analysis: DDD, boundary violations, Oban candidates, wrong homes (2026-03-21)
 - [x] Architecture understanding: spawn/1 generic, signals backbone, Workshop ownership (2026-03-21)
 - [x] Documentation: diagrams, glossary, vertical slices, archive old plans (2026-03-21)
-- [ ] Architecture-informed code review: find code contradicting spawn/signals/Workshop principles
+- [x] Architecture-informed code review: spawn/signals/Discovery principles (2026-03-21)
+- [x] Architecture blueprint: 8 ADs, 25 tasks, 5 waves, ownership rules, gap analysis (2026-03-21)
+- [x] Codex sparring: 3 rounds, AD-8 reliability boundary, 8.5/10 rating (2026-03-21)
+- [ ] Comprehensive module-level architecture document (target file structure, all CRUD, supervision)
 - [ ] Oban worker migration (5 candidates)
 - [ ] Redesign: vertical slices + Ash domains (target ~55 files)
 - [ ] Oban worker migration (5 strong candidates)

@@ -1,36 +1,26 @@
 # BRAIN -- Session Knowledge
 
-## spawn/1 Is Generic
-`spawn("team-name")` = look up Workshop design -> compile to TeamSpec -> TeamLaunch. The current `:mes`, `:pipeline`, `:planning` atoms are team configurations, not architectural spawn modes. In the target state, there's no special-case code per kind -- just team names with Workshop-configured prompts.
+## AD-8: Reliability Boundary (from codex sparring)
+Ash -> Oban -> PubSub. Three layers:
+- Mandatory reactions: Oban.insert directly from Ash notifier/action body. No PubSub hop.
+- Observational: PubSub signal -> UI/logs/topology. Loss acceptable.
+- Reconciler: Oban cron checks Ash state for orphaned intents.
+If something must happen, persist intent durably first. If merely interesting, publish a signal.
 
-## Constraints Are Pattern Matches
-A subscriber that checks "is mes already running?" is just a `handle_info` clause that pattern-matches on team name. No Policy module, no abstraction. Elixir pattern matching IS the mechanism.
+## spawn/1 Is Generic
+team name -> compile Workshop design -> launch. Current :mes/:pipeline/:planning are team configs, not code branches. Constraints are pattern matches in subscribers.
+
+## Signals Are Observational, Not Commands
+All signals say "this happened." Subscribers decide to act. For mandatory reactions, the durable intent (Oban job) is inserted directly, not through a volatile PubSub hop.
 
 ## Don't Name What Elixir Already Has
-Before creating a new module or concept, ask "is this just a function clause?" If yes, it stays unnamed in code. Concepts can exist in conversation without becoming modules. OOP creep happens through premature naming.
-
-## Signals Is the Decoupling Mechanism
-Cross-domain calls should be: emit signal -> subscriber reacts. Not: module A calls module B directly. Adding behavior = adding a subscriber, not editing an existing module.
+Pattern matching in a subscriber IS the constraint mechanism. No SpawnPolicy module. Concepts exist in conversation, not as modules.
 
 ## AshSqlite Limitations
-- No aggregates (can?/2 returns false for aggregate_relationship)
-- No ALTER COLUMN (modify in migrations fails)
-- Enforce constraints at Ash level, remove column-modify from generated migrations
+No aggregates. No ALTER COLUMN. Enforce at Ash level, remove from migrations.
 
-## Notifier Data Availability
-Notifiers only see the result record + changeset. Locally-scoped data (embedded resource IDs constructed in action body) can't be extracted without array diffing.
+## Prompt Strategy Injection
+prompt_module per Team record. Boot-time + changeset validation that module exists and implements behaviour. Compile-time alone is not enough for persisted bindings.
 
-## set_attribute vs Attribute Defaults
-Redundant in create actions. Ash applies defaults automatically.
-
-## require_atomic?(false) Triggers
-Only fn-based changes and function-capture changes need it. DSL builtins are atomic-safe.
-
-## jq Injection Prevention
-Never interpolate into jq program strings. Use --arg flags with $variable references.
-
-## Shell Script Sanitization
-Agent names flow into shell scripts. Sanitize with regex, single-quote paths.
-
-## Elixir 1.19 Typing
-Flags {:error, _} clauses as "will never match" when function spec only declares {:ok, _}. Use try/rescue for graceful degradation.
+## Every Oban Worker Must Be Idempotent
+Mandatory reactions go through Oban. Crash windows mean duplicate execution is possible. Design every worker to tolerate re-execution.
