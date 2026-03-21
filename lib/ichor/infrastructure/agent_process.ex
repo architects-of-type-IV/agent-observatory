@@ -289,7 +289,6 @@ defmodule Ichor.Infrastructure.AgentProcess do
   defp apply_incoming_message(state, message) do
     normalized = normalize_message(message, state.id)
     messages = Enum.take([normalized | state.messages], @max_message_buffer)
-    broadcast_message_delivered(state.id, normalized)
     route_message(normalized, %{state | messages: messages})
   end
 
@@ -351,10 +350,6 @@ defmodule Ichor.Infrastructure.AgentProcess do
   end
 
   defp deliver_to_backend(%{type: _type}, _msg), do: :ok
-
-  defp broadcast_message_delivered(agent_id, msg) do
-    Ichor.Signals.emit(:message_delivered, %{agent_id: agent_id, msg_map: msg})
-  end
 
   defp build_initial_meta(id, state, meta) do
     tmux_target = extract_tmux_target(state.backend)

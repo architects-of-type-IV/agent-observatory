@@ -1,13 +1,13 @@
 defmodule Ichor.Archon.TeamWatchdog do
   @moduledoc """
   Signal-driven team lifecycle monitor. No timers, no polling.
-  Reacts to fleet and run signals to detect unexpected deaths,
+  Reacts to universal run signals and fleet events to detect unexpected deaths,
   archive runs, reset pipeline tasks, and notify operator.
   """
 
   use GenServer
 
-  alias Ichor.Factory.{Pipeline, PipelineTask}
+  alias Ichor.Factory.{Pipeline, PipelineTask, Spawn}
   alias Ichor.Infrastructure.FleetSupervisor
   alias Ichor.Signals
   alias Ichor.Signals.Message
@@ -19,6 +19,7 @@ defmodule Ichor.Archon.TeamWatchdog do
           | {:reset_tasks, String.t()}
           | {:notify_operator, String.t()}
           | {:disband_team, String.t()}
+          | {:kill_session, String.t()}
           | :noop
 
   @type state :: %{completed_runs: MapSet.t()}
@@ -45,36 +46,26 @@ defmodule Ichor.Archon.TeamWatchdog do
 
   def handle_info(_, state), do: {:noreply, state}
 
-  # Clean completion -- record it so we don't false-positive on disband
-  defp react(:pipeline_completed, %{run_id: run_id}, state) do
-    {[:noop], %{state | completed_runs: MapSet.put(state.completed_runs, run_id)}}
+  defp react(:run_complete, %{kind: kind, run_id: run_id, session: session}, state) do
+    new_state = %{state | completed_runs: MapSet.put(state.completed_runs, run_id)}
+    {cleanup_actions(kind, run_id, session, "completed"), new_state}
   end
 
-  # Pipeline tmux session died -- Runner detected it and emitted this signal
-  defp react(:pipeline_tmux_gone, %{run_id: run_id, session: session}, state) do
-    case MapSet.member?(state.completed_runs, run_id) do
-      true -> {[:noop], state}
-      false -> {pipeline_cleanup_actions(run_id, session, "tmux session died"), state}
+  defp react(:run_terminated, %{kind: kind, run_id: run_id, session: session}, state) do
+    if MapSet.member?(state.completed_runs, run_id) do
+      {[:noop], state}
+    else
+      {cleanup_actions(kind, run_id, session, "terminated"), state}
     end
   end
 
   # Fleet team disbanded -- check if it was a pipeline team that didn't complete
   defp react(:team_disbanded, %{team_name: "pipeline-" <> _ = session}, state) do
-    case Enum.any?(state.completed_runs, &String.contains?(session, &1)) do
-      true ->
-        {[:noop], state}
-
-      false ->
-        {[{:notify_operator, "Pipeline team #{session} disbanded without completion."}], state}
+    if Enum.any?(state.completed_runs, &String.contains?(session, &1)) do
+      {[:noop], state}
+    else
+      {[{:notify_operator, "Pipeline team #{session} disbanded without completion."}], state}
     end
-  end
-
-  # Genesis tmux session died
-  defp react(:planning_tmux_gone, %{session: session}, state) do
-    {[
-       {:disband_team, session},
-       {:notify_operator, "Planning session #{session} died. Fleet disbanded."}
-     ], state}
   end
 
   # Agent stopped -- if it's a coordinator/lead, the team is headless
@@ -92,12 +83,37 @@ defmodule Ichor.Archon.TeamWatchdog do
 
   defp react(_signal, _data, state), do: {[:noop], state}
 
-  defp pipeline_cleanup_actions(run_id, session, reason) do
+  defp cleanup_actions(:pipeline, run_id, session, reason) do
     [
       {:archive_run, run_id},
       {:reset_tasks, run_id},
       {:disband_team, session},
+      {:kill_session, session},
       {:notify_operator, "Pipeline run #{run_id} cleaned up: #{reason}. Tasks reset."}
+    ]
+  end
+
+  defp cleanup_actions(:planning, _run_id, session, reason) do
+    [
+      {:disband_team, session},
+      {:kill_session, session},
+      {:notify_operator, "Planning session #{session} cleaned up: #{reason}."}
+    ]
+  end
+
+  defp cleanup_actions(:mes, _run_id, session, reason) do
+    [
+      {:disband_team, session},
+      {:kill_session, session},
+      {:notify_operator, "MES session #{session} cleaned up: #{reason}. Team disbanded."}
+    ]
+  end
+
+  defp cleanup_actions(_kind, _run_id, session, reason) do
+    [
+      {:disband_team, session},
+      {:kill_session, session},
+      {:notify_operator, "Run #{session} cleaned up: #{reason}."}
     ]
   end
 
@@ -142,6 +158,10 @@ defmodule Ichor.Archon.TeamWatchdog do
 
   defp dispatch({:disband_team, session}) do
     FleetSupervisor.disband_team(session)
+  end
+
+  defp dispatch({:kill_session, session}) do
+    Spawn.kill_session(session)
   end
 
   defp dispatch({:notify_operator, message}) do

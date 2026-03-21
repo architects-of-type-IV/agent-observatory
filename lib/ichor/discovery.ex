@@ -4,6 +4,8 @@ defmodule Ichor.Discovery do
   for use in automation and Reactor workflows.
   """
 
+  alias Spark.Dsl.Extension
+
   @type action_info :: %{
           name: atom(),
           type: atom(),
@@ -151,12 +153,12 @@ defmodule Ichor.Discovery do
   end
 
   defp code_interfaces(resource) do
-    Spark.Dsl.Extension.get_entities(resource, [:code_interface]) || []
+    Extension.get_entities(resource, [:code_interface]) || []
   end
 
   defp domain_tools(domain) do
     domain
-    |> Spark.Dsl.Extension.get_entities([:tools])
+    |> Extension.get_entities([:tools])
     |> Enum.map(fn tool ->
       %{
         name: tool.name,
