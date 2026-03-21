@@ -348,25 +348,25 @@ defmodule Ichor.Signals.EventStream do
       # something older.  For small evict_count (almost always 1) this
       # is O(n) with negligible constant vs. O(n log n) sort.
       :ets.foldl(
-        fn {id, e}, acc ->
-          if map_size(acc) < evict_count do
-            Map.put(acc, id, e.inserted_at)
-          else
-            # Find the newest entry in the current candidate set
-            {newest_id, newest_ts} = Enum.max_by(acc, fn {_k, v} -> v end, DateTime)
-
-            if DateTime.compare(e.inserted_at, newest_ts) == :lt do
-              acc |> Map.delete(newest_id) |> Map.put(id, e.inserted_at)
-            else
-              acc
-            end
-          end
-        end,
+        fn {id, e}, acc -> evict_candidate(acc, id, e.inserted_at, evict_count) end,
         %{},
         @table
       )
       |> Map.keys()
       |> Enum.each(&:ets.delete(@table, &1))
+    end
+  end
+
+  defp evict_candidate(acc, id, ts, evict_count) when map_size(acc) < evict_count do
+    Map.put(acc, id, ts)
+  end
+
+  defp evict_candidate(acc, id, ts, _evict_count) do
+    {newest_id, newest_ts} = Enum.max_by(acc, fn {_k, v} -> v end, DateTime)
+
+    case DateTime.compare(ts, newest_ts) do
+      :lt -> acc |> Map.delete(newest_id) |> Map.put(id, ts)
+      _ -> acc
     end
   end
 
