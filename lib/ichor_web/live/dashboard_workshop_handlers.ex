@@ -7,7 +7,7 @@ defmodule IchorWeb.DashboardWorkshopHandlers do
 
   import Phoenix.Component, only: [assign: 3]
 
-  alias Ichor.Workshop.{AgentType, CanvasState, Presets, Team, TeamMember}
+  alias Ichor.Workshop.{AgentType, CanvasState, Presets, Team, TeamSync}
   alias IchorWeb.WorkshopPersistence, as: WP
   alias Phoenix.LiveView
 
@@ -146,7 +146,7 @@ defmodule IchorWeb.DashboardWorkshopHandlers do
 
   defp launch_team(state) do
     with {:ok, team} <- Team.by_id(state.ws_team_id),
-         :ok <- TeamMember.sync_from_workshop_state(team, state) do
+         :ok <- TeamSync.sync_from_workshop_state(team, state) do
       Team.spawn_team(team.name)
     end
   end

@@ -45,4 +45,23 @@ defmodule Ichor.Util do
   def parse_mode("gate_b"), do: :gate_b
   def parse_mode("gate_c"), do: :gate_c
   def parse_mode(value), do: raise("unknown mode: #{value}")
+
+  @doc "Format duration in seconds as compact string: 42s / 5m / 1h30m."
+  @spec session_duration_sec(integer()) :: String.t()
+  def session_duration_sec(sec) when sec < 60, do: "#{sec}s"
+  def session_duration_sec(sec) when sec < 3600, do: "#{div(sec, 60)}m"
+  def session_duration_sec(sec), do: "#{div(sec, 3600)}h#{rem(div(sec, 60), 60)}m"
+
+  @doc "Extract short model family name from a full model string."
+  @spec short_model_name(String.t() | nil) :: String.t() | nil
+  def short_model_name(nil), do: nil
+
+  def short_model_name(model) when is_binary(model) do
+    cond do
+      String.contains?(model, "opus") -> "opus"
+      String.contains?(model, "sonnet") -> "sonnet"
+      String.contains?(model, "haiku") -> "haiku"
+      true -> model |> String.split("-") |> List.first() || model
+    end
+  end
 end

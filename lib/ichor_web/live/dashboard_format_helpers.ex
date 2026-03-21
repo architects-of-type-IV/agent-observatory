@@ -112,12 +112,8 @@ defmodule IchorWeb.DashboardFormatHelpers do
     end
   end
 
-  @doc """
-  Format duration in seconds for timeline view.
-  """
-  def session_duration_sec(sec) when sec < 60, do: "#{sec}s"
-  def session_duration_sec(sec) when sec < 3600, do: "#{div(sec, 60)}m"
-  def session_duration_sec(sec), do: "#{div(sec, 3600)}h#{rem(div(sec, 60), 60)}m"
+  @doc "Format duration in seconds for timeline view."
+  defdelegate session_duration_sec(sec), to: Ichor.Util
 
   @doc """
   Format uptime in seconds as compact string (Xm or Xh Ym).

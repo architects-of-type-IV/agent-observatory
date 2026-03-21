@@ -4,8 +4,7 @@ defmodule Ichor.Workshop.Analysis.Queries do
   Operates on raw events, teams, and sessions.
   """
 
-  import IchorWeb.DashboardFormatHelpers, only: [session_duration_sec: 1]
-  import IchorWeb.DashboardSessionHelpers, only: [short_model_name: 1]
+  import Ichor.Util, only: [session_duration_sec: 1, short_model_name: 1]
 
   alias Ichor.Workshop.AgentEntry
 

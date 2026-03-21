@@ -403,12 +403,34 @@ defmodule Ichor.Workshop.Agent do
   end
 
   defp find_agent(query) when is_binary(query) do
-    __MODULE__
-    |> Ash.Query.for_read(:all)
-    |> Ash.read!()
-    |> Enum.find(fn agent ->
-      agent.agent_id == query or agent.session_id == query or
-        agent.short_name == query or agent.name == query
+    AgentProcess.list_all()
+    |> Enum.find_value(fn {id, meta} ->
+      agent_id = meta[:session_id] || id
+      name = meta[:short_name] || meta[:name] || id
+
+      if agent_id == query or id == query or
+           meta[:session_id] == query or meta[:short_name] == query or
+           meta[:name] == query do
+        build_agent_match(agent_id, name, meta)
+      end
     end)
+  end
+
+  defp build_agent_match(agent_id, name, meta) do
+    %{
+      agent_id: agent_id,
+      session_id: meta[:session_id] || agent_id,
+      name: name,
+      short_name: meta[:short_name],
+      role: to_string(meta[:role] || :worker),
+      model: meta[:model],
+      status: meta[:status],
+      cwd: meta[:cwd],
+      current_tool: meta[:current_tool],
+      last_event_at: meta[:last_event_at],
+      tmux_session: get_in(meta, [:channels, :tmux]),
+      channels: meta[:channels] || %{},
+      team_name: meta[:team]
+    }
   end
 end

@@ -20,19 +20,6 @@ defmodule IchorWeb.DashboardSessionHelpers do
     end
   end
 
-  @doc """
-  Extract short model name for display.
-  """
-  def short_model_name(nil), do: nil
-
-  def short_model_name(model) when is_binary(model) do
-    # Extract model name without version/provider prefix
-    # Examples: "claude-opus-4-6" -> "opus-4-6", "claude-sonnet-4-5-20250929" -> "sonnet-4-5"
-    cond do
-      String.contains?(model, "opus") -> "opus"
-      String.contains?(model, "sonnet") -> "sonnet"
-      String.contains?(model, "haiku") -> "haiku"
-      true -> model |> String.split("-") |> List.first() || model
-    end
-  end
+  @doc "Extract short model family name for display."
+  defdelegate short_model_name(model), to: Ichor.Util
 end

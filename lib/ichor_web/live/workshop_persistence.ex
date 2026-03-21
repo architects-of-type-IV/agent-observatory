@@ -7,7 +7,7 @@ defmodule IchorWeb.WorkshopPersistence do
   import Phoenix.Component, only: [assign: 3]
   import Phoenix.LiveView, only: [push_event: 3]
 
-  alias Ichor.Workshop.{AgentType, CanvasState, Team, TeamMember}
+  alias Ichor.Workshop.{AgentType, CanvasState, Team, TeamSync}
 
   @spec list_teams() :: [map()]
   def list_teams, do: Team.list_all!()
@@ -80,7 +80,7 @@ defmodule IchorWeb.WorkshopPersistence do
 
   defp save_team(nil, state) do
     with {:ok, team} <- Team.create(CanvasState.to_persistence_params(state)),
-         :ok <- TeamMember.sync_from_workshop_state(team, state) do
+         :ok <- TeamSync.sync_from_workshop_state(team, state) do
       {:ok, team}
     end
   end
@@ -91,7 +91,7 @@ defmodule IchorWeb.WorkshopPersistence do
     case Team.by_id(id) do
       {:ok, team} ->
         with {:ok, updated} <- Team.update(team, params),
-             :ok <- TeamMember.sync_from_workshop_state(updated, state) do
+             :ok <- TeamSync.sync_from_workshop_state(updated, state) do
           {:ok, updated}
         end
 
