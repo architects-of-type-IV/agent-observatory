@@ -27,9 +27,12 @@ defmodule Ichor.Factory.Pipeline do
 
     attribute :source, :atom do
       allow_nil?(false)
-      constraints(one_of: [:project, :imported])
+      constraints(one_of: [:project, :imported, :genesis])
       public?(true)
-      description("Origin: :project (from project roadmap) or :imported (from tasks.jsonl)")
+
+      description(
+        "Origin: :project (from project roadmap), :imported (from tasks.jsonl), or :genesis (legacy)"
+      )
     end
 
     attribute :project_id, :string do
