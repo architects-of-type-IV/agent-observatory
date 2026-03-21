@@ -1,59 +1,47 @@
 # ICHOR IV - Handoff
 
-## Current Status: Full Code Review + Security Fixes (2026-03-21)
+## Current Status: Architecture Understanding Complete (2026-03-21)
 
-### Summary
-Three audits in one session: (1) Ash idiomacy audit, (2) frontend dead code removal, (3) full code review with security/crash/reliability fixes. Build clean.
+### Session Summary
+Three phases in one session: (1) tactical fixes, (2) structural decomposition, (3) deep architecture understanding.
 
-### What Was Done This Session
+### Phase 1: Tactical Fixes (complete)
+- Ash idiomacy audit: 16 high findings fixed across 5 domains, 33 resources
+- Code review: 20 findings fixed (7 critical security/crash, 13 high)
+- Frontend dead code: 8 files removed, 15+ dead functions cleaned
+- Migration applied: task_count removed from pipelines
+- PR #1 merged: AgentProcess decomposed into 6 helpers + inbox fix
 
-#### 1. Ash Idiomacy Audit (16 high findings)
-- SyncPipelineProcess after_action -> notifier
-- Pipeline task_count removed (computed from tasks)
-- Bang calls -> non-bang with error handling
-- allow_nil? added to tool arguments
-- Helpers extracted from Agent resource -> AgentLookup
-- Redundant code removed, error clauses added
+### Phase 2: Module Decompositions (complete)
+- Runner -> +HealthChecker, +Exporter, +Modes (806->577)
+- AgentWatchdog -> +EscalationEngine, +PaneScanner (580->487)
+- EventStream -> +Normalizer, +AgentLifecycle (562->320)
+- Spawn -> +Loader, +Validator, +WorkerGroups (521->220)
 
-#### 2. Frontend Dead Code Removal
-- 8 dead files removed, dead delegates/functions cleaned
+### Phase 3: Architecture Understanding (complete, documented)
+Key insights discovered through dialogue with user:
 
-#### 3. Full Code Review (20 findings: 7 critical, 13 high)
+1. **spawn/1 is generic**: team name -> compile Workshop design -> launch. Page-independent. What the team does is defined by prompts configured in Workshop. Current :mes/:pipeline/:planning are team configs, not code branches.
 
-**Security fixes (4):**
-- C1: jq injection in jsonl_store.ex -> --arg flags
-- C2: Shell injection in tmux/script.ex -> sanitize_name + single-quote
-- C3: Path traversal in messaging_handlers -> cwd validation
-- H1: CSV injection in export_controller -> csv_escape helper
+2. **Signals is the reactive backbone**: producers emit, subscribers react. No direct cross-domain calls. Constraints on spawning are just pattern matches in subscriber handle_info clauses -- no "Policy" abstraction needed.
 
-**Backend crash fixes (6):**
-- C4: Bus.send bare match -> case with error handling
-- C5: AgentWatchdog unpause -> try/catch for dead HITLRelay
-- C6: Signals.emit dynamic check -> ArgumentError instead of MatchError
-- H3: Runner handle_cast -> wrapped apply result
-- H4: Board.ex String.to_integer -> Integer.parse with filter
-- H5: Spawn.ex bang -> non-bang with error tuple
+3. **Workshop owns design, not execution**: the canvas configures agents, prompts, spawn links, comm rules. Spawn compiles and launches. The prompt builder belongs in Workshop per agent slot.
 
-**Frontend crash fixes (5):**
-- C7: EventController bare match -> try/rescue
-- H2: LiveView stream_insert guard -> check stream exists
-- H8: MES handler File.write! -> File.write with error handling
-- H9: Team broadcast missing error clause -> added
-- H11: DashboardState silent rescue -> added logging
+4. **Don't name what Elixir already has**: pattern matching in a subscriber IS the constraint mechanism. No SpawnPolicy, no PolicyEngine. Concepts exist in conversation but not as modules.
 
-**Reliability fixes (5):**
-- H6: AgentProcess unbounded unread -> only buffer without backend
-- H7: Blocking tmux in app start -> async Task.start
-- H10: PubSub subscription leak -> documented idempotent behavior
-- H12: LifecycleSupervisor side effects -> guard on {:ok, _}
-- H13: EventStream tombstone signals -> guard emission
+5. **Discovery (planned)**: Ichor.Discovery will expose all Ash actions by Domain for dynamic workflow composition in UI. Actions become pluggable pipeline steps.
+
+### Documentation Created
+- `docs/plans/2026-03-21-architecture-audit.md` -- findings + execution waves
+- `docs/plans/2026-03-21-vertical-slices.md` -- use cases + spawn insight + boundary problems
+- `docs/plans/GLOSSARY.md` -- 50+ terms with overloaded term disambiguation
+- `docs/plans/INDEX.md` -- active docs + archive pointer
+- `docs/diagrams/architecture.md` -- 15 mermaid diagrams (5 concept + 10 current-state)
+- `docs/diagrams/database-schema.md` -- 4 ERD diagrams
+- 29 old plan docs archived to `docs/plans/archive/`
 
 ### Build
-- `mix compile`: 0 new warnings, 0 errors
-- Migration `20260321024007` applied (task_count removed)
+- `mix compile --force`: 0 new warnings, 0 errors
 
-### Next
-- Commit all changes
-- Design & boundary improvements (user requested)
-- ichor_contracts cleanup
-- Oban worker migration
+### Next: Architecture-Informed Code Review
+Use the documented understanding (spawn insight, signals backbone, Workshop ownership, Discovery readiness) as the lens for a targeted code review. Find code that contradicts these principles and make it actionable.

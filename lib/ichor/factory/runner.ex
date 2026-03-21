@@ -15,17 +15,13 @@ defmodule Ichor.Factory.Runner do
   use GenServer, restart: :temporary
 
   alias Ichor.Factory.{Pipeline, PipelineGraph, PipelineTask}
+  alias Ichor.Factory.Runner.{Exporter, HealthChecker, Modes}
   alias Ichor.Infrastructure.TeamLaunch
   alias Ichor.Infrastructure.Tmux.Launcher, as: TmuxLauncher
   alias Ichor.Signals
   alias Ichor.Signals.Message
   alias Ichor.Workshop.TeamSpec
 
-  @liveness_ms :timer.seconds(30)
-  @liveness_pipeline_ms :timer.seconds(60)
-  @deadline_ms :timer.minutes(10)
-  @stale_check_ms :timer.seconds(60)
-  @health_check_ms :timer.seconds(30)
   @stale_threshold_min 10
 
   defmodule Mode do
@@ -166,7 +162,7 @@ defmodule Ichor.Factory.Runner do
   def init(opts) do
     kind = Keyword.fetch!(opts, :kind)
     run_id = Keyword.fetch!(opts, :run_id)
-    config = build_mode_config(kind, run_id, opts)
+    config = Modes.build(kind, run_id, opts, runner_hooks())
 
     state = %State{
       run_id: run_id,
@@ -279,112 +275,19 @@ defmodule Ichor.Factory.Runner do
   end
 
   # ---------------------------------------------------------------------------
-  # Mode configuration (replaces Runner.Modes)
+  # Mode configuration — delegates to Runner.Modes
   # ---------------------------------------------------------------------------
 
-  defp build_mode_config(:mes, run_id, opts) do
-    team_name = Keyword.get(opts, :team_name, "mes-#{run_id}")
-
-    %Mode{
-      kind: :mes,
-      subscriptions: [:mes, :messages],
-      timers: %{
-        liveness_ms: @liveness_ms,
-        deadline_ms: @deadline_ms,
-        on_init: &mes_on_init/1
-      },
-      completion: %{
-        source: :signal_or_message,
-        signal: :mes_project_created,
-        coordinator_id_fn: fn %{session: session} -> "#{session}-coordinator" end
-      },
-      checks: nil,
-      cleanup: %{policy: :signal},
-      signals: %{
-        ready: :mes_run_started,
-        completed: :mes_run_complete,
-        tmux_gone: :mes_tmux_gone,
-        terminated: :mes_run_terminated,
-        deadline_reached: :mes_deadline_reached
-      },
-      commands: nil,
-      hooks: %{
-        on_signal: &mes_on_signal/2,
-        on_complete: fn state ->
-          Signals.emit(:mes_run_complete, %{
-            run_id: state.run_id,
-            session: state.session
-          })
-        end,
-        team_name: team_name
-      }
+  defp runner_hooks do
+    %{
+      mes_on_init: &mes_on_init/1,
+      mes_on_signal: &mes_on_signal/2,
+      pipeline_check_stale: &pipeline_check_stale/1,
+      pipeline_check_health: &pipeline_check_health/1,
+      pipeline_sync_task: &pipeline_sync_task/2,
+      pipeline_on_complete: &pipeline_on_complete/1
     }
   end
-
-  defp build_mode_config(:planning, _run_id, opts) do
-    mode_label = Keyword.get(opts, :mode, "unknown")
-
-    %Mode{
-      kind: :planning,
-      subscriptions: [:messages],
-      timers: %{liveness_ms: @liveness_ms},
-      completion: %{
-        source: :message_delivered,
-        coordinator_id_fn: &planning_coordinator_id/1
-      },
-      checks: nil,
-      cleanup: %{policy: :teardown},
-      signals: %{
-        ready: :planning_run_init,
-        completed: :planning_run_complete,
-        tmux_gone: :planning_tmux_gone,
-        terminated: :planning_run_terminated
-      },
-      commands: nil,
-      hooks: %{
-        on_complete: fn state ->
-          Signals.emit(:planning_run_complete, %{
-            run_id: state.run_id,
-            mode: mode_label,
-            session: state.session,
-            delivered_by: "operator"
-          })
-        end
-      }
-    }
-  end
-
-  defp build_mode_config(:pipeline, _run_id, _opts) do
-    %Mode{
-      kind: :pipeline,
-      subscriptions: [:messages],
-      timers: %{liveness_ms: @liveness_pipeline_ms},
-      completion: %{
-        source: :message_delivered,
-        coordinator_id_fn: &pipeline_coordinator_id/1
-      },
-      checks: [
-        %{id: :stale, every_ms: @stale_check_ms, callback: &pipeline_check_stale/1},
-        %{id: :health, every_ms: @health_check_ms, callback: &pipeline_check_health/1}
-      ],
-      cleanup: %{policy: :teardown},
-      signals: %{
-        ready: :pipeline_ready,
-        completed: :pipeline_completed,
-        tmux_gone: :pipeline_tmux_gone,
-        terminated: :pipeline_terminated
-      },
-      commands: %{
-        sync_task: &pipeline_sync_task/2
-      },
-      hooks: %{
-        on_complete: &pipeline_on_complete/1
-      }
-    }
-  end
-
-  defp planning_coordinator_id(%{session: session}), do: session
-  defp pipeline_coordinator_id(%{session: session}), do: "#{session}-coordinator"
 
   # ---------------------------------------------------------------------------
   # MES hook implementations (replaces Runner.Hooks.MES)
@@ -468,7 +371,7 @@ defmodule Ichor.Factory.Runner do
   defp pipeline_check_health(state) do
     with {:ok, pipeline_tasks} <- PipelineTask.by_run(state.run_id) do
       nodes = Enum.map(pipeline_tasks, &PipelineGraph.to_graph_node/1)
-      issues = health_issues(nodes, DateTime.utc_now())
+      issues = HealthChecker.health_issues(nodes, DateTime.utc_now())
 
       Signals.emit(:pipeline_health_report, %{
         run_id: state.run_id,
@@ -481,7 +384,7 @@ defmodule Ichor.Factory.Runner do
   end
 
   defp pipeline_sync_task(state, task) do
-    Task.start(fn -> sync_task_to_file(task, state.project_path) end)
+    Task.start(fn -> Exporter.sync_task_to_file(task, state.project_path) end)
     {:noreply, state}
   end
 
@@ -670,137 +573,5 @@ defmodule Ichor.Factory.Runner do
 
   defp build_terminate_payload(%{kind: :pipeline} = state) do
     %{run_id: state.run_id, session: state.session}
-  end
-
-  # ---------------------------------------------------------------------------
-  # HealthChecker (formerly Ichor.Projects.HealthChecker)
-  # ---------------------------------------------------------------------------
-
-  @stale_threshold_min 10
-
-  defp health_issues(nodes, now) do
-    stale_health_issues(nodes, now) ++
-      conflict_health_issues(nodes) ++
-      deadlock_health_issues(nodes) ++
-      orphan_health_issues(nodes)
-  end
-
-  defp stale_health_issues(nodes, now) do
-    nodes
-    |> PipelineGraph.stale_items(now, @stale_threshold_min)
-    |> Enum.map(fn node ->
-      %{
-        type: :stale_in_progress,
-        severity: :warning,
-        external_id: node.id,
-        description:
-          "Task execution #{node.id} has been in_progress for over #{@stale_threshold_min} minutes"
-      }
-    end)
-  end
-
-  defp conflict_health_issues(nodes) do
-    nodes
-    |> PipelineGraph.file_conflicts()
-    |> Enum.map(fn {a, b, files} ->
-      %{
-        type: :file_conflict,
-        severity: :error,
-        external_id: "#{a}+#{b}",
-        description: "Tasks #{a} and #{b} share files: #{Enum.join(files, ", ")}"
-      }
-    end)
-  end
-
-  defp deadlock_health_issues(nodes) do
-    failed = nodes |> Enum.filter(&(to_string(&1.status) == "failed")) |> MapSet.new(& &1.id)
-
-    nodes
-    |> Enum.filter(fn node ->
-      to_string(node.status) == "pending" and
-        Enum.any?(node.blocked_by, &MapSet.member?(failed, &1))
-    end)
-    |> Enum.map(fn node ->
-      %{
-        type: :deadlocked,
-        severity: :error,
-        external_id: node.id,
-        description:
-          "Pipeline task #{node.id} is blocked by failed dependency tasks: #{Enum.join(node.blocked_by, ", ")}"
-      }
-    end)
-  end
-
-  defp orphan_health_issues(nodes) do
-    failed = nodes |> Enum.filter(&(to_string(&1.status) == "failed")) |> MapSet.new(& &1.id)
-
-    nodes
-    |> Enum.filter(fn node ->
-      to_string(node.status) == "pending" and
-        node.blocked_by != [] and
-        Enum.all?(node.blocked_by, &MapSet.member?(failed, &1))
-    end)
-    |> Enum.map(fn node ->
-      %{
-        type: :orphaned,
-        severity: :warning,
-        external_id: node.id,
-        description: "Pipeline task #{node.id} is pending but all blockers have failed"
-      }
-    end)
-  end
-
-  # ---------------------------------------------------------------------------
-  # Exporter (formerly Ichor.Projects.Exporter)
-  # ---------------------------------------------------------------------------
-
-  defp sync_task_to_file(_task, nil), do: :ok
-  defp sync_task_to_file(_task, ""), do: :ok
-
-  defp sync_task_to_file(task, project_path) do
-    tasks_path = Path.join(project_path, "tasks.jsonl")
-    jq_update_item(tasks_path, task.external_id, to_string(task.status), task.owner || "")
-  end
-
-  defp jq_update_item(path, external_id, new_status, new_owner) do
-    now = DateTime.utc_now() |> DateTime.to_iso8601()
-
-    jq_expr =
-      ~s(if .id == $eid then .status = $st | .owner = $ow | .updated = $ts else . end)
-
-    jq_in_place(path, jq_expr, [
-      "--arg",
-      "eid",
-      external_id,
-      "--arg",
-      "st",
-      new_status,
-      "--arg",
-      "ow",
-      new_owner,
-      "--arg",
-      "ts",
-      now
-    ])
-  end
-
-  defp jq_in_place(path, expr, extra_args) do
-    tmp = path <> ".pipeline_tmp"
-
-    case System.cmd("jq", ["-c"] ++ extra_args ++ [expr, path], stderr_to_stdout: true) do
-      {output, 0} ->
-        case File.write(tmp, output) do
-          :ok ->
-            File.rename!(tmp, path)
-            :ok
-
-          err ->
-            File.rm(tmp)
-            err
-        end
-
-      {err, _} ->
-        {:error, err}
-    end
   end
 end

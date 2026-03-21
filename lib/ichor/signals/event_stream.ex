@@ -21,13 +21,14 @@ defmodule Ichor.Signals.EventStream do
 
   require Logger
 
-  alias Ichor.Infrastructure.{AgentProcess, FleetSupervisor, TeamSupervisor}
+  alias Ichor.Infrastructure.AgentProcess
   alias Ichor.Signals
   alias Ichor.Signals.TraceEvent
+  alias Ichor.Signals.EventStream.{AgentLifecycle, Normalizer}
   alias Ichor.Workshop.AgentEntry
 
   # ---------------------------------------------------------------------------
-  # EventBuffer ETS table names (preserved for compatibility)
+  # ETS table names (preserved for compatibility)
   # ---------------------------------------------------------------------------
 
   @table :event_buffer_events
@@ -98,12 +99,25 @@ defmodule Ichor.Signals.EventStream do
   @doc "Ingest a hook event map into the ETS buffer. Drops events for tombstoned sessions."
   @spec ingest(map()) :: {:ok, map()}
   def ingest(event_attrs) when is_map(event_attrs) do
-    event =
-      event_attrs
-      |> Map.update(:payload, %{}, &sanitize_payload/1)
-      |> put_duration()
-      |> track_tool_start()
-      |> build_event()
+    sanitized = Map.update(event_attrs, :payload, %{}, &Normalizer.sanitize_payload/1)
+
+    attrs_with_duration =
+      case lookup_tool_start(sanitized) do
+        {id, start_time} ->
+          :ets.delete(@tools, id)
+          Normalizer.put_duration(sanitized, start_time)
+
+        nil ->
+          sanitized
+      end
+
+    attrs_tracked = track_tool_start(attrs_with_duration)
+
+    tmux_session = Normalizer.get_field(attrs_tracked, :tmux_session)
+    raw_id = Normalizer.get_field(attrs_tracked, :session_id) || "unknown"
+    resolved_session_id = resolve_session_id(raw_id, tmux_session)
+
+    event = Normalizer.build_event(attrs_tracked, resolved_session_id)
 
     unless tombstoned?(event.session_id) do
       :ets.insert(@table, {event.id, event})
@@ -216,15 +230,15 @@ defmodule Ichor.Signals.EventStream do
   def handle_info(_msg, state), do: {:noreply, state}
 
   # ---------------------------------------------------------------------------
-  # Ingest pipeline (absorbed from Gateway.Router)
+  # Ingest pipeline
   # ---------------------------------------------------------------------------
 
   defp ingest_event(event) do
-    agent_id = resolve_or_create_agent(event.session_id, event)
+    agent_id = AgentLifecycle.resolve_or_create_agent(event.session_id, event)
 
     if event.hook_event_type in [:SessionEnd, "SessionEnd"] do
       AgentProcess.update_fields(agent_id, %{status: :ended})
-      terminate_agent_process(agent_id)
+      AgentLifecycle.terminate_agent_process(agent_id)
     end
 
     handle_channel_events(event)
@@ -241,8 +255,11 @@ defmodule Ichor.Signals.EventStream do
 
   defp handle_channel_events(_event), do: :ok
 
-  defp handle_pre_tool_use("TeamCreate", _event, input), do: handle_team_create(input)
-  defp handle_pre_tool_use("TeamDelete", _event, input), do: handle_team_delete(input)
+  defp handle_pre_tool_use("TeamCreate", _event, input),
+    do: AgentLifecycle.handle_team_create(input)
+
+  defp handle_pre_tool_use("TeamDelete", _event, input),
+    do: AgentLifecycle.handle_team_delete(input)
 
   defp handle_pre_tool_use("SendMessage", event, input) do
     emit_intercepted(
@@ -258,18 +275,6 @@ defmodule Ichor.Signals.EventStream do
   end
 
   defp handle_pre_tool_use(_tool_name, _event, _input), do: :ok
-
-  defp handle_team_create(input) do
-    if team_name = input["team_name"] do
-      ensure_team_supervisor(team_name)
-    end
-  end
-
-  defp handle_team_delete(input) do
-    if team_name = input["team_name"] do
-      FleetSupervisor.disband_team(team_name)
-    end
-  end
 
   defp emit_intercepted(event, recipient, content, type) do
     Signals.emit(:agent_message_intercepted, event.session_id, %{
@@ -291,98 +296,42 @@ defmodule Ichor.Signals.EventStream do
 
   defp emit_intercepted_mcp(_event, _args), do: :ok
 
-  defp ensure_team_supervisor(team_name) do
-    unless TeamSupervisor.exists?(team_name) do
-      case FleetSupervisor.create_team(name: team_name) do
-        {:ok, _pid} ->
-          :ok
+  # ---------------------------------------------------------------------------
+  # ETS helpers -- session aliases and tool timing
+  # ---------------------------------------------------------------------------
 
-        {:error, :already_exists} ->
-          :ok
-
-        {:error, reason} ->
-          Logger.debug(
-            "[Signals.EventStream] Could not create TeamSupervisor for #{team_name}: #{inspect(reason)}"
-          )
-
-          :ok
-      end
-    end
-  rescue
-    _ -> :ok
-  end
-
-  defp resolve_or_create_agent(session_id, event) do
-    cond do
-      AgentProcess.alive?(session_id) ->
-        session_id
-
-      match = find_agent_by_tmux(event.tmux_session) ->
-        match
-
-      true ->
-        tmux_session = if event.tmux_session != "", do: event.tmux_session, else: nil
-
-        opts = [
-          id: session_id,
-          role: :worker,
-          backend: if(tmux_session, do: %{type: :tmux, session: tmux_session}, else: nil),
-          metadata: %{
-            cwd: event.cwd,
-            model: event.model_name,
-            os_pid: event.os_pid,
-            name: session_id
-          }
-        ]
-
-        case FleetSupervisor.spawn_agent(opts) do
-          {:ok, _pid} -> session_id
-          {:error, {:already_started, _}} -> session_id
-          {:error, _reason} -> session_id
-        end
-    end
-  rescue
-    _ -> session_id
-  end
-
-  defp find_agent_by_tmux(nil), do: nil
-  defp find_agent_by_tmux(""), do: nil
-
-  defp find_agent_by_tmux(tmux_session) do
-    AgentProcess.list_all()
-    |> Enum.find_value(fn {id, meta} ->
-      target = meta[:tmux_target] || ""
-      session = meta[:tmux_session] || ""
-
-      if session == tmux_session or String.starts_with?(target, tmux_session <> ":") do
-        id
-      end
-    end)
-  end
-
-  defp terminate_agent_process(session_id) do
-    case AgentProcess.lookup(session_id) do
-      {pid, _meta} -> terminate_or_stop(session_id, pid)
-      nil -> :ok
+  defp resolve_session_id(raw_id, tmux) when tmux in [nil, ""] do
+    case {AgentEntry.uuid?(raw_id), :ets.lookup(@aliases, raw_id)} do
+      {true, [{_, canonical}]} -> canonical
+      _ -> raw_id
     end
   end
 
-  defp terminate_or_stop(session_id, pid) do
-    case FleetSupervisor.terminate_agent(session_id) do
-      :ok ->
-        :ok
+  defp resolve_session_id(raw_id, tmux_session) do
+    if AgentEntry.uuid?(raw_id), do: :ets.insert(@aliases, {raw_id, tmux_session})
+    tmux_session
+  end
 
-      {:error, :not_found} ->
-        try do
-          GenServer.stop(pid, :normal)
-        catch
-          :exit, _ -> :ok
-        end
+  defp lookup_tool_start(%{hook_event_type: type, tool_use_id: id})
+       when type in ["PostToolUse", "PostToolUseFailure"] and is_binary(id) do
+    case :ets.lookup(@tools, id) do
+      [{^id, start_time}] -> {id, start_time}
+      _ -> nil
     end
   end
+
+  defp lookup_tool_start(_attrs), do: nil
+
+  defp track_tool_start(%{hook_event_type: "PreToolUse", tool_use_id: id} = attrs)
+       when is_binary(id) do
+    :ets.insert(@tools, {id, System.monotonic_time(:millisecond)})
+    attrs
+  end
+
+  defp track_tool_start(attrs), do: attrs
 
   # ---------------------------------------------------------------------------
-  # EventBuffer private helpers (absorbed)
+  # ETS buffer helpers
   # ---------------------------------------------------------------------------
 
   defp keep_latest(acc, event) do
@@ -424,116 +373,6 @@ defmodule Ichor.Signals.EventStream do
         false
     end
   end
-
-  defp resolve_session_id(raw_id, tmux) when tmux in [nil, ""] do
-    case {AgentEntry.uuid?(raw_id), :ets.lookup(@aliases, raw_id)} do
-      {true, [{_, canonical}]} -> canonical
-      _ -> raw_id
-    end
-  end
-
-  defp resolve_session_id(raw_id, tmux_session) do
-    if AgentEntry.uuid?(raw_id), do: :ets.insert(@aliases, {raw_id, tmux_session})
-    tmux_session
-  end
-
-  defp sanitize_payload(payload) when is_map(payload) do
-    payload
-    |> Map.delete("tool_response")
-    |> truncate_tool_input()
-  end
-
-  defp sanitize_payload(payload), do: payload
-
-  defp truncate_tool_input(%{"tool_input" => input} = payload) when is_map(input) do
-    truncated =
-      Map.new(input, fn
-        {k, v} when is_binary(v) and byte_size(v) > 500 ->
-          {k, String.slice(v, 0, 500) <> "...[truncated]"}
-
-        pair ->
-          pair
-      end)
-
-    Map.put(payload, "tool_input", truncated)
-  end
-
-  defp truncate_tool_input(payload), do: payload
-
-  defp put_duration(%{hook_event_type: type, tool_use_id: id} = attrs)
-       when type in ["PostToolUse", "PostToolUseFailure"] and is_binary(id) do
-    case :ets.lookup(@tools, id) do
-      [{^id, start_time}] ->
-        :ets.delete(@tools, id)
-        Map.put(attrs, :duration_ms, System.monotonic_time(:millisecond) - start_time)
-
-      _ ->
-        attrs
-    end
-  end
-
-  defp put_duration(attrs), do: attrs
-
-  defp track_tool_start(%{hook_event_type: "PreToolUse", tool_use_id: id} = attrs)
-       when is_binary(id) do
-    :ets.insert(@tools, {id, System.monotonic_time(:millisecond)})
-    attrs
-  end
-
-  defp track_tool_start(attrs), do: attrs
-
-  defp build_event(attrs) do
-    now = DateTime.utc_now()
-    tmux_session = get_field(attrs, :tmux_session)
-    raw_id = get_field(attrs, :session_id) || "unknown"
-
-    %{
-      id: Ash.UUID.generate(),
-      source_app: get_field(attrs, :source_app) || "unknown",
-      session_id: resolve_session_id(raw_id, tmux_session),
-      hook_event_type: coerce_hook_type(get_field(attrs, :hook_event_type)),
-      payload: get_field(attrs, :payload) || %{},
-      summary: get_field(attrs, :summary),
-      model_name: get_field(attrs, :model_name),
-      tool_name: get_field(attrs, :tool_name),
-      tool_use_id: get_field(attrs, :tool_use_id),
-      cwd: get_field(attrs, :cwd),
-      permission_mode: get_field(attrs, :permission_mode),
-      duration_ms: get_field(attrs, :duration_ms),
-      tmux_session: tmux_session,
-      os_pid: get_field(attrs, :os_pid),
-      inserted_at: now,
-      updated_at: now
-    }
-  end
-
-  defp get_field(attrs, key) do
-    attrs[key] || attrs[Atom.to_string(key)]
-  end
-
-  @hook_event_type_map %{
-    "SessionStart" => :SessionStart,
-    "SessionEnd" => :SessionEnd,
-    "UserPromptSubmit" => :UserPromptSubmit,
-    "PreToolUse" => :PreToolUse,
-    "PostToolUse" => :PostToolUse,
-    "PostToolUseFailure" => :PostToolUseFailure,
-    "PermissionRequest" => :PermissionRequest,
-    "Notification" => :Notification,
-    "SubagentStart" => :SubagentStart,
-    "SubagentStop" => :SubagentStop,
-    "Stop" => :Stop,
-    "PreCompact" => :PreCompact,
-    "TaskCompleted" => :TaskCompleted
-  }
-
-  defp coerce_hook_type(t) when is_atom(t), do: t
-
-  defp coerce_hook_type(t) when is_binary(t) do
-    Map.get(@hook_event_type_map, t, :unknown)
-  end
-
-  defp coerce_hook_type(_), do: :Stop
 
   defp build_fact_event(name, attrs) do
     %TraceEvent{

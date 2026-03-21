@@ -18,7 +18,8 @@ defmodule Ichor.Signals.AgentWatchdog do
   alias Ichor.Infrastructure.AgentProcess
   alias Ichor.Infrastructure.HITLRelay
   alias Ichor.Infrastructure.Tmux
-  alias Ichor.Infrastructure.Tmux.Ssh, as: SshTmux
+  alias Ichor.Signals.AgentWatchdog.EscalationEngine
+  alias Ichor.Signals.AgentWatchdog.PaneScanner
   alias Ichor.Signals.Bus
   alias Ichor.Signals.Message
   alias Ichor.Workshop.AgentEntry
@@ -29,8 +30,6 @@ defmodule Ichor.Signals.AgentWatchdog do
   @default_stale_threshold 600
   @default_nudge_interval 300
   @default_max_level 3
-
-  @capture_lines 30
 
   # State shape:
   # %{
@@ -217,12 +216,12 @@ defmodule Ichor.Signals.AgentWatchdog do
       AgentProcess.list_all()
       |> Enum.map(fn {_id, meta} -> meta end)
       |> Enum.reject(&(&1[:role] == :operator))
-      |> Enum.filter(&stale?(&1, now, stale_threshold))
+      |> Enum.filter(&EscalationEngine.stale?(&1, now, stale_threshold))
 
-    stale_ids = MapSet.new(stale_agents, &agent_session_id/1)
+    stale_ids = MapSet.new(stale_agents, &EscalationEngine.agent_session_id/1)
 
     escalations =
-      process_escalations(
+      EscalationEngine.process_escalations(
         stale_agents,
         state.escalations,
         now,
@@ -244,9 +243,9 @@ defmodule Ichor.Signals.AgentWatchdog do
       {nil, _} ->
         escalations
 
-      {entry, rest} ->
+      {entry, _rest} ->
         maybe_unpause(session_id, entry)
-        rest
+        EscalationEngine.clear(session_id, escalations)
     end
   end
 
@@ -353,52 +352,6 @@ defmodule Ichor.Signals.AgentWatchdog do
     end
   end
 
-  defp stale?(agent, now, threshold) do
-    agent_session_id(agent) != nil and
-      agent[:status] == :active and
-      agent[:last_event_at] != nil and
-      DateTime.diff(now, agent[:last_event_at], :second) > threshold
-  end
-
-  defp agent_session_id(agent), do: agent[:session_id] || agent[:agent_id]
-
-  defp effective_max_level(%{channels: %{tmux: tmux}}, max) when not is_nil(tmux), do: max
-  defp effective_max_level(_agent, _max), do: 0
-
-  defp default_entry(now, nudge_interval) do
-    %{
-      level: -1,
-      last_nudge_at: DateTime.add(now, -nudge_interval - 1, :second),
-      stale_since: now
-    }
-  end
-
-  defp process_escalations(stale_agents, escalations, now, nudge_interval, max_level, execute_fn) do
-    Enum.reduce(stale_agents, escalations, fn agent, acc ->
-      session_id = agent_session_id(agent)
-      entry = Map.get(acc, session_id, default_entry(now, nudge_interval))
-      maybe_escalate(acc, session_id, agent, entry, now, nudge_interval, max_level, execute_fn)
-    end)
-  end
-
-  defp maybe_escalate(acc, session_id, agent, entry, now, nudge_interval, max_level, execute_fn) do
-    since_last = DateTime.diff(now, entry.last_nudge_at, :second)
-    effective_max = effective_max_level(agent, max_level)
-
-    if since_last >= nudge_interval and entry.level < effective_max do
-      new_level = entry.level + 1
-      execute_fn.(session_id, agent, new_level)
-
-      Map.put(acc, session_id, %{
-        level: new_level,
-        last_nudge_at: now,
-        stale_since: entry.stale_since
-      })
-    else
-      acc
-    end
-  end
-
   defp scan_all_panes(state) do
     AgentProcess.list_all()
     |> Enum.reduce(state, fn
@@ -408,7 +361,7 @@ defmodule Ichor.Signals.AgentWatchdog do
   end
 
   defp scan_active_agent(agent, acc) do
-    case resolve_capture_target(agent) do
+    case PaneScanner.resolve_capture_target(agent) do
       {target, capture_fn} -> scan_agent(agent, target, capture_fn, acc)
       nil -> acc
     end
@@ -419,7 +372,7 @@ defmodule Ichor.Signals.AgentWatchdog do
       {:ok, output} ->
         prev_output = Map.get(state.captures, tmux_target, "")
         state = put_in(state.captures[tmux_target], output)
-        new_lines = diff_output(prev_output, output)
+        new_lines = PaneScanner.diff_output(prev_output, output)
 
         if new_lines != "" do
           parse_pane_signals(agent, new_lines, state)
@@ -447,7 +400,7 @@ defmodule Ichor.Signals.AgentWatchdog do
   end
 
   defp check_done_signal(agent, text, state) do
-    case match_done(text) do
+    case PaneScanner.match_done(text) do
       {:ok, summary} ->
         session_id = agent[:session_id] || agent[:id]
         signal_key = {session_id, :done}
@@ -466,7 +419,7 @@ defmodule Ichor.Signals.AgentWatchdog do
   end
 
   defp check_blocked_signal(agent, text, state) do
-    case match_blocked(text) do
+    case PaneScanner.match_blocked(text) do
       {:ok, reason} ->
         session_id = agent[:session_id] || agent[:id]
         signal_key = {session_id, :blocked}
@@ -523,52 +476,6 @@ defmodule Ichor.Signals.AgentWatchdog do
       |> Enum.map(&elem(&1, 0))
 
     Enum.reduce(session_ids, state, &drop_session_state(&2, &1))
-  end
-
-  defp resolve_capture_target(%{channels: %{tmux: target}}) when is_binary(target) do
-    if capture_target?(target) do
-      {target, &Tmux.capture_pane(&1, lines: @capture_lines)}
-    end
-  end
-
-  defp resolve_capture_target(%{channels: %{ssh_tmux: target}}) when is_binary(target) do
-    if capture_target?(target) do
-      {target, &SshTmux.capture_pane(&1, lines: @capture_lines)}
-    end
-  end
-
-  defp resolve_capture_target(_), do: nil
-
-  defp capture_target?("%" <> _), do: true
-  defp capture_target?(target) when is_binary(target), do: String.contains?(target, ":")
-
-  defp diff_output(prev, current) do
-    prev_lines = String.split(prev, "\n", trim: true)
-    curr_lines = String.split(current, "\n", trim: true)
-
-    overlap = length(prev_lines)
-
-    if overlap > 0 and length(curr_lines) > overlap do
-      curr_lines
-      |> Enum.drop(overlap)
-      |> Enum.join("\n")
-    else
-      if prev == current, do: "", else: current
-    end
-  end
-
-  defp match_done(text) do
-    case Regex.run(~r/ICHOR_DONE:\s*(.+)/, text) do
-      [_, summary] -> {:ok, String.trim(summary)}
-      nil -> :nomatch
-    end
-  end
-
-  defp match_blocked(text) do
-    case Regex.run(~r/ICHOR_BLOCKED:\s*(.+)/, text) do
-      [_, reason] -> {:ok, String.trim(reason)}
-      nil -> :nomatch
-    end
   end
 
   defp config(key, default) do

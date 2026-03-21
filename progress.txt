@@ -109,6 +109,13 @@
   - 6 backend crashes: bare matches, bang calls, contract violations
   - 5 frontend crashes: LiveView stream guard, error clauses, logging
   - 5 reliability: unbounded memory, blocking boot, tombstone signals
+- [x] PR #1 merged: AgentProcess decomposed into 6 helpers + inbox fix (2026-03-21)
+- [x] Module decompositions: Runner, AgentWatchdog, EventStream, Spawn (2026-03-21)
+- [x] Architecture analysis: DDD, boundary violations, Oban candidates, wrong homes (2026-03-21)
+- [x] Architecture understanding: spawn/1 generic, signals backbone, Workshop ownership (2026-03-21)
+- [x] Documentation: diagrams, glossary, vertical slices, archive old plans (2026-03-21)
+- [ ] Architecture-informed code review: find code contradicting spawn/signals/Workshop principles
+- [ ] Oban worker migration (5 candidates)
 - [ ] Redesign: vertical slices + Ash domains (target ~55 files)
 - [ ] Oban worker migration (5 strong candidates)
 - [ ] ichor_contracts cleanup (stale beam files)

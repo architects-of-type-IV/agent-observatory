@@ -1,28 +1,36 @@
 # BRAIN -- Session Knowledge
 
-## AshSqlite Aggregate Limitation
-AshSqlite's `can?/2` returns `false` for `{:aggregate_relationship, _}`. Aggregates block is NOT supported. Workaround: compute counts from fetched records.
+## spawn/1 Is Generic
+`spawn("team-name")` = look up Workshop design -> compile to TeamSpec -> TeamLaunch. The current `:mes`, `:pipeline`, `:planning` atoms are team configurations, not architectural spawn modes. In the target state, there's no special-case code per kind -- just team names with Workshop-configured prompts.
 
-## AshSqlite ALTER COLUMN Limitation
-SQLite does not support ALTER COLUMN. Remove `modify` lines from auto-generated migrations for allow_nil? changes. Enforce at Ash level only.
+## Constraints Are Pattern Matches
+A subscriber that checks "is mes already running?" is just a `handle_info` clause that pattern-matches on team name. No Policy module, no abstraction. Elixir pattern matching IS the mechanism.
 
-## Ash Notifier Data Availability
-Notifiers receive the result record and changeset. Data existing only as local variables in action bodies (e.g., newly-constructed embedded resource IDs) cannot be extracted without array diffing. Use TODO when this blocks notifier conversion.
+## Don't Name What Elixir Already Has
+Before creating a new module or concept, ask "is this just a function clause?" If yes, it stays unnamed in code. Concepts can exist in conversation without becoming modules. OOP creep happens through premature naming.
 
-## set_attribute vs attribute defaults
-`set_attribute(:status, :pending)` in create is redundant when attribute has `default(:pending)`. Ash applies defaults automatically.
+## Signals Is the Decoupling Mechanism
+Cross-domain calls should be: emit signal -> subscriber reacts. Not: module A calls module B directly. Adding behavior = adding a subscriber, not editing an existing module.
 
-## require_atomic?(false) triggers
-Only fn-based changes and function-capture changes require it. DSL builtins (`set_attribute`, `atomic_update`) are atomic-safe.
+## AshSqlite Limitations
+- No aggregates (can?/2 returns false for aggregate_relationship)
+- No ALTER COLUMN (modify in migrations fails)
+- Enforce constraints at Ash level, remove column-modify from generated migrations
+
+## Notifier Data Availability
+Notifiers only see the result record + changeset. Locally-scoped data (embedded resource IDs constructed in action body) can't be extracted without array diffing.
+
+## set_attribute vs Attribute Defaults
+Redundant in create actions. Ash applies defaults automatically.
+
+## require_atomic?(false) Triggers
+Only fn-based changes and function-capture changes need it. DSL builtins are atomic-safe.
 
 ## jq Injection Prevention
-Never interpolate external values into jq program strings. Use `--arg` flags: `["--arg", "tid", task_id, "--arg", "ow", new_owner]` with `$tid` / `$ow` in the jq expression.
+Never interpolate into jq program strings. Use --arg flags with $variable references.
 
 ## Shell Script Sanitization
-Agent names flow into shell scripts via tmux. Always sanitize: `String.replace(name, ~r/[^a-zA-Z0-9_-]/, "")` and single-quote paths in shell scripts.
+Agent names flow into shell scripts. Sanitize with regex, single-quote paths.
 
-## Elixir 1.19 Typing and Dead Error Clauses
-Elixir 1.19's type system flags `{:error, _}` clauses as "will never match" when the function spec only declares `{:ok, _}`. Use `try/rescue` instead of `case` when the function can only raise (not return error tuples) but you want graceful degradation.
-
-## ETS Reads Outside GenServer
-`:public` ETS reads from non-owning processes are safe for concurrent reads but may see partial state during concurrent writes. For snapshot consistency, route through `GenServer.call`. For best-effort, document the staleness risk.
+## Elixir 1.19 Typing
+Flags {:error, _} clauses as "will never match" when function spec only declares {:ok, _}. Use try/rescue for graceful degradation.
