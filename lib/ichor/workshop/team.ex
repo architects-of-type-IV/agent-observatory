@@ -75,7 +75,6 @@ defmodule Ichor.Workshop.Team do
 
     update :update do
       accept([:name, :strategy, :default_model, :cwd, :agents, :spawn_links, :comm_rules])
-      require_atomic?(false)
     end
 
     read :by_name do

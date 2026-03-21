@@ -13,10 +13,9 @@ defmodule Ichor.Workshop.Agent do
 
   alias Ichor.Infrastructure.AgentLaunch
   alias Ichor.Infrastructure.AgentProcess
-  alias Ichor.Infrastructure.FleetSupervisor
   alias Ichor.Infrastructure.Registration
-  alias Ichor.Infrastructure.TeamSupervisor
   alias Ichor.Infrastructure.Tmux
+  alias Ichor.Workshop.AgentLookup
 
   attributes do
     attribute(:agent_id, :string, primary_key?: true, allow_nil?: false, public?: true)
@@ -73,24 +72,28 @@ defmodule Ichor.Workshop.Agent do
       description("List all live agents with their current runtime status.")
 
       run(fn _input, _context ->
-        {:ok,
-         __MODULE__
-         |> Ash.Query.for_read(:active)
-         |> Ash.read!()
-         |> Enum.map(fn agent ->
-           %{
-             "id" => agent.agent_id,
-             "name" => agent.short_name || agent.name || agent.agent_id,
-             "session_id" => agent.session_id,
-             "team" => agent.team_name,
-             "role" => agent.role,
-             "status" => agent.status,
-             "model" => agent.model,
-             "cwd" => agent.cwd,
-             "current_tool" => agent.current_tool,
-             "last_event_at" => agent.last_event_at
-           }
-         end)}
+        with {:ok, agents} <-
+               __MODULE__
+               |> Ash.Query.for_read(:active)
+               |> Ash.read() do
+          {:ok,
+           Enum.map(agents, fn agent ->
+             %{
+               "id" => agent.agent_id,
+               "name" => agent.short_name || agent.name || agent.agent_id,
+               "session_id" => agent.session_id,
+               "team" => agent.team_name,
+               "role" => agent.role,
+               "status" => agent.status,
+               "model" => agent.model,
+               "cwd" => agent.cwd,
+               "current_tool" => agent.current_tool,
+               "last_event_at" => agent.last_event_at
+             }
+           end)}
+        else
+          {:error, reason} -> {:error, reason}
+        end
       end)
     end
 
@@ -102,7 +105,7 @@ defmodule Ichor.Workshop.Agent do
       run(fn input, _context ->
         query = input.arguments.agent_id
 
-        case find_agent(query) do
+        case AgentLookup.find_agent(query) do
           nil ->
             {:ok, %{"found" => false, "query" => query}}
 
@@ -139,10 +142,26 @@ defmodule Ichor.Workshop.Agent do
 
       argument(:id, :string, allow_nil?: false, description: "Unique agent identifier")
       argument(:role, :atom, default: :worker, description: "Agent role")
-      argument(:team_name, :string, description: "Team to join (nil for standalone)")
-      argument(:backend, :map, description: "Backend transport config")
+
+      argument(:team_name, :string,
+        allow_nil?: false,
+        default: "",
+        description: "Team to join (nil for standalone)"
+      )
+
+      argument(:backend, :map,
+        allow_nil?: false,
+        default: %{},
+        description: "Backend transport config"
+      )
+
       argument(:capabilities, {:array, :atom}, default: [], description: "Agent capabilities")
-      argument(:instructions, :string, description: "Initial instruction overlay")
+
+      argument(:instructions, :string,
+        allow_nil?: false,
+        default: "",
+        description: "Initial instruction overlay"
+      )
 
       run(fn input, _context ->
         args = input.arguments
@@ -156,7 +175,7 @@ defmodule Ichor.Workshop.Agent do
             if args[:backend], do: Keyword.put(o, :backend, args.backend), else: o
           end)
 
-        case spawn_in_fleet(args[:team_name], opts) do
+        case AgentLookup.spawn_in_fleet(args[:team_name], opts) do
           {:ok, pid} ->
             {:ok, %{agent_id: args.id, pid: inspect(pid), status: :active}}
 
@@ -214,7 +233,11 @@ defmodule Ichor.Workshop.Agent do
         "Launch a full agent: tmux session + Claude Code + BEAM process + instruction overlay."
       )
 
-      argument(:name, :string, description: "Agent name (auto-generated if blank)")
+      argument(:name, :string,
+        allow_nil?: false,
+        default: "",
+        description: "Agent name (auto-generated if blank)"
+      )
 
       argument(:capability, :string,
         default: "builder",
@@ -222,10 +245,22 @@ defmodule Ichor.Workshop.Agent do
       )
 
       argument(:model, :string, default: "sonnet", description: "Claude model to use")
-      argument(:cwd, :string, description: "Working directory")
-      argument(:team_name, :string, description: "Team to join")
+
+      argument(:cwd, :string,
+        allow_nil?: false,
+        default: "",
+        description: "Working directory"
+      )
+
+      argument(:team_name, :string,
+        allow_nil?: false,
+        default: "",
+        description: "Team to join"
+      )
 
       argument(:extra_instructions, :string,
+        allow_nil?: false,
+        default: "",
         description: "Additional instructions for the overlay"
       )
 
@@ -340,7 +375,7 @@ defmodule Ichor.Workshop.Agent do
       argument(:agent_id, :string, allow_nil?: false)
 
       run(fn input, _context ->
-        case find_agent(input.arguments.agent_id) do
+        case AgentLookup.find_agent(input.arguments.agent_id) do
           nil ->
             {:error, "agent not found: #{input.arguments.agent_id}"}
 
@@ -387,50 +422,5 @@ defmodule Ichor.Workshop.Agent do
     define(:stop_agent, args: [:agent_id])
     define(:terminate_agent, args: [:agent_id])
     define(:update_instructions, args: [:agent_id, :instructions])
-  end
-
-  @spec spawn_in_fleet(String.t() | nil, keyword()) :: {:ok, pid()} | {:error, term()}
-  defp spawn_in_fleet(nil, opts) do
-    FleetSupervisor.spawn_agent(opts)
-  end
-
-  defp spawn_in_fleet(team_name, opts) do
-    if not TeamSupervisor.exists?(team_name) do
-      FleetSupervisor.create_team(name: team_name)
-    end
-
-    TeamSupervisor.spawn_member(team_name, opts)
-  end
-
-  defp find_agent(query) when is_binary(query) do
-    AgentProcess.list_all()
-    |> Enum.find_value(fn {id, meta} ->
-      agent_id = meta[:session_id] || id
-      name = meta[:short_name] || meta[:name] || id
-
-      if agent_id == query or id == query or
-           meta[:session_id] == query or meta[:short_name] == query or
-           meta[:name] == query do
-        build_agent_match(agent_id, name, meta)
-      end
-    end)
-  end
-
-  defp build_agent_match(agent_id, name, meta) do
-    %{
-      agent_id: agent_id,
-      session_id: meta[:session_id] || agent_id,
-      name: name,
-      short_name: meta[:short_name],
-      role: to_string(meta[:role] || :worker),
-      model: meta[:model],
-      status: meta[:status],
-      cwd: meta[:cwd],
-      current_tool: meta[:current_tool],
-      last_event_at: meta[:last_event_at],
-      tmux_session: get_in(meta, [:channels, :tmux]),
-      channels: meta[:channels] || %{},
-      team_name: meta[:team]
-    }
   end
 end

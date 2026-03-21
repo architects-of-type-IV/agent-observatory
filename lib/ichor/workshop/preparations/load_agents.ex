@@ -28,7 +28,7 @@ defmodule Ichor.Workshop.Preparations.LoadAgents do
       role: to_string(meta[:role] || :worker),
       model: meta[:model],
       status: normalize_status(meta[:status]),
-      health: :healthy,
+      health: :unknown,
       current_tool: meta[:current_tool],
       event_count: 0,
       tool_count: 0,
@@ -50,6 +50,7 @@ defmodule Ichor.Workshop.Preparations.LoadAgents do
   defp normalize_status(:active), do: :active
   defp normalize_status(:idle), do: :idle
   defp normalize_status(:ended), do: :ended
+  # Lossy: :paused maps to :idle for UI constraint (status one_of: [:active, :idle, :ended])
   defp normalize_status(:paused), do: :idle
   defp normalize_status(_), do: :idle
 

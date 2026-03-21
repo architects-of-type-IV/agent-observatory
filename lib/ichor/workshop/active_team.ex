@@ -43,26 +43,30 @@ defmodule Ichor.Workshop.ActiveTeam do
       description("List all active teams with their members and health status.")
 
       run(fn _input, _context ->
-        {:ok,
-         __MODULE__
-         |> Ash.Query.for_read(:alive)
-         |> Ash.read!()
-         |> Enum.map(fn team ->
-           %{
-             "name" => team.name,
-             "members" =>
-               Enum.map(team.members, fn member ->
-                 %{
-                   "session_id" => member[:agent_id] || member[:session_id],
-                   "role" => member[:role] || member[:name],
-                   "status" => member[:status]
-                 }
-               end),
-             "member_count" => team.member_count,
-             "health" => team.health,
-             "source" => team.source
-           }
-         end)}
+        with {:ok, teams} <-
+               __MODULE__
+               |> Ash.Query.for_read(:alive)
+               |> Ash.read() do
+          {:ok,
+           Enum.map(teams, fn team ->
+             %{
+               "name" => team.name,
+               "members" =>
+                 Enum.map(team.members, fn member ->
+                   %{
+                     "session_id" => member[:agent_id] || member[:session_id],
+                     "role" => member[:role] || member[:name],
+                     "status" => member[:status]
+                   }
+                 end),
+               "member_count" => team.member_count,
+               "health" => team.health,
+               "source" => team.source
+             }
+           end)}
+        else
+          {:error, reason} -> {:error, reason}
+        end
       end)
     end
 
@@ -71,7 +75,12 @@ defmodule Ichor.Workshop.ActiveTeam do
 
       argument(:name, :string, allow_nil?: false, description: "Team name")
       argument(:strategy, :atom, default: :one_for_one, description: "Restart strategy")
-      argument(:project, :string, description: "Project key or path")
+
+      argument(:project, :string,
+        allow_nil?: false,
+        default: "",
+        description: "Project key or path"
+      )
 
       run(fn input, _context ->
         args = input.arguments
@@ -111,7 +120,12 @@ defmodule Ichor.Workshop.ActiveTeam do
       argument(:team_name, :string, allow_nil?: false, description: "Team to spawn into")
       argument(:agent_id, :string, allow_nil?: false, description: "Unique agent identifier")
       argument(:role, :atom, default: :worker, description: "Agent role")
-      argument(:backend, :map, description: "Backend transport config")
+
+      argument(:backend, :map,
+        allow_nil?: false,
+        default: %{},
+        description: "Backend transport config"
+      )
 
       run(fn input, _context ->
         args = input.arguments

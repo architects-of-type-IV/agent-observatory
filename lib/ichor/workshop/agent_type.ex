@@ -40,32 +40,38 @@ defmodule Ichor.Workshop.AgentType do
     end
 
     attribute :default_persona, :string do
+      allow_nil?(false)
       default("")
       public?(true)
     end
 
     attribute :default_file_scope, :string do
+      allow_nil?(false)
       default("")
       public?(true)
     end
 
     attribute :default_quality_gates, :string do
+      allow_nil?(false)
       default("mix compile --warnings-as-errors")
       public?(true)
     end
 
     attribute :default_tools, {:array, :string} do
+      allow_nil?(false)
       default([])
       public?(true)
     end
 
     attribute :color, :string do
+      allow_nil?(false)
       default("")
       public?(true)
       description("Optional hex color for canvas display")
     end
 
     attribute :sort_order, :integer do
+      allow_nil?(false)
       default(0)
       public?(true)
     end

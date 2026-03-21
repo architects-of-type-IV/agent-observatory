@@ -317,6 +317,9 @@ defmodule Ichor.Workshop.AgentMemory do
                  "archival_count" => a[:archival_count] || 0
                }
              end)}
+
+          {:error, reason} ->
+            {:error, reason}
         end
       end)
     end
