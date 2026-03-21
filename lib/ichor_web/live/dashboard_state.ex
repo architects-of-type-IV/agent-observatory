@@ -45,7 +45,14 @@ defmodule IchorWeb.DashboardState do
       slideout_activity: [],
       expanded_sessions: MapSet.new(),
       disk_teams: disk_teams,
-      pipeline_state: %{},
+      pipeline_state: %{
+        pipeline: %{total: 0, pending: 0, in_progress: 0, completed: 0, failed: 0, blocked: 0},
+        health: %{healthy: true, issue_count: 0},
+        watched_projects: %{},
+        active_project: nil,
+        tasks: [],
+        dependency_graph: %{waves: [], critical_path: []}
+      },
       protocol_stats: %{},
       selected_pipeline_task: nil,
       selected_command_agent: nil,
