@@ -5,6 +5,8 @@ defmodule Ichor.Factory.PipelineTask do
   Reset returns failed or stale pipeline tasks to pending.
   """
 
+  import Ichor.Util, only: [blank_to_nil: 1]
+
   use Ash.Resource,
     domain: Ichor.Factory,
     data_layer: AshSqlite.DataLayer,
@@ -217,7 +219,10 @@ defmodule Ichor.Factory.PipelineTask do
       argument(:run_id, :string, allow_nil?: false)
 
       run(fn input, _context ->
-        with {:ok, tasks} <- __MODULE__.available(input.arguments.run_id) do
+        with {:ok, tasks} <-
+               __MODULE__
+               |> Ash.Query.for_read(:available, %{run_id: input.arguments.run_id})
+               |> Ash.read() do
           {:ok, Enum.map(tasks, &task_to_map/1)}
         end
       end)
@@ -230,8 +235,11 @@ defmodule Ichor.Factory.PipelineTask do
       argument(:owner, :string, allow_nil?: false)
 
       run(fn input, _context ->
-        with {:ok, task} <- __MODULE__.get(input.arguments.task_id),
-             {:ok, claimed} <- __MODULE__.claim(task, input.arguments.owner) do
+        with {:ok, task} <- Ash.get(__MODULE__, input.arguments.task_id),
+             {:ok, claimed} <-
+               task
+               |> Ash.Changeset.for_update(:claim, %{owner: input.arguments.owner})
+               |> Ash.update() do
           {:ok, task_to_map(claimed)}
         else
           {:error, %Ash.Error.Invalid{} = err} ->
@@ -250,14 +258,28 @@ defmodule Ichor.Factory.PipelineTask do
       argument(:notes, :string, allow_nil?: false, default: "")
 
       run(fn input, _context ->
-        with {:ok, task} <- __MODULE__.get(input.arguments.task_id),
+        with {:ok, task} <- Ash.get(__MODULE__, input.arguments.task_id),
              {:ok, completed} <-
-               __MODULE__.complete(
-                 task,
-                 %{notes: blank_to_nil(input.arguments.notes)}
-               ),
-             {:ok, available} <- __MODULE__.available(completed.run_id),
-             {:ok, all_tasks} <- __MODULE__.by_run(completed.run_id) do
+               task
+               |> Ash.Changeset.for_update(:complete, %{
+                 notes: blank_to_nil(input.arguments.notes)
+               })
+               |> Ash.update(),
+             {:ok, all_tasks} <-
+               __MODULE__
+               |> Ash.Query.for_read(:by_run, %{run_id: completed.run_id})
+               |> Ash.read() do
+          completed_ids =
+            all_tasks
+            |> Enum.filter(&(&1.status == :completed))
+            |> MapSet.new(& &1.external_id)
+
+          available =
+            Enum.filter(all_tasks, fn t ->
+              t.status == :pending and is_nil(t.owner) and
+                Enum.all?(t.blocked_by, &MapSet.member?(completed_ids, &1))
+            end)
+
           {:ok,
            %{
              "completed" => task_to_map(completed),
@@ -278,8 +300,11 @@ defmodule Ichor.Factory.PipelineTask do
       argument(:notes, :string, allow_nil?: false)
 
       run(fn input, _context ->
-        with {:ok, task} <- __MODULE__.get(input.arguments.task_id),
-             {:ok, failed} <- __MODULE__.fail(task, %{notes: input.arguments.notes}) do
+        with {:ok, task} <- Ash.get(__MODULE__, input.arguments.task_id),
+             {:ok, failed} <-
+               task
+               |> Ash.Changeset.for_update(:fail, %{notes: input.arguments.notes})
+               |> Ash.update() do
           {:ok, task_to_map(failed)}
         else
           {:error, reason} ->
@@ -330,7 +355,4 @@ defmodule Ichor.Factory.PipelineTask do
   defp format_ash_error(%Ash.Error.Invalid{errors: errors}) do
     Enum.map_join(errors, "; ", fn e -> Map.get(e, :message, inspect(e)) end)
   end
-
-  defp blank_to_nil(""), do: nil
-  defp blank_to_nil(value), do: value
 end

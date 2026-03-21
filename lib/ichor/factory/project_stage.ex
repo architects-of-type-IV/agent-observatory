@@ -109,12 +109,13 @@ defmodule Ichor.Factory.ProjectStage do
   defp gate_b_checkpoint?(checkpoints), do: has_checkpoint_mode?(checkpoints, :gate_b)
   defp gate_c_checkpoint?(checkpoints), do: has_checkpoint_mode?(checkpoints, :gate_c)
 
-  defp has_checkpoint_mode?(checkpoints, _mode) when not is_list(checkpoints), do: false
   defp has_checkpoint_mode?([], _mode), do: false
 
-  defp has_checkpoint_mode?(checkpoints, mode) do
+  defp has_checkpoint_mode?(checkpoints, mode) when is_list(checkpoints) do
     Enum.any?(checkpoints, fn cp -> cp.mode == mode or cp.mode == to_string(mode) end)
   end
+
+  defp has_checkpoint_mode?(_checkpoints, _mode), do: false
 
   defp has_active_pipeline?(nil), do: false
 

@@ -12,7 +12,18 @@ defmodule Ichor.Factory.Project do
     data_layer: AshSqlite.DataLayer,
     simple_notifiers: [Ichor.Signals.FromAsh]
 
-  alias Ichor.Factory.{Artifact, RoadmapItem}
+  import Ichor.Util,
+    only: [
+      blank_to_nil: 1,
+      empty_to_nil: 1,
+      maybe_put: 3,
+      split_csv: 1,
+      split_lines: 1,
+      parse_artifact_status: 1,
+      parse_mode: 1
+    ]
+
+  alias Ichor.Factory.{Artifact, ProjectView, RoadmapItem}
   alias Ichor.Signals
 
   @project_status_map %{
@@ -313,8 +324,11 @@ defmodule Ichor.Factory.Project do
           |> maybe_put(:run_id, blank_to_nil(args.run_id))
           |> maybe_put(:team_name, blank_to_nil(args.team_name))
 
-        with {:ok, project} <- __MODULE__.create(attrs) do
-          {:ok, summarize_project(project)}
+        with {:ok, project} <-
+               __MODULE__
+               |> Ash.Changeset.for_create(:create, attrs)
+               |> Ash.create() do
+          {:ok, ProjectView.summarize(project)}
         end
       end)
     end
@@ -326,10 +340,13 @@ defmodule Ichor.Factory.Project do
       argument(:status, :string, allow_nil?: false)
 
       run(fn input, _context ->
-        with {:ok, project} <- __MODULE__.get(input.arguments.project_id),
+        with {:ok, project} <- Ash.get(__MODULE__, input.arguments.project_id),
              {:ok, planning_stage} <- Map.fetch(@planning_stage_map, input.arguments.status),
-             {:ok, updated} <- __MODULE__.advance(project, planning_stage) do
-          {:ok, summarize_project(updated)}
+             {:ok, updated} <-
+               project
+               |> Ash.Changeset.for_update(:advance, %{planning_stage: planning_stage})
+               |> Ash.update() do
+          {:ok, ProjectView.summarize(updated)}
         else
           :error -> {:error, "invalid planning stage: #{input.arguments.status}"}
           error -> error
@@ -341,8 +358,11 @@ defmodule Ichor.Factory.Project do
       description("List all projects with their current planning stage.")
 
       run(fn _input, _context ->
-        with {:ok, projects} <- __MODULE__.list_all() do
-          {:ok, Enum.map(projects, &summarize_project/1)}
+        with {:ok, projects} <-
+               __MODULE__
+               |> Ash.Query.for_read(:list_all)
+               |> Ash.read() do
+          {:ok, Enum.map(projects, &ProjectView.summarize/1)}
         end
       end)
     end
@@ -353,8 +373,8 @@ defmodule Ichor.Factory.Project do
       argument(:project_id, :string, allow_nil?: false)
 
       run(fn input, _context ->
-        with {:ok, project} <- __MODULE__.get(input.arguments.project_id) do
-          {:ok, detail_project(project)}
+        with {:ok, project} <- Ash.get(__MODULE__, input.arguments.project_id) do
+          {:ok, ProjectView.detail(project)}
         end
       end)
     end
@@ -365,8 +385,8 @@ defmodule Ichor.Factory.Project do
       argument(:project_id, :string, allow_nil?: false)
 
       run(fn input, _context ->
-        with {:ok, project} <- __MODULE__.get(input.arguments.project_id) do
-          {:ok, gate_report(project)}
+        with {:ok, project} <- Ash.get(__MODULE__, input.arguments.project_id) do
+          {:ok, ProjectView.gate_report(project)}
         end
       end)
     end
@@ -383,16 +403,23 @@ defmodule Ichor.Factory.Project do
         projects =
           case input.arguments.status do
             "" ->
-              __MODULE__.list_all!()
+              __MODULE__
+              |> Ash.Query.for_read(:list_all)
+              |> Ash.read!()
 
             status_str ->
               case Map.fetch(@project_status_map, status_str) do
-                {:ok, status} -> __MODULE__.by_status!(status)
-                :error -> []
+                {:ok, status} ->
+                  __MODULE__
+                  |> Ash.Query.for_read(:by_status, %{status: status})
+                  |> Ash.read!()
+
+                :error ->
+                  []
               end
           end
 
-        {:ok, Enum.map(projects, &project_to_map/1)}
+        {:ok, Enum.map(projects, &ProjectView.to_map/1)}
       end)
     end
 
@@ -438,8 +465,8 @@ defmodule Ichor.Factory.Project do
           |> maybe_put(:run_id, blank_to_nil(args.run_id))
           |> maybe_put(:team_name, blank_to_nil(args.team_name))
 
-        case __MODULE__.create(attrs) do
-          {:ok, project} -> {:ok, project_to_map(project)}
+        case __MODULE__ |> Ash.Changeset.for_create(:create, attrs) |> Ash.create() do
+          {:ok, project} -> {:ok, ProjectView.to_map(project)}
           {:error, reason} -> {:error, reason}
         end
       end)
@@ -457,39 +484,25 @@ defmodule Ichor.Factory.Project do
       run(fn input, _context ->
         args = input.arguments
 
-        with {:ok, project} <- __MODULE__.get(args.project_id),
-             artifact <-
-               artifact(
-                 attrs: %{
-                   kind: :adr,
-                   code: args.code,
-                   title: args.title,
-                   content: blank_to_nil(args.content),
-                   status: parse_artifact_status(args.status)
-                 }
-               ),
-             {:ok, updated} <- put_artifact(project, artifact) do
-          Signals.emit(:project_artifact_created, %{
-            id: artifact.id,
-            project_id: project.id,
-            type: :adr
-          })
-
-          {:ok,
-           summarize_artifact(find_embedded!(updated.artifacts, artifact.id), @artifact_fields)}
-        end
+        create_artifact_for(args.project_id, :adr, %{
+          code: args.code,
+          title: args.title,
+          content: blank_to_nil(args.content),
+          status: parse_artifact_status(args.status)
+        })
       end)
     end
 
     action :update_adr, :map do
       description("Update an ADR status or content.")
 
+      argument(:project_id, :string, allow_nil?: false)
       argument(:adr_id, :string, allow_nil?: false)
       argument(:status, :string, allow_nil?: false, default: "")
       argument(:content, :string, allow_nil?: false, default: "")
 
       run(fn input, _context ->
-        with {:ok, project} <- find_project_by_artifact(input.arguments.adr_id),
+        with {:ok, project} <- Ash.get(__MODULE__, input.arguments.project_id),
              {:ok, updated} <-
                replace_artifact(project, input.arguments.adr_id, fn artifact ->
                  artifact
@@ -500,7 +513,7 @@ defmodule Ichor.Factory.Project do
                  |> maybe_put(:content, blank_to_nil(input.arguments.content))
                end) do
           {:ok,
-           summarize_artifact(
+           ProjectView.summarize_embedded(
              find_embedded!(updated.artifacts, input.arguments.adr_id),
              @artifact_fields
            )}
@@ -514,12 +527,7 @@ defmodule Ichor.Factory.Project do
       argument(:project_id, :string, allow_nil?: false)
 
       run(fn input, _context ->
-        with {:ok, project} <- __MODULE__.get(input.arguments.project_id) do
-          {:ok,
-           project.artifacts
-           |> filter_artifacts(:adr)
-           |> Enum.map(&summarize_artifact(&1, [:code, :title, :status]))}
-        end
+        list_artifacts_for(input.arguments.project_id, :adr, [:code, :title, :status])
       end)
     end
 
@@ -535,27 +543,12 @@ defmodule Ichor.Factory.Project do
       run(fn input, _context ->
         args = input.arguments
 
-        with {:ok, project} <- __MODULE__.get(args.project_id),
-             artifact <-
-               artifact(
-                 attrs: %{
-                   kind: :feature,
-                   code: args.code,
-                   title: args.title,
-                   content: blank_to_nil(args.content),
-                   adr_codes: split_csv(args.adr_codes)
-                 }
-               ),
-             {:ok, updated} <- put_artifact(project, artifact) do
-          Signals.emit(:project_artifact_created, %{
-            id: artifact.id,
-            project_id: project.id,
-            type: :feature
-          })
-
-          {:ok,
-           summarize_artifact(find_embedded!(updated.artifacts, artifact.id), @artifact_fields)}
-        end
+        create_artifact_for(args.project_id, :feature, %{
+          code: args.code,
+          title: args.title,
+          content: blank_to_nil(args.content),
+          adr_codes: split_csv(args.adr_codes)
+        })
       end)
     end
 
@@ -565,12 +558,7 @@ defmodule Ichor.Factory.Project do
       argument(:project_id, :string, allow_nil?: false)
 
       run(fn input, _context ->
-        with {:ok, project} <- __MODULE__.get(input.arguments.project_id) do
-          {:ok,
-           project.artifacts
-           |> filter_artifacts(:feature)
-           |> Enum.map(&summarize_artifact(&1, [:code, :title, :adr_codes]))}
-        end
+        list_artifacts_for(input.arguments.project_id, :feature, [:code, :title, :adr_codes])
       end)
     end
 
@@ -586,27 +574,12 @@ defmodule Ichor.Factory.Project do
       run(fn input, _context ->
         args = input.arguments
 
-        with {:ok, project} <- __MODULE__.get(args.project_id),
-             artifact <-
-               artifact(
-                 attrs: %{
-                   kind: :use_case,
-                   code: args.code,
-                   title: args.title,
-                   content: blank_to_nil(args.content),
-                   feature_code: blank_to_nil(args.feature_code)
-                 }
-               ),
-             {:ok, updated} <- put_artifact(project, artifact) do
-          Signals.emit(:project_artifact_created, %{
-            id: artifact.id,
-            project_id: project.id,
-            type: :use_case
-          })
-
-          {:ok,
-           summarize_artifact(find_embedded!(updated.artifacts, artifact.id), @artifact_fields)}
-        end
+        create_artifact_for(args.project_id, :use_case, %{
+          code: args.code,
+          title: args.title,
+          content: blank_to_nil(args.content),
+          feature_code: blank_to_nil(args.feature_code)
+        })
       end)
     end
 
@@ -616,12 +589,7 @@ defmodule Ichor.Factory.Project do
       argument(:project_id, :string, allow_nil?: false)
 
       run(fn input, _context ->
-        with {:ok, project} <- __MODULE__.get(input.arguments.project_id) do
-          {:ok,
-           project.artifacts
-           |> filter_artifacts(:use_case)
-           |> Enum.map(&summarize_artifact(&1, [:code, :title, :feature_code]))}
-        end
+        list_artifacts_for(input.arguments.project_id, :use_case, [:code, :title, :feature_code])
       end)
     end
 
@@ -637,33 +605,17 @@ defmodule Ichor.Factory.Project do
       run(fn input, _context ->
         args = input.arguments
 
-        with {:ok, project} <- __MODULE__.get(args.project_id),
-             artifact <-
-               artifact(
-                 attrs: %{
-                   kind: :checkpoint,
-                   title: args.title,
-                   mode: parse_mode(args.mode),
-                   content: blank_to_nil(args.content),
-                   summary: blank_to_nil(args.summary)
-                 }
-               ),
-             {:ok, updated} <- put_artifact(project, artifact) do
-          Signals.emit(:project_artifact_created, %{
-            id: artifact.id,
-            project_id: project.id,
-            type: :checkpoint
-          })
-
-          {:ok,
-           summarize_artifact(find_embedded!(updated.artifacts, artifact.id), [
-             :kind,
-             :title,
-             :mode,
-             :content,
-             :summary
-           ])}
-        end
+        create_artifact_for(
+          args.project_id,
+          :checkpoint,
+          %{
+            title: args.title,
+            mode: parse_mode(args.mode),
+            content: blank_to_nil(args.content),
+            summary: blank_to_nil(args.summary)
+          },
+          [:kind, :title, :mode, :content, :summary]
+        )
       end)
     end
 
@@ -678,31 +630,16 @@ defmodule Ichor.Factory.Project do
       run(fn input, _context ->
         args = input.arguments
 
-        with {:ok, project} <- __MODULE__.get(args.project_id),
-             artifact <-
-               artifact(
-                 attrs: %{
-                   kind: :conversation,
-                   title: args.title,
-                   mode: parse_mode(args.mode),
-                   content: blank_to_nil(args.content)
-                 }
-               ),
-             {:ok, updated} <- put_artifact(project, artifact) do
-          Signals.emit(:project_artifact_created, %{
-            id: artifact.id,
-            project_id: project.id,
-            type: :conversation
-          })
-
-          {:ok,
-           summarize_artifact(find_embedded!(updated.artifacts, artifact.id), [
-             :kind,
-             :title,
-             :mode,
-             :content
-           ])}
-        end
+        create_artifact_for(
+          args.project_id,
+          :conversation,
+          %{
+            title: args.title,
+            mode: parse_mode(args.mode),
+            content: blank_to_nil(args.content)
+          },
+          [:kind, :title, :mode, :content]
+        )
       end)
     end
 
@@ -712,12 +649,7 @@ defmodule Ichor.Factory.Project do
       argument(:project_id, :string, allow_nil?: false)
 
       run(fn input, _context ->
-        with {:ok, project} <- __MODULE__.get(input.arguments.project_id) do
-          {:ok,
-           project.artifacts
-           |> filter_artifacts(:conversation)
-           |> Enum.map(&summarize_artifact(&1, [:title, :mode]))}
-        end
+        list_artifacts_for(input.arguments.project_id, :conversation, [:title, :mode])
       end)
     end
 
@@ -733,32 +665,17 @@ defmodule Ichor.Factory.Project do
       run(fn input, _context ->
         args = input.arguments
 
-        with {:ok, project} <- __MODULE__.get(args.project_id),
-             item <-
-               roadmap_item(%{
-                 kind: :phase,
-                 number: args.number,
-                 title: args.title,
-                 goals: split_csv(args.goals),
-                 governed_by: split_csv(args.governed_by)
-               }),
-             {:ok, updated} <- put_roadmap_item(project, item) do
-          Signals.emit(:project_artifact_created, %{
-            id: item.id,
-            project_id: project.id,
-            type: :phase
-          })
-
-          {:ok,
-           summarize_roadmap_item(find_embedded!(updated.roadmap_items, item.id), [
-             :kind,
-             :number,
-             :title,
-             :status,
-             :goals,
-             :governed_by
-           ])}
-        end
+        create_roadmap_for(
+          args.project_id,
+          %{
+            kind: :phase,
+            number: args.number,
+            title: args.title,
+            goals: split_csv(args.goals),
+            governed_by: split_csv(args.governed_by)
+          },
+          [:kind, :number, :title, :status, :goals, :governed_by]
+        )
       end)
     end
 
@@ -774,25 +691,17 @@ defmodule Ichor.Factory.Project do
       run(fn input, _context ->
         args = input.arguments
 
-        with {:ok, project} <- __MODULE__.get(args.project_id),
-             item <-
-               roadmap_item(%{
-                 kind: :section,
-                 number: args.number,
-                 title: args.title,
-                 goal: blank_to_nil(args.goal),
-                 parent_id: args.phase_id
-               }),
-             {:ok, updated} <- put_roadmap_item(project, item) do
-          {:ok,
-           summarize_roadmap_item(find_embedded!(updated.roadmap_items, item.id), [
-             :kind,
-             :number,
-             :title,
-             :goal,
-             :parent_id
-           ])}
-        end
+        create_roadmap_for(
+          args.project_id,
+          %{
+            kind: :section,
+            number: args.number,
+            title: args.title,
+            goal: blank_to_nil(args.goal),
+            parent_id: args.phase_id
+          },
+          [:kind, :number, :title, :goal, :parent_id]
+        )
       end)
     end
 
@@ -809,28 +718,18 @@ defmodule Ichor.Factory.Project do
       run(fn input, _context ->
         args = input.arguments
 
-        with {:ok, project} <- __MODULE__.get(args.project_id),
-             item <-
-               roadmap_item(%{
-                 kind: :task,
-                 number: args.number,
-                 title: args.title,
-                 governed_by: split_csv(args.governed_by),
-                 parent_uc: blank_to_nil(args.parent_uc),
-                 parent_id: args.section_id
-               }),
-             {:ok, updated} <- put_roadmap_item(project, item) do
-          {:ok,
-           summarize_roadmap_item(find_embedded!(updated.roadmap_items, item.id), [
-             :kind,
-             :number,
-             :title,
-             :status,
-             :governed_by,
-             :parent_uc,
-             :parent_id
-           ])}
-        end
+        create_roadmap_for(
+          args.project_id,
+          %{
+            kind: :task,
+            number: args.number,
+            title: args.title,
+            governed_by: split_csv(args.governed_by),
+            parent_uc: blank_to_nil(args.parent_uc),
+            parent_id: args.section_id
+          },
+          [:kind, :number, :title, :status, :governed_by, :parent_uc, :parent_id]
+        )
       end)
     end
 
@@ -851,36 +750,34 @@ defmodule Ichor.Factory.Project do
       run(fn input, _context ->
         args = input.arguments
 
-        with {:ok, project} <- __MODULE__.get(args.project_id),
-             item <-
-               roadmap_item(%{
-                 kind: :subtask,
-                 number: args.number,
-                 title: args.title,
-                 goal: blank_to_nil(args.goal),
-                 allowed_files: split_csv(args.allowed_files),
-                 blocked_by: split_csv(args.blocked_by),
-                 steps: split_lines(args.steps),
-                 done_when: blank_to_nil(args.done_when),
-                 owner: blank_to_nil(args.owner),
-                 parent_id: args.task_id
-               }),
-             {:ok, updated} <- put_roadmap_item(project, item) do
-          {:ok,
-           summarize_roadmap_item(find_embedded!(updated.roadmap_items, item.id), [
-             :kind,
-             :number,
-             :title,
-             :status,
-             :goal,
-             :allowed_files,
-             :blocked_by,
-             :steps,
-             :done_when,
-             :owner,
-             :parent_id
-           ])}
-        end
+        create_roadmap_for(
+          args.project_id,
+          %{
+            kind: :subtask,
+            number: args.number,
+            title: args.title,
+            goal: blank_to_nil(args.goal),
+            allowed_files: split_csv(args.allowed_files),
+            blocked_by: split_csv(args.blocked_by),
+            steps: split_lines(args.steps),
+            done_when: blank_to_nil(args.done_when),
+            owner: blank_to_nil(args.owner),
+            parent_id: args.task_id
+          },
+          [
+            :kind,
+            :number,
+            :title,
+            :status,
+            :goal,
+            :allowed_files,
+            :blocked_by,
+            :steps,
+            :done_when,
+            :owner,
+            :parent_id
+          ]
+        )
       end)
     end
 
@@ -890,8 +787,8 @@ defmodule Ichor.Factory.Project do
       argument(:project_id, :string, allow_nil?: false)
 
       run(fn input, _context ->
-        with {:ok, project} <- __MODULE__.get(input.arguments.project_id) do
-          {:ok, project.roadmap_items |> hierarchy() |> Enum.map(&summarize_tree/1)}
+        with {:ok, project} <- Ash.get(__MODULE__, input.arguments.project_id) do
+          {:ok, project.roadmap_items |> hierarchy() |> Enum.map(&ProjectView.summarize_tree/1)}
         end
       end)
     end
@@ -934,7 +831,7 @@ defmodule Ichor.Factory.Project do
     )
 
     define(:create_adr, args: [:project_id, :code, :title])
-    define(:update_adr, args: [:adr_id])
+    define(:update_adr, args: [:project_id, :adr_id])
     define(:list_adrs, args: [:project_id])
     define(:create_feature, args: [:project_id, :code, :title])
     define(:list_features, args: [:project_id])
@@ -955,18 +852,13 @@ defmodule Ichor.Factory.Project do
     Enum.map(by_parent[nil] || [], &attach_children(&1, by_parent))
   end
 
-  def artifact_titles(%{artifacts: artifacts}, kind) do
-    artifacts
-    |> filter_artifacts(kind)
-    |> Enum.map(& &1.title)
-    |> Enum.reject(&is_nil/1)
-  end
+  defdelegate artifact_titles(project, kind), to: ProjectView
 
   def latest_brief_text(%{artifacts: artifacts}), do: latest_brief_text(artifacts)
 
   def latest_brief_text(artifacts) when is_list(artifacts) do
     artifacts
-    |> filter_artifacts(:brief)
+    |> ProjectView.filter_artifacts(:brief)
     |> List.last()
     |> case do
       nil -> nil
@@ -978,86 +870,52 @@ defmodule Ichor.Factory.Project do
     Map.put(item, :children, Enum.map(by_parent[item.id] || [], &attach_children(&1, by_parent)))
   end
 
-  defp summarize_project(project) do
-    %{
-      "id" => project.id,
-      "title" => project.title,
-      "output_kind" => project.output_kind,
-      "planning_stage" => to_string(project.planning_stage),
-      "status" => to_string(project.status),
-      "description" => project.description
-    }
+  defp create_artifact_for(project_id, kind, attrs, summary_fields \\ @artifact_fields) do
+    with {:ok, project} <- Ash.get(__MODULE__, project_id),
+         a <- artifact(attrs: Map.put(attrs, :kind, kind)),
+         {:ok, updated} <- put_artifact(project, a) do
+      Signals.emit(:project_artifact_created, %{
+        id: a.id,
+        project_id: project.id,
+        type: kind
+      })
+
+      {:ok,
+       ProjectView.summarize_embedded(find_embedded!(updated.artifacts, a.id), summary_fields)}
+    end
   end
 
-  defp project_to_map(project) do
-    %{
-      "id" => project.id,
-      "title" => project.title,
-      "description" => project.description,
-      "output_kind" => project.output_kind,
-      "plugin" => project.plugin,
-      "signal_interface" => project.signal_interface,
-      "topic" => project.topic,
-      "version" => project.version,
-      "features" => artifact_titles(project, :feature),
-      "use_cases" => artifact_titles(project, :use_case),
-      "architecture" => project.architecture,
-      "dependencies" => project.dependencies,
-      "signals_emitted" => project.signals_emitted,
-      "signals_subscribed" => project.signals_subscribed,
-      "status" => to_string(project.status),
-      "team_name" => project.team_name,
-      "run_id" => project.run_id,
-      "created_at" => project.inserted_at
-    }
+  defp list_artifacts_for(project_id, kind, summary_fields) do
+    with {:ok, project} <- Ash.get(__MODULE__, project_id) do
+      {:ok,
+       project.artifacts
+       |> ProjectView.filter_artifacts(kind)
+       |> Enum.map(&ProjectView.summarize_embedded(&1, summary_fields))}
+    end
   end
 
-  defp detail_project(project) do
-    phases_count = Enum.count(project.roadmap_items, &(&1.kind == :phase))
+  defp create_roadmap_for(project_id, attrs, summary_fields) do
+    with {:ok, project} <- Ash.get(__MODULE__, project_id),
+         item <- roadmap_item(attrs),
+         {:ok, updated} <- put_roadmap_item(project, item) do
+      Signals.emit(:project_artifact_created, %{
+        id: item.id,
+        project_id: project.id,
+        type: attrs.kind
+      })
 
-    %{
-      "id" => project.id,
-      "title" => project.title,
-      "output_kind" => project.output_kind,
-      "planning_stage" => to_string(project.planning_stage),
-      "status" => to_string(project.status),
-      "description" => project.description,
-      "briefs" => Enum.count(project.artifacts, &(&1.kind == :brief)),
-      "adrs" => Enum.count(project.artifacts, &(&1.kind == :adr)),
-      "features" => Enum.count(project.artifacts, &(&1.kind == :feature)),
-      "use_cases" => Enum.count(project.artifacts, &(&1.kind == :use_case)),
-      "checkpoints" => Enum.count(project.artifacts, &(&1.kind == :checkpoint)),
-      "conversations" => Enum.count(project.artifacts, &(&1.kind == :conversation)),
-      "phases" => phases_count
-    }
-  end
-
-  defp gate_report(project) do
-    adrs = filter_artifacts(project.artifacts, :adr)
-    accepted_adrs = Enum.count(adrs, &(&1.status == :accepted))
-    features = Enum.count(project.artifacts, &(&1.kind == :feature))
-    use_cases = Enum.count(project.artifacts, &(&1.kind == :use_case))
-    checkpoints = Enum.count(project.artifacts, &(&1.kind == :checkpoint))
-    phases = Enum.count(project.roadmap_items, &(&1.kind == :phase))
-
-    %{
-      "project_id" => project.id,
-      "output_kind" => project.output_kind,
-      "planning_stage" => to_string(project.planning_stage),
-      "adrs" => Enum.count(adrs),
-      "accepted_adrs" => accepted_adrs,
-      "features" => features,
-      "use_cases" => use_cases,
-      "checkpoints" => checkpoints,
-      "phases" => phases,
-      "ready_for_define" => adrs != [] and accepted_adrs > 0,
-      "ready_for_build" => features > 0 and use_cases > 0,
-      "ready_for_complete" => phases > 0
-    }
+      {:ok,
+       ProjectView.summarize_embedded(
+         find_embedded!(updated.roadmap_items, item.id),
+         summary_fields
+       )}
+    end
   end
 
   defp put_artifact(project, artifact) do
-    __MODULE__.update(project, %{artifacts: (project.artifacts || []) ++ [artifact]})
+    project
+    |> Ash.Changeset.for_update(:update, %{artifacts: (project.artifacts || []) ++ [artifact]})
+    |> Ash.update()
   end
 
   defp replace_artifact(project, artifact_id, updater) do
@@ -1066,28 +924,18 @@ defmodule Ichor.Factory.Project do
         if artifact.id == artifact_id, do: updater.(artifact), else: artifact
       end)
 
-    __MODULE__.update(project, %{artifacts: updated})
+    project
+    |> Ash.Changeset.for_update(:update, %{artifacts: updated})
+    |> Ash.update()
   end
 
   defp put_roadmap_item(project, item) do
-    __MODULE__.update(project, %{roadmap_items: (project.roadmap_items || []) ++ [item]})
+    project
+    |> Ash.Changeset.for_update(:update, %{
+      roadmap_items: (project.roadmap_items || []) ++ [item]
+    })
+    |> Ash.update()
   end
-
-  defp find_project_by_artifact(artifact_id) do
-    with {:ok, projects} <- __MODULE__.list_all(),
-         project when not is_nil(project) <-
-           Enum.find(
-             projects,
-             &Enum.any?(&1.artifacts || [], fn artifact -> artifact.id == artifact_id end)
-           ) do
-      {:ok, project}
-    else
-      nil -> {:error, :artifact_not_found}
-      error -> error
-    end
-  end
-
-  defp filter_artifacts(artifacts, kind), do: Enum.filter(artifacts || [], &(&1.kind == kind))
 
   defp brief_artifacts(_title, nil), do: []
 
@@ -1099,97 +947,9 @@ defmodule Ichor.Factory.Project do
 
   defp roadmap_item(attrs), do: Map.merge(%{id: Ash.UUID.generate(), status: :pending}, attrs)
 
-  defp summarize_artifact(artifact, fields) do
-    Map.new([:id | fields], fn field ->
-      {to_string(field), stringify(Map.get(artifact, field))}
-    end)
-  end
-
-  defp summarize_roadmap_item(item, fields) do
-    Map.new([:id | fields], fn field ->
-      {to_string(field), stringify(Map.get(item, field))}
-    end)
-  end
-
-  defp summarize_tree(item) do
-    base =
-      item
-      |> Map.take([
-        :id,
-        :kind,
-        :number,
-        :title,
-        :status,
-        :goal,
-        :goals,
-        :governed_by,
-        :parent_uc,
-        :allowed_files,
-        :blocked_by,
-        :steps,
-        :done_when,
-        :owner,
-        :parent_id
-      ])
-      |> Enum.reject(fn {_key, value} -> is_nil(value) or value == [] end)
-      |> Map.new(fn {key, value} -> {to_string(key), stringify(value)} end)
-
-    case Map.get(item, :children, []) do
-      [] -> base
-      children -> Map.put(base, "children", Enum.map(children, &summarize_tree/1))
-    end
-  end
-
   defp find_embedded!(items, id) do
     Enum.find(items || [], &(&1.id == id))
   end
-
-  defp parse_artifact_status(nil), do: nil
-  defp parse_artifact_status(""), do: nil
-  defp parse_artifact_status(value) when is_atom(value), do: value
-  defp parse_artifact_status("pending"), do: :pending
-  defp parse_artifact_status("proposed"), do: :proposed
-  defp parse_artifact_status("accepted"), do: :accepted
-  defp parse_artifact_status("rejected"), do: :rejected
-  defp parse_artifact_status(_value), do: :pending
-
-  defp parse_mode("discover"), do: :discover
-  defp parse_mode("define"), do: :define
-  defp parse_mode("build"), do: :build
-  defp parse_mode("gate_a"), do: :gate_a
-  defp parse_mode("gate_b"), do: :gate_b
-  defp parse_mode("gate_c"), do: :gate_c
-  defp parse_mode(value), do: raise("unknown mode: #{value}")
-
-  defp stringify(value) when is_atom(value), do: to_string(value)
-  defp stringify(value) when is_list(value), do: Enum.map(value, &stringify/1)
-  defp stringify(value), do: value
-
-  defp split_csv(nil), do: []
-
-  defp split_csv(value) when is_binary(value) do
-    value
-    |> String.split(",")
-    |> Enum.map(&String.trim/1)
-    |> Enum.reject(&(&1 == ""))
-  end
-
-  defp split_lines(nil), do: []
-
-  defp split_lines(value) when is_binary(value) do
-    value
-    |> String.split("\n")
-    |> Enum.map(&String.trim/1)
-    |> Enum.reject(&(&1 == ""))
-  end
-
-  defp blank_to_nil(""), do: nil
-  defp blank_to_nil(value), do: value
-  defp empty_to_nil([]), do: nil
-  defp empty_to_nil(value), do: value
-
-  defp maybe_put(map, _key, nil), do: map
-  defp maybe_put(map, key, value), do: Map.put(map, key, value)
 
   defp render_project_brief(args) do
     [

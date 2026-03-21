@@ -122,7 +122,7 @@ defmodule Ichor.Factory.Pipeline do
       run(fn input, _context ->
         run_id = input.arguments.run_id
 
-        with {:ok, run} <- __MODULE__.get(run_id),
+        with {:ok, run} <- Ash.get(__MODULE__, run_id),
              {:ok, pipeline_tasks} <- PipelineTask.by_run(run_id) do
           nodes = Enum.map(pipeline_tasks, &PipelineGraph.to_graph_node/1)
           stats = PipelineGraph.pipeline_stats(nodes)
