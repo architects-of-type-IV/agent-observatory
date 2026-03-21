@@ -2,36 +2,22 @@ import { Terminal } from "@xterm/xterm"
 import { FitAddon } from "@xterm/addon-fit"
 import { WebglAddon } from "@xterm/addon-webgl"
 import "@xterm/xterm/css/xterm.css"
+import { THEMES } from "./terminal_panel_hook"
+
+function getTheme(name) {
+  const t = THEMES[name] || THEMES.ichor
+  // Return only xterm theme properties (exclude "name")
+  const { name: _, ...theme } = t
+  return theme
+}
 
 export const XtermHook = {
   mounted() {
     const fitAddon = new FitAddon()
+    const themeName = localStorage.getItem("ichor:term_theme") || "ichor"
 
     this.term = new Terminal({
-      theme: {
-        background: "#0f0f14",
-        foreground: "#d4d4d8",
-        cursor: "#a1a1aa",
-        cursorAccent: "#0f0f14",
-        selectionBackground: "rgba(99, 102, 241, 0.3)",
-        selectionForeground: "#ffffff",
-        black: "#18181b",
-        red: "#ef4444",
-        green: "#22c55e",
-        yellow: "#eab308",
-        blue: "#3b82f6",
-        magenta: "#a855f7",
-        cyan: "#06b6d4",
-        white: "#d4d4d8",
-        brightBlack: "#52525b",
-        brightRed: "#f87171",
-        brightGreen: "#4ade80",
-        brightYellow: "#facc15",
-        brightBlue: "#60a5fa",
-        brightMagenta: "#c084fc",
-        brightCyan: "#22d3ee",
-        brightWhite: "#fafafa",
-      },
+      theme: getTheme(themeName),
       fontSize: 13,
       fontFamily: "ui-monospace, 'SF Mono', 'Cascadia Code', 'Fira Code', Consolas, monospace",
       lineHeight: 1.15,
@@ -82,6 +68,14 @@ export const XtermHook = {
         // Scroll to bottom to skip empty scrollback lines
         this.term.scrollToBottom()
       }
+    })
+
+    // Listen for theme changes
+    this.handleEvent("terminal_apply_theme", ({ theme }) => {
+      this.term.options.theme = getTheme(theme)
+      // Update background color on the container
+      const bg = getTheme(theme).background
+      this.el.style.backgroundColor = bg
     })
 
     // Auto-fit on resize

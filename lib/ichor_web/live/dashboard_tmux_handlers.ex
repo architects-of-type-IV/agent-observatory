@@ -27,9 +27,14 @@ defmodule IchorWeb.DashboardTmuxHandlers do
   def dispatch("close_terminal_panel", p, s), do: handle_close_terminal_panel(p, s)
   def dispatch("cycle_panel_position", p, s), do: handle_cycle_panel_position(p, s)
   def dispatch("cycle_panel_size", p, s), do: handle_cycle_panel_size(p, s)
+  def dispatch("set_panel_position", p, s), do: handle_set_panel_position(p, s)
+  def dispatch("set_panel_size", p, s), do: handle_set_panel_size(p, s)
+  def dispatch("set_panel_split", p, s), do: handle_set_panel_split(p, s)
+  def dispatch("set_panel_theme", p, s), do: handle_set_panel_theme(p, s)
   def dispatch("terminal_panel_init", p, s), do: handle_terminal_panel_init(p, s)
   def dispatch("terminal_panel_resize", p, s), do: handle_terminal_panel_resize(p, s)
   def dispatch("toggle_session_picker", p, s), do: handle_toggle_session_picker(p, s)
+  def dispatch("toggle_panel_settings", p, s), do: handle_toggle_panel_settings(p, s)
 
   def handle_connect_tmux(%{"session" => session_name}, socket) do
     panels = socket.assigns.tmux_panels
@@ -293,11 +298,15 @@ defmodule IchorWeb.DashboardTmuxHandlers do
     position = parse_position(params["position"])
     size = parse_size(params["size"])
     visible = params["visible"] == true || params["visible"] == "true"
+    split = parse_split(params["split"])
+    theme = parse_theme(params["theme"])
 
     assign(socket,
       panel_position: position,
       panel_size: size,
-      panel_visible: visible
+      panel_visible: visible,
+      panel_split: split,
+      panel_theme: theme
     )
   end
 
@@ -305,8 +314,45 @@ defmodule IchorWeb.DashboardTmuxHandlers do
     assign(socket, :panel_size, parse_size(size))
   end
 
+  def handle_set_panel_position(%{"position" => pos}, socket) do
+    position = parse_position(pos)
+
+    socket
+    |> assign(:panel_position, position)
+    |> push_event("terminal_panel_update", %{position: to_string(position)})
+  end
+
+  def handle_set_panel_size(%{"size" => size}, socket) do
+    parsed = parse_size(size)
+
+    socket
+    |> assign(:panel_size, parsed)
+    |> push_event("terminal_panel_update", %{size: parsed})
+  end
+
+  def handle_set_panel_split(%{"split" => split_str}, socket) do
+    split = parse_split(split_str)
+
+    socket
+    |> assign(:panel_split, split)
+    |> push_event("terminal_panel_update", %{split: to_string(split)})
+  end
+
+  def handle_set_panel_theme(%{"theme" => theme_str}, socket) do
+    theme = parse_theme(theme_str)
+
+    socket
+    |> assign(:panel_theme, theme)
+    |> push_event("terminal_apply_theme", %{theme: to_string(theme)})
+    |> push_event("terminal_panel_update", %{theme: to_string(theme)})
+  end
+
   def handle_toggle_session_picker(_params, socket) do
     assign(socket, :show_session_picker, !socket.assigns[:show_session_picker])
+  end
+
+  def handle_toggle_panel_settings(_params, socket) do
+    assign(socket, :show_panel_settings, !socket.assigns[:show_panel_settings])
   end
 
   defp parse_position("top"), do: :top
@@ -318,6 +364,17 @@ defmodule IchorWeb.DashboardTmuxHandlers do
   defp parse_size(size) when is_integer(size), do: max(15, min(100, size))
   defp parse_size(size) when is_binary(size), do: parse_size(String.to_integer(size))
   defp parse_size(_), do: 50
+
+  defp parse_split("horizontal"), do: :horizontal
+  defp parse_split("vertical"), do: :vertical
+  defp parse_split(_), do: :none
+
+  defp parse_theme("midnight"), do: :midnight
+  defp parse_theme("aurora"), do: :aurora
+  defp parse_theme("phosphor"), do: :phosphor
+  defp parse_theme("solarized"), do: :solarized
+  defp parse_theme("rose"), do: :rose
+  defp parse_theme(_), do: :ichor
 
   defp capture_output(session_name) do
     case Tmux.capture_pane(session_name, lines: 80) do
