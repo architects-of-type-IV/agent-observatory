@@ -31,11 +31,7 @@ defmodule Ichor.Factory.Workers.MesTick do
 
   defp count_active(runs) do
     Enum.count(runs, fn {_run_id, pid} ->
-      try do
-        not GenServer.call(pid, :deadline_passed?, 1_000)
-      catch
-        :exit, _ -> false
-      end
+      not Runner.deadline_passed?(pid)
     end)
   end
 

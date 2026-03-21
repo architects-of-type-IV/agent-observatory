@@ -87,12 +87,7 @@ defmodule Ichor.Factory.Floor do
 
         run_details =
           Enum.map(all_runs, fn {run_id, pid} ->
-            deadline_passed =
-              try do
-                GenServer.call(pid, :deadline_passed?, 1_000)
-              catch
-                :exit, _ -> true
-              end
+            deadline_passed = Runner.deadline_passed?(pid)
 
             %{
               "run_id" => run_id,
@@ -107,8 +102,8 @@ defmodule Ichor.Factory.Floor do
         scheduler_status =
           try do
             MesScheduler.status()
-          rescue
-            _ -> %{error: "MES scheduler not running"}
+          catch
+            :exit, _ -> %{error: "MES scheduler not running"}
           end
 
         {:ok,
@@ -125,12 +120,8 @@ defmodule Ichor.Factory.Floor do
       description("Force maintenance cleanup of orphaned MES teams and tmux sessions.")
 
       run(fn _input, _context ->
-        try do
-          Spawn.cleanup_orphaned_teams()
-          {:ok, %{"status" => "cleanup_complete"}}
-        rescue
-          e -> {:ok, %{"status" => "error", "reason" => Exception.message(e)}}
-        end
+        Spawn.cleanup_orphaned_teams()
+        {:ok, %{"status" => "cleanup_complete"}}
       end)
     end
 

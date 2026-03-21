@@ -129,10 +129,8 @@ defmodule Ichor.Mesh.CausalDAG do
     # Delete all per-session tables
     :ets.tab2list(:causal_dag_session_registry)
     |> Enum.each(fn {_session_id, table_name} ->
-      try do
+      if :ets.whereis(table_name) != :undefined do
         :ets.delete(table_name)
-      rescue
-        ArgumentError -> :ok
       end
     end)
 
@@ -203,10 +201,8 @@ defmodule Ichor.Mesh.CausalDAG do
   def handle_info({:prune_session, session_id}, state) do
     table = :"dag_#{session_id}"
 
-    try do
+    if :ets.whereis(table) != :undefined do
       :ets.delete(table)
-    rescue
-      ArgumentError -> :ok
     end
 
     :ets.delete(:causal_dag_session_registry, session_id)
@@ -233,10 +229,8 @@ defmodule Ichor.Mesh.CausalDAG do
       Enum.reduce(stale_sessions, state, fn sid, acc ->
         table = :"dag_#{sid}"
 
-        try do
+        if :ets.whereis(table) != :undefined do
           :ets.delete(table)
-        rescue
-          ArgumentError -> :ok
         end
 
         :ets.delete(:causal_dag_session_registry, sid)

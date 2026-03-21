@@ -250,8 +250,6 @@ defmodule Ichor.Mesh.EventBridge do
     else
       _ -> log
     end
-  rescue
-    _ -> log
   catch
     :exit, _ -> log
   end
@@ -275,8 +273,6 @@ defmodule Ichor.Mesh.EventBridge do
     else
       _ -> state
     end
-  rescue
-    _ -> state
   catch
     :exit, _ -> state
   end

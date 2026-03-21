@@ -387,15 +387,8 @@ defmodule Ichor.Signals.EventStream do
 
   defp ensure_ets(name) do
     case :ets.whereis(name) do
-      :undefined ->
-        try do
-          :ets.new(name, [:named_table, :public, :set])
-        rescue
-          ArgumentError -> :ok
-        end
-
-      _ ->
-        :ok
+      :undefined -> :ets.new(name, [:named_table, :public, :set])
+      _ -> :ok
     end
   end
 end

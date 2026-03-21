@@ -34,11 +34,7 @@ defmodule Ichor.Factory.MesScheduler do
 
     active_count =
       Enum.count(all, fn {_run_id, pid} ->
-        try do
-          not GenServer.call(pid, :deadline_passed?, 1_000)
-        catch
-          :exit, _ -> false
-        end
+        not Runner.deadline_passed?(pid)
       end)
 
     %{

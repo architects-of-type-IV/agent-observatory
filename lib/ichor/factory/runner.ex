@@ -146,6 +146,14 @@ defmodule Ichor.Factory.Runner do
   def sync_task(run_id, task),
     do: GenServer.cast(via(:pipeline, run_id), {:command, :sync_task, [task]})
 
+  @doc "Returns true if the run's deadline has passed, or if the process is no longer alive."
+  @spec deadline_passed?(pid()) :: boolean()
+  def deadline_passed?(pid) do
+    GenServer.call(pid, :deadline_passed?, 1_000)
+  catch
+    :exit, _ -> true
+  end
+
   @doc "Returns a status map for the given kind and run_id."
   @spec status(:mes | :planning | :pipeline, String.t()) :: map() | nil
   def status(kind, run_id) do
