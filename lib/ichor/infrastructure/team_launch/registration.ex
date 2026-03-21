@@ -11,11 +11,15 @@ defmodule Ichor.Infrastructure.TeamLaunch.Registration do
   @doc "Register every agent in `spec` using the team's tmux session."
   @spec register_all(map()) :: :ok | {:error, term()}
   def register_all(%{session: session, agents: agents}) do
-    Enum.reduce_while(agents, :ok, fn agent, :ok ->
-      case Registration.register(agent, "#{session}:#{agent.window_name}") do
-        {:ok, _result} -> {:cont, :ok}
-        {:error, reason} -> {:halt, {:error, reason}}
-      end
+    agents
+    |> Task.async_stream(
+      fn agent -> Registration.register(agent, "#{session}:#{agent.window_name}") end,
+      on_timeout: :kill_task
+    )
+    |> Enum.reduce_while(:ok, fn
+      {:ok, {:ok, _result}}, :ok -> {:cont, :ok}
+      {:ok, {:error, reason}}, :ok -> {:halt, {:error, reason}}
+      {:exit, reason}, :ok -> {:halt, {:error, reason}}
     end)
   end
 

@@ -387,13 +387,13 @@ defmodule Ichor.Archon.Chat do
   end
 
   defp format_edges({:ok, edges}) when is_list(edges) and edges != [] do
-    items = Enum.map_join(Enum.take(edges, 10), "\n", &edge_line/1)
+    items = edges |> Enum.take(10) |> Enum.map_join("\n", &edge_line/1)
     "Facts:\n#{items}"
   end
 
   defp format_edges({:ok, %{"results" => %{"edges" => edges}}})
        when is_list(edges) and edges != [] do
-    items = Enum.map_join(Enum.take(edges, 10), "\n", &edge_line/1)
+    items = edges |> Enum.take(10) |> Enum.map_join("\n", &edge_line/1)
     "Facts:\n#{items}"
   end
 
@@ -406,13 +406,13 @@ defmodule Ichor.Archon.Chat do
   defp edge_line(edge), do: "- #{inspect(edge)}"
 
   defp format_episodes({:ok, episodes}) when is_list(episodes) and episodes != [] do
-    items = Enum.map_join(Enum.take(episodes, 5), "\n", &episode_line/1)
+    items = episodes |> Enum.take(5) |> Enum.map_join("\n", &episode_line/1)
     "Recent conversations:\n#{items}"
   end
 
   defp format_episodes({:ok, %{"results" => %{"episodes" => episodes}}})
        when is_list(episodes) and episodes != [] do
-    items = Enum.map_join(Enum.take(episodes, 5), "\n", &episode_line/1)
+    items = episodes |> Enum.take(5) |> Enum.map_join("\n", &episode_line/1)
     "Recent conversations:\n#{items}"
   end
 

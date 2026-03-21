@@ -340,11 +340,33 @@ defmodule Ichor.Signals.EventStream do
     size = :ets.info(@table, :size)
 
     if size > @max_events do
-      @table
-      |> :ets.tab2list()
-      |> Enum.sort_by(fn {_id, e} -> e.inserted_at end, {:asc, DateTime})
-      |> Enum.take(size - @max_events)
-      |> Enum.each(fn {id, _} -> :ets.delete(@table, id) end)
+      evict_count = size - @max_events
+
+      # Fold once to collect the N oldest entries without a full sort.
+      # We maintain a max-heap of size `evict_count` by tracking the
+      # worst (newest) candidate seen so far, replacing it when we find
+      # something older.  For small evict_count (almost always 1) this
+      # is O(n) with negligible constant vs. O(n log n) sort.
+      :ets.foldl(
+        fn {id, e}, acc ->
+          if map_size(acc) < evict_count do
+            Map.put(acc, id, e.inserted_at)
+          else
+            # Find the newest entry in the current candidate set
+            {newest_id, newest_ts} = Enum.max_by(acc, fn {_k, v} -> v end, DateTime)
+
+            if DateTime.compare(e.inserted_at, newest_ts) == :lt do
+              acc |> Map.delete(newest_id) |> Map.put(id, e.inserted_at)
+            else
+              acc
+            end
+          end
+        end,
+        %{},
+        @table
+      )
+      |> Map.keys()
+      |> Enum.each(&:ets.delete(@table, &1))
     end
   end
 

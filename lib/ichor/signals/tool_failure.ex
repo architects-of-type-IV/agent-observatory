@@ -51,7 +51,7 @@ defmodule Ichor.Signals.ToolFailure do
       %{
         tool: tool,
         count: length(errs),
-        latest: List.first(Enum.sort_by(errs, & &1.timestamp, {:desc, DateTime})),
+        latest: errs |> Enum.sort_by(& &1.timestamp, {:desc, DateTime}) |> List.first(),
         errors: errs
       }
     end)

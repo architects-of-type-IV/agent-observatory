@@ -147,13 +147,18 @@ defmodule IchorWeb.DashboardState do
     socket = assign(socket, :events, events)
     assigns = socket.assigns
 
-    # Ash domain queries
-    teams = ActiveTeam.alive!()
-    all_teams = ActiveTeam.all!()
-    agents = Agent.all!()
-    event_tasks = TaskProjection.current!() |> Enum.map(&task_to_map/1)
-    errors = ToolFailure.recent!()
-    error_groups = ToolFailure.by_tool!()
+    # Ash domain queries -- run in parallel
+    tasks = [
+      Task.async(fn -> ActiveTeam.alive!() end),
+      Task.async(fn -> ActiveTeam.all!() end),
+      Task.async(fn -> Agent.all!() end),
+      Task.async(fn -> TaskProjection.current!() |> Enum.map(&task_to_map/1) end),
+      Task.async(fn -> ToolFailure.recent!() end),
+      Task.async(fn -> ToolFailure.by_tool!() end)
+    ]
+
+    [teams, all_teams, agents, event_tasks, errors, error_groups] =
+      Task.await_many(tasks, 5_000)
 
     # Session derivation (Fleet.Queries)
     all_sessions =

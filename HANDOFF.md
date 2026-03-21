@@ -24,7 +24,7 @@ Architecture waves complete. Now in comprehensive quality audit + UI design phas
 | SF-6 | SyncRunner rescue blanket | medium | pending |
 | SF-7 | EventStream ETS concurrent writes | medium | pending |
 | SF-8 | Runner crash window race | medium | pending |
-| IDIOM-1 | 15 if/else -> pattern matching | medium | pending |
+| IDIOM-1 | 15 if/else -> pattern matching | medium | completed |
 | IDIOM-2 | 6 pipe anti-patterns | low | pending |
 | IDIOM-3 | 9 Map.get -> destructure | medium | pending |
 | IDIOM-4 | 2 param ordering violations | low | pending |

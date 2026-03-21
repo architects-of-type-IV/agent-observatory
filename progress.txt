@@ -447,3 +447,20 @@
 - [x] Moved lookup.ex, runtime_query.ex, runtime_view.ex to tmp/trash/
 - [x] mix compile --warnings-as-errors: CLEAN
 - [x] mix credo --strict: 0 issues
+
+## Idiom Cleanup (2026-03-21)
+- [x] IDIOM-1: 15 if/else anti-patterns replaced with pattern matching
+  - event_stream.ex: extract function clause for :SessionEnd hook
+  - agent_backend.ex: case String.split on ":" for window vs session dispatch
+  - team_watchdog.ex: case AgentId.parse/1 replacing nested match?
+  - agent_watchdog.ex (x2): case state.signals with pin operator ^
+  - spawn.ex: first_present/2 with [] clause
+  - project_ingestor.ex (x2): case AgentId.parse/1 replacing match?
+  - runner.ex: from_coordinator? helper + case, schedule_timers case Map.get
+  - hitl_relay.ex: case SessionState.paused? in 3 handle_call clauses
+  - agent_process.ex: two handle_cast clauses with status guard
+  - agent_watchdog.ex: case Map.fetch replacing has_key?+update!
+  - causal_dag.ex: pin operator in case clause
+  - mes_tick.ex: nested if -> flat cond
+  - project_ingestor.ex: append_value/2 clauses + case {list_field?,continuation?}
+  - tmux_discovery.ex: nested if -> with chain

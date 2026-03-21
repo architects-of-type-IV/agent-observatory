@@ -495,7 +495,7 @@ defmodule Ichor.Workshop.Presets do
   @doc "Return agents sorted in depth-first spawn order per spawn links."
   @spec spawn_order([map()], [map()]) :: [map()]
   def spawn_order(agents, spawn_links) do
-    has_parent = MapSet.new(Enum.map(spawn_links, & &1.to))
+    has_parent = spawn_links |> Enum.map(& &1.to) |> MapSet.new()
     roots = Enum.reject(agents, fn agent -> MapSet.member?(has_parent, agent.id) end)
     children_map = Enum.group_by(spawn_links, & &1.from, & &1.to)
     walk(roots, agents, children_map)

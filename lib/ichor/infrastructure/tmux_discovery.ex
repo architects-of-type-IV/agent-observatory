@@ -39,8 +39,10 @@ defmodule Ichor.Infrastructure.TmuxDiscovery do
   def handle_info(_msg, state), do: {:noreply, state}
 
   defp poll do
-    tmux_sessions = Tmux.list_sessions()
-    tmux_panes = Tmux.list_panes()
+    [tmux_sessions, tmux_panes] =
+      [Task.async(fn -> Tmux.list_sessions() end), Task.async(fn -> Tmux.list_panes() end)]
+      |> Task.await_many(5_000)
+
     all_agents = AgentProcess.list_all()
 
     ensure_beam_processes(tmux_sessions)
