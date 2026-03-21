@@ -14,22 +14,21 @@ defmodule Ichor.Signals.Operations do
       description("Read unread messages addressed to the operator mailbox.")
 
       run(fn _input, _context ->
-        try do
-          {:ok,
-           AgentProcess.get_unread("operator")
-           |> Enum.map(fn message ->
-             %{
-               "from" => message[:from] || message["from"],
-               "content" => message[:content] || message["content"],
-               "timestamp" => message[:timestamp] || message["timestamp"]
-             }
-           end)}
-        rescue
-          e in [RuntimeError, ArgumentError, KeyError] ->
-            require Logger
-            Logger.warning("check_operator_inbox failed: #{Exception.message(e)}")
-            {:ok, []}
-        end
+        messages =
+          if AgentProcess.alive?("operator") do
+            AgentProcess.get_unread("operator")
+            |> Enum.map(fn message ->
+              %{
+                "from" => message[:from] || message["from"],
+                "content" => message[:content] || message["content"],
+                "timestamp" => message[:timestamp] || message["timestamp"]
+              }
+            end)
+          else
+            []
+          end
+
+        {:ok, messages}
       end)
     end
 
@@ -103,11 +102,8 @@ defmodule Ichor.Signals.Operations do
       argument(:limit, :integer, allow_nil?: false, default: 20)
 
       run(fn input, _context ->
-        limit = input.arguments[:limit] || 20
-
         {:ok,
-         Bus.recent_messages(limit)
-         |> Enum.take(limit)
+         Bus.recent_messages(input.arguments.limit)
          |> Enum.map(fn message ->
            %{
              "id" => message.id,
@@ -148,10 +144,10 @@ defmodule Ichor.Signals.Operations do
       description("Read recent raw event stream entries for an agent session.")
 
       argument(:agent_id, :string, allow_nil?: false)
-      argument(:limit, :integer, allow_nil?: false)
+      argument(:limit, :integer, allow_nil?: false, default: 30)
 
       run(fn input, _context ->
-        limit = Map.get(input.arguments, :limit) || 30
+        limit = input.arguments.limit
 
         {:ok,
          EventStream.events_for_session(input.arguments.agent_id)

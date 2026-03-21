@@ -76,6 +76,7 @@ defmodule Ichor.Signals.Event do
       description("List all signal definitions in the ICHOR nervous system.")
 
       argument :category, :atom do
+        allow_nil?(true)
         description("Filter by category (e.g. :fleet, :agent, :system). Omit for all.")
       end
 

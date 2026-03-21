@@ -6,7 +6,7 @@ defmodule Ichor.Signals.ToolFailure do
 
   use Ash.Resource, domain: Ichor.SignalBus
 
-  alias Ichor.Signals.Preparations.{EventBufferReader, LoadToolFailures}
+  alias Ichor.Signals.Preparations.LoadToolFailures
 
   attributes do
     attribute(:id, :string, primary_key?: true, allow_nil?: false, public?: true)
@@ -27,8 +27,9 @@ defmodule Ichor.Signals.ToolFailure do
 
     action :by_tool, {:array, :map} do
       run(fn _input, _context ->
-        errors = load_recent_errors()
-        {:ok, group_by_tool(errors)}
+        with {:ok, errors} <- __MODULE__.recent() do
+          {:ok, group_by_tool(errors)}
+        end
       end)
     end
   end
@@ -36,24 +37,6 @@ defmodule Ichor.Signals.ToolFailure do
   code_interface do
     define(:recent)
     define(:by_tool)
-  end
-
-  defp load_recent_errors do
-    EventBufferReader.list_events()
-    |> Enum.filter(&(&1.hook_event_type == :PostToolUseFailure))
-    |> Enum.map(fn e ->
-      struct!(__MODULE__, %{
-        id: e.id,
-        tool_name: e.tool_name,
-        session_id: e.session_id,
-        source_app: e.source_app,
-        error: (e.payload || %{})["error"] || "Unknown error",
-        timestamp: e.inserted_at,
-        tool_use_id: e.tool_use_id,
-        cwd: e.cwd,
-        hook_event_type: e.hook_event_type
-      })
-    end)
   end
 
   defp group_by_tool(errors) do

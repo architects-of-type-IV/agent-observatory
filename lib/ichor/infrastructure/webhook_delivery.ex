@@ -37,8 +37,6 @@ defmodule Ichor.Infrastructure.WebhookDelivery do
 
     create :enqueue do
       accept([:target_url, :payload, :signature, :agent_id, :webhook_id])
-      change(set_attribute(:status, :pending))
-      change(set_attribute(:attempt_count, 0))
       change(set_attribute(:next_retry_at, &__MODULE__.now/0))
     end
 

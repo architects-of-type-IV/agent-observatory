@@ -16,18 +16,18 @@ defmodule Ichor.Infrastructure.Operations do
       description("Check Ichor system health: agents, teams, and core runtime processes.")
 
       run(fn _input, _context ->
-        agents = Agent.all!()
-        teams = ActiveTeam.alive!()
-
-        {:ok,
-         %{
-           "agents" => length(agents),
-           "active_agents" => Enum.count(agents, fn agent -> agent.status == :active end),
-           "teams" => length(teams),
-           "event_buffer" => alive?(EventStream),
-           "heartbeat" => alive?(AgentWatchdog),
-           "protocol_tracker" => alive?(ProtocolTracker)
-         }}
+        with {:ok, agents} <- Agent.all(),
+             {:ok, teams} <- ActiveTeam.alive() do
+          {:ok,
+           %{
+             "agents" => length(agents),
+             "active_agents" => Enum.count(agents, fn agent -> agent.status == :active end),
+             "teams" => length(teams),
+             "event_buffer" => alive?(EventStream),
+             "heartbeat" => alive?(AgentWatchdog),
+             "protocol_tracker" => alive?(ProtocolTracker)
+           }}
+        end
       end)
     end
 
@@ -37,27 +37,29 @@ defmodule Ichor.Infrastructure.Operations do
       run(fn _input, _context ->
         sessions = Tmux.list_sessions()
 
-        agents_by_tmux =
-          Agent.all!()
-          |> Enum.filter(fn agent -> agent.channels[:tmux] != nil end)
-          |> Enum.group_by(fn agent -> agent.channels[:tmux] end)
+        with {:ok, all_agents} <- Agent.all() do
+          agents_by_tmux =
+            all_agents
+            |> Enum.filter(fn agent -> agent.channels[:tmux] != nil end)
+            |> Enum.group_by(fn agent -> agent.channels[:tmux] end)
 
-        {:ok,
-         Enum.map(sessions, fn session ->
-           agents = Map.get(agents_by_tmux, session, [])
+          {:ok,
+           Enum.map(sessions, fn session ->
+             agents = Map.get(agents_by_tmux, session, [])
 
-           %{
-             "session" => session,
-             "agents" =>
-               Enum.map(agents, fn agent ->
-                 %{
-                   "id" => agent.agent_id,
-                   "name" => agent.short_name || agent.name || agent.agent_id,
-                   "team" => agent.team_name
-                 }
-               end)
-           }
-         end)}
+             %{
+               "session" => session,
+               "agents" =>
+                 Enum.map(agents, fn agent ->
+                   %{
+                     "id" => agent.agent_id,
+                     "name" => agent.short_name || agent.name || agent.agent_id,
+                     "team" => agent.team_name
+                   }
+                 end)
+             }
+           end)}
+        end
       end)
     end
 
