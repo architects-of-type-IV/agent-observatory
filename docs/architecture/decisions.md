@@ -112,3 +112,15 @@ Related: [Index](INDEX.md) | [Codex Sparring](../reviews/2026-03-21-codex-sparri
 | **ETS for runtime projections** | O(1) concurrent reads without GenServer serialization. Multiple LiveViews read simultaneously |
 | **PubSub for signals** | Subscriber set is dynamic and unknown to emitter at compile time. Fire-and-forget, correct for observational facts |
 | **Bus for directed messages** | Sender has a specific target. Direct delivery with ETS log. Different system from PubSub signals |
+
+---
+
+## AD-9: Archon Dual Interface (API + tmux)
+
+**Decision**: Archon is accessible through both an API (Ash actions via MCP) and a persistent Claude Code tmux session. Same agent, two interfaces. The Ash resources (Manager, Memory) are the tool surface both interfaces call into.
+
+**Context**: Archon governs the system. A stateless API gives programmatic access but no persistent context. A Claude Code tmux session gives Archon a living presence -- it can maintain conversation context, subscribe to signals, think and act autonomously.
+
+**Rationale**: `spawn("archon")` uses the same generic spawn infrastructure as every other team. The tmux session makes Archon a first-class citizen of the fleet -- addressable via Bus, monitored by the watchdog, visible in the dashboard. Max concurrency 1 (pattern match in subscriber). The API remains for webhooks, external tools, and programmatic access.
+
+**Consequences**: Archon can react to signals autonomously. Both paths call the same Ash actions. Archon's prompt defines its governance capabilities. The system's ruler lives inside the system it governs.
