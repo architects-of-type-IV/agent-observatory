@@ -20,6 +20,7 @@ defmodule Ichor.Infrastructure.CronScheduler do
          {:ok, job} <- CronJob.schedule_once(agent_id, encoded, next_fire_at) do
       enqueue_once_job(job, agent_id, encoded, delay_ms)
     else
+      {:error, :invalid_delay} -> {:error, :invalid_delay}
       {:error, _} -> {:error, :insert_failed}
     end
   end
