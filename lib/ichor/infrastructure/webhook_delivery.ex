@@ -40,6 +40,10 @@ defmodule Ichor.Infrastructure.WebhookDelivery do
       change(set_attribute(:next_retry_at, &__MODULE__.now/0))
     end
 
+    read :get do
+      get_by([:id])
+    end
+
     read :due_for_delivery do
       prepare(build(sort: [next_retry_at: :asc], limit: 5))
       filter(expr(status in [:pending, :failed] and next_retry_at <= now()))
@@ -71,6 +75,7 @@ defmodule Ichor.Infrastructure.WebhookDelivery do
 
   code_interface do
     define(:enqueue, args: [:target_url, :payload, :signature, :agent_id])
+    define(:get, action: :get, args: [:id])
     define(:due_for_delivery)
     define(:dead_letters_for_agent, args: [:agent_id])
     define(:all_dead_letters)

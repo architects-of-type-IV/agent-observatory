@@ -68,10 +68,11 @@ defmodule Ichor.Application do
     opts = [strategy: :one_for_one, name: Ichor.Supervisor]
     result = Supervisor.start_link(children, opts)
 
-    # Non-blocking -- tmux init must not block or crash the supervision tree
+    # Non-blocking post-startup tasks -- must not block or crash the supervision tree
     Task.start(fn ->
       try do
         ensure_tmux_server()
+        Ichor.Infrastructure.CronScheduler.recover_jobs()
       rescue
         _ -> :ok
       end

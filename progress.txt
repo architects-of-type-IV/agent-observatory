@@ -1,5 +1,15 @@
 # ICHOR IV Progress
 
+## Wave 2: Oban Migration (2026-03-21) -- COMPLETE
+- [x] W2-1: MesScheduler -> Factory.Workers.MesTick Oban cron worker (every minute)
+- [x] W2-2: CronScheduler -> Infrastructure.Workers.ScheduledJob Oban worker
+- [x] W2-3: WebhookRouter -> Infrastructure.Workers.WebhookDeliveryWorker (max_attempts: 5, custom backoff)
+- [x] All 3 GenServers removed from supervisors, replaced with plain module APIs
+- [x] recover_jobs/0 called on application startup
+- [x] Oban config: 5 queues, MesTick on cron plugin
+- [x] mix compile --warnings-as-errors: CLEAN
+- [x] Codex review dispatched (pending in codex-spar tmux session)
+
 ## MemoriesClient Move: Archon → Infrastructure (2026-03-21) -- COMPLETE
 - [x] Moved lib/ichor/archon/memories_client.ex → lib/ichor/infrastructure/memories_client.ex
 - [x] Renamed module Ichor.Archon.MemoriesClient → Ichor.Infrastructure.MemoriesClient

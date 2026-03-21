@@ -22,8 +22,12 @@ defmodule Ichor.Infrastructure.WebhookAdapter do
     signature = WebhookRouter.compute_signature(body, secret)
 
     case WebhookDelivery.enqueue(webhook_url, body, signature, agent_id) do
-      {:ok, delivery} -> {:ok, delivery.id}
-      {:error, reason} -> {:error, reason}
+      {:ok, delivery} ->
+        WebhookRouter.enqueue_delivery(delivery.id)
+        {:ok, delivery.id}
+
+      {:error, reason} ->
+        {:error, reason}
     end
   end
 

@@ -17,3 +17,13 @@ No aggregates. No ALTER COLUMN. Enforce at Ash level, remove from migrations.
 
 ## Every Oban Worker Must Be Idempotent
 Crash windows mean duplicate execution. Design for re-execution tolerance.
+
+## Oban Migration Pattern (Wave 2)
+When converting GenServer to Oban:
+1. Extract the work into an Oban.Worker (perform/1)
+2. Keep the public API as a plain module (no GenServer, no state)
+3. Remove from supervisor children
+4. For cron: use Oban.Plugins.Cron in config.exs
+5. For one-shot: caller inserts job via Worker.new/1 |> Oban.insert()
+6. For recovery: call recover on startup (Task.start in application.ex)
+7. WebhookDelivery pattern: Ash resource tracks delivery state, Oban worker handles retry
