@@ -50,7 +50,9 @@ defmodule Ichor.Signals.Operations do
     end
 
     action :acknowledge_message, :map do
-      description("Mark a pulled inbox message as acknowledged.")
+      description(
+        "Placeholder: marks a message as acknowledged. Not yet implemented -- returns static confirmation."
+      )
 
       argument(:session_id, :string, allow_nil?: false)
       argument(:message_id, :string, allow_nil?: false)

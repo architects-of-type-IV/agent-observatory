@@ -54,15 +54,18 @@ defmodule Ichor.Workshop.Agent do
 
   actions do
     read :all do
+      description("Load all agents currently registered in the fleet, including ended sessions.")
       prepare({Ichor.Workshop.Preparations.LoadAgents, []})
     end
 
     read :active do
+      description("Load all agents with an active or idle status, excluding ended sessions.")
       prepare({Ichor.Workshop.Preparations.LoadAgents, []})
       filter(expr(status != :ended))
     end
 
     read :in_team do
+      description("Load all agents belonging to a specific named team.")
       argument(:team_name, :string, allow_nil?: false)
       prepare({Ichor.Workshop.Preparations.LoadAgents, []})
       filter(expr(team_name == ^arg(:team_name)))

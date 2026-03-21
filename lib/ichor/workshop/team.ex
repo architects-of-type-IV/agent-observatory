@@ -67,27 +67,38 @@ defmodule Ichor.Workshop.Team do
   end
 
   actions do
-    defaults([:read, :destroy])
+    read :read do
+      description("List all saved team designs.")
+    end
+
+    destroy :destroy do
+      description("Delete a saved team design.")
+    end
 
     create :create do
+      description("Save a new team design to the Workshop.")
       accept([:name, :strategy, :default_model, :cwd, :agents, :spawn_links, :comm_rules])
     end
 
     update :update do
+      description("Update an existing team design in the Workshop.")
       accept([:name, :strategy, :default_model, :cwd, :agents, :spawn_links, :comm_rules])
     end
 
     read :by_name do
+      description("Look up a saved team design by its unique name.")
       argument(:name, :string, allow_nil?: false)
       get?(true)
       filter(expr(name == ^arg(:name)))
     end
 
     read :list_all do
+      description("List all saved team designs, sorted newest first.")
       prepare(build(sort: [inserted_at: :desc]))
     end
 
     action :spawn_team, :map do
+      description("Spawn a live team from a saved Workshop design by name.")
       argument(:name, :string, allow_nil?: false)
 
       run(fn input, _context ->
