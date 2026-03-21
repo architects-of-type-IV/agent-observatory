@@ -78,7 +78,8 @@ config :ichor, Oban,
      crontab: [
        {"* * * * *", Ichor.Factory.Workers.MesTick},
        {"* * * * *", Ichor.Factory.Workers.HealthCheckWorker},
-       {"* * * * *", Ichor.Factory.Workers.ProjectDiscoveryWorker}
+       {"* * * * *", Ichor.Factory.Workers.ProjectDiscoveryWorker},
+       {"*/5 * * * *", Ichor.Factory.Workers.OrphanSweepWorker}
      ]}
   ],
   queues: [

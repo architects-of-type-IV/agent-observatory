@@ -211,6 +211,7 @@ defmodule Ichor.Signals.EventStream do
     {:noreply, Map.drop(state, evicted_ids)}
   end
 
+  @impl true
   def handle_info(
         %Ichor.Signals.Message{name: :agent_stopped, data: %{session_id: session_id}},
         state

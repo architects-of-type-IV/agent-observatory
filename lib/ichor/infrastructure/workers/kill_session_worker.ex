@@ -10,10 +10,10 @@ defmodule Ichor.Infrastructure.Workers.KillSessionWorker do
     max_attempts: 3,
     unique: [period: 60, keys: [:session]]
 
-  alias Ichor.Factory.Spawn
+  alias Ichor.Infrastructure.Cleanup
 
   @impl Oban.Worker
   def perform(%Oban.Job{args: %{"session" => session}}) do
-    Spawn.kill_session(session)
+    Cleanup.kill_session(session)
   end
 end

@@ -14,10 +14,7 @@ defmodule Ichor.Factory.LifecycleSupervisor do
   """
   use Supervisor
 
-  alias Ichor.Factory.Runner
-  alias Ichor.Factory.Workers.OrphanSweepWorker
   alias Ichor.Infrastructure.{AgentProcess, FleetSupervisor}
-  alias Ichor.Signals
 
   @doc false
   @spec start_link(keyword()) :: Supervisor.on_start()
@@ -25,7 +22,6 @@ defmodule Ichor.Factory.LifecycleSupervisor do
     case Supervisor.start_link(__MODULE__, opts, name: __MODULE__) do
       {:ok, _pid} = result ->
         ensure_operator_process()
-        ensure_orphan_sweep()
         result
 
       error ->
@@ -65,23 +61,5 @@ defmodule Ichor.Factory.LifecycleSupervisor do
           :ok
       end
     end
-  end
-
-  defp ensure_orphan_sweep do
-    active_runs = length(Runner.list_all(:mes))
-    Signals.emit(:mes_maintenance_init, %{monitored: active_runs})
-
-    unless oban_inline_testing?() do
-      case OrphanSweepWorker.schedule(10) do
-        {:ok, _job} -> :ok
-        {:error, _reason} -> :ok
-      end
-    end
-  end
-
-  defp oban_inline_testing? do
-    Application.get_env(:ichor, Oban, [])
-    |> Keyword.get(:testing)
-    |> Kernel.==(:inline)
   end
 end

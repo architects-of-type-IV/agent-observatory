@@ -20,7 +20,7 @@ defmodule Ichor.Factory.Workers.HealthCheckWorker do
   def perform(%Oban.Job{}) do
     project_path = resolve_project_path()
 
-    if project_path && File.exists?(@health_check_script) do
+    if project_path && valid_project_path?(project_path) && File.exists?(@health_check_script) do
       case run_health_script(project_path) do
         {:ok, health} ->
           Signals.emit(:pipeline_health, %{health: health})
@@ -31,6 +31,10 @@ defmodule Ichor.Factory.Workers.HealthCheckWorker do
     else
       :ok
     end
+  end
+
+  defp valid_project_path?(path) do
+    String.starts_with?(path, "/") and File.dir?(path)
   end
 
   defp resolve_project_path do
