@@ -2,7 +2,7 @@ defmodule IchorWeb.Components.TerminalPanel.Helpers do
   @moduledoc """
   Positioning, theming, and label helpers for the terminal panel.
 
-  All floating positions respect the app header clearance (5.5rem)
+  All floating positions respect the app header clearance (6.5rem)
   so the panel never overlaps navigation.
   """
 
@@ -115,7 +115,7 @@ defmodule IchorWeb.Components.TerminalPanel.Helpers do
   def theme_label(:rose), do: "Rose"
   def theme_label(_), do: "ICHOR"
 
-  defp float_dimensions(100), do: {96, 90}
+  defp float_dimensions(100), do: {98, 90}
   defp float_dimensions(size), do: {min(size + 20, 90), size}
 
   defp max_height, do: "max-height: calc(100vh - #{@header} - #{@gap});"
