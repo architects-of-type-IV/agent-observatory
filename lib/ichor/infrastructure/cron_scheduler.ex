@@ -5,6 +5,8 @@ defmodule Ichor.Infrastructure.CronScheduler do
   On startup, recovers all persisted `cron_jobs` rows and schedules timers.
   Jobs fire by emitting a `:scheduled_job` signal for `agent_id`.
   One-time jobs are completed (destroyed) after firing; recurring jobs reschedule.
+
+  Schedule math is delegated to `CronSchedule`.
   """
 
   use GenServer
@@ -12,6 +14,9 @@ defmodule Ichor.Infrastructure.CronScheduler do
   require Logger
 
   alias Ichor.Infrastructure.CronJob
+  alias Ichor.Infrastructure.CronSchedule
+
+  @recurring_interval_ms 60_000
 
   @doc "Start the CronScheduler GenServer."
   @spec start_link(keyword()) :: GenServer.on_start()
@@ -46,8 +51,8 @@ defmodule Ichor.Infrastructure.CronScheduler do
   def init(_opts) do
     try do
       Enum.each(list_all_jobs(), fn job ->
-        delay = DateTime.diff(job.next_fire_at, DateTime.utc_now(), :millisecond)
-        Process.send_after(self(), {:fire_job, job.id, job.agent_id, job.payload}, max(delay, 0))
+        delay = CronSchedule.delay_until(job.next_fire_at)
+        Process.send_after(self(), {:fire_job, job.id, job.agent_id, job.payload}, delay)
       end)
     catch
       kind, reason ->
@@ -58,27 +63,22 @@ defmodule Ichor.Infrastructure.CronScheduler do
   end
 
   @impl true
-  def handle_call({:schedule_once, _agent_id, delay_ms, _payload}, _from, state)
-      when not is_integer(delay_ms) or delay_ms <= 0 do
-    {:reply, {:error, :invalid_delay}, state}
-  end
-
   def handle_call({:schedule_once, agent_id, delay_ms, payload}, _from, state) do
-    next_fire_at =
-      DateTime.utc_now()
-      |> DateTime.add(delay_ms, :millisecond)
-      |> DateTime.truncate(:second)
+    with :ok <- CronSchedule.validate_delay(delay_ms) do
+      next_fire_at = CronSchedule.next_fire_at(delay_ms)
+      encoded = Jason.encode!(payload)
 
-    encoded = Jason.encode!(payload)
+      case CronJob.schedule_once(agent_id, encoded, next_fire_at) do
+        {:ok, job} ->
+          Process.send_after(self(), {:fire_job, job.id, job.agent_id, job.payload}, delay_ms)
+          {:reply, :ok, state}
 
-    case CronJob.schedule_once(agent_id, encoded, next_fire_at) do
-      {:ok, job} ->
-        Process.send_after(self(), {:fire_job, job.id, job.agent_id, job.payload}, delay_ms)
-        {:reply, :ok, state}
-
-      {:error, reason} ->
-        Logger.warning("CronScheduler: failed to insert job: #{inspect(reason)}")
-        {:reply, {:error, :insert_failed}, state}
+        {:error, reason} ->
+          Logger.warning("CronScheduler: failed to insert job: #{inspect(reason)}")
+          {:reply, {:error, :insert_failed}, state}
+      end
+    else
+      error -> {:reply, error, state}
     end
   end
 
@@ -94,17 +94,14 @@ defmodule Ichor.Infrastructure.CronScheduler do
           CronJob.complete(job)
 
         {:ok, job} ->
-          next_fire_at =
-            DateTime.utc_now()
-            |> DateTime.add(60_000, :millisecond)
-            |> DateTime.truncate(:second)
+          next_fire_at = CronSchedule.next_recurrence(@recurring_interval_ms)
 
           case CronJob.reschedule(job, next_fire_at) do
             {:ok, _} ->
               Process.send_after(
                 self(),
                 {:fire_job, job.id, job.agent_id, job.payload},
-                60_000
+                @recurring_interval_ms
               )
 
             {:error, reason} ->

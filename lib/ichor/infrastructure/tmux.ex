@@ -7,9 +7,17 @@ defmodule Ichor.Infrastructure.Tmux do
     1. -S ~/.ichor/tmux/obs.sock (explicit socket path)
     2. -L obs (named server)
     3. default server
+
+  Low-level command execution lives in `Tmux.Command`.
+  Server discovery and caching lives in `Tmux.ServerSelector`.
+  Output parsing lives in `Tmux.Parser`.
   """
 
   @behaviour Ichor.Infrastructure.Channel
+
+  alias Ichor.Infrastructure.Tmux.Command
+  alias Ichor.Infrastructure.Tmux.Parser
+  alias Ichor.Infrastructure.Tmux.ServerSelector
 
   @impl true
   def channel_key, do: :tmux
@@ -18,10 +26,6 @@ defmodule Ichor.Infrastructure.Tmux do
   def skip?(payload) do
     payload[:type] in [:heartbeat, :system]
   end
-
-  @ichor_socket Path.expand("~/.ichor/tmux/obs.sock")
-  @ichor_server "obs"
-  @server_arg_sets_ttl_ms 5_000
 
   @impl true
   def deliver(session_name, payload) when is_binary(session_name) do
@@ -34,15 +38,15 @@ defmodule Ichor.Infrastructure.Tmux do
     # Named buffer prevents concurrent deliveries from corrupting each other.
     buf_name = "obs-#{:erlang.unique_integer([:positive])}"
 
-    with {:ok, _} <- try_tmux(["set-buffer", "-b", buf_name, message]),
-         {:ok, _} <- try_tmux(["paste-buffer", "-b", buf_name, "-d", "-t", session_name]),
+    with {:ok, _} <- Command.try_all(["set-buffer", "-b", buf_name, message]),
+         {:ok, _} <- Command.try_all(["paste-buffer", "-b", buf_name, "-d", "-t", session_name]),
          _ = Process.sleep(150),
-         {:ok, _} <- try_tmux(["send-keys", "-t", session_name, "Enter"]) do
+         {:ok, _} <- Command.try_all(["send-keys", "-t", session_name, "Enter"]) do
       :ok
     else
       {:error, reason} ->
         # Clean up named buffer on failure (best effort)
-        try_tmux(["delete-buffer", "-b", buf_name])
+        Command.try_all(["delete-buffer", "-b", buf_name])
         {:error, {:tmux_send_failed, reason}}
     end
   end
@@ -50,10 +54,10 @@ defmodule Ichor.Infrastructure.Tmux do
   @impl true
   # Pane IDs start with %, session names don't
   def available?("%" <> _ = target),
-    do: match?({:ok, _}, try_tmux(["display-message", "-t", target, "-p", ""]))
+    do: match?({:ok, _}, Command.try_all(["display-message", "-t", target, "-p", ""]))
 
   def available?(target) when is_binary(target),
-    do: match?({:ok, _}, try_tmux(["has-session", "-t", target]))
+    do: match?({:ok, _}, Command.try_all(["has-session", "-t", target]))
 
   @doc """
   Capture the current pane output from a tmux session.
@@ -63,7 +67,7 @@ defmodule Ichor.Infrastructure.Tmux do
   def capture_pane(session_name, opts \\ []) do
     lines = Keyword.get(opts, :lines, 50)
 
-    case try_tmux(["capture-pane", "-t", session_name, "-p", "-S", "-#{lines}"]) do
+    case Command.try_all(["capture-pane", "-t", session_name, "-p", "-S", "-#{lines}"]) do
       {:ok, output} -> {:ok, output}
       {:error, reason} -> {:error, {:capture_failed, reason}}
     end
@@ -73,16 +77,16 @@ defmodule Ichor.Infrastructure.Tmux do
 
   @doc "List all panes across all known servers/sockets with pane_id, session, and title."
   def list_panes do
-    server_arg_sets()
+    ServerSelector.server_arg_sets()
     |> Enum.flat_map(fn args ->
-      case tmux_cmd(args ++ ["list-panes", "-a", "-F", @pane_format]) do
-        {output, 0} ->
+      case Command.run(args ++ ["list-panes", "-a", "-F", @pane_format]) do
+        {:ok, output} ->
           output
-          |> String.split("\n", trim: true)
-          |> Enum.map(&parse_pane_line/1)
+          |> Parser.split_lines()
+          |> Enum.map(&Parser.parse_pane_line/1)
           |> Enum.reject(&is_nil/1)
 
-        _ ->
+        {:error, _} ->
           []
       end
     end)
@@ -91,80 +95,19 @@ defmodule Ichor.Infrastructure.Tmux do
 
   @doc "List all active tmux sessions across all known servers/sockets."
   def list_sessions do
-    server_arg_sets()
+    ServerSelector.server_arg_sets()
     |> Enum.flat_map(fn args ->
-      case tmux_cmd(args ++ ["list-sessions", "-F", "\#{session_name}"]) do
-        {output, 0} -> String.split(output, "\n", trim: true)
-        _ -> []
+      case Command.run(args ++ ["list-sessions", "-F", "\#{session_name}"]) do
+        {:ok, output} -> Parser.split_lines(output)
+        {:error, _} -> []
       end
     end)
     |> Enum.uniq()
   end
 
   @doc "Run a tmux command across all known server options, return first success."
-  def run_command(cmd_args), do: try_tmux(cmd_args)
+  def run_command(cmd_args), do: Command.try_all(cmd_args)
 
   @doc "Return tmux args for the first responsive ichor server."
-  def socket_args do
-    Enum.find(server_arg_sets(), [], fn args ->
-      case tmux_cmd(args ++ ["list-sessions"]) do
-        {_, 0} -> true
-        _ -> false
-      end
-    end)
-  end
-
-  # Try a tmux command across all known server options, return first success.
-  defp try_tmux(cmd_args) do
-    Enum.find_value(server_arg_sets(), {:error, :no_server}, fn server_args ->
-      case tmux_cmd(server_args ++ cmd_args) do
-        {output, 0} -> {:ok, output}
-        {:error, :emfile} -> {:error, :emfile}
-        {_output, _code} -> nil
-        _ -> nil
-      end
-    end)
-  end
-
-  defp tmux_cmd(args) do
-    System.cmd("tmux", args, stderr_to_stdout: true)
-  catch
-    :error, :emfile -> {:error, :emfile}
-    :exit, :emfile -> {:error, :emfile}
-  end
-
-  defp server_arg_sets do
-    cached = Process.get(:tmux_server_arg_sets_cache)
-    now = System.monotonic_time(:millisecond)
-
-    case cached do
-      {sets, ts} when now - ts < @server_arg_sets_ttl_ms ->
-        sets
-
-      _ ->
-        sets =
-          [
-            if(File.exists?(@ichor_socket), do: ["-S", @ichor_socket]),
-            ["-L", @ichor_server],
-            []
-          ]
-          |> Enum.reject(&is_nil/1)
-
-        Process.put(:tmux_server_arg_sets_cache, {sets, now})
-        sets
-    end
-  end
-
-  defp parse_pane_line(line) do
-    case String.split(line, "\t") do
-      [pane_id, session, title, pid] ->
-        %{pane_id: pane_id, session: session, title: title, pid: pid}
-
-      [pane_id, session, title] ->
-        %{pane_id: pane_id, session: session, title: title, pid: nil}
-
-      _ ->
-        nil
-    end
-  end
+  def socket_args, do: ServerSelector.first_responsive()
 end
