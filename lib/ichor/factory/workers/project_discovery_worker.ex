@@ -17,11 +17,15 @@ defmodule Ichor.Factory.Workers.ProjectDiscoveryWorker do
     projects = PipelineQuery.projects()
     archives = PipelineQuery.archives()
 
-    Signals.emit(:pipeline_status, %{
+    state_map = %{
       watched_projects: projects,
       active_project: first_project_key(projects),
-      archives: archives
-    })
+      archives: archives,
+      pipeline: %{pending: 0, in_progress: 0, completed: 0, failed: 0},
+      health: %{}
+    }
+
+    Signals.emit(:pipeline_status, %{state_map: state_map})
 
     :ok
   end

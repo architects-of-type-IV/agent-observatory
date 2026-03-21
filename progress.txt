@@ -1,5 +1,11 @@
 # ICHOR IV Progress
 
+## Wave 4: Large Structural (2026-03-21) -- COMPLETE
+- [x] W4-1: PipelineMonitor eliminated (623L GenServer -> PipelineQuery pure module + 2 Oban cron workers) (0d9fe83)
+- [x] W4-2: Ash resource domain moves -- CronJob->Factory, HITLInterventionEvent->SignalBus (19e5c80)
+- [x] Quality pass: simplifier (dead code, banners, handlers) + code reviewer (5 important findings fixed)
+- [x] Review fixes: @impl consistency, path validation, KillSessionWorker boundary, OrphanSweep->cron
+
 ## Wave 3: Structural (2026-03-21) -- COMPLETE
 - [x] W3-2: AD-6 TeamSpec prompt injection -- prompt_module opt, PlanningPrompts removed from Workshop (88e94a0)
 - [x] W3-1: X1 EventStream decouple -- SessionLifecycle subscriber, one-way dependency (da9fee2)

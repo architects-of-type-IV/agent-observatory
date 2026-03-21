@@ -1,57 +1,52 @@
 # ICHOR IV - Handoff
 
-## Current Status: Wave 3 DONE, Codex Re-Review Pending (2026-03-21)
+## Current Status: Wave 4 COMPLETE, Quality Pass Done (2026-03-21)
 
-### Authoritative Architecture Documents
+### Architecture Docs (authoritative)
+`docs/architecture/decisions.md` (AD-1 through AD-8), `docs/plans/2026-03-21-architecture-audit.md` (all findings), `docs/plans/2026-03-21-vertical-slices.md`. See CLAUDE.md for full protocol.
 
-All implementation MUST align with `docs/architecture/` and `docs/plans/`. Codex reviews validate against them.
+### Wave Summary
 
-**Key docs**: `decisions.md` (AD-1 through AD-8), `architecture-audit.md` (findings X1/X2/O3/A1/A2/P1/DB2), `vertical-slices.md`, domain docs (workshop, factory, signals, infrastructure).
+| Wave | Score | Key Changes |
+|------|-------|-------------|
+| W1 (Foundation) | 7.5/10 | 7 prep tasks: Inbox, AgentWatchdog dedup, EventBridge, MemoriesClient, PromptProtocol, descriptions |
+| W2 (Oban Migration) | 8/10 | 3 GenServers -> Oban (MesTick, ScheduledJob, WebhookDelivery) + reliability fixes |
+| W3 (Structural) | 8/10 | X1 closed (EventStream decouple), X2 closed (TeamWatchdog signals+dispatchers), AD-6 partial, AD-8 closed |
+| W4 (Large Structural) | Done | PipelineMonitor eliminated (623L -> pure query + 2 Oban cron), Ash resource domain moves (DB2) |
+| Quality Pass | Done | Simplifier (dead code, banners, handlers) + Code reviewer (5 important findings fixed) |
 
-### Wave Status
+### Closed Architecture Findings
+- AD-8: Mandatory reactions via Oban, no volatile PubSub hops
+- X1: EventStream -> Infrastructure one-way dependency
+- X2: TeamWatchdog pure signal emitter, domain-local dispatchers
+- O3: Cleanup actions as idempotent Oban workers
+- P1: PipelineMonitor eliminated
+- O4: Health check as Oban cron
+- DB2: CronJob->Factory, HITL->SignalBus
 
-**Wave 1 (Foundation)** -- COMPLETE, Codex 7.5/10
+### Open / Deferred
+- AD-6 full: TeamSpec still has mode-specific build clauses (import violation gone, generic compile/2 deferred)
+- AD-7: Value objects (RunRef/AgentId/SessionRef as Ash types, NOT OOP). 20+ files. Scoped.
+- WX-tree: TREE.md update OVERDUE
+- Low findings from review: AgentWatchdog memory leak (#6), reconciler cron gap (#7), stale @moduledoc (#8), TeamPrompts imports Factory (#9), signal category naming (#10)
 
-**Wave 2 (Oban Migration)** -- COMPLETE, Codex 8/10
-- 3 GenServers -> Oban workers + plain APIs, reliability fixes applied
+### Oban Workers (current)
+MesTick (cron 1m), ScheduledJob, WebhookDeliveryWorker, ArchiveRunWorker, ResetRunTasksWorker, DisbandTeamWorker, KillSessionWorker, HealthCheckWorker (cron 1m), ProjectDiscoveryWorker (cron 1m), OrphanSweepWorker (cron 5m)
 
-**Wave 3 (Structural)** -- COMPLETE, Codex re-review pending (6/10 initial -> fixes applied)
-- W3-1 (X1): EventStream decoupled. SessionLifecycle subscriber. agent_lifecycle uses ETS not AgentProcess.
-- W3-2 (AD-6): TeamSpec accepts prompt_module opt. PlanningPrompts alias removed from Workshop.
-- W3-3 (AD-7): SCOPED, deferred. 20+ files, RunRef/AgentId/SessionRef structs. High effort.
-- W3-4 (AD-8): TeamWatchdog inserts Oban jobs directly (no PubSub hop). 4 workers. RunCleanupSubscriber deleted.
-
-**Codex W3 first review (6/10) findings and fixes:**
-1. AD-8: RunCleanupSubscriber was volatile PubSub hop -> FIXED: TeamWatchdog inserts Oban directly
-2. X1: agent_lifecycle still imported AgentProcess -> FIXED: uses EventStream ETS tables
-3. AD-6: TeamSpec still hardcodes mode-specific logic -> ACCEPTED: import violation gone, full generic compiler is future work
-
-**Wave 3 Commits:**
-- `88e94a0` W3-2: AD-6 prompt strategy injection
-- `da9fee2` W3-1: X1 EventStream decouple
-- `c99d140` W3-4: AD-8 TeamWatchdog Oban cleanup
-- (pending) X1+AD-8 fix commit
-
-**Wave 4 (Large Structural)** -- W4-2 COMPLETE
-- W4-1: PipelineMonitor elimination (623L GenServer -> pure query module + 2 Oban workers)
-- W4-2: DONE -- CronJob moved to Factory, HITLInterventionEvent moved to SignalBus. ash.codegen: no schema changes. Build clean.
-
-**Wave 3 deferred (W3-3 AD-7 Value Objects)** -- SCOPED
-- RunRef: 6 functions with 3-clause dispatch, 10 modules parse strings by hand
-- AgentId: session_id vs agent_id split across 8+ modules
-- 20+ files, 3 new struct modules. Execute after W4 or as independent effort.
-
-**Standing Tasks:**
-- WX-tree: Update lib/ichor/TREE.md at end of each wave (OVERDUE)
-
-### Protocols
-- Architecture docs are authoritative (CLAUDE.md)
-- ash-thinking skill before Ash agents, never ash-elixir-expert
-- Codex reviews reference architecture docs
-- Codex in codex-spar tmux, restart with --resume if exits
-- Send prompts via temp file + tmux literal paste
-- Every task cross-references governing architecture doc
-- Keep-track at wave boundaries
+### Commits This Session
+```
+495f31e  W2: Oban migration (3 GenServers)
+(W2 fixes) W2 reliability fixes (8/10)
+88e94a0  W3-2: AD-6 prompt strategy injection
+da9fee2  W3-1: X1 EventStream decouple
+c99d140  W3-4: AD-8 TeamWatchdog Oban cleanup
+ae71b96  X1+AD-8 fix (ETS, direct insert)
+ca72340  X2 fix (domain-local dispatchers)
+19e5c80  W4-2: Ash resource domain moves
+0d9fe83  W4-1: PipelineMonitor eliminated
+c7c1091  Simplifier pass
+(pending) Review fixes commit
+```
 
 ### Build
 - `mix compile --warnings-as-errors`: CLEAN

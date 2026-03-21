@@ -1,7 +1,7 @@
 defmodule Ichor.Factory.Workers.HealthCheckWorker do
   @moduledoc """
   Oban cron worker that runs the swarm health-check script and emits
-  a `:pipeline_health` signal with the parsed results.
+  a `:pipeline_health_report` signal with the parsed results.
 
   Runs on the `:maintenance` queue every minute via Oban cron.
   The active project path is resolved at runtime from the EventStream CWDs.
@@ -23,7 +23,11 @@ defmodule Ichor.Factory.Workers.HealthCheckWorker do
     if project_path && valid_project_path?(project_path) && File.exists?(@health_check_script) do
       case run_health_script(project_path) do
         {:ok, health} ->
-          Signals.emit(:pipeline_health, %{health: health})
+          Signals.emit(:pipeline_health_report, %{
+            run_id: project_path,
+            healthy: health.healthy,
+            issue_count: length(health.issues)
+          })
 
         :error ->
           :ok
