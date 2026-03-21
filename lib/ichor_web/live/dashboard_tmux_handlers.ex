@@ -300,7 +300,7 @@ defmodule IchorWeb.DashboardTmuxHandlers do
     )
   end
 
-  def handle_set_panel_position(%{"value" => pos}, socket) do
+  def handle_set_panel_position(%{"val" => pos}, socket) do
     position = parse_position(pos)
 
     socket
@@ -309,10 +309,10 @@ defmodule IchorWeb.DashboardTmuxHandlers do
   end
 
   def handle_set_panel_position(%{"position" => pos}, socket) do
-    handle_set_panel_position(%{"value" => pos}, socket)
+    handle_set_panel_position(%{"val" => pos}, socket)
   end
 
-  def handle_set_panel_width(%{"value" => w}, socket) do
+  def handle_set_panel_width(%{"val" => w}, socket) do
     parsed = parse_dim(w)
 
     socket
@@ -320,7 +320,7 @@ defmodule IchorWeb.DashboardTmuxHandlers do
     |> push_event("terminal_panel_update", %{width: parsed})
   end
 
-  def handle_set_panel_height(%{"value" => h}, socket) do
+  def handle_set_panel_height(%{"val" => h}, socket) do
     parsed = parse_dim(h)
 
     socket
@@ -328,16 +328,16 @@ defmodule IchorWeb.DashboardTmuxHandlers do
     |> push_event("terminal_panel_update", %{height: parsed})
   end
 
-  def handle_set_panel_split(%{"split" => split_str}, socket) do
-    split = parse_split(split_str)
+  def handle_set_panel_split(%{"val" => split_str}, socket) do
+    split = parse_split(to_string(split_str))
 
     socket
     |> assign(:panel_split, split)
     |> push_event("terminal_panel_update", %{split: to_string(split)})
   end
 
-  def handle_set_panel_theme(%{"theme" => theme_str}, socket) do
-    theme = parse_theme(theme_str)
+  def handle_set_panel_theme(%{"val" => theme_str}, socket) do
+    theme = parse_theme(to_string(theme_str))
 
     socket
     |> assign(:panel_theme, theme)

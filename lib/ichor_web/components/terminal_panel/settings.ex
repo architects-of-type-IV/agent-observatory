@@ -112,8 +112,7 @@ defmodule IchorWeb.Components.TerminalPanel.Settings do
     ~H"""
     <button
       phx-click={@event}
-      phx-value-param={@param}
-      phx-value-value={@value}
+      phx-value-val={@value}
       class={["term-setting", if(@active, do: "active")]}
     >
       {@label}
