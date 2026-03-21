@@ -71,10 +71,8 @@ config :ichor, :memories,
 
 # Oban background job processing
 config :ichor, Oban,
+  engine: Oban.Engines.Lite,
   repo: Ichor.Repo,
-  notifier: Oban.Notifiers.PG,
-  peer: Oban.Peers.Global,
-  prefix: false,
   plugins: [
     {Oban.Plugins.Cron,
      crontab: [

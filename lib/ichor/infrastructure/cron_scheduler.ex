@@ -10,7 +10,8 @@ defmodule Ichor.Infrastructure.CronScheduler do
   Returns `:ok` on success or `{:error, :invalid_delay}` if `delay_ms` is not
   a positive integer.
   """
-  @spec schedule_once(String.t(), pos_integer(), term()) :: :ok | {:error, :invalid_delay}
+  @spec schedule_once(String.t(), pos_integer(), term()) ::
+          :ok | {:error, :invalid_delay | :insert_failed}
   def schedule_once(agent_id, delay_ms, payload) do
     with :ok <- CronSchedule.validate_delay(delay_ms) do
       next_fire_at = CronSchedule.next_fire_at(delay_ms)
@@ -20,11 +21,19 @@ defmodule Ichor.Infrastructure.CronScheduler do
         {:ok, job} ->
           delay_seconds = div(delay_ms, 1000)
 
-          %{"job_id" => job.id, "agent_id" => agent_id, "payload" => encoded}
-          |> ScheduledJob.new(schedule_in: delay_seconds)
-          |> Oban.insert()
+          case %{"job_id" => job.id, "agent_id" => agent_id, "payload" => encoded}
+               |> ScheduledJob.new(
+                 schedule_in: delay_seconds,
+                 unique: [period: 120, keys: [:job_id]]
+               )
+               |> Oban.insert() do
+            {:ok, _} ->
+              :ok
 
-          :ok
+            {:error, _reason} ->
+              CronJob.complete(job)
+              {:error, :insert_failed}
+          end
 
         {:error, _reason} ->
           {:error, :insert_failed}
@@ -53,7 +62,7 @@ defmodule Ichor.Infrastructure.CronScheduler do
       delay_seconds = div(delay, 1000)
 
       %{"job_id" => job.id, "agent_id" => job.agent_id, "payload" => job.payload}
-      |> ScheduledJob.new(schedule_in: delay_seconds)
+      |> ScheduledJob.new(schedule_in: delay_seconds, unique: [period: 120, keys: [:job_id]])
       |> Oban.insert()
     end)
   end

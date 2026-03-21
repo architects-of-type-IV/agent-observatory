@@ -23,8 +23,14 @@ defmodule Ichor.Infrastructure.WebhookAdapter do
 
     case WebhookDelivery.enqueue(webhook_url, body, signature, agent_id) do
       {:ok, delivery} ->
-        WebhookRouter.enqueue_delivery(delivery.id)
-        {:ok, delivery.id}
+        case WebhookRouter.enqueue_delivery(delivery.id) do
+          {:ok, _job} ->
+            {:ok, delivery.id}
+
+          {:error, reason} ->
+            WebhookDelivery.mark_dead(delivery, %{attempt_count: 0})
+            {:error, reason}
+        end
 
       {:error, reason} ->
         {:error, reason}

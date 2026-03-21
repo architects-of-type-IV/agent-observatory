@@ -1,55 +1,68 @@
 # ICHOR IV - Handoff
 
-## Current Status: Wave 2 COMPLETE, Wave 3 Ready (2026-03-21)
+## Current Status: W2 Fixes In Progress, Wave 3 Next (2026-03-21)
 
-### Session Accomplishments (this session)
-1. Wave 2: Oban migration -- 3 GenServers replaced with Oban workers + plain APIs
-2. Codex review sent for Wave 2 (pending in codex-spar tmux session)
-3. Stale worktree agent-a14dc367 completed (redundant, same work done in main)
+### Authoritative Architecture Documents
 
-### Wave 2 Status (Oban Migration) -- COMPLETE
-- [x] W2-1: MesScheduler -> Oban cron (Factory.Workers.MesTick, * * * * *)
-- [x] W2-2: CronScheduler -> Oban worker (Infrastructure.Workers.ScheduledJob)
-- [x] W2-3: WebhookRouter -> Oban worker (Infrastructure.Workers.WebhookDeliveryWorker, max_attempts: 5, custom backoff)
-- All three GenServers removed from supervisors
-- Plain module APIs preserved (pause/resume, compute_signature, schedule_once, etc.)
-- recover_jobs/0 called on application startup
-- Oban config: 5 queues (webhooks: 10, quality_gate: 4, memories: 2, maintenance: 1, scheduled: 2)
+All implementation MUST align with these documents. They were carefully planned and researched across multiple codex sparring sessions. Codex reviews must validate changes against them.
 
-### Wave 1 Status (Foundation) -- COMPLETE
-- [x] W1-1 through W1-7: All done, Codex validated (7.5/10)
+**Reading order:**
+1. `docs/architecture/decisions.md` -- AD-1 through AD-8, the load-bearing design choices
+2. `docs/plans/GLOSSARY.md` -- canonical term definitions
+3. `docs/plans/2026-03-21-vertical-slices.md` -- 9 use cases, cross-boundary problems
+4. `docs/architecture/workshop-domain.md` -- Workshop CRUD, prompt mgmt, spawn convergence
+5. `docs/architecture/factory-domain.md` -- project lifecycle, Oban worker plan
+6. `docs/architecture/signals-domain.md` -- EventStore, Bus, AD-8 reliability model
+7. `docs/architecture/infrastructure.md` -- host layer, tmux, CommPolicy
+8. `docs/architecture/supervision-tree.md` + `memory-strategy.md` -- runtime concerns
+9. `docs/architecture/target-file-structure.md` -- current-to-target file mapping
 
-### Codex Wave 1 Review (7.5/10)
-- AD-8: not yet fully closed (TeamWatchdog still PubSub-subscriber-driven cleanup -- Wave 3)
-- Gaps carried forward: X1 (EventStream fleet), X2/O3 (TeamWatchdog), Problem 2/5
+**Supporting:**
+- `docs/plans/2026-03-21-architecture-blueprint.md` -- 8 ADs, ownership rules, gap analysis, 25-task wave plan
+- `docs/plans/2026-03-21-architecture-audit.md` -- detailed findings by category
+- `docs/plans/2026-03-21-actionable-findings.md` -- prioritized findings with file locations
+- `docs/reviews/2026-03-21-codex-sparring.md` -- source of AD-8 reliability boundary
 
-### Wave 3 Tasks (Structural) -- NEXT
-- [ ] W3-1: EventStream decouple from fleet mutations (X1/Problem 2)
-- [ ] W3-2: TeamSpec refactor -- strategy injection via compile/2 (AD-6)
-- [ ] W3-3: Value objects for message/event payloads
-- [ ] W3-4: TeamWatchdog -> mandatory Oban reaction (AD-8 closure)
+### Validation Rule
+Every codex review prompt MUST include: "Validate against docs/architecture/decisions.md and the relevant domain doc." Agents must read the relevant architecture doc before implementing.
 
-### Architecture Documentation
-```
-docs/architecture/
-  INDEX.md, decisions.md (AD-1 through AD-9), target-file-structure.md,
-  supervision-tree.md, memory-strategy.md, workshop-domain.md,
-  factory-domain.md, signals-domain.md, infrastructure.md
-```
+### Wave Status
 
-### Key Files Changed (Wave 2)
-```
-lib/ichor/factory/workers/mes_tick.ex          -- NEW: Oban cron worker
-lib/ichor/factory/mes_scheduler.ex             -- REWRITTEN: plain module API
-lib/ichor/infrastructure/workers/scheduled_job.ex       -- NEW: Oban worker
-lib/ichor/infrastructure/cron_scheduler.ex              -- REWRITTEN: plain module API
-lib/ichor/infrastructure/workers/webhook_delivery_worker.ex  -- NEW: Oban worker
-lib/ichor/infrastructure/webhook_router.ex              -- REWRITTEN: plain module API
-lib/ichor/infrastructure/webhook_adapter.ex             -- UPDATED: enqueue via Oban
-lib/ichor/infrastructure/webhook_delivery.ex            -- UPDATED: get action added
-lib/ichor/application.ex                                -- UPDATED: recover_jobs on startup
-config/config.exs                                       -- Oban cron + queues
-```
+**Wave 1 (Foundation)** -- COMPLETE, Codex 7.5/10
+- W1-1 through W1-7 done
+
+**Wave 2 (Oban Migration)** -- COMPLETE, Codex 6/10 -> fixes in progress
+- W2-1/W2-2/W2-3: 3 GenServers replaced with Oban workers + plain APIs
+- W2-fix-1: Engine set to Oban.Engines.Lite (DONE)
+- W2-fix-2: Worker idempotency fixes (DONE, agents completed)
+- W2-fix-3: Crash window closed in webhook_adapter + cron_scheduler (DONE, agents completed)
+- W2-fix-4: Uniqueness on recover_jobs (DONE, agents completed)
+- Codex re-review dispatched, waiting for response
+
+**Wave 3 (Structural)** -- NEXT
+- W3-1: EventStream decouple from fleet mutations (X1/Problem 2)
+- W3-2: TeamSpec strategy injection via compile/2 (AD-6)
+- W3-3: RunSpec + AgentId value objects (A1+A2)
+- W3-4: TeamWatchdog -> Oban cleanup jobs (X2/O3/AD-8 closure)
+
+**Wave 4 (Large Structural)** -- after W3
+- W4-1: Eliminate PipelineMonitor GenServer (P1)
+- W4-2: Move Infrastructure Ash resources to correct domains (DB2)
+
+**Standing Tasks:**
+- WX-tree: Update lib/ichor/TREE.md at end of each wave
+
+### Codex Review Protocol
+- Codex runs in `codex-spar` tmux session
+- Send prompts via temp file + literal paste (see memory/feedback/codex_tmux_prompts.md)
+- Every review prompt must reference the architecture docs
+- Wait for codex response before proceeding to next wave
+
+### Agent Protocol
+- Invoke `ash-thinking` skill BEFORE dispatching agents for Ash/Elixir work
+- Never use `ash-elixir-expert` agents directly
+- Split work by file scope, no two agents edit the same file
+- Verify build after agents complete, resolve conflicts
 
 ### Build
 - `mix compile --warnings-as-errors`: CLEAN
