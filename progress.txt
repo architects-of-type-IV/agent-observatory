@@ -1,5 +1,15 @@
 # ICHOR IV Progress
 
+## Wave 3: Structural (2026-03-21) -- COMPLETE
+- [x] W3-2: AD-6 TeamSpec prompt injection -- prompt_module opt, PlanningPrompts removed from Workshop (88e94a0)
+- [x] W3-1: X1 EventStream decouple -- SessionLifecycle subscriber, one-way dependency (da9fee2)
+- [x] W3-4: AD-8 TeamWatchdog Oban -- 4 workers, direct Oban.insert, no volatile hop (c99d140)
+- [x] W3 fixes: X1 agent_lifecycle uses ETS, AD-8 RunCleanupSubscriber deleted
+- [ ] W3-3: AD-7 Value objects -- SCOPED, deferred (20+ files, high effort)
+- Codex initial review: 6/10 (AD-8 volatile hop, X1 AgentProcess import)
+- Fixes applied, codex re-review pending
+- Wave 4 fully scoped (PipelineMonitor + Ash resource moves)
+
 ## Wave 2: Oban Migration (2026-03-21) -- COMPLETE
 - [x] W2-1: MesScheduler -> Factory.Workers.MesTick Oban cron worker (every minute)
 - [x] W2-2: CronScheduler -> Infrastructure.Workers.ScheduledJob Oban worker

@@ -7,7 +7,11 @@
 - Do NOT store runtime context (session, roster, team members) in Workshop. That's injected dynamically at TeamSpec.compile time.
 
 ## AD-8: Reliability Boundary
-Ash -> Oban -> PubSub. Mandatory reactions insert Oban jobs directly from notifiers. PubSub for observation only. Reconciler catches crash-window failures.
+Ash -> Oban -> PubSub. Mandatory reactions insert Oban jobs directly from notifiers OR directly in the process that detected the need. NEVER PubSub -> subscriber -> Oban.insert (volatile hop). PubSub for observation only. Reconciler catches crash-window failures.
+
+## AD-8 Volatile Hop Anti-Pattern (Wave 3 lesson)
+DO NOT: GenServer emits signal -> PubSub -> Subscriber -> Oban.insert. If subscriber is down, job never enqueued.
+DO: GenServer detects need -> Oban.insert directly in same process -> then emit observational signal for UI/logs.
 
 ## spawn/1 Is Generic
 team name -> compile Workshop design -> launch. Constraints are pattern matches in subscribers. Don't name what Elixir already has.

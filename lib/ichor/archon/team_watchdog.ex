@@ -7,12 +7,6 @@ defmodule Ichor.Archon.TeamWatchdog do
 
   use GenServer
 
-  require Logger
-
-  alias Ichor.Factory.Workers.ArchiveRunWorker
-  alias Ichor.Factory.Workers.ResetRunTasksWorker
-  alias Ichor.Infrastructure.Workers.DisbandTeamWorker
-  alias Ichor.Infrastructure.Workers.KillSessionWorker
   alias Ichor.Operator.Inbox
   alias Ichor.Signals
   alias Ichor.Signals.Message
@@ -132,38 +126,22 @@ defmodule Ichor.Archon.TeamWatchdog do
   defp dispatch(:noop), do: :ok
 
   defp dispatch({:archive_run, run_id}) do
-    insert_job(%{"run_id" => run_id}, ArchiveRunWorker)
     Signals.emit(:run_cleanup_needed, %{run_id: run_id, action: :archive})
   end
 
   defp dispatch({:reset_tasks, run_id}) do
-    insert_job(%{"run_id" => run_id}, ResetRunTasksWorker)
     Signals.emit(:run_cleanup_needed, %{run_id: run_id, action: :reset_tasks})
   end
 
   defp dispatch({:disband_team, session}) do
-    insert_job(%{"session" => session}, DisbandTeamWorker)
     Signals.emit(:session_cleanup_needed, %{session: session, action: :disband})
   end
 
   defp dispatch({:kill_session, session}) do
-    insert_job(%{"session" => session}, KillSessionWorker)
     Signals.emit(:session_cleanup_needed, %{session: session, action: :kill})
   end
 
   defp dispatch({:notify_operator, message}) do
     Inbox.write(:team_watchdog, %{context: "watchdog", message: message})
-  end
-
-  defp insert_job(args, worker) do
-    case args |> worker.new() |> Oban.insert() do
-      {:ok, _job} ->
-        :ok
-
-      {:error, reason} ->
-        Logger.warning(
-          "[TeamWatchdog] Failed to insert #{inspect(worker)} job #{inspect(args)}: #{inspect(reason)}"
-        )
-    end
   end
 end

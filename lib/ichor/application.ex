@@ -43,6 +43,10 @@ defmodule Ichor.Application do
       # Infrastructure subscriber: reacts to Signals-originated session/team lifecycle events
       Ichor.Infrastructure.Subscribers.SessionLifecycle,
 
+      # Archon cleanup subscribers: react to TeamWatchdog signals and insert domain-local Oban jobs
+      Ichor.Factory.Subscribers.RunCleanupDispatcher,
+      Ichor.Infrastructure.Subscribers.SessionCleanupDispatcher,
+
       # Mesh topology services (rest_for_one: causal DAG first, then event bridge)
       Ichor.Mesh.Supervisor,
 
