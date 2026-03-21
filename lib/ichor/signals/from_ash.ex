@@ -58,13 +58,13 @@ defmodule Ichor.Signals.FromAsh do
   defp signal_for(Ichor.Infrastructure.WebhookDelivery, :mark_dead),
     do: {:dead_letter, &webhook_data/2}
 
-  defp signal_for(Ichor.Infrastructure.HITLInterventionEvent, :record),
+  defp signal_for(Ichor.Signals.HITLInterventionEvent, :record),
     do: {:hitl_intervention_recorded, &hitl_data/2}
 
-  defp signal_for(Ichor.Infrastructure.CronJob, :schedule_once),
+  defp signal_for(Ichor.Factory.CronJob, :schedule_once),
     do: {:cron_job_scheduled, &cron_data/2}
 
-  defp signal_for(Ichor.Infrastructure.CronJob, :reschedule),
+  defp signal_for(Ichor.Factory.CronJob, :reschedule),
     do: {:cron_job_rescheduled, &cron_data/2}
 
   defp signal_for(_, _), do: nil

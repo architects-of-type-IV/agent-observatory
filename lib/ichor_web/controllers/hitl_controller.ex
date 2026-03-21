@@ -9,7 +9,7 @@ defmodule IchorWeb.HITLController do
 
   use IchorWeb, :controller
 
-  alias Ichor.Infrastructure.HITLInterventionEvent
+  alias Ichor.Signals.HITLInterventionEvent
   alias Ichor.Infrastructure.HITLRelay
 
   def pause(conn, %{"agent_id" => agent_id, "reason" => reason} = _params)

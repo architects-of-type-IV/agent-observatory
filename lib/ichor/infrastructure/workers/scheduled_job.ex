@@ -4,7 +4,8 @@ defmodule Ichor.Infrastructure.Workers.ScheduledJob do
 
   require Logger
 
-  alias Ichor.Infrastructure.{CronJob, CronSchedule}
+  alias Ichor.Factory.CronJob
+  alias Ichor.Infrastructure.CronSchedule
 
   @recurring_interval_ms 60_000
 

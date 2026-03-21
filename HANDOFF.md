@@ -32,9 +32,9 @@ All implementation MUST align with `docs/architecture/` and `docs/plans/`. Codex
 - `c99d140` W3-4: AD-8 TeamWatchdog Oban cleanup
 - (pending) X1+AD-8 fix commit
 
-**Wave 4 (Large Structural)** -- SCOPED, ready after W3 codex approval
+**Wave 4 (Large Structural)** -- W4-2 COMPLETE
 - W4-1: PipelineMonitor elimination (623L GenServer -> pure query module + 2 Oban workers)
-- W4-2: Ash resource domain moves (CronJob->Factory, HITL->SignalBus)
+- W4-2: DONE -- CronJob moved to Factory, HITLInterventionEvent moved to SignalBus. ash.codegen: no schema changes. Build clean.
 
 **Wave 3 deferred (W3-3 AD-7 Value Objects)** -- SCOPED
 - RunRef: 6 functions with 3-clause dispatch, 10 modules parse strings by hand

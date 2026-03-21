@@ -1,7 +1,8 @@
 defmodule Ichor.Infrastructure.CronScheduler do
   @moduledoc "Schedules jobs via Oban. No longer a GenServer."
 
-  alias Ichor.Infrastructure.{CronJob, CronSchedule}
+  alias Ichor.Factory.CronJob
+  alias Ichor.Infrastructure.CronSchedule
   alias Ichor.Infrastructure.Workers.ScheduledJob
 
   @doc """

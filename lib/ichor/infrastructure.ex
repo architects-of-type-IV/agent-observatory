@@ -10,8 +10,6 @@ defmodule Ichor.Infrastructure do
   use Ash.Domain, extensions: [AshAi]
 
   resources do
-    resource(Ichor.Infrastructure.CronJob)
-    resource(Ichor.Infrastructure.HITLInterventionEvent)
     resource(Ichor.Infrastructure.Operations)
     resource(Ichor.Infrastructure.WebhookDelivery)
   end

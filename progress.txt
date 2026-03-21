@@ -156,7 +156,8 @@
 - [x] Wave 1 COMPLETE: Codex validated 7.5/10 (prep wave, AD-8/X1 deferred to W2/W3)
 - [ ] Wave 2: Oban migration (MesScheduler, CronScheduler, Webhook delivery)
 - [ ] Wave 3: Structural (EventStream decouple, TeamSpec refactor, value objects, TeamWatchdog)
-- [ ] Wave 4: Large structural (PipelineMonitor eliminate, Ash resource moves)
+- [x] Wave 4 W4-2: Ash resource domain moves (CronJob->Factory, HITLInterventionEvent->SignalBus) -- COMPLETE
+- [ ] Wave 4 W4-1: PipelineMonitor elimination (623L GenServer -> pure query module + 2 Oban workers)
 - [ ] Oban worker migration (5 strong candidates)
 - [ ] ichor_contracts cleanup (stale beam files)
 - [ ] Component library (deferred)

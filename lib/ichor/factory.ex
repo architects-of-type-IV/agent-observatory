@@ -13,6 +13,7 @@ defmodule Ichor.Factory do
     resource(Ichor.Factory.Floor)
     resource(Ichor.Factory.Pipeline)
     resource(Ichor.Factory.PipelineTask)
+    resource(Ichor.Factory.CronJob)
   end
 
   tools do

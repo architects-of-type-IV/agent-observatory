@@ -13,6 +13,7 @@ defmodule Ichor.SignalBus do
     resource(Ichor.Signals.Operations)
     resource(Ichor.Signals.TaskProjection)
     resource(Ichor.Signals.ToolFailure)
+    resource(Ichor.Signals.HITLInterventionEvent)
   end
 
   tools do
