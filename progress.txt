@@ -1,5 +1,26 @@
 # ICHOR IV Progress
 
+## Deep Audit + UI Phase (2026-03-21) -- COMPLETE
+- [x] 314 Ash resource tests written (54 Workshop, 103 Factory, 57 Infra+Signals), 0 failures
+- [x] 5 silent failures fixed (SF-1 through SF-5: signal name, catalog entries, webhook, registry, cron)
+- [x] 15 if/else replaced with pattern matching (IDIOM-1)
+- [x] 13 filter+map chains replaced with for comprehensions (IDIOM-6)
+- [x] 7 rescue sites made visible with Logger.warning or replaced (remaining rescue audit)
+- [x] 5 Ash anti-patterns fixed (bang-in-rescue, __MODULE__, require_atomic docs)
+- [x] 5 performance optimizations (parallel recompute, ETS select, parallel registration/tmux)
+- [x] Rescue-for-control-flow replaced with catch/guards (ANTI-3)
+- [x] Runner.deadline_passed?/1 public API (ANTI-4)
+- [x] Weak typespecs strengthened (notes, validator, entropy_tracker, normalizer)
+- [x] 7 missing @doc added to util.ex, 8 missing @spec added
+- [x] 6 pipe anti-patterns fixed
+- [x] 2 param ordering violations fixed
+- [x] Pipeline source enum :genesis restored
+- [x] CronScheduler error propagation, Signals.emit nil safety
+- [x] Frontend: all routes 200, pipeline_state defaults, MES scheduler tick display
+- [x] xterm.js terminal emulator for tmux panels (replaces ANSI-to-HTML)
+- [x] Signals playground v2 (proper theme, semantic HTML, catalog sidebar, emitter)
+- [x] Workshop playground v2 (full CRUD for 6 resources, drag-drop canvas, 5 tabs)
+
 ## Final Cleanup (2026-03-21) -- COMPLETE
 - [x] 8 dialyzer errors fixed (dead clauses, type mismatches, unreachable patterns)
 - [x] 3 FIXMEs resolved (artifact notifier mappings added to FromAsh, stale ingestor comment removed)
