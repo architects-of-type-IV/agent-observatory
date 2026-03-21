@@ -40,7 +40,7 @@ defmodule Ichor.Archon.Manager do
       argument(:domain, :string, allow_nil?: false)
 
       run(fn input, _context ->
-        domain_name = Ash.ActionInput.get_argument(input, :domain)
+        domain_name = input.arguments.domain
 
         case Discovery.domain(domain_name) do
           {:ok, domain} ->
