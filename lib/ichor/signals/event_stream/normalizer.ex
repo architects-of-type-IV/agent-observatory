@@ -95,7 +95,7 @@ defmodule Ichor.Signals.EventStream.Normalizer do
   def truncate_tool_input(payload), do: payload
 
   @doc "Coerce a hook event type string or atom to a canonical atom."
-  @spec coerce_hook_type(String.t() | atom() | term()) :: atom()
+  @spec coerce_hook_type(String.t() | atom()) :: atom()
   def coerce_hook_type(t) when is_atom(t), do: t
 
   def coerce_hook_type(t) when is_binary(t) do

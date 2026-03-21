@@ -10,6 +10,8 @@ defmodule Ichor.Notes do
   @table_name :ichor_notes
   @max_notes 1000
 
+  @type note :: %{text: String.t(), timestamp: DateTime.t()}
+
   @doc "Create the ETS table. Must be called once at startup."
   @spec init() :: :ok
   def init do
@@ -21,7 +23,7 @@ defmodule Ichor.Notes do
   Add or update a note for a specific event.
   Evicts the oldest entry when the table is at capacity.
   """
-  @spec add_note(term(), String.t()) :: {:ok, map()}
+  @spec add_note(String.t(), String.t()) :: {:ok, note()}
   def add_note(event_id, text) when is_binary(text) do
     note = %{text: text, timestamp: DateTime.utc_now()}
 
@@ -43,7 +45,7 @@ defmodule Ichor.Notes do
   Get the note for a specific event.
   Returns `nil` if no note exists.
   """
-  @spec get_note(term()) :: map() | nil
+  @spec get_note(String.t()) :: note() | nil
   def get_note(event_id) do
     case :ets.lookup(@table_name, event_id) do
       [{^event_id, note}] -> note
@@ -55,7 +57,7 @@ defmodule Ichor.Notes do
   List all notes.
   Returns a map of `%{event_id => %{text: text, timestamp: timestamp}}`.
   """
-  @spec list_notes() :: %{term() => map()}
+  @spec list_notes() :: %{String.t() => note()}
   def list_notes do
     @table_name
     |> :ets.tab2list()
@@ -63,7 +65,7 @@ defmodule Ichor.Notes do
   end
 
   @doc "Delete the note for a specific event."
-  @spec delete_note(term()) :: :ok
+  @spec delete_note(String.t()) :: :ok
   def delete_note(event_id) do
     :ets.delete(@table_name, event_id)
     :ok

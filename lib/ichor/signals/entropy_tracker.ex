@@ -17,6 +17,8 @@ defmodule Ichor.Signals.EntropyTracker do
 
   require Logger
 
+  @type entropy_tuple :: {atom(), atom() | nil, atom() | nil}
+
   @doc "Start the EntropyTracker GenServer."
   @spec start_link(keyword()) :: GenServer.on_start()
   def start_link(opts \\ []) do
@@ -46,7 +48,7 @@ defmodule Ichor.Signals.EntropyTracker do
   @doc """
   Returns the current window list for a session. Useful for testing.
   """
-  @spec get_window(String.t()) :: list()
+  @spec get_window(String.t()) :: [entropy_tuple()]
   def get_window(session_id) do
     GenServer.call(__MODULE__, {:get_window, session_id})
   end

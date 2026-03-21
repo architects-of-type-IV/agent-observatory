@@ -3,10 +3,14 @@ defmodule Ichor.Factory.Validator do
 
   alias Ichor.Factory.{PipelineGraph, PipelineTask}
 
-  @type validation_result :: %{cycles: [tuple()], missing_refs: [{term(), [term()]}]}
+  @type validation_result :: %{
+          cycles: [{String.t(), String.t()}],
+          missing_refs: [{String.t(), [String.t()]}]
+        }
 
   @doc "Validates a pipeline by run ID. Returns ok if graph is acyclic and all deps are present."
-  @spec validate_pipeline(String.t()) :: {:ok, validation_result()} | {:error, validation_result()}
+  @spec validate_pipeline(String.t()) ::
+          {:ok, validation_result()} | {:error, validation_result()}
   def validate_pipeline(run_id) do
     with {:ok, pipeline_tasks} <- PipelineTask.by_run(run_id) do
       items = Enum.map(pipeline_tasks, &PipelineGraph.to_graph_node/1)
@@ -22,7 +26,7 @@ defmodule Ichor.Factory.Validator do
   end
 
   @doc "Detects two-node cycles (A -> B and B -> A) in a list of graph nodes."
-  @spec detect_cycles([map()]) :: [{term(), term()}]
+  @spec detect_cycles([map()]) :: [{String.t(), String.t()}]
   def detect_cycles(items) do
     edges = for item <- items, dep <- item.blocked_by, do: {item.id, dep}
 
@@ -33,7 +37,7 @@ defmodule Ichor.Factory.Validator do
   end
 
   @doc "Returns tasks that reference dependency IDs not present in the node list."
-  @spec flat_pipeline_check([map()]) :: [{term(), [term()]}]
+  @spec flat_pipeline_check([map()]) :: [{String.t(), [String.t()]}]
   def flat_pipeline_check(items) do
     known_ids = MapSet.new(items, & &1.id)
 
