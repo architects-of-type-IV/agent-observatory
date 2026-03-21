@@ -21,7 +21,7 @@ defmodule Ichor.MemoriesBridge do
 
   require Logger
 
-  alias Ichor.Archon.MemoriesClient
+  alias Ichor.Infrastructure.MemoriesClient
   alias Ichor.Signals.{Catalog, Message}
   alias Ichor.Workshop.AgentEntry
 

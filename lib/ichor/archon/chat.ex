@@ -9,7 +9,8 @@ defmodule Ichor.Archon.Chat do
   Incorporates: ChainBuilder, TurnRunner, ContextBuilder, CommandRegistry.
   """
 
-  alias Ichor.Archon.{CommandManifest, Manager, MemoriesClient, Memory}
+  alias Ichor.Archon.{CommandManifest, Manager, Memory}
+  alias Ichor.Infrastructure.MemoriesClient
   alias Ichor.Factory.{Floor, Project}
   alias Ichor.Infrastructure.Operations, as: InfrastructureOps
   alias Ichor.Signals.Operations, as: SignalOps

@@ -7,7 +7,7 @@ defmodule Ichor.Archon.Memory do
   """
   use Ash.Resource, domain: Ichor.Archon
 
-  alias Ichor.Archon.MemoriesClient
+  alias Ichor.Infrastructure.MemoriesClient
 
   actions do
     action :search_memory, :map do

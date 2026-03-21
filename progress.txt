@@ -1,5 +1,12 @@
 # ICHOR IV Progress
 
+## MemoriesClient Move: Archon → Infrastructure (2026-03-21) -- COMPLETE
+- [x] Moved lib/ichor/archon/memories_client.ex → lib/ichor/infrastructure/memories_client.ex
+- [x] Renamed module Ichor.Archon.MemoriesClient → Ichor.Infrastructure.MemoriesClient
+- [x] Updated 6 callers: research_store.ex, research_ingestor.ex, memories_bridge.ex, archon/memory.ex, archon/chat.ex, ichor_web/live/dashboard_archon_handlers.ex
+- [x] Old file moved to tmp/trash/
+- [x] mix compile --warnings-as-errors: CLEAN
+
 ## Level 2 Blueprint Consolidation (2026-03-20) -- COMPLETE
 - [x] Created Blueprint resource: agents/spawn_links/comm_rules as {:array, :map} JSON
 - [x] Dropped 3 child tables: workshop_agent_blueprints, workshop_spawn_links, workshop_comm_rules

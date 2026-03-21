@@ -72,7 +72,7 @@ defmodule IchorWeb.DashboardArchonHandlers do
 
   # -- Private ----------------------------------------------------------------
 
-  alias Ichor.Archon.MemoriesClient
+  alias Ichor.Infrastructure.MemoriesClient
 
   defp build_response_msg(%{type: type, data: data}),
     do: %{role: :assistant, type: type, data: data, content: nil}

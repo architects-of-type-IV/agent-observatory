@@ -7,7 +7,7 @@ defmodule Ichor.Factory.ResearchStore do
 
   require Logger
 
-  alias Ichor.Archon.MemoriesClient
+  alias Ichor.Infrastructure.MemoriesClient
 
   @research_space "project:ichor:research"
 
