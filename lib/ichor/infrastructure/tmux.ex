@@ -65,10 +65,8 @@ defmodule Ichor.Infrastructure.Tmux do
   Callers that need plain text should apply `AnsiUtils.strip_ansi/1` themselves.
   """
   @spec capture_pane(String.t(), keyword()) :: {:ok, String.t()} | {:error, term()}
-  def capture_pane(session_name, opts \\ []) do
-    lines = Keyword.get(opts, :lines, 50)
-
-    case Command.try_all(["capture-pane", "-t", session_name, "-p", "-S", "-#{lines}"]) do
+  def capture_pane(session_name, _opts \\ []) do
+    case Command.try_all(["capture-pane", "-e", "-p", "-t", session_name]) do
       {:ok, output} -> {:ok, output}
       {:error, reason} -> {:error, {:capture_failed, reason}}
     end
