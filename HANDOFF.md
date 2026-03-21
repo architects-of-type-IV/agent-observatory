@@ -1,46 +1,47 @@
 # ICHOR IV - Handoff
 
-## Current Status: Session Complete (2026-03-20)
+## Current Status: Ash Idiomacy Audit + Dead Code Cleanup (2026-03-21)
 
 ### Summary
-Massive simplification session. 228 → 127 files. All 5 phased plan phases complete. Build/credo/dialyzer clean.
+Two audits completed in one session: (1) Ash Domains & Resources idiomacy audit across all 5 domains/33 resources, (2) Frontend dead code removal. Build clean. Migration applied.
 
 ### What Was Done
-1. All 5 simplification phases (wrappers, events, runners, tools, memory)
-2. 37 audit findings fixed
-3. Level 1+2 module reduction (child folding + domain consolidation)
-4. 9 Ash resources collapsed (5 artifacts→1, 4 roadmap→1, 4 blueprints→1)
-5. Zombie module cleanup (old spawners, builders, gateway router)
-6. Observation stack consolidation (TopologyBuilder→EventBridge)
-7. Archon Chat 5→1, Tasks 3→2
-8. EventBuffer + HeartbeatManager absorbed into Events.Runtime
-9. Control wrappers fully inlined (lookup, runtime_query, runtime_view)
-10. Oban installed (SQLite, 5 queues)
-11. All team prompts unified (READY handshake protocol)
-12. MES fixes (duplicate brief guard, scheduler tick, spawn bugfix)
-13. UI improvements (transport badge, message dedup, sidebar, ANSI rendering)
-14. Comprehensive docs: 5 page feature docs, annotated TREE.md, redesign blueprint
+
+#### Ash Idiomacy Audit (16 high findings fixed)
+1. SyncPipelineProcess after_action -> Ash.Notifier (new: `notifiers/sync_runner.ex`)
+2. Pipeline `task_count` stored attribute removed (computed from tasks, migration applied)
+3. Pipeline `get_run_status` refactored to compute stats from tasks (AshSqlite doesn't support aggregates)
+4. Project.ex `Signals.emit` removed from action bodies (TODO for notifier -- artifact IDs not available in notification)
+5. `Ash.read!()` -> `Ash.read()` with error handling in Agent, ActiveTeam
+6. `allow_nil?: false` with defaults added to all tool arguments (OpenAI schema compat)
+7. Private helpers extracted from Agent resource -> `AgentLookup` utility module
+8. Missing error clauses added to AgentMemory
+9. LoadAgents health changed from hardcoded `:healthy` to `:unknown`
+10. LoadAgents `:paused -> :idle` mapping documented
+11. ToolFailure deduplicated (uses code interface instead of duplicated load logic)
+12. Redundant code removed (WebhookDelivery set_attribute, Operations fallbacks)
+13. `require_atomic?(false)` removed where no fn-based changes exist
+14. Consistent argument access patterns (input.arguments.field)
+15. `allow_nil?(false)` added to 6 agent_type attributes with defaults
+
+#### Frontend Dead Code Removal
+1. 8 dead files removed (7 modules + 1 template)
+2. Dead delegates removed from FeedComponents, IchorComponents
+3. Dead functions removed from FleetHelpers (7 public + 4 private), MesStatusComponents, DashboardUIHandlers, DashboardMessagingHandlers
+4. `resolve/1` made private in DashboardViewRouter
 
 ### Build
-- `mix compile --warnings-as-errors` CLEAN
-- `mix credo --strict` CLEAN
-- Server starts on 4005
+- `mix compile`: 0 new warnings, 0 errors (8 pre-existing redefining-module from ichor_contracts)
+- Migration `20260321024007` applied (removed task_count from pipelines)
 
-### File Count: 127 (target ~55-60)
+### Key Discovery
+- AshSqlite does not support `{:aggregate_relationship, _}` -- aggregates block cannot be used with SQLite data layer
+- SQLite cannot ALTER COLUMN (NOT NULL constraint changes require table recreation)
 
-### Key Documentation
-- `docs/plans/2026-03-20-1430-redesign-blueprint.md` -- combined architect+codex vision for target state
-- `docs/plans/2026-03-20-1354-target-structure.md` -- codex target folder structure
-- `docs/plans/2026-03-20-1354-audit-simplify.md` -- codex round 3 audit
-- `docs/pages/*.md` -- comprehensive feature docs for all 5 pages
-- `lib/ichor/TREE.md` -- annotated module tree
+### File Count: ~127 (+ 2 new, - 9 deleted)
 
-### Next: Redesign Phase
-The remaining reduction (127→~55) requires redesign, not folding:
-- Vertical slices aligned to Ash Domains
-- Fleet = Workshop (agents, teams, blueprints, prompts, launcher)
-- Prompts belong to fleet, not projects
-- Ash config over code: 90% should be declared in DSL
-- Delete ephemeral Ash resources → plain query modules
-- Move signals contracts from ichor_contracts into main app
-- 6 boundaries: events, fleet, projects, memory, transport, tools
+### Next
+- Commit these changes
+- Continue redesign toward ~55 files (vertical slices + Ash domains)
+- Oban worker migration (5 strong candidates)
+- ichor_contracts cleanup (stale beam files causing redefining-module warnings)

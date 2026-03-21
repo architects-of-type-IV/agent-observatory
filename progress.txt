@@ -100,8 +100,13 @@
 - [x] 12 project helpers folded into runtime/runner/spawn
 - [x] Comprehensive docs: 5 page features, TREE.md, redesign blueprint
 - [x] File count: 228→127 (101 files eliminated)
+- [x] Ash idiomacy audit: 16 high findings fixed across 5 domains, 33 resources (2026-03-21)
+- [x] Frontend dead code removal: 8 files deleted, 15+ dead functions removed (2026-03-21)
+- [x] Migration: removed task_count from pipelines (computed from tasks now)
+- [x] New: SyncRunner notifier, AgentLookup utility module
 - [ ] Redesign: vertical slices + Ash domains (target ~55 files)
 - [ ] Oban worker migration (5 strong candidates)
+- [ ] ichor_contracts cleanup (stale beam files)
 - [ ] Component library (deferred)
 
 ## Domain Centralization + Signal Feed + Consolidation (2026-03-19) -- COMPLETE
