@@ -128,9 +128,15 @@
 - [x] W1-7: Action descriptions for Discovery readiness (Workshop.Team, Agent read actions, Signals.Operations stub note) (2026-03-21)
 - [x] Create tasks.jsonl from 25-task wave plan
 - [x] W1-1: Extract Operator.Inbox module (2026-03-21)
-- [ ] W1-2 through W1-7: remaining Wave 1 tasks
-- [ ] Oban worker migration (5 candidates)
-- [ ] Redesign: vertical slices + Ash domains (target ~55 files)
+- [x] W1-2: AgentWatchdog dedup -- 12 private functions removed, all routed through helpers (2026-03-21)
+- [x] W1-3: EventBridge PubSub fix -- Signals facade, %Message{} patterns (2026-03-21)
+- [x] W1-4: EventBridge -> Mesh namespace (2026-03-21)
+- [x] W1-5: MemoriesClient -> Infrastructure, 6 callers updated (2026-03-21)
+- [x] W1-6: PromptProtocol extracted, 532 lines deduped across 3 prompt modules (2026-03-21)
+- [x] Wave 1 COMPLETE: Codex validated 7.5/10 (prep wave, AD-8/X1 deferred to W2/W3)
+- [ ] Wave 2: Oban migration (MesScheduler, CronScheduler, Webhook delivery)
+- [ ] Wave 3: Structural (EventStream decouple, TeamSpec refactor, value objects, TeamWatchdog)
+- [ ] Wave 4: Large structural (PipelineMonitor eliminate, Ash resource moves)
 - [ ] Oban worker migration (5 strong candidates)
 - [ ] ichor_contracts cleanup (stale beam files)
 - [ ] Component library (deferred)
