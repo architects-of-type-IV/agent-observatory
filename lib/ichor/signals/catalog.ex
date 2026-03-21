@@ -52,6 +52,16 @@ defmodule Ichor.Signals.Catalog do
       dynamic: true,
       doc: "Requested team spawn failed"
     },
+    run_complete: %{
+      category: :fleet,
+      keys: [:kind, :run_id, :session],
+      doc: "Run completed cleanly (any kind: mes, planning, pipeline)"
+    },
+    run_terminated: %{
+      category: :fleet,
+      keys: [:kind, :run_id, :session],
+      doc: "Run process terminated (any kind: mes, planning, pipeline)"
+    },
     hosts_changed: %{category: :fleet, keys: [], doc: "Cluster node joined/departed"},
     fleet_changed: %{category: :fleet, keys: [:agent_id], doc: "Agent Registry metadata changed"},
     heartbeat: %{category: :system, keys: [:count], doc: "Monotonic counter every 5s"},
