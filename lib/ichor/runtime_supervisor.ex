@@ -25,7 +25,6 @@ defmodule Ichor.RuntimeSupervisor do
 
       # Monitoring and observability services
       {Ichor.Signals.AgentWatchdog, []},
-      {Ichor.Factory.PipelineMonitor, []},
       {Ichor.Signals.ProtocolTracker, []},
       {Ichor.Signals.Buffer, []},
       {Ichor.Archon.SignalManager, []},

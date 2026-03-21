@@ -9,7 +9,6 @@ defmodule IchorWeb.DashboardState do
   import IchorWeb.DashboardTeamHelpers, only: [all_team_sids: 1]
   import IchorWeb.DashboardFeedHelpers, only: [build_feed_groups: 2]
 
-  alias Ichor.Factory.PipelineMonitor
   alias Ichor.Infrastructure.HITLRelay
   alias Ichor.Infrastructure.Tmux
   alias Ichor.Infrastructure.TmuxDiscovery
@@ -46,7 +45,7 @@ defmodule IchorWeb.DashboardState do
       slideout_activity: [],
       expanded_sessions: MapSet.new(),
       disk_teams: disk_teams,
-      pipeline_state: runtime_state(),
+      pipeline_state: %{},
       protocol_stats: %{},
       selected_pipeline_task: nil,
       selected_command_agent: nil,
@@ -125,14 +124,12 @@ defmodule IchorWeb.DashboardState do
   rescue
     e in ArgumentError ->
       require Logger
-      Logger.warning("[DashboardState] recompute failed: #{Exception.message(e)}\n#{Exception.format_stacktrace(__STACKTRACE__)}")
-      socket
-  end
 
-  defp runtime_state do
-    PipelineMonitor.state()
-  catch
-    :exit, _ -> %{}
+      Logger.warning(
+        "[DashboardState] recompute failed: #{Exception.message(e)}\n#{Exception.format_stacktrace(__STACKTRACE__)}"
+      )
+
+      socket
   end
 
   defp do_recompute(socket) do

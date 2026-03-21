@@ -76,7 +76,9 @@ config :ichor, Oban,
   plugins: [
     {Oban.Plugins.Cron,
      crontab: [
-       {"* * * * *", Ichor.Factory.Workers.MesTick}
+       {"* * * * *", Ichor.Factory.Workers.MesTick},
+       {"* * * * *", Ichor.Factory.Workers.HealthCheckWorker},
+       {"* * * * *", Ichor.Factory.Workers.ProjectDiscoveryWorker}
      ]}
   ],
   queues: [

@@ -5,7 +5,8 @@ defmodule IchorWeb.DashboardPipelineHandlers do
 
   import Phoenix.Component, only: [assign: 3]
 
-  alias Ichor.Factory.PipelineMonitor
+  alias Ichor.Factory.PipelineQuery
+  alias Ichor.Factory.Workers.HealthCheckWorker
   alias Ichor.Signals.Bus
   alias Ichor.Workshop.Agent, as: ControlAgent
   alias IchorWeb.Presentation
@@ -24,49 +25,105 @@ defmodule IchorWeb.DashboardPipelineHandlers do
   def dispatch("clear_command_selection", p, s), do: handle_clear_command_selection(p, s)
 
   def handle_select_project(%{"project" => key}, socket) do
-    PipelineMonitor.set_active_project(key)
-    socket
+    pipeline_state = socket.assigns[:pipeline_state] || %{}
+    watched = pipeline_state[:watched_projects] || %{}
+
+    if Map.has_key?(watched, key) do
+      assign(socket, :pipeline_state, Map.put(pipeline_state, :active_project, key))
+    else
+      socket
+    end
   end
 
   def handle_add_project(%{"path" => path}, socket) do
-    key = Path.basename(path)
-    PipelineMonitor.add_project(key, path)
-    socket
+    tasks_path = Path.join(path, "tasks.jsonl")
+
+    if File.exists?(tasks_path) or File.dir?(path) do
+      key = Path.basename(path)
+      pipeline_state = socket.assigns[:pipeline_state] || %{}
+      watched = Map.put(pipeline_state[:watched_projects] || %{}, key, path)
+
+      assign(socket, :pipeline_state, %{
+        pipeline_state
+        | watched_projects: watched,
+          active_project: key
+      })
+    else
+      socket
+    end
   end
 
   def handle_heal_task(%{"id" => task_id}, socket) do
-    PipelineMonitor.heal_task(task_id)
+    pipeline_state = socket.assigns[:pipeline_state] || %{}
+    tasks = pipeline_state[:tasks] || []
+    watched = pipeline_state[:watched_projects] || %{}
+    active = pipeline_state[:active_project]
+
+    path =
+      PipelineQuery.tasks_jsonl_path_for_task(watched, tasks, task_id) ||
+        PipelineQuery.active_project_tasks_path(watched, active)
+
+    if path, do: PipelineQuery.heal_task(path, task_id)
     socket
   end
 
   def handle_reassign_pipeline_task(%{"id" => task_id, "owner" => owner}, socket) do
-    PipelineMonitor.reassign_task(task_id, owner)
+    pipeline_state = socket.assigns[:pipeline_state] || %{}
+    tasks = pipeline_state[:tasks] || []
+    watched = pipeline_state[:watched_projects] || %{}
+    active = pipeline_state[:active_project]
+
+    path =
+      PipelineQuery.tasks_jsonl_path_for_task(watched, tasks, task_id) ||
+        PipelineQuery.active_project_tasks_path(watched, active)
+
+    if path, do: PipelineQuery.reassign_task(path, task_id, owner)
     socket
   end
 
   def handle_reset_all_stale(_params, socket) do
-    PipelineMonitor.reset_all_stale(10)
+    pipeline_state = socket.assigns[:pipeline_state] || %{}
+    tasks = pipeline_state[:tasks] || []
+    watched = pipeline_state[:watched_projects] || %{}
+    active = pipeline_state[:active_project]
+    path = PipelineQuery.active_project_tasks_path(watched, active)
+
+    if path, do: PipelineQuery.reset_all_stale(path, tasks, 10)
     socket
   end
 
   def handle_trigger_gc(%{"team" => team_name}, socket) do
-    PipelineMonitor.trigger_gc(team_name)
+    pipeline_state = socket.assigns[:pipeline_state] || %{}
+    watched = pipeline_state[:watched_projects] || %{}
+    active = pipeline_state[:active_project]
+    path = PipelineQuery.active_project_tasks_path(watched, active)
+
+    if path, do: PipelineQuery.trigger_gc(team_name, path)
     socket
   end
 
   def handle_run_health_check(_params, socket) do
-    PipelineMonitor.run_health_check()
+    HealthCheckWorker.new(%{}) |> Oban.insert()
     socket
   end
 
   def handle_claim_pipeline_task(%{"id" => task_id, "agent" => agent}, socket) do
-    PipelineMonitor.claim_task(task_id, agent)
+    pipeline_state = socket.assigns[:pipeline_state] || %{}
+    tasks = pipeline_state[:tasks] || []
+    watched = pipeline_state[:watched_projects] || %{}
+    active = pipeline_state[:active_project]
+
+    path =
+      PipelineQuery.tasks_jsonl_path_for_task(watched, tasks, task_id) ||
+        PipelineQuery.active_project_tasks_path(watched, active)
+
+    if path, do: PipelineQuery.claim_task(task_id, agent, path)
     socket
   end
 
   def handle_select_pipeline_task(%{"id" => task_id}, socket) do
-    pipeline_state = PipelineMonitor.state()
-    task = Enum.find(pipeline_state.tasks, &(&1.id == task_id))
+    pipeline_state = socket.assigns[:pipeline_state] || %{}
+    task = Enum.find(pipeline_state[:tasks] || [], &(&1.id == task_id))
 
     current = socket.assigns[:selected_pipeline_task]
     selected = if current && current.id == task_id, do: nil, else: task
