@@ -15,7 +15,6 @@ defmodule Ichor.Factory.Runner do
   use GenServer, restart: :temporary
 
   alias Ichor.Factory.{Pipeline, PipelineGraph, PipelineTask}
-  alias Ichor.Factory.Workers.RunCleanupWorker
   alias Ichor.Infrastructure.TeamLaunch
   alias Ichor.Infrastructure.Tmux.Launcher, as: TmuxLauncher
   alias Ichor.Signals
@@ -261,10 +260,14 @@ defmodule Ichor.Factory.Runner do
 
   @impl true
   def terminate(_reason, state) do
-    signal = state.config.signals.terminated
+    emit_signal(state.config.signals.terminated, build_terminate_payload(state))
 
-    emit_signal(signal, build_terminate_payload(state))
-    maybe_enqueue_cleanup(state, "terminate")
+    Signals.emit(:run_terminated, %{
+      kind: state.kind,
+      run_id: state.run_id,
+      session: state.session
+    })
+
     :ok
   end
 
@@ -277,18 +280,19 @@ defmodule Ichor.Factory.Runner do
 
     %Mode{
       kind: :mes,
-      subscriptions: [:mes],
+      subscriptions: [:mes, :messages],
       timers: %{
         liveness_ms: @liveness_ms,
         deadline_ms: @deadline_ms,
         on_init: &mes_on_init/1
       },
       completion: %{
-        source: :signal,
-        signal: :mes_project_created
+        source: :signal_or_message,
+        signal: :mes_project_created,
+        coordinator_id_fn: fn %{session: session} -> "#{session}-coordinator" end
       },
       checks: nil,
-      cleanup: %{policy: :mes_maintenance},
+      cleanup: %{policy: :signal},
       signals: %{
         ready: :mes_run_started,
         completed: :mes_run_complete,
@@ -434,11 +438,6 @@ defmodule Ichor.Factory.Runner do
     end
   end
 
-  defp mes_cleanup(state) do
-    enqueue_mes_cleanup(state, "completed")
-    :ok
-  end
-
   defp mes_team_launch do
     Application.get_env(:ichor, :mes_team_launch_module, TeamLaunch)
   end
@@ -498,7 +497,7 @@ defmodule Ichor.Factory.Runner do
   # Cleanup dispatch (replaces Runner.Hooks)
   # ---------------------------------------------------------------------------
 
-  defp do_cleanup(:mes_maintenance, state), do: mes_cleanup(state)
+  defp do_cleanup(:signal, _state), do: :ok
   defp do_cleanup(:teardown, %{team_spec: nil}), do: :ok
 
   defp do_cleanup(:teardown, state) do
@@ -582,22 +581,12 @@ defmodule Ichor.Factory.Runner do
   defp run_cleanup(state) do
     policy = state.config.cleanup.policy
     do_cleanup(policy, state)
-  end
 
-  defp maybe_enqueue_cleanup(%{kind: :mes} = state, trigger),
-    do: enqueue_mes_cleanup(state, trigger)
-
-  defp maybe_enqueue_cleanup(_state, _trigger), do: :ok
-
-  defp enqueue_mes_cleanup(state, trigger) do
-    case RunCleanupWorker.enqueue(state.run_id, trigger: trigger) do
-      {:ok, _job} ->
-        :ok
-
-      {:error, reason} ->
-        Signals.emit(:mes_maintenance_error, %{run_id: state.run_id, reason: inspect(reason)})
-        :ok
-    end
+    Signals.emit(:run_complete, %{
+      kind: state.kind,
+      run_id: state.run_id,
+      session: state.session
+    })
   end
 
   defp dispatch_to_hook(msg, state) do
@@ -614,6 +603,12 @@ defmodule Ichor.Factory.Runner do
 
       %{source: :signal, signal: signal} when name == signal ->
         maybe_complete_on_signal(msg, state)
+
+      %{source: :signal_or_message, signal: signal} when name == signal ->
+        maybe_complete_on_signal(msg, state)
+
+      %{source: :signal_or_message} when name == :message_delivered ->
+        maybe_complete_on_message(msg, state)
 
       %{source: :message_delivered} when name == :message_delivered ->
         maybe_complete_on_message(msg, state)

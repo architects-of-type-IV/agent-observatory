@@ -20,9 +20,9 @@ defmodule Ichor.Factory.Spawn do
   alias Ichor.Infrastructure.TeamLaunch
 
   alias Ichor.Factory.{
+    Pipeline,
     PipelineCompiler,
     PipelineGraph,
-    Pipeline,
     PipelineTask,
     Project,
     Runner

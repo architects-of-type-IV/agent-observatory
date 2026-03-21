@@ -37,8 +37,15 @@ defmodule Ichor.Factory.ProjectIngestor do
   @impl true
   def handle_info(%Ichor.Signals.Message{name: :message_delivered, data: data}, state) do
     case extract_mes_payload(data) do
-      {:ok, payload} -> ingest_project(payload, data)
-      :skip -> :ok
+      {:ok, payload} ->
+        ingest_project(payload, data)
+
+      :skip ->
+        from = get_in(data, [:msg_map, :from]) || ""
+
+        if String.starts_with?(from, "mes-") do
+          Logger.debug("[ProjectIngestor] Skipped MES message from #{from}: missing required fields")
+        end
     end
 
     {:noreply, state}
