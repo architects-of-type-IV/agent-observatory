@@ -45,6 +45,14 @@ defmodule IchorWeb.DashboardLive do
     DashboardUIHandlers
   }
 
+  @archon_positions %{
+    "center" => :center,
+    "bottom" => :bottom,
+    "top" => :top,
+    "left" => :left,
+    "right" => :right
+  }
+
   # Events that change filter/search state and need view recompute
   @filter_events ~w(filter clear_filters apply_preset search_feed search_sessions filter_tool filter_tool_use_id clear_events filter_session filter_team filter_agent set_view)
 
@@ -248,6 +256,36 @@ defmodule IchorWeb.DashboardLive do
     end
   end
 
+  def handle_event("archon_toggle_settings", _p, s),
+    do: {:noreply, assign(s, :show_archon_settings, !s.assigns.show_archon_settings)}
+
+  def handle_event("archon_set_position", %{"position" => pos}, s) do
+    position = archon_parse_position(pos)
+
+    {:noreply,
+     s
+     |> assign(:archon_position, position)
+     |> Phoenix.LiveView.push_event("archon_panel_update", %{position: pos})}
+  end
+
+  def handle_event("archon_set_size", %{"size" => size}, s) do
+    parsed = max(25, min(100, String.to_integer(size)))
+
+    {:noreply,
+     s
+     |> assign(:archon_size, parsed)
+     |> Phoenix.LiveView.push_event("archon_panel_update", %{size: parsed})}
+  end
+
+  def handle_event("archon_panel_init", params, s) do
+    {:noreply,
+     assign(s,
+       archon_position: archon_parse_position(params["position"]),
+       archon_size:
+         max(25, min(100, (params["size"] || 75) |> to_string() |> String.to_integer()))
+     )}
+  end
+
   def handle_event("dismiss_toast", %{"id" => id}, s),
     do: {:noreply, IchorWeb.DashboardToast.dismiss_toast(s, id)}
 
@@ -324,4 +362,6 @@ defmodule IchorWeb.DashboardLive do
       String.contains?(Atom.to_string(name), f) or
       String.contains?("#{domain}:#{name}", f)
   end
+
+  defp archon_parse_position(pos), do: Map.get(@archon_positions, to_string(pos), :center)
 end

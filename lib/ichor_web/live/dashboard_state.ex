@@ -99,6 +99,9 @@ defmodule IchorWeb.DashboardState do
       # Archon overlay
       show_archon: false,
       archon_tab: :command,
+      archon_position: :center,
+      archon_size: 75,
+      show_archon_settings: false,
       archon_messages: [],
       archon_history: [],
       archon_loading: false,

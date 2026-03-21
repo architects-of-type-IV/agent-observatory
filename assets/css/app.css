@@ -750,20 +750,18 @@
   --noir-red-deep: 355 84% 25%;
   --noir-success: 142 76% 36%;
 
-  @apply fixed inset-0 z-[60] flex items-center justify-center;
+  @apply fixed inset-0 z-[60];
   font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
 .archon-backdrop {
   @apply absolute inset-0;
-  background: hsl(0 0% 0% / 0.6);
-  backdrop-filter: blur(4px);
+  background: hsl(0 0% 0% / 0.4);
+  backdrop-filter: blur(2px);
 }
 .archon-panel {
-  @apply relative z-10 flex flex-col overflow-hidden;
-  width: min(960px, 90vw);
-  aspect-ratio: 16 / 9;
-  max-height: 85vh;
+  @apply fixed z-[61] flex flex-col overflow-hidden;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   background: hsl(var(--noir-bg));
   border: 1px solid hsl(var(--noir-border));
   border-radius: 0;

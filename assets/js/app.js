@@ -27,11 +27,13 @@ import topbar from "../vendor/topbar"
 import WorkshopCanvas from "./hooks/workshop_canvas"
 import { XtermHook } from "./hooks/xterm_hook"
 import { TerminalPanelHook } from "./hooks/terminal_panel_hook"
+import { ArchonPanelHook } from "./hooks/archon_panel_hook"
 
 let Hooks = {
   WorkshopCanvas,
   XtermTerminal: XtermHook,
   TerminalPanel: TerminalPanelHook,
+  ArchonPanel: ArchonPanelHook,
   StatePersistence: {
     mounted() {
       // Restore state from localStorage on mount
