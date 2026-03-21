@@ -29,52 +29,19 @@ defmodule IchorWeb.Components.TerminalPanel.Helpers do
 
   @doc "Compute inline CSS for floating panel with independent width and height."
   @spec floating_style(atom(), integer(), integer()) :: String.t()
-  def floating_style(:center, w, h) do
-    [
-      "width: #{w}%; height: #{h}%;",
-      "top: calc(#{@header} + (100vh - #{@header} - #{h}vh) / 2);",
-      "left: 50%; transform: translateX(-50%);",
-      max_height()
-    ]
-    |> Enum.join(" ")
-  end
-
   def floating_style(:bottom, w, h) do
-    [
-      "width: #{w}%; height: #{h}%;",
-      "bottom: #{@gap}; left: 50%; transform: translateX(-50%);",
-      max_height()
-    ]
-    |> Enum.join(" ")
+    "width: #{w}%; height: #{h}%; bottom: #{@gap}; left: 50%; transform: translateX(-50%); #{mh()}"
   end
 
-  def floating_style(:top, w, h) do
-    [
-      "width: #{w}%; height: #{h}%;",
-      "top: calc(#{@header} + #{@gap}); left: 50%; transform: translateX(-50%);",
-      max_height()
-    ]
-    |> Enum.join(" ")
-  end
+  def floating_style(pos, w, _h) when pos in [:center, :top, :left, :right] do
+    left =
+      case pos do
+        :right -> "right: #{@gap}; left: auto;"
+        :left -> "left: #{@gap};"
+        _ -> "left: 50%; transform: translateX(-50%);"
+      end
 
-  def floating_style(:left, w, h) do
-    [
-      "width: #{w}%; height: #{h}%;",
-      "top: calc(#{@header} + (100vh - #{@header} - #{h}vh) / 2);",
-      "left: #{@gap};",
-      max_height()
-    ]
-    |> Enum.join(" ")
-  end
-
-  def floating_style(:right, w, h) do
-    [
-      "width: #{w}%; height: #{h}%;",
-      "top: calc(#{@header} + (100vh - #{@header} - #{h}vh) / 2);",
-      "right: #{@gap}; left: auto;",
-      max_height()
-    ]
-    |> Enum.join(" ")
+    "width: #{w}%; top: calc(#{@header} + #{@gap}); #{left} #{mh()}"
   end
 
   def floating_style(_, w, h), do: floating_style(:center, w, h)
@@ -105,5 +72,5 @@ defmodule IchorWeb.Components.TerminalPanel.Helpers do
   def theme_label(:rose), do: "Rose"
   def theme_label(_), do: "ICHOR"
 
-  defp max_height, do: "max-height: calc(100vh - #{@header} - #{@gap});"
+  defp mh, do: "max-height: calc(100vh - #{@header} - #{@gap});"
 end
