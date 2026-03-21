@@ -24,7 +24,6 @@ defmodule Ichor.Factory.Project do
     ]
 
   alias Ichor.Factory.{Artifact, ProjectView, RoadmapItem}
-  alias Ichor.Signals
 
   @project_status_map %{
     "proposed" => :proposed,
@@ -874,12 +873,10 @@ defmodule Ichor.Factory.Project do
     with {:ok, project} <- Ash.get(__MODULE__, project_id),
          a <- artifact(attrs: Map.put(attrs, :kind, kind)),
          {:ok, updated} <- put_artifact(project, a) do
-      Signals.emit(:project_artifact_created, %{
-        id: a.id,
-        project_id: project.id,
-        type: kind
-      })
-
+      # TODO: emit :project_artifact_created signal via a notifier once a pattern for
+      # extracting the new artifact id and kind from the update notification is established.
+      # The embedded artifact id (a.id) and kind are not derivable from the generic update
+      # notification data without diffing the artifacts array.
       {:ok,
        ProjectView.summarize_embedded(find_embedded!(updated.artifacts, a.id), summary_fields)}
     end
@@ -898,12 +895,10 @@ defmodule Ichor.Factory.Project do
     with {:ok, project} <- Ash.get(__MODULE__, project_id),
          item <- roadmap_item(attrs),
          {:ok, updated} <- put_roadmap_item(project, item) do
-      Signals.emit(:project_artifact_created, %{
-        id: item.id,
-        project_id: project.id,
-        type: attrs.kind
-      })
-
+      # TODO: emit :project_artifact_created signal via a notifier once a pattern for
+      # extracting the new roadmap item id and kind from the update notification is established.
+      # The embedded item id (item.id) and kind are not derivable from the generic update
+      # notification data without diffing the roadmap_items array.
       {:ok,
        ProjectView.summarize_embedded(
          find_embedded!(updated.roadmap_items, item.id),

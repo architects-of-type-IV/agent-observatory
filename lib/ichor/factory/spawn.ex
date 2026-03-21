@@ -275,8 +275,7 @@ defmodule Ichor.Factory.Spawn do
       Map.merge(extra_attrs, %{
         label: label,
         source: source,
-        tmux_session: tmux_session,
-        task_count: length(raw_items)
+        tmux_session: tmux_session
       })
 
     with {:ok, pipeline} <- Pipeline.create(pipeline_attrs),

@@ -9,7 +9,7 @@ defmodule Ichor.Factory.Pipeline do
     data_layer: AshSqlite.DataLayer,
     simple_notifiers: [Ichor.Signals.FromAsh]
 
-  alias Ichor.Factory.{PipelineGraph, PipelineTask, Spawn}
+  alias Ichor.Factory.{PipelineTask, Spawn}
 
   sqlite do
     repo(Ichor.Repo)
@@ -54,11 +54,6 @@ defmodule Ichor.Factory.Pipeline do
       public?(true)
     end
 
-    attribute :task_count, :integer do
-      default(0)
-      public?(true)
-    end
-
     timestamps()
   end
 
@@ -73,7 +68,7 @@ defmodule Ichor.Factory.Pipeline do
 
     create :create do
       primary?(true)
-      accept([:label, :source, :project_id, :project_path, :tmux_session, :status, :task_count])
+      accept([:label, :source, :project_id, :project_path, :tmux_session, :status])
     end
 
     update :complete do
@@ -123,9 +118,8 @@ defmodule Ichor.Factory.Pipeline do
         run_id = input.arguments.run_id
 
         with {:ok, run} <- Ash.get(__MODULE__, run_id),
-             {:ok, pipeline_tasks} <- PipelineTask.by_run(run_id) do
-          nodes = Enum.map(pipeline_tasks, &PipelineGraph.to_graph_node/1)
-          stats = PipelineGraph.pipeline_stats(nodes)
+             {:ok, tasks} <- PipelineTask.by_run(run_id) do
+          stats = count_by_status(tasks)
 
           {:ok,
            %{
@@ -133,10 +127,10 @@ defmodule Ichor.Factory.Pipeline do
              "label" => run.label,
              "status" => to_string(run.status),
              "source" => to_string(run.source),
-             "task_count" => run.task_count,
+             "task_count" => length(tasks),
              "tmux_session" => run.tmux_session,
              "stats" => %{
-               "total" => stats.total,
+               "total" => length(tasks),
                "pending" => stats.pending,
                "in_progress" => stats.in_progress,
                "completed" => stats.completed,
@@ -159,16 +153,16 @@ defmodule Ichor.Factory.Pipeline do
       run(fn input, _context ->
         opts = if input.arguments.label != "", do: [label: input.arguments.label], else: []
 
-        case Spawn.from_file(input.arguments.tasks_jsonl_path, opts) do
-          {:ok, run} ->
-            {:ok,
-             %{
-               "run_id" => run.id,
-               "label" => run.label,
-               "task_count" => run.task_count,
-               "status" => to_string(run.status)
-             }}
-
+        with {:ok, run} <- Spawn.from_file(input.arguments.tasks_jsonl_path, opts),
+             {:ok, tasks} <- PipelineTask.by_run(run.id) do
+          {:ok,
+           %{
+             "run_id" => run.id,
+             "label" => run.label,
+             "task_count" => length(tasks),
+             "status" => to_string(run.status)
+           }}
+        else
           {:error, reason} ->
             {:error, "Load failed: #{inspect(reason)}"}
         end
@@ -208,6 +202,12 @@ defmodule Ichor.Factory.Pipeline do
     define(:get_run_status, args: [:run_id])
     define(:load_jsonl, args: [:tasks_jsonl_path])
     define(:export_jsonl, args: [:run_id])
+  end
+
+  defp count_by_status(tasks) do
+    Enum.reduce(tasks, %{pending: 0, in_progress: 0, completed: 0, failed: 0}, fn task, acc ->
+      Map.update!(acc, task.status, &(&1 + 1))
+    end)
   end
 
   defp task_to_jsonl(task) do

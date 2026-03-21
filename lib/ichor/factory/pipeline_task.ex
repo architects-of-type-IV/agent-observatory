@@ -10,7 +10,10 @@ defmodule Ichor.Factory.PipelineTask do
   use Ash.Resource,
     domain: Ichor.Factory,
     data_layer: AshSqlite.DataLayer,
-    simple_notifiers: [Ichor.Signals.FromAsh]
+    simple_notifiers: [
+      Ichor.Signals.FromAsh,
+      Ichor.Factory.PipelineTask.Notifiers.SyncRunner
+    ]
 
   sqlite do
     repo(Ichor.Repo)
@@ -176,7 +179,6 @@ defmodule Ichor.Factory.PipelineTask do
       change(set_attribute(:status, :in_progress))
       change(set_attribute(:claimed_at, &__MODULE__.now/0))
       change(atomic_update(:owner, expr(^arg(:owner))))
-      change(Ichor.Factory.PipelineTask.Changes.SyncPipelineProcess)
     end
 
     update :complete do
@@ -184,23 +186,18 @@ defmodule Ichor.Factory.PipelineTask do
       accept([:notes])
       change(set_attribute(:status, :completed))
       change(set_attribute(:completed_at, &__MODULE__.now/0))
-      change(Ichor.Factory.PipelineTask.Changes.SyncPipelineProcess)
     end
 
     update :fail do
-      require_atomic?(false)
       accept([:notes])
       change(set_attribute(:status, :failed))
-      change(Ichor.Factory.PipelineTask.Changes.SyncPipelineProcess)
     end
 
     update :reset do
-      require_atomic?(false)
       accept([])
       change(set_attribute(:status, :pending))
       change(set_attribute(:owner, nil))
       change(set_attribute(:claimed_at, nil))
-      change(Ichor.Factory.PipelineTask.Changes.SyncPipelineProcess)
     end
 
     update :reassign do
