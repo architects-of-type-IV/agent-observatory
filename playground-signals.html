@@ -1,0 +1,1628 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ICHOR IV — Signals Control Room</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:         #0a0a0f;
+    --bg-panel:   #0e0e16;
+    --bg-row:     #11111a;
+    --bg-hover:   #17172a;
+    --border:     #1e1e2e;
+    --border-hi:  #2a2a40;
+    --text:       #c8c8d4;
+    --text-dim:   #5a5a7a;
+    --text-muted: #3a3a55;
+    --mono:       'Courier New', Courier, monospace;
+
+    --c-green:    #22c55e;
+    --c-amber:    #f59e0b;
+    --c-red:      #ef4444;
+    --c-blue:     #3b82f6;
+    --c-purple:   #a855f7;
+    --c-cyan:     #06b6d4;
+    --c-orange:   #f97316;
+    --c-pink:     #ec4899;
+    --c-lime:     #84cc16;
+    --c-teal:     #14b8a6;
+    --c-indigo:   #6366f1;
+    --c-rose:     #f43f5e;
+    --c-yellow:   #eab308;
+    --c-sky:      #0ea5e9;
+    --c-slate:    #94a3b8;
+
+    --accent:     #22c55e;
+    --accent-dim: #166534;
+  }
+
+  html, body { height: 100%; background: var(--bg); color: var(--text); font-family: var(--mono); font-size: 13px; }
+
+  /* ─── LAYOUT ─── */
+  #app { display: flex; height: 100vh; overflow: hidden; }
+
+  #left-panel {
+    width: 320px;
+    min-width: 320px;
+    background: var(--bg-panel);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  #right-panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-width: 0;
+  }
+
+  /* ─── LEFT HEADER ─── */
+  .panel-header {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+  .panel-header h2 {
+    font-size: 11px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    flex: 1;
+  }
+  .panel-header .status-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--c-green);
+    box-shadow: 0 0 5px var(--c-green);
+    animation: pulse-green 2s ease-in-out infinite;
+  }
+
+  /* ─── TABS ─── */
+  #left-tabs {
+    display: flex;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .tab-btn {
+    flex: 1;
+    padding: 7px 0;
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    cursor: pointer;
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    border-bottom: 2px solid transparent;
+    transition: all 0.15s;
+  }
+  .tab-btn:hover { color: var(--text); background: var(--bg-hover); }
+  .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  /* ─── SEARCH ─── */
+  #catalog-search-wrap {
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .search-input {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border-hi);
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 12px;
+    padding: 5px 8px;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .search-input:focus { border-color: var(--accent-dim); }
+  .search-input::placeholder { color: var(--text-muted); }
+
+  /* ─── CATALOG SCROLL ─── */
+  #catalog-content {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+  #catalog-content::-webkit-scrollbar { width: 4px; }
+  #catalog-content::-webkit-scrollbar-track { background: var(--bg); }
+  #catalog-content::-webkit-scrollbar-thumb { background: var(--border-hi); }
+
+  /* ─── ACCORDION ─── */
+  .category-group { border-bottom: 1px solid var(--border); }
+  .category-header {
+    display: flex;
+    align-items: center;
+    padding: 7px 10px;
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.12s;
+    position: relative;
+    gap: 6px;
+  }
+  .category-header:hover { background: var(--bg-hover); }
+  .cat-indicator {
+    width: 8px; height: 8px;
+    border-radius: 1px;
+    flex-shrink: 0;
+  }
+  .cat-name {
+    flex: 1;
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    font-weight: bold;
+  }
+  .cat-count {
+    font-size: 10px;
+    color: var(--text-muted);
+    padding: 1px 4px;
+    border: 1px solid var(--border);
+  }
+  .cat-rate {
+    font-size: 10px;
+    color: var(--text-dim);
+    min-width: 36px;
+    text-align: right;
+  }
+  .cat-rate.active { color: var(--c-green); }
+  .cat-chevron {
+    font-size: 9px;
+    color: var(--text-muted);
+    transition: transform 0.2s;
+    margin-left: 2px;
+  }
+  .category-group.open .cat-chevron { transform: rotate(90deg); }
+
+  .category-body { display: none; }
+  .category-group.open .category-body { display: block; }
+
+  /* pulse on active category */
+  @keyframes cat-pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.4; }
+    100% { opacity: 1; }
+  }
+  .category-header.pulsing .cat-indicator { animation: cat-pulse 0.6s ease-in-out; }
+
+  /* ─── SIGNAL ITEMS ─── */
+  .signal-item {
+    padding: 5px 10px 5px 24px;
+    border-top: 1px solid var(--bg-hover);
+    cursor: pointer;
+    transition: background 0.1s;
+  }
+  .signal-item:hover { background: var(--bg-hover); }
+  .signal-item.active-filter { background: rgba(34,197,94,0.07); border-left: 2px solid var(--c-green); }
+  .signal-name {
+    font-size: 11px;
+    color: #a0a0cc;
+    word-break: break-all;
+  }
+  .signal-keys {
+    font-size: 10px;
+    color: var(--text-muted);
+    margin-top: 1px;
+  }
+  .signal-doc {
+    font-size: 10px;
+    color: var(--text-dim);
+    margin-top: 2px;
+    font-style: italic;
+  }
+
+  /* ─── EMITTER PANEL ─── */
+  #emitter-panel {
+    flex: 1;
+    overflow-y: auto;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  #emitter-panel::-webkit-scrollbar { width: 4px; }
+  #emitter-panel::-webkit-scrollbar-track { background: var(--bg); }
+  #emitter-panel::-webkit-scrollbar-thumb { background: var(--border-hi); }
+  .emitter-label {
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 2px;
+  }
+  .emitter-select, .emitter-textarea {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border-hi);
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 5px 7px;
+    outline: none;
+  }
+  .emitter-select:focus, .emitter-textarea:focus { border-color: var(--accent-dim); }
+  .emitter-textarea { resize: vertical; min-height: 120px; }
+  #emit-btn {
+    padding: 8px 16px;
+    background: var(--accent-dim);
+    border: 1px solid var(--c-green);
+    color: var(--c-green);
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  #emit-btn:hover { background: #166534; box-shadow: 0 0 10px rgba(34,197,94,0.3); }
+  #emit-btn:active { transform: scale(0.98); }
+  #emit-result {
+    font-size: 11px;
+    padding: 6px 8px;
+    border: 1px solid var(--border);
+    min-height: 32px;
+    color: var(--text-dim);
+  }
+  #emit-result.success { border-color: var(--accent-dim); color: var(--c-green); }
+  #emit-result.error { border-color: #7f1d1d; color: var(--c-red); }
+
+  /* ─── RIGHT: FILTER BAR ─── */
+  #filter-bar {
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+    flex-wrap: wrap;
+    background: var(--bg-panel);
+  }
+  #feed-search {
+    width: 200px;
+    background: var(--bg);
+    border: 1px solid var(--border-hi);
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 4px 7px;
+    outline: none;
+  }
+  #feed-search:focus { border-color: var(--accent-dim); }
+  .filter-pills {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+    flex: 1;
+  }
+  .pill {
+    padding: 2px 7px;
+    border: 1px solid var(--border-hi);
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    cursor: pointer;
+    transition: all 0.12s;
+    user-select: none;
+    color: var(--text-dim);
+    text-transform: lowercase;
+  }
+  .pill:hover { border-color: var(--text-muted); color: var(--text); }
+  .pill.active { color: #000; }
+
+  .feed-controls {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+  }
+  #pause-btn {
+    padding: 3px 10px;
+    background: none;
+    border: 1px solid var(--border-hi);
+    color: var(--text-dim);
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  #pause-btn:hover { border-color: var(--c-amber); color: var(--c-amber); }
+  #pause-btn.paused { border-color: var(--c-amber); color: var(--c-amber); background: rgba(245,158,11,0.08); }
+  #clear-btn {
+    padding: 3px 10px;
+    background: none;
+    border: 1px solid var(--border-hi);
+    color: var(--text-dim);
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  #clear-btn:hover { border-color: var(--c-red); color: var(--c-red); }
+  #feed-stats {
+    font-size: 10px;
+    color: var(--text-dim);
+    white-space: nowrap;
+  }
+  #feed-stats span { color: var(--c-green); }
+
+  /* ─── PRESETS ─── */
+  #preset-bar {
+    padding: 5px 12px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    gap: 6px;
+    background: var(--bg-panel);
+    flex-shrink: 0;
+  }
+  .preset-btn {
+    padding: 2px 9px;
+    background: none;
+    border: 1px solid var(--border-hi);
+    color: var(--text-muted);
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    cursor: pointer;
+    transition: all 0.12s;
+    text-transform: uppercase;
+  }
+  .preset-btn:hover { border-color: var(--c-cyan); color: var(--c-cyan); }
+  .preset-btn.active { border-color: var(--c-cyan); color: var(--c-cyan); background: rgba(6,182,212,0.08); }
+
+  /* ─── FEED ─── */
+  #feed-wrap {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    position: relative;
+  }
+  #feed-wrap::-webkit-scrollbar { width: 5px; }
+  #feed-wrap::-webkit-scrollbar-track { background: var(--bg); }
+  #feed-wrap::-webkit-scrollbar-thumb { background: var(--border-hi); }
+
+  #feed-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  #feed-table thead {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: var(--bg-panel);
+  }
+  #feed-table thead th {
+    padding: 5px 8px;
+    text-align: left;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    border-bottom: 1px solid var(--border-hi);
+    white-space: nowrap;
+  }
+  .col-time { width: 68px; }
+  .col-cat  { width: 90px; }
+  .col-name { width: 200px; }
+  .col-detail { /* flex */ }
+
+  .feed-row {
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    transition: background 0.08s;
+  }
+  .feed-row:hover { background: var(--bg-hover); }
+  .feed-row td {
+    padding: 4px 8px;
+    vertical-align: top;
+    font-size: 11px;
+  }
+  .feed-row.row-error   { background: rgba(239,68,68,0.06); }
+  .feed-row.row-warning { background: rgba(245,158,11,0.05); }
+  .feed-row.row-success { background: rgba(34,197,94,0.04); }
+  .feed-row.row-error:hover   { background: rgba(239,68,68,0.11); }
+  .feed-row.row-warning:hover { background: rgba(245,158,11,0.10); }
+  .feed-row.row-success:hover { background: rgba(34,197,94,0.09); }
+
+  .feed-row.new-flash {
+    animation: row-flash 0.4s ease-out;
+  }
+  @keyframes row-flash {
+    0%   { background: rgba(34,197,94,0.2); }
+    100% { background: transparent; }
+  }
+
+  .time-cell {
+    color: var(--text-muted);
+    font-size: 10px;
+    white-space: nowrap;
+  }
+  .cat-badge {
+    display: inline-block;
+    padding: 1px 5px;
+    font-size: 10px;
+    letter-spacing: 0.05em;
+    font-weight: bold;
+    white-space: nowrap;
+  }
+  .signal-cell {
+    color: #b0b0d8;
+    font-size: 11px;
+  }
+  .detail-cell {
+    color: var(--text-dim);
+    font-size: 10px;
+    word-break: break-word;
+  }
+  .detail-cell .key { color: var(--text-muted); }
+  .detail-cell .val { color: #9090c0; }
+
+  /* Expanded row */
+  .expand-row { display: none; }
+  .expand-row.open { display: table-row; }
+  .expand-row td {
+    padding: 6px 12px 10px 28px;
+    background: rgba(14,14,22,0.8);
+    border-bottom: 1px solid var(--border-hi);
+  }
+  .expand-json {
+    font-size: 11px;
+    color: #8888bb;
+    white-space: pre;
+    overflow-x: auto;
+  }
+
+  /* ─── EMPTY STATE ─── */
+  #feed-empty {
+    display: none;
+    text-align: center;
+    padding: 40px;
+    color: var(--text-muted);
+    font-size: 12px;
+  }
+
+  /* ─── ANIMATIONS ─── */
+  @keyframes pulse-green {
+    0%, 100% { opacity: 1; box-shadow: 0 0 5px var(--c-green); }
+    50% { opacity: 0.5; box-shadow: 0 0 2px var(--c-green); }
+  }
+
+  /* ─── SCROLLBAR for catalog ─── */
+  .tab-content { display: none; flex: 1; overflow: hidden; flex-direction: column; }
+  .tab-content.active { display: flex; }
+
+  /* ─── TITLE BAR ─── */
+  #title-bar {
+    padding: 8px 14px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--bg-panel);
+    flex-shrink: 0;
+  }
+  #title-bar .app-name {
+    font-size: 12px;
+    letter-spacing: 0.2em;
+    color: var(--c-green);
+    text-transform: uppercase;
+  }
+  #title-bar .page-name {
+    font-size: 11px;
+    color: var(--text-muted);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+  }
+  #title-bar .divider { color: var(--border-hi); }
+  .title-spacer { flex: 1; }
+  .impl-hint-btn {
+    padding: 3px 10px;
+    background: none;
+    border: 1px solid var(--c-indigo);
+    color: var(--c-indigo);
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .impl-hint-btn:hover { background: rgba(99,102,241,0.12); }
+
+  /* ─── IMPL MODAL ─── */
+  #impl-modal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+  }
+  #impl-modal.open { display: flex; }
+  .modal-box {
+    background: var(--bg-panel);
+    border: 1px solid var(--border-hi);
+    width: 780px;
+    max-width: 95vw;
+    max-height: 85vh;
+    overflow-y: auto;
+    padding: 24px;
+  }
+  .modal-box::-webkit-scrollbar { width: 5px; }
+  .modal-box::-webkit-scrollbar-thumb { background: var(--border-hi); }
+  .modal-title {
+    font-size: 13px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--c-cyan);
+    margin-bottom: 16px;
+    border-bottom: 1px solid var(--border-hi);
+    padding-bottom: 8px;
+  }
+  .modal-section { margin-bottom: 18px; }
+  .modal-section h3 {
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--c-amber);
+    margin-bottom: 8px;
+  }
+  .modal-section p, .modal-section li {
+    font-size: 12px;
+    color: var(--text-dim);
+    line-height: 1.6;
+    margin-bottom: 4px;
+  }
+  .modal-section ul { padding-left: 16px; }
+  .modal-section code {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    padding: 1px 4px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: #a0a0cc;
+  }
+  .modal-section pre {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    padding: 10px;
+    font-size: 11px;
+    color: #9090bb;
+    overflow-x: auto;
+    white-space: pre;
+  }
+  .modal-close {
+    float: right;
+    background: none;
+    border: 1px solid var(--border-hi);
+    color: var(--text-dim);
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 3px 9px;
+    cursor: pointer;
+    letter-spacing: 0.1em;
+  }
+  .modal-close:hover { color: var(--c-red); border-color: var(--c-red); }
+
+  /* grid lines on feed */
+  #feed-table tbody tr td:not(:last-child) {
+    border-right: 1px solid rgba(30,30,46,0.5);
+  }
+
+</style>
+</head>
+<body>
+
+<div id="app">
+
+  <!-- ═══════════════════════════════════════════════════ LEFT PANEL -->
+  <div id="left-panel">
+    <div class="panel-header">
+      <div class="status-dot"></div>
+      <h2>Signal Catalog</h2>
+      <small id="catalog-total" style="color:var(--text-muted);font-size:10px;"></small>
+    </div>
+
+    <div id="left-tabs">
+      <button class="tab-btn active" onclick="switchTab('catalog')">Catalog</button>
+      <button class="tab-btn" onclick="switchTab('emitter')">Emitter</button>
+    </div>
+
+    <!-- CATALOG TAB -->
+    <div id="tab-catalog" class="tab-content active">
+      <div id="catalog-search-wrap">
+        <input class="search-input" id="catalog-search" type="text" placeholder="filter signals..." autocomplete="off" oninput="filterCatalog(this.value)">
+      </div>
+      <div id="catalog-content"></div>
+    </div>
+
+    <!-- EMITTER TAB -->
+    <div id="tab-emitter" class="tab-content">
+      <div id="emitter-panel">
+        <div>
+          <div class="emitter-label">Signal</div>
+          <select class="emitter-select" id="emitter-signal" onchange="populateEmitterPayload()">
+            <option value="">-- select signal --</option>
+          </select>
+        </div>
+        <div>
+          <div class="emitter-label">Payload JSON</div>
+          <textarea class="emitter-textarea" id="emitter-payload" rows="7" placeholder='{"key": "value"}'></textarea>
+        </div>
+        <div>
+          <div class="emitter-label">Scope ID <span style="color:var(--text-muted)">(optional)</span></div>
+          <input class="emitter-select" id="emitter-scope" type="text" placeholder="agent_session_id or blank" style="font-family:var(--mono);font-size:11px;padding:5px 7px;">
+        </div>
+        <button id="emit-btn" onclick="emitSignal()">&#9654; Emit Signal</button>
+        <div>
+          <div class="emitter-label">Last Result</div>
+          <div id="emit-result">—</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════ RIGHT PANEL -->
+  <div id="right-panel">
+    <div id="title-bar">
+      <span class="app-name">ICHOR IV</span>
+      <span class="divider">/</span>
+      <span class="page-name">Signals</span>
+      <div class="title-spacer"></div>
+      <button class="impl-hint-btn" onclick="document.getElementById('impl-modal').classList.add('open')">&#9998; LiveView Spec</button>
+    </div>
+
+    <div id="filter-bar">
+      <input id="feed-search" type="text" placeholder="search feed..." autocomplete="off" oninput="applyFeedFilters()">
+      <div class="filter-pills" id="category-pills"></div>
+      <div class="feed-controls">
+        <button id="pause-btn" onclick="togglePause()">&#9646;&#9646; Pause</button>
+        <button id="clear-btn" onclick="clearFeed()">&#x2715; Clear</button>
+        <div id="feed-stats"><span id="stat-count">0</span> signals | <span id="stat-rate">0</span>/min</div>
+      </div>
+    </div>
+
+    <div id="preset-bar">
+      <button class="preset-btn active" onclick="applyPreset('all')" data-preset="all">All</button>
+      <button class="preset-btn" onclick="applyPreset('agent-health')" data-preset="agent-health">Agent Health</button>
+      <button class="preset-btn" onclick="applyPreset('pipeline-ops')" data-preset="pipeline-ops">Pipeline Ops</button>
+      <button class="preset-btn" onclick="applyPreset('errors-only')" data-preset="errors-only">Errors Only</button>
+      <button class="preset-btn" onclick="applyPreset('emitter-mode')" data-preset="emitter-mode">Emitter Mode</button>
+    </div>
+
+    <div id="feed-wrap">
+      <div id="feed-empty">no signals match current filters</div>
+      <table id="feed-table">
+        <thead>
+          <tr>
+            <th class="col-time">Time</th>
+            <th class="col-cat">Category</th>
+            <th class="col-name">Signal</th>
+            <th class="col-detail">Detail</th>
+          </tr>
+        </thead>
+        <tbody id="feed-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════ IMPL MODAL -->
+<div id="impl-modal">
+  <div class="modal-box">
+    <button class="modal-close" onclick="document.getElementById('impl-modal').classList.remove('open')">&#x2715; Close</button>
+    <div class="modal-title">Phoenix LiveView — Signals Page Implementation Spec</div>
+
+    <div class="modal-section">
+      <h3>Module Structure</h3>
+      <ul>
+        <li><code>IchorWeb.SignalsLive</code> — root LiveView, owns feed state and filter assigns</li>
+        <li><code>IchorWeb.Components.SignalCatalog</code> — stateless functional component; renders accordion catalog</li>
+        <li><code>IchorWeb.Components.SignalEmitter</code> — stateful live component; handles emit form state</li>
+        <li><code>IchorWeb.Components.SignalFeedRow</code> — functional component; renders one feed row with expansion</li>
+        <li><code>IchorWeb.Components.CategoryPill</code> — functional; renders a filter pill</li>
+      </ul>
+    </div>
+
+    <div class="modal-section">
+      <h3>Key Assigns (SignalsLive)</h3>
+      <pre>@signals           [%{id, name, category, data, ts, level}]  # ring buffer, max 500
+@filtered_signals  derived from @signals + @filters
+@filters           %{search: "", categories: [], signal_name: nil}
+@paused            boolean
+@category_rates    %{atom => float}    # signals/min per category
+@active_preset     atom
+@expanded_row_id   string | nil</pre>
+    </div>
+
+    <div class="modal-section">
+      <h3>PubSub Subscriptions (mount/3)</h3>
+      <pre>Enum.each(Ichor.Signals.categories(), fn cat ->
+  Phoenix.PubSub.subscribe(Ichor.PubSub, Ichor.Signals.category_topic(cat))
+end)</pre>
+    </div>
+
+    <div class="modal-section">
+      <h3>handle_info/2 — Live Feed Ingest</h3>
+      <pre>def handle_info({:signal, name, data}, socket) do
+  if socket.assigns.paused do
+    {:noreply, socket}
+  else
+    entry = %{
+      id:       System.unique_integer([:positive, :monotonic]),
+      name:     name,
+      category: Ichor.Signals.Catalog.lookup!(name).category,
+      data:     data,
+      ts:       DateTime.utc_now(),
+      level:    classify_level(name)
+    }
+    signals = [entry | socket.assigns.signals] |> Enum.take(500)
+    {:noreply, assign(socket, signals: signals, filtered_signals: apply_filters(signals, socket.assigns.filters))}
+  end
+end</pre>
+    </div>
+
+    <div class="modal-section">
+      <h3>handle_event/3 Handlers</h3>
+      <ul>
+        <li><code>"toggle_category"</code> — toggle category in <code>@filters.categories</code></li>
+        <li><code>"search_feed"</code> — update <code>@filters.search</code>, recompute <code>@filtered_signals</code></li>
+        <li><code>"filter_signal"</code> — set <code>@filters.signal_name</code> from catalog click</li>
+        <li><code>"toggle_pause"</code> — flip <code>@paused</code></li>
+        <li><code>"clear_feed"</code> — set <code>@signals = []</code></li>
+        <li><code>"apply_preset"</code> — set <code>@filters</code> to preset values</li>
+        <li><code>"expand_row"</code> — set <code>@expanded_row_id</code></li>
+        <li><code>"emit_signal"</code> — call <code>Ichor.Signals.emit/2</code> with validated payload</li>
+        <li><code>"catalog_search"</code> — filter catalog accordion (client-side via JS hook)</li>
+      </ul>
+    </div>
+
+    <div class="modal-section">
+      <h3>Row Classification (classify_level/1)</h3>
+      <pre>@error_signals   ~w[agent_crashed dead_letter schema_violation mes_cycle_failed
+                     gate_failed nudge_zombie mes_quality_gate_failed
+                     mes_tmux_spawn_failed mes_team_spawn_failed
+                     pipeline_task_failed mes_plugin_compile_failed]a
+@warning_signals ~w[nudge_warning nudge_escalated entropy_alert
+                     watchdog_sweep mes_cycle_skipped mes_maintenance_error
+                     hitl_intervention_recorded]a
+@success_signals ~w[agent_done gate_passed pipeline_completed mes_team_ready
+                     planning_run_complete session_started run_complete]a</pre>
+    </div>
+
+    <div class="modal-section">
+      <h3>Preset Definitions</h3>
+      <pre>%{
+  all:           %{search: "", categories: [], signal_name: nil},
+  agent_health:  %{search: "", categories: [:agent, :monitoring], signal_name: nil},
+  pipeline_ops:  %{search: "", categories: [:pipeline, :mes, :planning], signal_name: nil},
+  errors_only:   %{search: "failed|crashed|dead_letter|violation|error", categories: [], signal_name: nil},
+  emitter_mode:  %{search: "", categories: [], signal_name: nil}  # + switch left tab to :emitter
+}</pre>
+    </div>
+
+    <div class="modal-section">
+      <h3>Rate Calculation (category_rates)</h3>
+      <p>Tick every 10s via <code>Process.send_after(self(), :recalc_rates, 10_000)</code>. Count signals in last 60s per category, divide by 1.</p>
+    </div>
+
+    <div class="modal-section">
+      <h3>JS Hook: CatalogSearch</h3>
+      <p>Client-side filtering of <code>.category-group</code> and <code>.signal-item</code> elements. Uses <code>phx-hook="CatalogSearch"</code> on the search input. Avoids unnecessary server round-trips for catalog accordion filtering.</p>
+    </div>
+
+    <div class="modal-section">
+      <h3>Category Color Map (replicate in CSS)</h3>
+      <pre>agent:      #a855f7   fleet:    #3b82f6   pipeline: #22c55e
+mes:        #f97316   gateway:  #06b6d4   hitl:     #f43f5e
+monitoring: #f59e0b   mesh:     #6366f1   cleanup:  #94a3b8
+system:     #eab308   events:   #14b8a6   messages: #ec4899
+memory:     #84cc16   team:     #0ea5e9   planning: #8b5cf6</pre>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════
+// CATALOG DATA (from Ichor.Signals.Catalog)
+// ═══════════════════════════════════════════════════════════════════
+
+const CATEGORY_COLORS = {
+  agent:      '#a855f7',
+  fleet:      '#3b82f6',
+  pipeline:   '#22c55e',
+  mes:        '#f97316',
+  gateway:    '#06b6d4',
+  hitl:       '#f43f5e',
+  monitoring: '#f59e0b',
+  mesh:       '#6366f1',
+  cleanup:    '#94a3b8',
+  system:     '#eab308',
+  events:     '#14b8a6',
+  messages:   '#ec4899',
+  memory:     '#84cc16',
+  team:       '#0ea5e9',
+  planning:   '#8b5cf6',
+};
+
+const CATALOG = {
+  // agent
+  agent_crashed:              { category: 'agent',     keys: ['session_id','team_name'],                     doc: 'Agent confirmed dead' },
+  agent_spawned:              { category: 'agent',     keys: ['session_id','name','capability'],             doc: 'Agent spawned via dashboard' },
+  nudge_warning:              { category: 'agent',     keys: ['session_id','agent_name','level'],            doc: 'Nudge escalation: warn' },
+  nudge_sent:                 { category: 'agent',     keys: ['session_id','agent_name','level'],            doc: 'Nudge escalation: tmux nudge sent' },
+  nudge_escalated:            { category: 'agent',     keys: ['session_id','agent_name','level'],            doc: 'Nudge escalation: HITL pause' },
+  nudge_zombie:               { category: 'agent',     keys: ['session_id','agent_name','level'],            doc: 'Nudge escalation: zombie' },
+  agent_event:                { category: 'agent',     keys: ['event'],                                      doc: 'Per-agent event stream', dynamic: true },
+  agent_message_intercepted:  { category: 'agent',     keys: ['from','to','content','type'],                 doc: 'Hook-intercepted SendMessage', dynamic: true },
+  terminal_output:            { category: 'agent',     keys: ['session_id','output'],                        doc: 'Tmux output', dynamic: true },
+  mailbox_message:            { category: 'agent',     keys: ['message'],                                    doc: 'Direct message to agent', dynamic: true },
+  agent_instructions:         { category: 'agent',     keys: ['agent_class','instructions'],                 doc: 'Pushed instructions', dynamic: true },
+  scheduled_job:              { category: 'agent',     keys: ['agent_id','payload'],                         doc: 'Cron job fired', dynamic: true },
+  // fleet
+  agent_started:              { category: 'fleet',     keys: ['session_id','role','team'],                   doc: 'AgentProcess init' },
+  agent_paused:               { category: 'fleet',     keys: ['session_id'],                                 doc: 'Agent paused via HITL' },
+  agent_resumed:              { category: 'fleet',     keys: ['session_id'],                                 doc: 'Agent resumed' },
+  agent_stopped:              { category: 'fleet',     keys: ['session_id','reason'],                        doc: 'AgentProcess terminated' },
+  agent_evicted:              { category: 'fleet',     keys: ['session_id'],                                 doc: 'Agent evicted due to missed heartbeats' },
+  agent_reaped:               { category: 'fleet',     keys: ['session_id'],                                 doc: 'Dead agent reaped by TmuxDiscovery' },
+  agent_discovered:           { category: 'fleet',     keys: ['session_id'],                                 doc: 'Agent discovered via tmux session scan' },
+  session_started:            { category: 'fleet',     keys: ['session_id','tmux_session','cwd','model','os_pid'], doc: 'New agent session started' },
+  session_ended:              { category: 'fleet',     keys: ['session_id','status'],                        doc: 'Agent session ended' },
+  team_created:               { category: 'fleet',     keys: ['name','project','strategy'],                  doc: 'New team started' },
+  team_disbanded:             { category: 'fleet',     keys: ['team_name'],                                  doc: 'Team removed' },
+  team_spawn_requested:       { category: 'fleet',     keys: ['team_name','spec','source'],                  doc: 'Team spawn requested', dynamic: true },
+  team_spawn_started:         { category: 'fleet',     keys: ['team_name','agent_count','source'],           doc: 'Spawn request accepted', dynamic: true },
+  team_spawn_ready:           { category: 'fleet',     keys: ['session','team_name','agent_count','source'], doc: 'Team spawn completed', dynamic: true },
+  team_spawn_failed:          { category: 'fleet',     keys: ['team_name','reason','source'],                doc: 'Team spawn failed', dynamic: true },
+  team_create_requested:      { category: 'fleet',     keys: ['team_name'],                                  doc: 'TeamCreate intercepted' },
+  team_delete_requested:      { category: 'fleet',     keys: ['team_name'],                                  doc: 'TeamDelete intercepted' },
+  run_complete:               { category: 'fleet',     keys: ['kind','run_id','session'],                    doc: 'Run completed cleanly' },
+  run_terminated:             { category: 'fleet',     keys: ['kind','run_id','session'],                    doc: 'Run process terminated' },
+  hosts_changed:              { category: 'fleet',     keys: [],                                             doc: 'Cluster node joined/departed' },
+  fleet_changed:              { category: 'fleet',     keys: ['agent_id'],                                   doc: 'Agent Registry metadata changed' },
+  // gateway
+  decision_log:               { category: 'gateway',   keys: ['log'],                                        doc: 'Inter-agent message routed' },
+  schema_violation:           { category: 'gateway',   keys: ['event_map'],                                  doc: 'Schema validation failure' },
+  node_state_update:          { category: 'gateway',   keys: ['agent_id','state'],                           doc: 'Topology node change' },
+  entropy_alert:              { category: 'gateway',   keys: ['session_id','entropy_score'],                 doc: 'Repeated pattern detected' },
+  topology_snapshot:          { category: 'gateway',   keys: ['nodes','edges'],                              doc: 'Full topology snapshot' },
+  capability_update:          { category: 'gateway',   keys: ['state_map'],                                  doc: 'Agent capability map changed' },
+  dead_letter:                { category: 'gateway',   keys: ['delivery'],                                   doc: 'Failed webhook to DLQ' },
+  webhook_delivery_enqueued:  { category: 'gateway',   keys: ['delivery_id','agent_id','target_url','status','attempt_count'], doc: 'Webhook delivery job enqueued' },
+  webhook_delivery_delivered: { category: 'gateway',   keys: ['delivery_id','agent_id','target_url','status','attempt_count'], doc: 'Webhook delivery confirmed' },
+  gateway_audit:              { category: 'gateway',   keys: ['envelope_id','channel'],                      doc: 'Message routing audit' },
+  mesh_pause:                 { category: 'gateway',   keys: ['initiated_by'],                               doc: 'God-mode mesh pause' },
+  cron_job_scheduled:         { category: 'gateway',   keys: ['job_id','agent_id','next_fire_at'],           doc: 'Cron job created' },
+  cron_job_rescheduled:       { category: 'gateway',   keys: ['job_id','agent_id','next_fire_at'],           doc: 'Cron job rescheduled' },
+  // hitl
+  gate_open:                  { category: 'hitl',      keys: ['session_id'],                                 doc: 'Agent paused, gate opened', dynamic: true },
+  gate_close:                 { category: 'hitl',      keys: ['session_id'],                                 doc: 'Agent resumed, gate closed', dynamic: true },
+  hitl_auto_released:         { category: 'hitl',      keys: ['session_id'],                                 doc: 'Paused session auto-released' },
+  hitl_operator_approved:     { category: 'hitl',      keys: ['session_id'],                                 doc: 'Operator approved buffered messages' },
+  hitl_operator_rejected:     { category: 'hitl',      keys: ['session_id'],                                 doc: 'Operator rejected buffered messages' },
+  hitl_intervention_recorded: { category: 'hitl',      keys: ['event_id','session_id','agent_id','operator_id','action','details'], doc: 'HITL operator intervention persisted' },
+  // mes (sample)
+  mes_tick:                   { category: 'mes',       keys: ['tick','active_runs'],                         doc: 'MES scheduler tick fired' },
+  mes_cycle_started:          { category: 'mes',       keys: ['run_id','team_name'],                         doc: 'MES spawned manufacturing team' },
+  mes_cycle_failed:           { category: 'mes',       keys: ['run_id','reason'],                            doc: 'MES run failed to start' },
+  mes_run_started:            { category: 'mes',       keys: ['run_id','session'],                           doc: 'MES RunProcess team spawned' },
+  mes_team_ready:             { category: 'mes',       keys: ['session','agent_count'],                      doc: 'All agents spawned in tmux' },
+  mes_team_killed:            { category: 'mes',       keys: ['session'],                                    doc: 'MES tmux session killed' },
+  mes_quality_gate_passed:    { category: 'mes',       keys: ['run_id','gate','session_id'],                 doc: 'MES quality gate passed' },
+  mes_quality_gate_failed:    { category: 'mes',       keys: ['run_id','gate','session_id','reason'],        doc: 'MES quality gate failed' },
+  mes_project_created:        { category: 'mes',       keys: ['project_id','title','run_id'],                doc: 'MES project created' },
+  mes_cleanup:                { category: 'mes',       keys: ['target'],                                     doc: 'MES cleanup of old prompt dirs' },
+  // monitoring
+  protocol_update:            { category: 'monitoring', keys: ['stats_map'],                                 doc: 'Protocol stats recomputed' },
+  gate_passed:                { category: 'monitoring', keys: ['session_id','task_id'],                      doc: 'Quality gate passed' },
+  gate_failed:                { category: 'monitoring', keys: ['session_id','task_id','output'],             doc: 'Quality gate failed' },
+  agent_done:                 { category: 'monitoring', keys: ['session_id','summary'],                      doc: 'Agent signalled DONE' },
+  agent_blocked:              { category: 'monitoring', keys: ['session_id','reason'],                       doc: 'Agent signalled BLOCKED' },
+  watchdog_sweep:             { category: 'monitoring', keys: ['orphaned_count'],                            doc: 'TeamWatchdog periodic sweep' },
+  // pipeline
+  pipeline_created:           { category: 'pipeline',  keys: ['run_id','source','label','task_count'],       doc: 'Pipeline created' },
+  pipeline_ready:             { category: 'pipeline',  keys: ['run_id','session','project_id'],              doc: 'Pipeline spawned with lead agent' },
+  pipeline_completed:         { category: 'pipeline',  keys: ['run_id','label'],                             doc: 'All pipeline tasks completed' },
+  pipeline_task_claimed:      { category: 'pipeline',  keys: ['run_id','task_id','external_id','owner','wave'], doc: 'Pipeline task claimed' },
+  pipeline_task_completed:    { category: 'pipeline',  keys: ['run_id','task_id','external_id','owner'],     doc: 'Pipeline task completed' },
+  pipeline_task_failed:       { category: 'pipeline',  keys: ['run_id','task_id','external_id','notes'],     doc: 'Pipeline task failed' },
+  pipeline_health_report:     { category: 'pipeline',  keys: ['run_id','healthy','issue_count'],             doc: 'Periodic health check result' },
+  // planning
+  planning_team_ready:        { category: 'planning',  keys: ['session','mode','project_id','agent_count'],  doc: 'Planning mode team ready' },
+  planning_run_complete:      { category: 'planning',  keys: ['run_id','mode','session','delivered_by'],     doc: 'Planning mode run completed' },
+  project_created:            { category: 'planning',  keys: ['id','project_id','title','type'],             doc: 'Project created' },
+  project_advanced:           { category: 'planning',  keys: ['id','project_id','title','type'],             doc: 'Project advanced to next stage' },
+  pipeline_generated_for_mes: { category: 'planning',  keys: ['project_id'],                                 doc: 'Pipeline tasks.jsonl generated' },
+  // mesh
+  dag_delta:                  { category: 'mesh',      keys: ['session_id','added_nodes'],                   doc: 'Causal DAG update', dynamic: true },
+  // system
+  heartbeat:                  { category: 'system',    keys: ['count'],                                      doc: 'Monotonic counter every 5s' },
+  registry_changed:           { category: 'system',    keys: [],                                             doc: 'Agent registry modified' },
+  dashboard_command:          { category: 'system',    keys: ['command'],                                    doc: 'External command to dashboard' },
+  // events
+  new_event:                  { category: 'events',    keys: ['event'],                                      doc: 'Hook event ingested' },
+  // messages
+  message_delivered:          { category: 'messages',  keys: ['agent_id','msg_map'],                         doc: 'Message delivered to agent' },
+  // memory
+  block_changed:              { category: 'memory',    keys: ['block_id','label'],                           doc: 'Memory block modified' },
+  memory_changed:             { category: 'memory',    keys: ['agent_name','event'],                         doc: 'Per-agent memory change', dynamic: true },
+  // team
+  task_created:               { category: 'team',      keys: ['task'],                                       doc: 'New task added', dynamic: true },
+  task_updated:               { category: 'team',      keys: ['task'],                                       doc: 'Task status changed', dynamic: true },
+  tasks_updated:              { category: 'team',      keys: ['team_name'],                                  doc: 'Team task list changed' },
+  // cleanup
+  run_cleanup_needed:         { category: 'cleanup',   keys: ['run_id','action'],                            doc: 'Run needs cleanup' },
+  session_cleanup_needed:     { category: 'cleanup',   keys: ['session','action'],                           doc: 'Session needs cleanup' },
+};
+
+// ═══════════════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════════════
+
+let feedEntries = [];       // all received signals
+let paused = false;
+let expandedRowId = null;
+let activeFilters = { search: '', categories: new Set(), signalName: null };
+let activePreset = 'all';
+let categoryRates = {};     // cat -> events in last 60s timestamps[]
+let totalPerMin = 0;
+let tickIntervals = [];
+
+// ═══════════════════════════════════════════════════════════════════
+// CATALOG RENDER
+// ═══════════════════════════════════════════════════════════════════
+
+function buildCatalog() {
+  const byCategory = {};
+  for (const [name, def] of Object.entries(CATALOG)) {
+    if (!byCategory[def.category]) byCategory[def.category] = [];
+    byCategory[def.category].push({ name, ...def });
+  }
+
+  const container = document.getElementById('catalog-content');
+  container.innerHTML = '';
+  let totalCount = 0;
+
+  const categories = Object.keys(byCategory).sort();
+  for (const cat of categories) {
+    const signals = byCategory[cat].sort((a,b) => a.name.localeCompare(b.name));
+    totalCount += signals.length;
+    const color = CATEGORY_COLORS[cat] || '#888';
+
+    const group = document.createElement('div');
+    group.className = 'category-group';
+    group.id = `cat-group-${cat}`;
+
+    const header = document.createElement('div');
+    header.className = 'category-header';
+    header.id = `cat-header-${cat}`;
+    header.innerHTML = `
+      <div class="cat-indicator" style="background:${color}"></div>
+      <div class="cat-name" style="color:${color}">${cat}</div>
+      <div class="cat-count">${signals.length}</div>
+      <div class="cat-rate" id="cat-rate-${cat}">0/m</div>
+      <div class="cat-chevron">&#9658;</div>
+    `;
+    header.addEventListener('click', () => toggleCategoryGroup(cat));
+
+    const body = document.createElement('div');
+    body.className = 'category-body';
+    for (const sig of signals) {
+      const item = document.createElement('div');
+      item.className = 'signal-item';
+      item.id = `sig-item-${sig.name}`;
+      item.innerHTML = `
+        <div class="signal-name">${sig.name}${sig.dynamic ? ' <span style="color:var(--text-muted);font-size:9px">[dyn]</span>' : ''}</div>
+        ${sig.keys.length ? `<div class="signal-keys">${sig.keys.map(k => `<span style="color:var(--c-cyan)">:${k}</span>`).join(' ')}</div>` : ''}
+        <div class="signal-doc">${sig.doc}</div>
+      `;
+      item.addEventListener('click', () => filterBySignal(sig.name));
+      body.appendChild(item);
+    }
+
+    group.appendChild(header);
+    group.appendChild(body);
+    container.appendChild(group);
+  }
+
+  document.getElementById('catalog-total').textContent = `${totalCount} signals`;
+  buildCategoryPills(categories);
+  buildEmitterSelect();
+}
+
+function toggleCategoryGroup(cat) {
+  const group = document.getElementById(`cat-group-${cat}`);
+  group.classList.toggle('open');
+}
+
+function filterCatalog(search) {
+  const q = search.toLowerCase();
+  const groups = document.querySelectorAll('.category-group');
+  for (const group of groups) {
+    const items = group.querySelectorAll('.signal-item');
+    let anyVisible = false;
+    for (const item of items) {
+      const name = item.querySelector('.signal-name').textContent.toLowerCase();
+      const doc  = item.querySelector('.signal-doc').textContent.toLowerCase();
+      const show = !q || name.includes(q) || doc.includes(q);
+      item.style.display = show ? '' : 'none';
+      if (show) anyVisible = true;
+    }
+    group.style.display = anyVisible ? '' : 'none';
+    if (q && anyVisible) group.classList.add('open');
+    else if (q && !anyVisible) group.classList.remove('open');
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// CATEGORY PILLS
+// ═══════════════════════════════════════════════════════════════════
+
+function buildCategoryPills(categories) {
+  const container = document.getElementById('category-pills');
+  container.innerHTML = '';
+  for (const cat of categories) {
+    const color = CATEGORY_COLORS[cat] || '#888';
+    const pill = document.createElement('div');
+    pill.className = 'pill';
+    pill.id = `pill-${cat}`;
+    pill.textContent = cat;
+    pill.style.borderColor = color + '55';
+    pill.style.color = color + 'aa';
+    pill.addEventListener('click', () => toggleCategoryFilter(cat));
+    container.appendChild(pill);
+  }
+}
+
+function toggleCategoryFilter(cat) {
+  const pill = document.getElementById(`pill-${cat}`);
+  if (activeFilters.categories.has(cat)) {
+    activeFilters.categories.delete(cat);
+    const color = CATEGORY_COLORS[cat] || '#888';
+    pill.classList.remove('active');
+    pill.style.background = '';
+    pill.style.color = color + 'aa';
+  } else {
+    activeFilters.categories.add(cat);
+    const color = CATEGORY_COLORS[cat] || '#888';
+    pill.classList.add('active');
+    pill.style.background = color;
+    pill.style.color = '#000';
+  }
+  activePreset = 'custom';
+  updatePresetButtons();
+  renderFeed();
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// EMITTER
+// ═══════════════════════════════════════════════════════════════════
+
+function buildEmitterSelect() {
+  const select = document.getElementById('emitter-signal');
+  const allNames = Object.keys(CATALOG).sort();
+  for (const name of allNames) {
+    const opt = document.createElement('option');
+    opt.value = name;
+    opt.textContent = name;
+    select.appendChild(opt);
+  }
+}
+
+function populateEmitterPayload() {
+  const name = document.getElementById('emitter-signal').value;
+  if (!name) { document.getElementById('emitter-payload').value = '{}'; return; }
+  const def = CATALOG[name];
+  if (!def) { document.getElementById('emitter-payload').value = '{}'; return; }
+  const obj = {};
+  for (const k of def.keys) obj[k] = exampleValue(k, name);
+  document.getElementById('emitter-payload').value = JSON.stringify(obj, null, 2);
+}
+
+function exampleValue(key, signalName) {
+  if (key === 'session_id' || key === 'agent_id') return 'agent_' + Math.random().toString(36).slice(2,8);
+  if (key === 'run_id')     return 'run_' + Math.random().toString(36).slice(2,8);
+  if (key === 'project_id') return 'proj_' + Math.random().toString(36).slice(2,8);
+  if (key === 'team_name')  return 'alpha-team';
+  if (key === 'session')    return 'ichor_' + Math.random().toString(36).slice(2,8);
+  if (key === 'count')      return Math.floor(Math.random() * 1000);
+  if (key === 'tick')       return Math.floor(Math.random() * 500);
+  if (key === 'level')      return 1;
+  if (key === 'agent_name') return 'arch-001';
+  if (key === 'reason')     return 'timeout';
+  if (key === 'status')     return 'ok';
+  if (key === 'nodes')      return [];
+  if (key === 'edges')      return [];
+  if (key === 'entropy_score') return parseFloat((Math.random() * 0.9).toFixed(2));
+  if (key === 'role')       return 'implementer';
+  if (key === 'model')      return 'claude-sonnet-4-6';
+  if (key === 'summary')    return 'Task completed successfully.';
+  if (key === 'gate')       return 'compile_clean';
+  if (key === 'action')     return 'kill';
+  if (key === 'title')      return 'Feature: auth flow';
+  if (key === 'label')      return 'build-pipeline-001';
+  if (key === 'active_runs') return 3;
+  if (key === 'agent_count') return 4;
+  if (key === 'orphaned_count') return 0;
+  return 'value';
+}
+
+function emitSignal() {
+  const name = document.getElementById('emitter-signal').value;
+  const payloadRaw = document.getElementById('emitter-payload').value.trim();
+  const resultEl = document.getElementById('emit-result');
+
+  if (!name) {
+    resultEl.className = 'error';
+    resultEl.textContent = 'ERROR: no signal selected';
+    return;
+  }
+
+  let payload;
+  try { payload = JSON.parse(payloadRaw || '{}'); }
+  catch (e) {
+    resultEl.className = 'error';
+    resultEl.textContent = 'ERROR: invalid JSON — ' + e.message;
+    return;
+  }
+
+  // inject into feed directly (simulates server-side emit)
+  ingestSignal(name, payload, true);
+
+  resultEl.className = 'success';
+  resultEl.textContent = `OK: ${name} emitted at ${new Date().toISOString()}`;
+  setTimeout(() => { resultEl.className = ''; resultEl.textContent = '—'; }, 4000);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// FEED
+// ═══════════════════════════════════════════════════════════════════
+
+const ERROR_SIGNALS = new Set(['agent_crashed','dead_letter','schema_violation','mes_cycle_failed',
+  'gate_failed','nudge_zombie','mes_quality_gate_failed','mes_tmux_spawn_failed',
+  'mes_team_spawn_failed','pipeline_task_failed','mes_plugin_compile_failed',
+  'team_spawn_failed','planning_team_spawn_failed','mes_corrective_agent_failed']);
+
+const WARNING_SIGNALS = new Set(['nudge_warning','nudge_escalated','entropy_alert',
+  'watchdog_sweep','mes_cycle_skipped','mes_maintenance_error',
+  'hitl_intervention_recorded','gate_open','agent_blocked','agent_evicted',
+  'run_cleanup_needed','session_cleanup_needed']);
+
+const SUCCESS_SIGNALS = new Set(['agent_done','gate_passed','pipeline_completed',
+  'mes_team_ready','planning_run_complete','session_started','run_complete',
+  'pipeline_task_completed','mes_quality_gate_passed','mes_project_compiled',
+  'mes_team_ready','hitl_operator_approved']);
+
+function classifyLevel(name) {
+  if (ERROR_SIGNALS.has(name))   return 'error';
+  if (WARNING_SIGNALS.has(name)) return 'warning';
+  if (SUCCESS_SIGNALS.has(name)) return 'success';
+  return 'normal';
+}
+
+let nextId = 1;
+
+function ingestSignal(name, data, isEmitted = false) {
+  if (paused && !isEmitted) return;
+
+  const def = CATALOG[name] || { category: 'system', keys: [], doc: 'unknown' };
+  const entry = {
+    id:       nextId++,
+    name,
+    category: def.category,
+    data,
+    ts:       Date.now(),
+    level:    classifyLevel(name),
+    isNew:    true,
+  };
+
+  feedEntries.unshift(entry);
+  if (feedEntries.length > 600) feedEntries.pop();
+
+  // track rates
+  if (!categoryRates[entry.category]) categoryRates[entry.category] = [];
+  categoryRates[entry.category].push(Date.now());
+
+  // pulse catalog category header
+  pulseCategoryHeader(entry.category);
+
+  // prepend row to table (filtered)
+  if (matchesFilters(entry)) {
+    prependRow(entry);
+    updateStats();
+  }
+}
+
+function pulseCategoryHeader(cat) {
+  const header = document.getElementById(`cat-header-${cat}`);
+  if (!header) return;
+  header.classList.remove('pulsing');
+  void header.offsetWidth;
+  header.classList.add('pulsing');
+  const rateEl = document.getElementById(`cat-rate-${cat}`);
+  if (rateEl) rateEl.classList.add('active');
+  setTimeout(() => { header.classList.remove('pulsing'); }, 650);
+}
+
+function matchesFilters(entry) {
+  const { search, categories, signalName } = activeFilters;
+  if (signalName && entry.name !== signalName) return false;
+  if (categories.size > 0 && !categories.has(entry.category)) return false;
+  if (search) {
+    const q = search.toLowerCase();
+    const inName = entry.name.toLowerCase().includes(q);
+    const inData = JSON.stringify(entry.data).toLowerCase().includes(q);
+    if (!inName && !inData) return false;
+  }
+  return true;
+}
+
+function prependRow(entry) {
+  const tbody = document.getElementById('feed-tbody');
+  const color = CATEGORY_COLORS[entry.category] || '#888';
+  const levelClass = entry.level !== 'normal' ? ` row-${entry.level}` : '';
+
+  // Main row
+  const tr = document.createElement('tr');
+  tr.className = `feed-row${levelClass} new-flash`;
+  tr.id = `row-${entry.id}`;
+  tr.innerHTML = `
+    <td class="time-cell" id="time-${entry.id}">${relTime(entry.ts)}</td>
+    <td><span class="cat-badge" style="background:${color}22;color:${color};border:1px solid ${color}44">${entry.category}</span></td>
+    <td class="signal-cell">${entry.name}</td>
+    <td class="detail-cell">${formatDataInline(entry.data)}</td>
+  `;
+  tr.addEventListener('click', () => toggleExpandRow(entry.id));
+
+  // Expand row
+  const expandTr = document.createElement('tr');
+  expandTr.className = 'expand-row';
+  expandTr.id = `expand-${entry.id}`;
+  expandTr.innerHTML = `<td colspan="4"><pre class="expand-json">${escapeHtml(JSON.stringify(entry.data, null, 2))}</pre></td>`;
+
+  // Insert at top
+  tbody.insertBefore(expandTr, tbody.firstChild);
+  tbody.insertBefore(tr, tbody.firstChild);
+
+  // Clean up old rows (keep visible table lean)
+  const allRows = tbody.querySelectorAll('tr.feed-row');
+  if (allRows.length > 300) {
+    const last = allRows[allRows.length - 1];
+    const lastExpand = document.getElementById(`expand-${last.id.replace('row-','')}`)
+    if (lastExpand) lastExpand.remove();
+    last.remove();
+  }
+
+  document.getElementById('feed-empty').style.display = 'none';
+  document.getElementById('feed-table').style.display = '';
+}
+
+function toggleExpandRow(id) {
+  const expand = document.getElementById(`expand-${id}`);
+  if (!expand) return;
+  if (expandedRowId && expandedRowId !== id) {
+    const prev = document.getElementById(`expand-${expandedRowId}`);
+    if (prev) prev.classList.remove('open');
+  }
+  expand.classList.toggle('open');
+  expandedRowId = expand.classList.contains('open') ? id : null;
+}
+
+function formatDataInline(data) {
+  if (!data || Object.keys(data).length === 0) return '<span style="color:var(--text-muted)">—</span>';
+  const parts = Object.entries(data).slice(0, 4).map(([k,v]) => {
+    const vStr = typeof v === 'object' ? '[obj]' : String(v).slice(0,40);
+    return `<span class="key">${k}:</span><span class="val">${escapeHtml(vStr)}</span>`;
+  });
+  const more = Object.keys(data).length > 4 ? ` <span style="color:var(--text-muted)">+${Object.keys(data).length - 4}</span>` : '';
+  return parts.join('  ') + more;
+}
+
+function escapeHtml(s) {
+  return String(s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;');
+}
+
+function relTime(ts) {
+  const diff = Math.floor((Date.now() - ts) / 1000);
+  if (diff < 5)  return 'just now';
+  if (diff < 60) return `${diff}s ago`;
+  const m = Math.floor(diff / 60);
+  if (m < 60)    return `${m}m ago`;
+  return `${Math.floor(m/60)}h ago`;
+}
+
+function updateStats() {
+  const count = document.getElementById('feed-tbody').querySelectorAll('tr.feed-row').length;
+  document.getElementById('stat-count').textContent = count;
+
+  // rate: signals in last 60s
+  const cutoff = Date.now() - 60000;
+  let total = 0;
+  for (const [cat, times] of Object.entries(categoryRates)) {
+    const recent = times.filter(t => t > cutoff);
+    categoryRates[cat] = recent;
+    total += recent.length;
+    const rateEl = document.getElementById(`cat-rate-${cat}`);
+    if (rateEl) {
+      rateEl.textContent = recent.length > 0 ? `${recent.length}/m` : '0/m';
+      rateEl.className = 'cat-rate' + (recent.length > 0 ? ' active' : '');
+    }
+  }
+  document.getElementById('stat-rate').textContent = total;
+}
+
+function applyFeedFilters() {
+  activeFilters.search = document.getElementById('feed-search').value;
+  renderFeed();
+}
+
+function renderFeed() {
+  const tbody = document.getElementById('feed-tbody');
+  tbody.innerHTML = '';
+  expandedRowId = null;
+
+  const visible = feedEntries.filter(matchesFilters);
+  for (const entry of visible.slice(0, 300)) prependRow(entry);
+
+  if (visible.length === 0) {
+    document.getElementById('feed-empty').style.display = 'block';
+    document.getElementById('feed-table').style.display = visible.length === 0 ? '' : '';
+  } else {
+    document.getElementById('feed-empty').style.display = 'none';
+  }
+  updateStats();
+}
+
+function clearFeed() {
+  feedEntries = [];
+  categoryRates = {};
+  document.getElementById('feed-tbody').innerHTML = '';
+  document.getElementById('stat-count').textContent = '0';
+  document.getElementById('stat-rate').textContent = '0';
+  document.getElementById('feed-empty').style.display = 'block';
+}
+
+// ─── Update relative times every 15s
+setInterval(() => {
+  const tbody = document.getElementById('feed-tbody');
+  const rows = tbody.querySelectorAll('tr.feed-row');
+  for (const row of rows) {
+    const id = row.id.replace('row-','');
+    const entry = feedEntries.find(e => e.id == id);
+    if (entry) {
+      const timeEl = document.getElementById(`time-${id}`);
+      if (timeEl) timeEl.textContent = relTime(entry.ts);
+    }
+  }
+}, 15000);
+
+// ═══════════════════════════════════════════════════════════════════
+// PAUSE / FILTER BY SIGNAL
+// ═══════════════════════════════════════════════════════════════════
+
+function togglePause() {
+  paused = !paused;
+  const btn = document.getElementById('pause-btn');
+  btn.textContent = paused ? '▶ Resume' : '⏸ Pause';
+  btn.className = paused ? 'paused' : '';
+}
+
+function filterBySignal(name) {
+  if (activeFilters.signalName === name) {
+    activeFilters.signalName = null;
+    document.querySelectorAll('.signal-item.active-filter').forEach(el => el.classList.remove('active-filter'));
+  } else {
+    document.querySelectorAll('.signal-item.active-filter').forEach(el => el.classList.remove('active-filter'));
+    activeFilters.signalName = name;
+    const item = document.getElementById(`sig-item-${name}`);
+    if (item) item.classList.add('active-filter');
+  }
+  renderFeed();
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// PRESETS
+// ═══════════════════════════════════════════════════════════════════
+
+const PRESETS = {
+  'all':          { search: '', categories: [], signalName: null },
+  'agent-health': { search: '', categories: ['agent','monitoring'], signalName: null },
+  'pipeline-ops': { search: '', categories: ['pipeline','mes','planning'], signalName: null },
+  'errors-only':  { search: 'failed|crashed|dead|violation|error|zombie', categories: [], signalName: null },
+  'emitter-mode': { search: '', categories: [], signalName: null, leftTab: 'emitter' },
+};
+
+function applyPreset(name) {
+  const preset = PRESETS[name];
+  if (!preset) return;
+  activePreset = name;
+
+  // Reset category pills
+  document.querySelectorAll('.pill').forEach(p => {
+    p.classList.remove('active');
+    const cat = p.id.replace('pill-','');
+    const color = CATEGORY_COLORS[cat] || '#888';
+    p.style.background = '';
+    p.style.color = color + 'aa';
+  });
+
+  activeFilters.categories = new Set(preset.categories);
+  activeFilters.search = preset.search || '';
+  activeFilters.signalName = null;
+
+  document.getElementById('feed-search').value = activeFilters.search;
+
+  for (const cat of activeFilters.categories) {
+    const pill = document.getElementById(`pill-${cat}`);
+    if (pill) {
+      const color = CATEGORY_COLORS[cat] || '#888';
+      pill.classList.add('active');
+      pill.style.background = color;
+      pill.style.color = '#000';
+    }
+  }
+
+  if (preset.leftTab) switchTab(preset.leftTab);
+  updatePresetButtons();
+  renderFeed();
+}
+
+function updatePresetButtons() {
+  document.querySelectorAll('.preset-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.preset === activePreset);
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// TABS
+// ═══════════════════════════════════════════════════════════════════
+
+function switchTab(name) {
+  document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+  document.getElementById(`tab-${name}`).classList.add('active');
+  const idx = name === 'catalog' ? 0 : 1;
+  document.querySelectorAll('.tab-btn')[idx].classList.add('active');
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// DEMO: AUTO-PLAY SIGNAL STREAM
+// ═══════════════════════════════════════════════════════════════════
+
+const DEMO_SIGNALS = [
+  { name: 'heartbeat',             data: { count: 1 } },
+  { name: 'session_started',       data: { session_id: 'agent_a1b2', tmux_session: 'ichor_a1b2', cwd: '/projects/observatory', model: 'claude-sonnet-4-6', os_pid: 12345 } },
+  { name: 'agent_started',         data: { session_id: 'agent_a1b2', role: 'implementer', team: 'alpha-team' } },
+  { name: 'team_created',          data: { name: 'alpha-team', project: 'observatory', strategy: 'round-robin' } },
+  { name: 'mes_tick',              data: { tick: 42, active_runs: 2 } },
+  { name: 'pipeline_created',      data: { run_id: 'run_x9', source: 'mes', label: 'build-phase-3', task_count: 18 } },
+  { name: 'pipeline_task_claimed', data: { run_id: 'run_x9', task_id: '7', external_id: '7', owner: 'agent_a1b2', wave: 1 } },
+  { name: 'agent_done',            data: { session_id: 'agent_a1b2', summary: 'Completed refactor of signals catalog' } },
+  { name: 'pipeline_task_completed', data: { run_id: 'run_x9', task_id: '7', external_id: '7', owner: 'agent_a1b2' } },
+  { name: 'mes_quality_gate_passed', data: { run_id: 'run_x9', gate: 'compile_clean', session_id: 'agent_a1b2' } },
+  { name: 'entropy_alert',         data: { session_id: 'agent_b3c4', entropy_score: 0.87 } },
+  { name: 'nudge_warning',         data: { session_id: 'agent_b3c4', agent_name: 'arch-002', level: 1 } },
+  { name: 'agent_crashed',         data: { session_id: 'agent_d5e6', team_name: 'beta-team' } },
+  { name: 'dead_letter',           data: { delivery: { url: 'https://hooks.example.com/notify', status: 500 } } },
+  { name: 'gate_open',             data: { session_id: 'agent_f7g8' } },
+  { name: 'hitl_operator_approved', data: { session_id: 'agent_f7g8' } },
+  { name: 'gate_close',            data: { session_id: 'agent_f7g8' } },
+  { name: 'message_delivered',     data: { agent_id: 'agent_a1b2', msg_map: { type: 'task', content: 'Fix the compile error in signals.ex' } } },
+  { name: 'memory_changed',        data: { agent_name: 'arch-001', event: 'block_written' } },
+  { name: 'task_created',          data: { task: { id: '42', subject: 'Add rate limiting', status: 'pending' } } },
+  { name: 'watchdog_sweep',        data: { orphaned_count: 0 } },
+  { name: 'topology_snapshot',     data: { nodes: 5, edges: 7 } },
+  { name: 'decision_log',          data: { log: { from: 'agent_a1b2', to: 'agent_b3c4', channel: 'direct' } } },
+  { name: 'planning_run_complete', data: { run_id: 'plan_001', mode: 'C', session: 'ichor_plan01', delivered_by: 'coordinator' } },
+  { name: 'mes_cycle_started',     data: { run_id: 'mes_cycle_17', team_name: 'gamma-team' } },
+  { name: 'mes_team_ready',        data: { session: 'ichor_gamma', agent_count: 3 } },
+  { name: 'pipeline_completed',    data: { run_id: 'run_x9', label: 'build-phase-3' } },
+  { name: 'run_complete',          data: { kind: 'mes', run_id: 'run_x9', session: 'ichor_gamma' } },
+  { name: 'registry_changed',      data: {} },
+  { name: 'block_changed',         data: { block_id: 'persona', label: 'human_1' } },
+  { name: 'fleet_changed',         data: { agent_id: 'agent_a1b2' } },
+  { name: 'dag_delta',             data: { session_id: 'agent_a1b2', added_nodes: ['step_12','step_13'] } },
+  { name: 'webhook_delivery_enqueued', data: { delivery_id: 'del_001', agent_id: 'agent_a1b2', target_url: 'https://hooks.example.com', status: 'enqueued', attempt_count: 1 } },
+  { name: 'mes_quality_gate_failed', data: { run_id: 'mes_cycle_17', gate: 'test_pass', session_id: 'agent_g9h0', reason: 'mix test failed with 3 errors' } },
+  { name: 'project_created',       data: { id: 'pj_123', project_id: 'proj_abc', title: 'Gateway Rate Limiter', type: 'feature' } },
+  { name: 'pipeline_health_report', data: { run_id: 'run_x9', healthy: true, issue_count: 0 } },
+  { name: 'nudge_zombie',          data: { session_id: 'agent_z99', agent_name: 'zombie-003', level: 4 } },
+  { name: 'schema_violation',      data: { event_map: { type: 'tool_result', error: 'missing required field: role' } } },
+  { name: 'mes_corrective_agent_spawned', data: { run_id: 'mes_cycle_17', session: 'ichor_gamma', attempt: 1 } },
+  { name: 'run_cleanup_needed',    data: { run_id: 'run_old', action: 'kill_tmux' } },
+];
+
+let demoIndex = 0;
+let demoHeartbeatCount = 0;
+
+function demoTick() {
+  // heartbeat every 5 signals
+  if (demoHeartbeatCount % 5 === 0) {
+    ingestSignal('heartbeat', { count: demoHeartbeatCount });
+  }
+  demoHeartbeatCount++;
+
+  const sig = DEMO_SIGNALS[demoIndex % DEMO_SIGNALS.length];
+  demoIndex++;
+
+  // slightly vary payloads
+  const data = JSON.parse(JSON.stringify(sig.data));
+  // inject some randomness into IDs
+  for (const k of Object.keys(data)) {
+    if (typeof data[k] === 'number' && k === 'count') data[k] = demoHeartbeatCount;
+    if (typeof data[k] === 'number' && k === 'tick') data[k] = Math.floor(Math.random() * 1000);
+    if (typeof data[k] === 'number' && k === 'active_runs') data[k] = Math.floor(Math.random() * 5);
+    if (typeof data[k] === 'number' && k === 'entropy_score') data[k] = parseFloat((0.5 + Math.random() * 0.49).toFixed(2));
+  }
+
+  ingestSignal(sig.name, data);
+}
+
+// Variable intervals for realism
+function scheduleNext() {
+  const delay = 300 + Math.random() * 1200;
+  tickIntervals.push(setTimeout(() => {
+    demoTick();
+    scheduleNext();
+  }, delay));
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════════════
+
+buildCatalog();
+updatePresetButtons();
+
+// Seed some initial signals before auto-play
+const SEED = [
+  { name: 'session_started',    data: { session_id: 'agent_seed1', tmux_session: 'ichor_seed1', cwd: '/projects/observatory', model: 'claude-sonnet-4-6', os_pid: 9000 } },
+  { name: 'agent_started',      data: { session_id: 'agent_seed1', role: 'coordinator', team: 'seed-team' } },
+  { name: 'team_created',       data: { name: 'seed-team', project: 'ichor-iv', strategy: 'parallel' } },
+  { name: 'mes_tick',           data: { tick: 1, active_runs: 1 } },
+  { name: 'pipeline_created',   data: { run_id: 'run_seed', source: 'mes', label: 'seed-pipeline', task_count: 5 } },
+  { name: 'pipeline_task_claimed', data: { run_id: 'run_seed', task_id: '1', external_id: '1', owner: 'agent_seed1', wave: 1 } },
+  { name: 'agent_done',         data: { session_id: 'agent_seed1', summary: 'Catalog migration complete' } },
+  { name: 'pipeline_task_completed', data: { run_id: 'run_seed', task_id: '1', external_id: '1', owner: 'agent_seed1' } },
+  { name: 'heartbeat',          data: { count: 0 } },
+  { name: 'watchdog_sweep',     data: { orphaned_count: 0 } },
+  { name: 'registry_changed',   data: {} },
+  { name: 'fleet_changed',      data: { agent_id: 'agent_seed1' } },
+  { name: 'memory_changed',     data: { agent_name: 'coordinator', event: 'block_written' } },
+  { name: 'decision_log',       data: { log: { from: 'agent_seed1', to: 'operator', channel: 'hitl' } } },
+  { name: 'topology_snapshot',  data: { nodes: 3, edges: 2 } },
+  { name: 'planning_run_complete', data: { run_id: 'plan_seed', mode: 'A', session: 'ichor_seed1', delivered_by: 'coordinator' } },
+  { name: 'pipeline_completed', data: { run_id: 'run_seed', label: 'seed-pipeline' } },
+  { name: 'run_complete',       data: { kind: 'pipeline', run_id: 'run_seed', session: 'ichor_seed1' } },
+  { name: 'session_ended',      data: { session_id: 'agent_old1', status: 'done' } },
+  { name: 'mes_cycle_started',  data: { run_id: 'mes_001', team_name: 'seed-team' } },
+];
+
+// Seed with slight delays to simulate a live stream
+SEED.forEach((sig, i) => {
+  setTimeout(() => ingestSignal(sig.name, sig.data), i * 60);
+});
+
+// Start live demo stream after seed
+setTimeout(scheduleNext, SEED.length * 60 + 200);
+
+</script>
+</body>
+</html>

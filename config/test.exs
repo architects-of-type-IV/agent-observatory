@@ -17,6 +17,9 @@ config :ichor, IchorWeb.Endpoint,
   secret_key_base: "aBlgLUb/veilHX83O3xEkTTRJ7etTmP2+HpA2B8r0Qr/sdZs1l5MS/0Y6PfehObb",
   server: false
 
+# Ash: disable async for SQLite single-writer constraint
+config :ash, :disable_async?, true
+
 # Print only warnings and errors during test
 config :logger, level: :warning
 

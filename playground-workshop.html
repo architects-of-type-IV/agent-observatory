@@ -1,0 +1,2073 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ICHOR IV -- Workshop Designer</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --zinc-950: #09090b; --zinc-900: #18181b; --zinc-800: #27272a; --zinc-700: #3f3f46;
+    --zinc-600: #52525b; --zinc-500: #71717a; --zinc-400: #a1a1aa; --zinc-300: #d4d4d8;
+    --zinc-200: #e4e4e7; --zinc-100: #f4f4f5;
+    --indigo-300: #a5b4fc; --indigo-400: #818cf8; --indigo-500: #6366f1; --indigo-600: #4f46e5;
+    --emerald-400: #34d399; --emerald-500: #10b981;
+    --amber-400: #fbbf24; --amber-500: #f59e0b;
+    --cyan-400: #22d3ee; --cyan-500: #06b6d4;
+    --red-400: #f87171; --red-500: #ef4444;
+    --purple-400: #c084fc; --purple-500: #a855f7;
+    --blue-400: #60a5fa; --blue-500: #3b82f6;
+    --green-400: #4ade80; --green-500: #22c55e;
+  }
+  body {
+    font-family: ui-monospace, 'SF Mono', 'Cascadia Code', 'Fira Code', monospace;
+    background: var(--zinc-950);
+    color: var(--zinc-300);
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* ── Top bar ── */
+  .topbar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 14px;
+    border-bottom: 1px solid var(--zinc-800);
+    background: rgba(24,24,27,0.95);
+    flex-shrink: 0;
+    height: 40px;
+  }
+  .brand { font-size: 11px; font-weight: 700; color: var(--zinc-500); text-transform: uppercase; letter-spacing: 0.1em; }
+  .brand span { color: var(--indigo-400); }
+  .topbar-sep { width: 1px; height: 18px; background: var(--zinc-800); }
+
+  /* Team browser bar */
+  .team-browser {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+  }
+  .team-select-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+  .team-search-input {
+    font-size: 11px;
+    font-family: inherit;
+    background: var(--zinc-800);
+    color: var(--zinc-300);
+    border: 1px solid var(--zinc-700);
+    border-radius: 4px;
+    padding: 3px 8px;
+    width: 200px;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .team-search-input:focus { border-color: var(--indigo-500); }
+  .team-dropdown {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    min-width: 220px;
+    background: var(--zinc-900);
+    border: 1px solid var(--zinc-700);
+    border-radius: 4px;
+    z-index: 100;
+    display: none;
+    max-height: 200px;
+    overflow-y: auto;
+  }
+  .team-dropdown.open { display: block; }
+  .team-dropdown-item {
+    padding: 6px 10px;
+    font-size: 11px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: background 0.1s;
+  }
+  .team-dropdown-item:hover { background: var(--zinc-800); }
+  .team-dropdown-item.active { color: var(--indigo-400); background: rgba(99,102,241,0.08); }
+
+  .topbar-btn {
+    font-size: 10px;
+    padding: 3px 9px;
+    background: var(--zinc-800);
+    color: var(--zinc-400);
+    border: 1px solid var(--zinc-700);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-family: inherit;
+    white-space: nowrap;
+  }
+  .topbar-btn:hover { background: var(--zinc-700); color: var(--zinc-200); }
+  .topbar-btn.primary { background: rgba(99,102,241,0.15); color: var(--indigo-400); border-color: rgba(99,102,241,0.3); }
+  .topbar-btn.primary:hover { background: rgba(99,102,241,0.25); }
+  .topbar-btn.danger { background: rgba(239,68,68,0.1); color: var(--red-400); border-color: rgba(239,68,68,0.2); }
+  .topbar-btn.danger:hover { background: rgba(239,68,68,0.2); }
+
+  .preset-select {
+    font-size: 10px;
+    font-family: inherit;
+    background: var(--zinc-800);
+    color: var(--zinc-400);
+    border: 1px solid var(--zinc-700);
+    border-radius: 4px;
+    padding: 3px 7px;
+    outline: none;
+    cursor: pointer;
+  }
+  .preset-select:focus { border-color: var(--indigo-500); }
+
+  .team-name-badge {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--zinc-300);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .save-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--amber-400);
+    display: none;
+  }
+  .save-dot.dirty { display: inline-block; }
+
+  /* ── Main layout ── */
+  .main { display: flex; flex: 1; overflow: hidden; }
+
+  /* ── Canvas area ── */
+  .canvas-wrap {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .canvas-area {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+    background:
+      linear-gradient(rgba(63,63,70,0.15) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(63,63,70,0.15) 1px, transparent 1px);
+    background-size: 32px 32px;
+    background-color: var(--zinc-950);
+    cursor: default;
+  }
+
+  .canvas-svg {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    pointer-events: none;
+    overflow: visible;
+  }
+
+  /* Agent nodes */
+  .agent-node {
+    position: absolute;
+    width: 180px;
+    background: var(--zinc-900);
+    border: 1px solid var(--zinc-700);
+    border-radius: 6px;
+    cursor: pointer;
+    user-select: none;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  .agent-node:hover { border-color: var(--zinc-500); }
+  .agent-node.selected {
+    border-color: var(--indigo-400);
+    box-shadow: 0 0 0 1px var(--indigo-400), 0 0 16px rgba(99,102,241,0.25);
+  }
+  .agent-node-header {
+    padding: 7px 9px 5px;
+    border-bottom: 1px solid var(--zinc-800);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: move;
+  }
+  .agent-node-name {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--zinc-200);
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .agent-node-body { padding: 6px 9px 7px; display: flex; flex-direction: column; gap: 4px; }
+  .agent-node-row { display: flex; align-items: center; gap: 5px; font-size: 10px; }
+  .agent-node-row .label { color: var(--zinc-600); min-width: 40px; }
+  .agent-node-row .val { color: var(--zinc-400); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  .health-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .health-dot.ok { background: var(--emerald-400); box-shadow: 0 0 4px rgba(52,211,153,0.5); }
+  .health-dot.warn { background: var(--amber-400); }
+  .health-dot.idle { background: var(--zinc-600); }
+
+  /* Ports */
+  .port-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 4px 0;
+  }
+  .port {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    border: 2px solid;
+    cursor: crosshair;
+    transition: transform 0.15s;
+    flex-shrink: 0;
+  }
+  .port:hover { transform: scale(1.4); }
+  .port.spawn { border-color: var(--emerald-400); background: rgba(52,211,153,0.2); }
+  .port.comm { border-color: var(--cyan-400); background: rgba(34,211,238,0.2); }
+  .port.spawn.active { background: var(--emerald-400); }
+  .port.comm.active { background: var(--cyan-400); }
+
+  /* Capability badges */
+  .cap-badge {
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    padding: 1px 5px;
+    border-radius: 3px;
+    letter-spacing: 0.04em;
+    flex-shrink: 0;
+  }
+  .cap-badge.builder  { background: rgba(74,222,128,0.12); color: var(--green-400); }
+  .cap-badge.scout    { background: rgba(34,211,238,0.12); color: var(--cyan-400); }
+  .cap-badge.reviewer { background: rgba(251,191,36,0.12); color: var(--amber-400); }
+  .cap-badge.coordinator { background: rgba(99,102,241,0.12); color: var(--indigo-400); }
+  .cap-badge.lead     { background: rgba(192,132,252,0.12); color: var(--purple-400); }
+
+  .model-badge {
+    font-size: 9px;
+    color: var(--indigo-300);
+    background: rgba(99,102,241,0.08);
+    padding: 1px 4px;
+    border-radius: 2px;
+  }
+
+  /* Canvas controls overlay */
+  .canvas-controls {
+    position: absolute;
+    bottom: 12px;
+    left: 12px;
+    display: flex;
+    gap: 6px;
+    z-index: 10;
+  }
+  .canvas-btn {
+    font-size: 11px;
+    padding: 4px 9px;
+    background: rgba(24,24,27,0.9);
+    color: var(--zinc-400);
+    border: 1px solid var(--zinc-700);
+    border-radius: 4px;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.15s;
+    backdrop-filter: blur(4px);
+  }
+  .canvas-btn:hover { background: rgba(39,39,42,0.95); color: var(--zinc-200); }
+
+  /* ── Right Panel ── */
+  .right-panel {
+    width: 360px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    border-left: 1px solid var(--zinc-800);
+    background: rgba(24,24,27,0.5);
+    overflow: hidden;
+  }
+
+  /* Tabs */
+  .tab-nav {
+    display: flex;
+    border-bottom: 1px solid var(--zinc-800);
+    flex-shrink: 0;
+    background: rgba(18,18,20,0.8);
+  }
+  .tab-btn {
+    flex: 1;
+    padding: 8px 4px;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--zinc-600);
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .tab-btn:hover { color: var(--zinc-400); }
+  .tab-btn.active { color: var(--indigo-400); border-bottom-color: var(--indigo-500); }
+
+  .tab-panel { display: none; flex: 1; overflow-y: auto; flex-direction: column; }
+  .tab-panel.active { display: flex; }
+
+  /* Panel content */
+  .panel-section { padding: 12px 14px; border-bottom: 1px solid var(--zinc-800); }
+  .panel-section:last-child { border-bottom: none; }
+  .panel-section-title {
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--zinc-600);
+    margin-bottom: 10px;
+  }
+
+  .form-row {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    margin-bottom: 9px;
+  }
+  .form-row:last-child { margin-bottom: 0; }
+  .form-label {
+    font-size: 9px;
+    color: var(--zinc-500);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .form-input {
+    font-size: 11px;
+    font-family: inherit;
+    background: var(--zinc-800);
+    color: var(--zinc-300);
+    border: 1px solid var(--zinc-700);
+    border-radius: 4px;
+    padding: 5px 8px;
+    outline: none;
+    width: 100%;
+    transition: border-color 0.15s;
+  }
+  .form-input:focus { border-color: var(--indigo-500); }
+  .form-input::placeholder { color: var(--zinc-600); }
+  .form-select {
+    font-size: 11px;
+    font-family: inherit;
+    background: var(--zinc-800);
+    color: var(--zinc-300);
+    border: 1px solid var(--zinc-700);
+    border-radius: 4px;
+    padding: 5px 8px;
+    outline: none;
+    width: 100%;
+    cursor: pointer;
+  }
+  .form-select:focus { border-color: var(--indigo-500); }
+  .form-textarea {
+    font-size: 11px;
+    font-family: inherit;
+    background: var(--zinc-800);
+    color: var(--zinc-300);
+    border: 1px solid var(--zinc-700);
+    border-radius: 4px;
+    padding: 5px 8px;
+    outline: none;
+    width: 100%;
+    resize: vertical;
+    min-height: 60px;
+    max-height: 160px;
+    line-height: 1.5;
+    transition: border-color 0.15s;
+  }
+  .form-textarea:focus { border-color: var(--indigo-500); }
+  .form-textarea::placeholder { color: var(--zinc-600); }
+  .form-row-inline { display: flex; gap: 8px; }
+  .form-row-inline .form-row { flex: 1; }
+
+  .tag-input-wrap {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    background: var(--zinc-800);
+    border: 1px solid var(--zinc-700);
+    border-radius: 4px;
+    padding: 4px 6px;
+    min-height: 32px;
+    cursor: text;
+  }
+  .tag-input-wrap:focus-within { border-color: var(--indigo-500); }
+  .tag-chip {
+    font-size: 10px;
+    padding: 1px 6px;
+    background: rgba(99,102,241,0.15);
+    color: var(--indigo-300);
+    border-radius: 3px;
+    display: flex;
+    align-items: center;
+    gap: 3px;
+  }
+  .tag-chip .remove { cursor: pointer; color: var(--indigo-400); font-size: 9px; }
+  .tag-chip .remove:hover { color: var(--red-400); }
+  .tag-real-input {
+    background: none;
+    border: none;
+    outline: none;
+    font-size: 10px;
+    color: var(--zinc-300);
+    font-family: inherit;
+    min-width: 60px;
+    flex: 1;
+  }
+  .tag-real-input::placeholder { color: var(--zinc-600); }
+
+  /* Action buttons */
+  .btn {
+    font-size: 11px;
+    font-family: inherit;
+    padding: 5px 12px;
+    border-radius: 4px;
+    border: 1px solid;
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .btn-primary { background: rgba(99,102,241,0.2); color: var(--indigo-400); border-color: rgba(99,102,241,0.3); }
+  .btn-primary:hover { background: rgba(99,102,241,0.3); }
+  .btn-launch { background: rgba(16,185,129,0.2); color: var(--emerald-400); border-color: rgba(16,185,129,0.3); font-size: 12px; font-weight: 700; letter-spacing: 0.04em; width: 100%; padding: 8px; }
+  .btn-launch:hover { background: rgba(16,185,129,0.3); }
+  .btn-muted { background: var(--zinc-800); color: var(--zinc-400); border-color: var(--zinc-700); }
+  .btn-muted:hover { background: var(--zinc-700); color: var(--zinc-200); }
+  .btn-danger { background: rgba(239,68,68,0.1); color: var(--red-400); border-color: rgba(239,68,68,0.2); }
+  .btn-danger:hover { background: rgba(239,68,68,0.2); }
+  .btn-sm { font-size: 10px; padding: 3px 8px; }
+  .btn-icon { padding: 3px 7px; font-size: 12px; }
+
+  /* Connection list items */
+  .conn-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 8px;
+    background: var(--zinc-800);
+    border-radius: 4px;
+    margin-bottom: 5px;
+    font-size: 10px;
+  }
+  .conn-item:last-child { margin-bottom: 0; }
+  .conn-item .conn-type { font-size: 9px; font-weight: 700; text-transform: uppercase; padding: 1px 5px; border-radius: 2px; flex-shrink: 0; }
+  .conn-item .conn-type.spawn { background: rgba(52,211,153,0.12); color: var(--emerald-400); }
+  .conn-item .conn-type.comm { background: rgba(34,211,238,0.12); color: var(--cyan-400); }
+  .conn-item .conn-detail { flex: 1; color: var(--zinc-400); overflow: hidden; }
+  .conn-item .conn-detail strong { color: var(--zinc-200); }
+  .conn-actions { display: flex; gap: 3px; }
+
+  /* Add connection form */
+  .add-conn-form {
+    margin-top: 8px;
+    padding: 8px;
+    background: rgba(24,24,27,0.7);
+    border: 1px solid var(--zinc-700);
+    border-radius: 4px;
+    display: none;
+  }
+  .add-conn-form.open { display: block; }
+
+  /* Type list in tab 4 */
+  .type-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 8px;
+    background: var(--zinc-800);
+    border-radius: 4px;
+    margin-bottom: 5px;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .type-row:hover { background: var(--zinc-700); }
+  .type-row.selected { background: rgba(99,102,241,0.1); border: 1px solid rgba(99,102,241,0.2); }
+  .type-color-swatch {
+    width: 12px; height: 12px;
+    border-radius: 3px;
+    flex-shrink: 0;
+  }
+  .type-name { flex: 1; font-size: 11px; color: var(--zinc-300); font-weight: 600; }
+  .type-count { font-size: 9px; color: var(--zinc-600); }
+
+  /* Color picker */
+  .color-picker-row {
+    display: flex;
+    gap: 5px;
+    flex-wrap: wrap;
+    margin-top: 4px;
+  }
+  .color-swatch {
+    width: 20px; height: 20px;
+    border-radius: 4px;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: border-color 0.1s, transform 0.1s;
+  }
+  .color-swatch:hover { transform: scale(1.15); }
+  .color-swatch.selected { border-color: white; }
+
+  /* No-selection state */
+  .no-selection {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: var(--zinc-600);
+    font-size: 11px;
+    gap: 8px;
+    padding: 24px;
+    text-align: center;
+  }
+  .no-selection .icon { font-size: 28px; opacity: 0.4; }
+
+  /* Topology summary */
+  .topology-node {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 0;
+    font-size: 10px;
+  }
+  .topo-indent { width: 16px; flex-shrink: 0; position: relative; }
+  .topo-indent::before { content: ''; position: absolute; left: 6px; top: -100%; bottom: 50%; width: 1px; background: var(--zinc-700); }
+  .topo-indent::after { content: ''; position: absolute; left: 6px; top: 50%; width: 8px; height: 1px; background: var(--zinc-700); }
+  .topo-name { color: var(--zinc-300); font-weight: 600; }
+  .topo-type { color: var(--zinc-600); font-size: 9px; }
+
+  /* Prompt output bar */
+  .prompt-bar {
+    border-top: 1px solid var(--zinc-800);
+    background: var(--zinc-900);
+    padding: 10px 14px;
+    flex-shrink: 0;
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+  }
+  .prompt-label { font-size: 9px; color: var(--zinc-600); text-transform: uppercase; letter-spacing: 0.05em; flex-shrink: 0; padding-top: 1px; }
+  .prompt-text {
+    flex: 1;
+    font-size: 11px;
+    color: var(--zinc-400);
+    line-height: 1.6;
+    max-height: 72px;
+    overflow-y: auto;
+  }
+  .prompt-text strong { color: var(--zinc-200); }
+  .copy-btn {
+    font-size: 10px;
+    padding: 4px 12px;
+    background: var(--zinc-800);
+    color: var(--zinc-400);
+    border: 1px solid var(--zinc-700);
+    border-radius: 4px;
+    cursor: pointer;
+    font-family: inherit;
+    white-space: nowrap;
+    transition: all 0.15s;
+    flex-shrink: 0;
+  }
+  .copy-btn:hover { background: var(--zinc-700); color: var(--zinc-200); }
+  .copy-btn.copied { background: rgba(16,185,129,0.2); color: var(--emerald-400); border-color: rgba(16,185,129,0.3); }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--zinc-700); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--zinc-600); }
+
+  /* Comm rule line labels */
+  .edge-label {
+    font-size: 9px;
+    fill: var(--zinc-500);
+  }
+
+  /* Canvas empty hint */
+  .canvas-hint {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: var(--zinc-700);
+    font-size: 11px;
+    text-align: center;
+    pointer-events: none;
+    line-height: 2;
+  }
+
+  /* Inline edit active state */
+  .form-input.unsaved, .form-select.unsaved, .form-textarea.unsaved { border-color: var(--amber-500); }
+
+  /* Divider */
+  .divider { height: 1px; background: var(--zinc-800); margin: 8px 0; }
+
+  /* Stat row */
+  .stat-row { display: flex; justify-content: space-between; font-size: 10px; padding: 3px 0; }
+  .stat-row dt { color: var(--zinc-500); }
+  .stat-row dd { color: var(--zinc-300); font-variant-numeric: tabular-nums; }
+
+  /* Canvas drag cursor */
+  .dragging { cursor: grabbing !important; }
+  .dragging .agent-node { pointer-events: none; }
+
+  .panel-actions-row { display: flex; gap: 6px; flex-wrap: wrap; }
+</style>
+</head>
+<body>
+
+<!-- Top Bar -->
+<div class="topbar">
+  <div class="brand">ICHOR<span>IV</span></div>
+  <div class="brand" style="color:var(--zinc-600)">WORKSHOP</div>
+  <div class="topbar-sep"></div>
+
+  <div class="team-browser">
+    <div class="team-select-wrap">
+      <input class="team-search-input" id="teamSearch" placeholder="Search teams..." autocomplete="off"
+             onfocus="openDropdown()" oninput="filterTeams(this.value)">
+      <div class="team-dropdown" id="teamDropdown"></div>
+    </div>
+
+    <button class="topbar-btn primary btn-sm" onclick="newTeam()">+ New</button>
+    <button class="topbar-btn btn-sm" onclick="duplicateTeam()">Duplicate</button>
+    <button class="topbar-btn danger btn-sm" onclick="deleteTeam()">Delete</button>
+
+    <div class="topbar-sep"></div>
+
+    <select class="preset-select" id="presetSelect" onchange="loadPreset(this.value)">
+      <option value="">-- Load Preset --</option>
+      <option value="empty">Empty Canvas</option>
+      <option value="mes">MES Team</option>
+      <option value="pipeline">Pipeline Team</option>
+      <option value="solo">Solo Agent</option>
+      <option value="review">Review Chain</option>
+    </select>
+
+    <div class="topbar-sep"></div>
+
+    <div class="team-name-badge">
+      <span id="activeTeamName">Untitled Team</span>
+      <span class="save-dot" id="saveDot"></span>
+    </div>
+    <button class="topbar-btn primary btn-sm" onclick="saveTeam()">Save</button>
+  </div>
+</div>
+
+<!-- Main -->
+<div class="main">
+
+  <!-- Canvas -->
+  <div class="canvas-wrap">
+    <div class="canvas-area" id="canvas" onclick="canvasClick(event)">
+      <svg class="canvas-svg" id="canvasSvg"></svg>
+      <div class="canvas-hint" id="canvasHint">Drop agents here<br><span style="font-size:9px;color:var(--zinc-800)">Click canvas to deselect</span></div>
+    </div>
+
+    <div class="canvas-controls">
+      <button class="canvas-btn" onclick="addAgentToCanvas()">+ Agent</button>
+      <button class="canvas-btn" onclick="layoutAuto()">Auto Layout</button>
+      <button class="canvas-btn" onclick="fitView()">Fit View</button>
+      <span style="font-size:10px;color:var(--zinc-600);padding:4px 6px;">
+        <span id="agentCount">0</span> agents
+      </span>
+    </div>
+  </div>
+
+  <!-- Right Panel -->
+  <div class="right-panel">
+    <div class="tab-nav">
+      <button class="tab-btn active" onclick="switchTab('team', this)">Team</button>
+      <button class="tab-btn" onclick="switchTab('agent', this)">Agent</button>
+      <button class="tab-btn" onclick="switchTab('connections', this)">Connect</button>
+      <button class="tab-btn" onclick="switchTab('types', this)">Types</button>
+    </div>
+
+    <!-- TAB 1: Team Config -->
+    <div class="tab-panel active" id="tab-team">
+      <div class="panel-section">
+        <div class="panel-section-title">Team Configuration</div>
+        <div class="form-row">
+          <div class="form-label">Team Name</div>
+          <input class="form-input" id="tname" placeholder="e.g. MES Alpha" oninput="markDirty();updateTeamName(this.value)">
+        </div>
+        <div class="form-row-inline">
+          <div class="form-row">
+            <div class="form-label">Strategy</div>
+            <select class="form-select" id="tstrategy" onchange="markDirty()">
+              <option value="sequential">sequential</option>
+              <option value="parallel">parallel</option>
+              <option value="hierarchical">hierarchical</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <div class="form-label">Default Model</div>
+            <select class="form-select" id="tmodel" onchange="markDirty()">
+              <option value="claude-opus-4-5">opus-4-5</option>
+              <option value="claude-sonnet-4-5" selected>sonnet-4-5</option>
+              <option value="claude-haiku-4-5">haiku-4-5</option>
+              <option value="gpt-4o">gpt-4o</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-label">Working Directory</div>
+          <input class="form-input" id="tcwd" placeholder="/path/to/project" oninput="markDirty()">
+        </div>
+        <div class="form-row">
+          <div class="form-label">Description</div>
+          <textarea class="form-textarea" id="tdesc" placeholder="What does this team do?" oninput="markDirty()" style="min-height:48px"></textarea>
+        </div>
+      </div>
+      <div class="panel-section">
+        <div class="panel-section-title">Team Stats</div>
+        <div class="stat-row"><dt>Agents</dt><dd id="statAgents">0</dd></div>
+        <div class="stat-row"><dt>Spawn Links</dt><dd id="statSpawn">0</dd></div>
+        <div class="stat-row"><dt>Comm Rules</dt><dd id="statComm">0</dd></div>
+        <div class="stat-row"><dt>Strategy</dt><dd id="statStrategy">—</dd></div>
+      </div>
+      <div class="panel-section" style="flex:1"></div>
+      <div class="panel-section" style="border-top:1px solid var(--zinc-800);margin-top:auto">
+        <button class="btn btn-launch" onclick="launchTeam()">LAUNCH TEAM</button>
+      </div>
+    </div>
+
+    <!-- TAB 2: Agent Config -->
+    <div class="tab-panel" id="tab-agent">
+      <div id="agentPanelInner">
+        <div class="no-selection">
+          <div class="icon">◈</div>
+          <div>Select an agent node<br>on the canvas</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 3: Connections -->
+    <div class="tab-panel" id="tab-connections">
+      <div class="panel-section">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <div class="panel-section-title" style="margin:0">Spawn Links</div>
+          <button class="btn btn-muted btn-sm" onclick="toggleAddConn('spawn')">+ Add</button>
+        </div>
+        <div id="spawnList"></div>
+        <div class="add-conn-form" id="spawnForm">
+          <div class="form-row-inline">
+            <div class="form-row">
+              <div class="form-label">Parent</div>
+              <select class="form-select" id="spawnFrom"></select>
+            </div>
+            <div class="form-row">
+              <div class="form-label">Child</div>
+              <select class="form-select" id="spawnTo"></select>
+            </div>
+          </div>
+          <div class="panel-actions-row" style="margin-top:6px">
+            <button class="btn btn-primary btn-sm" onclick="addSpawnLink()">Add Link</button>
+            <button class="btn btn-muted btn-sm" onclick="toggleAddConn('spawn')">Cancel</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel-section">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <div class="panel-section-title" style="margin:0">Comm Rules</div>
+          <button class="btn btn-muted btn-sm" onclick="toggleAddConn('comm')">+ Add</button>
+        </div>
+        <div id="commList"></div>
+        <div class="add-conn-form" id="commForm">
+          <div class="form-row">
+            <div class="form-label">Policy</div>
+            <select class="form-select" id="commPolicy">
+              <option value="allow">allow</option>
+              <option value="deny">deny</option>
+              <option value="route_via">route_via</option>
+              <option value="broadcast">broadcast</option>
+            </select>
+          </div>
+          <div class="form-row-inline">
+            <div class="form-row">
+              <div class="form-label">From</div>
+              <select class="form-select" id="commFrom"></select>
+            </div>
+            <div class="form-row">
+              <div class="form-label">To</div>
+              <select class="form-select" id="commTo"></select>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-label">Via (relay agent, optional)</div>
+            <select class="form-select" id="commVia">
+              <option value="">-- none --</option>
+            </select>
+          </div>
+          <div class="panel-actions-row" style="margin-top:6px">
+            <button class="btn btn-primary btn-sm" onclick="addCommRule()">Add Rule</button>
+            <button class="btn btn-muted btn-sm" onclick="toggleAddConn('comm')">Cancel</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel-section">
+        <div class="panel-section-title">Topology</div>
+        <div id="topologyView"></div>
+      </div>
+    </div>
+
+    <!-- TAB 4: Types & Templates -->
+    <div class="tab-panel" id="tab-types">
+      <div class="panel-section">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <div class="panel-section-title" style="margin:0">Agent Types</div>
+          <div style="display:flex;gap:5px">
+            <button class="btn btn-primary btn-sm" onclick="applyTypeToSelected()">Apply</button>
+            <button class="btn btn-muted btn-sm" onclick="newAgentType()">+ New</button>
+          </div>
+        </div>
+        <div id="typeList"></div>
+      </div>
+      <div class="panel-section" id="typeEditPanel" style="display:none">
+        <div class="panel-section-title">Edit Type</div>
+        <div class="form-row">
+          <div class="form-label">Name</div>
+          <input class="form-input" id="typeName" placeholder="e.g. researcher" oninput="typeFieldChanged()">
+        </div>
+        <div class="form-row">
+          <div class="form-label">Capability</div>
+          <select class="form-select" id="typeCapability" onchange="typeFieldChanged()">
+            <option value="builder">builder</option>
+            <option value="scout">scout</option>
+            <option value="reviewer">reviewer</option>
+            <option value="coordinator">coordinator</option>
+            <option value="lead">lead</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <div class="form-label">Default Model</div>
+          <select class="form-select" id="typeModel" onchange="typeFieldChanged()">
+            <option value="claude-opus-4-5">opus-4-5</option>
+            <option value="claude-sonnet-4-5" selected>sonnet-4-5</option>
+            <option value="claude-haiku-4-5">haiku-4-5</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <div class="form-label">Sort Order</div>
+          <input class="form-input" id="typeSortOrder" type="number" min="0" max="99" placeholder="0" oninput="typeFieldChanged()">
+        </div>
+        <div class="form-row">
+          <div class="form-label">Color</div>
+          <div class="color-picker-row" id="typeColorPicker"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-label">Default Persona</div>
+          <textarea class="form-textarea" id="typePersona" placeholder="Default system prompt for this type..." oninput="typeFieldChanged()"></textarea>
+        </div>
+        <div class="panel-actions-row" style="margin-top:8px">
+          <button class="btn btn-primary btn-sm" onclick="saveAgentType()">Save Type</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteAgentType()">Delete</button>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- end right-panel -->
+</div><!-- end main -->
+
+<!-- Prompt output bar -->
+<div class="prompt-bar">
+  <div class="prompt-label">Phoenix<br>Output</div>
+  <div class="prompt-text" id="promptText">
+    Select components or make changes to see <strong>LiveView implementation instructions</strong>...
+  </div>
+  <button class="copy-btn" id="copyBtn" onclick="copyPrompt()">Copy</button>
+</div>
+
+<script>
+// ─────────────────────────────────────────────────────────
+// DATA
+// ─────────────────────────────────────────────────────────
+
+const COLORS = [
+  '#6366f1','#22d3ee','#34d399','#fbbf24','#f87171',
+  '#c084fc','#60a5fa','#fb923c','#a3e635','#e879f9'
+];
+
+const agentTypes = [
+  { id: 't1', name: 'Coordinator', capability: 'coordinator', model: 'claude-opus-4-5',  color: '#6366f1', sort_order: 0, persona: 'You coordinate agent teams. Route tasks, synthesize results, manage scope.' },
+  { id: 't2', name: 'Lead',        capability: 'lead',        model: 'claude-sonnet-4-5', color: '#c084fc', sort_order: 1, persona: 'You lead a domain. Own architecture decisions, break down tasks for workers.' },
+  { id: 't3', name: 'Builder',     capability: 'builder',     model: 'claude-sonnet-4-5', color: '#34d399', sort_order: 2, persona: 'You implement. Write production code. Follow instructions precisely.' },
+  { id: 't4', name: 'Scout',       capability: 'scout',       model: 'claude-haiku-4-5',  color: '#22d3ee', sort_order: 3, persona: 'You explore and research. Read codebase, gather context, report findings.' },
+  { id: 't5', name: 'Reviewer',    capability: 'reviewer',    model: 'claude-sonnet-4-5', color: '#fbbf24', sort_order: 4, persona: 'You review code and outputs for correctness, style, and completeness.' },
+];
+
+const savedTeams = [
+  { id: 'team1', name: 'MES Alpha',      strategy: 'hierarchical', model: 'claude-sonnet-4-5', cwd: '/projects/mes', desc: 'MES project team with coordinator + lead + 3 researchers' },
+  { id: 'team2', name: 'Review Chain',   strategy: 'sequential',   model: 'claude-sonnet-4-5', cwd: '',             desc: 'Sequential review pipeline' },
+  { id: 'team3', name: 'Solo Builder',   strategy: 'sequential',   model: 'claude-opus-4-5',   cwd: '',             desc: 'Single agent builder' },
+];
+
+const presets = {
+  empty: { name: 'Empty Canvas', agents: [], spawnLinks: [], commRules: [] },
+  mes: {
+    name: 'MES Team',
+    agents: [
+      { id: 'a1', name: 'Coordinator',   typeId: 't1', capability: 'coordinator', model: 'claude-opus-4-5',  permission: 'full',    persona: 'Oversee MES project. Delegate to lead and researchers.', file_scope: '', extra_instructions: '', tool_scope: ['bash', 'read', 'write'], x: 280, y: 60, health: 'idle' },
+      { id: 'a2', name: 'Tech Lead',     typeId: 't2', capability: 'lead',        model: 'claude-sonnet-4-5', permission: 'write',   persona: 'Lead technical implementation. Own architecture.',         file_scope: 'lib/**', extra_instructions: 'Always run mix compile after changes', tool_scope: ['bash', 'read', 'write', 'edit'], x: 120, y: 200, health: 'idle' },
+      { id: 'a3', name: 'Researcher A',  typeId: 't4', capability: 'scout',       model: 'claude-haiku-4-5',  permission: 'read',    persona: 'Explore codebase and gather context.',                    file_scope: 'lib/**', extra_instructions: '', tool_scope: ['bash', 'read', 'glob', 'grep'], x: 380, y: 200, health: 'idle' },
+      { id: 'a4', name: 'Researcher B',  typeId: 't4', capability: 'scout',       model: 'claude-haiku-4-5',  permission: 'read',    persona: 'Research external dependencies and APIs.',                file_scope: '', extra_instructions: '', tool_scope: ['bash', 'read'], x: 80, y: 340, health: 'idle' },
+    ],
+    spawnLinks: [
+      { id: 's1', from: 'a1', to: 'a2' },
+      { id: 's2', from: 'a1', to: 'a3' },
+      { id: 's3', from: 'a2', to: 'a4' },
+    ],
+    commRules: [
+      { id: 'c1', from: 'a2', to: 'a1', policy: 'allow',    via: '' },
+      { id: 'c2', from: 'a3', to: 'a1', policy: 'allow',    via: '' },
+      { id: 'c3', from: 'a4', to: 'a2', policy: 'route_via', via: 'a1' },
+    ],
+  },
+  pipeline: {
+    name: 'Pipeline Team',
+    agents: [
+      { id: 'a1', name: 'Coordinator', typeId: 't1', capability: 'coordinator', model: 'claude-opus-4-5',  permission: 'full',  persona: '', file_scope: '', extra_instructions: '', tool_scope: [], x: 240, y: 60,  health: 'idle' },
+      { id: 'a2', name: 'Lead',        typeId: 't2', capability: 'lead',        model: 'claude-sonnet-4-5', permission: 'write', persona: '', file_scope: '', extra_instructions: '', tool_scope: [], x: 240, y: 180, health: 'idle' },
+      { id: 'a3', name: 'Worker A',    typeId: 't3', capability: 'builder',     model: 'claude-haiku-4-5',  permission: 'write', persona: '', file_scope: '', extra_instructions: '', tool_scope: [], x: 100, y: 300, health: 'idle' },
+      { id: 'a4', name: 'Worker B',    typeId: 't3', capability: 'builder',     model: 'claude-haiku-4-5',  permission: 'write', persona: '', file_scope: '', extra_instructions: '', tool_scope: [], x: 380, y: 300, health: 'idle' },
+    ],
+    spawnLinks: [
+      { id: 's1', from: 'a1', to: 'a2' },
+      { id: 's2', from: 'a2', to: 'a3' },
+      { id: 's3', from: 'a2', to: 'a4' },
+    ],
+    commRules: [
+      { id: 'c1', from: 'a2', to: 'a1', policy: 'allow', via: '' },
+      { id: 'c2', from: 'a3', to: 'a2', policy: 'allow', via: '' },
+      { id: 'c3', from: 'a4', to: 'a2', policy: 'allow', via: '' },
+    ],
+  },
+  solo: {
+    name: 'Solo Agent',
+    agents: [
+      { id: 'a1', name: 'Builder', typeId: 't3', capability: 'builder', model: 'claude-opus-4-5', permission: 'full', persona: 'You are a solo implementation agent. Work autonomously.', file_scope: '', extra_instructions: '', tool_scope: ['bash','read','write','edit'], x: 240, y: 150, health: 'idle' },
+    ],
+    spawnLinks: [],
+    commRules: [],
+  },
+  review: {
+    name: 'Review Chain',
+    agents: [
+      { id: 'a1', name: 'Coordinator', typeId: 't1', capability: 'coordinator', model: 'claude-opus-4-5',  permission: 'full',  persona: '', file_scope: '', extra_instructions: '', tool_scope: [], x: 260, y: 50,  health: 'idle' },
+      { id: 'a2', name: 'Reviewer A',  typeId: 't5', capability: 'reviewer',    model: 'claude-sonnet-4-5', permission: 'read',  persona: 'First pass: check logic and correctness.', file_scope: '', extra_instructions: '', tool_scope: [], x: 120, y: 200, health: 'idle' },
+      { id: 'a3', name: 'Reviewer B',  typeId: 't5', capability: 'reviewer',    model: 'claude-sonnet-4-5', permission: 'read',  persona: 'Second pass: check style and completeness.', file_scope: '', extra_instructions: '', tool_scope: [], x: 400, y: 200, health: 'idle' },
+    ],
+    spawnLinks: [
+      { id: 's1', from: 'a1', to: 'a2' },
+      { id: 's2', from: 'a1', to: 'a3' },
+    ],
+    commRules: [
+      { id: 'c1', from: 'a2', to: 'a1', policy: 'allow', via: '' },
+      { id: 'c2', from: 'a3', to: 'a1', policy: 'allow', via: '' },
+    ],
+  },
+};
+
+// ─────────────────────────────────────────────────────────
+// STATE
+// ─────────────────────────────────────────────────────────
+
+let state = {
+  teamName: 'Untitled Team',
+  strategy: 'hierarchical',
+  model: 'claude-sonnet-4-5',
+  cwd: '',
+  desc: '',
+  agents: [],
+  spawnLinks: [],
+  commRules: [],
+  selectedAgentId: null,
+  selectedTypeId: null,
+  dirty: false,
+  agentTypes: JSON.parse(JSON.stringify(agentTypes)),
+};
+
+let idCounter = 100;
+function nextId(prefix) { return prefix + (++idCounter); }
+
+// ─────────────────────────────────────────────────────────
+// INIT
+// ─────────────────────────────────────────────────────────
+
+function init() {
+  populateDropdowns();
+  renderTypeList();
+  renderColorPicker();
+  renderTeamDropdown(savedTeams);
+  loadPresetData(presets.mes, 'MES Alpha');
+  updatePrompt('welcome');
+}
+
+function populateDropdowns() {
+  const ts = document.getElementById('tstrategy');
+  const tm = document.getElementById('tmodel');
+  if (state.strategy) ts.value = state.strategy;
+  if (state.model) tm.value = state.model;
+}
+
+// ─────────────────────────────────────────────────────────
+// TEAM BROWSER
+// ─────────────────────────────────────────────────────────
+
+function renderTeamDropdown(teams) {
+  const dd = document.getElementById('teamDropdown');
+  dd.innerHTML = teams.map(t => `
+    <div class="team-dropdown-item ${state.teamName === t.name ? 'active' : ''}" onclick="selectTeam('${t.id}')">
+      <span style="color:var(--zinc-500)">◈</span>
+      <span>${t.name}</span>
+      <span style="color:var(--zinc-700);font-size:9px;margin-left:auto">${t.strategy}</span>
+    </div>`).join('');
+}
+
+function openDropdown() {
+  const dd = document.getElementById('teamDropdown');
+  dd.classList.add('open');
+  document.addEventListener('click', closeDropdown, { once: true });
+}
+
+function closeDropdown(e) {
+  const dd = document.getElementById('teamDropdown');
+  if (!dd.contains(e.target)) dd.classList.remove('open');
+}
+
+function filterTeams(q) {
+  const filtered = savedTeams.filter(t => t.name.toLowerCase().includes(q.toLowerCase()));
+  renderTeamDropdown(filtered);
+  document.getElementById('teamDropdown').classList.add('open');
+}
+
+function selectTeam(id) {
+  const team = savedTeams.find(t => t.id === id);
+  if (!team) return;
+  document.getElementById('teamDropdown').classList.remove('open');
+  document.getElementById('teamSearch').value = team.name;
+  // Simulate loading team
+  state.teamName = team.name;
+  state.strategy = team.strategy;
+  state.model = team.model;
+  state.cwd = team.cwd;
+  state.desc = team.desc;
+  syncTeamForm();
+  updateTeamName(team.name);
+  clearDirty();
+  updatePrompt('team-load');
+}
+
+function newTeam() {
+  state = { ...state, teamName: 'New Team', strategy: 'hierarchical', model: 'claude-sonnet-4-5', cwd: '', desc: '', agents: [], spawnLinks: [], commRules: [], selectedAgentId: null };
+  syncTeamForm();
+  renderCanvas();
+  renderConnections();
+  updateStats();
+  clearDirty();
+  document.getElementById('teamSearch').value = '';
+  updatePrompt('team-new');
+}
+
+function duplicateTeam() {
+  state.teamName = state.teamName + ' (copy)';
+  syncTeamForm();
+  markDirty();
+  updatePrompt('team-duplicate');
+}
+
+function deleteTeam() {
+  if (confirm(`Delete "${state.teamName}"?`)) {
+    newTeam();
+    updatePrompt('team-delete');
+  }
+}
+
+function saveTeam() {
+  clearDirty();
+  updatePrompt('team-save');
+}
+
+function updateTeamName(name) {
+  state.teamName = name;
+  document.getElementById('activeTeamName').textContent = name || 'Untitled';
+  document.getElementById('tname').value = name;
+}
+
+function syncTeamForm() {
+  document.getElementById('tname').value = state.teamName;
+  document.getElementById('tstrategy').value = state.strategy;
+  document.getElementById('tmodel').value = state.model;
+  document.getElementById('tcwd').value = state.cwd;
+  document.getElementById('tdesc').value = state.desc;
+  document.getElementById('activeTeamName').textContent = state.teamName;
+  updateStats();
+}
+
+function markDirty() {
+  state.dirty = true;
+  document.getElementById('saveDot').classList.add('dirty');
+}
+
+function clearDirty() {
+  state.dirty = false;
+  document.getElementById('saveDot').classList.remove('dirty');
+}
+
+// ─────────────────────────────────────────────────────────
+// PRESETS
+// ─────────────────────────────────────────────────────────
+
+function loadPreset(key) {
+  if (!key) return;
+  const p = presets[key];
+  if (!p) return;
+  loadPresetData(p, p.name);
+  document.getElementById('presetSelect').value = '';
+  updatePrompt('preset-' + key);
+}
+
+function loadPresetData(p, name) {
+  state.teamName = name;
+  state.agents = JSON.parse(JSON.stringify(p.agents));
+  state.spawnLinks = JSON.parse(JSON.stringify(p.spawnLinks));
+  state.commRules = JSON.parse(JSON.stringify(p.commRules));
+  state.selectedAgentId = null;
+  syncTeamForm();
+  renderCanvas();
+  renderConnections();
+  updateStats();
+  clearDirty();
+}
+
+// ─────────────────────────────────────────────────────────
+// CANVAS RENDERING
+// ─────────────────────────────────────────────────────────
+
+function renderCanvas() {
+  const canvas = document.getElementById('canvas');
+  // Remove existing nodes
+  canvas.querySelectorAll('.agent-node').forEach(n => n.remove());
+
+  const hint = document.getElementById('canvasHint');
+  hint.style.display = state.agents.length === 0 ? 'block' : 'none';
+  document.getElementById('agentCount').textContent = state.agents.length;
+
+  state.agents.forEach(agent => {
+    const node = createAgentNode(agent);
+    canvas.appendChild(node);
+  });
+
+  renderEdges();
+}
+
+function createAgentNode(agent) {
+  const div = document.createElement('div');
+  div.className = 'agent-node' + (agent.id === state.selectedAgentId ? ' selected' : '');
+  div.id = 'node-' + agent.id;
+  div.style.left = (agent.x || 100) + 'px';
+  div.style.top  = (agent.y || 100) + 'px';
+
+  const type = state.agentTypes.find(t => t.id === agent.typeId);
+  const healthClass = agent.health || 'idle';
+
+  div.innerHTML = `
+    <div class="agent-node-header">
+      <span class="agent-node-name">${agent.name}</span>
+      <span class="health-dot ${healthClass}" title="${healthClass}"></span>
+    </div>
+    <div class="agent-node-body">
+      <div class="agent-node-row">
+        <span class="cap-badge ${agent.capability}">${agent.capability}</span>
+        <span class="model-badge">${shortModel(agent.model)}</span>
+      </div>
+      ${type ? `<div class="agent-node-row"><span class="label" style="color:${type.color};font-size:9px">◈ ${type.name}</span></div>` : ''}
+      <div class="port-row">
+        <span class="port spawn" title="Spawn port (green)"></span>
+        <span class="port comm" title="Comm port (cyan)"></span>
+      </div>
+    </div>`;
+
+  div.addEventListener('mousedown', e => startDrag(e, agent));
+  div.addEventListener('click', e => { e.stopPropagation(); selectAgent(agent.id); });
+
+  return div;
+}
+
+function shortModel(m) {
+  if (!m) return '?';
+  return m.replace('claude-','').replace('-4-5','');
+}
+
+function selectAgent(id) {
+  state.selectedAgentId = id;
+  document.querySelectorAll('.agent-node').forEach(n => n.classList.remove('selected'));
+  const node = document.getElementById('node-' + id);
+  if (node) node.classList.add('selected');
+  renderAgentPanel();
+  switchTab('agent', document.querySelector('.tab-btn:nth-child(2)'));
+  updatePrompt('agent-select');
+}
+
+function canvasClick() {
+  state.selectedAgentId = null;
+  document.querySelectorAll('.agent-node').forEach(n => n.classList.remove('selected'));
+  renderAgentPanel();
+}
+
+// ─────────────────────────────────────────────────────────
+// EDGE RENDERING (SVG)
+// ─────────────────────────────────────────────────────────
+
+function getNodeCenter(agentId) {
+  const agent = state.agents.find(a => a.id === agentId);
+  if (!agent) return { x: 0, y: 0 };
+  return { x: (agent.x || 0) + 90, y: (agent.y || 0) + 50 };
+}
+
+function renderEdges() {
+  const svg = document.getElementById('canvasSvg');
+  svg.innerHTML = '';
+
+  // Spawn links (green)
+  state.spawnLinks.forEach(link => {
+    const from = getNodeCenter(link.from);
+    const to   = getNodeCenter(link.to);
+    const mid  = { x: (from.x + to.x) / 2, y: (from.y + to.y) / 2 };
+
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    const d = `M ${from.x} ${from.y} C ${from.x} ${mid.y}, ${to.x} ${mid.y}, ${to.x} ${to.y}`;
+    path.setAttribute('d', d);
+    path.setAttribute('stroke', '#34d399');
+    path.setAttribute('stroke-width', '1.5');
+    path.setAttribute('fill', 'none');
+    path.setAttribute('opacity', '0.5');
+    path.setAttribute('stroke-dasharray', '5 3');
+    svg.appendChild(path);
+
+    // Arrowhead
+    addArrow(svg, from, to, '#34d399');
+  });
+
+  // Comm rules (cyan)
+  state.commRules.forEach(rule => {
+    const from = getNodeCenter(rule.from);
+    const to   = getNodeCenter(rule.to);
+
+    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    line.setAttribute('x1', from.x); line.setAttribute('y1', from.y);
+    line.setAttribute('x2', to.x);   line.setAttribute('y2', to.y);
+    line.setAttribute('stroke', '#22d3ee');
+    line.setAttribute('stroke-width', '1');
+    line.setAttribute('opacity', '0.4');
+    svg.appendChild(line);
+
+    // Policy label
+    const mx = (from.x + to.x) / 2;
+    const my = (from.y + to.y) / 2;
+    const txt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    txt.setAttribute('x', mx); txt.setAttribute('y', my - 4);
+    txt.setAttribute('text-anchor', 'middle');
+    txt.setAttribute('class', 'edge-label');
+    txt.textContent = rule.policy;
+    svg.appendChild(txt);
+  });
+}
+
+function addArrow(svg, from, to, color) {
+  const dx = to.x - from.x, dy = to.y - from.y;
+  const len = Math.sqrt(dx*dx + dy*dy);
+  if (len < 1) return;
+  const ux = dx/len, uy = dy/len;
+  const ax = to.x - ux*14, ay = to.y - uy*14;
+  const perp = { x: -uy*5, y: ux*5 };
+
+  const poly = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+  poly.setAttribute('points', `${to.x},${to.y} ${ax+perp.x},${ay+perp.y} ${ax-perp.x},${ay-perp.y}`);
+  poly.setAttribute('fill', color);
+  poly.setAttribute('opacity', '0.6');
+  svg.appendChild(poly);
+}
+
+// ─────────────────────────────────────────────────────────
+// DRAG
+// ─────────────────────────────────────────────────────────
+
+let drag = null;
+
+function startDrag(e, agent) {
+  if (e.target.classList.contains('port')) return;
+  e.preventDefault();
+  const node = document.getElementById('node-' + agent.id);
+  const rect = node.getBoundingClientRect();
+  const canvasRect = document.getElementById('canvas').getBoundingClientRect();
+  drag = {
+    agentId: agent.id,
+    startX: e.clientX,
+    startY: e.clientY,
+    origX: agent.x,
+    origY: agent.y,
+    canvasLeft: canvasRect.left,
+    canvasTop:  canvasRect.top,
+  };
+  document.addEventListener('mousemove', onDrag);
+  document.addEventListener('mouseup', endDrag);
+}
+
+function onDrag(e) {
+  if (!drag) return;
+  const dx = e.clientX - drag.startX;
+  const dy = e.clientY - drag.startY;
+  const agent = state.agents.find(a => a.id === drag.agentId);
+  if (!agent) return;
+  agent.x = Math.max(0, drag.origX + dx);
+  agent.y = Math.max(0, drag.origY + dy);
+  const node = document.getElementById('node-' + drag.agentId);
+  if (node) {
+    node.style.left = agent.x + 'px';
+    node.style.top  = agent.y + 'px';
+  }
+  renderEdges();
+}
+
+function endDrag(e) {
+  drag = null;
+  document.removeEventListener('mousemove', onDrag);
+  document.removeEventListener('mouseup', endDrag);
+  markDirty();
+}
+
+// ─────────────────────────────────────────────────────────
+// ADD AGENT
+// ─────────────────────────────────────────────────────────
+
+function addAgentToCanvas() {
+  const id = nextId('a');
+  const agent = {
+    id,
+    name: 'New Agent',
+    typeId: 't3',
+    capability: 'builder',
+    model: 'claude-haiku-4-5',
+    permission: 'write',
+    persona: '',
+    file_scope: '',
+    extra_instructions: '',
+    tool_scope: [],
+    x: 80 + Math.random() * 300,
+    y: 80 + Math.random() * 200,
+    health: 'idle',
+  };
+  state.agents.push(agent);
+  document.getElementById('agentCount').textContent = state.agents.length;
+  document.getElementById('canvasHint').style.display = 'none';
+  const node = createAgentNode(agent);
+  document.getElementById('canvas').appendChild(node);
+  renderEdges();
+  updateStats();
+  selectAgent(id);
+  populateConnSelects();
+  markDirty();
+}
+
+// ─────────────────────────────────────────────────────────
+// AGENT PANEL
+// ─────────────────────────────────────────────────────────
+
+function renderAgentPanel() {
+  const panel = document.getElementById('agentPanelInner');
+  const agent = state.agents.find(a => a.id === state.selectedAgentId);
+
+  if (!agent) {
+    panel.innerHTML = `<div class="no-selection"><div class="icon">◈</div><div>Select an agent node<br>on the canvas</div></div>`;
+    return;
+  }
+
+  const toolTags = (agent.tool_scope || []).map(t =>
+    `<span class="tag-chip">${t}<span class="remove" data-tool="${t}" onclick="removeToolTag(this, '${agent.id}')">×</span></span>`
+  ).join('');
+
+  panel.innerHTML = `
+    <div class="panel-section">
+      <div class="panel-section-title">Identity</div>
+      <div class="form-row">
+        <div class="form-label">Name</div>
+        <input class="form-input" value="${esc(agent.name)}" oninput="agentField('${agent.id}','name',this.value)">
+      </div>
+      <div class="form-row-inline">
+        <div class="form-row">
+          <div class="form-label">Capability</div>
+          <select class="form-select" onchange="agentField('${agent.id}','capability',this.value)">
+            ${['builder','scout','reviewer','coordinator','lead'].map(c =>
+              `<option value="${c}" ${agent.capability===c?'selected':''}>${c}</option>`).join('')}
+          </select>
+        </div>
+        <div class="form-row">
+          <div class="form-label">Permission</div>
+          <select class="form-select" onchange="agentField('${agent.id}','permission',this.value)">
+            ${['read','write','full'].map(p =>
+              `<option value="${p}" ${agent.permission===p?'selected':''}>${p}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-label">Model</div>
+        <select class="form-select" onchange="agentField('${agent.id}','model',this.value)">
+          ${['claude-opus-4-5','claude-sonnet-4-5','claude-haiku-4-5','gpt-4o'].map(m =>
+            `<option value="${m}" ${agent.model===m?'selected':''}>${m}</option>`).join('')}
+        </select>
+      </div>
+    </div>
+    <div class="panel-section">
+      <div class="panel-section-title">Persona</div>
+      <div class="form-row">
+        <div class="form-label">System Prompt</div>
+        <textarea class="form-textarea" style="min-height:80px" placeholder="Agent persona / system prompt..." oninput="agentField('${agent.id}','persona',this.value)">${esc(agent.persona)}</textarea>
+      </div>
+      <div class="form-row">
+        <div class="form-label">Extra Instructions</div>
+        <textarea class="form-textarea" placeholder="Runtime instructions appended to persona..." oninput="agentField('${agent.id}','extra_instructions',this.value)">${esc(agent.extra_instructions||'')}</textarea>
+      </div>
+    </div>
+    <div class="panel-section">
+      <div class="panel-section-title">Scope</div>
+      <div class="form-row">
+        <div class="form-label">File Scope</div>
+        <input class="form-input" placeholder="lib/**/*.ex" value="${esc(agent.file_scope||'')}" oninput="agentField('${agent.id}','file_scope',this.value)">
+      </div>
+      <div class="form-row">
+        <div class="form-label">Quality Gates</div>
+        <input class="form-input" placeholder="mix compile --warnings-as-errors" value="${esc(agent.quality_gates||'')}" oninput="agentField('${agent.id}','quality_gates',this.value)">
+      </div>
+      <div class="form-row">
+        <div class="form-label">Tool Scope</div>
+        <div class="tag-input-wrap" onclick="this.querySelector('.tag-real-input').focus()">
+          ${toolTags}
+          <input class="tag-real-input" placeholder="add tool..." onkeydown="toolScopeKeydown(event,'${agent.id}')">
+        </div>
+      </div>
+    </div>
+    <div class="panel-section">
+      <div class="panel-section-title">Actions</div>
+      <div class="panel-actions-row">
+        <button class="btn btn-muted btn-sm" onclick="duplicateAgent('${agent.id}')">Duplicate</button>
+        <button class="btn btn-danger btn-sm" onclick="removeAgent('${agent.id}')">Remove Agent</button>
+      </div>
+    </div>`;
+}
+
+function agentField(id, field, val) {
+  const agent = state.agents.find(a => a.id === id);
+  if (!agent) return;
+  agent[field] = val;
+  // Re-render node header if name changed
+  if (field === 'name' || field === 'capability' || field === 'model') {
+    const node = document.getElementById('node-' + id);
+    if (node) {
+      const old = node;
+      const newNode = createAgentNode(agent);
+      old.replaceWith(newNode);
+    }
+  }
+  markDirty();
+  updatePrompt('agent-edit');
+}
+
+function removeToolTag(el, agentId) {
+  const tool = el.dataset.tool;
+  const agent = state.agents.find(a => a.id === agentId);
+  if (!agent) return;
+  agent.tool_scope = (agent.tool_scope || []).filter(t => t !== tool);
+  renderAgentPanel();
+  markDirty();
+}
+
+function toolScopeKeydown(e, agentId) {
+  if (e.key === 'Enter' || e.key === ',') {
+    e.preventDefault();
+    const val = e.target.value.trim().replace(',','');
+    if (!val) return;
+    const agent = state.agents.find(a => a.id === agentId);
+    if (!agent) return;
+    if (!agent.tool_scope) agent.tool_scope = [];
+    if (!agent.tool_scope.includes(val)) agent.tool_scope.push(val);
+    renderAgentPanel();
+    markDirty();
+  }
+}
+
+function duplicateAgent(id) {
+  const orig = state.agents.find(a => a.id === id);
+  if (!orig) return;
+  const copy = { ...JSON.parse(JSON.stringify(orig)), id: nextId('a'), name: orig.name + ' (copy)', x: orig.x + 30, y: orig.y + 30 };
+  state.agents.push(copy);
+  const node = createAgentNode(copy);
+  document.getElementById('canvas').appendChild(node);
+  renderEdges();
+  updateStats();
+  populateConnSelects();
+  selectAgent(copy.id);
+  markDirty();
+}
+
+function removeAgent(id) {
+  state.agents = state.agents.filter(a => a.id !== id);
+  state.spawnLinks = state.spawnLinks.filter(l => l.from !== id && l.to !== id);
+  state.commRules  = state.commRules.filter(r => r.from !== id && r.to !== id && r.via !== id);
+  state.selectedAgentId = null;
+  renderCanvas();
+  renderConnections();
+  renderAgentPanel();
+  updateStats();
+  markDirty();
+}
+
+// ─────────────────────────────────────────────────────────
+// CONNECTIONS
+// ─────────────────────────────────────────────────────────
+
+function renderConnections() {
+  renderSpawnList();
+  renderCommList();
+  renderTopology();
+  populateConnSelects();
+}
+
+function agentName(id) {
+  const a = state.agents.find(a => a.id === id);
+  return a ? a.name : id;
+}
+
+function renderSpawnList() {
+  const el = document.getElementById('spawnList');
+  if (state.spawnLinks.length === 0) {
+    el.innerHTML = '<div style="color:var(--zinc-700);font-size:10px;padding:4px 0">No spawn links defined</div>';
+    return;
+  }
+  el.innerHTML = state.spawnLinks.map(l => `
+    <div class="conn-item">
+      <span class="conn-type spawn">spawn</span>
+      <span class="conn-detail"><strong>${agentName(l.from)}</strong> → ${agentName(l.to)}</span>
+      <div class="conn-actions">
+        <button class="btn btn-danger btn-icon" onclick="removeSpawnLink('${l.id}')">×</button>
+      </div>
+    </div>`).join('');
+}
+
+function renderCommList() {
+  const el = document.getElementById('commList');
+  if (state.commRules.length === 0) {
+    el.innerHTML = '<div style="color:var(--zinc-700);font-size:10px;padding:4px 0">No comm rules defined</div>';
+    return;
+  }
+  el.innerHTML = state.commRules.map(r => {
+    const viaStr = r.via ? ` via ${agentName(r.via)}` : '';
+    return `
+    <div class="conn-item">
+      <span class="conn-type comm">${r.policy}</span>
+      <span class="conn-detail"><strong>${agentName(r.from)}</strong> → ${agentName(r.to)}${viaStr}</span>
+      <div class="conn-actions">
+        <button class="btn btn-muted btn-icon" onclick="editCommRule('${r.id}')">✎</button>
+        <button class="btn btn-danger btn-icon" onclick="removeCommRule('${r.id}')">×</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderTopology() {
+  const el = document.getElementById('topologyView');
+  if (state.agents.length === 0) {
+    el.innerHTML = '<div style="color:var(--zinc-700);font-size:10px;padding:4px 0">No agents</div>';
+    return;
+  }
+
+  // Build simple tree from spawn links
+  const children = {};
+  const hasParent = new Set();
+  state.spawnLinks.forEach(l => {
+    if (!children[l.from]) children[l.from] = [];
+    children[l.from].push(l.to);
+    hasParent.add(l.to);
+  });
+  const roots = state.agents.filter(a => !hasParent.has(a.id));
+
+  function renderNode(id, depth) {
+    const agent = state.agents.find(a => a.id === id);
+    if (!agent) return '';
+    const indent = depth > 0 ? `<span class="topo-indent"></span>`.repeat(depth) : '';
+    const kids = (children[id] || []).map(cid => renderNode(cid, depth + 1)).join('');
+    return `
+      <div class="topology-node" style="padding-left:${depth*14}px">
+        <span class="cap-badge ${agent.capability}" style="font-size:8px">${agent.capability[0].toUpperCase()}</span>
+        <span class="topo-name">${agent.name}</span>
+        <span class="topo-type">${shortModel(agent.model)}</span>
+      </div>${kids}`;
+  }
+
+  el.innerHTML = roots.map(r => renderNode(r.id, 0)).join('') || '<div style="color:var(--zinc-700);font-size:10px">No hierarchy defined</div>';
+}
+
+function populateConnSelects() {
+  const agents = state.agents;
+  const opts = agents.map(a => `<option value="${a.id}">${a.name}</option>`).join('');
+  const viaOpts = '<option value="">-- none --</option>' + opts;
+
+  ['spawnFrom','spawnTo','commFrom','commTo'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = opts;
+  });
+  const via = document.getElementById('commVia');
+  if (via) via.innerHTML = viaOpts;
+}
+
+function toggleAddConn(type) {
+  const form = document.getElementById(type + 'Form');
+  form.classList.toggle('open');
+  if (form.classList.contains('open')) populateConnSelects();
+}
+
+function addSpawnLink() {
+  const from = document.getElementById('spawnFrom').value;
+  const to   = document.getElementById('spawnTo').value;
+  if (!from || !to || from === to) return;
+  const exists = state.spawnLinks.find(l => l.from === from && l.to === to);
+  if (exists) return;
+  state.spawnLinks.push({ id: nextId('s'), from, to });
+  renderConnections();
+  renderEdges();
+  updateStats();
+  document.getElementById('spawnForm').classList.remove('open');
+  markDirty();
+  updatePrompt('conn-add');
+}
+
+function removeSpawnLink(id) {
+  state.spawnLinks = state.spawnLinks.filter(l => l.id !== id);
+  renderConnections();
+  renderEdges();
+  updateStats();
+  markDirty();
+}
+
+function addCommRule() {
+  const from   = document.getElementById('commFrom').value;
+  const to     = document.getElementById('commTo').value;
+  const policy = document.getElementById('commPolicy').value;
+  const via    = document.getElementById('commVia').value;
+  if (!from || !to) return;
+  state.commRules.push({ id: nextId('c'), from, to, policy, via });
+  renderConnections();
+  renderEdges();
+  updateStats();
+  document.getElementById('commForm').classList.remove('open');
+  markDirty();
+  updatePrompt('conn-add');
+}
+
+function removeCommRule(id) {
+  state.commRules = state.commRules.filter(r => r.id !== id);
+  renderConnections();
+  renderEdges();
+  updateStats();
+  markDirty();
+}
+
+function editCommRule(id) {
+  const rule = state.commRules.find(r => r.id === id);
+  if (!rule) return;
+  // Open form and pre-fill
+  populateConnSelects();
+  document.getElementById('commFrom').value   = rule.from;
+  document.getElementById('commTo').value     = rule.to;
+  document.getElementById('commPolicy').value = rule.policy;
+  document.getElementById('commVia').value    = rule.via || '';
+  document.getElementById('commForm').classList.add('open');
+  // Remove existing and re-add on save
+  state.commRules = state.commRules.filter(r => r.id !== id);
+  renderCommList();
+  renderEdges();
+}
+
+// ─────────────────────────────────────────────────────────
+// TYPES
+// ─────────────────────────────────────────────────────────
+
+function renderTypeList() {
+  const el = document.getElementById('typeList');
+  el.innerHTML = state.agentTypes.sort((a,b) => a.sort_order - b.sort_order).map(t => {
+    const usage = state.agents.filter(a => a.typeId === t.id).length;
+    return `
+    <div class="type-row ${state.selectedTypeId === t.id ? 'selected' : ''}" onclick="selectType('${t.id}')">
+      <span class="type-color-swatch" style="background:${t.color}"></span>
+      <span class="type-name">${t.name}</span>
+      <span class="cap-badge ${t.capability}" style="font-size:8px">${t.capability}</span>
+      <span class="type-count">${usage} agent${usage !== 1 ? 's' : ''}</span>
+    </div>`;
+  }).join('');
+}
+
+function selectType(id) {
+  state.selectedTypeId = id;
+  const type = state.agentTypes.find(t => t.id === id);
+  if (!type) return;
+  renderTypeList();
+  document.getElementById('typeEditPanel').style.display = 'block';
+  document.getElementById('typeName').value       = type.name;
+  document.getElementById('typeCapability').value = type.capability;
+  document.getElementById('typeModel').value      = type.model;
+  document.getElementById('typeSortOrder').value  = type.sort_order;
+  document.getElementById('typePersona').value    = type.persona || '';
+  // Highlight selected color
+  document.querySelectorAll('.color-swatch').forEach(s => {
+    s.classList.toggle('selected', s.dataset.color === type.color);
+  });
+  updatePrompt('type-select');
+}
+
+function newAgentType() {
+  const id = nextId('t');
+  const type = { id, name: 'New Type', capability: 'builder', model: 'claude-haiku-4-5', color: COLORS[0], sort_order: state.agentTypes.length, persona: '' };
+  state.agentTypes.push(type);
+  renderTypeList();
+  selectType(id);
+}
+
+function saveAgentType() {
+  const type = state.agentTypes.find(t => t.id === state.selectedTypeId);
+  if (!type) return;
+  type.name        = document.getElementById('typeName').value;
+  type.capability  = document.getElementById('typeCapability').value;
+  type.model       = document.getElementById('typeModel').value;
+  type.sort_order  = parseInt(document.getElementById('typeSortOrder').value) || 0;
+  type.persona     = document.getElementById('typePersona').value;
+  renderTypeList();
+  renderCanvas();
+  markDirty();
+  updatePrompt('type-save');
+}
+
+function deleteAgentType() {
+  if (!state.selectedTypeId) return;
+  if (confirm('Delete this agent type?')) {
+    state.agentTypes = state.agentTypes.filter(t => t.id !== state.selectedTypeId);
+    state.selectedTypeId = null;
+    document.getElementById('typeEditPanel').style.display = 'none';
+    renderTypeList();
+    markDirty();
+  }
+}
+
+function typeFieldChanged() {
+  // live update color swatch preview in type row
+}
+
+function applyTypeToSelected() {
+  const agent = state.agents.find(a => a.id === state.selectedAgentId);
+  const type  = state.agentTypes.find(t => t.id === state.selectedTypeId);
+  if (!agent || !type) {
+    alert('Select both an agent (on canvas) and a type (from the list)');
+    return;
+  }
+  agent.typeId     = type.id;
+  agent.capability = type.capability;
+  agent.model      = type.model;
+  if (!agent.persona) agent.persona = type.persona;
+  const node = document.getElementById('node-' + agent.id);
+  if (node) node.replaceWith(createAgentNode(agent));
+  renderAgentPanel();
+  markDirty();
+  updatePrompt('type-apply');
+}
+
+function renderColorPicker() {
+  const el = document.getElementById('typeColorPicker');
+  el.innerHTML = COLORS.map(c =>
+    `<span class="color-swatch" data-color="${c}" style="background:${c}" onclick="pickColor('${c}')"></span>`
+  ).join('');
+}
+
+function pickColor(color) {
+  const type = state.agentTypes.find(t => t.id === state.selectedTypeId);
+  if (!type) return;
+  type.color = color;
+  document.querySelectorAll('.color-swatch').forEach(s => {
+    s.classList.toggle('selected', s.dataset.color === color);
+  });
+  renderTypeList();
+  markDirty();
+}
+
+// ─────────────────────────────────────────────────────────
+// LAYOUT HELPERS
+// ─────────────────────────────────────────────────────────
+
+function layoutAuto() {
+  if (state.agents.length === 0) return;
+
+  // Build adjacency for topo sort
+  const children = {};
+  const hasParent = new Set();
+  state.spawnLinks.forEach(l => {
+    if (!children[l.from]) children[l.from] = [];
+    children[l.from].push(l.to);
+    hasParent.add(l.to);
+  });
+
+  const roots = state.agents.filter(a => !hasParent.has(a.id));
+  const placed = new Set();
+  const levelMap = {};
+
+  function assignLevel(id, level) {
+    if (placed.has(id)) return;
+    placed.add(id);
+    if (!levelMap[level]) levelMap[level] = [];
+    levelMap[level].push(id);
+    (children[id] || []).forEach(c => assignLevel(c, level + 1));
+  }
+
+  roots.forEach(r => assignLevel(r.id, 0));
+  // Any unplaced agents go to last level
+  state.agents.forEach(a => { if (!placed.has(a.id)) { const l = Object.keys(levelMap).length; if (!levelMap[l]) levelMap[l] = []; levelMap[l].push(a.id); } });
+
+  const levelH = 160, startY = 60;
+  Object.entries(levelMap).forEach(([level, ids]) => {
+    const count = ids.length;
+    const totalW = count * 200 + (count - 1) * 30;
+    const startX = Math.max(40, (document.getElementById('canvas').offsetWidth - totalW) / 2);
+    ids.forEach((id, i) => {
+      const agent = state.agents.find(a => a.id === id);
+      if (agent) {
+        agent.x = startX + i * 230;
+        agent.y = startY + parseInt(level) * levelH;
+      }
+    });
+  });
+
+  renderCanvas();
+  renderConnections();
+  updatePrompt('layout-auto');
+}
+
+function fitView() {
+  // Simple: just re-render in place
+  renderCanvas();
+  renderConnections();
+}
+
+// ─────────────────────────────────────────────────────────
+// STATS
+// ─────────────────────────────────────────────────────────
+
+function updateStats() {
+  document.getElementById('statAgents').textContent   = state.agents.length;
+  document.getElementById('statSpawn').textContent    = state.spawnLinks.length;
+  document.getElementById('statComm').textContent     = state.commRules.length;
+  document.getElementById('statStrategy').textContent = state.strategy || '—';
+  document.getElementById('agentCount').textContent   = state.agents.length;
+  document.getElementById('canvasHint').style.display = state.agents.length === 0 ? 'block' : 'none';
+}
+
+// ─────────────────────────────────────────────────────────
+// TABS
+// ─────────────────────────────────────────────────────────
+
+function switchTab(name, btn) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  if (btn) btn.classList.add('active');
+  else {
+    const btns = document.querySelectorAll('.tab-btn');
+    const map = { team: 0, agent: 1, connections: 2, types: 3 };
+    if (map[name] !== undefined) btns[map[name]].classList.add('active');
+  }
+  if (name === 'connections') renderConnections();
+  if (name === 'types') renderTypeList();
+}
+
+// ─────────────────────────────────────────────────────────
+// LAUNCH
+// ─────────────────────────────────────────────────────────
+
+function launchTeam() {
+  updatePrompt('launch');
+}
+
+// ─────────────────────────────────────────────────────────
+// PROMPT OUTPUT
+// ─────────────────────────────────────────────────────────
+
+const PROMPTS = {
+  welcome: () => `<strong>ICHOR IV Workshop Designer</strong> — Loaded preset <em>MES Alpha</em>.
+    This playground maps directly to <code>Ichor.Workshop</code> domain Ash resources:
+    <code>Team</code>, <code>TeamMember</code>, <code>AgentType</code>, <code>SpawnLink</code>, <code>CommRule</code>.
+    Use tabs to configure. Canvas is drag-and-drop.`,
+
+  'team-load': () => `<strong>ws_list_teams</strong> event triggered — team selected from browser.
+    In LiveView: <code>handle_event("ws_list_teams", %{"team_id" => id}, socket)</code>.
+    Load via <code>Ichor.Workshop.Team |> Ash.get!(id, actor: socket.assigns.current_user)</code>,
+    assign result to <code>@active_team</code>.`,
+
+  'team-new': () => `<strong>New team</strong> — LiveView: <code>handle_event("ws_new_team", _params, socket)</code>.
+    Call <code>Ichor.Workshop.Team |> Ash.Changeset.for_create(:create, %{name: "New Team"}, actor: socket.assigns.current_user) |> Ash.create!()</code>.
+    Push LiveView patch to <code>/workshop/teams/:id/edit</code>.`,
+
+  'team-save': () => `<strong>Team saved</strong> — LiveView: <code>handle_event("ws_save_team", params, socket)</code>.
+    Use <code>Ash.Changeset.for_update(team, :update, attrs, actor: actor) |> Ash.update!()</code>.
+    Broadcast change via <code>Phoenix.PubSub.broadcast(Ichor.PubSub, "workshop:teams", {:team_updated, team.id})</code>.
+    UI clears dirty indicator.`,
+
+  'preset-mes': () => `<strong>Preset: MES Team</strong> loaded.
+    Coordinator (opus-4-5) spawns Tech Lead + Researcher A. Tech Lead spawns Researcher B.
+    Comm rules: upward reporting allowed; Researcher B routes via Coordinator.
+    In Phoenix: seed via <code>Ichor.Workshop.Team.seed_mes_preset(actor)</code> — call
+    <code>Ash.create!</code> for team, then 4× <code>TeamMember</code> creates, then spawn/comm junction creates.`,
+
+  'preset-pipeline': () => `<strong>Preset: Pipeline Team</strong> loaded.
+    Linear spawn chain: Coordinator → Lead → Worker A + B.
+    All comm rules are upward allow.
+    Strategy: <code>sequential</code>. Suitable for phased implementation tasks.`,
+
+  'preset-solo': () => `<strong>Preset: Solo Agent</strong> loaded.
+    Single builder, full permissions, opus-4-5.
+    No spawn or comm rules needed.
+    LiveView renders canvas with one node, connections tab shows empty state.`,
+
+  'preset-review': () => `<strong>Preset: Review Chain</strong> loaded.
+    Coordinator spawns Reviewer A (first pass) and Reviewer B (second pass).
+    Both report upward via allow comm rules.
+    Sequential strategy: reviewers run in order defined by spawn link sort_order.`,
+
+  'preset-empty': () => `<strong>Empty Canvas</strong> loaded.
+    Use <em>+ Agent</em> button or drag from the Types panel to build from scratch.
+    Save as new team when done.`,
+
+  'team-new': () => `<strong>New team created</strong>. Fill in Team Config (Tab 1),
+    then add agents from the canvas.
+    In LiveView: <code>Ichor.Workshop.Team |> Ash.Changeset.for_create(:create, params, actor: actor) |> Ash.create!()</code>.`,
+
+  'team-duplicate': () => `<strong>Duplicate team</strong> — deep-copy all agents + links.
+    In LiveView: custom action <code>:duplicate</code> on Team resource.
+    Use <code>Ash.Changeset.for_create(:duplicate, %{source_team_id: id})</code> +
+    custom <code>Ichor.Workshop.Changes.DuplicateTeam</code> change module.`,
+
+  'team-delete': () => `<strong>Delete team</strong> — LiveView: confirm modal, then
+    <code>Ash.destroy!(team, actor: actor)</code>.
+    Team resource should use <code>require_atomic?: false</code> with cascade destroy on
+    TeamMember, SpawnLink, CommRule via <code>has_many ... do; destroy_action :destroy; end</code>.`,
+
+  'agent-select': () => {
+    const a = state.agents.find(x => x.id === state.selectedAgentId);
+    if (!a) return 'No agent selected.';
+    return `<strong>Agent selected: ${a.name}</strong> (${a.capability}, ${shortModel(a.model)}).
+      In LiveView: <code>handle_event("ws_select_agent", %{"id" => id}, socket)</code> →
+      <code>assign(socket, :selected_member, Ash.get!(TeamMember, id, actor: actor))</code>.
+      Right panel re-renders with <code>&lt;.agent_config_form member={@selected_member} /&gt;</code>.`;
+  },
+
+  'agent-edit': () => `<strong>Agent field updated</strong>.
+    In LiveView: <code>handle_event("ws_update_member", %{"field" => f, "value" => v}, socket)</code>.
+    Use <code>Ash.Changeset.for_update(member, :update, %{field => value}, actor: actor) |> Ash.update!()</code>.
+    Canvas node re-renders via <code>phx-hook="WorkshopCanvas"</code> push_event to JS.`,
+
+  'conn-add': () => `<strong>Connection added</strong>.
+    SpawnLinks map to <code>Ichor.Workshop.SpawnLink</code> resource (fields: <code>team_id, parent_member_id, child_member_id</code>).
+    CommRules map to <code>Ichor.Workshop.CommRule</code> (fields: <code>team_id, from_member_id, to_member_id, policy, via_member_id</code>).
+    Both support add/remove but not inline edit — delete and re-create for changes.`,
+
+  'type-select': () => {
+    const t = state.agentTypes.find(x => x.id === state.selectedTypeId);
+    if (!t) return '';
+    return `<strong>AgentType: ${t.name}</strong> — Ash resource <code>Ichor.Workshop.AgentType</code>.
+      Fields: <code>name, capability, default_model, color, sort_order, default_persona</code>.
+      color stored as hex string. sort_order used for UI ordering — add <code>default_sort_value</code>
+      calculation. Use <code>:read</code> action with <code>sort: [sort_order: :asc]</code>.`;
+  },
+
+  'type-save': () => `<strong>AgentType saved</strong>.
+    LiveView: <code>handle_event("ws_save_agent_type", params, socket)</code>.
+    <code>Ash.Changeset.for_update(type, :update, attrs, actor: actor) |> Ash.update!()</code>.
+    color field: validate with <code>match(~r/^#[0-9a-f]{6}$/i)</code> in Ash validation.
+    sort_order: use <code>integer_between(0, 99)</code> constraint.`,
+
+  'type-apply': () => {
+    const a = state.agents.find(x => x.id === state.selectedAgentId);
+    const t = state.agentTypes.find(x => x.id === state.selectedTypeId);
+    if (!a || !t) return 'Select an agent and a type to apply.';
+    return `<strong>Type applied: ${t.name} → ${a.name}</strong>.
+      LiveView: <code>handle_event("ws_apply_type", %{"member_id" => mid, "type_id" => tid}, socket)</code>.
+      Custom Ash action <code>:apply_type</code> on TeamMember — stamps capability, model, and optionally merges persona.
+      <code>change Ichor.Workshop.Changes.ApplyAgentType</code>.`;
+  },
+
+  'layout-auto': () => `<strong>Auto layout applied</strong>.
+    Canvas layout is client-side only (positions stored on <code>TeamMember.canvas_x/canvas_y</code> fields).
+    In LiveView JS hook <code>WorkshopCanvas</code>: after layout recalc, call
+    <code>this.pushEvent("ws_save_positions", {positions: [{id, x, y}, ...]})</code>.
+    Handler: batch update all positions in a single transaction.`,
+
+  'launch': () => `<strong>LAUNCH TEAM</strong> — triggers <code>handle_event("ws_launch_team", %{"team_id" => id}, socket)</code>.
+    Calls <code>Ichor.Workshop.Team |> Ash.Changeset.for_update(:launch, %{}, actor: actor) |> Ash.update!()</code>.
+    <code>:launch</code> action sets <code>status: :running</code>, broadcasts
+    <code>"workshop:team:#{id}:launched"</code> via PubSub.
+    Factory/Archon subscribes and materializes the agent processes.`,
+};
+
+function updatePrompt(key) {
+  const fn = PROMPTS[key];
+  if (!fn) return;
+  const text = typeof fn === 'function' ? fn() : fn;
+  document.getElementById('promptText').innerHTML = text;
+}
+
+function copyPrompt() {
+  const text = document.getElementById('promptText').innerText;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.getElementById('copyBtn');
+    btn.textContent = 'Copied!';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 1800);
+  });
+}
+
+// ─────────────────────────────────────────────────────────
+// UTILS
+// ─────────────────────────────────────────────────────────
+
+function esc(s) {
+  if (!s) return '';
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ─────────────────────────────────────────────────────────
+// BOOT
+// ─────────────────────────────────────────────────────────
+
+document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
