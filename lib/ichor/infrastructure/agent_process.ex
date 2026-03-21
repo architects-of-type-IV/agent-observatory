@@ -19,7 +19,6 @@ defmodule Ichor.Infrastructure.AgentProcess do
   alias Ichor.Infrastructure.AgentLifecycle
   alias Ichor.Infrastructure.AgentRegistryProjection
   alias Ichor.Infrastructure.AgentState
-  alias Ichor.Signals.EventStream
 
   @type_iv_registry Ichor.Registry
   @pg_scope :ichor_agents
@@ -255,7 +254,7 @@ defmodule Ichor.Infrastructure.AgentProcess do
   def terminate(:tmux_gone, state) do
     # Tmux window already dead -- skip kill, just clean up BEAM-side registrations.
     # Ichor.Registry auto-deregisters when the process exits -- no explicit remove needed.
-    EventStream.tombstone_session(state.id)
+    # EventStream subscribes to :agent_stopped and tombstones the session itself.
     AgentLifecycle.agent_stopped(state.id, :tmux_gone)
     :ok
   end
@@ -263,7 +262,7 @@ defmodule Ichor.Infrastructure.AgentProcess do
   def terminate(reason, state) do
     AgentBackend.terminate(state.backend)
     # Ichor.Registry auto-deregisters when the process exits -- no explicit remove needed.
-    EventStream.tombstone_session(state.id)
+    # EventStream subscribes to :agent_stopped and tombstones the session itself.
     AgentLifecycle.agent_stopped(state.id, reason)
     :ok
   end

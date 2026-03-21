@@ -1,16 +1,18 @@
 defmodule Ichor.Signals.EventStream.AgentLifecycle do
   @moduledoc """
-  Fleet mutations triggered by hook events. Creates, terminates, and manages
-  agent processes in response to event stream data.
+  Signal emission helper for hook-originated fleet lifecycle events.
 
-  All functions here represent what a given event means for the fleet --
-  resolving/spawning AgentProcess entries, disbanding teams, and handling
-  team lifecycle tool calls.
+  Translates raw hook event data into Signals-domain signals. Infrastructure
+  subscribers react to those signals to perform the actual fleet mutations
+  (spawn/terminate AgentProcess, create/disband TeamSupervisor).
+
+  This module must NOT alias or import any Infrastructure module.
   """
 
   require Logger
 
-  alias Ichor.Infrastructure.{AgentProcess, FleetSupervisor, TeamSupervisor}
+  alias Ichor.Infrastructure.AgentProcess
+  alias Ichor.Signals
 
   @doc """
   Resolve or create an AgentProcess for the given session_id and event.
@@ -27,7 +29,8 @@ defmodule Ichor.Signals.EventStream.AgentLifecycle do
         match
 
       true ->
-        spawn_new_agent(session_id, event)
+        emit_session_started(session_id, event)
+        session_id
     end
   rescue
     _ -> session_id
@@ -50,69 +53,21 @@ defmodule Ichor.Signals.EventStream.AgentLifecycle do
     end)
   end
 
-  @doc "Stop the AgentProcess for the given session_id, if one exists."
-  @spec terminate_agent_process(String.t()) :: :ok
-  def terminate_agent_process(session_id) do
-    case AgentProcess.lookup(session_id) do
-      {pid, _meta} -> terminate_or_stop(session_id, pid)
-      nil -> :ok
-    end
-  end
-
-  @doc "Terminate via FleetSupervisor; fall back to GenServer.stop if not found."
-  @spec terminate_or_stop(String.t(), pid()) :: :ok
-  def terminate_or_stop(session_id, pid) do
-    case FleetSupervisor.terminate_agent(session_id) do
-      :ok ->
-        :ok
-
-      {:error, :not_found} ->
-        try do
-          GenServer.stop(pid, :normal)
-        catch
-          :exit, _ -> :ok
-        end
-    end
-  end
-
-  @doc "Ensure a TeamSupervisor exists for `team_name`, creating one if needed."
-  @spec ensure_team_supervisor(String.t()) :: :ok
-  def ensure_team_supervisor(team_name) do
-    unless TeamSupervisor.exists?(team_name) do
-      case FleetSupervisor.create_team(name: team_name) do
-        {:ok, _pid} ->
-          :ok
-
-        {:error, :already_exists} ->
-          :ok
-
-        {:error, reason} ->
-          Logger.debug(
-            "[Signals.EventStream] Could not create TeamSupervisor for #{team_name}: #{inspect(reason)}"
-          )
-
-          :ok
-      end
-    end
-  rescue
-    _ -> :ok
-  end
-
-  @doc "Handle a TeamCreate tool input map by ensuring the team supervisor exists."
+  @doc "Handle a TeamCreate tool input map by emitting team_create_requested."
   @spec handle_team_create(map()) :: :ok
   def handle_team_create(input) do
     if team_name = input["team_name"] do
-      ensure_team_supervisor(team_name)
+      Signals.emit(:team_create_requested, %{team_name: team_name})
     end
 
     :ok
   end
 
-  @doc "Handle a TeamDelete tool input map by disbanding the team."
+  @doc "Handle a TeamDelete tool input map by emitting team_delete_requested."
   @spec handle_team_delete(map()) :: :ok
   def handle_team_delete(input) do
     if team_name = input["team_name"] do
-      FleetSupervisor.disband_team(team_name)
+      Signals.emit(:team_delete_requested, %{team_name: team_name})
     end
 
     :ok
@@ -122,25 +77,15 @@ defmodule Ichor.Signals.EventStream.AgentLifecycle do
   # Private helpers
   # ---------------------------------------------------------------------------
 
-  defp spawn_new_agent(session_id, event) do
+  defp emit_session_started(session_id, event) do
     tmux_session = if event.tmux_session != "", do: event.tmux_session, else: nil
 
-    opts = [
-      id: session_id,
-      role: :worker,
-      backend: if(tmux_session, do: %{type: :tmux, session: tmux_session}, else: nil),
-      metadata: %{
-        cwd: event.cwd,
-        model: event.model_name,
-        os_pid: event.os_pid,
-        name: session_id
-      }
-    ]
-
-    case FleetSupervisor.spawn_agent(opts) do
-      {:ok, _pid} -> session_id
-      {:error, {:already_started, _}} -> session_id
-      {:error, _reason} -> session_id
-    end
+    Signals.emit(:session_started, %{
+      session_id: session_id,
+      tmux_session: tmux_session,
+      cwd: event.cwd,
+      model: event.model_name,
+      os_pid: event.os_pid
+    })
   end
 end

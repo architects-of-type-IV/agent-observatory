@@ -21,7 +21,6 @@ defmodule Ichor.Signals.EventStream do
 
   require Logger
 
-  alias Ichor.Infrastructure.AgentProcess
   alias Ichor.Signals
   alias Ichor.Signals.TraceEvent
   alias Ichor.Signals.EventStream.{AgentLifecycle, Normalizer}
@@ -194,6 +193,7 @@ defmodule Ichor.Signals.EventStream do
   def init(_opts) do
     Enum.each([@table, @tools, @aliases, @tombstones], &ensure_ets/1)
     :timer.send_interval(@check_interval_ms, :check_heartbeats)
+    Signals.subscribe(:fleet)
     {:ok, %{}}
   end
 
@@ -227,6 +227,15 @@ defmodule Ichor.Signals.EventStream do
     {:noreply, Map.drop(state, evicted_ids)}
   end
 
+  def handle_info(
+        %Ichor.Signals.Message{name: :agent_stopped, data: %{session_id: session_id}},
+        state
+      )
+      when is_binary(session_id) do
+    tombstone_session(session_id)
+    {:noreply, state}
+  end
+
   def handle_info(_msg, state), do: {:noreply, state}
 
   # ---------------------------------------------------------------------------
@@ -237,8 +246,7 @@ defmodule Ichor.Signals.EventStream do
     agent_id = AgentLifecycle.resolve_or_create_agent(event.session_id, event)
 
     if event.hook_event_type in [:SessionEnd, "SessionEnd"] do
-      AgentProcess.update_fields(agent_id, %{status: :ended})
-      AgentLifecycle.terminate_agent_process(agent_id)
+      Signals.emit(:session_ended, %{session_id: agent_id, status: :ended})
     end
 
     handle_channel_events(event)

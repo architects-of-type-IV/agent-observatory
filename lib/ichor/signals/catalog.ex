@@ -98,6 +98,26 @@ defmodule Ichor.Signals.Catalog do
       category: :fleet,
       keys: [:session_id],
       doc: "Agent discovered via tmux session scan"
+    },
+    session_started: %{
+      category: :fleet,
+      keys: [:session_id, :tmux_session, :cwd, :model, :os_pid],
+      doc: "New agent session started; Infrastructure subscriber spawns AgentProcess"
+    },
+    session_ended: %{
+      category: :fleet,
+      keys: [:session_id, :status],
+      doc: "Agent session ended; Infrastructure subscriber terminates AgentProcess"
+    },
+    team_create_requested: %{
+      category: :fleet,
+      keys: [:team_name],
+      doc: "TeamCreate tool intercepted; Infrastructure subscriber creates TeamSupervisor"
+    },
+    team_delete_requested: %{
+      category: :fleet,
+      keys: [:team_name],
+      doc: "TeamDelete tool intercepted; Infrastructure subscriber disbands team"
     }
   }
 
