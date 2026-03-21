@@ -150,7 +150,7 @@ defmodule Ichor.Signals.ProtocolTracker do
     if size > @max_traces do
       :ets.tab2list(@table_name)
       |> Enum.sort_by(fn {_, t} -> t.timestamp end, {:asc, DateTime})
-      |> Stream.take(size - @max_traces)
+      |> Enum.take(size - @max_traces)
       |> Enum.each(fn {id, _} -> :ets.delete(@table_name, id) end)
     end
   end

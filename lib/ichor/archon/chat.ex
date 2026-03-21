@@ -383,7 +383,9 @@ defmodule Ichor.Archon.Chat do
        ]}
     end
   rescue
-    _ -> {:ok, []}
+    e ->
+      Logger.warning("chat: build_context_messages failed: #{inspect(e)}")
+      {:ok, []}
   end
 
   defp format_edges({:ok, edges}) when is_list(edges) and edges != [] do

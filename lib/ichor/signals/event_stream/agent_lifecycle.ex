@@ -36,7 +36,12 @@ defmodule Ichor.Signals.EventStream.AgentLifecycle do
         session_id
     end
   rescue
-    _ -> session_id
+    e ->
+      Logger.warning(
+        "agent_lifecycle: resolve_or_create_agent failed for #{session_id}: #{inspect(e)}"
+      )
+
+      session_id
   end
 
   @doc "Look up an existing agent by its tmux session name. Returns agent id or nil."

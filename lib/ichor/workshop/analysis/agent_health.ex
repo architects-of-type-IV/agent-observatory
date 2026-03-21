@@ -66,14 +66,12 @@ defmodule Ichor.Workshop.Analysis.AgentHealth do
 
   defp detect_tool_loops(sorted_events) do
     recent_tools =
-      sorted_events
-      |> Enum.take(@loop_detection_window)
-      |> Enum.filter(&(&1.hook_event_type == :PreToolUse))
-      |> Enum.map(& &1.tool_name)
+      for e <- Enum.take(sorted_events, @loop_detection_window),
+          e.hook_event_type == :PreToolUse,
+          do: e.tool_name
 
-    recent_tools
-    |> Enum.chunk_by(& &1)
-    |> Enum.filter(fn chunk -> length(chunk) >= 3 end)
-    |> Enum.map(fn chunk -> %{tool: hd(chunk), count: length(chunk)} end)
+    for chunk <- Enum.chunk_by(recent_tools, & &1),
+        length(chunk) >= 3,
+        do: %{tool: hd(chunk), count: length(chunk)}
   end
 end

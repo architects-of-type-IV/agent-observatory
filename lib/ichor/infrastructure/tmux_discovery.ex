@@ -101,7 +101,12 @@ defmodule Ichor.Infrastructure.TmuxDiscovery do
         )
     end
   rescue
-    _ -> :ok
+    e ->
+      Logger.warning(
+        "[TmuxDiscovery] create_agent_process failed for #{session_name}: #{inspect(e)}"
+      )
+
+      :ok
   end
 
   defp detect_cwd(session_name) do
@@ -110,7 +115,9 @@ defmodule Ichor.Infrastructure.TmuxDiscovery do
       _ -> nil
     end
   rescue
-    _ -> nil
+    e ->
+      Logger.warning("[TmuxDiscovery] detect_cwd failed for #{session_name}: #{inspect(e)}")
+      nil
   end
 
   defp enrich_tmux_channels(tmux_sessions, tmux_panes, all_entries) do

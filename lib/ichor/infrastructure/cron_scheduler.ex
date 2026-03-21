@@ -52,9 +52,14 @@ defmodule Ichor.Infrastructure.CronScheduler do
   @doc "Returns all scheduled jobs across all agents."
   @spec list_all_jobs() :: [CronJob.t()]
   def list_all_jobs do
-    CronJob.all_scheduled!()
-  rescue
-    _ -> []
+    case CronJob.all_scheduled() do
+      {:ok, jobs} ->
+        jobs
+
+      {:error, reason} ->
+        Logger.warning("CronScheduler: list_all_jobs failed: #{inspect(reason)}")
+        []
+    end
   end
 
   @doc "Recover pending jobs on startup by enqueuing them into Oban."

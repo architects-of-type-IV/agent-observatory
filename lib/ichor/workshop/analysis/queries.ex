@@ -91,9 +91,8 @@ defmodule Ichor.Workshop.Analysis.Queries do
   end
 
   defp team_member_nodes(team, session_sids) do
-    team.members
-    |> Enum.filter(fn m -> m[:agent_id] && not MapSet.member?(session_sids, m[:agent_id]) end)
-    |> Enum.map(fn m ->
+    for m <- team.members,
+        m[:agent_id] && not MapSet.member?(session_sids, m[:agent_id]) do
       %{
         trace_id: m[:agent_id],
         agent_id: m[:agent_id],
@@ -105,7 +104,7 @@ defmodule Ichor.Workshop.Analysis.Queries do
         cwd: if(m[:cwd], do: Path.basename(m[:cwd]), else: nil),
         duration: nil
       }
-    end)
+    end
   end
 
   defp team_edges(team) do

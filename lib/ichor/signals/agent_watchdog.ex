@@ -139,7 +139,9 @@ defmodule Ichor.Signals.AgentWatchdog do
       target -> Tmux.available?(target)
     end
   rescue
-    _ -> false
+    e ->
+      Logger.warning("AgentWatchdog: tmux_session_alive? failed for #{session_id}: #{inspect(e)}")
+      false
   end
 
   defp handle_crash(session_id, nil) do
@@ -161,9 +163,11 @@ defmodule Ichor.Signals.AgentWatchdog do
   end
 
   defp safe_emit(name, data) do
-    Ichor.Signals.emit(name, data)
-  rescue
-    UndefinedFunctionError -> :ok
+    if function_exported?(Ichor.Signals, :emit, 2) do
+      Ichor.Signals.emit(name, data)
+    else
+      :ok
+    end
   end
 
   defp reassign_agent_tasks(session_id, team_name) do

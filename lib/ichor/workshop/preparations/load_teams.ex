@@ -40,12 +40,11 @@ defmodule Ichor.Workshop.Preparations.LoadTeams do
   end
 
   defp extract_team_creates(events) do
-    events
-    |> Enum.filter(&(&1.hook_event_type == :PreToolUse and &1.tool_name == "TeamCreate"))
-    |> Enum.map(fn e ->
+    for e <- events,
+        e.hook_event_type == :PreToolUse and e.tool_name == "TeamCreate" do
       input = (e.payload || %{})["tool_input"] || %{}
       %{name: input["team_name"], lead_session: e.session_id, created_at: e.inserted_at}
-    end)
+    end
     |> Enum.reject(&is_nil(&1.name))
     |> Enum.uniq_by(& &1.name)
   end

@@ -4,6 +4,8 @@ defmodule Ichor.Discovery do
   for use in automation and Reactor workflows.
   """
 
+  require Logger
+
   alias Spark.Dsl.Extension
 
   @type action_info :: %{
@@ -167,7 +169,9 @@ defmodule Ichor.Discovery do
       }
     end)
   rescue
-    _ -> []
+    e ->
+      Logger.warning("discovery: domain_tools failed for #{inspect(domain)}: #{inspect(e)}")
+      []
   end
 
   defp matches_domain?(domain, name) do

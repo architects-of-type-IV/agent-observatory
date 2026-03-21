@@ -64,9 +64,7 @@ defmodule Ichor.Infrastructure.TeamSupervisor do
   @doc "Get IDs of all members in this team from the agent registry."
   @spec member_ids(String.t()) :: [String.t()]
   def member_ids(team_name) do
-    AgentProcess.list_all()
-    |> Enum.filter(fn {_id, meta} -> meta[:team] == team_name end)
-    |> Enum.map(fn {id, _meta} -> id end)
+    for {id, meta} <- AgentProcess.list_all(), meta[:team] == team_name, do: id
   end
 
   @doc "Check if a team exists."

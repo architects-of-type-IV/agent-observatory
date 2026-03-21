@@ -209,9 +209,7 @@ defmodule Ichor.Workshop.Spawn do
       end)
 
     comm_context =
-      rules
-      |> Enum.filter(&(&1.from == agent.id))
-      |> Enum.map(fn rule ->
+      for rule <- rules, rule.from == agent.id do
         via =
           case rule.via do
             nil -> ""
@@ -219,7 +217,7 @@ defmodule Ichor.Workshop.Spawn do
           end
 
         "Talk to slot #{rule.to}: #{rule.policy}#{via}"
-      end)
+      end
 
     tool_lines =
       agent

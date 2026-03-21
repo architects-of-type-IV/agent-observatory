@@ -49,9 +49,7 @@ defmodule Ichor.Infrastructure.HITL.SessionState do
   @doc "Return all currently paused session IDs."
   @spec paused_session_ids(t()) :: [String.t()]
   def paused_session_ids(state) do
-    state.sessions
-    |> Enum.filter(fn {_k, v} -> v == :paused end)
-    |> Enum.map(&elem(&1, 0))
+    for {k, :paused} <- state.sessions, do: k
   end
 
   @doc """
@@ -62,9 +60,9 @@ defmodule Ichor.Infrastructure.HITL.SessionState do
   def abandoned_since(state, ttl_seconds) do
     cutoff = DateTime.add(DateTime.utc_now(), -ttl_seconds, :second)
 
-    state.paused_at
-    |> Enum.filter(fn {_sid, paused_time} -> DateTime.compare(paused_time, cutoff) == :lt end)
-    |> Enum.map(&elem(&1, 0))
+    for {sid, paused_time} <- state.paused_at,
+        DateTime.compare(paused_time, cutoff) == :lt,
+        do: sid
   end
 
   @doc "Remove all state for the given `session_ids`. Returns updated state."

@@ -52,9 +52,7 @@ defmodule Ichor.Factory.PipelineGraph do
       Enum.reverse(waves)
     else
       wave =
-        items
-        |> Enum.filter(&wave_ready?(&1, assigned, all_ids))
-        |> Enum.map(& &1.id)
+        for item <- items, wave_ready?(item, assigned, all_ids), do: item.id
 
       case wave do
         [] ->

@@ -69,9 +69,7 @@ defmodule Ichor.Mesh.EventBridge do
     cutoff = System.monotonic_time(:second) - @stale_ttl_seconds
 
     stale_sids =
-      state.last_seen
-      |> Enum.filter(fn {_sid, ts} -> ts < cutoff end)
-      |> Enum.map(&elem(&1, 0))
+      for {sid, ts} <- state.last_seen, ts < cutoff, do: sid
 
     Enum.each(stale_sids, fn sid ->
       Ichor.Signals.unsubscribe(:dag_delta, sid)

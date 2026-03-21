@@ -11,9 +11,8 @@ defmodule Ichor.Signals.Preparations.LoadToolFailures do
   @impl true
   def prepare(query, _opts, _context) do
     errors =
-      EventBufferReader.list_events()
-      |> Enum.filter(&(&1.hook_event_type == :PostToolUseFailure))
-      |> Enum.map(fn e ->
+      for e <- EventBufferReader.list_events(),
+          e.hook_event_type == :PostToolUseFailure do
         struct!(Ichor.Signals.ToolFailure, %{
           id: e.id,
           tool_name: e.tool_name,
@@ -25,7 +24,7 @@ defmodule Ichor.Signals.Preparations.LoadToolFailures do
           cwd: e.cwd,
           hook_event_type: e.hook_event_type
         })
-      end)
+      end
 
     Simple.set_data(query, errors)
   end

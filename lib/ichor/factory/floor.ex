@@ -30,9 +30,8 @@ defmodule Ichor.Factory.Floor do
           end
 
         my_tasks =
-          tasks
-          |> Enum.filter(fn task -> task["owner"] == session_id or is_nil(task["owner"]) end)
-          |> Enum.map(fn task ->
+          for task <- tasks,
+              task["owner"] == session_id or is_nil(task["owner"]) do
             %{
               "id" => task["id"],
               "subject" => task["subject"],
@@ -40,7 +39,7 @@ defmodule Ichor.Factory.Floor do
               "owner" => task["owner"],
               "description" => task["description"]
             }
-          end)
+          end
 
         {:ok, my_tasks}
       end)

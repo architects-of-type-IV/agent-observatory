@@ -64,8 +64,9 @@ defmodule Ichor.Factory.Board do
     if File.dir?(team_dir) do
       team_dir
       |> File.ls!()
-      |> Enum.filter(&String.ends_with?(&1, ".json"))
-      |> Enum.map(&read_task_or_nil(team_dir, &1))
+      |> then(fn files ->
+        for f <- files, String.ends_with?(f, ".json"), do: read_task_or_nil(team_dir, f)
+      end)
       |> Enum.reject(&is_nil/1)
       |> Enum.sort_by(&task_sort_key/1)
     else
