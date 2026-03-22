@@ -185,6 +185,56 @@ Multiple formats can coexist if there's a canonical internal representation. Gen
    - Currently our routing is in the orchestrator's head
    - Should edges carry routing logic?
 
+## DAG as Cognitive Scaffold (System 2 Prompting)
+
+Beyond orchestration and data modeling, a DAG can be integrated into every LLM prompt cycle as a reasoning structure -- forcing "system 2" thinking by making the model visualize its logic before it speaks.
+
+### The prompt cycle
+
+```
+Input → Build DAG of reasoning steps → Validate DAG → Generate response
+```
+
+The LLM constructs a directed acyclic graph of its reasoning before producing output. Every conclusion must trace back to premises through visible edges. The DAG is validated (acyclic, no dangling nodes) before the response is generated.
+
+### What this prevents
+
+| Failure mode | How the DAG prevents it |
+|---|---|
+| **Circular reasoning** | The DAG literally cannot have cycles |
+| **Skipped steps** | Dangling nodes (conclusions with no incoming edges) are visible |
+| **Conflating correlation with causation** | Edges force explicit declaration of relationship type |
+| **Premature conclusions** | Terminal nodes can't exist until intermediate nodes are present |
+| **Hidden assumptions** | Every premise is a node; unstated assumptions have no node |
+
+### How this differs from chain-of-thought
+
+Chain-of-thought prompting is **linear** ("think step by step"). A DAG allows **branching and merging** -- multiple independent lines of reasoning that converge on a conclusion. This is closer to how real analysis works:
+
+```
+CoT:  A → B → C → D → conclusion
+
+DAG:  A → C ↘
+      B → D → F → conclusion
+      E ────↗
+```
+
+In the DAG, A/B/E are independent premises. C and D are intermediate conclusions. F is a synthesis that requires all three branches. The structure makes explicit which reasoning steps are independent (parallelizable) and which depend on prior conclusions.
+
+### Implementation possibilities
+
+1. **Prompt-level**: Include "build a reasoning DAG before answering" in system prompts. The LLM outputs a graph structure (DOT, Mermaid, or structured JSON) before its response.
+
+2. **Tool-level**: A `build_reasoning_dag` tool that the LLM calls to construct and validate its reasoning graph. The tool enforces acyclicity and completeness.
+
+3. **Architecture-level**: Every agent in ICHOR builds a reasoning DAG as part of its response cycle. The DAG is stored, enabling post-hoc analysis of reasoning quality across sessions. Bad reasoning patterns become detectable graph motifs.
+
+4. **Recursive**: The DAG of reasoning about a task feeds into the DAG of task execution. The reasoning DAG's terminal nodes become the task DAG's root nodes. Two layers of the same abstraction.
+
+### Connection to session history mining
+
+If every prompt cycle produces a reasoning DAG, conversation history becomes a forest of DAGs rather than flat text. Mining this forest for patterns, contradictions, and evolution is fundamentally different from grepping JSONL -- it's graph traversal, subgraph matching, and motif detection.
+
 ## References
 
 - [Attractor spec](https://github.com/strongdm/attractor) -- DOT-based pipeline orchestration
