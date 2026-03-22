@@ -1,5 +1,15 @@
 # ICHOR IV Progress
 
+## Signals Domain Refactor (2026-03-22) -- IN PROGRESS
+- [x] Bug fix: AgentState inbox for tmux-backed agents (695e108, 46d0cd5)
+- [x] Forensic audit: boundary, shape, coupling, PubSub/Archon (docs/audits/)
+- [x] DAG PR merged: AGENT_PROMPT_DAG.md decision framework
+- [x] Design: Handler behaviour, catalog split, SignalManager split
+- [ ] Wave 1: Handler behaviour + catalog/ + signal_manager/
+- [ ] Wave 2: EntropyTracker.Healer + SchemaInterceptor boundary fix
+- [ ] Wave 3: Module relocations
+- [ ] Wave 4: Quality sweep
+
 ## Settings Page + Safety Fixes (2026-03-22) -- COMPLETE
 - [x] Settings domain: Ichor.Settings with SettingsProject resource
 - [x] Embedded Location resource (local/remote) with Ash enums

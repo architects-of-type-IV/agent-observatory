@@ -1,49 +1,53 @@
 # ICHOR IV - Handoff
 
-## Current Status: SETTINGS + SAFETY FIXES (2026-03-22)
+## Current Status: SIGNALS DOMAIN REFACTOR (2026-03-22)
 
-~46 commits. Settings domain added. 5 safety/cleanup findings resolved. Build clean.
+Forensic audit of `lib/ichor/signals/` complete. Ready to execute wave-based refactor.
 
-### Latest: Settings Page + Safety Fixes
+### Session Summary
 
-#### Settings Domain (new)
-- `Ichor.Settings` domain with `SettingsProject` resource (AshSqlite, table: `settings_projects`)
-- Embedded `Location` resource (local/remote) with `LocationType` and `AuthMethodType` Ash enums
-- `GitInfo` change auto-detects `repo_name`/`repo_url` from `.git` folder on create/update
-- 6th nav view at `/settings/projects`, gear icon in bottom nav
-- Phoenix Forms with `inputs_for` for embedded Location
-- Server-side folder browser (Elixir `File.ls` -- browser can't expose paths)
-- Category sidebar: Projects active, 4 stubbed (Operational, Integrations, UI Preferences, Feature Flags)
+1. **Bug fix** (done): `AgentState.maybe_inbox/2` backend-nil guard broke MCP inter-agent messaging for all tmux-backed teams. Fixed + bounded inbox at 200. Commits: `695e108`, `46d0cd5`.
 
-#### Safety Fixes (all 5 complete)
-- **ANTI-5**: Blocking I/O removed from AgentProcess, OutputCapture, MemoriesBridge -- Task.Supervisor
-- **SF-7**: EventStream ETS `:public` -> `:protected`, writes through GenServer
-- **SF-8**: `:run_complete` single emission from `terminate/2`, pipeline completion idempotent
-- **DB-1**: 20 orphaned tables dropped (migration with FK-ordered drops)
-- **DB-2**: 17 stale snapshots removed, 10 remaining match active resources
+2. **Forensic audit** (done): Full boundary, function shape, coupling graph, and PubSub/Archon analysis of `lib/ichor/signals/`. Written to `docs/audits/2026-03-22-signals-domain-forensics.md`.
 
-#### Pre-existing Bug Fixes
-- `pipeline_state` crash: signal merges into existing state
-- `Map.get` defaults for `.total`/`.blocked` in header
-- AgentProcess `terminate(:tmux_gone)` unreachable -- fixed stop reason
+3. **DAG PR merged**: `SPECS/dag/AGENT_PROMPT_DAG.md` + `.yml` + `.dot` + `.ex` -- decision framework as traversable DAG.
+
+4. **Wave-based refactor** (next): Same pattern as 2026-03-21 architecture audit.
+
+### Audit Key Findings
+
+- Only ~40% of `lib/ichor/signals/` is signal infrastructure. Rest is monitoring, health, projections, gateway validation.
+- 3 misplaced modules: AgentWatchdog (6 cross-domain imports), SchemaInterceptor (Mesh concern), ProtocolTracker (monitoring)
+- 7 boundary smells: Operations, EntropyTracker, EventStream, Buffer, TaskProjection, ToolFailure, HITLInterventionEvent
+- `classify_and_store/8` in EntropyTracker is a shape smell (8 params, 3 mixed concerns)
+- EventStream mixes 3 concerns: event buffer + heartbeat registry + ingest pipeline
+
+### Architect Directives
+
+- "events == signals, signals == topics" -- naming is confused
+- "schema interceptor should not contain the word entropy at all"
+- HITL intervention event is misplaced
+- Handler behaviour dispatches at emit-time in the Signals facade
+- Don't extract more from AgentWatchdog -- already has sub-modules
+- "Enrichment" is a code smell
+- Follow the wave pattern from 2026-03-21
+
+### Next: Create tasks.jsonl waves
+
+Priority sequence:
+- **Wave 1**: Handler behaviour + catalog split into catalog/ + SignalManager split into signal_manager/
+- **Wave 2**: EntropyTracker.Healer (first handler implementation) + SchemaInterceptor boundary fix
+- **Wave 3**: Module relocations (AgentWatchdog, ProtocolTracker, HITL, etc.)
+- **Wave 4**: Quality sweep (naming, dead specs, shape fixes)
+
+### Key Files
+
+- `docs/audits/2026-03-22-signals-domain-forensics.md` -- full audit
+- `SPECS/dag/AGENT_PROMPT.md` -- refactor decision framework
+- `SPECS/dag/AGENT_PROMPT_DAG.md` -- DAG traversal guide
+- `~/.claude/plans/lovely-wondering-bengio.md` -- plan file (needs rewrite for wave approach)
+- `memory/project/archon_entropy_healing.md` -- design requirements
 
 ### Build
 - `mix compile --warnings-as-errors`: CLEAN
-- `mix ash.migrate`: CLEAN
-
-### Remaining (tracked in tasks.jsonl)
-**UI:**
-- UI-WS-PROMPTS: Add prompt CRUD to workshop
-- Settings: implement remaining categories
-- Settings: integrate project list as cwd dropdown in spawn flows
-
-**Features:**
-- PulseMonitor (tasks 1.x-4.x)
-- Swarm Memory (tasks 72-77)
-
-### Protocols
-- Architecture docs authoritative (CLAUDE.md)
-- Agents invoke ash-thinking before Ash work
-- Use `inputs_for` for embedded Ash resources in Phoenix Forms
-- `terminate/2` is the canonical signal emission point for GenServer lifecycle events
-- Codex in codex-spar tmux (resume --last if exits)
+- Last test run: 314 Ash resource tests, 0 failures
