@@ -1,5 +1,5 @@
 defmodule Ichor.Signals.TraceEvent do
-  @moduledoc false
+  @moduledoc "Struct for protocol trace events captured by ProtocolTracker."
 
   @enforce_keys [:id, :kind, :name, :timestamp]
   defstruct [

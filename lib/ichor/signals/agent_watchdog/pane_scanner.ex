@@ -20,15 +20,11 @@ defmodule Ichor.Signals.AgentWatchdog.PaneScanner do
   @spec resolve_capture_target(agent :: map()) ::
           {String.t(), (String.t() -> {:ok, String.t()} | {:error, any()})} | nil
   def resolve_capture_target(%{channels: %{tmux: target}}) when is_binary(target) do
-    if capture_target?(target) do
-      {target, &Tmux.capture_pane(&1, lines: @capture_lines)}
-    end
+    if capture_target?(target), do: {target, &Tmux.capture_pane(&1, lines: @capture_lines)}
   end
 
   def resolve_capture_target(%{channels: %{ssh_tmux: target}}) when is_binary(target) do
-    if capture_target?(target) do
-      {target, &SshTmux.capture_pane(&1, lines: @capture_lines)}
-    end
+    if capture_target?(target), do: {target, &SshTmux.capture_pane(&1, lines: @capture_lines)}
   end
 
   def resolve_capture_target(_), do: nil

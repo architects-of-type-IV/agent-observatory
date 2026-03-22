@@ -217,16 +217,19 @@ defmodule Ichor.Signals.AgentWatchdog do
       {nil, _} ->
         escalations
 
-      {entry, _rest} ->
+      {entry, rest} ->
         maybe_unpause(entry, session_id)
-        EscalationEngine.clear(session_id, escalations)
+        rest
     end
   end
 
   defp maybe_unpause(%{level: level}, _session_id) when level < 2, do: :ok
 
   defp maybe_unpause(_entry, session_id) do
-    Task.start(fn -> HITLRelay.unpause(session_id, session_id, "ichor-auto") end)
+    Task.Supervisor.start_child(Ichor.TaskSupervisor, fn ->
+      HITLRelay.unpause(session_id, session_id, "ichor-auto")
+    end)
+
     :ok
   end
 
@@ -334,6 +337,7 @@ defmodule Ichor.Signals.AgentWatchdog do
     end
   end
 
+  @spec session_id(map()) :: String.t() | nil
   defp session_id(agent), do: agent[:session_id] || agent[:id]
 
   defp scan_agent(agent, tmux_target, capture_fn, state) do
