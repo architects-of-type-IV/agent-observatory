@@ -71,14 +71,9 @@ defmodule Ichor.Infrastructure.AgentState do
     %{state | message_log: Enum.take([msg | state.message_log], @max_message_log)}
   end
 
-  # Only buffer in inbox when there is no backend -- inbox is the MCP polling
-  # buffer for agents without a transport. Backend-connected agents get messages
-  # delivered directly; adding them to inbox would cause duplicates via get_unread.
-  defp maybe_inbox(%{backend: nil} = state, msg) do
+  defp maybe_inbox(state, msg) do
     %{state | inbox: [msg | state.inbox]}
   end
-
-  defp maybe_inbox(state, _msg), do: state
 
   defp maybe_buffer(%{status: :active} = state, _msg), do: state
 
