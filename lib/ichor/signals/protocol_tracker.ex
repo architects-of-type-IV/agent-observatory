@@ -127,10 +127,28 @@ defmodule Ichor.Signals.ProtocolTracker do
     size = :ets.info(@table_name, :size)
 
     if size > @max_traces do
-      :ets.tab2list(@table_name)
-      |> Enum.sort_by(fn {_, t} -> t.timestamp end, {:asc, DateTime})
-      |> Enum.take(size - @max_traces)
-      |> Enum.each(fn {id, _} -> :ets.delete(@table_name, id) end)
+      evict_count = size - @max_traces
+
+      :ets.foldl(
+        fn {id, t}, acc -> evict_candidate(acc, id, t.timestamp, evict_count) end,
+        %{},
+        @table_name
+      )
+      |> Map.keys()
+      |> Enum.each(&:ets.delete(@table_name, &1))
+    end
+  end
+
+  defp evict_candidate(acc, id, ts, evict_count) when map_size(acc) < evict_count do
+    Map.put(acc, id, ts)
+  end
+
+  defp evict_candidate(acc, id, ts, _evict_count) do
+    {newest_id, newest_ts} = Enum.max_by(acc, fn {_k, v} -> v end, DateTime)
+
+    case DateTime.compare(ts, newest_ts) do
+      :lt -> acc |> Map.delete(newest_id) |> Map.put(id, ts)
+      _ -> acc
     end
   end
 

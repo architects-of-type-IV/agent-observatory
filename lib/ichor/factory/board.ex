@@ -64,14 +64,16 @@ defmodule Ichor.Factory.Board do
     if File.dir?(team_dir) do
       team_dir
       |> File.ls!()
-      |> then(fn files ->
-        for f <- files, String.ends_with?(f, ".json"), do: read_task_or_nil(team_dir, f)
-      end)
+      |> read_json_tasks(team_dir)
       |> Enum.reject(&is_nil/1)
       |> Enum.sort_by(&task_sort_key/1)
     else
       []
     end
+  end
+
+  defp read_json_tasks(files, team_dir) do
+    for f <- files, String.ends_with?(f, ".json"), do: read_task_or_nil(team_dir, f)
   end
 
   @doc "Return the next available task id for a team."

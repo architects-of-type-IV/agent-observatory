@@ -2,11 +2,12 @@ defmodule Ichor.Infrastructure.CronSchedulerTest do
   @moduledoc false
   use ExUnit.Case, async: false
 
-  alias Ichor.Infrastructure.CronScheduler
+  alias Ecto.Adapters.SQL.Sandbox
   alias Ichor.Factory.CronJob
+  alias Ichor.Infrastructure.CronScheduler
 
   setup do
-    Ecto.Adapters.SQL.Sandbox.checkout(Ichor.Repo)
+    Sandbox.checkout(Ichor.Repo)
   end
 
   describe "schedule_once/3" do
@@ -51,7 +52,7 @@ defmodule Ichor.Infrastructure.CronSchedulerTest do
       {:ok, _} = CronJob.schedule_once(agent_id, "\"{}\"", next_fire)
 
       jobs = CronScheduler.list_jobs(agent_id)
-      assert length(jobs) >= 1
+      assert jobs != []
       Enum.each(jobs, fn job -> assert job.agent_id == agent_id end)
     end
   end
@@ -98,7 +99,7 @@ defmodule Ichor.Infrastructure.CronSchedulerTest do
       {:ok, _job} = CronJob.schedule_once(agent_id, "\"payload\"", next_fire)
 
       {:ok, jobs} = CronJob.for_agent(agent_id)
-      assert length(jobs) >= 1
+      assert jobs != []
       assert Enum.all?(jobs, &(&1.agent_id == agent_id))
     end
 

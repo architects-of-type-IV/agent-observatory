@@ -19,8 +19,8 @@ defmodule IchorWeb.Components.TerminalPanelComponents do
 
   import IchorWeb.Components.TerminalPanel.SessionTab, only: [session_tab: 1]
 
-  alias Phoenix.LiveView.JS
   alias IchorWeb.Components.TerminalPanel.Settings
+  alias Phoenix.LiveView.JS
 
   attr :panel_visible, :boolean, required: true
   attr :panel_position, :atom, required: true

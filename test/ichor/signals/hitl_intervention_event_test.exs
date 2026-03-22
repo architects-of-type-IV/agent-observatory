@@ -2,10 +2,11 @@ defmodule Ichor.Signals.HITLInterventionEventTest do
   @moduledoc false
   use ExUnit.Case, async: false
 
+  alias Ecto.Adapters.SQL.Sandbox
   alias Ichor.Signals.HITLInterventionEvent
 
   setup do
-    Ecto.Adapters.SQL.Sandbox.checkout(Ichor.Repo)
+    Sandbox.checkout(Ichor.Repo)
   end
 
   describe "record/1" do

@@ -2,10 +2,11 @@ defmodule Ichor.Factory.PipelineTaskTest do
   @moduledoc false
   use ExUnit.Case, async: false
 
+  alias Ecto.Adapters.SQL.Sandbox
   alias Ichor.Factory.{Pipeline, PipelineTask}
 
   setup do
-    Ecto.Adapters.SQL.Sandbox.checkout(Ichor.Repo)
+    Sandbox.checkout(Ichor.Repo)
     {:ok, pipeline} = Pipeline.create(%{label: "task-test-pipeline", source: :project})
     {:ok, pipeline: pipeline}
   end

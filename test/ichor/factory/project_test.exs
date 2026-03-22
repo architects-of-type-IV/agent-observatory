@@ -2,10 +2,11 @@ defmodule Ichor.Factory.ProjectTest do
   @moduledoc false
   use ExUnit.Case, async: false
 
+  alias Ecto.Adapters.SQL.Sandbox
   alias Ichor.Factory.Project
 
   setup do
-    Ecto.Adapters.SQL.Sandbox.checkout(Ichor.Repo)
+    Sandbox.checkout(Ichor.Repo)
   end
 
   defp base_attrs(overrides \\ %{}) do

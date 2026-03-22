@@ -12,7 +12,7 @@ defmodule Ichor.Signals.Runtime do
   @impl true
   @spec emit(atom(), map()) :: :ok
   def emit(name, data \\ %{}) when is_atom(name) do
-    info = Catalog.lookup!(name)
+    info = Catalog.lookup_or_derive(name)
     message = Message.build(name, info.category, data)
     broadcast_static(info, message)
   end
@@ -20,7 +20,7 @@ defmodule Ichor.Signals.Runtime do
   @impl true
   @spec emit(atom(), String.t(), map()) :: :ok
   def emit(name, scope_id, data) when is_atom(name) and is_binary(scope_id) do
-    info = Catalog.lookup!(name)
+    info = Catalog.lookup_or_derive(name)
 
     unless info.dynamic do
       raise ArgumentError, "Signal #{name} is not dynamic; cannot emit with scope_id"
@@ -28,10 +28,7 @@ defmodule Ichor.Signals.Runtime do
 
     message = Message.build(name, info.category, Map.put(data, :scope_id, scope_id))
 
-    pubsub_broadcast(Topics.category(info.category), message)
-    pubsub_broadcast(Topics.scoped(info.category, name, scope_id), message)
-    tap_telemetry(name, message)
-    :ok
+    broadcast_scoped(info, name, scope_id, message)
   end
 
   @impl true
@@ -39,14 +36,14 @@ defmodule Ichor.Signals.Runtime do
   def subscribe(name) when is_atom(name) do
     case Catalog.valid_category?(name) do
       true -> pubsub_subscribe(Topics.category(name))
-      false -> pubsub_subscribe(Topics.signal(Catalog.lookup!(name).category, name))
+      false -> pubsub_subscribe(Topics.signal(Catalog.lookup_or_derive(name).category, name))
     end
   end
 
   @impl true
   @spec subscribe(atom(), String.t()) :: :ok | {:error, term()}
   def subscribe(name, scope_id) when is_atom(name) and is_binary(scope_id) do
-    info = Catalog.lookup!(name)
+    info = Catalog.lookup_or_derive(name)
     true = info.dynamic
     pubsub_subscribe(Topics.scoped(info.category, name, scope_id))
   end
@@ -80,6 +77,13 @@ defmodule Ichor.Signals.Runtime do
   @impl true
   @spec categories() :: [atom()]
   def categories, do: Catalog.categories()
+
+  defp broadcast_scoped(info, name, scope_id, message) do
+    pubsub_broadcast(Topics.category(info.category), message)
+    pubsub_broadcast(Topics.scoped(info.category, name, scope_id), message)
+    tap_telemetry(name, message)
+    :ok
+  end
 
   defp broadcast_static(info, message) do
     pubsub_broadcast(Topics.category(info.category), message)

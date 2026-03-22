@@ -2,10 +2,11 @@ defmodule Ichor.Infrastructure.WebhookDeliveryTest do
   @moduledoc false
   use ExUnit.Case, async: false
 
+  alias Ecto.Adapters.SQL.Sandbox
   alias Ichor.Infrastructure.WebhookDelivery
 
   setup do
-    Ecto.Adapters.SQL.Sandbox.checkout(Ichor.Repo)
+    Sandbox.checkout(Ichor.Repo)
   end
 
   describe "enqueue/4" do
@@ -166,7 +167,7 @@ defmodule Ichor.Infrastructure.WebhookDeliveryTest do
       assert dead.status == :dead
 
       {:ok, dead_letters} = WebhookDelivery.dead_letters_for_agent("agent-1")
-      assert length(dead_letters) >= 1
+      assert dead_letters != []
       assert Enum.any?(dead_letters, &(&1.id == dead.id))
     end
   end

@@ -65,7 +65,7 @@ defmodule Ichor.Signals.AgentWatchdog do
   def handle_info(:beat, state) do
     next = state.count + 1
 
-    safe_emit(:heartbeat, %{count: next})
+    Ichor.Signals.emit(:heartbeat, %{count: next})
 
     state =
       state
@@ -96,9 +96,6 @@ defmodule Ichor.Signals.AgentWatchdog do
       when is_binary(team_name) do
     {:noreply, drop_team_state(state, team_name)}
   end
-
-  @impl true
-  def handle_info(%Message{}, state), do: {:noreply, state}
 
   @impl true
   def handle_info(_msg, state), do: {:noreply, state}
@@ -146,13 +143,13 @@ defmodule Ichor.Signals.AgentWatchdog do
 
   defp handle_crash(session_id, nil) do
     Logger.warning("AgentWatchdog: Detected crash for session #{session_id} (standalone)")
-    safe_emit(:agent_crashed, %{session_id: session_id, team_name: nil})
+    Ichor.Signals.emit(:agent_crashed, %{session_id: session_id, team_name: nil})
   end
 
   defp handle_crash(session_id, team_name) do
     Logger.warning("AgentWatchdog: Detected crash for session #{session_id} (#{team_name})")
     reassigned_count = reassign_agent_tasks(session_id, team_name)
-    safe_emit(:agent_crashed, %{session_id: session_id, team_name: team_name})
+    Ichor.Signals.emit(:agent_crashed, %{session_id: session_id, team_name: team_name})
 
     Inbox.write(:agent_crash, %{
       context: team_name,
@@ -160,14 +157,6 @@ defmodule Ichor.Signals.AgentWatchdog do
       team_name: team_name,
       reassigned_tasks: reassigned_count
     })
-  end
-
-  defp safe_emit(name, data) do
-    if function_exported?(Ichor.Signals, :emit, 2) do
-      Ichor.Signals.emit(name, data)
-    else
-      :ok
-    end
   end
 
   defp reassign_agent_tasks(session_id, team_name) do
@@ -229,19 +218,16 @@ defmodule Ichor.Signals.AgentWatchdog do
         escalations
 
       {entry, _rest} ->
-        maybe_unpause(session_id, entry)
+        maybe_unpause(entry, session_id)
         EscalationEngine.clear(session_id, escalations)
     end
   end
 
-  defp maybe_unpause(_session_id, %{level: level}) when level < 2, do: :ok
+  defp maybe_unpause(%{level: level}, _session_id) when level < 2, do: :ok
 
-  defp maybe_unpause(session_id, _entry) do
-    case HITLRelay.unpause(session_id, session_id, "ichor-auto") do
-      {:ok, _} -> :ok
-    end
-  catch
-    :exit, _ -> :ok
+  defp maybe_unpause(_entry, session_id) do
+    Task.start(fn -> HITLRelay.unpause(session_id, session_id, "ichor-auto") end)
+    :ok
   end
 
   defp execute_escalation(session_id, agent, level) do
@@ -348,8 +334,10 @@ defmodule Ichor.Signals.AgentWatchdog do
     end
   end
 
+  defp session_id(agent), do: agent[:session_id] || agent[:id]
+
   defp scan_agent(agent, tmux_target, capture_fn, state) do
-    session_id = agent[:session_id] || agent[:id]
+    session_id = session_id(agent)
 
     case capture_fn.(tmux_target) do
       {:ok, output} ->
@@ -377,46 +365,45 @@ defmodule Ichor.Signals.AgentWatchdog do
   end
 
   defp parse_pane_signals(agent, text, state) do
-    state = check_done_signal(agent, text, state)
-    state = check_blocked_signal(agent, text, state)
+    state =
+      check_pane_signal(
+        :done,
+        &PaneScanner.match_done/1,
+        :agent_done,
+        :summary,
+        agent,
+        text,
+        state
+      )
+
+    state =
+      check_pane_signal(
+        :blocked,
+        &PaneScanner.match_blocked/1,
+        :agent_blocked,
+        :reason,
+        agent,
+        text,
+        state
+      )
+
     check_pane_activity(agent, state)
   end
 
-  defp check_done_signal(agent, text, state) do
-    case PaneScanner.match_done(text) do
-      {:ok, summary} ->
-        session_id = agent[:session_id] || agent[:id]
-        signal_key = {session_id, :done}
+  defp check_pane_signal(kind, match_fn, signal_name, data_key, agent, text, state) do
+    case match_fn.(text) do
+      {:ok, value} ->
+        session_id = session_id(agent)
+        signal_key = {session_id, kind}
 
         case state.signals do
-          %{^signal_key => ^summary} ->
+          %{^signal_key => ^value} ->
             state
 
           _ ->
-            Logger.info("AgentWatchdog: DONE signal from #{agent[:id]}: #{summary}")
-            Ichor.Signals.emit(:agent_done, %{session_id: session_id, summary: summary})
-            put_in(state.signals[signal_key], summary)
-        end
-
-      :nomatch ->
-        state
-    end
-  end
-
-  defp check_blocked_signal(agent, text, state) do
-    case PaneScanner.match_blocked(text) do
-      {:ok, reason} ->
-        session_id = agent[:session_id] || agent[:id]
-        signal_key = {session_id, :blocked}
-
-        case state.signals do
-          %{^signal_key => ^reason} ->
-            state
-
-          _ ->
-            Logger.info("AgentWatchdog: BLOCKED signal from #{agent[:id]}: #{reason}")
-            Ichor.Signals.emit(:agent_blocked, %{session_id: session_id, reason: reason})
-            put_in(state.signals[signal_key], reason)
+            Logger.info("AgentWatchdog: #{kind} signal from #{agent[:id]}: #{value}")
+            Ichor.Signals.emit(signal_name, Map.put(%{session_id: session_id}, data_key, value))
+            put_in(state.signals[signal_key], value)
         end
 
       :nomatch ->
@@ -434,15 +421,8 @@ defmodule Ichor.Signals.AgentWatchdog do
   end
 
   defp drop_session_state(state, session_id) do
-    captures =
-      state.captures
-      |> Enum.reject(fn {_target, {sid, _output}} -> sid == session_id end)
-      |> Map.new()
-
-    signals =
-      state.signals
-      |> Enum.reject(fn {{sid, _kind}, _value} -> sid == session_id end)
-      |> Map.new()
+    captures = Map.filter(state.captures, fn {_target, {sid, _output}} -> sid != session_id end)
+    signals = Map.filter(state.signals, fn {{sid, _kind}, _value} -> sid != session_id end)
 
     %{
       state

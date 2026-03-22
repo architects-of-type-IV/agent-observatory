@@ -61,25 +61,18 @@ defmodule Ichor.Signals.EventStream.AgentLifecycle do
     )
   end
 
-  @doc "Handle a TeamCreate tool input map by emitting team_create_requested."
-  @spec handle_team_create(map()) :: :ok
-  def handle_team_create(input) do
+  @doc "Handle a team lifecycle tool input by emitting the corresponding signal."
+  @spec handle_team_event(atom(), map()) :: :ok
+  def handle_team_event(signal, input) do
     if team_name = input["team_name"] do
-      Signals.emit(:team_create_requested, %{team_name: team_name})
+      Signals.emit(signal, %{team_name: team_name})
     end
 
     :ok
   end
 
-  @doc "Handle a TeamDelete tool input map by emitting team_delete_requested."
-  @spec handle_team_delete(map()) :: :ok
-  def handle_team_delete(input) do
-    if team_name = input["team_name"] do
-      Signals.emit(:team_delete_requested, %{team_name: team_name})
-    end
-
-    :ok
-  end
+  def handle_team_create(input), do: handle_team_event(:team_create_requested, input)
+  def handle_team_delete(input), do: handle_team_event(:team_delete_requested, input)
 
   # Private helpers
 
@@ -92,8 +85,11 @@ defmodule Ichor.Signals.EventStream.AgentLifecycle do
       :ets.match(@table, {:_, %{session_id: session_id}}) != []
   end
 
+  defp nil_if_empty(""), do: nil
+  defp nil_if_empty(s), do: s
+
   defp emit_session_started(session_id, event) do
-    tmux_session = if event.tmux_session != "", do: event.tmux_session, else: nil
+    tmux_session = nil_if_empty(event.tmux_session)
 
     Signals.emit(:session_started, %{
       session_id: session_id,

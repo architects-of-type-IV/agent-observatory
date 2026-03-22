@@ -4,10 +4,11 @@ defmodule Ichor.Factory.PipelineTest do
 
   import ExUnit.CaptureLog
 
+  alias Ecto.Adapters.SQL.Sandbox
   alias Ichor.Factory.Pipeline
 
   setup do
-    Ecto.Adapters.SQL.Sandbox.checkout(Ichor.Repo)
+    Sandbox.checkout(Ichor.Repo)
   end
 
   describe "create/1" do

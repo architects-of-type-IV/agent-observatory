@@ -133,6 +133,7 @@ defmodule Ichor.Signals.EntropyTracker do
     {:noreply, state}
   end
 
+  @impl true
   def handle_info(_msg, state), do: {:noreply, state}
 
   defp lookup_session(table, session_id, default_agent_id) do

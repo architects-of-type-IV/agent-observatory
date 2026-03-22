@@ -2,10 +2,11 @@ defmodule Ichor.Factory.CronJobTest do
   @moduledoc false
   use ExUnit.Case, async: false
 
+  alias Ecto.Adapters.SQL.Sandbox
   alias Ichor.Factory.CronJob
 
   setup do
-    Ecto.Adapters.SQL.Sandbox.checkout(Ichor.Repo)
+    Sandbox.checkout(Ichor.Repo)
   end
 
   defp future_time(offset_seconds \\ 3600) do

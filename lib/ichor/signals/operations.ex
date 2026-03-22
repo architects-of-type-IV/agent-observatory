@@ -9,6 +9,16 @@ defmodule Ichor.Signals.Operations do
   alias Ichor.Signals.Bus
   alias Ichor.Signals.EventStream
 
+  code_interface do
+    define(:check_operator_inbox)
+    define(:check_inbox, args: [:session_id])
+    define(:acknowledge_message, args: [:session_id, :message_id])
+    define(:agent_send_message, args: [:from_session_id, :to_session_id, :content])
+    define(:recent_messages)
+    define(:operator_send_message, args: [:to, :content])
+    define(:agent_events, args: [:agent_id])
+  end
+
   actions do
     action :check_operator_inbox, {:array, :map} do
       description("Read unread messages addressed to the operator mailbox.")
@@ -75,25 +85,15 @@ defmodule Ichor.Signals.Operations do
       argument(:content, :string, allow_nil?: false)
 
       run(fn input, _context ->
-        case Bus.send(%{
-               from: input.arguments.from_session_id,
-               to: input.arguments.to_session_id,
-               content: input.arguments.content,
-               type: :message,
-               transport: :mcp
-             }) do
-          {:ok, result} ->
-            {:ok,
-             %{
-               "status" => result.status,
-               "to" => result.to,
-               "delivered" => result.delivered,
-               "via" => nil,
-               "error" => nil
-             }}
-
-          {:error, reason} ->
-            {:error, reason}
+        with {:ok, result} <-
+               Bus.send(%{
+                 from: input.arguments.from_session_id,
+                 to: input.arguments.to_session_id,
+                 content: input.arguments.content,
+                 type: :message,
+                 transport: :mcp
+               }) do
+          {:ok, %{"status" => result.status, "to" => result.to, "delivered" => result.delivered}}
         end
       end)
     end

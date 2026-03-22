@@ -35,16 +35,7 @@ defmodule Ichor.Signals.Message do
         }
 
   @spec build(atom(), atom(), map()) :: t()
-  def build(name, domain, data) do
-    %__MODULE__{
-      name: name,
-      kind: derive_kind(domain),
-      domain: domain,
-      data: data,
-      timestamp: System.monotonic_time(:millisecond),
-      source: self()
-    }
-  end
+  def build(name, domain, data), do: build(name, domain, data, [])
 
   @spec build(atom(), atom(), map(), keyword()) :: t()
   def build(name, domain, data, opts) do

@@ -675,12 +675,31 @@ defmodule Ichor.Signals.Catalog do
     }
   }
 
+  @settings_defs %{
+    settings_project_created: %{
+      category: :system,
+      keys: [:project_id, :name, :is_active],
+      doc: "Settings project created"
+    },
+    settings_project_updated: %{
+      category: :system,
+      keys: [:project_id, :name, :is_active],
+      doc: "Settings project updated"
+    },
+    settings_project_destroyed: %{
+      category: :system,
+      keys: [:project_id, :name, :is_active],
+      doc: "Settings project destroyed"
+    }
+  }
+
   @signals @core_defs
            |> Map.merge(@gateway_agent_defs)
            |> Map.merge(@team_monitoring_defs)
            |> Map.merge(@mes_defs)
            |> Map.merge(@planning_pipeline_defs)
            |> Map.merge(@archon_cleanup_defs)
+           |> Map.merge(@settings_defs)
 
   @catalog Map.new(@signals, fn {k, v} -> {k, Map.put_new(v, :dynamic, false)} end)
   @categories @catalog |> Map.values() |> Enum.map(& &1.category) |> Enum.uniq() |> Enum.sort()
@@ -691,8 +710,8 @@ defmodule Ichor.Signals.Catalog do
   def lookup(name), do: Map.get(@catalog, name)
 
   @doc "Look up a signal definition, deriving one from name prefix if absent."
-  @spec lookup!(atom()) :: signal_def()
-  def lookup!(name) do
+  @spec lookup_or_derive(atom()) :: signal_def()
+  def lookup_or_derive(name) do
     Map.get(@catalog, name) || derive(name)
   end
 

@@ -28,14 +28,16 @@ defmodule Ichor.Signals.Bus do
     message = normalize(from, content, attrs)
     target = resolve(to)
 
-    {:ok, delivered} = deliver(target, message)
-
-    log_delivery(from, to, message, attrs)
-    broadcast_delivery(to, from, message, delivered)
-    {:ok, %{status: "sent", to: to, delivered: delivered}}
+    case deliver(target, message) do
+      {:ok, delivered} ->
+        log_delivery(from, to, message, attrs)
+        broadcast_delivery(to, from, message, delivered)
+        {:ok, %{status: "sent", to: to, delivered: delivered}}
+    end
   end
 
-  def send(%{to: _to, content: _content} = attrs) do
+  def send(%{to: to, content: _content} = attrs) do
+    Logger.warning("[Bus] Message sent without :from, defaulting to system: #{inspect(to)}")
     send(Map.put_new(attrs, :from, "system"))
   end
 
@@ -55,7 +57,7 @@ defmodule Ichor.Signals.Bus do
   def recent_messages(limit \\ 50) do
     @message_log
     |> :ets.tab2list()
-    |> Enum.sort_by(fn {ts, _} -> ts end, {:desc, DateTime})
+    |> Enum.sort_by(fn {seq, _} -> seq end, :desc)
     |> Enum.take(limit)
     |> Enum.map(fn {_ts, msg} -> msg end)
   rescue
@@ -122,14 +124,9 @@ defmodule Ichor.Signals.Bus do
   end
 
   defp deliver_to_fleet(msg) do
-    count =
-      AgentProcess.list_all()
-      |> Enum.reduce(0, fn {id, _}, acc ->
-        AgentProcess.send_message(id, msg)
-        acc + 1
-      end)
-
-    {:ok, count}
+    agents = AgentProcess.list_all()
+    Enum.each(agents, fn {id, _} -> AgentProcess.send_message(id, msg) end)
+    {:ok, length(agents)}
   end
 
   @role_map %{"coordinator" => :coordinator, "lead" => :lead, "worker" => :worker}
@@ -137,18 +134,9 @@ defmodule Ichor.Signals.Bus do
   defp deliver_to_role(role, msg) do
     case Map.fetch(@role_map, role) do
       {:ok, role_atom} ->
-        count =
-          AgentProcess.list_all()
-          |> Enum.reduce(0, fn
-            {id, %{role: ^role_atom}}, acc ->
-              AgentProcess.send_message(id, msg)
-              acc + 1
-
-            _, acc ->
-              acc
-          end)
-
-        {:ok, count}
+        matching = Enum.filter(AgentProcess.list_all(), fn {_, %{role: r}} -> r == role_atom end)
+        Enum.each(matching, fn {id, _} -> AgentProcess.send_message(id, msg) end)
+        {:ok, length(matching)}
 
       :error ->
         {:ok, 0}
@@ -166,6 +154,7 @@ defmodule Ichor.Signals.Bus do
 
   defp log_delivery(from, to, message, attrs) do
     now = DateTime.utc_now()
+    seq = System.monotonic_time(:microsecond)
 
     msg = %{
       id: :crypto.strong_rand_bytes(8) |> Base.encode16(case: :lower),
@@ -181,7 +170,7 @@ defmodule Ichor.Signals.Bus do
     }
 
     try do
-      :ets.insert(@message_log, {now, msg})
+      :ets.insert(@message_log, {seq, msg})
 
       if :ets.info(@message_log, :size) > @max_messages do
         :ets.delete(@message_log, :ets.first(@message_log))

@@ -11,11 +11,14 @@
 - [x] SIG-4: Remove entropy from SchemaInterceptor + EventBridge
 - [x] SIG-5: EventStream shape fixes (uuid?, tombstoned?, emit_intercepted merge)
 - [x] SIG-6: Merge protocol_tracker trace clauses
+- [x] Audit pipeline: 42 findings, 6 parallel agents, 32 fixes across 20 files
+- [x] Credo strict: 18 issues fixed across 14 files -> 0 issues
+- [x] Dialyzer: watchdog maybe_unpause fixed -> 1 pre-existing warning
 - [ ] SIG-7: Handler behaviour + facade dispatch
 - [ ] SIG-8: Split catalog into catalog/
 - [ ] Wave 2: Entropy handler + SignalManager split
 - [ ] Wave 3: Module relocations
-- [ ] Wave 4: Quality sweep
+- [ ] Wave 4: Specs, types, structs
 
 ## Settings Page + Safety Fixes (2026-03-22) -- COMPLETE
 - [x] Settings domain: Ichor.Settings with SettingsProject resource

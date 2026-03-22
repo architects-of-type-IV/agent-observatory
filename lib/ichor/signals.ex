@@ -6,6 +6,7 @@ defmodule Ichor.Signals do
   @behaviour Ichor.Signals.Behaviour
 
   @impl true
+  @spec emit(atom()) :: :ok
   @spec emit(atom(), map()) :: :ok
   def emit(name, data \\ %{}) when is_atom(name) do
     impl().emit(name, data || %{})

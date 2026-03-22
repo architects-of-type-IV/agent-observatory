@@ -13,7 +13,7 @@ defmodule IchorWeb.DashboardInfoHandlers do
 
   alias Ichor.Archon.SignalManager
   alias Ichor.Factory.Project
-  alias Ichor.Infrastructure.HITLRelay
+  alias Ichor.Infrastructure.{HITLRelay, Tmux}
   alias Ichor.Signals.Message
   alias IchorWeb.{DashboardArchonHandlers, DashboardMesHandlers}
 
@@ -64,7 +64,7 @@ defmodule IchorWeb.DashboardInfoHandlers do
     do: {:noreply, schedule_recompute(socket)}
 
   def dispatch({:refresh_terminal, session}, socket) do
-    case Ichor.Infrastructure.Tmux.capture_pane(session, ansi: true) do
+    case Tmux.capture_pane(session, ansi: true) do
       {:ok, output} ->
         {:noreply,
          socket

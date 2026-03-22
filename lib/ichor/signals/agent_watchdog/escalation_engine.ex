@@ -79,7 +79,7 @@ defmodule Ichor.Signals.AgentWatchdog.EscalationEngine do
   Returns the session_id for an agent metadata map.
   """
   @spec agent_session_id(agent :: map()) :: String.t() | nil
-  def agent_session_id(agent), do: agent[:session_id] || agent[:agent_id]
+  def agent_session_id(agent), do: agent[:session_id] || agent[:id]
 
   # Private
 

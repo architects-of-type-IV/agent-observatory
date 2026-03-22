@@ -1,140 +1,67 @@
-# Stage 3: Execution Plan -- Ash Idiomacy Audit
+# Stage 3: Execution Plan -- Elixir Idioms Audit
 
 Build command: `mix compile --warnings-as-errors`
 
----
+42 confirmed findings grouped into 6 tasks by file dependency. All tasks are parallel (no cross-task dependencies).
 
-## TASK 1: Signals Operations cleanup (H14, H15, H16)
-**FILES**: `lib/ichor/signals/operations.ex`
-**CHANGES**:
-- L17-33: Replace `try/rescue` in `check_operator_inbox` with `AgentProcess.alive?` guard (same pattern as `check_inbox` on L43)
-- L106: Remove `|| 20` fallback (redundant with `default: 20`)
-- L110: Remove `|> Enum.take(limit)` (redundant with `Bus.recent_messages(limit)`)
-- L151: Add `default: 30` to `:limit` argument
-- L154: Remove `|| 30` fallback
-**DEPENDS_ON**: none
+## Task 1: normalizer + event_stream bugs (2 files, 3 fixes)
+FILES: lib/ichor/signals/event_stream/normalizer.ex, lib/ichor/signals/event_stream.ex
+CHANGES:
+- normalizer.ex:105 -- `coerce_hook_type(_)` catch-all -> `:unknown` (not `:Stop`)
+- normalizer.ex:109 -- `get_field` replace `||` with explicit nil check via `Map.get`
+- event_stream.ex:330-340 -- `lookup_tool_start`/`track_tool_start` guards accept both atoms and strings
+CONSTRAINTS: Do NOT change normalizer's coerce_hook_type/1 for atom and string inputs (only catch-all)
 
-## TASK 2: WebhookDelivery redundant set_attribute (H17)
-**FILES**: `lib/ichor/infrastructure/webhook_delivery.ex`
-**CHANGES**:
-- L40: Remove `change(set_attribute(:status, :pending))` -- attribute default is already `:pending`
-- L41: Remove `change(set_attribute(:attempt_count, 0))` -- attribute default is already `0`
-**DEPENDS_ON**: none
+## Task 2: agent_watchdog + sub-modules (3 files, 8 fixes)
+FILES: lib/ichor/signals/agent_watchdog.ex, lib/ichor/signals/agent_watchdog/pane_scanner.ex, lib/ichor/signals/agent_watchdog/escalation_engine.ex
+CHANGES:
+- pane_scanner.ex:72-91 -- merge match_done/match_blocked into `match_marker(marker, text)`
+- agent_watchdog.ex:385-424 -- merge check_done_signal/check_blocked_signal into `check_pane_signal/5`
+- agent_watchdog.ex:165-171 -- remove safe_emit, call Signals.emit directly
+- agent_watchdog.ex:239-245 -- maybe_unpause: add `_ -> :ok` catch-all to case
+- agent_watchdog.ex:352,388,408 -- extract `session_id(agent)` helper
+- agent_watchdog.ex:436-453 -- `Enum.reject |> Map.new` -> `Map.filter`
+- agent_watchdog.ex:101-104 -- merge two catch-all handle_info into one
+- escalation_engine.ex:82 -- align fallback key with watchdog (use `:id` consistently)
+CONSTRAINTS: Do NOT change escalation logic or thresholds. Only structural/idiom fixes.
 
-## TASK 3: Pipeline aggregates (H2, H3)
-**FILES**: `lib/ichor/factory/pipeline.ex`
-**CHANGES**:
-- L57-60: Remove `task_count` stored attribute
-- Add `aggregates do count :task_count, :pipeline_tasks end`
-- L76: Remove `:task_count` from create accept list
-- L117-151: Refactor `get_run_status` to use aggregates instead of fetching all tasks. Add status-filtered count aggregates: `pending_count`, `in_progress_count`, `completed_count`, `failed_count`
-- Note: `get_run_status` also returns `nodes` for graph display. If PipelineGraph.to_graph_node is only used for stats, remove it. If used for graph visualization elsewhere, keep the task fetch but use aggregates for stats.
-**CONSTRAINTS**:
-- Migration needed: `mix ash.codegen remove_task_count_from_pipelines` to drop the column
-- Verify `Spawn.from_file` doesn't set `task_count` on create -- if it does, update it to omit that field
-**DEPENDS_ON**: none
+## Task 3: bus.ex (1 file, 4 fixes)
+FILES: lib/ichor/signals/bus.ex
+CHANGES:
+- L124-156 -- deliver_to_fleet/deliver_to_role: replace `Enum.reduce` for side effects with `Enum.each` + `length`
+- L167-190 -- log_delivery: use monotonic integer key instead of DateTime for ETS
+- L38-39 -- add Logger.warning when `:from` defaults to "system"
+- L31 -- replace bare `{:ok, delivered} = deliver(...)` with proper handling
+CONSTRAINTS: Do NOT change resolve/1 dispatch or delivery semantics
 
-## TASK 4: SyncPipelineProcess -> Notifier (H1)
-**FILES**:
-- `lib/ichor/factory/pipeline_task/changes/sync_pipeline_process.ex` (modify or delete)
-- `lib/ichor/factory/pipeline_task.ex` (remove change references, add notifier)
-**CHANGES**:
-- Convert `SyncPipelineProcess` from `Ash.Resource.Change` to `Ash.Notifier`
-- Register as `simple_notifiers: [Ichor.Factory.PipelineTask.Notifiers.SyncRunner]` on PipelineTask
-- In the notifier, match on `{PipelineTask, action_name}` for `:claim`, `:complete`, `:fail`, `:reset`
-- Remove `change(Ichor.Factory.PipelineTask.Changes.SyncPipelineProcess)` from all 4 update actions
-- Remove `require_atomic?(false)` from those actions IF no other fn-based changes remain
-**CONSTRAINTS**:
-- Do NOT modify Runner module
-- Keep the `Code.ensure_loaded?` guard in the notifier
-**DEPENDS_ON**: none
+## Task 4: agent_lifecycle.ex + message.ex + entropy_tracker.ex + buffer.ex (4 files, 5 fixes)
+FILES: lib/ichor/signals/event_stream/agent_lifecycle.ex, lib/ichor/signals/message.ex, lib/ichor/signals/entropy_tracker.ex, lib/ichor/signals/buffer.ex
+CHANGES:
+- agent_lifecycle.ex:66-81 -- merge handle_team_create/handle_team_delete into one function
+- agent_lifecycle.ex:96 -- replace `if != ""` with pattern match
+- message.ex:37-62 -- make build/3 delegate to build/4 (check meta default first)
+- entropy_tracker.ex:136 -- add missing `@impl true` to catch-all handle_info
+- buffer.ex:32 -- add `:ets.whereis` guard before `:ets.new` in init/1
+CONSTRAINTS: Verify message.ex struct default for :meta before changing build/3
 
-## TASK 5: Workshop Agent/ActiveTeam bang -> non-bang (H5, H6)
-**FILES**:
-- `lib/ichor/workshop/agent.ex`
-- `lib/ichor/workshop/active_team.ex`
-**CHANGES**:
-- `agent.ex:77-79`: Replace `Ash.read!()` with `Ash.read()` + `with` or `case`
-- `active_team.ex:48-49`: Same -- replace `Ash.read!()` with `Ash.read()`
-- `agent.ex:147-170`: Add `allow_nil?: false` with sensible defaults to `:team_name` (default ""), `:backend` (default %{}), `:instructions` (default "")
-- `agent.ex:213-258`: Add `allow_nil?: false` with defaults to `:name` (default ""), `:cwd` (default ""), `:team_name` (default ""), `:extra_instructions` (default "")
-- `active_team.ex:74`: Add `allow_nil?: false, default: ""` to `:project`
-- `active_team.ex:114`: Add `allow_nil?: false, default: %{}` to `:backend`
-**CONSTRAINTS**:
-- Do NOT restructure actions or move code -- only fix bang and allow_nil
-**DEPENDS_ON**: none
+## Task 5: catalog + from_ash + signals facade + runtime (4 files, 5 fixes)
+FILES: lib/ichor/signals/catalog.ex, lib/ichor/signals/from_ash.ex, lib/ichor/signals.ex, lib/ichor/signals/runtime.ex
+CHANGES:
+- catalog.ex -- add 3 SettingsProject signal entries (settings_project_created/updated/destroyed)
+- catalog.ex:695 -- rename lookup!/1 to lookup_or_derive/1 (or make it actually raise)
+- from_ash.ex:26-27 -- add comment explaining why :fail maps to :pipeline_completed (or add :pipeline_failed)
+- signals.ex:10 -- add @spec for emit/1 arity (default arg)
+- runtime.ex:14-34 -- extract shared broadcast+telemetry into helper for emit/2 and emit/3
+CONSTRAINTS: lookup! rename requires updating ALL callers (grep first)
 
-## TASK 6: Agent resource helpers -> utility module (H7)
-**FILES**:
-- `lib/ichor/workshop/agent.ex` (remove helpers)
-- `lib/ichor/workshop/agent_lookup.ex` (create -- new utility module)
-**CHANGES**:
-- Extract `spawn_in_fleet/2`, `find_agent/1`, `build_agent_match/3` to `Ichor.Workshop.AgentLookup`
-- Update callers in agent.ex action run fns to call `AgentLookup.spawn_in_fleet/2` etc.
-**DEPENDS_ON**: none
-
-## TASK 7: AgentMemory error handling (H9)
-**FILES**: `lib/ichor/workshop/agent_memory.ex`
-**CHANGES**:
-- L305-322: Add `{:error, reason} -> {:error, reason}` clause to the `case MemoryStore.list_agents()` match
-- Audit all other `case` blocks in this file for missing error clauses
-**DEPENDS_ON**: none
-
-## TASK 8: LoadAgents health + status (H10, H11)
-**FILES**: `lib/ichor/workshop/preparations/load_agents.ex`
-**CHANGES**:
-- L31: Replace `health: :healthy` with actual health computation using `AgentHealth.compute_agent_health/2` (same as LoadTeams uses)
-- L53: Either add `:paused` to Agent's status constraint `one_of` OR add a comment documenting the lossy mapping is intentional
-**CONSTRAINTS**:
-- If adding `:paused` to status constraint, verify no downstream code assumes only 3 values
-**DEPENDS_ON**: none
-
-## TASK 9: ToolFailure deduplicate load logic (H12)
-**FILES**: `lib/ichor/signals/tool_failure.ex`
-**CHANGES**:
-- Remove `load_recent_errors/0` private function
-- Refactor `:by_tool` action to call the `:recent` read action (via code interface `ToolFailure.recent()`) instead of duplicating the load logic
-- Keep `group_by_tool/1` as the only private helper
-**DEPENDS_ON**: none
-
-## TASK 10: Project.ex signals -> notifier (H4)
-**FILES**: `lib/ichor/factory/project.ex`
-**CHANGES**:
-- L877-881, L901-905: Remove `Signals.emit(:project_artifact_created, ...)` from `create_artifact_for` and `create_roadmap_for`
-- Add signal emission to `FromAsh` notifier (or a new `Project`-specific notifier) matching on `{Project, :update}` when artifacts/roadmap change
-**CONSTRAINTS**:
-- The signal data includes `a.id` and `kind` -- the notifier will need to extract this from the changeset or result
-- This may require a custom notifier rather than extending FromAsh
-**DEPENDS_ON**: none
-
-## TASK 11: Medium fixes batch -- Team, Operations, CronJob, Manager (M1, M10, M11, M14, M17)
-**FILES**:
-- `lib/ichor/workshop/team.ex`
-- `lib/ichor/archon/manager.ex`
-- `lib/ichor/infrastructure/operations.ex`
-- `lib/ichor/infrastructure/cron_job.ex`
-- `lib/ichor/signals/event.ex`
-**CHANGES**:
-- `team.ex:78`: Remove `require_atomic?(false)` -- no fn-based changes on update
-- `manager.ex:43`: Replace `Ash.ActionInput.get_argument(input, :domain)` with `input.arguments.domain`
-- `infrastructure/operations.ex:19-20`: Replace `Agent.all!()` and `ActiveTeam.alive!()` with non-bang + error handling
-- `cron_job.ex:84`: Change `define(:get, action: :all_scheduled, get_by: [:id])` to `define(:get, get_by: [:id])` (use default read)
-- `event.ex:79`: Add explicit `allow_nil?(true)` to `:category` argument
-**DEPENDS_ON**: none
-
-## TASK 12: Medium fixes batch -- agent_type allow_nil (M18)
-**FILES**: `lib/ichor/workshop/agent_type.ex`
-**CHANGES**:
-- Add `allow_nil?(false)` to all attributes that have defaults but lack the constraint
-**DEPENDS_ON**: none
-
----
-
-## Execution Order
-
-All tasks are **independent** -- can run in parallel.
-
-Tasks 1-2, 5, 7, 9, 11-12 are small (single-file or trivial multi-file).
-Tasks 3, 4, 6, 8, 10 are medium (require new modules or migrations).
-
-**Recommended**: Run all 12 in parallel, 3 agents of ~4 tasks each.
+## Task 6: operations + preparations + task_projection + protocol_tracker + misc (6 files, 7 fixes)
+FILES: lib/ichor/signals/operations.ex, lib/ichor/signals/preparations/load_task_projections.ex, lib/ichor/signals/task_projection.ex, lib/ichor/signals/protocol_tracker.ex, lib/ichor/signals/event_payload.ex, lib/ichor/signals/event_stream.ex
+CHANGES:
+- operations.ex:77-98 -- replace case Bus.send with `with`
+- operations.ex:86-93 -- remove hardcoded nil fields
+- operations.ex -- add code_interface block
+- load_task_projections.ex:27 -- pattern match tool_name in function head
+- task_projection.ex:14 -- change :status to :atom with one_of constraint
+- protocol_tracker.ex:126 -- replace O(n log n) prune with O(n) heap pattern
+- event_payload.ex -- rename file to trace_event.ex
+CONSTRAINTS: event_payload.ex rename may break any `require` or `alias` referencing the old path

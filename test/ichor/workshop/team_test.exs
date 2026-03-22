@@ -3,10 +3,11 @@ defmodule Ichor.Workshop.TeamTest do
 
   use ExUnit.Case, async: false
 
+  alias Ecto.Adapters.SQL.Sandbox
   alias Ichor.Workshop.Team
 
   setup do
-    :ok = Ecto.Adapters.SQL.Sandbox.checkout(Ichor.Repo)
+    :ok = Sandbox.checkout(Ichor.Repo)
   end
 
   describe "create" do

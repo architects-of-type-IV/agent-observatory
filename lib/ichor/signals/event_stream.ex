@@ -328,7 +328,8 @@ defmodule Ichor.Signals.EventStream do
   defp uuid?(id), do: String.match?(id, @uuid_pattern)
 
   defp lookup_tool_start(%{hook_event_type: type, tool_use_id: id})
-       when type in ["PostToolUse", "PostToolUseFailure"] and is_binary(id) do
+       when type in [:PostToolUse, :PostToolUseFailure, "PostToolUse", "PostToolUseFailure"] and
+              is_binary(id) do
     case :ets.lookup(@tools, id) do
       [{^id, start_time}] -> {id, start_time}
       _ -> nil
@@ -337,8 +338,8 @@ defmodule Ichor.Signals.EventStream do
 
   defp lookup_tool_start(_attrs), do: nil
 
-  defp track_tool_start(%{hook_event_type: "PreToolUse", tool_use_id: id} = attrs)
-       when is_binary(id) do
+  defp track_tool_start(%{hook_event_type: type, tool_use_id: id} = attrs)
+       when type in [:PreToolUse, "PreToolUse"] and is_binary(id) do
     :ets.insert(@tools, {id, System.monotonic_time(:millisecond)})
     attrs
   end

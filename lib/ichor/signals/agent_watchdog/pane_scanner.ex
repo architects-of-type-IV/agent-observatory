@@ -65,28 +65,23 @@ defmodule Ichor.Signals.AgentWatchdog.PaneScanner do
   end
 
   @doc """
-  Attempts to match an `ICHOR_DONE: <summary>` marker in `text`.
+  Attempts to match an `ICHOR_<token>: <value>` marker in `text`.
 
-  Returns `{:ok, summary}` on match, `:nomatch` otherwise.
+  Returns `{:ok, value}` on match, `:nomatch` otherwise.
   """
+  @spec match_marker(token :: String.t(), text :: String.t()) :: {:ok, String.t()} | :nomatch
+  def match_marker(token, text) do
+    case Regex.run(~r/ICHOR_#{token}:\s*(.+)/, text) do
+      [_, value] -> {:ok, String.trim(value)}
+      nil -> :nomatch
+    end
+  end
+
+  @doc "Attempts to match an `ICHOR_DONE: <summary>` marker. Returns `{:ok, summary}` or `:nomatch`."
   @spec match_done(text :: String.t()) :: {:ok, String.t()} | :nomatch
-  def match_done(text) do
-    case Regex.run(~r/ICHOR_DONE:\s*(.+)/, text) do
-      [_, summary] -> {:ok, String.trim(summary)}
-      nil -> :nomatch
-    end
-  end
+  def match_done(text), do: match_marker("DONE", text)
 
-  @doc """
-  Attempts to match an `ICHOR_BLOCKED: <reason>` marker in `text`.
-
-  Returns `{:ok, reason}` on match, `:nomatch` otherwise.
-  """
+  @doc "Attempts to match an `ICHOR_BLOCKED: <reason>` marker. Returns `{:ok, reason}` or `:nomatch`."
   @spec match_blocked(text :: String.t()) :: {:ok, String.t()} | :nomatch
-  def match_blocked(text) do
-    case Regex.run(~r/ICHOR_BLOCKED:\s*(.+)/, text) do
-      [_, reason] -> {:ok, String.trim(reason)}
-      nil -> :nomatch
-    end
-  end
+  def match_blocked(text), do: match_marker("BLOCKED", text)
 end

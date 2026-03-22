@@ -29,7 +29,11 @@ defmodule Ichor.Signals.Buffer do
 
   @impl true
   def init(_opts) do
-    :ets.new(@table, [:named_table, :public, :set])
+    case :ets.whereis(@table) do
+      :undefined -> :ets.new(@table, [:named_table, :public, :set])
+      _ -> :ok
+    end
+
     Enum.each(Catalog.categories(), &Ichor.Signals.subscribe/1)
     {:ok, %{seq: 0}}
   end

@@ -102,11 +102,14 @@ defmodule Ichor.Signals.EventStream.Normalizer do
     Map.get(@hook_event_type_map, t, :unknown)
   end
 
-  def coerce_hook_type(_), do: :Stop
+  def coerce_hook_type(_), do: :unknown
 
   @doc "Safe field access that checks both atom and string keys."
   @spec get_field(map(), atom()) :: term()
   def get_field(attrs, key) do
-    attrs[key] || attrs[Atom.to_string(key)]
+    case Map.fetch(attrs, key) do
+      {:ok, value} when not is_nil(value) -> value
+      _ -> attrs[Atom.to_string(key)]
+    end
   end
 end

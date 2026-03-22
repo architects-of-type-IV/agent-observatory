@@ -775,7 +775,7 @@
 end
 
 def handle_info({:signal, name, data}, socket) do
-  cat = Ichor.Signals.Catalog.lookup!(name).category
+  cat = Ichor.Signals.Catalog.lookup_or_derive(name).category
   Process.send_after(self(), {:clear_pulse, cat}, 700)
   # ... ingest signal ...
   {:noreply, assign(socket, active_cat_pulse: cat)}

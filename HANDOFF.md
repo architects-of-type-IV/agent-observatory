@@ -1,57 +1,52 @@
 # ICHOR IV - Handoff
 
-## Current Status: SIGNALS WAVE 1 IN PROGRESS (2026-03-22)
+## Current Status: SIGNALS AUDIT PIPELINE COMPLETE (2026-03-22)
 
-### Session Summary
+Full Elixir idioms audit of `lib/ichor/signals/` executed. 42 confirmed findings across 27 files. All fixed. Build clean. Credo strict 0 issues. 211 tests pass. Dialyzer 1 pre-existing warning (not ours).
 
-1. **Bug fix**: AgentState inbox for tmux-backed agents. Commits: `695e108`, `46d0cd5`.
-2. **Forensic audit**: Full signals domain audit -> `docs/audits/2026-03-22-signals-domain-forensics.md`
-3. **Blueprint**: Shape-first refactor plan -> `docs/plans/2026-03-22-signals-refactor-blueprint.md` (v3)
-4. **Wave 1 execution**: SIG-1 through SIG-6 completed. SIG-7, SIG-8 remaining.
+### What Was Done This Session
 
-### What Was Done (Wave 1 shape fixes)
+1. **Bug fix**: AgentState inbox for tmux-backed agents (`695e108`, `46d0cd5`)
+2. **Forensic audit**: Boundary, shape, coupling analysis of signals domain
+3. **Wave 1 shape fixes** (`612fede`):
+   - entropy_tracker.ex: decomposed classify_and_store/8, config in init, signal-driven scoring
+   - schema_interceptor.ex: removed all entropy coupling
+   - event_bridge.ex: removed entropy coupling
+   - event_stream.ex: inline uuid?, pure tombstoned?, merged emit_intercepted
+   - protocol_tracker.ex: merged 3 trace clauses into build_trace/2
+4. **Audit pipeline** (6 parallel agents, 32 fixes):
+   - normalizer.ex: coerce_hook_type catch-all -> :unknown, get_field uses Map.fetch
+   - event_stream.ex: lookup_tool_start accepts atom+string guards, tombstone sweep added
+   - buffer.ex: ETS init guard against restart crash
+   - agent_watchdog.ex: merged pane signal twins, removed safe_emit, session_id helper, Map.filter, maybe_unpause dispatch-first + Task.start
+   - pane_scanner.ex: match_marker/2 generic function
+   - escalation_engine.ex: aligned :id fallback key
+   - agent_lifecycle.ex: merged team twins, nil_if_empty pattern match
+   - message.ex: build/3 delegates to build/4
+   - entropy_tracker.ex: @impl true on catch-all
+   - bus.ex: Enum.each+length, monotonic ETS key, Logger.warning on missing :from, explicit case
+   - catalog.ex: 3 SettingsProject signals added, lookup! -> lookup_or_derive
+   - from_ash.ex: documented pipeline :fail -> :pipeline_completed
+   - signals.ex: @spec for emit/1 arity
+   - runtime.ex: broadcast_scoped helper
+   - operations.ex: with instead of case, removed nil fields, added code_interface
+   - load_task_projections.ex: pattern match in function head
+   - task_projection.ex: :string -> :atom with one_of constraint
+   - protocol_tracker.ex: O(n) heap eviction replacing O(n log n) sort
+   - event_payload.ex -> trace_event.ex: filename matches module
+5. **Credo gardening**: 18 issues fixed across 14 files (alias ordering, nested modules, length/1 in tests, board.ex nesting)
+6. **Dialyzer**: Fixed watchdog maybe_unpause unreachable pattern
 
-**entropy_tracker.ex** (SIG-1/2/3/4):
-- `classify_and_store/8` decomposed into `classify/3` (pure) + `emit_state_change/4` (side effect) + inline ETS store
-- `build_alert_event/4` inlined (was misnamed, 2 unused params)
-- `slide_window` uses `tl()` not `List.delete_at`
-- Dead spec removed, config read once in `init`
-- Subscribes to `:events`, scores from `handle_info(:new_event)` using `{tool_name, hook_event_type}` tuple
-- `lookup_session/3` extracted as shared pure function
-- Score is pure, store is side effect -- separate operations, not one chimera
+### Remaining (Wave 2+)
 
-**schema_interceptor.ex** (SIG-4): All entropy references removed. Pure validation only.
+- **SIG-7**: Handler behaviour + facade dispatch
+- **SIG-8**: Split catalog into catalog/
+- **Wave 2**: Entropy handler for Archon + SignalManager split
+- **Wave 3**: Module relocations
+- **Wave 4**: Specs, types, structs pass
 
-**event_bridge.ex** (SIG-4): `maybe_register_agent` and `maybe_enrich_entropy` removed. Unused aliases cleaned.
-
-**event_stream.ex** (SIG-5): `AgentEntry.uuid?` replaced with inline regex. `tombstoned?/1` is pure predicate. Tombstone sweep added to heartbeat timer. `emit_intercepted` variants merged.
-
-**protocol_tracker.ex** (SIG-6): 3 identical trace clauses merged into `build_trace/2` + `trace_fields/2`.
-
-### Remaining Wave 1
-
-- **SIG-7**: Create handler.ex behaviour + facade dispatch
-- **SIG-8**: Split catalog.ex into catalog/
-
-### Architect Directives (critical, from this session)
-
-- **Refactoring = gardening. Every day, water a little.**
-- **Refactoring = shaping to generics until you see mirrors/twins.**
-- **Naming is what you do last when there is no other choice.**
-- **Signals = PubSub. That's it.** Emit, subscribe, act.
-- **You either score or store.** Pure functions separated from side effects.
-- **No OOP/DDD language.** No "domains", "bounded contexts", "authority models."
-- **Don't invent names.** No "Healer", "EntropyHealer". Shape the code first.
-- **Ask: can I rearrange arities and see a stdlib function?**
-- **Ask: why do we store in a flowing system?**
-- **Ask: is protocol tracker tracking or matching?**
-
-### Key Files
-
-- `docs/plans/2026-03-22-signals-refactor-blueprint.md` -- shape-first refactor plan
-- `docs/audits/2026-03-22-signals-domain-forensics.md` -- forensic audit
-- `memory/feedback/shape_first_refactoring.md` -- how to approach refactoring
-- `memory/feedback/refactoring_philosophy.md` -- gardening, generics, naming last
-
-### Build
+### Build Status
 - `mix compile --warnings-as-errors`: CLEAN
+- `mix credo --strict`: 0 issues
+- `mix test`: 211 pass, 0 failures
+- `mix dialyzer`: 1 pre-existing warning (event_bridge get_nested)

@@ -23,6 +23,8 @@ defmodule Ichor.Signals.FromAsh do
   end
 
   defp signal_for(Ichor.Factory.Pipeline, :create), do: {:pipeline_created, &run_data/2}
+  # Both completion and failure mark the pipeline run as ended.
+  # Consumers distinguish via the Pipeline record's status field.
   defp signal_for(Ichor.Factory.Pipeline, :complete), do: {:pipeline_completed, &run_data/2}
   defp signal_for(Ichor.Factory.Pipeline, :fail), do: {:pipeline_completed, &run_data/2}
   defp signal_for(Ichor.Factory.Pipeline, :archive), do: {:pipeline_archived, &run_archive_data/2}

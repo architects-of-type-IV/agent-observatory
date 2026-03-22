@@ -11,7 +11,13 @@ defmodule Ichor.Signals.TaskProjection do
     attribute(:id, :string, primary_key?: true, allow_nil?: false, public?: true)
     attribute(:subject, :string, public?: true)
     attribute(:description, :string, public?: true)
-    attribute(:status, :string, default: "pending", public?: true)
+
+    attribute(:status, :atom,
+      default: :pending,
+      constraints: [one_of: [:pending, :in_progress, :completed, :blocked, :deleted]],
+      public?: true
+    )
+
     attribute(:owner, :string, public?: true)
     attribute(:active_form, :string, public?: true)
     attribute(:session_id, :string, public?: true)

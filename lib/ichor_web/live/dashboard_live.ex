@@ -38,11 +38,11 @@ defmodule IchorWeb.DashboardLive do
     DashboardPipelineHandlers,
     DashboardSelectionHandlers,
     DashboardSessionControlHandlers,
+    DashboardSettingsHandlers,
     DashboardSlideoutHandlers,
     DashboardSpawnHandlers,
     DashboardTaskHandlers,
     DashboardTmuxHandlers,
-    DashboardSettingsHandlers,
     DashboardUIHandlers
   }
 

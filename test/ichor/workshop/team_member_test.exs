@@ -3,6 +3,7 @@ defmodule Ichor.Workshop.TeamMemberTest do
 
   use ExUnit.Case, async: false
 
+  alias Ecto.Adapters.SQL.Sandbox
   alias Ichor.Workshop.{AgentType, Team, TeamMember}
 
   # Ash string type converts "" to nil by default (allow_empty?: false).
@@ -24,7 +25,7 @@ defmodule Ichor.Workshop.TeamMemberTest do
   end
 
   setup do
-    :ok = Ecto.Adapters.SQL.Sandbox.checkout(Ichor.Repo)
+    :ok = Sandbox.checkout(Ichor.Repo)
     {:ok, team} = Team.create(%{name: "tm-team-#{System.unique_integer([:positive])}"})
     %{team: team}
   end

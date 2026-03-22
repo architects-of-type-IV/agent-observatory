@@ -83,10 +83,10 @@ defmodule IchorWeb.Presentation do
   def severity_text_class("low"), do: "text-info"
   def severity_text_class(_), do: "text-default"
 
-  def task_status_text_class("completed"), do: "text-success"
-  def task_status_text_class("in_progress"), do: "text-info"
-  def task_status_text_class("failed"), do: "text-error"
-  def task_status_text_class("pending"), do: "text-default"
-  def task_status_text_class("blocked"), do: "text-brand"
+  def task_status_text_class(:completed), do: "text-success"
+  def task_status_text_class(:in_progress), do: "text-info"
+  def task_status_text_class(:failed), do: "text-error"
+  def task_status_text_class(:pending), do: "text-default"
+  def task_status_text_class(:blocked), do: "text-brand"
   def task_status_text_class(_), do: "text-low"
 end
