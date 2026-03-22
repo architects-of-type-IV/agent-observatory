@@ -1,0 +1,403 @@
+# agent_prompt_dag.yml
+#
+# Machine-readable DAG representation of SPECS/dag/AGENT_PROMPT.md
+#
+# Node categories:
+#   entry       — starting point of the reasoning process
+#   inspection  — evidence-collection: examines a property of the function
+#   decision    — branching point with labelled outgoing edges
+#   constraint  — governing rule applied during classification (no yes/no branch)
+#   routing     — intermediate step that normalises or redirects
+#   terminal    — final placement recommendation
+#   output      — response-format or operating-standard requirement
+#
+# Edge label conventions:
+#   Edges carry a human-readable label describing the routing condition or
+#   relationship type (e.g. "yes → pure fn", "constrains", "validate").
+#
+# Acyclicity guarantee:
+#   Every edge moves from an earlier reasoning stage to a later one.
+#   The topological order is: entry → framing → inspection → classification
+#     → terminal → review → output.
+
+nodes:
+
+  - id: START
+    label: "Receive code to refactor"
+    description: >
+      A code artefact (function, module, or cluster of logic) has been submitted
+      for refactoring. This is the single entry point of the decision graph.
+    category: entry
+
+  # ── Framing ────────────────────────────────────────────────────────────────
+
+  - id: CORE_OBJ
+    label: "Core Objective"
+    description: >
+      The target qualities for the refactored code: small, explicit, composable,
+      idiomatic, easy to change, easy to test, honest about side effects, and
+      aligned with Ash boundaries. Logic must move toward the correct place:
+      Domain (orchestration), Resource (entity rules), or Plain Elixir (transformation).
+    category: constraint
+
+  - id: PRIME_RULE
+    label: "Prime Rule"
+    description: >
+      Do not judge a function primarily by its name. Judge it by the stability
+      and clarity of its input shape, output shape, and side-effect boundary.
+    category: constraint
+
+  # ── Inspection pipeline ─────────────────────────────────────────────────────
+
+  - id: INSPECT_IN
+    label: "Inspect Inputs"
+    description: >
+      Determine what data shape enters the function. Check whether input is raw
+      params, typed structs, Ash records, changesets, simple scalars, or mixed
+      concerns. Flag whether the function accepts too many unrelated input
+      concerns at once.
+    category: inspection
+
+  - id: INSPECT_OUT
+    label: "Inspect Outputs"
+    description: >
+      Determine what shape leaves the function. Check whether the return is a
+      plain value, tagged tuple, changeset, query, struct, list, or action
+      result. Verify that the return shape is stable, useful, and predictable.
+    category: inspection
+
+  - id: DETECT_TRANSFORM
+    label: "Detect Transformation"
+    description: >
+      Decision: is the function mostly transforming data? If yes, the function
+      is a candidate for a pure function in a small focused plain Elixir module
+      and can be routed directly to PLACE_PLAIN without continuing the pipeline.
+    category: decision
+
+  - id: DETECT_FX
+    label: "Detect Side Effects"
+    description: >
+      Decision: does the function read or write to the database, call Ash
+      actions, send messages, invoke external services, or perform file or
+      network operations? If yes, the effect must be isolated.
+    category: decision
+
+  - id: ISOLATE_FX
+    label: "Isolate Effect"
+    description: >
+      Route the effectful behaviour so it is contained and the surrounding logic
+      remains thin. After isolation the inspection pipeline continues.
+    category: routing
+
+  - id: ANALYZE_BRANCH
+    label: "Analyze Branching"
+    description: >
+      Determine whether the function branches on input shape, state, rule, or
+      outcome. Identify opportunities to replace nested conditionals with
+      pattern matching, multiple function heads, and guards.
+    category: inspection
+
+  - id: PREFER_PATTERNS
+    label: "Prefer Pattern Matching"
+    description: >
+      Apply the preference: use separate clauses, tagged tuples, explicit
+      matches, and guard clauses. Avoid deeply nested case, broad else,
+      unclear boolean chains, and control flow that obscures data shape
+      transitions.
+    category: routing
+
+  - id: ANALYZE_NAMING
+    label: "Analyze Naming"
+    description: >
+      Determine whether the module name, types, and return shape already explain
+      intent clearly enough to justify a generic function name such as build/1,
+      apply/2, normalize/1, to_attrs/1, or from_result/1. Do not compensate for
+      poor boundaries with verbose function names.
+    category: inspection
+
+  # ── Constraint nodes ────────────────────────────────────────────────────────
+
+  - id: SHAPE_DOCTRINE
+    label: "Function-Shape Doctrine"
+    description: >
+      A good function is often understandable from module name, function name,
+      arity, parameter patterns, and return shape alone. Generic names are
+      acceptable only when the module provides the missing meaning.
+    category: constraint
+
+  - id: REFACTOR_HEURISTICS
+    label: "Refactor Heuristics"
+    description: >
+      Nine shape-driven design rules: (1) prefer shape-driven design,
+      (2) separate orchestration from transformation, (3) keep resources honest,
+      (4) keep domains thin but meaningful, (5) prefer small pure helpers,
+      (6) prefer multiple function heads, (7) respect data shape transitions,
+      (8) use Ash idiomatically, (9) optimise for maintainability.
+    category: constraint
+    sub_rules:
+      - id: H1
+        label: "Prefer shape-driven design"
+      - id: H2
+        label: "Separate orchestration from transformation"
+        routing:
+          orchestration: PLACE_DOMAIN
+          transformation: PLACE_PLAIN
+          entity_rules: PLACE_RESOURCE
+      - id: H3
+        label: "Keep resources honest"
+        routing: PLACE_RESOURCE
+      - id: H4
+        label: "Keep domains thin but meaningful"
+        routing: PLACE_DOMAIN
+      - id: H5
+        label: "Prefer small pure helpers"
+        routing: PLACE_PLAIN
+      - id: H6
+        label: "Prefer multiple function heads"
+      - id: H7
+        label: "Respect data shape transitions"
+        examples:
+          - "params → normalized attrs"
+          - "attrs → changeset or action input"
+          - "record → DTO or presenter shape"
+          - "external result → internal tagged tuple"
+      - id: H8
+        label: "Use Ash idiomatically"
+        routing:
+          entity_persistence: PLACE_RESOURCE
+          business_ops: PLACE_DOMAIN
+      - id: H9
+        label: "Optimise for maintainability"
+
+  - id: CODE_STYLE
+    label: "Code Style Rules"
+    description: >
+      Write idiomatic Elixir. Prefer small functions, pattern matching first,
+      guards where useful, pipelines only when they improve readability, direct
+      composition, explicit return contracts, small focused modules, and clear
+      public APIs. Avoid unnecessary abstraction, speculative generalization,
+      object-oriented style, giant context modules, giant resources, giant
+      service modules, nested conditional logic, boolean soup, pushing
+      everything into Ash DSL, and leaking persistence concerns across layers.
+    category: constraint
+
+  - id: ASH_EXPECT
+    label: "Ash-specific Expectations"
+    description: >
+      Improve resource boundaries, action naming, validations, changes,
+      relationships, identities, domain entry points, authorization and
+      policies, calculations and aggregates, and form or action input handling.
+      Check whether logic currently in controllers, LiveViews, service modules,
+      or utility modules should instead move into a resource action, a resource
+      validation or change, a domain-level entry point, or a pure support
+      module.
+    category: constraint
+
+  - id: BOUNDARY_MODEL
+    label: "Boundary Mental Model"
+    description: >
+      Resource = what this thing is allowed to do and what must always be true.
+      Domain = what the business wants to achieve.
+      Pure module = how data gets transformed into the right shape.
+      A bad refactor names first. A good refactor starts shape-first.
+    category: constraint
+
+  # ── Classification ──────────────────────────────────────────────────────────
+
+  - id: CLASSIFY
+    label: "Classify Function"
+    description: >
+      Multi-way routing node. Using the results of the inspection pipeline and
+      informed by all constraint nodes, determine whether the function is:
+      orchestration / coordination → PLACE_DOMAIN,
+      entity rule / persistence → PLACE_RESOURCE,
+      pure transformation → PLACE_PLAIN,
+      uncertain → DECISION_RULE.
+    category: decision
+
+  # ── Fallback routing ────────────────────────────────────────────────────────
+
+  - id: DECISION_RULE
+    label: "Decision Rule"
+    description: >
+      When in doubt, choose the design where function shapes stay simple and
+      the Ash boundaries become more obvious. Fan out to whichever of the three
+      terminals satisfies this criterion.
+    category: routing
+
+  # ── Validation ──────────────────────────────────────────────────────────────
+
+  - id: REVIEW
+    label: "Review Discipline"
+    description: >
+      For every meaningful function or cluster of logic, determine: input shape,
+      output shape, whether it is a pure transformation or a side effect, whether
+      it is orchestration or an entity rule, and whether it belongs in a
+      Resource, Domain, or plain Elixir module. Refactor so Resources own entity
+      rules, Domains expose business capabilities, and Plain modules hold pure
+      transformation logic.
+    category: routing
+
+  # ── Terminal recommendations ────────────────────────────────────────────────
+
+  - id: PLACE_RESOURCE
+    label: "Place in Ash Resource"
+    description: >
+      Entity rules and persistence-facing behavior: data constraints, defaults,
+      field-level invariants, persistence-facing behavior, relationships,
+      calculations, aggregates, policies, and actions tightly coupled to the
+      entity.
+    category: terminal
+
+  - id: PLACE_DOMAIN
+    label: "Place in Domain Module"
+    description: >
+      Business capabilities and orchestration: deciding step order, coordinating
+      resources, calling multiple actions, sequencing business operations,
+      exposing public entry points.
+    category: terminal
+
+  - id: PLACE_PLAIN
+    label: "Place in Plain Elixir Module"
+    description: >
+      Pure transformation logic: cleaning params, normalising inputs, mapping
+      structs, deriving values, converting shapes, validating simple
+      non-persistent data shapes before Ash.
+    category: terminal
+
+  # ── Output requirements ─────────────────────────────────────────────────────
+
+  - id: OUTPUT_FORMAT
+    label: "Required Output Format"
+    description: >
+      Structure every refactor response as: (1) brief explanation of boundary
+      changes, (2) explanation of which functions were treated as pure
+      transformations / orchestration / resource concerns, (3) refactored code,
+      (4) clear assumptions if anything is ambiguous, (5) preserved behavior
+      unless there is a clear bug or design flaw worth correcting.
+    category: output
+
+  - id: FINAL_STD
+    label: "Final Operating Standard"
+    description: >
+      Optimise for stable shapes, obvious boundaries, idiomatic Elixir,
+      idiomatic Ash, cheap future change, low entropy, and practical
+      maintainability. Not for cleverness.
+    category: output
+
+edges:
+
+  # ── Framing ────────────────────────────────────────────────────────────────
+  - from: START
+    to: CORE_OBJ
+    label: "frames"
+  - from: START
+    to: PRIME_RULE
+    label: "frames"
+
+  # ── Prime rule / objective enable inspection ───────────────────────────────
+  - from: PRIME_RULE
+    to: INSPECT_IN
+    label: "shape-first inspection"
+  - from: CORE_OBJ
+    to: INSPECT_IN
+    label: "governs"
+
+  # ── Inspection pipeline ────────────────────────────────────────────────────
+  - from: INSPECT_IN
+    to: INSPECT_OUT
+    label: "next"
+  - from: INSPECT_OUT
+    to: DETECT_TRANSFORM
+    label: "next"
+
+  # ── Transformation early-exit ──────────────────────────────────────────────
+  - from: DETECT_TRANSFORM
+    to: PLACE_PLAIN
+    label: "yes → pure fn"
+  - from: DETECT_TRANSFORM
+    to: DETECT_FX
+    label: "no → check effects"
+
+  # ── Side-effect branch ─────────────────────────────────────────────────────
+  - from: DETECT_FX
+    to: ISOLATE_FX
+    label: "yes → isolate"
+  - from: DETECT_FX
+    to: ANALYZE_BRANCH
+    label: "no → continue"
+  - from: ISOLATE_FX
+    to: ANALYZE_BRANCH
+    label: "continue"
+
+  # ── Branching and naming ───────────────────────────────────────────────────
+  - from: ANALYZE_BRANCH
+    to: PREFER_PATTERNS
+    label: "apply"
+  - from: PREFER_PATTERNS
+    to: ANALYZE_NAMING
+    label: "next"
+  - from: ANALYZE_NAMING
+    to: CLASSIFY
+    label: "feeds"
+
+  # ── Constraints converge on classification ─────────────────────────────────
+  - from: SHAPE_DOCTRINE
+    to: CLASSIFY
+    label: "constrains"
+  - from: REFACTOR_HEURISTICS
+    to: CLASSIFY
+    label: "constrains"
+  - from: CODE_STYLE
+    to: CLASSIFY
+    label: "constrains"
+  - from: ASH_EXPECT
+    to: CLASSIFY
+    label: "constrains"
+  - from: BOUNDARY_MODEL
+    to: CLASSIFY
+    label: "constrains"
+
+  # ── Classification routes ──────────────────────────────────────────────────
+  - from: CLASSIFY
+    to: PLACE_DOMAIN
+    label: "orchestration / coordination"
+  - from: CLASSIFY
+    to: PLACE_RESOURCE
+    label: "entity rule / persistence"
+  - from: CLASSIFY
+    to: PLACE_PLAIN
+    label: "pure transformation"
+  - from: CLASSIFY
+    to: DECISION_RULE
+    label: "uncertain"
+
+  # ── Decision rule fallback ─────────────────────────────────────────────────
+  - from: DECISION_RULE
+    to: PLACE_DOMAIN
+    label: "domain fit"
+  - from: DECISION_RULE
+    to: PLACE_RESOURCE
+    label: "resource fit"
+  - from: DECISION_RULE
+    to: PLACE_PLAIN
+    label: "simplest shape"
+
+  # ── All terminals feed review ──────────────────────────────────────────────
+  - from: PLACE_RESOURCE
+    to: REVIEW
+    label: "validate"
+  - from: PLACE_DOMAIN
+    to: REVIEW
+    label: "validate"
+  - from: PLACE_PLAIN
+    to: REVIEW
+    label: "validate"
+
+  # ── Output ─────────────────────────────────────────────────────────────────
+  - from: REVIEW
+    to: OUTPUT_FORMAT
+    label: "structure response"
+  - from: OUTPUT_FORMAT
+    to: FINAL_STD
+    label: "governed by"

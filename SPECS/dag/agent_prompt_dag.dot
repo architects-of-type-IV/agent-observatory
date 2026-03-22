@@ -1,0 +1,298 @@
+// agent_prompt_dag.dot
+//
+// Graphviz DOT representation of the AGENT_PROMPT.md decision framework.
+// Source: SPECS/dag/AGENT_PROMPT.md
+// YAML companion: SPECS/dag/agent_prompt_dag.yml
+//
+// Render with:
+//   dot -Tsvg agent_prompt_dag.dot -o agent_prompt_dag.svg
+//   dot -Tpng agent_prompt_dag.dot -o agent_prompt_dag.png
+//
+// Node shape / colour key:
+//   invhouse  (green)    — entry
+//   box       (blue)     — inspection
+//   diamond   (gold)     — decision
+//   parallelogram (lavender) — constraint
+//   ellipse   (wheat)    — routing
+//   doublecircle (lime)  — terminal
+//   cylinder  (salmon)   — output
+//
+// Edge style key:
+//   dashed            — constrains
+//   solid (default)   — pipeline / routing
+
+digraph AgentPromptDAG {
+
+    // ── Global graph attributes ───────────────────────────────────────────
+    graph [
+        label       = "AGENT_PROMPT.md — Elixir + Ash Refactor Expert\nDecision Framework DAG"
+        labelloc    = "t"
+        fontname    = "Helvetica"
+        fontsize    = 14
+        rankdir     = "TB"
+        splines     = "ortho"
+        nodesep     = 0.6
+        ranksep     = 0.8
+        bgcolor     = "white"
+    ]
+
+    node [
+        fontname = "Helvetica"
+        fontsize = 11
+        margin   = "0.2,0.1"
+    ]
+
+    edge [
+        fontname = "Helvetica"
+        fontsize = 9
+        color    = "#555555"
+        fontcolor = "#333333"
+    ]
+
+    // ── Entry ─────────────────────────────────────────────────────────────
+    START [
+        label     = "▶ START\nReceive code to refactor"
+        shape     = invhouse
+        style     = filled
+        fillcolor = "#90EE90"
+        penwidth  = 2
+    ]
+
+    // ── Constraint / framing nodes ────────────────────────────────────────
+    CORE_OBJ [
+        label     = "CORE_OBJ\nCore Objective\nsmall · explicit · composable · idiomatic\nhonest about side-effects · Ash-aligned"
+        shape     = parallelogram
+        style     = filled
+        fillcolor = "#DDA0DD"
+    ]
+
+    PRIME_RULE [
+        label     = "PRIME_RULE\nPrime Rule\nJudge by shape, not name\n— input · output · side-effect boundary"
+        shape     = parallelogram
+        style     = filled
+        fillcolor = "#DDA0DD"
+    ]
+
+    SHAPE_DOCTRINE [
+        label     = "SHAPE_DOCTRINE\nFunction-Shape Doctrine\nunderstandable from module + name\n+ arity + params + return"
+        shape     = parallelogram
+        style     = filled
+        fillcolor = "#DDA0DD"
+    ]
+
+    REFACTOR_HEURISTICS [
+        label     = "REFACTOR_HEURISTICS\nRefactor Heuristics\n9 shape-driven rules\norchestration vs transformation\nResource / Domain / Plain split"
+        shape     = parallelogram
+        style     = filled
+        fillcolor = "#DDA0DD"
+    ]
+
+    CODE_STYLE [
+        label     = "CODE_STYLE\nCode Style Rules\nsmall fns · pattern-match first\npipelines when readable · no nested case"
+        shape     = parallelogram
+        style     = filled
+        fillcolor = "#DDA0DD"
+    ]
+
+    ASH_EXPECT [
+        label     = "ASH_EXPECT\nAsh-specific Expectations\nresource boundaries · action naming\nvalidations · policies · domain entry points"
+        shape     = parallelogram
+        style     = filled
+        fillcolor = "#DDA0DD"
+    ]
+
+    BOUNDARY_MODEL [
+        label     = "BOUNDARY_MODEL\nBoundary Mental Model\nResource = entity rules\nDomain = business goals\nPlain = transformation"
+        shape     = parallelogram
+        style     = filled
+        fillcolor = "#DDA0DD"
+    ]
+
+    // ── Inspection nodes ──────────────────────────────────────────────────
+    INSPECT_IN [
+        label     = "INSPECT_IN\nInspect Inputs\ndata shape · raw params vs typed structs\nmixed concerns? · too many unrelated inputs?"
+        shape     = box
+        style     = filled
+        fillcolor = "#ADD8E6"
+    ]
+
+    INSPECT_OUT [
+        label     = "INSPECT_OUT\nInspect Outputs\nreturn shape · plain value vs tagged tuple\nvs changeset · stability · predictability"
+        shape     = box
+        style     = filled
+        fillcolor = "#ADD8E6"
+    ]
+
+    ANALYZE_BRANCH [
+        label     = "ANALYZE_BRANCH\nAnalyze Branching\nbranches on: input shape · state · rule · outcome"
+        shape     = box
+        style     = filled
+        fillcolor = "#ADD8E6"
+    ]
+
+    ANALYZE_NAMING [
+        label     = "ANALYZE_NAMING\nAnalyze Naming\nIs context — module · types · return shape —\nclear enough for a generic name?"
+        shape     = box
+        style     = filled
+        fillcolor = "#ADD8E6"
+    ]
+
+    // ── Decision nodes ────────────────────────────────────────────────────
+    DETECT_TRANSFORM [
+        label     = "DETECT_TRANSFORM\nMostly\ntransformation?"
+        shape     = diamond
+        style     = filled
+        fillcolor = "#FFD700"
+        width     = 2.2
+    ]
+
+    DETECT_FX [
+        label     = "DETECT_FX\nHas side\neffects?\nDB · Ash · messaging\nexternal · file/net"
+        shape     = diamond
+        style     = filled
+        fillcolor = "#FFD700"
+        width     = 2.2
+    ]
+
+    CLASSIFY [
+        label     = "CLASSIFY\nClassify Function\norchestration?\nentity rule?\npure transformation?"
+        shape     = diamond
+        style     = filled
+        fillcolor = "#FFD700"
+        width     = 2.2
+    ]
+
+    // ── Routing nodes ─────────────────────────────────────────────────────
+    ISOLATE_FX [
+        label     = "ISOLATE_FX\nIsolate Effect\nkeep surrounding logic thin"
+        shape     = ellipse
+        style     = filled
+        fillcolor = "#F5DEB3"
+    ]
+
+    PREFER_PATTERNS [
+        label     = "PREFER_PATTERNS\nPrefer Pattern Matching\nmultiple fn heads · guards · tagged tuples\nover nested case / boolean soup"
+        shape     = ellipse
+        style     = filled
+        fillcolor = "#F5DEB3"
+    ]
+
+    DECISION_RULE [
+        label     = "DECISION_RULE\nDecision Rule\nWhen uncertain: choose simpler shapes\n+ clearer Ash boundaries"
+        shape     = ellipse
+        style     = filled
+        fillcolor = "#F5DEB3"
+    ]
+
+    REVIEW [
+        label     = "REVIEW\nReview Discipline\nper function: shape · effect type\norchestration? · entity rule?\nplacement correct?"
+        shape     = ellipse
+        style     = filled
+        fillcolor = "#F5DEB3"
+    ]
+
+    // ── Terminal recommendation nodes ─────────────────────────────────────
+    PLACE_RESOURCE [
+        label     = "✅ PLACE_RESOURCE\nAsh Resource\nentity rules · validations · changes\nactions · policies · persistence"
+        shape     = doublecircle
+        style     = filled
+        fillcolor = "#98FB98"
+        penwidth  = 2
+    ]
+
+    PLACE_DOMAIN [
+        label     = "✅ PLACE_DOMAIN\nDomain Module\nbusiness capabilities · orchestration\ncoordination · public entry points"
+        shape     = doublecircle
+        style     = filled
+        fillcolor = "#98FB98"
+        penwidth  = 2
+    ]
+
+    PLACE_PLAIN [
+        label     = "✅ PLACE_PLAIN\nPlain Elixir Module\npure transformation · normalisation\nshape conversion · non-Ash helpers"
+        shape     = doublecircle
+        style     = filled
+        fillcolor = "#98FB98"
+        penwidth  = 2
+    ]
+
+    // ── Output requirement nodes ──────────────────────────────────────────
+    OUTPUT_FORMAT [
+        label     = "OUTPUT_FORMAT\nRequired Output Format\n1 boundary changes\n2 classification\n3 refactored code\n4 assumptions\n5 preserved behaviour"
+        shape     = cylinder
+        style     = filled
+        fillcolor = "#FFA07A"
+    ]
+
+    FINAL_STD [
+        label     = "FINAL_STD\nFinal Operating Standard\nstable shapes · obvious boundaries\nidiomatic Elixir + Ash\ncheap future change · low entropy"
+        shape     = cylinder
+        style     = filled
+        fillcolor = "#FFA07A"
+        penwidth  = 2
+    ]
+
+    // ══════════════════════════════════════════════════════════════════════
+    // EDGES
+    // ══════════════════════════════════════════════════════════════════════
+
+    // ── Framing ───────────────────────────────────────────────────────────
+    START -> CORE_OBJ    [ label = "frames" ]
+    START -> PRIME_RULE  [ label = "frames" ]
+
+    // ── Objective / prime rule enable inspection ──────────────────────────
+    PRIME_RULE -> INSPECT_IN  [ label = "shape-first inspection" ]
+    CORE_OBJ   -> INSPECT_IN  [ label = "governs" ]
+
+    // ── Inspection pipeline ───────────────────────────────────────────────
+    INSPECT_IN  -> INSPECT_OUT       [ label = "next" ]
+    INSPECT_OUT -> DETECT_TRANSFORM  [ label = "next" ]
+
+    // ── Transformation early-exit ─────────────────────────────────────────
+    DETECT_TRANSFORM -> PLACE_PLAIN  [ label = "yes → pure fn"       color = "#228B22" fontcolor = "#228B22" ]
+    DETECT_TRANSFORM -> DETECT_FX   [ label = "no → check effects"   color = "#CC0000" fontcolor = "#CC0000" ]
+
+    // ── Side-effect branch ────────────────────────────────────────────────
+    // Edge colours: green = yes · red = no  (consistent with DETECT_TRANSFORM above)
+    DETECT_FX -> ISOLATE_FX      [ label = "yes → isolate"  color = "#228B22" fontcolor = "#228B22" ]
+    DETECT_FX -> ANALYZE_BRANCH  [ label = "no → continue"  color = "#CC0000" fontcolor = "#CC0000" ]
+    ISOLATE_FX -> ANALYZE_BRANCH [ label = "continue" ]
+
+    // ── Branching and naming ──────────────────────────────────────────────
+    ANALYZE_BRANCH  -> PREFER_PATTERNS [ label = "apply" ]
+    PREFER_PATTERNS -> ANALYZE_NAMING  [ label = "next" ]
+    ANALYZE_NAMING  -> CLASSIFY        [ label = "feeds" ]
+
+    // ── Constraints converge on classification (dashed) ───────────────────
+    SHAPE_DOCTRINE      -> CLASSIFY  [ label = "constrains" style = dashed color = "#9370DB" fontcolor = "#9370DB" ]
+    REFACTOR_HEURISTICS -> CLASSIFY  [ label = "constrains" style = dashed color = "#9370DB" fontcolor = "#9370DB" ]
+    CODE_STYLE          -> CLASSIFY  [ label = "constrains" style = dashed color = "#9370DB" fontcolor = "#9370DB" ]
+    ASH_EXPECT          -> CLASSIFY  [ label = "constrains" style = dashed color = "#9370DB" fontcolor = "#9370DB" ]
+    BOUNDARY_MODEL      -> CLASSIFY  [ label = "constrains" style = dashed color = "#9370DB" fontcolor = "#9370DB" ]
+
+    // ── Classification routes ─────────────────────────────────────────────
+    CLASSIFY -> PLACE_DOMAIN    [ label = "orchestration / coordination" ]
+    CLASSIFY -> PLACE_RESOURCE  [ label = "entity rule / persistence" ]
+    CLASSIFY -> PLACE_PLAIN     [ label = "pure transformation" ]
+    CLASSIFY -> DECISION_RULE   [ label = "uncertain" style = dashed color = "#888888" fontcolor = "#888888" ]
+
+    // ── Decision rule fallback ────────────────────────────────────────────
+    DECISION_RULE -> PLACE_DOMAIN    [ label = "domain fit" ]
+    DECISION_RULE -> PLACE_RESOURCE  [ label = "resource fit" ]
+    DECISION_RULE -> PLACE_PLAIN     [ label = "simplest shape" ]
+
+    // ── All terminals feed review ─────────────────────────────────────────
+    PLACE_RESOURCE -> REVIEW  [ label = "validate" ]
+    PLACE_DOMAIN   -> REVIEW  [ label = "validate" ]
+    PLACE_PLAIN    -> REVIEW  [ label = "validate" ]
+
+    // ── Output ────────────────────────────────────────────────────────────
+    REVIEW        -> OUTPUT_FORMAT  [ label = "structure response" ]
+    OUTPUT_FORMAT -> FINAL_STD      [ label = "governed by" ]
+
+    // ══════════════════════════════════════════════════════════════════════
+    // RANK GROUPING (keeps constraint nodes in a tidy side column)
+    // ══════════════════════════════════════════════════════════════════════
+    { rank = same; SHAPE_DOCTRINE; REFACTOR_HEURISTICS; CODE_STYLE; ASH_EXPECT; BOUNDARY_MODEL }
+    { rank = same; PLACE_RESOURCE; PLACE_DOMAIN; PLACE_PLAIN }
+}
