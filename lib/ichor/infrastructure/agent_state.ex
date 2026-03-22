@@ -8,9 +8,9 @@ defmodule Ichor.Infrastructure.AgentState do
 
   ## Fields
   - `message_log`  — bounded history of all received messages (newest first).
-  - `inbox`        — user-facing unread messages; returned and cleared by
-                     `get_unread/1`.  Alias: the old `unread` field was
-                     split so delivery-buffering is handled separately.
+  - `inbox`        — unread messages for MCP polling via `pop_inbox/1`.
+                     Bounded to `@max_inbox` entries. Backend-connected agents
+                     also receive tmux delivery; inbox is the programmatic channel.
   - `pending_delivery` — messages buffered while the agent is paused and
                          drained to the backend on resume.
   """
@@ -18,17 +18,15 @@ defmodule Ichor.Infrastructure.AgentState do
   alias Ichor.Infrastructure.AgentMessage
 
   @max_message_log 200
+  @max_inbox 200
 
   @doc """
-  Record an incoming normalized message into the log and inbox, routing
-  delivery buffering based on current status.
+  Record an incoming normalized message into the log and inbox.
 
-  Returns `{normalized_message, new_state}` so the caller has direct access
-  to the normalized message without inspecting internal state fields.
-
-  - When `:active`, the message is ready for immediate delivery.
-  - When not `:active`, the message is additionally appended to
-    `pending_delivery` for deferred dispatch on resume.
+  Returns `{normalized_message, new_state}`. Every message is appended to
+  both `message_log` (bounded history) and `inbox` (MCP polling buffer).
+  When not `:active`, additionally buffered in `pending_delivery` for
+  deferred backend dispatch on resume.
   """
   @spec record_message(map(), map() | String.t()) :: {map(), map()}
   def record_message(%{id: agent_id} = state, raw_message) do
@@ -37,7 +35,7 @@ defmodule Ichor.Infrastructure.AgentState do
     new_state =
       state
       |> prepend_to_log(msg)
-      |> maybe_inbox(msg)
+      |> prepend_to_inbox(msg)
       |> maybe_buffer(msg)
 
     {msg, new_state}
@@ -71,8 +69,8 @@ defmodule Ichor.Infrastructure.AgentState do
     %{state | message_log: Enum.take([msg | state.message_log], @max_message_log)}
   end
 
-  defp maybe_inbox(state, msg) do
-    %{state | inbox: [msg | state.inbox]}
+  defp prepend_to_inbox(state, msg) do
+    %{state | inbox: Enum.take([msg | state.inbox], @max_inbox)}
   end
 
   defp maybe_buffer(%{status: :active} = state, _msg), do: state
