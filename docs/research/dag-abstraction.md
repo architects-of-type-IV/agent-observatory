@@ -244,3 +244,7 @@ If every prompt cycle produces a reasoning DAG, conversation history becomes a f
 - Erlang `:digraph` module -- OTP's built-in directed graph
 - Erlang `:digraph_utils` -- topological sort, cycle detection, reachability
 - Ash Reactor -- has digraph built in; may understand Ash domain model natively
+- [DAG-based reasoning for LLMs (arXiv 2510.21148)](https://arxiv.org/pdf/2510.21148v1)
+- [Microsoft PromptFlow -- develop a DAG flow](https://microsoft.github.io/promptflow/how-to-guides/develop-a-dag-flow/index.html)
+- [Graph-based prompt automation](https://gaodalie.substack.com/p/i-used-a-graph-to-automate-prompt)
+- [Agentic AI workflows as DAGs](https://medium.com/@siddhardha/agentic-ai-workflows-in-directed-acyclic-graphs-dags-intro-5d00444124dd)
