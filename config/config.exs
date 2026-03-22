@@ -15,7 +15,8 @@ config :ichor,
     Ichor.Workshop,
     Ichor.Archon,
     Ichor.Infrastructure,
-    Ichor.Factory
+    Ichor.Factory,
+    Ichor.Settings
   ]
 
 config :ichor, Ichor.Repo,

@@ -71,6 +71,7 @@ defmodule IchorWeb.Router do
 
     live "/", DashboardLive
     live "/:view", DashboardLive
+    live "/:view/:category", DashboardLive
     get "/export/events", ExportController, :index
   end
 

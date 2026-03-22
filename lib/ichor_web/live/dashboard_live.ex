@@ -42,6 +42,7 @@ defmodule IchorWeb.DashboardLive do
     DashboardSpawnHandlers,
     DashboardTaskHandlers,
     DashboardTmuxHandlers,
+    DashboardSettingsHandlers,
     DashboardUIHandlers
   }
 
@@ -69,7 +70,7 @@ defmodule IchorWeb.DashboardLive do
   @selection_recompute ~w(select_team)
 
   @session_control_events ~w(pause_agent resume_agent shutdown_agent hitl_approve hitl_reject kill_switch_click kill_switch_first_confirm kill_switch_second_confirm kill_switch_cancel push_instructions_intent push_instructions_confirm push_instructions_cancel)
-  @tmux_events ~w(connect_tmux disconnect_tmux disconnect_tmux_tab close_all_tmux switch_tmux_tab toggle_tmux_layout send_tmux_keys kill_tmux_session kill_sidebar_tmux launch_session toggle_terminal_panel close_terminal_panel cycle_panel_position set_panel_position set_panel_width set_panel_height set_panel_split set_panel_theme set_panel_layout terminal_panel_init terminal_panel_resize toggle_session_picker toggle_panel_settings)
+  @tmux_events ~w(connect_tmux disconnect_tmux disconnect_tmux_tab close_all_tmux switch_tmux_tab toggle_tmux_layout send_tmux_keys kill_tmux_session kill_sidebar_tmux launch_session toggle_terminal_panel close_terminal_panel cycle_panel_position set_panel_position set_panel_width set_panel_height set_panel_split set_panel_theme set_panel_layout terminal_panel_init terminal_panel_resize terminal_resized toggle_session_picker toggle_panel_settings)
   @pipeline_events ~w(select_pipeline_project heal_pipeline_task heal_task reset_pipeline_stale run_pipeline_health_check reassign_pipeline_task claim_pipeline_task trigger_pipeline_gc select_pipeline_task select_command_agent send_command_message clear_command_selection)
   @task_events ~w(update_task_status reassign_task delete_task)
   @note_events ~w(add_note delete_note)
@@ -79,6 +80,7 @@ defmodule IchorWeb.DashboardLive do
   @nav_events ~w(jump_to_agents restore_view_mode)
   @mes_events ~w(mes_pick_up mes_load_plugin toggle_mes_scheduler mes_select_project mes_deselect_project mes_start_mode mes_gate_check mes_generate_dag mes_launch_dag planning_switch_tab planning_select_artifact planning_close_reader)
   @messaging_events ~w(set_message_target send_targeted_message)
+  @settings_events ~w(settings_project_event select_settings_category)
 
   # Messaging events only need view recompute (thread/search state)
   @impl true
@@ -96,15 +98,26 @@ defmodule IchorWeb.DashboardLive do
   @impl true
   def handle_params(params, _uri, socket) do
     nav_view = parse_nav_view(params["view"])
-    socket = assign(socket, :nav_view, nav_view)
-    {:noreply, apply_nav_view(nav_view, socket)}
+
+    socket =
+      socket
+      |> assign(:nav_view, nav_view)
+      |> assign(:settings_category, parse_settings_category(params["category"]))
+
+    socket = apply_nav_view(nav_view, socket)
+
+    {:noreply, socket}
   end
+
+  defp parse_settings_category("projects"), do: :projects
+  defp parse_settings_category(_), do: :projects
 
   defp parse_nav_view("fleet"), do: :fleet
   defp parse_nav_view("protocols"), do: :fleet
   defp parse_nav_view("workshop"), do: :workshop
   defp parse_nav_view("signals"), do: :signals
   defp parse_nav_view("mes"), do: :mes
+  defp parse_nav_view("settings"), do: :settings
   defp parse_nav_view(_), do: :pipeline
 
   defp apply_nav_view(:workshop, socket) do
@@ -136,6 +149,10 @@ defmodule IchorWeb.DashboardLive do
       planning_project: nil,
       gate_report: nil
     )
+  end
+
+  defp apply_nav_view(:settings, socket) do
+    assign(socket, :settings_projects, Ichor.Settings.list_settings_projects!())
   end
 
   defp apply_nav_view(_nav_view, socket), do: socket
@@ -214,6 +231,9 @@ defmodule IchorWeb.DashboardLive do
 
   def handle_event(e, p, s) when e in @messaging_events,
     do: {:noreply, DashboardMessagingHandlers.dispatch(e, p, s)}
+
+  def handle_event(e, p, s) when e in @settings_events,
+    do: {:noreply, DashboardSettingsHandlers.dispatch(e, p, s)}
 
   def handle_event("send_agent_message", p, s),
     do: DashboardMessagingHandlers.handle_send_agent_message(p, s)

@@ -288,11 +288,14 @@ let Hooks = {
       const measureHeader = () => {
         const header = this.el.querySelector("header")
         if (header) {
-          const h = header.getBoundingClientRect().bottom
+          // Use offsetTop + offsetHeight to get the true bottom including borders
+          const h = header.offsetTop + header.offsetHeight
           document.documentElement.style.setProperty("--app-header-h", `${h}px`)
         }
       }
-      measureHeader()
+      // Measure after layout settles
+      requestAnimationFrame(measureHeader)
+      setTimeout(measureHeader, 200)
       this._headerRo = new ResizeObserver(measureHeader)
       const header = this.el.querySelector("header")
       if (header) this._headerRo.observe(header)

@@ -99,7 +99,17 @@ export const XtermHook = {
       })
     })
 
-    this._ro = new ResizeObserver(() => doFit())
+    this._ro = new ResizeObserver(() => {
+      doFit()
+      const session = this.el.dataset.session
+      if (session && this.term.cols && this.term.rows) {
+        this.pushEvent("terminal_resized", {
+          session: session,
+          cols: this.term.cols,
+          rows: this.term.rows
+        })
+      }
+    })
     this._ro.observe(this.el)
     this._fitAddon = fitAddon
   },

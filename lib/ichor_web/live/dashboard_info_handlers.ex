@@ -63,6 +63,19 @@ defmodule IchorWeb.DashboardInfoHandlers do
   def dispatch(%Message{name: :fleet_changed}, socket),
     do: {:noreply, schedule_recompute(socket)}
 
+  def dispatch({:refresh_terminal, session}, socket) do
+    case Ichor.Infrastructure.Tmux.capture_pane(session, ansi: true) do
+      {:ok, output} ->
+        {:noreply,
+         socket
+         |> assign(:tmux_outputs, Map.put(socket.assigns.tmux_outputs, session, output))
+         |> Phoenix.LiveView.push_event("terminal_output", %{session: session, data: output})}
+
+      {:error, _} ->
+        {:noreply, socket}
+    end
+  end
+
   def dispatch(%Message{name: :heartbeat}, %{assigns: %{tmux_panels: [_ | _]}} = socket),
     do: {:noreply, refresh_tmux_panels(socket)}
 
@@ -71,12 +84,10 @@ defmodule IchorWeb.DashboardInfoHandlers do
   def dispatch(%Message{name: :mailbox_message, data: %{message: message}}, socket),
     do: handle_new_mailbox_message(message, socket)
 
-  def dispatch(%Message{name: :pipeline_status, data: %{state_map: state}}, socket),
-    do:
-      {:noreply,
-       socket
-       |> assign(:pipeline_state, state)
-       |> maybe_refresh_archon_manager()}
+  def dispatch(%Message{name: :pipeline_status, data: %{state_map: state}}, socket) do
+    merged = Map.merge(socket.assigns.pipeline_state, state)
+    {:noreply, socket |> assign(:pipeline_state, merged) |> maybe_refresh_archon_manager()}
+  end
 
   def dispatch(%Message{name: :protocol_update, data: %{stats_map: stats}}, socket),
     do:

@@ -1,0 +1,36 @@
+<div class="flex h-full gap-4 p-4">
+  <%!-- Category sidebar --%>
+  <nav class="w-48 shrink-0 space-y-1">
+    <h2 class="text-[10px] font-semibold text-low uppercase tracking-wider mb-3">Settings</h2>
+    <%= for {slug, label, enabled} <- categories() do %>
+      <%= if enabled do %>
+        <button
+          phx-click="select_settings_category"
+          phx-value-category={slug}
+          class={"block w-full text-left px-3 py-1.5 rounded text-[11px] transition #{if category_active?(slug, @settings_category), do: "bg-interactive/15 text-interactive font-medium", else: "text-default hover:bg-raised hover:text-high"}"}
+        >
+          {label}
+        </button>
+      <% else %>
+        <span class="block px-3 py-1.5 text-[11px] text-muted/40 cursor-not-allowed">
+          {label}
+        </span>
+      <% end %>
+    <% end %>
+  </nav>
+
+  <%!-- Content panel --%>
+  <div class="flex-1 min-w-0">
+    <%= case @settings_category do %>
+      <% :projects -> %>
+        <.projects_panel
+          settings_projects={@settings_projects}
+          settings_project_form={@settings_project_form}
+          folder_browser={@folder_browser}
+          browsed_path={@browsed_path}
+        />
+      <% _ -> %>
+        <.stub_panel category={@settings_category} />
+    <% end %>
+  </div>
+</div>

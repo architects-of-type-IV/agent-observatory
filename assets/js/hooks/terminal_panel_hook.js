@@ -4,7 +4,7 @@ export const TerminalPanelHook = {
       position: localStorage.getItem("ichor:term_position") || "center",
       width: parseInt(localStorage.getItem("ichor:term_width")) || 70,
       height: parseInt(localStorage.getItem("ichor:term_height")) || 50,
-      visible: localStorage.getItem("ichor:term_visible") !== "false",
+      visible: false,
       split: localStorage.getItem("ichor:term_split") || "none",
       theme: localStorage.getItem("ichor:term_theme") || "ichor",
     }

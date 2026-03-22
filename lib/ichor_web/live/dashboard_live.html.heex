@@ -263,6 +263,22 @@
         </svg>
       </.link>
       <span class="flex-1" />
+      <.link
+        patch="/settings/projects"
+        class={"ichor-tip ichor-tip-right flex items-center justify-center w-7 h-7 rounded transition #{if @nav_view == :settings, do: "bg-interactive/20 text-interactive", else: "text-muted hover:text-default hover:bg-raised"}"}
+        data-tip="Settings"
+      >
+        <svg
+          class="w-3.5 h-3.5"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+          <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+        </svg>
+      </.link>
       <a
         href="/dev/dashboard"
         target="_blank"
@@ -335,7 +351,7 @@
               Pipeline Board
             </h3>
             <div
-              :if={@pipeline_state.pipeline.total > 0}
+              :if={Map.get(@pipeline_state.pipeline, :total, 0) > 0}
               class="flex items-center rounded overflow-hidden"
             >
               <span class="text-[9px] font-semibold px-1.5 py-0.5 bg-success/15 text-success">
@@ -348,10 +364,10 @@
                 {@pipeline_state.pipeline.pending} pending
               </span>
               <span
-                :if={@pipeline_state.pipeline.blocked > 0}
+                :if={Map.get(@pipeline_state.pipeline, :blocked, 0) > 0}
                 class="text-[9px] font-semibold px-1.5 py-0.5 bg-brand/15 text-brand"
               >
-                {@pipeline_state.pipeline.blocked} blocked
+                {Map.get(@pipeline_state.pipeline, :blocked, 0)} blocked
               </span>
               <span
                 :if={@pipeline_state.pipeline.failed > 0}
@@ -410,6 +426,17 @@
             gate_report={@gate_report}
             planning_sub_tab={@planning_sub_tab}
             planning_selected={@planning_selected}
+          />
+        </div>
+
+        <%!-- Settings View --%>
+        <div :if={@nav_view == :settings} class="h-full -m-2">
+          <IchorWeb.Components.SettingsComponents.settings_view
+            settings_category={@settings_category}
+            settings_projects={@settings_projects}
+            settings_project_form={@settings_project_form}
+            folder_browser={@folder_browser}
+            browsed_path={@browsed_path}
           />
         </div>
 

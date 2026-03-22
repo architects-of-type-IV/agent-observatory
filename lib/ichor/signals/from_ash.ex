@@ -73,6 +73,15 @@ defmodule Ichor.Signals.FromAsh do
   defp signal_for(Ichor.Factory.CronJob, :reschedule),
     do: {:cron_job_rescheduled, &cron_data/2}
 
+  defp signal_for(Ichor.Settings.SettingsProject, :create),
+    do: {:settings_project_created, &settings_project_data/2}
+
+  defp signal_for(Ichor.Settings.SettingsProject, :update),
+    do: {:settings_project_updated, &settings_project_data/2}
+
+  defp signal_for(Ichor.Settings.SettingsProject, :destroy),
+    do: {:settings_project_destroyed, &settings_project_data/2}
+
   defp signal_for(_, _), do: nil
 
   defp task_data(data, _action) do
@@ -134,5 +143,9 @@ defmodule Ichor.Signals.FromAsh do
 
   defp cron_data(data, _action) do
     %{job_id: data.id, agent_id: data.agent_id, next_fire_at: data.next_fire_at}
+  end
+
+  defp settings_project_data(data, _action) do
+    %{project_id: data.id, name: data.name, is_active: data.is_active}
   end
 end

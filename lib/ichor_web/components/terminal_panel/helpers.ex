@@ -30,18 +30,18 @@ defmodule IchorWeb.Components.TerminalPanel.Helpers do
   @doc "Compute inline CSS for floating panel with independent width and height."
   @spec floating_style(atom(), integer(), integer()) :: String.t()
   def floating_style(:bottom, w, h) do
-    "width: #{w}%; height: #{h}%; bottom: #{@gap}; left: 50%; transform: translateX(-50%); #{mh()}"
+    "width: min(#{w}%, 100% - 2 * #{@gap}); height: #{h}%; bottom: #{@gap}; left: 50%; transform: translateX(-50%); #{mh()}"
   end
 
-  def floating_style(pos, w, _h) when pos in [:center, :top, :left, :right] do
-    left =
+  def floating_style(pos, w, h) when pos in [:center, :top, :left, :right] do
+    horiz =
       case pos do
         :right -> "right: #{@gap}; left: auto;"
         :left -> "left: #{@gap};"
         _ -> "left: 50%; transform: translateX(-50%);"
       end
 
-    "width: #{w}%; top: calc(#{@header} + #{@gap}); #{left} #{mh()}"
+    "width: min(#{w}%, 100% - 2 * #{@gap}); height: #{h}%; top: calc(#{@header} + #{@gap}); bottom: #{@gap}; #{horiz} #{mh()}"
   end
 
   def floating_style(_, w, h), do: floating_style(:center, w, h)

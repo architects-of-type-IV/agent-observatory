@@ -33,6 +33,7 @@ defmodule IchorWeb.DashboardTmuxHandlers do
   def dispatch("set_panel_theme", p, s), do: handle_set_panel_theme(p, s)
   def dispatch("terminal_panel_init", p, s), do: handle_terminal_panel_init(p, s)
   def dispatch("terminal_panel_resize", _p, s), do: s
+  def dispatch("terminal_resized", p, s), do: handle_terminal_resized(p, s)
   def dispatch("set_panel_layout", p, s), do: handle_set_panel_layout(p, s)
   def dispatch("toggle_session_picker", p, s), do: handle_toggle_session_picker(p, s)
   def dispatch("toggle_panel_settings", p, s), do: handle_toggle_panel_settings(p, s)
@@ -116,11 +117,9 @@ defmodule IchorWeb.DashboardTmuxHandlers do
 
       session ->
         Tmux.run_command(["send-keys", "-t", session, keys, "Enter"])
-        output = capture_output(session)
-
+        # Schedule a re-capture after the command has time to produce output
+        Process.send_after(self(), {:refresh_terminal, session}, 150)
         socket
-        |> assign(:tmux_outputs, Map.put(socket.assigns.tmux_outputs, session, output))
-        |> push_event("terminal_output", %{session: session, data: output})
     end
   end
 
@@ -362,6 +361,21 @@ defmodule IchorWeb.DashboardTmuxHandlers do
     })
   end
 
+  def handle_terminal_resized(%{"session" => session, "cols" => cols, "rows" => rows}, socket) do
+    Tmux.run_command([
+      "resize-window",
+      "-t",
+      session,
+      "-x",
+      to_string(cols),
+      "-y",
+      to_string(rows)
+    ])
+
+    Process.send_after(self(), {:refresh_terminal, session}, 200)
+    socket
+  end
+
   def handle_toggle_session_picker(_params, socket) do
     assign(socket, :show_session_picker, !socket.assigns[:show_session_picker])
   end
@@ -393,7 +407,7 @@ defmodule IchorWeb.DashboardTmuxHandlers do
   defp parse_theme(_), do: :ichor
 
   defp capture_output(session_name) do
-    case Tmux.capture_pane(session_name, lines: 80) do
+    case Tmux.capture_pane(session_name, ansi: true) do
       {:ok, text} -> text
       {:error, _} -> "Session ended or unavailable."
     end

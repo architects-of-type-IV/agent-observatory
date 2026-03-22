@@ -19,6 +19,7 @@ defmodule IchorWeb.Components.TerminalPanelComponents do
 
   import IchorWeb.Components.TerminalPanel.SessionTab, only: [session_tab: 1]
 
+  alias Phoenix.LiveView.JS
   alias IchorWeb.Components.TerminalPanel.Settings
 
   attr :panel_visible, :boolean, required: true
@@ -223,7 +224,11 @@ defmodule IchorWeb.Components.TerminalPanelComponents do
             {@active_tmux_session} &gt;
           </span>
           <div id="term-panel-input-stable" phx-update="ignore" class="flex-1">
-            <form phx-submit="send_tmux_keys" class="flex gap-2">
+            <form
+              id="term-keys-form"
+              phx-submit={JS.push("send_tmux_keys") |> JS.dispatch("reset", to: "#term-keys-form")}
+              class="flex gap-2"
+            >
               <input
                 type="text"
                 name="keys"

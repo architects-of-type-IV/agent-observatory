@@ -1,0 +1,1553 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ICHOR IV — Terminal Panel Playground</title>
+  <style>
+    /* ── Theme tokens ── */
+    :root {
+      --base-100: oklch(30.33% 0.016 252.42);
+      --base-200: oklch(25.26% 0.014 253.1);
+      --base-300: oklch(20.15% 0.012 254.09);
+      --base-content: oklch(97.807% 0.029 256.847);
+      --base-content-muted: oklch(70% 0.018 254);
+      --primary: oklch(58% 0.233 277.117);
+      --primary-dim: oklch(38% 0.14 277.117);
+      --success: oklch(60% 0.118 184.704);
+      --warning: oklch(66% 0.179 58.318);
+      --error: oklch(58% 0.253 17.585);
+      --info: oklch(58% 0.158 241.966);
+      --border: oklch(38% 0.018 254);
+      --radius-field: 0.25rem;
+      --radius-box: 0.5rem;
+      --border-width: 1.5px;
+
+      /* Terminal ANSI */
+      --term-green: oklch(68% 0.18 142);
+      --term-cyan: oklch(72% 0.14 196);
+      --term-yellow: oklch(78% 0.17 88);
+      --term-pink: oklch(72% 0.22 340);
+      --term-blue: oklch(62% 0.18 248);
+      --term-red: oklch(62% 0.22 18);
+      --term-white: oklch(95% 0.01 256);
+      --term-gray: oklch(58% 0.012 256);
+      --term-bg: oklch(14% 0.01 254);
+      --term-header: oklch(18% 0.012 254);
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: var(--base-300);
+      color: var(--base-content);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Page header ── */
+    .page-header {
+      background: var(--base-200);
+      border-bottom: var(--border-width) solid var(--border);
+      padding: 0.75rem 1.25rem;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      flex-shrink: 0;
+    }
+
+    .page-header h1 {
+      font-size: 0.875rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--primary);
+    }
+
+    .page-header .subtitle {
+      font-size: 0.75rem;
+      color: var(--base-content-muted);
+    }
+
+    .kbd-hint {
+      margin-left: auto;
+      font-size: 0.7rem;
+      color: var(--base-content-muted);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    kbd {
+      background: var(--base-300);
+      border: var(--border-width) solid var(--border);
+      border-radius: var(--radius-field);
+      padding: 0.1rem 0.4rem;
+      font-size: 0.7rem;
+      font-family: monospace;
+      color: var(--base-content);
+    }
+
+    /* ── Main layout ── */
+    .workspace {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 280px 1fr;
+      overflow: hidden;
+    }
+
+    /* ── Controls panel ── */
+    .controls {
+      background: var(--base-200);
+      border-right: var(--border-width) solid var(--border);
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+
+    .control-section {
+      padding: 0.875rem 1rem;
+      border-bottom: var(--border-width) solid var(--border);
+    }
+
+    .control-section h2 {
+      font-size: 0.65rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--base-content-muted);
+      margin-bottom: 0.625rem;
+    }
+
+    .control-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .control-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+    }
+
+    label.control-label {
+      font-size: 0.75rem;
+      color: var(--base-content);
+      flex-shrink: 0;
+    }
+
+    select, input[type="range"] {
+      background: var(--base-300);
+      border: var(--border-width) solid var(--border);
+      border-radius: var(--radius-field);
+      color: var(--base-content);
+      font-size: 0.75rem;
+      padding: 0.3rem 0.5rem;
+      cursor: pointer;
+      outline: none;
+      flex: 1;
+    }
+
+    select:focus, input:focus {
+      border-color: var(--primary);
+    }
+
+    input[type="range"] {
+      padding: 0;
+      accent-color: var(--primary);
+    }
+
+    .value-badge {
+      font-size: 0.7rem;
+      color: var(--base-content-muted);
+      min-width: 2rem;
+      text-align: right;
+      font-family: monospace;
+    }
+
+    /* Preset buttons */
+    .preset-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.375rem;
+    }
+
+    .btn-preset {
+      background: var(--base-300);
+      border: var(--border-width) solid var(--border);
+      border-radius: var(--radius-field);
+      color: var(--base-content);
+      font-size: 0.7rem;
+      padding: 0.35rem 0.5rem;
+      cursor: pointer;
+      text-align: center;
+      transition: border-color 0.15s, background 0.15s;
+      line-height: 1.3;
+    }
+
+    .btn-preset:hover {
+      border-color: var(--primary);
+      background: var(--base-200);
+    }
+
+    .btn-preset.active {
+      border-color: var(--primary);
+      background: var(--primary-dim);
+      color: var(--base-content);
+    }
+
+    /* Segmented controls */
+    .seg-group {
+      display: flex;
+      border: var(--border-width) solid var(--border);
+      border-radius: var(--radius-field);
+      overflow: hidden;
+    }
+
+    .seg-btn {
+      flex: 1;
+      background: var(--base-300);
+      border: none;
+      border-right: var(--border-width) solid var(--border);
+      color: var(--base-content-muted);
+      font-size: 0.7rem;
+      padding: 0.3rem 0.25rem;
+      cursor: pointer;
+      transition: background 0.12s, color 0.12s;
+    }
+
+    .seg-btn:last-child { border-right: none; }
+
+    .seg-btn:hover { background: var(--base-200); color: var(--base-content); }
+
+    .seg-btn.active {
+      background: var(--primary-dim);
+      color: var(--base-content);
+    }
+
+    /* Toggle switch */
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .toggle-switch {
+      position: relative;
+      width: 2.25rem;
+      height: 1.2rem;
+      flex-shrink: 0;
+    }
+
+    .toggle-switch input { display: none; }
+
+    .toggle-track {
+      position: absolute;
+      inset: 0;
+      background: var(--base-300);
+      border: var(--border-width) solid var(--border);
+      border-radius: 9999px;
+      cursor: pointer;
+      transition: background 0.18s, border-color 0.18s;
+    }
+
+    .toggle-thumb {
+      position: absolute;
+      top: 50%;
+      left: 0.18rem;
+      transform: translateY(-50%);
+      width: 0.8rem;
+      height: 0.8rem;
+      background: var(--base-content-muted);
+      border-radius: 50%;
+      transition: left 0.18s, background 0.18s;
+    }
+
+    .toggle-switch input:checked + .toggle-track { background: var(--primary-dim); border-color: var(--primary); }
+    .toggle-switch input:checked ~ .toggle-thumb { left: calc(100% - 0.98rem); background: var(--primary); }
+
+    .toggle-switch input:checked + .toggle-track + .toggle-thumb {
+      left: calc(100% - 0.98rem);
+      background: oklch(78% 0.233 277.117);
+    }
+
+    /* Pane count */
+    .pane-count-row {
+      display: flex;
+      gap: 0.375rem;
+    }
+
+    .pane-btn {
+      flex: 1;
+      background: var(--base-300);
+      border: var(--border-width) solid var(--border);
+      border-radius: var(--radius-field);
+      color: var(--base-content-muted);
+      font-size: 0.8rem;
+      padding: 0.3rem;
+      cursor: pointer;
+      text-align: center;
+      transition: border-color 0.12s, color 0.12s, background 0.12s;
+    }
+
+    .pane-btn.active {
+      border-color: var(--primary);
+      color: var(--base-content);
+      background: var(--primary-dim);
+    }
+
+    /* Output section */
+    .output-section {
+      padding: 0.875rem 1rem;
+      flex: 1;
+    }
+
+    .output-section h2 {
+      font-size: 0.65rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--base-content-muted);
+      margin-bottom: 0.625rem;
+    }
+
+    .output-code {
+      background: var(--base-300);
+      border: var(--border-width) solid var(--border);
+      border-radius: var(--radius-box);
+      padding: 0.75rem;
+      font-family: monospace;
+      font-size: 0.65rem;
+      line-height: 1.6;
+      color: var(--term-green);
+      white-space: pre-wrap;
+      word-break: break-word;
+      max-height: 260px;
+      overflow-y: auto;
+    }
+
+    .output-code .kw { color: var(--primary); }
+    .output-code .str { color: var(--term-yellow); }
+    .output-code .comment { color: var(--term-gray); }
+    .output-code .fn { color: var(--term-cyan); }
+    .output-code .atom { color: var(--term-pink); }
+
+    /* ── Preview area ── */
+    .preview-area {
+      position: relative;
+      overflow: hidden;
+      background: var(--base-300);
+    }
+
+    /* Mock dashboard */
+    .dashboard-bg {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      grid-template-rows: auto 1fr 1fr;
+      gap: 0.75rem;
+      padding: 0.75rem;
+      transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .dash-topbar {
+      grid-column: 1 / -1;
+      background: var(--base-200);
+      border: var(--border-width) solid var(--border);
+      border-radius: var(--radius-box);
+      padding: 0.625rem 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      height: 2.75rem;
+    }
+
+    .dash-logo {
+      width: 1.25rem;
+      height: 1.25rem;
+      background: var(--primary);
+      border-radius: var(--radius-field);
+      flex-shrink: 0;
+    }
+
+    .dash-nav {
+      display: flex;
+      gap: 0.5rem;
+      flex: 1;
+    }
+
+    .dash-nav-item {
+      font-size: 0.65rem;
+      color: var(--base-content-muted);
+      padding: 0.2rem 0.5rem;
+      border-radius: var(--radius-field);
+      cursor: default;
+    }
+
+    .dash-nav-item.active {
+      background: var(--base-300);
+      color: var(--base-content);
+    }
+
+    .dash-card {
+      background: var(--base-200);
+      border: var(--border-width) solid var(--border);
+      border-radius: var(--radius-box);
+      padding: 0.75rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    .dash-card-title {
+      font-size: 0.6rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--base-content-muted);
+    }
+
+    .dash-placeholder-lines {
+      display: flex;
+      flex-direction: column;
+      gap: 0.3rem;
+      flex: 1;
+    }
+
+    .dash-line {
+      height: 0.5rem;
+      background: var(--base-300);
+      border-radius: 2px;
+    }
+
+    .dash-line.w-full { width: 100%; }
+    .dash-line.w-3q { width: 75%; }
+    .dash-line.w-half { width: 50%; }
+    .dash-line.w-2q { width: 40%; }
+
+    .dash-stat {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--primary);
+      font-family: monospace;
+    }
+
+    .dash-badge {
+      display: inline-block;
+      font-size: 0.55rem;
+      padding: 0.1rem 0.4rem;
+      border-radius: 9999px;
+      font-weight: 600;
+    }
+
+    .dash-badge.success { background: color-mix(in oklch, var(--success) 20%, transparent); color: var(--success); }
+    .dash-badge.warning { background: color-mix(in oklch, var(--warning) 20%, transparent); color: var(--warning); }
+
+    /* ── Terminal panel ── */
+    .terminal-panel {
+      position: absolute;
+      background: var(--term-bg);
+      border: var(--border-width) solid var(--border);
+      display: flex;
+      flex-direction: column;
+      z-index: 10;
+      overflow: hidden;
+      transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+                  width 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+                  height 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+                  opacity 0.25s ease,
+                  box-shadow 0.25s ease;
+    }
+
+    .terminal-panel.pos-bottom {
+      bottom: 0; left: 0; right: 0;
+      border-left: none; border-right: none; border-bottom: none;
+      border-radius: var(--radius-box) var(--radius-box) 0 0;
+    }
+
+    .terminal-panel.pos-top {
+      top: 0; left: 0; right: 0;
+      border-top: none; border-left: none; border-right: none;
+      border-radius: 0 0 var(--radius-box) var(--radius-box);
+    }
+
+    .terminal-panel.pos-left {
+      left: 0; top: 0; bottom: 0;
+      border-top: none; border-left: none; border-bottom: none;
+      border-radius: 0 var(--radius-box) var(--radius-box) 0;
+    }
+
+    .terminal-panel.pos-right {
+      right: 0; top: 0; bottom: 0;
+      border-top: none; border-right: none; border-bottom: none;
+      border-radius: var(--radius-box) 0 0 var(--radius-box);
+    }
+
+    .terminal-panel.pos-floating {
+      border-radius: var(--radius-box);
+      box-shadow: 0 12px 48px oklch(0% 0 0 / 0.6), 0 2px 8px oklch(0% 0 0 / 0.4);
+    }
+
+    /* Hidden state transforms */
+    .terminal-panel.hidden-bottom { transform: translateY(100%); }
+    .terminal-panel.hidden-top { transform: translateY(-100%); }
+    .terminal-panel.hidden-left { transform: translateX(-100%); }
+    .terminal-panel.hidden-right { transform: translateX(100%); }
+    .terminal-panel.hidden-floating { opacity: 0; transform: scale(0.95); pointer-events: none; }
+
+    /* Panel header */
+    .panel-header {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      background: var(--term-header);
+      border-bottom: 1px solid oklch(28% 0.012 254);
+      flex-shrink: 0;
+      height: 2rem;
+      user-select: none;
+    }
+
+    .drag-handle {
+      width: 2rem;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: grab;
+      color: oklch(40% 0.01 254);
+      flex-shrink: 0;
+    }
+
+    .drag-handle:active { cursor: grabbing; }
+
+    .drag-handle svg { width: 0.875rem; height: 0.875rem; }
+
+    /* Session tabs */
+    .session-tabs {
+      display: flex;
+      align-items: stretch;
+      gap: 0;
+      flex: 1;
+      overflow: hidden;
+      height: 100%;
+    }
+
+    .session-tab {
+      display: flex;
+      align-items: center;
+      gap: 0.375rem;
+      padding: 0 0.75rem;
+      font-size: 0.65rem;
+      font-family: monospace;
+      color: oklch(55% 0.01 254);
+      border-right: 1px solid oklch(22% 0.01 254);
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background 0.12s, color 0.12s;
+      position: relative;
+      height: 100%;
+    }
+
+    .session-tab:hover { background: oklch(22% 0.01 254); color: var(--term-white); }
+
+    .session-tab.active {
+      background: var(--term-bg);
+      color: var(--term-white);
+    }
+
+    .session-tab.active::after {
+      content: '';
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      height: 2px;
+      background: var(--primary);
+    }
+
+    .tab-dot {
+      width: 0.4rem;
+      height: 0.4rem;
+      border-radius: 50%;
+      background: var(--term-green);
+      flex-shrink: 0;
+    }
+
+    .tab-close {
+      width: 0.875rem;
+      height: 0.875rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 2px;
+      color: oklch(45% 0.01 254);
+      font-size: 0.6rem;
+      transition: background 0.1s, color 0.1s;
+    }
+
+    .tab-close:hover { background: var(--error); color: white; }
+
+    .add-tab-btn {
+      width: 2rem;
+      flex-shrink: 0;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: oklch(45% 0.01 254);
+      cursor: pointer;
+      border-right: 1px solid oklch(22% 0.01 254);
+      transition: background 0.1s, color 0.1s;
+      font-size: 0.875rem;
+    }
+
+    .add-tab-btn:hover { background: oklch(22% 0.01 254); color: var(--term-white); }
+
+    /* Panel controls */
+    .panel-controls {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      padding: 0 0.375rem;
+      flex-shrink: 0;
+    }
+
+    .panel-ctrl-btn {
+      width: 1.75rem;
+      height: 1.75rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: var(--radius-field);
+      color: oklch(45% 0.01 254);
+      cursor: pointer;
+      transition: background 0.1s, color 0.1s;
+      font-size: 0.65rem;
+      border: none;
+      background: none;
+    }
+
+    .panel-ctrl-btn:hover { background: oklch(22% 0.01 254); color: var(--term-white); }
+    .panel-ctrl-btn.close:hover { background: var(--error); color: white; }
+
+    .panel-ctrl-btn svg { width: 0.75rem; height: 0.75rem; }
+
+    /* Terminal body */
+    .terminal-body {
+      flex: 1;
+      display: flex;
+      overflow: hidden;
+      min-height: 0;
+    }
+
+    /* Split panes */
+    .pane-container {
+      flex: 1;
+      display: flex;
+      overflow: hidden;
+      min-height: 0;
+    }
+
+    .pane-container.split-h { flex-direction: row; }
+    .pane-container.split-v { flex-direction: column; }
+
+    .terminal-pane {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    .pane-tab-bar {
+      display: flex;
+      align-items: center;
+      background: oklch(16% 0.01 254);
+      border-bottom: 1px solid oklch(22% 0.01 254);
+      padding: 0 0.5rem;
+      height: 1.5rem;
+      flex-shrink: 0;
+      gap: 0.375rem;
+    }
+
+    .pane-tab-label {
+      font-size: 0.6rem;
+      font-family: monospace;
+      color: oklch(55% 0.01 254);
+    }
+
+    .pane-divider {
+      background: oklch(22% 0.01 254);
+      flex-shrink: 0;
+      position: relative;
+    }
+
+    .pane-divider.h { width: 3px; cursor: col-resize; }
+    .pane-divider.v { height: 3px; cursor: row-resize; }
+
+    .pane-divider:hover { background: var(--primary); }
+
+    /* Terminal content */
+    .terminal-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0.625rem 0.75rem;
+      font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+      font-size: 0.72rem;
+      line-height: 1.55;
+      color: var(--term-white);
+      min-height: 0;
+      scrollbar-width: thin;
+      scrollbar-color: oklch(30% 0.01 254) transparent;
+    }
+
+    /* ANSI color classes */
+    .t-green { color: var(--term-green); }
+    .t-cyan { color: var(--term-cyan); }
+    .t-yellow { color: var(--term-yellow); }
+    .t-pink { color: var(--term-pink); }
+    .t-blue { color: var(--term-blue); }
+    .t-red { color: var(--term-red); }
+    .t-gray { color: var(--term-gray); }
+    .t-white { color: var(--term-white); }
+    .t-bold { font-weight: 700; }
+    .t-dim { opacity: 0.6; }
+
+    /* Status bar */
+    .term-status-bar {
+      display: flex;
+      align-items: center;
+      background: oklch(16% 0.01 254);
+      border-top: 1px solid oklch(22% 0.01 254);
+      padding: 0 0.75rem;
+      height: 1.4rem;
+      flex-shrink: 0;
+      gap: 0.75rem;
+      font-family: monospace;
+      font-size: 0.6rem;
+    }
+
+    .status-chip {
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+      padding: 0.1rem 0.4rem;
+      border-radius: 2px;
+    }
+
+    .status-chip.branch { background: oklch(28% 0.05 277); color: var(--primary); }
+    .status-chip.commit { background: oklch(24% 0.02 196); color: var(--term-cyan); }
+    .status-chip.model { background: oklch(24% 0.02 340); color: var(--term-pink); }
+    .status-chip.ok { background: oklch(22% 0.04 142); color: var(--term-green); }
+    .status-chip.warn { background: oklch(24% 0.04 88); color: var(--term-yellow); }
+
+    .status-spacer { flex: 1; }
+
+    /* Resize handle */
+    .resize-handle {
+      background: oklch(22% 0.01 254);
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: oklch(35% 0.01 254);
+      transition: background 0.15s, color 0.15s;
+      z-index: 1;
+    }
+
+    .resize-handle:hover {
+      background: color-mix(in oklch, var(--primary) 30%, oklch(22% 0.01 254));
+      color: var(--primary);
+    }
+
+    .resize-handle.h {
+      height: 4px;
+      cursor: row-resize;
+      width: 100%;
+    }
+
+    .resize-handle.v {
+      width: 4px;
+      cursor: col-resize;
+      height: 100%;
+    }
+
+    /* Hidden overlay indicator */
+    .hidden-indicator {
+      position: absolute;
+      bottom: 0.5rem;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--base-200);
+      border: var(--border-width) solid var(--border);
+      border-radius: var(--radius-box);
+      padding: 0.3rem 0.75rem;
+      font-size: 0.65rem;
+      color: var(--base-content-muted);
+      display: none;
+      z-index: 5;
+      pointer-events: none;
+    }
+
+    .hidden-indicator.visible { display: block; }
+
+    /* Claude logo pixel art */
+    .claude-logo {
+      display: inline-grid;
+      grid-template-columns: repeat(8, 3px);
+      grid-template-rows: repeat(8, 3px);
+      gap: 0;
+      vertical-align: middle;
+    }
+
+    .claude-logo .p { background: var(--term-pink); }
+    .claude-logo .o { background: transparent; }
+
+    /* Cursor blink */
+    .cursor {
+      display: inline-block;
+      width: 0.5rem;
+      height: 0.85em;
+      background: var(--term-white);
+      vertical-align: text-bottom;
+      animation: blink 1.2s step-end infinite;
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0; }
+    }
+
+    /* Scrollbar */
+    .terminal-content::-webkit-scrollbar { width: 4px; }
+    .terminal-content::-webkit-scrollbar-track { background: transparent; }
+    .terminal-content::-webkit-scrollbar-thumb { background: oklch(30% 0.01 254); border-radius: 2px; }
+
+    /* Utility */
+    .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); }
+  </style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>ICHOR IV</h1>
+  <span class="subtitle">Terminal Panel — Layout Playground</span>
+  <div class="kbd-hint">
+    Press <kbd>T</kbd> to toggle terminal
+  </div>
+</header>
+
+<div class="workspace">
+
+  <!-- Controls -->
+  <aside class="controls" aria-label="Panel controls">
+
+    <section class="control-section">
+      <h2>Presets</h2>
+      <div class="preset-grid">
+        <button class="btn-preset" data-preset="minimal" onclick="applyPreset('minimal')">
+          Minimal<br><small>bottom 25%</small>
+        </button>
+        <button class="btn-preset active" data-preset="standard" onclick="applyPreset('standard')">
+          Standard<br><small>bottom 50%</small>
+        </button>
+        <button class="btn-preset" data-preset="focus" onclick="applyPreset('focus')">
+          Focus<br><small>fullscreen</small>
+        </button>
+        <button class="btn-preset" data-preset="side" onclick="applyPreset('side')">
+          Side Panel<br><small>right 33%</small>
+        </button>
+        <button class="btn-preset" data-preset="floating" onclick="applyPreset('floating')">
+          Floating<br><small>60%×60%</small>
+        </button>
+      </div>
+    </section>
+
+    <section class="control-section">
+      <h2>Position</h2>
+      <div class="seg-group" role="group" aria-label="Panel position">
+        <button class="seg-btn" data-pos="top" onclick="setPosition('top')">Top</button>
+        <button class="seg-btn active" data-pos="bottom" onclick="setPosition('bottom')">Bottom</button>
+        <button class="seg-btn" data-pos="left" onclick="setPosition('left')">Left</button>
+        <button class="seg-btn" data-pos="right" onclick="setPosition('right')">Right</button>
+        <button class="seg-btn" data-pos="floating" onclick="setPosition('floating')">Float</button>
+      </div>
+    </section>
+
+    <section class="control-section">
+      <h2>Size</h2>
+      <div class="control-group">
+        <div class="seg-group" role="group" aria-label="Panel size">
+          <button class="seg-btn" data-size="25" onclick="setSize(25)">25%</button>
+          <button class="seg-btn" data-size="33" onclick="setSize(33)">33%</button>
+          <button class="seg-btn active" data-size="50" onclick="setSize(50)">50%</button>
+          <button class="seg-btn" data-size="75" onclick="setSize(75)">75%</button>
+          <button class="seg-btn" data-size="100" onclick="setSize(100)">Full</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="control-section">
+      <h2>Split</h2>
+      <div class="seg-group" role="group" aria-label="Split direction">
+        <button class="seg-btn active" data-split="none" onclick="setSplit('none')">None</button>
+        <button class="seg-btn" data-split="horizontal" onclick="setSplit('horizontal')">Horiz</button>
+        <button class="seg-btn" data-split="vertical" onclick="setSplit('vertical')">Vert</button>
+      </div>
+    </section>
+
+    <section class="control-section">
+      <h2>Panes</h2>
+      <div class="pane-count-row">
+        <button class="pane-btn active" data-panes="1" onclick="setPaneCount(1)">1</button>
+        <button class="pane-btn" data-panes="2" onclick="setPaneCount(2)">2</button>
+        <button class="pane-btn" data-panes="3" onclick="setPaneCount(3)">3</button>
+        <button class="pane-btn" data-panes="4" onclick="setPaneCount(4)">4</button>
+      </div>
+    </section>
+
+    <section class="control-section">
+      <h2>Visibility</h2>
+      <div class="control-group">
+        <label class="toggle-row">
+          <span class="control-label">Panel visible</span>
+          <label class="toggle-switch">
+            <input type="checkbox" id="toggle-visible" checked onchange="toggleVisible(this.checked)">
+            <span class="toggle-track"></span>
+            <span class="toggle-thumb"></span>
+          </label>
+        </label>
+        <label class="toggle-row">
+          <span class="control-label">Animate transitions</span>
+          <label class="toggle-switch">
+            <input type="checkbox" id="toggle-anim" checked onchange="toggleAnim(this.checked)">
+            <span class="toggle-track"></span>
+            <span class="toggle-thumb"></span>
+          </label>
+        </label>
+      </div>
+    </section>
+
+    <section class="output-section">
+      <h2>Phoenix Implementation</h2>
+      <div class="output-code" id="output-code" role="region" aria-label="Generated Phoenix code"></div>
+    </section>
+
+  </aside>
+
+  <!-- Preview -->
+  <section class="preview-area" id="preview-area" aria-label="Live preview">
+
+    <!-- Mock dashboard background -->
+    <div class="dashboard-bg" id="dashboard-bg">
+      <header class="dash-topbar">
+        <div class="dash-logo" aria-hidden="true"></div>
+        <nav class="dash-nav">
+          <span class="dash-nav-item active">Workshop</span>
+          <span class="dash-nav-item">Factory</span>
+          <span class="dash-nav-item">Archon</span>
+          <span class="dash-nav-item">Signals</span>
+          <span class="dash-nav-item">Infrastructure</span>
+        </nav>
+      </header>
+
+      <div class="dash-card">
+        <div class="dash-card-title">Active Agents</div>
+        <div class="dash-stat">12</div>
+        <span class="dash-badge success">8 running</span>
+        <div class="dash-placeholder-lines">
+          <div class="dash-line w-full"></div>
+          <div class="dash-line w-3q"></div>
+        </div>
+      </div>
+
+      <div class="dash-card">
+        <div class="dash-card-title">Workshop Teams</div>
+        <div class="dash-stat">3</div>
+        <span class="dash-badge success">all healthy</span>
+        <div class="dash-placeholder-lines">
+          <div class="dash-line w-full"></div>
+          <div class="dash-line w-half"></div>
+        </div>
+      </div>
+
+      <div class="dash-card">
+        <div class="dash-card-title">Factory Jobs</div>
+        <div class="dash-stat">47</div>
+        <span class="dash-badge warning">2 queued</span>
+        <div class="dash-placeholder-lines">
+          <div class="dash-line w-full"></div>
+          <div class="dash-line w-3q"></div>
+          <div class="dash-line w-half"></div>
+        </div>
+      </div>
+
+      <div class="dash-card">
+        <div class="dash-card-title">Signal Bus</div>
+        <div class="dash-stat">204</div>
+        <span class="dash-badge success">24/s</span>
+        <div class="dash-placeholder-lines">
+          <div class="dash-line w-full"></div>
+          <div class="dash-line w-2q"></div>
+        </div>
+      </div>
+
+      <div class="dash-card">
+        <div class="dash-card-title">Canvas State</div>
+        <div class="dash-placeholder-lines">
+          <div class="dash-line w-full"></div>
+          <div class="dash-line w-3q"></div>
+          <div class="dash-line w-full"></div>
+          <div class="dash-line w-half"></div>
+          <div class="dash-line w-3q"></div>
+        </div>
+      </div>
+
+      <div class="dash-card">
+        <div class="dash-card-title">Memory Store</div>
+        <div class="dash-placeholder-lines">
+          <div class="dash-line w-full"></div>
+          <div class="dash-line w-half"></div>
+          <div class="dash-line w-full"></div>
+          <div class="dash-line w-3q"></div>
+          <div class="dash-line w-2q"></div>
+        </div>
+      </div>
+
+      <div class="dash-card">
+        <div class="dash-card-title">Decision Log</div>
+        <div class="dash-placeholder-lines">
+          <div class="dash-line w-full"></div>
+          <div class="dash-line w-3q"></div>
+          <div class="dash-line w-full"></div>
+          <div class="dash-line w-half"></div>
+        </div>
+      </div>
+
+      <div class="dash-card">
+        <div class="dash-card-title">Oban Queues</div>
+        <div class="dash-placeholder-lines">
+          <div class="dash-line w-full"></div>
+          <div class="dash-line w-full"></div>
+          <div class="dash-line w-half"></div>
+          <div class="dash-line w-3q"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Hidden indicator -->
+    <div class="hidden-indicator" id="hidden-indicator">
+      Terminal hidden — press <kbd>T</kbd> to show
+    </div>
+
+    <!-- Terminal panel -->
+    <div class="terminal-panel pos-bottom" id="terminal-panel" role="complementary" aria-label="Terminal panel">
+
+      <!-- Resize handle (top when bottom-positioned) -->
+      <div class="resize-handle h" id="resize-handle" role="separator" aria-orientation="horizontal" title="Drag to resize"></div>
+
+      <!-- Panel header -->
+      <header class="panel-header">
+        <div class="drag-handle" title="Drag to move" role="button" aria-label="Drag to reposition panel">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="5" cy="4" r="1" fill="currentColor" stroke="none"/>
+            <circle cx="11" cy="4" r="1" fill="currentColor" stroke="none"/>
+            <circle cx="5" cy="8" r="1" fill="currentColor" stroke="none"/>
+            <circle cx="11" cy="8" r="1" fill="currentColor" stroke="none"/>
+            <circle cx="5" cy="12" r="1" fill="currentColor" stroke="none"/>
+            <circle cx="11" cy="12" r="1" fill="currentColor" stroke="none"/>
+          </svg>
+        </div>
+
+        <nav class="session-tabs" id="session-tabs" aria-label="Terminal sessions">
+          <button class="session-tab active" aria-current="true">
+            <span class="tab-dot" aria-hidden="true"></span>
+            <span>xterm-test</span>
+            <span class="tab-close" aria-label="Close session">✕</span>
+          </button>
+          <button class="session-tab">
+            <span class="tab-dot" style="background: var(--term-cyan);" aria-hidden="true"></span>
+            <span>obs</span>
+            <span class="tab-close" aria-label="Close session">✕</span>
+          </button>
+          <button class="session-tab">
+            <span class="tab-dot" style="background: var(--term-yellow);" aria-hidden="true"></span>
+            <span>mes-abc123</span>
+            <span class="tab-close" aria-label="Close session">✕</span>
+          </button>
+          <button class="add-tab-btn" title="New session" aria-label="Add new session">+</button>
+        </nav>
+
+        <div class="panel-controls" role="toolbar" aria-label="Panel controls">
+          <button class="panel-ctrl-btn" title="Minimize" aria-label="Minimize panel" onclick="handleMinimize()">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="3" y1="8" x2="13" y2="8"/>
+            </svg>
+          </button>
+          <button class="panel-ctrl-btn" title="Maximize / Restore" aria-label="Maximize panel" onclick="handleMaximize()">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="3" width="10" height="10" rx="1"/>
+            </svg>
+          </button>
+          <button class="panel-ctrl-btn close" title="Hide panel (T to restore)" aria-label="Hide panel" onclick="handleClose()">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="4" y1="4" x2="12" y2="12"/>
+              <line x1="12" y1="4" x2="4" y2="12"/>
+            </svg>
+          </button>
+        </div>
+      </header>
+
+      <!-- Terminal body -->
+      <div class="terminal-body" id="terminal-body">
+        <div class="pane-container" id="pane-container">
+          <!-- Panes injected by JS -->
+        </div>
+      </div>
+
+    </div>
+  </section>
+</div>
+
+<script>
+// ── State ──
+const state = {
+  position: 'bottom',
+  size: 50,
+  split: 'none',
+  paneCount: 1,
+  visible: true,
+  animate: true,
+  preMaxSize: 50,
+  maximized: false,
+};
+
+// ── Terminal content fragments ──
+const sessions = ['xterm-test', 'obs', 'mes-abc123', 'split-1', 'split-2', 'split-3', 'split-4'];
+
+function logoPixels() {
+  // 8x8 pixel art approximation for Claude's orange/pink logo shape
+  const pattern = [
+    [0,0,0,1,1,0,0,0],
+    [0,0,1,1,1,1,0,0],
+    [0,1,1,0,0,1,1,0],
+    [1,1,0,0,0,0,1,1],
+    [1,1,0,1,1,0,1,1],
+    [0,1,1,0,0,1,1,0],
+    [0,0,1,1,1,1,0,0],
+    [0,0,0,1,1,0,0,0],
+  ];
+  let html = '<span class="claude-logo" aria-hidden="true">';
+  pattern.flat().forEach(px => {
+    html += `<span class="${px ? 'p' : 'o'}"></span>`;
+  });
+  html += '</span>';
+  return html;
+}
+
+function terminalContent(sessionName, index) {
+  const prompts = [
+    `<span class="t-green">~/code/observatory</span> <span class="t-gray">on</span> <span class="t-pink"> main</span>`,
+    `<span class="t-green">~/code/observatory</span> <span class="t-gray">on</span> <span class="t-cyan"> refactor/signals</span>`,
+    `<span class="t-green">~/code/www</span> <span class="t-gray">on</span> <span class="t-pink"> main</span>`,
+    `<span class="t-green">~/projects/ichor</span> <span class="t-gray">on</span> <span class="t-yellow"> feat/terminal</span>`,
+  ];
+  const idx = index % 4;
+
+  if (index === 0) {
+    return `
+<div>${logoPixels()} <span class="t-pink t-bold">Claude Code</span> <span class="t-gray">v2.1.81</span></div>
+<div><span class="t-gray">Model: </span><span class="t-cyan">claude-sonnet-4-6</span> <span class="t-gray">(200k context)</span></div>
+<div><span class="t-gray">Project: </span><span class="t-white">ICHOR IV Observatory</span></div>
+<div class="t-dim">───────────────────────────────────────</div>
+<br>
+<div><span class="t-green">✓</span> <span class="t-white">Loaded 127 source files</span></div>
+<div><span class="t-green">✓</span> <span class="t-white">Ash domains indexed (5 domains, 31 resources)</span></div>
+<div><span class="t-yellow">⚠</span> <span class="t-yellow">3 compile warnings detected</span></div>
+<br>
+<div>${prompts[0]}</div>
+<div><span class="t-gray">$</span> mix compile --warnings-as-errors</div>
+<br>
+<div><span class="t-cyan">Compiling 12 files (.ex)</span></div>
+<div><span class="t-gray">  lib/ichor/signals/behaviour.ex</span></div>
+<div><span class="t-gray">  lib/ichor/workshop/team.ex</span></div>
+<div><span class="t-gray">  lib/ichor/workshop/spawn.ex</span></div>
+<div><span class="t-gray">  lib/ichor/pub_sub.ex</span></div>
+<div><span class="t-green">Generated ichor app</span></div>
+<br>
+<div>${prompts[0]}</div>
+<div><span class="t-gray">$</span> <span class="cursor"></span></div>`;
+  } else if (index === 1) {
+    return `
+<div>${prompts[1]}</div>
+<div><span class="t-gray">$</span> mix ash.codegen rename_workshop_team_json_keys</div>
+<br>
+<div><span class="t-cyan">Extension AshPostgres will generate:</span></div>
+<div><span class="t-green">+ priv/repo/migrations/20260321015744_rename_workshop_team_json_keys.exs</span></div>
+<br>
+<div><span class="t-gray">$</span> mix ash.migrate</div>
+<div><span class="t-white">Running migrations...</span></div>
+<div><span class="t-green">  ✓ 20260321015744_rename_workshop_team_json_keys [3ms]</span></div>
+<br>
+<div>${prompts[1]}</div>
+<div><span class="t-gray">$</span> <span class="cursor"></span></div>`;
+  } else if (index === 2) {
+    return `
+<div>${prompts[2]}</div>
+<div><span class="t-gray">$</span> mix test test/ichor/workshop/ --color</div>
+<br>
+<div><span class="t-green">.......</span><span class="t-red">F</span><span class="t-green">.....</span></div>
+<br>
+<div>  <span class="t-red">1) test Workshop.Team create action (Ichor.WorkshopTest)</span></div>
+<div>     <span class="t-gray">test/ichor/workshop_test.exs:42</span></div>
+<div>     <span class="t-white">Assertion failed: expected {:ok, _} got {:error, :not_found}</span></div>
+<br>
+<div><span class="t-yellow">Finished in 0.8s (0.1s async, 0.7s sync)</span></div>
+<div><span class="t-white">13 tests, </span><span class="t-red">1 failure</span></div>
+<br>
+<div>${prompts[2]}</div>
+<div><span class="t-gray">$</span> <span class="cursor"></span></div>`;
+  } else {
+    return `
+<div>${prompts[idx]}</div>
+<div><span class="t-gray">$</span> iex -S mix</div>
+<br>
+<div><span class="t-cyan">Erlang/OTP 27</span> <span class="t-gray">[erts-15.2.1]</span></div>
+<div><span class="t-cyan">Interactive Elixir (1.19.0)</span></div>
+<br>
+<div><span class="t-pink">iex(1)></span> Ichor.Workshop.Team.list!()</div>
+<div><span class="t-white">[</span></div>
+<div><span class="t-white">  %Ichor.Workshop.Team{id: "abc123", name: "alpha"},</span></div>
+<div><span class="t-white">  %Ichor.Workshop.Team{id: "def456", name: "beta"}</span></div>
+<div><span class="t-white">]</span></div>
+<br>
+<div><span class="t-pink">iex(2)></span> <span class="cursor"></span></div>`;
+  }
+}
+
+function statusBar() {
+  return `
+<div class="term-status-bar" aria-label="Terminal status">
+  <span class="status-chip branch">
+    <span aria-hidden="true">⎇</span> main
+  </span>
+  <span class="status-chip commit">4fed5c0</span>
+  <span class="status-chip model">sonnet-4-6</span>
+  <span class="status-spacer"></span>
+  <span class="status-chip ok">
+    <span aria-hidden="true">●</span> connected
+  </span>
+  <span class="status-chip warn">3 warnings</span>
+</div>`;
+}
+
+// ── DOM helpers ──
+function el(id) { return document.getElementById(id); }
+
+function buildPanes() {
+  const container = el('pane-container');
+  const { split, paneCount } = state;
+
+  container.className = 'pane-container';
+  if (split === 'horizontal') container.classList.add('split-h');
+  else if (split === 'vertical') container.classList.add('split-v');
+
+  const count = split === 'none' ? 1 : paneCount;
+  container.innerHTML = '';
+
+  for (let i = 0; i < count; i++) {
+    const pane = document.createElement('div');
+    pane.className = 'terminal-pane';
+
+    let inner = '';
+    if (count > 1) {
+      inner += `<div class="pane-tab-bar">
+        <span class="tab-dot" style="background: ${['var(--term-green)','var(--term-cyan)','var(--term-yellow)','var(--term-pink)'][i]};"></span>
+        <span class="pane-tab-label">${sessions[i] || 'pane-' + (i+1)}</span>
+      </div>`;
+    }
+    inner += `<div class="terminal-content">${terminalContent(sessions[i] || 'pane', i)}</div>`;
+    inner += statusBar();
+
+    pane.innerHTML = inner;
+    container.appendChild(pane);
+
+    if (i < count - 1) {
+      const divider = document.createElement('div');
+      divider.className = `pane-divider ${split === 'horizontal' ? 'h' : 'v'}`;
+      divider.setAttribute('role', 'separator');
+      container.appendChild(divider);
+    }
+  }
+
+  // Scroll each terminal to bottom
+  container.querySelectorAll('.terminal-content').forEach(tc => {
+    tc.scrollTop = tc.scrollHeight;
+  });
+}
+
+function applyLayout() {
+  const panel = el('terminal-panel');
+  const bg = el('dashboard-bg');
+  const { position, size, visible, animate } = state;
+
+  // Remove all position classes
+  panel.className = 'terminal-panel';
+
+  if (!animate) {
+    panel.style.transition = 'none';
+  } else {
+    panel.style.transition = '';
+  }
+
+  panel.classList.add(`pos-${position}`);
+
+  // Size
+  const isVertical = position === 'left' || position === 'right';
+  const isFull = size >= 100;
+
+  panel.style.width = '';
+  panel.style.height = '';
+  panel.style.top = '';
+  panel.style.left = '';
+  panel.style.right = '';
+  panel.style.bottom = '';
+  panel.style.transform = '';
+
+  if (position === 'floating') {
+    const w = Math.min(size * 1.2, 90);
+    const h = size;
+    panel.style.width = `${w}%`;
+    panel.style.height = `${h}%`;
+    panel.style.top = '50%';
+    panel.style.left = '50%';
+    panel.style.transform = 'translate(-50%, -50%)';
+  } else if (isVertical) {
+    panel.style.width = `${size}%`;
+    panel.style.height = '100%';
+  } else {
+    panel.style.height = `${size}%`;
+    panel.style.width = '100%';
+  }
+
+  // Resize handle orientation
+  const rh = el('resize-handle');
+  rh.className = `resize-handle ${isVertical ? 'v' : 'h'}`;
+  if (position === 'floating' || position === 'top') {
+    rh.style.display = 'none';
+  } else {
+    rh.style.display = '';
+  }
+
+  // Dashboard background offset
+  bg.style.paddingBottom = '0';
+  bg.style.paddingTop = '0';
+  bg.style.paddingLeft = '0';
+  bg.style.paddingRight = '0';
+
+  if (visible && position !== 'floating') {
+    if (position === 'bottom') bg.style.paddingBottom = `${size}%`;
+    if (position === 'top') bg.style.paddingTop = `${size}%`;
+    if (position === 'left') bg.style.paddingLeft = `${size}%`;
+    if (position === 'right') bg.style.paddingRight = `${size}%`;
+  }
+
+  // Visibility animation
+  const indicator = el('hidden-indicator');
+  if (!visible) {
+    const hiddenClass = position === 'floating' ? 'hidden-floating' : `hidden-${position}`;
+    panel.classList.add(hiddenClass);
+    indicator.classList.add('visible');
+    indicator.textContent = 'Terminal hidden — press T to show';
+    // Remove dashboard offset
+    bg.style.paddingBottom = '0';
+    bg.style.paddingTop = '0';
+    bg.style.paddingLeft = '0';
+    bg.style.paddingRight = '0';
+  } else {
+    indicator.classList.remove('visible');
+  }
+
+  updateOutput();
+}
+
+// ── Control handlers ──
+function setPosition(pos) {
+  state.position = pos;
+  document.querySelectorAll('.seg-btn[data-pos]').forEach(b => {
+    b.classList.toggle('active', b.dataset.pos === pos);
+  });
+  applyLayout();
+}
+
+function setSize(size) {
+  state.size = size;
+  state.maximized = size >= 100;
+  document.querySelectorAll('.seg-btn[data-size]').forEach(b => {
+    b.classList.toggle('active', parseInt(b.dataset.size) === size);
+  });
+  applyLayout();
+}
+
+function setSplit(split) {
+  state.split = split;
+  document.querySelectorAll('.seg-btn[data-split]').forEach(b => {
+    b.classList.toggle('active', b.dataset.split === split);
+  });
+  buildPanes();
+}
+
+function setPaneCount(n) {
+  state.paneCount = n;
+  document.querySelectorAll('.pane-btn[data-panes]').forEach(b => {
+    b.classList.toggle('active', parseInt(b.dataset.panes) === n);
+  });
+  buildPanes();
+}
+
+function toggleVisible(checked) {
+  state.visible = checked;
+  applyLayout();
+}
+
+function toggleAnim(checked) {
+  state.animate = checked;
+  applyLayout();
+}
+
+function applyPreset(name) {
+  const presets = {
+    minimal:  { position: 'bottom', size: 25, split: 'none',       paneCount: 1 },
+    standard: { position: 'bottom', size: 50, split: 'none',       paneCount: 1 },
+    focus:    { position: 'bottom', size: 100, split: 'none',      paneCount: 1 },
+    side:     { position: 'right',  size: 33, split: 'none',       paneCount: 1 },
+    floating: { position: 'floating', size: 60, split: 'none',     paneCount: 1 },
+  };
+
+  const p = presets[name];
+  if (!p) return;
+
+  Object.assign(state, p, { visible: true });
+
+  // Sync controls
+  document.getElementById('toggle-visible').checked = true;
+
+  document.querySelectorAll('.seg-btn[data-pos]').forEach(b =>
+    b.classList.toggle('active', b.dataset.pos === p.position));
+  document.querySelectorAll('.seg-btn[data-size]').forEach(b =>
+    b.classList.toggle('active', parseInt(b.dataset.size) === p.size));
+  document.querySelectorAll('.seg-btn[data-split]').forEach(b =>
+    b.classList.toggle('active', b.dataset.split === p.split));
+  document.querySelectorAll('.pane-btn[data-panes]').forEach(b =>
+    b.classList.toggle('active', parseInt(b.dataset.panes) === p.paneCount));
+
+  document.querySelectorAll('.btn-preset[data-preset]').forEach(b =>
+    b.classList.toggle('active', b.dataset.preset === name));
+
+  buildPanes();
+  applyLayout();
+}
+
+function handleMinimize() {
+  state.visible = false;
+  document.getElementById('toggle-visible').checked = false;
+  applyLayout();
+}
+
+function handleMaximize() {
+  if (state.maximized) {
+    setSize(state.preMaxSize || 50);
+  } else {
+    state.preMaxSize = state.size;
+    setSize(100);
+  }
+}
+
+function handleClose() {
+  state.visible = false;
+  document.getElementById('toggle-visible').checked = false;
+  applyLayout();
+}
+
+// ── Keyboard ──
+document.addEventListener('keydown', (e) => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') return;
+  if (e.key === 't' || e.key === 'T') {
+    state.visible = !state.visible;
+    document.getElementById('toggle-visible').checked = state.visible;
+    applyLayout();
+  }
+});
+
+// ── Output codegen ──
+function updateOutput() {
+  const { position, size, split, paneCount, animate } = state;
+  const posMap = { bottom: ':bottom', top: ':top', left: ':left', right: ':right', floating: ':floating' };
+  const splitMap = { none: ':none', horizontal: ':horizontal', vertical: ':vertical' };
+  const pos = posMap[position];
+  const sp = splitMap[split];
+  const anim = animate ? 'true' : 'false';
+
+  const code = `<span class="comment"># Phoenix LiveView component</span>
+<span class="kw">defmodule</span> <span class="fn">IchorWeb.TerminalPanel</span> <span class="kw">do</span>
+  <span class="kw">use</span> IchorWeb, <span class="atom">:live_component</span>
+
+  <span class="comment"># Mount: initialize panel state</span>
+  <span class="kw">def</span> <span class="fn">mount</span>(socket) <span class="kw">do</span>
+    socket = assign(socket,
+      position: ${pos},
+      size: ${size},
+      split: ${sp},
+      pane_count: ${paneCount},
+      visible: <span class="atom">true</span>,
+      animate: ${anim}
+    )
+    {<span class="atom">:ok</span>, socket}
+  <span class="kw">end</span>
+
+  <span class="comment"># JS hook (app.js):</span>
+  <span class="comment"># Hooks.TerminalPanel = {</span>
+  <span class="comment">#   mounted() {</span>
+  <span class="comment">#     this.handleKeydown = (e) => {</span>
+  <span class="comment">#       if (e.key === "t" || e.key === "T") {</span>
+  <span class="comment">#         this.pushEvent("toggle_terminal", {})</span>
+  <span class="comment">#       }</span>
+  <span class="comment">#     }</span>
+  <span class="comment">#     document.addEventListener("keydown", this.handleKeydown)</span>
+  <span class="comment">#   },</span>
+  <span class="comment">#   destroyed() {</span>
+  <span class="comment">#     document.removeEventListener("keydown", this.handleKeydown)</span>
+  <span class="comment">#   }</span>
+  <span class="comment"># }</span>
+
+  <span class="comment"># CSS transitions (app.css):</span>
+  <span class="comment"># .panel-pos-${position} { ... }</span>
+  <span class="comment"># .panel-hidden-${position} {</span>
+  <span class="comment">#   transform: translateY(100%); /* or X / scale */</span>
+  <span class="comment"># }</span>
+  <span class="comment"># .panel-animate {</span>
+  <span class="comment">#   transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);</span>
+  <span class="comment"># }</span>
+
+  <span class="kw">def</span> <span class="fn">handle_event</span>(<span class="str">"toggle_terminal"</span>, _params, socket) <span class="kw">do</span>
+    {<span class="atom">:noreply</span>, update(socket, <span class="atom">:visible</span>, &amp;(!&amp;1))}
+  <span class="kw">end</span>
+<span class="kw">end</span>`;
+
+  el('output-code').innerHTML = code;
+}
+
+// ── Init ──
+buildPanes();
+applyLayout();
+</script>
+
+</body>
+</html>

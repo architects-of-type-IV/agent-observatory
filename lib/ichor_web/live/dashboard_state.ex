@@ -132,7 +132,13 @@ defmodule IchorWeb.DashboardState do
       gate_report: nil,
       planning_sub_tab: :decisions,
       planning_selected: nil,
-      selected_mes_project: nil
+      selected_mes_project: nil,
+      # Settings
+      settings_category: :projects,
+      settings_projects: [],
+      settings_project_form: nil,
+      folder_browser: nil,
+      browsed_path: nil
     }
   end
 
