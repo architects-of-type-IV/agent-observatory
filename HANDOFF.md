@@ -1,53 +1,57 @@
 # ICHOR IV - Handoff
 
-## Current Status: SIGNALS DOMAIN REFACTOR (2026-03-22)
-
-Forensic audit of `lib/ichor/signals/` complete. Ready to execute wave-based refactor.
+## Current Status: SIGNALS WAVE 1 IN PROGRESS (2026-03-22)
 
 ### Session Summary
 
-1. **Bug fix** (done): `AgentState.maybe_inbox/2` backend-nil guard broke MCP inter-agent messaging for all tmux-backed teams. Fixed + bounded inbox at 200. Commits: `695e108`, `46d0cd5`.
+1. **Bug fix**: AgentState inbox for tmux-backed agents. Commits: `695e108`, `46d0cd5`.
+2. **Forensic audit**: Full signals domain audit -> `docs/audits/2026-03-22-signals-domain-forensics.md`
+3. **Blueprint**: Shape-first refactor plan -> `docs/plans/2026-03-22-signals-refactor-blueprint.md` (v3)
+4. **Wave 1 execution**: SIG-1 through SIG-6 completed. SIG-7, SIG-8 remaining.
 
-2. **Forensic audit** (done): Full boundary, function shape, coupling graph, and PubSub/Archon analysis of `lib/ichor/signals/`. Written to `docs/audits/2026-03-22-signals-domain-forensics.md`.
+### What Was Done (Wave 1 shape fixes)
 
-3. **DAG PR merged**: `SPECS/dag/AGENT_PROMPT_DAG.md` + `.yml` + `.dot` + `.ex` -- decision framework as traversable DAG.
+**entropy_tracker.ex** (SIG-1/2/3/4):
+- `classify_and_store/8` decomposed into `classify/3` (pure) + `emit_state_change/4` (side effect) + inline ETS store
+- `build_alert_event/4` inlined (was misnamed, 2 unused params)
+- `slide_window` uses `tl()` not `List.delete_at`
+- Dead spec removed, config read once in `init`
+- Subscribes to `:events`, scores from `handle_info(:new_event)` using `{tool_name, hook_event_type}` tuple
+- `lookup_session/3` extracted as shared pure function
+- Score is pure, store is side effect -- separate operations, not one chimera
 
-4. **Wave-based refactor** (next): Same pattern as 2026-03-21 architecture audit.
+**schema_interceptor.ex** (SIG-4): All entropy references removed. Pure validation only.
 
-### Audit Key Findings
+**event_bridge.ex** (SIG-4): `maybe_register_agent` and `maybe_enrich_entropy` removed. Unused aliases cleaned.
 
-- Only ~40% of `lib/ichor/signals/` is signal infrastructure. Rest is monitoring, health, projections, gateway validation.
-- 3 misplaced modules: AgentWatchdog (6 cross-domain imports), SchemaInterceptor (Mesh concern), ProtocolTracker (monitoring)
-- 7 boundary smells: Operations, EntropyTracker, EventStream, Buffer, TaskProjection, ToolFailure, HITLInterventionEvent
-- `classify_and_store/8` in EntropyTracker is a shape smell (8 params, 3 mixed concerns)
-- EventStream mixes 3 concerns: event buffer + heartbeat registry + ingest pipeline
+**event_stream.ex** (SIG-5): `AgentEntry.uuid?` replaced with inline regex. `tombstoned?/1` is pure predicate. Tombstone sweep added to heartbeat timer. `emit_intercepted` variants merged.
 
-### Architect Directives
+**protocol_tracker.ex** (SIG-6): 3 identical trace clauses merged into `build_trace/2` + `trace_fields/2`.
 
-- "events == signals, signals == topics" -- naming is confused
-- "schema interceptor should not contain the word entropy at all"
-- HITL intervention event is misplaced
-- Handler behaviour dispatches at emit-time in the Signals facade
-- Don't extract more from AgentWatchdog -- already has sub-modules
-- "Enrichment" is a code smell
-- Follow the wave pattern from 2026-03-21
+### Remaining Wave 1
 
-### Next: Create tasks.jsonl waves
+- **SIG-7**: Create handler.ex behaviour + facade dispatch
+- **SIG-8**: Split catalog.ex into catalog/
 
-Priority sequence:
-- **Wave 1**: Handler behaviour + catalog split into catalog/ + SignalManager split into signal_manager/
-- **Wave 2**: EntropyTracker.Healer (first handler implementation) + SchemaInterceptor boundary fix
-- **Wave 3**: Module relocations (AgentWatchdog, ProtocolTracker, HITL, etc.)
-- **Wave 4**: Quality sweep (naming, dead specs, shape fixes)
+### Architect Directives (critical, from this session)
+
+- **Refactoring = gardening. Every day, water a little.**
+- **Refactoring = shaping to generics until you see mirrors/twins.**
+- **Naming is what you do last when there is no other choice.**
+- **Signals = PubSub. That's it.** Emit, subscribe, act.
+- **You either score or store.** Pure functions separated from side effects.
+- **No OOP/DDD language.** No "domains", "bounded contexts", "authority models."
+- **Don't invent names.** No "Healer", "EntropyHealer". Shape the code first.
+- **Ask: can I rearrange arities and see a stdlib function?**
+- **Ask: why do we store in a flowing system?**
+- **Ask: is protocol tracker tracking or matching?**
 
 ### Key Files
 
-- `docs/audits/2026-03-22-signals-domain-forensics.md` -- full audit
-- `SPECS/dag/AGENT_PROMPT.md` -- refactor decision framework
-- `SPECS/dag/AGENT_PROMPT_DAG.md` -- DAG traversal guide
-- `~/.claude/plans/lovely-wondering-bengio.md` -- plan file (needs rewrite for wave approach)
-- `memory/project/archon_entropy_healing.md` -- design requirements
+- `docs/plans/2026-03-22-signals-refactor-blueprint.md` -- shape-first refactor plan
+- `docs/audits/2026-03-22-signals-domain-forensics.md` -- forensic audit
+- `memory/feedback/shape_first_refactoring.md` -- how to approach refactoring
+- `memory/feedback/refactoring_philosophy.md` -- gardening, generics, naming last
 
 ### Build
 - `mix compile --warnings-as-errors`: CLEAN
-- Last test run: 314 Ash resource tests, 0 failures

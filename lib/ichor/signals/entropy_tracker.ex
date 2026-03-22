@@ -7,8 +7,7 @@ defmodule Ichor.Signals.EntropyTracker do
   (unique tuples / window size), classifies severity as `:loop`, `:warning`,
   or `:normal`, and broadcasts topology/alert events as appropriate.
 
-  All thresholds and window size are read from Application config on every call
-  (not cached at startup) so runtime changes take effect immediately.
+  Thresholds and window size are read from Application config at startup.
 
   ETS entry format: `{session_id, {window_list, prior_severity, agent_id}}`
   """
@@ -27,12 +26,9 @@ defmodule Ichor.Signals.EntropyTracker do
 
   @doc """
   Records an entropy tuple and returns the computed score and severity.
-
-  Returns `{:ok, score, severity}` or `{:error, :missing_agent_id}` when a
-  LOOP alert cannot be emitted due to missing agent registration.
   """
-  @spec record_and_score(String.t(), {term(), term(), term()}) ::
-          {:ok, float(), :loop | :warning | :normal} | {:error, :missing_agent_id}
+  @spec record_and_score(String.t(), entropy_tuple()) ::
+          {:ok, float(), :loop | :warning | :normal}
   def record_and_score(session_id, {_intent, _tool_call, _action_status} = tuple) do
     GenServer.call(__MODULE__, {:record_and_score, session_id, tuple})
   end
@@ -64,37 +60,28 @@ defmodule Ichor.Signals.EntropyTracker do
   @impl true
   def init(_opts) do
     table = :ets.new(:entropy_windows, [:set, :private])
-    {:ok, %{table: table}}
+    Ichor.Signals.subscribe(:events)
+
+    {:ok,
+     %{
+       table: table,
+       window_size: read_config(:entropy_window_size, 5),
+       loop_threshold: read_config(:entropy_loop_threshold, 0.25),
+       warning_threshold: read_config(:entropy_warning_threshold, 0.50)
+     }}
   end
 
   @impl true
-  def handle_call({:record_and_score, session_id, tuple}, _from, %{table: table} = state) do
-    window_size = read_config(:entropy_window_size, 5)
-    loop_threshold = read_config(:entropy_loop_threshold, 0.25)
-    warning_threshold = read_config(:entropy_warning_threshold, 0.50)
+  def handle_call({:record_and_score, session_id, tuple}, _from, state) do
+    {window, prior, agent_id} = lookup_session(state.table, session_id, nil)
+    updated = slide_window(window ++ [tuple], state.window_size)
+    score = compute_score(updated)
+    severity = classify(score, state.loop_threshold, state.warning_threshold)
 
-    {window, prior_severity, agent_id} =
-      case :ets.lookup(table, session_id) do
-        [{^session_id, {w, ps, aid}}] -> {w, ps, aid}
-        [] -> {[], :normal, nil}
-      end
+    emit_state_change(session_id, severity, prior, score)
+    :ets.insert(state.table, {session_id, {updated, severity, agent_id}})
 
-    updated_window = slide_window(window ++ [tuple], window_size)
-    score = compute_score(updated_window)
-
-    reply =
-      classify_and_store(
-        table,
-        session_id,
-        agent_id,
-        prior_severity,
-        updated_window,
-        score,
-        loop_threshold,
-        warning_threshold
-      )
-
-    {:reply, reply, state}
+    {:reply, {:ok, score, severity}, state}
   end
 
   @impl true
@@ -127,91 +114,76 @@ defmodule Ichor.Signals.EntropyTracker do
     {:noreply, state}
   end
 
-  defp slide_window(window, max_size) when length(window) > max_size do
-    List.delete_at(window, 0)
-  end
+  @impl true
+  def handle_info(
+        %Ichor.Signals.Message{name: :new_event, data: %{event: event}},
+        state
+      ) do
+    with %{session_id: sid, tool_name: tool, hook_event_type: type}
+         when is_binary(sid) and is_binary(tool) <- event do
+      {window, prior, agent_id} = lookup_session(state.table, sid, sid)
+      updated = slide_window(window ++ [{tool, type}], state.window_size)
+      score = compute_score(updated)
+      severity = classify(score, state.loop_threshold, state.warning_threshold)
 
-  defp slide_window(window, _max_size), do: window
-
-  defp classify_and_store(
-         table,
-         session_id,
-         agent_id,
-         _prior_severity,
-         window,
-         score,
-         loop_threshold,
-         _warning_threshold
-       )
-       when score < loop_threshold do
-    build_alert_event(session_id, score, agent_id, window)
-    Ichor.Signals.emit(:node_state_update, %{agent_id: session_id, state: "alert_entropy"})
-    :ets.insert(table, {session_id, {window, :loop, agent_id}})
-    {:ok, score, :loop}
-  end
-
-  defp classify_and_store(
-         table,
-         session_id,
-         agent_id,
-         _prior_severity,
-         window,
-         score,
-         _loop_threshold,
-         warning_threshold
-       )
-       when score < warning_threshold do
-    Ichor.Signals.emit(:node_state_update, %{agent_id: session_id, state: "blocked"})
-    :ets.insert(table, {session_id, {window, :warning, agent_id}})
-    {:ok, score, :warning}
-  end
-
-  defp classify_and_store(
-         table,
-         session_id,
-         agent_id,
-         prior_severity,
-         window,
-         score,
-         _loop_threshold,
-         _warning_threshold
-       ) do
-    if prior_severity in [:warning, :loop] do
-      Ichor.Signals.emit(:node_state_update, %{agent_id: session_id, state: "active"})
+      emit_state_change(sid, severity, prior, score)
+      :ets.insert(state.table, {sid, {updated, severity, agent_id}})
     end
 
-    :ets.insert(table, {session_id, {window, :normal, agent_id}})
-    {:ok, score, :normal}
+    {:noreply, state}
   end
+
+  def handle_info(_msg, state), do: {:noreply, state}
+
+  defp lookup_session(table, session_id, default_agent_id) do
+    case :ets.lookup(table, session_id) do
+      [{^session_id, {w, ps, aid}}] -> {w, ps, aid}
+      [] -> {[], :normal, default_agent_id}
+    end
+  end
+
+  defp slide_window(window, max_size) when length(window) > max_size, do: tl(window)
+  defp slide_window(window, _max_size), do: window
+
+  @spec classify(float(), float(), float()) :: :loop | :warning | :normal
+  defp classify(score, loop_threshold, _warning) when score < loop_threshold, do: :loop
+  defp classify(score, _loop, warning_threshold) when score < warning_threshold, do: :warning
+  defp classify(_score, _loop, _warning), do: :normal
+
+  defp emit_state_change(session_id, :loop, _prior, score) do
+    Ichor.Signals.emit(:entropy_alert, %{session_id: session_id, entropy_score: score})
+    Ichor.Signals.emit(:node_state_update, %{agent_id: session_id, state: "alert_entropy"})
+  end
+
+  defp emit_state_change(session_id, :warning, _prior, _score) do
+    Ichor.Signals.emit(:node_state_update, %{agent_id: session_id, state: "blocked"})
+  end
+
+  defp emit_state_change(session_id, :normal, prior, _score)
+       when prior in [:warning, :loop] do
+    Ichor.Signals.emit(:node_state_update, %{agent_id: session_id, state: "active"})
+  end
+
+  defp emit_state_change(_session_id, :normal, :normal, _score), do: :ok
 
   defp compute_score([]), do: 1.0
 
   defp compute_score(window) do
-    n = length(window)
     unique = window |> MapSet.new() |> MapSet.size()
-    Float.round(unique / n, 4)
-  end
-
-  defp build_alert_event(session_id, score, _agent_id, _window) do
-    Ichor.Signals.emit(:entropy_alert, %{
-      session_id: session_id,
-      entropy_score: score
-    })
-
-    :ok
+    Float.round(unique / length(window), 4)
   end
 
   defp read_config(key, default) do
-    value = Application.get_env(:ichor, key, default)
+    case Application.get_env(:ichor, key, default) do
+      value when is_number(value) ->
+        value
 
-    if is_number(value) do
-      value
-    else
-      Logger.warning(
-        "EntropyTracker: invalid #{key} value #{inspect(value)}, using default #{inspect(default)}"
-      )
+      invalid ->
+        Logger.warning(
+          "EntropyTracker: invalid #{key} value #{inspect(invalid)}, using default #{inspect(default)}"
+        )
 
-      default
+        default
     end
   end
 end

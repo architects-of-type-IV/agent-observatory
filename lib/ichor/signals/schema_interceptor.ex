@@ -13,24 +13,15 @@ defmodule Ichor.Signals.SchemaInterceptor do
 
   alias Ichor.Mesh.DecisionLog
   alias Ichor.Mesh.DecisionLog.Helpers, as: DLHelpers
-  alias Ichor.Signals.EntropyTracker
 
   @doc """
-  Parses params into a DecisionLog and enriches it with a Gateway-computed entropy score.
-
-  Calls `DecisionLog.Helpers.from_json/1` first. On success, calls
-  `EntropyTracker.record_and_score/2` synchronously and overwrites
-  `cognition.entropy_score` with the returned Gateway-authoritative value.
-
-  If entropy computation fails (missing agent registration), the original
-  agent-reported score is retained.
+  Parses params into a DecisionLog.
 
   Returns `{:ok, %DecisionLog{}}`.
   """
   @spec validate_and_enrich(map()) :: {:ok, DecisionLog.t()}
   def validate_and_enrich(params) when is_map(params) do
-    {:ok, log} = DLHelpers.from_json(params)
-    enrich_with_entropy(log)
+    DLHelpers.from_json(params)
   end
 
   @doc "Build a schema violation audit event map from an error reason, params, and optional raw body."
@@ -50,34 +41,6 @@ defmodule Ichor.Signals.SchemaInterceptor do
       "raw_payload_hash" => raw_payload_hash
     }
   end
-
-  defp enrich_with_entropy(log) do
-    case extract_entropy_fields(log) do
-      nil ->
-        {:ok, log}
-
-      {session_id, intent, tool_call, action_status} ->
-        # Synchronous call per FR-9.9 and ADR-018. Must NOT be Task.async or GenServer.cast.
-        case EntropyTracker.record_and_score(session_id, {intent, tool_call, action_status}) do
-          {:ok, score, _severity} ->
-            {:ok, DLHelpers.put_gateway_entropy_score(log, score)}
-
-          _ ->
-            {:ok, log}
-        end
-    end
-  end
-
-  defp extract_entropy_fields(%{
-         meta: %{trace_id: session_id},
-         cognition: %{intent: intent},
-         action: %{tool_call: tool_call, status: action_status}
-       })
-       when is_binary(session_id) and is_binary(intent) do
-    {session_id, intent, tool_call, action_status}
-  end
-
-  defp extract_entropy_fields(_), do: nil
 
   defp compute_hash(raw_body, _params) when is_binary(raw_body) and byte_size(raw_body) > 0 do
     digest = :crypto.hash(:sha256, raw_body)

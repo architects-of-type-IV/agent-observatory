@@ -4,9 +4,16 @@
 - [x] Bug fix: AgentState inbox for tmux-backed agents (695e108, 46d0cd5)
 - [x] Forensic audit: boundary, shape, coupling, PubSub/Archon (docs/audits/)
 - [x] DAG PR merged: AGENT_PROMPT_DAG.md decision framework
-- [x] Design: Handler behaviour, catalog split, SignalManager split
-- [ ] Wave 1: Handler behaviour + catalog/ + signal_manager/
-- [ ] Wave 2: EntropyTracker.Healer + SchemaInterceptor boundary fix
+- [x] Design: shape-first blueprint v3 (docs/plans/)
+- [x] SIG-1: Decompose classify_and_store/8 into classify/3 + emit + store
+- [x] SIG-2: Inline build_alert_event/4
+- [x] SIG-3: Fix slide_window, dead spec, config in init
+- [x] SIG-4: Remove entropy from SchemaInterceptor + EventBridge
+- [x] SIG-5: EventStream shape fixes (uuid?, tombstoned?, emit_intercepted merge)
+- [x] SIG-6: Merge protocol_tracker trace clauses
+- [ ] SIG-7: Handler behaviour + facade dispatch
+- [ ] SIG-8: Split catalog into catalog/
+- [ ] Wave 2: Entropy handler + SignalManager split
 - [ ] Wave 3: Module relocations
 - [ ] Wave 4: Quality sweep
 

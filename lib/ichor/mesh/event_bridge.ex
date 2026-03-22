@@ -17,8 +17,6 @@ defmodule Ichor.Mesh.EventBridge do
 
   alias Ichor.Mesh.CausalDAG
   alias Ichor.Mesh.DecisionLog
-  alias Ichor.Mesh.DecisionLog.Helpers, as: DLHelpers
-  alias Ichor.Signals.EntropyTracker
   alias Ichor.Signals.Message
 
   @doc "Start the EventBridge GenServer."
@@ -39,9 +37,7 @@ defmodule Ichor.Mesh.EventBridge do
 
   @impl true
   def handle_info(%Message{name: :new_event, data: %{event: event}}, state) do
-    maybe_register_agent(event)
     log = event_to_decision_log(event)
-    log = maybe_enrich_entropy(log)
 
     Ichor.Signals.emit(:decision_log, %{log: log})
 
@@ -231,26 +227,6 @@ defmodule Ichor.Mesh.EventBridge do
     do: %{is_terminal: true}
 
   defp build_control(_event), do: nil
-
-  defp maybe_register_agent(%{session_id: sid}) when is_binary(sid),
-    do: EntropyTracker.register_agent(sid, sid)
-
-  defp maybe_register_agent(_), do: :ok
-
-  defp maybe_enrich_entropy(%DecisionLog{} = log) do
-    with %{trace_id: session_id} when is_binary(session_id) <- log.meta,
-         %{intent: intent} when is_binary(intent) <- log.cognition,
-         %{tool_call: tool_call, status: action_status} <- log.action do
-      case EntropyTracker.record_and_score(session_id, {intent, tool_call, action_status}) do
-        {:ok, score, _severity} -> DLHelpers.put_gateway_entropy_score(log, score)
-        _ -> log
-      end
-    else
-      _ -> log
-    end
-  catch
-    :exit, _ -> log
-  end
 
   defp maybe_insert_dag_node(%DecisionLog{} = log, state) do
     with %{event_id: event_id, trace_id: session_id}

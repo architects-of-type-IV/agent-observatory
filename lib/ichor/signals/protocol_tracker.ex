@@ -67,77 +67,56 @@ defmodule Ichor.Signals.ProtocolTracker do
 
   # Trace creation from events
 
-  defp maybe_create_trace(
-         %{hook_event_type: :PreToolUse, tool_name: "SendMessage"} = event,
-         state
-       ) do
-    payload = event.payload || %{}
+  @trace_types %{
+    {:PreToolUse, "SendMessage"} => :send_message,
+    {:PreToolUse, "TeamCreate"} => :team_create,
+    {:SubagentStart, nil} => :agent_spawn
+  }
 
-    trace = %{
-      id: event.tool_use_id || generate_id(),
-      type: :send_message,
-      from: event.session_id,
-      to:
-        get_in(payload, ["tool_input", "recipient"]) ||
-          get_in(payload, ["tool_input", "target_agent_id"]) || "unknown",
-      content_preview: get_in(payload, ["tool_input", "content"]) |> truncate(100),
-      message_type: get_in(payload, ["tool_input", "type"]) || "message",
-      timestamp: event.inserted_at,
-      hops: [
-        %{
-          protocol: :http,
-          status: :received,
-          at: event.inserted_at,
-          detail: "PreToolUse/SendMessage"
-        }
-      ]
-    }
+  defp maybe_create_trace(event, state) do
+    key = {event.hook_event_type, event[:tool_name]}
 
-    insert_trace(trace)
-    %{state | trace_count: state.trace_count + 1}
+    case Map.get(@trace_types, key) || Map.get(@trace_types, {event.hook_event_type, nil}) do
+      nil ->
+        state
+
+      type ->
+        trace = build_trace(type, event)
+        insert_trace(trace)
+        %{state | trace_count: state.trace_count + 1}
+    end
   end
 
-  defp maybe_create_trace(%{hook_event_type: :PreToolUse, tool_name: "TeamCreate"} = event, state) do
+  defp build_trace(type, event) do
     payload = event.payload || %{}
+    input = get_in(payload, ["tool_input"]) || payload
 
-    trace = %{
+    {to, preview, detail} = trace_fields(type, input)
+
+    %{
       id: event.tool_use_id || generate_id(),
-      type: :team_create,
+      type: type,
       from: event.session_id,
-      to: "system",
-      content_preview: get_in(payload, ["tool_input", "team_name"]) || "team",
-      message_type: "team_create",
+      to: to,
+      content_preview: String.slice(preview, 0, 100),
+      message_type: to_string(type),
       timestamp: event.inserted_at,
-      hops: [
-        %{protocol: :http, status: :received, at: event.inserted_at, detail: "TeamCreate"}
-      ]
+      hops: [%{protocol: :http, status: :received, at: event.inserted_at, detail: detail}]
     }
-
-    insert_trace(trace)
-    %{state | trace_count: state.trace_count + 1}
   end
 
-  defp maybe_create_trace(%{hook_event_type: :SubagentStart} = event, state) do
-    payload = event.payload || %{}
-
-    trace = %{
-      id: event.tool_use_id || generate_id(),
-      type: :agent_spawn,
-      from: event.session_id,
-      to: get_in(payload, ["subagent_id"]) || "subagent",
-      content_preview: get_in(payload, ["description"]) || "spawn",
-      message_type: "subagent_start",
-      timestamp: event.inserted_at,
-      hops: [
-        %{protocol: :http, status: :received, at: event.inserted_at, detail: "SubagentStart"}
-      ]
-    }
-
-    insert_trace(trace)
-    %{state | trace_count: state.trace_count + 1}
+  defp trace_fields(:send_message, input) do
+    to = input["recipient"] || input["target_agent_id"] || "unknown"
+    {to, input["content"] || "", "PreToolUse/SendMessage"}
   end
 
-  defp maybe_create_trace(_event, state), do: state
+  defp trace_fields(:team_create, input) do
+    {"system", input["team_name"] || "team", "TeamCreate"}
+  end
+
+  defp trace_fields(:agent_spawn, input) do
+    {input["subagent_id"] || "subagent", input["description"] || "spawn", "SubagentStart"}
+  end
 
   defp insert_trace(trace) do
     :ets.insert(@table_name, {trace.id, trace})
@@ -172,14 +151,6 @@ defmodule Ichor.Signals.ProtocolTracker do
   end
 
   # Helpers
-
-  defp truncate(nil, _len), do: ""
-
-  defp truncate(str, len) when is_binary(str) and byte_size(str) > len,
-    do: String.slice(str, 0, len) <> "..."
-
-  defp truncate(str, _len) when is_binary(str), do: str
-  defp truncate(_, _), do: ""
 
   defp generate_id, do: :crypto.strong_rand_bytes(8) |> Base.encode16(case: :lower)
 end

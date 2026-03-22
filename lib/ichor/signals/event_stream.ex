@@ -23,7 +23,6 @@ defmodule Ichor.Signals.EventStream do
 
   alias Ichor.Signals
   alias Ichor.Signals.EventStream.{AgentLifecycle, Normalizer}
-  alias Ichor.Workshop.AgentEntry
 
   # ETS table names (preserved for compatibility)
   @table :event_buffer_events
@@ -203,6 +202,7 @@ defmodule Ichor.Signals.EventStream do
       Logger.info("Evicted stale agent #{agent_id}")
     end)
 
+    sweep_expired_tombstones()
     {:noreply, Map.drop(state, evicted_ids)}
   end
 
@@ -250,39 +250,33 @@ defmodule Ichor.Signals.EventStream do
     do: AgentLifecycle.handle_team_delete(input)
 
   defp handle_pre_tool_use("SendMessage", event, input) do
-    emit_intercepted(
-      event,
-      input["recipient"],
-      input["content"] || input["summary"] || "",
-      input["type"]
-    )
-  end
-
-  defp handle_pre_tool_use("mcp__ichor__send_message", event, input) do
-    emit_intercepted_mcp(event, input["input"] || %{})
-  end
-
-  defp handle_pre_tool_use(_tool_name, _event, _input), do: :ok
-
-  defp emit_intercepted(event, recipient, content, type) do
-    Signals.emit(:agent_message_intercepted, event.session_id, %{
+    emit_intercepted(event.session_id, %{
       from: event.session_id,
-      to: recipient,
-      content: String.slice(content, 0, 200),
-      type: type || "message"
+      to: input["recipient"],
+      content: input["content"] || input["summary"] || "",
+      type: input["type"] || "message"
     })
   end
 
-  defp emit_intercepted_mcp(event, args) when is_map(args) do
-    Signals.emit(:agent_message_intercepted, event.session_id, %{
+  defp handle_pre_tool_use("mcp__ichor__send_message", event, input) do
+    args = input["input"] || %{}
+
+    emit_intercepted(event.session_id, %{
       from: args["from_session_id"] || event.session_id,
       to: args["to_session_id"],
-      content: String.slice(args["content"] || "", 0, 200),
+      content: args["content"] || "",
       type: "message"
     })
   end
 
-  defp emit_intercepted_mcp(_event, _args), do: :ok
+  defp handle_pre_tool_use(_tool_name, _event, _input), do: :ok
+
+  defp emit_intercepted(session_id, %{content: content} = fields) do
+    Signals.emit(:agent_message_intercepted, session_id, %{
+      fields
+      | content: String.slice(content, 0, 200)
+    })
+  end
 
   # Core ingest logic -- runs inside the GenServer process (ETS owner)
 
@@ -317,17 +311,21 @@ defmodule Ichor.Signals.EventStream do
 
   # ETS helpers -- session aliases and tool timing
 
+  @uuid_pattern ~r/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
   defp resolve_session_id(raw_id, tmux) when tmux in [nil, ""] do
-    case {AgentEntry.uuid?(raw_id), :ets.lookup(@aliases, raw_id)} do
+    case {uuid?(raw_id), :ets.lookup(@aliases, raw_id)} do
       {true, [{_, canonical}]} -> canonical
       _ -> raw_id
     end
   end
 
   defp resolve_session_id(raw_id, tmux_session) do
-    if AgentEntry.uuid?(raw_id), do: :ets.insert(@aliases, {raw_id, tmux_session})
+    if uuid?(raw_id), do: :ets.insert(@aliases, {raw_id, tmux_session})
     tmux_session
   end
+
+  defp uuid?(id), do: String.match?(id, @uuid_pattern)
 
   defp lookup_tool_start(%{hook_event_type: type, tool_use_id: id})
        when type in ["PostToolUse", "PostToolUseFailure"] and is_binary(id) do
@@ -399,16 +397,24 @@ defmodule Ichor.Signals.EventStream do
   defp tombstoned?(session_id) do
     case :ets.lookup(@tombstones, session_id) do
       [{_, placed_at}] ->
-        if System.monotonic_time(:millisecond) - placed_at > @tombstone_ttl_ms do
-          GenServer.cast(__MODULE__, {:expire_tombstone, session_id})
-          false
-        else
-          true
-        end
+        System.monotonic_time(:millisecond) - placed_at <= @tombstone_ttl_ms
 
       [] ->
         false
     end
+  end
+
+  defp sweep_expired_tombstones do
+    now = System.monotonic_time(:millisecond)
+
+    :ets.foldl(
+      fn {sid, placed_at}, acc ->
+        if now - placed_at > @tombstone_ttl_ms, do: [sid | acc], else: acc
+      end,
+      [],
+      @tombstones
+    )
+    |> Enum.each(&:ets.delete(@tombstones, &1))
   end
 
   defp ensure_ets(name) do
