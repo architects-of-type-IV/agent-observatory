@@ -79,38 +79,11 @@ defmodule Ichor.Signals.EventStream do
     GenServer.call(__MODULE__, {:get_session_state, session_id})
   end
 
-  # Public API -- event buffer reads (ETS, no GenServer round-trip)
-
-  @doc "Ingest a hook event map into the ETS buffer. Drops events for tombstoned sessions."
-  @spec ingest(map()) :: {:ok, map()}
-  def ingest(event_attrs) when is_map(event_attrs) do
-    sanitized = Map.update(event_attrs, :payload, %{}, &Normalizer.sanitize_payload/1)
-
-    attrs_with_duration =
-      case lookup_tool_start(sanitized) do
-        {id, start_time} ->
-          :ets.delete(@tools, id)
-          Normalizer.put_duration(sanitized, start_time)
-
-        nil ->
-          sanitized
-      end
-
-    attrs_tracked = track_tool_start(attrs_with_duration)
-
-    tmux_session = Normalizer.get_field(attrs_tracked, :tmux_session)
-    raw_id = Normalizer.get_field(attrs_tracked, :session_id) || "unknown"
-    resolved_session_id = resolve_session_id(raw_id, tmux_session)
-
-    event = Normalizer.build_event(attrs_tracked, resolved_session_id)
-
-    unless tombstoned?(event.session_id) do
-      :ets.insert(@table, {event.id, event})
-      maybe_evict()
-    end
-
-    {:ok, event}
+  defp ingest(event_attrs) when is_map(event_attrs) do
+    GenServer.call(__MODULE__, {:ingest, event_attrs})
   end
+
+  # Public API -- event buffer reads (ETS, no GenServer round-trip)
 
   @doc "Get all events from the buffer (most recent first)."
   @spec list_events() :: [map()]
@@ -154,15 +127,13 @@ defmodule Ichor.Signals.EventStream do
   @doc "Remove all events for a session and tombstone it."
   @spec remove_session(String.t()) :: :ok
   def remove_session(session_id) do
-    :ets.select_delete(@table, [{{:_, %{session_id: session_id}}, [], [true]}])
-    tombstone_session(session_id)
+    GenServer.cast(__MODULE__, {:remove_session, session_id})
   end
 
   @doc "Place a 30s tombstone to reject late events without purging existing ones."
   @spec tombstone_session(String.t()) :: :ok
   def tombstone_session(session_id) do
-    :ets.insert(@tombstones, {session_id, System.monotonic_time(:millisecond)})
-    :ok
+    GenServer.cast(__MODULE__, {:tombstone, session_id})
   end
 
   # GenServer lifecycle
@@ -190,6 +161,30 @@ defmodule Ichor.Signals.EventStream do
   @impl true
   def handle_call({:get_session_state, agent_id}, _from, state) do
     {:reply, Map.get(state, agent_id), state}
+  end
+
+  @impl true
+  def handle_call({:ingest, event_attrs}, _from, state) do
+    {:reply, do_ingest(event_attrs), state}
+  end
+
+  @impl true
+  def handle_cast({:remove_session, session_id}, state) do
+    :ets.select_delete(@table, [{{:_, %{session_id: session_id}}, [], [true]}])
+    :ets.insert(@tombstones, {session_id, System.monotonic_time(:millisecond)})
+    {:noreply, state}
+  end
+
+  @impl true
+  def handle_cast({:tombstone, session_id}, state) do
+    :ets.insert(@tombstones, {session_id, System.monotonic_time(:millisecond)})
+    {:noreply, state}
+  end
+
+  @impl true
+  def handle_cast({:expire_tombstone, session_id}, state) do
+    :ets.delete(@tombstones, session_id)
+    {:noreply, state}
   end
 
   @impl true
@@ -289,6 +284,37 @@ defmodule Ichor.Signals.EventStream do
 
   defp emit_intercepted_mcp(_event, _args), do: :ok
 
+  # Core ingest logic -- runs inside the GenServer process (ETS owner)
+
+  defp do_ingest(event_attrs) do
+    sanitized = Map.update(event_attrs, :payload, %{}, &Normalizer.sanitize_payload/1)
+
+    attrs_with_duration =
+      case lookup_tool_start(sanitized) do
+        {id, start_time} ->
+          :ets.delete(@tools, id)
+          Normalizer.put_duration(sanitized, start_time)
+
+        nil ->
+          sanitized
+      end
+
+    attrs_tracked = track_tool_start(attrs_with_duration)
+
+    tmux_session = Normalizer.get_field(attrs_tracked, :tmux_session)
+    raw_id = Normalizer.get_field(attrs_tracked, :session_id) || "unknown"
+    resolved_session_id = resolve_session_id(raw_id, tmux_session)
+
+    event = Normalizer.build_event(attrs_tracked, resolved_session_id)
+
+    unless tombstoned?(event.session_id) do
+      :ets.insert(@table, {event.id, event})
+      maybe_evict()
+    end
+
+    {:ok, event}
+  end
+
   # ETS helpers -- session aliases and tool timing
 
   defp resolve_session_id(raw_id, tmux) when tmux in [nil, ""] do
@@ -374,7 +400,7 @@ defmodule Ichor.Signals.EventStream do
     case :ets.lookup(@tombstones, session_id) do
       [{_, placed_at}] ->
         if System.monotonic_time(:millisecond) - placed_at > @tombstone_ttl_ms do
-          :ets.delete(@tombstones, session_id)
+          GenServer.cast(__MODULE__, {:expire_tombstone, session_id})
           false
         else
           true
@@ -387,7 +413,7 @@ defmodule Ichor.Signals.EventStream do
 
   defp ensure_ets(name) do
     case :ets.whereis(name) do
-      :undefined -> :ets.new(name, [:named_table, :public, :set])
+      :undefined -> :ets.new(name, [:named_table, :protected, :set])
       _ -> :ok
     end
   end

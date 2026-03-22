@@ -50,6 +50,7 @@ defmodule Ichor.Settings.SettingsProject do
 
     update :update do
       accept(:*)
+      require_atomic?(false)
       change(Ichor.Settings.SettingsProject.GitInfo)
     end
   end

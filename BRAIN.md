@@ -36,3 +36,20 @@ When converting GenServer to Oban:
 5. For one-shot: caller inserts job via Worker.new/1 |> Oban.insert()
 6. For recovery: call recover on startup (Task.start in application.ex)
 7. WebhookDelivery pattern: Ash resource tracks delivery state, Oban worker handles retry
+
+## GenServer Signal Emission Pattern (2026-03-22)
+`terminate/2` is the canonical single emission point for lifecycle signals (`:run_complete`).
+Never emit completion signals from within the GenServer callback chain -- OTP guarantees
+`terminate/2` fires after `{:stop, reason}`, so it covers both happy path and crash-during-cleanup.
+Set a status flag in state before stopping to distinguish completed vs abnormal exits.
+
+## AshPhoenix Embedded Resources in Forms (2026-03-22)
+- Use `inputs_for` with `field={@form[:embedded_field]}` -- handles both new and existing records
+- For new forms: call `AshPhoenix.Form.add_form(form, [:field_name])` to seed the nested form
+- Don't use `Phoenix.HTML.Form.input_value` for embedded fields -- returns nested Form structs, not maps
+- Browser file pickers can't return filesystem paths (security). Use server-side `File.ls` for folder browsing.
+
+## Centralized Code Interface Pattern (2026-03-22)
+Define action interfaces on the Domain, not the Resource. Resource keeps simple names (:create, :read),
+Domain adds the prefix: `define :create_settings_project, resource: SettingsProject, action: :create`.
+See https://hexdocs.pm/ash/domains.html#centralized-code-interface

@@ -87,9 +87,23 @@ defmodule Ichor.MemoriesBridge do
   def handle_info(%Message{}, state), do: {:noreply, state}
 
   def handle_info(:flush, state) do
-    state = flush_buffers(state)
+    me = self()
+    buffers = state.buffers
+
+    if Enum.any?(buffers, fn {_cat, signals} -> signals != [] end) do
+      Task.Supervisor.start_child(Ichor.TaskSupervisor, fn ->
+        {sent, errors} = do_flush(buffers)
+        send(me, {:flush_result, sent, errors})
+      end)
+    end
+
     schedule_flush()
-    {:noreply, state}
+    {:noreply, %{state | buffers: %{}}}
+  end
+
+  def handle_info({:flush_result, sent, errors}, state) do
+    {:noreply,
+     %{state | episodes_sent: state.episodes_sent + sent, errors: state.errors + errors}}
   end
 
   def handle_info(_msg, state), do: {:noreply, state}
@@ -105,23 +119,15 @@ defmodule Ichor.MemoriesBridge do
      }, state}
   end
 
-  defp flush_buffers(state) do
-    {sent, errors} =
-      state.buffers
-      |> Enum.filter(fn {_cat, signals} -> signals != [] end)
-      |> Enum.reduce({0, 0}, fn {category, signals}, {sent, errors} ->
-        case send_episode(category, Enum.reverse(signals)) do
-          :ok -> {sent + 1, errors}
-          :error -> {sent, errors + 1}
-        end
-      end)
-
-    %{
-      state
-      | buffers: %{},
-        episodes_sent: state.episodes_sent + sent,
-        errors: state.errors + errors
-    }
+  defp do_flush(buffers) do
+    buffers
+    |> Enum.filter(fn {_cat, signals} -> signals != [] end)
+    |> Enum.reduce({0, 0}, fn {category, signals}, {sent, errors} ->
+      case send_episode(category, Enum.reverse(signals)) do
+        :ok -> {sent + 1, errors}
+        :error -> {sent, errors + 1}
+      end
+    end)
   end
 
   defp send_episode(category, signals) do

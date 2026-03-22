@@ -52,36 +52,57 @@ defmodule Ichor.Infrastructure.OutputCapture do
 
   @impl true
   def handle_info(:poll_capture, state) do
-    new_last = capture_watched(state.watched, state.last_capture)
+    me = self()
+    watched = state.watched
 
-    if MapSet.size(state.watched) > 0 do
-      schedule_poll()
-    end
+    Task.Supervisor.start_child(Ichor.TaskSupervisor, fn ->
+      results = capture_watched(watched)
+      send(me, {:capture_results, results})
+    end)
+
+    if MapSet.size(watched) > 0, do: schedule_poll()
+    {:noreply, state}
+  end
+
+  def handle_info({:capture_results, results}, state) do
+    new_last =
+      Enum.reduce(results, state.last_capture, fn {session_id, output}, acc ->
+        maybe_emit_output(session_id, output, acc)
+      end)
 
     {:noreply, %{state | last_capture: sweep_stale(state.watched, new_last)}}
   end
 
   def handle_info(_msg, state), do: {:noreply, state}
 
-  defp capture_watched(watched, last_capture) do
-    Enum.reduce(watched, last_capture, fn session_id, acc ->
+  defp capture_watched(watched) do
+    watched
+    |> Enum.map(fn session_id ->
       tmux_target =
         case AgentProcess.lookup(session_id) do
           {_pid, %{channels: %{tmux: target}}} when is_binary(target) -> target
           _ -> nil
         end
 
-      capture_session(session_id, tmux_target, acc)
+      {session_id, tmux_target}
     end)
-  end
-
-  defp capture_session(_session_id, nil, acc), do: acc
-
-  defp capture_session(session_id, tmux_target, acc) do
-    case Tmux.capture_pane(tmux_target) do
-      {:ok, output} -> maybe_emit_output(session_id, output, acc)
-      {:error, _} -> acc
-    end
+    |> Enum.reject(fn {_, target} -> is_nil(target) end)
+    |> Task.async_stream(
+      fn {session_id, tmux_target} ->
+        case Tmux.capture_pane(tmux_target) do
+          {:ok, output} -> {session_id, output}
+          {:error, _} -> nil
+        end
+      end,
+      max_concurrency: 10,
+      timeout: 5_000,
+      on_timeout: :kill_task
+    )
+    |> Enum.flat_map(fn
+      {:ok, nil} -> []
+      {:ok, result} -> [result]
+      {:exit, _} -> []
+    end)
   end
 
   defp maybe_emit_output(session_id, output, acc) do

@@ -1,51 +1,49 @@
 # ICHOR IV - Handoff
 
-## Current Status: TERMINAL PANEL IMPLEMENTED (2026-03-21)
+## Current Status: SETTINGS + SAFETY FIXES (2026-03-22)
 
-~41 commits. Architecture complete. Audits complete. Tests passing. UI upgraded. Terminal panel live.
+~46 commits. Settings domain added. 5 safety/cleanup findings resolved. Build clean.
 
-### Latest: Terminal Panel (UI-TMUX-PANEL)
+### Latest: Settings Page + Safety Fixes
 
-Implemented VS Code-style terminal panel overlay replacing the old tmux modal dialog.
+#### Settings Domain (new)
+- `Ichor.Settings` domain with `SettingsProject` resource (AshSqlite, table: `settings_projects`)
+- Embedded `Location` resource (local/remote) with `LocationType` and `AuthMethodType` Ash enums
+- `GitInfo` change auto-detects `repo_name`/`repo_url` from `.git` folder on create/update
+- 6th nav view at `/settings/projects`, gear icon in bottom nav
+- Phoenix Forms with `inputs_for` for embedded Location
+- Server-side folder browser (Elixir `File.ls` -- browser can't expose paths)
+- Category sidebar: Projects active, 4 stubbed (Operational, Integrations, UI Preferences, Feature Flags)
 
-**New files:**
-- `assets/js/hooks/terminal_panel_hook.js` -- JS hook (resize drag, localStorage persistence, layout)
-- `lib/ichor_web/components/terminal_panel_components.ex` -- Phoenix component (panel UI, tabs, controls)
+#### Safety Fixes (all 5 complete)
+- **ANTI-5**: Blocking I/O removed from AgentProcess, OutputCapture, MemoriesBridge -- Task.Supervisor
+- **SF-7**: EventStream ETS `:public` -> `:protected`, writes through GenServer
+- **SF-8**: `:run_complete` single emission from `terminate/2`, pipeline completion idempotent
+- **DB-1**: 20 orphaned tables dropped (migration with FK-ordered drops)
+- **DB-2**: 17 stale snapshots removed, 10 remaining match active resources
 
-**Modified files:**
-- `dashboard_state.ex` -- panel_visible, panel_position, panel_size, show_session_picker assigns
-- `dashboard_tmux_handlers.ex` -- 7 new event handlers + disconnect_tmux_tab
-- `dashboard_live.ex` -- registered new tmux events
-- `dashboard_live.html.heex` -- replaced old modal with terminal_panel component
-- `app.js` -- registered TerminalPanel hook + T-key shortcut
-
-**Features:** T-key toggle, 5 positions (bottom/top/left/right/floating), 5 sizes (25-100%), session tabs with close, session picker dropdown, drag resize, localStorage persistence, minimize vs close, xterm.js with full ANSI color.
+#### Pre-existing Bug Fixes
+- `pipeline_state` crash: signal merges into existing state
+- `Map.get` defaults for `.total`/`.blocked` in header
+- AgentProcess `terminate(:tmux_gone)` unreachable -- fixed stop reason
 
 ### Build
 - `mix compile --warnings-as-errors`: CLEAN
-- `mix assets.build`: CLEAN (929.5kb JS, 6.0kb CSS)
+- `mix ash.migrate`: CLEAN
 
 ### Remaining (tracked in tasks.jsonl)
-**Structural (medium):**
-- SF-7: EventStream ETS concurrent writes (needs :protected tables)
-- SF-8: Runner crash window (needs atomic Pipeline.complete + run_complete)
-- ANTI-5: Blocking I/O in GenServer callbacks
-- DB-1: 9 orphaned database tables
-- DB-2: Snapshot-schema verification
-
-**UI (next implementation):**
+**UI:**
 - UI-WS-PROMPTS: Add prompt CRUD to workshop
+- Settings: implement remaining categories
+- Settings: integrate project list as cwd dropdown in spawn flows
 
 **Features:**
 - PulseMonitor (tasks 1.x-4.x)
 - Swarm Memory (tasks 72-77)
-- Idle vs zombie UI distinction (57)
 
 ### Protocols
 - Architecture docs authoritative (CLAUDE.md)
 - Agents invoke ash-thinking before Ash work
-- Agent prompts include WHY not just WHAT
-- No mocks. Real DB. Ecto sandbox.
-- Use generators whenever possible
-- Read the manual before implementing
+- Use `inputs_for` for embedded Ash resources in Phoenix Forms
+- `terminate/2` is the canonical signal emission point for GenServer lifecycle events
 - Codex in codex-spar tmux (resume --last if exits)

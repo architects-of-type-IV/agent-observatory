@@ -228,6 +228,7 @@ defmodule Ichor.Factory.Runner do
 
     case check_completion(name, msg, state) do
       :complete ->
+        state = %{state | status: :completed}
         run_cleanup(state)
         {:stop, :normal, state}
 
@@ -272,6 +273,13 @@ defmodule Ichor.Factory.Runner do
 
   @impl true
   def terminate(_reason, state) do
+    # Single emission point for :run_complete. Only fires for completed runs.
+    # OTP guarantees terminate/2 runs after {:stop, :normal}, so this covers
+    # both the happy path and crashes during run_cleanup.
+    if state.status == :completed do
+      Signals.emit(:run_complete, run_complete_payload(state))
+    end
+
     emit_signal(state.config.signals.terminated, build_terminate_payload(state))
 
     Signals.emit(:run_terminated, %{
@@ -412,9 +420,8 @@ defmodule Ichor.Factory.Runner do
   end
 
   defp pipeline_on_complete(state) do
-    with {:ok, pipeline} <- Pipeline.get(state.run_id) do
+    with {:ok, pipeline} when pipeline.status != :completed <- Pipeline.get(state.run_id) do
       Pipeline.complete(pipeline)
-      Signals.emit(:pipeline_completed, %{run_id: state.run_id, label: pipeline.label})
     end
 
     :ok
@@ -507,12 +514,10 @@ defmodule Ichor.Factory.Runner do
   defp run_cleanup(state) do
     policy = state.config.cleanup.policy
     do_cleanup(policy, state)
+  end
 
-    Signals.emit(:run_complete, %{
-      kind: state.kind,
-      run_id: state.run_id,
-      session: state.session
-    })
+  defp run_complete_payload(state) do
+    %{kind: state.kind, run_id: state.run_id, session: state.session}
   end
 
   defp dispatch_to_hook(msg, state) do

@@ -1,5 +1,21 @@
 # ICHOR IV Progress
 
+## Settings Page + Safety Fixes (2026-03-22) -- COMPLETE
+- [x] Settings domain: Ichor.Settings with SettingsProject resource
+- [x] Embedded Location resource (local/remote) with Ash enums
+- [x] GitInfo change: auto-detect repo_name/repo_url from .git
+- [x] Settings page: /settings/projects with category sidebar
+- [x] Server-side folder browser (File.ls, not browser API)
+- [x] Phoenix Forms with inputs_for for embedded resources
+- [x] ANTI-5: Async I/O in AgentProcess, OutputCapture, MemoriesBridge
+- [x] SF-7: ETS :protected tables, writes through GenServer
+- [x] SF-8: Single :run_complete emission from terminate/2
+- [x] DB-1: Dropped 20 orphaned tables
+- [x] DB-2: Cleaned 17 stale resource snapshots
+- [x] Fix: pipeline_state crash (merge instead of replace)
+- [x] Fix: AgentProcess terminate(:tmux_gone) unreachable
+- [x] Build: mix compile --warnings-as-errors CLEAN
+
 ## Terminal Panel Implementation (2026-03-21) -- COMPLETE
 - [x] UI-TMUX-PANEL: VS Code-style terminal panel replacing old tmux modal
 - [x] New JS hook: terminal_panel_hook.js (resize drag, localStorage, layout management)

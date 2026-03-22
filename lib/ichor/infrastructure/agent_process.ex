@@ -230,14 +230,14 @@ defmodule Ichor.Infrastructure.AgentProcess do
     AgentLifecycle.agent_resumed(state.id)
     {pending, new_state} = AgentState.drain_pending(state)
     new_state = %{new_state | status: :active}
-    AgentDelivery.deliver_many(new_state.backend, pending)
+    async_deliver_many(new_state.backend, pending)
     {:reply, :ok, new_state}
   end
 
   @impl true
   def handle_cast({:message, message}, %{status: :active} = state) do
     {msg, new_state} = AgentState.record_message(state, message)
-    AgentDelivery.deliver(new_state.backend, msg)
+    async_deliver(new_state.backend, msg)
     {:noreply, new_state}
   end
 
@@ -268,15 +268,24 @@ defmodule Ichor.Infrastructure.AgentProcess do
 
   @impl true
   def handle_info(:check_liveness, state) do
-    {alive?, tmux_target} = AgentBackend.tmux_alive?(state.backend)
+    me = self()
+    backend = state.backend
 
-    if alive? do
-      schedule_liveness_check()
-      {:noreply, state}
-    else
-      Ichor.Signals.emit(:mes_agent_tmux_gone, %{agent_id: state.id, tmux: tmux_target})
-      {:stop, :normal, state}
-    end
+    Task.Supervisor.start_child(Ichor.TaskSupervisor, fn ->
+      send(me, {:liveness_result, AgentBackend.tmux_alive?(backend)})
+    end)
+
+    {:noreply, state}
+  end
+
+  def handle_info({:liveness_result, {true, _tmux_target}}, state) do
+    schedule_liveness_check()
+    {:noreply, state}
+  end
+
+  def handle_info({:liveness_result, {false, tmux_target}}, state) do
+    Ichor.Signals.emit(:mes_agent_tmux_gone, %{agent_id: state.id, tmux: tmux_target})
+    {:stop, :tmux_gone, state}
   end
 
   def handle_info(%Ichor.Signals.Message{name: :agent_event, data: %{event: event}}, state) do
@@ -299,25 +308,36 @@ defmodule Ichor.Infrastructure.AgentProcess do
 
   def handle_info(_msg, state), do: {:noreply, state}
 
+  # Ichor.Registry auto-deregisters when the process exits -- no explicit remove needed.
+  # EventStream subscribes to :agent_stopped and tombstones the session itself.
+
   @impl true
   def terminate(:tmux_gone, state) do
-    # Tmux window already dead -- skip kill, just clean up BEAM-side registrations.
-    # Ichor.Registry auto-deregisters when the process exits -- no explicit remove needed.
-    # EventStream subscribes to :agent_stopped and tombstones the session itself.
+    # Tmux window already dead -- skip backend kill, just emit the lifecycle signal.
     AgentLifecycle.agent_stopped(state.id, :tmux_gone)
     :ok
   end
 
   def terminate(reason, state) do
     AgentBackend.terminate(state.backend)
-    # Ichor.Registry auto-deregisters when the process exits -- no explicit remove needed.
-    # EventStream subscribes to :agent_stopped and tombstones the session itself.
     AgentLifecycle.agent_stopped(state.id, reason)
     :ok
   end
 
   defp schedule_liveness_check do
     Process.send_after(self(), :check_liveness, @liveness_interval)
+  end
+
+  defp async_deliver(backend, msg) do
+    Task.Supervisor.start_child(Ichor.TaskSupervisor, fn ->
+      AgentDelivery.deliver(backend, msg)
+    end)
+  end
+
+  defp async_deliver_many(backend, messages) do
+    Task.Supervisor.start_child(Ichor.TaskSupervisor, fn ->
+      AgentDelivery.deliver_many(backend, messages)
+    end)
   end
 
   @spec via(String.t()) :: {:via, module(), tuple()}
