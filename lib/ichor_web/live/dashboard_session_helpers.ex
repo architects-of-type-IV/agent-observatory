@@ -21,5 +21,14 @@ defmodule IchorWeb.DashboardSessionHelpers do
   end
 
   @doc "Extract short model family name for display."
-  defdelegate short_model_name(model), to: Ichor.Util
+  def short_model_name(nil), do: nil
+
+  def short_model_name(model) when is_binary(model) do
+    cond do
+      String.contains?(model, "opus") -> "opus"
+      String.contains?(model, "sonnet") -> "sonnet"
+      String.contains?(model, "haiku") -> "haiku"
+      true -> model |> String.split("-") |> List.first() || model
+    end
+  end
 end

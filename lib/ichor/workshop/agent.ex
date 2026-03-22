@@ -7,8 +7,6 @@ defmodule Ichor.Workshop.Agent do
   This is the canonical entry point for all agent operations.
   """
 
-  import Ichor.Util, only: [maybe_put: 3]
-
   use Ash.Resource, domain: Ichor.Workshop
 
   alias Ichor.Infrastructure.AgentLaunch
@@ -430,4 +428,7 @@ defmodule Ichor.Workshop.Agent do
     define(:terminate_agent, args: [:agent_id])
     define(:update_instructions, args: [:agent_id, :instructions])
   end
+
+  defp maybe_put(map, _key, nil), do: map
+  defp maybe_put(map, key, value), do: Map.put(map, key, value)
 end

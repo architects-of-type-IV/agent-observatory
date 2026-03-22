@@ -5,7 +5,7 @@ defmodule Ichor.Signals.TaskProjection do
   """
 
   use Ash.Resource,
-    domain: Ichor.SignalBus
+    domain: Ichor.Signals
 
   attributes do
     attribute(:id, :string, primary_key?: true, allow_nil?: false, public?: true)

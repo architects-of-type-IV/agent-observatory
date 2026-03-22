@@ -18,8 +18,6 @@ defmodule Ichor.Plugins.PulseMonitor.MixProject do
   end
 
   defp deps do
-    [
-      {:ichor_contracts, path: "../../contracts/ichor_contracts"}
-    ]
+    []
   end
 end

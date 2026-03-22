@@ -95,9 +95,7 @@ defmodule Ichor.Factory.PluginScaffold do
       end
 
       defp deps do
-        [
-          {:ichor_contracts, path: "../../contracts/ichor_contracts"}
-        ]
+        []
       end
     end
     """

@@ -242,7 +242,7 @@ defmodule Ichor.Workshop.PipelinePrompts do
     FORBIDDEN: reading, editing, or writing ANY file outside #{plugin_dir}/
     This means: do NOT open, read, grep, or touch anything in lib/, lib/ichor/, lib/ichor_web/, config/, or the project root.
     If a job references a file path outside #{plugin_dir}/, skip that file path entirely.
-    Build all functionality inside #{plugin_dir}/ using only the ichor_contracts API.
+    Build all functionality inside #{plugin_dir}/ using only the Ichor.Signals API.
     When running mix commands: cd #{plugin_dir} && mix compile --warnings-as-errors
 
     FILE OWNERSHIP:

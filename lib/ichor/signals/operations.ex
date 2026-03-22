@@ -3,7 +3,7 @@ defmodule Ichor.Signals.Operations do
   Action-only signal and messaging surface for agent and operator communication.
   """
 
-  use Ash.Resource, domain: Ichor.SignalBus
+  use Ash.Resource, domain: Ichor.Signals
 
   alias Ichor.Infrastructure.AgentProcess
   alias Ichor.Signals.Bus

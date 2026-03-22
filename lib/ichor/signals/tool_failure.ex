@@ -4,7 +4,7 @@ defmodule Ichor.Signals.ToolFailure do
   Uses Ash.DataLayer.Simple -- data is loaded by preparations, not persisted.
   """
 
-  use Ash.Resource, domain: Ichor.SignalBus
+  use Ash.Resource, domain: Ichor.Signals
 
   alias Ichor.Signals.Preparations.LoadToolFailures
 

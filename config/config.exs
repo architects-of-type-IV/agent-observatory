@@ -11,7 +11,7 @@ config :ichor,
   generators: [timestamp_type: :utc_datetime],
   ecto_repos: [Ichor.Repo],
   ash_domains: [
-    Ichor.SignalBus,
+    Ichor.Signals,
     Ichor.Workshop,
     Ichor.Archon,
     Ichor.Infrastructure,
@@ -23,8 +23,8 @@ config :ichor, Ichor.Repo,
   database: Path.expand("../ichor_dev.db", __DIR__),
   pool_size: 5
 
-# Ichor Contracts -- signals runtime implementation
-config :ichor_contracts, :signals_impl, Ichor.Signals.Runtime
+# Signals runtime implementation
+config :ichor, :signals_impl, Ichor.Signals.Runtime
 
 # Configure the endpoint
 config :ichor, IchorWeb.Endpoint,

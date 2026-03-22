@@ -1,10 +1,11 @@
 defmodule Ichor.Factory.Workers.ProjectDiscoveryWorker do
   @moduledoc """
-  Oban cron worker that scans discovery directories for tasks.jsonl projects
-  and emits a `:pipeline_status` signal with the discovered project map.
+  Oban cron worker that scans discovery directories for tasks.jsonl projects,
+  computes the full board state (tasks, dependency graph, pipeline stats),
+  and emits a `:pipeline_status` signal.
 
   Runs on the `:maintenance` queue every minute via Oban cron.
-  LiveView subscribers receive the updated project list via the signal.
+  LiveView subscribers receive the updated board state via the signal.
   """
 
   use Oban.Worker, queue: :maintenance, max_attempts: 1, unique: [period: 55]
@@ -15,15 +16,10 @@ defmodule Ichor.Factory.Workers.ProjectDiscoveryWorker do
   @impl Oban.Worker
   def perform(%Oban.Job{}) do
     projects = PipelineQuery.projects()
-    archives = PipelineQuery.archives()
+    active_project = first_project_key(projects)
+    board = PipelineQuery.board_state(projects, active_project)
 
-    state_map = %{
-      watched_projects: projects,
-      active_project: first_project_key(projects),
-      archives: archives,
-      pipeline: %{pending: 0, in_progress: 0, completed: 0, failed: 0},
-      health: %{}
-    }
+    state_map = Map.put(board, :health, %{})
 
     Signals.emit(:pipeline_status, %{state_map: state_map})
 

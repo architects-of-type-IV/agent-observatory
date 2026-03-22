@@ -5,8 +5,6 @@ defmodule Ichor.Factory.PipelineTask do
   Reset returns failed or stale pipeline tasks to pending.
   """
 
-  import Ichor.Util, only: [blank_to_nil: 1]
-
   use Ash.Resource,
     domain: Ichor.Factory,
     data_layer: AshSqlite.DataLayer,
@@ -356,4 +354,7 @@ defmodule Ichor.Factory.PipelineTask do
   defp format_ash_error(%Ash.Error.Invalid{errors: errors}) do
     Enum.map_join(errors, "; ", fn e -> Map.get(e, :message, inspect(e)) end)
   end
+
+  defp blank_to_nil(""), do: nil
+  defp blank_to_nil(value), do: value
 end

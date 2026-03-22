@@ -4,8 +4,6 @@ defmodule Ichor.Workshop.Analysis.Queries do
   Operates on raw events, teams, and sessions.
   """
 
-  import Ichor.Util, only: [session_duration_sec: 1, short_model_name: 1]
-
   alias Ichor.Workshop.AgentEntry
 
   @doc """
@@ -146,4 +144,19 @@ defmodule Ichor.Workshop.Analysis.Queries do
     do: Enum.find_value(events, fn e -> e.payload["model"] || e.model_name end)
 
   defp find_cwd(events), do: Enum.find_value(events, fn e -> e.cwd end)
+
+  defp session_duration_sec(sec) when sec < 60, do: "#{sec}s"
+  defp session_duration_sec(sec) when sec < 3600, do: "#{div(sec, 60)}m"
+  defp session_duration_sec(sec), do: "#{div(sec, 3600)}h#{rem(div(sec, 60), 60)}m"
+
+  defp short_model_name(nil), do: nil
+
+  defp short_model_name(model) when is_binary(model) do
+    cond do
+      String.contains?(model, "opus") -> "opus"
+      String.contains?(model, "sonnet") -> "sonnet"
+      String.contains?(model, "haiku") -> "haiku"
+      true -> model |> String.split("-") |> List.first() || model
+    end
+  end
 end

@@ -12,17 +12,6 @@ defmodule Ichor.Factory.Project do
     data_layer: AshSqlite.DataLayer,
     simple_notifiers: [Ichor.Signals.FromAsh]
 
-  import Ichor.Util,
-    only: [
-      blank_to_nil: 1,
-      empty_to_nil: 1,
-      maybe_put: 3,
-      split_csv: 1,
-      split_lines: 1,
-      parse_artifact_status: 1,
-      parse_mode: 1
-    ]
-
   alias Ichor.Factory.{Artifact, ProjectView, RoadmapItem}
 
   @project_status_map %{
@@ -972,4 +961,42 @@ defmodule Ichor.Factory.Project do
   defp render_list([]), do: nil
   defp render_list(items) when is_list(items), do: Enum.join(items, ", ")
   defp render_list(value), do: value
+
+  defp blank_to_nil(""), do: nil
+  defp blank_to_nil(value), do: value
+
+  defp empty_to_nil([]), do: nil
+  defp empty_to_nil(value), do: value
+
+  defp maybe_put(map, _key, nil), do: map
+  defp maybe_put(map, key, value), do: Map.put(map, key, value)
+
+  defp split_csv(nil), do: []
+
+  defp split_csv(value) when is_binary(value) do
+    value |> String.split(",") |> Enum.map(&String.trim/1) |> Enum.reject(&(&1 == ""))
+  end
+
+  defp split_lines(nil), do: []
+
+  defp split_lines(value) when is_binary(value) do
+    value |> String.split("\n") |> Enum.map(&String.trim/1) |> Enum.reject(&(&1 == ""))
+  end
+
+  defp parse_artifact_status(nil), do: nil
+  defp parse_artifact_status(""), do: nil
+  defp parse_artifact_status(value) when is_atom(value), do: value
+  defp parse_artifact_status("pending"), do: :pending
+  defp parse_artifact_status("proposed"), do: :proposed
+  defp parse_artifact_status("accepted"), do: :accepted
+  defp parse_artifact_status("rejected"), do: :rejected
+  defp parse_artifact_status(_value), do: :pending
+
+  defp parse_mode("discover"), do: :discover
+  defp parse_mode("define"), do: :define
+  defp parse_mode("build"), do: :build
+  defp parse_mode("gate_a"), do: :gate_a
+  defp parse_mode("gate_b"), do: :gate_b
+  defp parse_mode("gate_c"), do: :gate_c
+  defp parse_mode(value), do: raise("unknown mode: #{value}")
 end

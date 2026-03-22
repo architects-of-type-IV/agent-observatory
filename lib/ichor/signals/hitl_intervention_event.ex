@@ -7,7 +7,7 @@ defmodule Ichor.Signals.HITLInterventionEvent do
   """
 
   use Ash.Resource,
-    domain: Ichor.SignalBus,
+    domain: Ichor.Signals,
     data_layer: AshSqlite.DataLayer,
     simple_notifiers: [Ichor.Signals.FromAsh]
 
