@@ -58,13 +58,15 @@ defmodule Ichor.Factory.PipelineQuery do
   @doc "Scans all known discovery directories and returns a project key => path map."
   @spec projects() :: map()
   def projects do
+    settings_projects = discover_from_settings()
     event_projects = discover_from_events()
     archive_projects = discover_from_archives()
     team_projects = discover_from_teams()
 
-    event_projects
-    |> Map.merge(archive_projects)
+    archive_projects
     |> Map.merge(team_projects)
+    |> Map.merge(event_projects)
+    |> Map.merge(settings_projects)
   end
 
   @doc "Returns archived team summaries from the archive directory."
@@ -149,7 +151,23 @@ defmodule Ichor.Factory.PipelineQuery do
 
   # Discovery internals
 
-  defp discover_from_events do
+  defp discover_from_settings do
+    case Ichor.Settings.list_settings_projects() do
+      {:ok, projects} ->
+        projects
+        |> Enum.filter(fn p ->
+          p.is_active and File.exists?(Path.join(p.location.path, "tasks.jsonl"))
+        end)
+        |> Map.new(fn p -> {p.name, p.location.path} end)
+
+      _ ->
+        %{}
+    end
+  end
+
+  @doc "Returns event-discovered projects (cwds with tasks.jsonl)."
+  @spec discover_from_events() :: map()
+  def discover_from_events do
     EventStream.unique_project_cwds()
     |> Enum.filter(fn cwd -> File.exists?(Path.join(cwd, "tasks.jsonl")) end)
     |> Map.new(fn cwd -> {Path.basename(cwd), cwd} end)

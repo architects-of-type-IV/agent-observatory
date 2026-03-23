@@ -1,11 +1,11 @@
 defmodule Ichor.Repo do
   @moduledoc "Ecto repository for the Ichor PostgreSQL database."
 
-  use Ecto.Repo,
-    otp_app: :ichor,
-    adapter: Ecto.Adapters.Postgres
+  use AshPostgres.Repo, otp_app: :ichor
 
   @doc false
-  @spec installed_extensions() :: [String.t()]
-  def installed_extensions, do: ["uuid-ossp", "citext"]
+  def installed_extensions, do: ["ash-functions", "uuid-ossp", "citext"]
+
+  @doc false
+  def min_pg_version, do: %Version{major: 16, minor: 0, patch: 0}
 end

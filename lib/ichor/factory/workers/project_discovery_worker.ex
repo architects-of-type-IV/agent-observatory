@@ -10,12 +10,16 @@ defmodule Ichor.Factory.Workers.ProjectDiscoveryWorker do
 
   use Oban.Worker, queue: :maintenance, max_attempts: 1, unique: [period: 55]
 
+  require Logger
+
   alias Ichor.Factory.PipelineQuery
   alias Ichor.Signals
 
   @impl Oban.Worker
   def perform(%Oban.Job{}) do
     projects = PipelineQuery.projects()
+    ensure_settings_projects(PipelineQuery.discover_from_events())
+
     active_project = first_project_key(projects)
     board = PipelineQuery.board_state(projects, active_project)
 
@@ -24,6 +28,31 @@ defmodule Ichor.Factory.Workers.ProjectDiscoveryWorker do
     Signals.emit(:pipeline_status, %{state_map: state_map})
 
     :ok
+  end
+
+  defp ensure_settings_projects(event_projects) do
+    case Ichor.Settings.list_settings_projects() do
+      {:ok, existing} ->
+        known_paths = MapSet.new(existing, fn p -> p.location.path end)
+
+        Enum.each(event_projects, fn {name, path} ->
+          unless MapSet.member?(known_paths, path) do
+            case Ichor.Settings.create_settings_project(%{
+                   name: name,
+                   location: %{type: :local, path: path}
+                 }) do
+              {:ok, _} ->
+                :ok
+
+              {:error, reason} ->
+                Logger.warning("Auto-register project #{name}: #{inspect(reason)}")
+            end
+          end
+        end)
+
+      {:error, reason} ->
+        Logger.warning("ensure_settings_projects: #{inspect(reason)}")
+    end
   end
 
   defp first_project_key(projects) when map_size(projects) == 0, do: nil

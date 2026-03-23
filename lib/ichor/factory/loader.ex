@@ -31,9 +31,8 @@ defmodule Ichor.Factory.Loader do
 
     with {:ok, task_maps} <- PipelineCompiler.generate(project_id) do
       label = derive_label(project_id)
-      raw_items = Enum.map(task_maps, &normalize_planning_map/1)
 
-      create_pipeline_with_tasks(raw_items, label, :project, tmux_session, %{
+      create_pipeline_with_tasks(task_maps, label, :project, tmux_session, %{
         project_id: project_id
       })
     end
@@ -66,8 +65,7 @@ defmodule Ichor.Factory.Loader do
     end
   end
 
-  @spec parse_jsonl(String.t()) :: [map()]
-  def parse_jsonl(path) do
+  defp parse_jsonl(path) do
     path
     |> File.stream!()
     |> Enum.map(&String.trim/1)
@@ -81,11 +79,7 @@ defmodule Ichor.Factory.Loader do
     |> Enum.reject(&(is_nil(&1) or &1["status"] == "deleted"))
   end
 
-  @spec normalize_planning_map(map()) :: map()
-  def normalize_planning_map(m), do: Map.put(m, "subtask_id", m["subtask_id"])
-
-  @spec build_wave_map([[String.t()]]) :: %{String.t() => non_neg_integer()}
-  def build_wave_map(waves) do
+  defp build_wave_map(waves) do
     waves
     |> Enum.with_index()
     |> Enum.flat_map(fn {ids, wave_num} ->
@@ -94,23 +88,20 @@ defmodule Ichor.Factory.Loader do
     |> Map.new()
   end
 
-  @spec parse_priority(String.t() | nil) :: :critical | :high | :medium | :low
-  def parse_priority("critical"), do: :critical
-  def parse_priority("high"), do: :high
-  def parse_priority("medium"), do: :medium
-  def parse_priority("low"), do: :low
-  def parse_priority(_), do: :medium
+  defp parse_priority("critical"), do: :critical
+  defp parse_priority("high"), do: :high
+  defp parse_priority("medium"), do: :medium
+  defp parse_priority("low"), do: :low
+  defp parse_priority(_), do: :medium
 
-  @spec archive_existing_runs_for_project(String.t()) :: :ok
-  def archive_existing_runs_for_project(project_id) do
+  defp archive_existing_runs_for_project(project_id) do
     case Pipeline.by_project(project_id) do
       {:ok, pipelines} -> Enum.each(pipelines, &Pipeline.archive/1)
       _ -> :ok
     end
   end
 
-  @spec derive_label(String.t()) :: String.t()
-  def derive_label(project_id) do
+  defp derive_label(project_id) do
     case Project.get(project_id) do
       {:ok, project} -> project.title
       _ -> "Pipeline"
