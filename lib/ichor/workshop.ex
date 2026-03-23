@@ -9,11 +9,37 @@ defmodule Ichor.Workshop do
   use Ash.Domain, extensions: [AshAi]
 
   resources do
+    resource Ichor.Workshop.AgentType do
+      define :list_agent_types, action: :read
+      define :create_agent_type, action: :create
+      define :update_agent_type, action: :update
+      define :destroy_agent_type, action: :destroy
+    end
+
+    resource Ichor.Workshop.AgentDef do
+      define :list_agent_defs, action: :read
+      define :create_agent_def, action: :create
+      define :update_agent_def, action: :update
+      define :destroy_agent_def, action: :destroy
+    end
+
+    resource Ichor.Workshop.Prompt do
+      define :list_prompts, action: :read
+      define :create_prompt, action: :create
+      define :update_prompt, action: :update
+      define :destroy_prompt, action: :destroy
+    end
+
+    resource Ichor.Workshop.Team do
+      define :list_teams, action: :read
+      define :create_team, action: :create
+      define :update_team, action: :update
+      define :destroy_team, action: :destroy
+    end
+
     resource(Ichor.Workshop.Agent)
     resource(Ichor.Workshop.ActiveTeam)
-    resource(Ichor.Workshop.Team)
     resource(Ichor.Workshop.TeamMember)
-    resource(Ichor.Workshop.AgentType)
     resource(Ichor.Workshop.AgentMemory)
   end
 

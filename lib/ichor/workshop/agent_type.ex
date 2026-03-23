@@ -21,6 +21,10 @@ defmodule Ichor.Workshop.AgentType do
       public?(true)
     end
 
+    attribute :description, :string do
+      public?(true)
+    end
+
     attribute :capability, :string do
       allow_nil?(false)
       default("builder")
@@ -30,6 +34,12 @@ defmodule Ichor.Workshop.AgentType do
     attribute :default_model, :string do
       allow_nil?(false)
       default("sonnet")
+      public?(true)
+    end
+
+    attribute :default_provider, :atom do
+      constraints(one_of: [:claude, :gemini, :codex, :shell])
+      default(:claude)
       public?(true)
     end
 
@@ -63,6 +73,10 @@ defmodule Ichor.Workshop.AgentType do
       public?(true)
     end
 
+    attribute :system_prompt, :string do
+      public?(true)
+    end
+
     attribute :color, :string do
       allow_nil?(false)
       default("")
@@ -87,13 +101,16 @@ defmodule Ichor.Workshop.AgentType do
 
       accept([
         :name,
+        :description,
         :capability,
         :default_model,
+        :default_provider,
         :default_permission,
         :default_persona,
         :default_file_scope,
         :default_quality_gates,
         :default_tools,
+        :system_prompt,
         :color,
         :sort_order
       ])
@@ -104,13 +121,16 @@ defmodule Ichor.Workshop.AgentType do
 
       accept([
         :name,
+        :description,
         :capability,
         :default_model,
+        :default_provider,
         :default_permission,
         :default_persona,
         :default_file_scope,
         :default_quality_gates,
         :default_tools,
+        :system_prompt,
         :color,
         :sort_order
       ])
