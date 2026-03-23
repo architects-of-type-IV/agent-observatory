@@ -11,7 +11,7 @@ lib/ichor/
 ├── mcp_profiles.ex                # MCP tool profile definitions
 ├── notes.ex                       # ETS-backed storage for event annotations
 ├── pub_sub.ex                     # PubSub configuration
-├── repo.ex                        # Ecto repository for Ichor SQLite database
+├── repo.ex                        # Ecto repository for Ichor PostgreSQL database
 ├── runtime_supervisor.ex          # Shared runtime services supervisor
 ├── signal_bus.ex                  # SignalBus Ash domain
 ├── util.ex                        # Shared utilities

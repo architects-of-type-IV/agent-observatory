@@ -13,8 +13,6 @@ defmodule Ichor.Fleet do
     resource Ichor.Fleet.Session do
       define(:list_sessions, action: :list)
       define(:active_sessions, action: :active)
-      define(:spawn_session, action: :spawn, args: [:name])
-      define(:stop_session, action: :stop, args: [:session])
     end
   end
 end

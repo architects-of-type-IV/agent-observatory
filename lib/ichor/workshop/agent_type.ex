@@ -6,9 +6,9 @@ defmodule Ichor.Workshop.AgentType do
 
   use Ash.Resource,
     domain: Ichor.Workshop,
-    data_layer: AshSqlite.DataLayer
+    data_layer: AshPostgres.DataLayer
 
-  sqlite do
+  postgres do
     repo(Ichor.Repo)
     table("workshop_agent_types")
   end

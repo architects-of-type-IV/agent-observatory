@@ -6,12 +6,12 @@ defmodule Ichor.Factory.Pipeline do
 
   use Ash.Resource,
     domain: Ichor.Factory,
-    data_layer: AshSqlite.DataLayer,
+    data_layer: AshPostgres.DataLayer,
     simple_notifiers: [Ichor.Signals.FromAsh]
 
   alias Ichor.Factory.{PipelineTask, Spawn}
 
-  sqlite do
+  postgres do
     repo(Ichor.Repo)
     table("pipelines")
   end
@@ -66,6 +66,14 @@ defmodule Ichor.Factory.Pipeline do
     end
   end
 
+  aggregates do
+    count(:task_count, :pipeline_tasks)
+    count(:pending_count, :pipeline_tasks, filter: expr(status == :pending))
+    count(:in_progress_count, :pipeline_tasks, filter: expr(status == :in_progress))
+    count(:completed_count, :pipeline_tasks, filter: expr(status == :completed))
+    count(:failed_count, :pipeline_tasks, filter: expr(status == :failed))
+  end
+
   actions do
     defaults([:read, :destroy])
 
@@ -118,29 +126,33 @@ defmodule Ichor.Factory.Pipeline do
       argument(:run_id, :string, allow_nil?: false)
 
       run(fn input, _context ->
-        run_id = input.arguments.run_id
+        aggregates = [
+          :task_count,
+          :pending_count,
+          :in_progress_count,
+          :completed_count,
+          :failed_count
+        ]
 
-        with {:ok, run} <- Ash.get(__MODULE__, run_id),
-             {:ok, tasks} <- PipelineTask.by_run(run_id) do
-          stats = count_by_status(tasks)
+        case Ash.get(__MODULE__, input.arguments.run_id, load: aggregates) do
+          {:ok, run} ->
+            {:ok,
+             %{
+               "run_id" => run.id,
+               "label" => run.label,
+               "status" => to_string(run.status),
+               "source" => to_string(run.source),
+               "task_count" => run.task_count,
+               "tmux_session" => run.tmux_session,
+               "stats" => %{
+                 "total" => run.task_count,
+                 "pending" => run.pending_count,
+                 "in_progress" => run.in_progress_count,
+                 "completed" => run.completed_count,
+                 "failed" => run.failed_count
+               }
+             }}
 
-          {:ok,
-           %{
-             "run_id" => run.id,
-             "label" => run.label,
-             "status" => to_string(run.status),
-             "source" => to_string(run.source),
-             "task_count" => length(tasks),
-             "tmux_session" => run.tmux_session,
-             "stats" => %{
-               "total" => length(tasks),
-               "pending" => stats.pending,
-               "in_progress" => stats.in_progress,
-               "completed" => stats.completed,
-               "failed" => stats.failed
-             }
-           }}
-        else
           {:error, reason} ->
             {:error, "Status query failed: #{inspect(reason)}"}
         end
@@ -207,16 +219,10 @@ defmodule Ichor.Factory.Pipeline do
     define(:export_jsonl, args: [:run_id])
   end
 
-  defp count_by_status(tasks) do
-    Enum.reduce(tasks, %{pending: 0, in_progress: 0, completed: 0, failed: 0}, fn task, acc ->
-      Map.update!(acc, task.status, &(&1 + 1))
-    end)
-  end
-
   defp task_to_jsonl(task) do
     %{
       "id" => task.external_id,
-      "status" => Kernel.to_string(task.status),
+      "status" => to_string(task.status),
       "subject" => task.subject,
       "description" => task.description,
       "goal" => task.goal,
@@ -225,7 +231,7 @@ defmodule Ichor.Factory.Pipeline do
       "done_when" => task.done_when,
       "blocked_by" => task.blocked_by,
       "owner" => task.owner || "",
-      "priority" => Kernel.to_string(task.priority),
+      "priority" => to_string(task.priority),
       "wave" => task.wave,
       "phase_label" => task.phase_label,
       "acceptance_criteria" => task.acceptance_criteria,

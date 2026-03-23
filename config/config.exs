@@ -20,8 +20,12 @@ config :ichor,
   ]
 
 config :ichor, Ichor.Repo,
-  database: Path.expand("../ichor_dev.db", __DIR__),
-  pool_size: 5
+  username: "postgres",
+  password: "postgres",
+  hostname: "localhost",
+  port: 5434,
+  database: "ichor_dev",
+  pool_size: 10
 
 # Signals runtime implementation
 config :ichor, :signals_impl, Ichor.Signals.Runtime
@@ -72,7 +76,7 @@ config :ichor, :memories,
 
 # Oban background job processing
 config :ichor, Oban,
-  engine: Oban.Engines.Lite,
+  engine: Oban.Engines.Basic,
   repo: Ichor.Repo,
   plugins: [
     {Oban.Plugins.Cron,

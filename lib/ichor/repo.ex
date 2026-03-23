@@ -1,11 +1,11 @@
 defmodule Ichor.Repo do
-  @moduledoc "Ecto repository for the Ichor SQLite database."
+  @moduledoc "Ecto repository for the Ichor PostgreSQL database."
 
   use Ecto.Repo,
     otp_app: :ichor,
-    adapter: Ecto.Adapters.SQLite3
+    adapter: Ecto.Adapters.Postgres
 
   @doc false
-  @spec installed_extensions() :: []
-  def installed_extensions, do: []
+  @spec installed_extensions() :: [String.t()]
+  def installed_extensions, do: ["uuid-ossp", "citext"]
 end

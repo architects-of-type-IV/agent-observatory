@@ -9,7 +9,7 @@ defmodule Ichor.Factory.Project do
 
   use Ash.Resource,
     domain: Ichor.Factory,
-    data_layer: AshSqlite.DataLayer,
+    data_layer: AshPostgres.DataLayer,
     simple_notifiers: [Ichor.Signals.FromAsh]
 
   alias Ichor.Factory.{Artifact, ProjectView, RoadmapItem}
@@ -31,7 +31,7 @@ defmodule Ichor.Factory.Project do
 
   @artifact_fields ~w(id code title status content mode summary feature_code adr_codes kind)a
 
-  sqlite do
+  postgres do
     repo(Ichor.Repo)
     table("projects")
   end

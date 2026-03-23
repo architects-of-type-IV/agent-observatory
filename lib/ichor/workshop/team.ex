@@ -8,11 +8,11 @@ defmodule Ichor.Workshop.Team do
 
   use Ash.Resource,
     domain: Ichor.Workshop,
-    data_layer: AshSqlite.DataLayer
+    data_layer: AshPostgres.DataLayer
 
   alias Ichor.Workshop.{Spawn, TeamMember}
 
-  sqlite do
+  postgres do
     repo(Ichor.Repo)
     table("workshop_teams")
   end

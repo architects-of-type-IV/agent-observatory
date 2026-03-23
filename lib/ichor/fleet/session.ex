@@ -11,9 +11,6 @@ defmodule Ichor.Fleet.Session do
 
   use Ash.Resource, domain: Ichor.Fleet
 
-  alias Ichor.Fleet.Registry
-  alias Ichor.Fleet.SessionProcess
-
   attributes do
     attribute(:id, :string, primary_key?: true, allow_nil?: false, public?: true)
     attribute(:name, :string, public?: true)
@@ -49,26 +46,6 @@ defmodule Ichor.Fleet.Session do
     read :active do
       prepare({Ichor.Fleet.Preparations.LoadSessions, []})
       filter(expr(status in [:active, :paused, :pending]))
-    end
-
-    action :spawn, :map do
-      argument(:name, :string, allow_nil?: false)
-      argument(:provider, :atom, allow_nil?: false, default: :claude)
-      argument(:role, :atom, allow_nil?: false, default: :worker)
-      argument(:team, :string, allow_nil?: false, default: "")
-      argument(:prompt, :string, allow_nil?: false, default: "")
-
-      run(fn input, _context ->
-        SessionProcess.start(input.arguments)
-      end)
-    end
-
-    action :stop, :map do
-      argument(:session, :string, allow_nil?: false)
-
-      run(fn input, _context ->
-        Registry.terminate(input.arguments.session)
-      end)
     end
   end
 end

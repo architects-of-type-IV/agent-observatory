@@ -8,10 +8,10 @@ defmodule Ichor.Signals.HITLInterventionEvent do
 
   use Ash.Resource,
     domain: Ichor.Signals,
-    data_layer: AshSqlite.DataLayer,
+    data_layer: AshPostgres.DataLayer,
     simple_notifiers: [Ichor.Signals.FromAsh]
 
-  sqlite do
+  postgres do
     repo(Ichor.Repo)
     table("hitl_intervention_events")
   end

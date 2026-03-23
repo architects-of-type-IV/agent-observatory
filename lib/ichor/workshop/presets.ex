@@ -246,7 +246,7 @@ defmodule Ichor.Workshop.Presets do
     POST /gateway/messages, POST /gateway/rpc)
   - MCP server: 7 tools for agent communication (send_message,
     check_inbox, get_tasks, etc.)
-  - SQLite persistence: Workshop (agent memory), Activity (events/tasks)
+  - PostgreSQL persistence: Workshop (agent memory), Activity (events/tasks)
   - LiveView dashboard: real-time UI on port 4005
 
   OPEN GAPS (what the system cannot do yet):

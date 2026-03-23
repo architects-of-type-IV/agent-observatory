@@ -7,13 +7,13 @@ defmodule Ichor.Factory.PipelineTask do
 
   use Ash.Resource,
     domain: Ichor.Factory,
-    data_layer: AshSqlite.DataLayer,
+    data_layer: AshPostgres.DataLayer,
     simple_notifiers: [
       Ichor.Signals.FromAsh,
       Ichor.Factory.PipelineTask.Notifiers.SyncRunner
     ]
 
-  sqlite do
+  postgres do
     repo(Ichor.Repo)
     table("pipeline_tasks")
   end
@@ -159,14 +159,19 @@ defmodule Ichor.Factory.PipelineTask do
         allow_nil?(false)
       end
 
-      filter(expr(run_id == ^arg(:run_id) and status == :pending and is_nil(owner)))
-      prepare(Ichor.Factory.PipelineTask.Preparations.FilterAvailable)
+      filter(
+        expr(
+          run_id == ^arg(:run_id) and status == :pending and is_nil(owner) and
+            fragment(
+              "? <@ COALESCE((SELECT array_agg(external_id) FROM pipeline_tasks WHERE run_id = ? AND status = 'completed'), ARRAY[]::text[])",
+              blocked_by,
+              ^arg(:run_id)
+            )
+        )
+      )
     end
 
     update :claim do
-      # require_atomic? disabled: set_attribute(:claimed_at, &__MODULE__.now/0) uses an MFA
-      # callback -- Ash cannot translate a function-reference timestamp into an atomic SQL expression.
-      require_atomic?(false)
       accept([])
 
       argument :owner, :string do
@@ -177,17 +182,14 @@ defmodule Ichor.Factory.PipelineTask do
       validate(attribute_equals(:owner, nil))
 
       change(set_attribute(:status, :in_progress))
-      change(set_attribute(:claimed_at, &__MODULE__.now/0))
-      change(atomic_update(:owner, expr(^arg(:owner))))
+      change(set_attribute(:claimed_at, expr(now())))
+      change(set_attribute(:owner, arg(:owner)))
     end
 
     update :complete do
-      # require_atomic? disabled: set_attribute(:completed_at, &__MODULE__.now/0) uses an MFA
-      # callback -- same constraint as :claim above.
-      require_atomic?(false)
       accept([:notes])
       change(set_attribute(:status, :completed))
-      change(set_attribute(:completed_at, &__MODULE__.now/0))
+      change(set_attribute(:completed_at, expr(now())))
     end
 
     update :fail do
@@ -209,7 +211,7 @@ defmodule Ichor.Factory.PipelineTask do
         allow_nil?(false)
       end
 
-      change(atomic_update(:owner, expr(^arg(:owner))))
+      change(set_attribute(:owner, arg(:owner)))
     end
 
     action :next_tasks, {:array, :map} do
@@ -264,26 +266,19 @@ defmodule Ichor.Factory.PipelineTask do
                  notes: blank_to_nil(input.arguments.notes)
                })
                |> Ash.update(),
-             {:ok, all_tasks} <-
+             {:ok, available} <-
                __MODULE__
-               |> Ash.Query.for_read(:by_run, %{run_id: completed.run_id})
-               |> Ash.read() do
-          completed_ids =
-            all_tasks
-            |> Enum.filter(&(&1.status == :completed))
-            |> MapSet.new(& &1.external_id)
-
-          available =
-            Enum.filter(all_tasks, fn t ->
-              t.status == :pending and is_nil(t.owner) and
-                Enum.all?(t.blocked_by, &MapSet.member?(completed_ids, &1))
-            end)
-
+               |> Ash.Query.for_read(:available, %{run_id: completed.run_id})
+               |> Ash.read(),
+             {:ok, pipeline} <-
+               Ash.get(Ichor.Factory.Pipeline, completed.run_id,
+                 load: [:task_count, :completed_count]
+               ) do
           {:ok,
            %{
              "completed" => task_to_map(completed),
              "newly_unblocked" => Enum.map(available, &task_to_map/1),
-             "all_done" => Enum.all?(all_tasks, &(&1.status == :completed))
+             "all_done" => pipeline.completed_count == pipeline.task_count
            }}
         else
           {:error, reason} ->
@@ -329,9 +324,6 @@ defmodule Ichor.Factory.PipelineTask do
     define(:fail_task, args: [:task_id, :notes])
   end
 
-  @doc false
-  def now, do: DateTime.utc_now()
-
   defp task_to_map(task) do
     %{
       "id" => task.id,
@@ -339,10 +331,10 @@ defmodule Ichor.Factory.PipelineTask do
       "subject" => task.subject,
       "goal" => task.goal,
       "description" => task.description,
-      "allowed_files" => task.allowed_files || [],
-      "steps" => task.steps || [],
+      "allowed_files" => task.allowed_files,
+      "steps" => task.steps,
       "done_when" => task.done_when,
-      "blocked_by" => task.blocked_by || [],
+      "blocked_by" => task.blocked_by,
       "wave" => task.wave,
       "priority" => to_string(task.priority),
       "status" => to_string(task.status),

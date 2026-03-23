@@ -3,10 +3,10 @@ defmodule Ichor.Infrastructure.WebhookDelivery do
 
   use Ash.Resource,
     domain: Ichor.Infrastructure,
-    data_layer: AshSqlite.DataLayer,
+    data_layer: AshPostgres.DataLayer,
     simple_notifiers: [Ichor.Signals.FromAsh]
 
-  sqlite do
+  postgres do
     repo(Ichor.Repo)
     table("webhook_deliveries")
   end

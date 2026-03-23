@@ -305,8 +305,7 @@ defmodule Ichor.Mesh.EventBridge do
     %{nodes: nodes, edges: edges}
   end
 
-  defp get_nested(nil, _key, default), do: default
-  defp get_nested(map, key, default) when is_map(map), do: Map.get(map, key, default)
+  defp get_nested(map, key, default), do: (is_map(map) && Map.get(map, key, default)) || default
 
   defp truncate_tool_input(%{"tool_input" => input}) when is_binary(input) do
     String.slice(input, 0, 500)

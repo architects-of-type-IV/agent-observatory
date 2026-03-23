@@ -1,6 +1,6 @@
 defmodule Ichor.Factory.CronJob do
   @moduledoc """
-  Ash Resource for scheduled cron jobs stored in the `cron_jobs` SQLite table.
+  Ash Resource for scheduled cron jobs stored in the `cron_jobs` PostgreSQL table.
 
   Stores one-time or recurring jobs that fire at `next_fire_at`.
   Signals are emitted via `Ichor.Signals.FromAsh` on schedule and reschedule.
@@ -8,11 +8,11 @@ defmodule Ichor.Factory.CronJob do
 
   use Ash.Resource,
     domain: Ichor.Factory,
-    data_layer: AshSqlite.DataLayer,
+    data_layer: AshPostgres.DataLayer,
     simple_notifiers: [Ichor.Signals.FromAsh],
     primary_read_warning?: false
 
-  sqlite do
+  postgres do
     repo(Ichor.Repo)
     table("cron_jobs")
   end
