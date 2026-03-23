@@ -86,6 +86,8 @@ defmodule Ichor.Infrastructure.MemoriesClient do
     source = Keyword.get(opts, :source, "agent")
     space = Keyword.get(opts, :space)
 
+    extraction_instructions = Keyword.get(opts, :extraction_instructions)
+
     body =
       %{
         content: content,
@@ -94,6 +96,11 @@ defmodule Ichor.Infrastructure.MemoriesClient do
         source: source
       }
       |> then(fn map -> if space, do: Map.put(map, :space, space), else: map end)
+      |> then(fn map ->
+        if extraction_instructions,
+          do: Map.put(map, :extraction_instructions, extraction_instructions),
+          else: map
+      end)
 
     with {:ok, resp} <- post("/api/episodes/ingest", body) do
       {:ok, to_ingest_result(resp)}
