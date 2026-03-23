@@ -6,8 +6,8 @@ defmodule Ichor.Workshop.TeamSpec do
   (preset name, prompt builder, metadata) are expressed as data, not separate modules.
 
   Public API:
-    - build(:mes, run_id, team_name)
-    - build(:pipeline, run, session, brief, tasks, worker_groups, prompt_ctx)
+    - build(:mes, run_id, team_name, opts)
+    - build(:pipeline, run, session, brief, tasks, worker_groups, prompt_ctx, opts)
     - build(:planning, run_id, mode, project_id, planning_project_id, brief)
     - build_corrective(run_id, session, reason, attempt)
     - session_name(run_id) -- MES only
@@ -18,17 +18,15 @@ defmodule Ichor.Workshop.TeamSpec do
   alias Ichor.Factory.RunRef
   alias Ichor.Infrastructure.AgentSpec
   alias Ichor.Infrastructure.TeamSpec, as: Spec
-  alias Ichor.Workshop.{CanvasState, PipelinePrompts, Presets, Team, TeamPrompts}
+  alias Ichor.Workshop.{CanvasState, PipelinePrompts, Presets, PromptProtocol, Team, TeamPrompts}
 
   # MES
 
   @doc "Builds a TeamSpec for a MES run."
   @spec build(:mes, String.t(), String.t(), keyword()) :: Spec.t()
   def build(:mes, run_id, team_name, opts) do
-    prompt_mod = Keyword.get(opts, :prompt_module, TeamPrompts)
     research_context = Keyword.get(opts, :research_context, %{})
     session = session_name(run_id)
-    roster = TeamPrompts.roster(session)
     state = mes_state(team_name)
 
     build_from_state(
@@ -36,9 +34,8 @@ defmodule Ichor.Workshop.TeamSpec do
       session: session,
       prompt_dir: prompt_dir(:mes, run_id),
       team_metadata: %{run_id: run_id, source: :mes, team_template: mes_team_name()},
-      prompt_builder: fn agent, _state ->
-        mes_prompt(prompt_mod, agent, run_id, roster, research_context)
-      end,
+      template_vars: mes_template_vars(run_id, research_context),
+      extra_contacts_builder: &PromptProtocol.extra_contacts_for/1,
       agent_metadata_builder: fn agent, state -> mes_agent_meta(agent, state, run_id) end,
       window_name_builder: & &1.name,
       agent_id_builder: fn agent, _win, session -> "#{session}-#{agent.name}" end
@@ -169,10 +166,16 @@ defmodule Ichor.Workshop.TeamSpec do
   # MES internals
 
   defp mes_state(team_name) do
+    preset_state = Presets.apply(CanvasState.defaults(), mes_team_name())
+
     base =
       case Team.by_name(mes_team_name()) do
-        {:ok, team} -> CanvasState.apply_team(CanvasState.defaults(), team)
-        {:error, _} -> Presets.apply(CanvasState.defaults(), mes_team_name())
+        {:ok, team} ->
+          db_state = CanvasState.apply_team(CanvasState.defaults(), team)
+          merge_preset_personas(db_state, preset_state)
+
+        {:error, _} ->
+          preset_state
       end
 
     base
@@ -180,19 +183,31 @@ defmodule Ichor.Workshop.TeamSpec do
     |> Map.put(:ws_cwd, File.cwd!())
   end
 
+  defp merge_preset_personas(db_state, preset_state) do
+    preset_personas = Map.new(preset_state.ws_agents, fn a -> {a.name, a.persona} end)
+
+    updated_agents =
+      Enum.map(db_state.ws_agents, fn agent ->
+        # DB persona is structural (role description for Workshop canvas).
+        # Preset persona is operational (full prompt template for spawning).
+        Map.put(agent, :persona, Map.get(preset_personas, agent.name, agent.persona))
+      end)
+
+    Map.put(db_state, :ws_agents, updated_agents)
+  end
+
   defp mes_team_name do
     Application.get_env(:ichor, :mes_workshop_team_name, "mes")
   end
 
-  defp mes_prompt(prompt_mod, agent, run_id, roster, context) do
-    case agent.name do
-      "coordinator" -> prompt_mod.coordinator(run_id, roster)
-      "lead" -> prompt_mod.lead(run_id, roster, context)
-      "planner" -> prompt_mod.planner(run_id, roster, context)
-      "researcher-1" -> prompt_mod.researcher_1(run_id, roster, context)
-      "researcher-2" -> prompt_mod.researcher_2(run_id, roster, context)
-      other -> "You are #{other} for MES run #{run_id}.\n\n#{roster}"
-    end
+  defp mes_template_vars(run_id, research_context) do
+    %{
+      "run_id" => run_id,
+      "open_gaps" => Map.get(research_context, :open_gaps, ""),
+      "existing_plugins" => Map.get(research_context, :existing_plugins, ""),
+      "dead_zones" => Map.get(research_context, :dead_zones, ""),
+      "pain_points" => Map.get(research_context, :pain_points, "")
+    }
   end
 
   defp mes_agent_meta(agent, state, run_id) do
@@ -345,6 +360,12 @@ defmodule Ichor.Workshop.TeamSpec do
     prompt_builder =
       Keyword.get(opts, :prompt_builder, fn agent, _state -> agent.persona || "" end)
 
+    extra_contacts_builder =
+      Keyword.get(opts, :extra_contacts_builder, &PromptProtocol.extra_contacts_for/1)
+
+    caller_vars = Keyword.get(opts, :template_vars, %{})
+    tool_prefix = Keyword.get(opts, :tool_prefix, "")
+
     agent_metadata_builder = Keyword.get(opts, :agent_metadata_builder, &default_agent_metadata/2)
     window_name_builder = Keyword.get(opts, :window_name_builder, & &1.name)
 
@@ -353,6 +374,9 @@ defmodule Ichor.Workshop.TeamSpec do
         "#{built_session}-#{built_window_name}"
       end)
 
+    # Common vars computed once per team
+    critical_rules = PromptProtocol.critical_rules(tool_prefix)
+
     Spec.new(%{
       team_name: team_name,
       session: session,
@@ -360,6 +384,28 @@ defmodule Ichor.Workshop.TeamSpec do
       agents:
         Enum.map(ordered_agents, fn agent ->
           built_window_name = window_name_builder.(agent)
+          role_prompt = prompt_builder.(agent, state)
+
+          contacts_block =
+            PromptProtocol.allowed_contacts(
+              agent.id,
+              state.ws_comm_rules,
+              state.ws_agents,
+              session,
+              extra_contacts_builder.(agent)
+            )
+
+          # Caller vars first, infrastructure vars override (authoritative).
+          template_vars =
+            Map.merge(caller_vars, %{
+              "session" => session,
+              "agent_name" => agent.name,
+              "agent_session_id" => "#{session}-#{agent.name}",
+              "critical_rules" => critical_rules,
+              "allowed_contacts" => contacts_block
+            })
+
+          prompt = PromptProtocol.render_template(role_prompt, template_vars)
 
           AgentSpec.new(%{
             name: agent.name,
@@ -370,7 +416,7 @@ defmodule Ichor.Workshop.TeamSpec do
             cwd: cwd,
             team_name: team_name,
             session: session,
-            prompt: prompt_builder.(agent, state),
+            prompt: prompt,
             metadata: agent_metadata_builder.(agent, state)
           })
         end),

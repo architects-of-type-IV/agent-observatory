@@ -6,7 +6,7 @@ defmodule Ichor.Workshop.Spawn do
   alias Ichor.Infrastructure.AgentSpec
   alias Ichor.Infrastructure.TeamSpec
   alias Ichor.Signals
-  alias Ichor.Workshop.{Presets, Team, TeamMember}
+  alias Ichor.Workshop.{Presets, PromptProtocol, Team, TeamMember}
 
   @spawn_timeout 30_000
 
@@ -200,44 +200,27 @@ defmodule Ichor.Workshop.Spawn do
     end)
   end
 
-  defp prompt_for_agent(agent, agents, rules, session, team_name) do
-    teammates =
-      agents
-      |> Enum.reject(&(&1.id == agent.id))
-      |> Enum.map(fn teammate ->
-        "- #{teammate.name} (session id: #{session_id_for(session, teammate)}, capability: #{teammate.capability})"
-      end)
+  defp prompt_for_agent(agent, agents, rules, session, _team_name) do
+    persona = Map.get(agent, :persona) || ""
 
-    comm_context =
-      for rule <- rules, rule.from == agent.id do
-        via =
-          case rule.via do
-            nil -> ""
-            value -> " via slot #{value}"
-          end
+    contacts =
+      PromptProtocol.allowed_contacts(
+        agent.id,
+        rules,
+        agents,
+        session,
+        PromptProtocol.extra_contacts_for(agent)
+      )
 
-        "Talk to slot #{rule.to}: #{rule.policy}#{via}"
-      end
+    vars = %{
+      "session" => session,
+      "agent_name" => agent.name,
+      "agent_session_id" => session_id_for(session, agent),
+      "critical_rules" => PromptProtocol.critical_rules(""),
+      "allowed_contacts" => contacts
+    }
 
-    tool_lines =
-      agent
-      |> Map.get(:tools, [])
-      |> Enum.map(&"- #{&1}")
-
-    [
-      "You are #{agent.name}, a #{agent.capability} agent on team #{team_name}.",
-      "Your tmux session id is #{session_id_for(session, agent)}.",
-      "Use the MCP server to communicate with teammates and operate through the app.",
-      block("Shared and member-specific instructions", Map.get(agent, :persona)),
-      block("Team roster", teammates),
-      block("Communication rules", comm_context),
-      block("Allowed Ash AI tools", tool_lines),
-      optional_line("Permission profile: #{agent.permission}", agent.permission),
-      optional_line("File scope: #{agent.file_scope}", agent.file_scope),
-      optional_line("Quality gates: #{agent.quality_gates}", agent.quality_gates)
-    ]
-    |> Enum.reject(&(&1 in [nil, ""]))
-    |> Enum.join("\n\n")
+    PromptProtocol.render_template(persona, vars)
   end
 
   defp agent_metadata(agent, team_name) do
@@ -294,19 +277,6 @@ defmodule Ichor.Workshop.Spawn do
 
   defp session_id_for(session, agent), do: "#{session}-#{window_name(agent)}"
   defp window_name(agent), do: slug("#{agent.id}-#{agent.name}")
-
-  defp block(_title, []), do: nil
-  defp block(_title, ""), do: nil
-  defp block(_title, nil), do: nil
-
-  defp block(title, items) when is_list(items),
-    do: [title <> ":", Enum.join(items, "\n")] |> Enum.join("\n")
-
-  defp block(title, text), do: [title <> ":", text] |> Enum.join("\n")
-
-  defp optional_line(_label, ""), do: nil
-  defp optional_line(_label, nil), do: nil
-  defp optional_line(label, _value), do: label
 
   defp slug(value) do
     value

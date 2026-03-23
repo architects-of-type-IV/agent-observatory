@@ -30,6 +30,7 @@ defmodule Ichor.Infrastructure.AgentProcess do
 
   @type t :: %__MODULE__{
           id: String.t(),
+          name: String.t(),
           pid: pid() | nil,
           role: atom(),
           team: String.t() | nil,
@@ -55,6 +56,7 @@ defmodule Ichor.Infrastructure.AgentProcess do
     :instructions,
     :status,
     :spawned_at,
+    name: "",
     metadata: %{},
     message_log: [],
     inbox: [],
@@ -157,12 +159,14 @@ defmodule Ichor.Infrastructure.AgentProcess do
   @impl true
   def init(opts) do
     id = Keyword.fetch!(opts, :id)
+    name = Keyword.get(opts, :name, "")
     role = Keyword.get(opts, :role, :worker)
     team = Keyword.get(opts, :team)
     meta = Keyword.get(opts, :metadata, %{})
 
     state = %__MODULE__{
       id: id,
+      name: name,
       pid: self(),
       role: role,
       team: team,
@@ -189,7 +193,7 @@ defmodule Ichor.Infrastructure.AgentProcess do
     :pg.join(@pg_scope, {:agent, id}, self())
     if Keyword.get(opts, :liveness_poll, false), do: schedule_liveness_check()
 
-    AgentLifecycle.agent_started(id, role, team)
+    AgentLifecycle.agent_started(id, name, role, team)
     {:ok, state}
   end
 
@@ -212,7 +216,7 @@ defmodule Ichor.Infrastructure.AgentProcess do
         :ok
     end
 
-    AgentLifecycle.agent_paused(state.id)
+    AgentLifecycle.agent_paused(state.id, state.name)
     {:reply, :ok, %{state | status: :paused}}
   end
 
@@ -227,7 +231,7 @@ defmodule Ichor.Infrastructure.AgentProcess do
         :ok
     end
 
-    AgentLifecycle.agent_resumed(state.id)
+    AgentLifecycle.agent_resumed(state.id, state.name)
     {pending, new_state} = AgentState.drain_pending(state)
     new_state = %{new_state | status: :active}
     async_deliver_many(new_state.backend, pending)
@@ -284,8 +288,13 @@ defmodule Ichor.Infrastructure.AgentProcess do
   end
 
   def handle_info({:liveness_result, {false, tmux_target}}, state) do
-    Ichor.Signals.emit(:mes_agent_tmux_gone, %{agent_id: state.id, tmux: tmux_target})
-    {:stop, :tmux_gone, state}
+    Ichor.Signals.emit(:agent_tmux_gone, %{
+      agent_id: state.id,
+      name: state.name,
+      tmux: tmux_target
+    })
+
+    {:stop, :normal, %{state | status: :terminating}}
   end
 
   def handle_info(%Ichor.Signals.Message{name: :agent_event, data: %{event: event}}, state) do
@@ -312,15 +321,15 @@ defmodule Ichor.Infrastructure.AgentProcess do
   # EventStream subscribes to :agent_stopped and tombstones the session itself.
 
   @impl true
-  def terminate(:tmux_gone, state) do
+  def terminate(:normal, %{status: :terminating} = state) do
     # Tmux window already dead -- skip backend kill, just emit the lifecycle signal.
-    AgentLifecycle.agent_stopped(state.id, :tmux_gone)
+    AgentLifecycle.agent_stopped(state.id, state.name, :tmux_gone)
     :ok
   end
 
   def terminate(reason, state) do
     AgentBackend.terminate(state.backend)
-    AgentLifecycle.agent_stopped(state.id, reason)
+    AgentLifecycle.agent_stopped(state.id, state.name, reason)
     :ok
   end
 

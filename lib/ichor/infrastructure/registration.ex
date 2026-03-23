@@ -27,6 +27,7 @@ defmodule Ichor.Infrastructure.Registration do
   def register(%AgentSpec{} = spec, tmux_target) do
     process_opts = [
       id: spec.agent_id,
+      name: spec.name,
       role: Helpers.capability_to_role(spec.capability || "builder"),
       team: spec.team_name,
       liveness_poll: true,

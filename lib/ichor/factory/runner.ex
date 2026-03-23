@@ -322,10 +322,7 @@ defmodule Ichor.Factory.Runner do
     }
 
     spec =
-      TeamSpec.build(:mes, state.run_id, team_name,
-        prompt_module: Ichor.Workshop.TeamPrompts,
-        research_context: research_context
-      )
+      TeamSpec.build(:mes, state.run_id, team_name, research_context: research_context)
 
     case mes_team_launch().launch(spec) do
       {:ok, _session} ->

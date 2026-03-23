@@ -299,7 +299,7 @@ defmodule IchorWeb.SignalFeed.Renderers.Mes do
     """
   end
 
-  def render(%{message: %Message{name: :mes_agent_tmux_gone, data: data}} = assigns) do
+  def render(%{message: %Message{name: :agent_tmux_gone, data: data}} = assigns) do
     assigns = assign(assigns, agent_id: Primitives.short(data[:agent_id]))
 
     ~H"""

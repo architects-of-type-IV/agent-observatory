@@ -188,17 +188,17 @@ defmodule Ichor.MemoriesBridge do
   # identify entities (agents, teams, plugins) and facts (relationships,
   # state changes, causal events) from the episode content.
 
-  defp narrate(:agent_started, %{session_id: sid, role: role, team: team}),
-    do: "Agent \"#{sid}\" started with role #{role} on team \"#{team}\"."
+  defp narrate(:agent_started, %{name: name, role: role, team: team}),
+    do: "Agent \"#{name}\" started with role #{role} on team \"#{team}\"."
 
-  defp narrate(:agent_stopped, %{session_id: sid, reason: reason}),
-    do: "Agent \"#{sid}\" stopped. Reason: #{reason}."
+  defp narrate(:agent_stopped, %{name: name, reason: reason}),
+    do: "Agent \"#{name}\" stopped. Reason: #{reason}."
 
-  defp narrate(:agent_paused, %{session_id: sid}),
-    do: "Agent \"#{sid}\" was paused by the human-in-the-loop relay."
+  defp narrate(:agent_paused, %{name: name}),
+    do: "Agent \"#{name}\" was paused by the human-in-the-loop relay."
 
-  defp narrate(:agent_resumed, %{session_id: sid}),
-    do: "Agent \"#{sid}\" was resumed."
+  defp narrate(:agent_resumed, %{name: name}),
+    do: "Agent \"#{name}\" was resumed."
 
   defp narrate(:agent_crashed, %{session_id: sid, team_name: team}),
     do: "Agent \"#{sid}\" on team \"#{team}\" crashed."

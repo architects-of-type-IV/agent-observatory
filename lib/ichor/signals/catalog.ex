@@ -16,14 +16,14 @@ defmodule Ichor.Signals.Catalog do
   @core_defs %{
     agent_started: %{
       category: :fleet,
-      keys: [:session_id, :role, :team],
+      keys: [:session_id, :name, :role, :team],
       doc: "AgentProcess init"
     },
-    agent_paused: %{category: :fleet, keys: [:session_id], doc: "Agent paused via HITL"},
-    agent_resumed: %{category: :fleet, keys: [:session_id], doc: "Agent resumed"},
+    agent_paused: %{category: :fleet, keys: [:session_id, :name], doc: "Agent paused via HITL"},
+    agent_resumed: %{category: :fleet, keys: [:session_id, :name], doc: "Agent resumed"},
     agent_stopped: %{
       category: :fleet,
-      keys: [:session_id, :reason],
+      keys: [:session_id, :name, :reason],
       doc: "AgentProcess terminated"
     },
     team_created: %{category: :fleet, keys: [:name, :project, :strategy], doc: "New team started"},
@@ -487,10 +487,10 @@ defmodule Ichor.Signals.Catalog do
       keys: [:agent_id, :role, :team, :reason],
       doc: "MES agent process stopped (tmux window died or explicit stop)"
     },
-    mes_agent_tmux_gone: %{
-      category: :mes,
-      keys: [:agent_id, :tmux_target],
-      doc: "MES agent's tmux window no longer exists"
+    agent_tmux_gone: %{
+      category: :fleet,
+      keys: [:agent_id, :name, :tmux],
+      doc: "Agent's tmux window no longer exists (normal lifecycle event)"
     },
     mes_research_ingested: %{
       category: :mes,
