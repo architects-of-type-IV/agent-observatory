@@ -66,9 +66,9 @@ config :logger, :default_formatter,
 # Memories knowledge graph API (fleet-wide access)
 config :ichor, :memories,
   url: "http://localhost:4000",
-  api_key: "mem_bClhCPVjvDOW9StxLVHHc6zVoYlaYYxU2NS7i4LlTI4dlqanqPThYevtRz4rpT4C3_d5E10",
-  group_id: "0f8eae17-15fc-5af1-8761-0093dc9b5027",
-  user_id: "8fe50fd6-f0da-5adc-9251-6417dc3092e8"
+  api_key: "mem_ef5owe6C1muIiXH7vHGIAiSih2nzWrURCQ4Bd4XmpwWetjdDm42kdTLKXeJY1SsaR_bqkqqJ",
+  group_id: "019ce2b5-7ed0-71ec-b831-36ea37d2ef6b",
+  user_id: "8c5d6f57-443f-42be-9700-f996fb11719f"
 
 # Oban background job processing
 config :ichor, Oban,

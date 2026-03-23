@@ -123,15 +123,36 @@ defmodule Ichor.MemoriesBridge do
     buffers
     |> Enum.filter(fn {_cat, signals} -> signals != [] end)
     |> Enum.reduce({0, 0}, fn {category, signals}, {sent, errors} ->
-      case send_episode(category, Enum.reverse(signals)) do
-        :ok -> {sent + 1, errors}
-        :error -> {sent, errors + 1}
+      content = build_episode_content(category, Enum.reverse(signals))
+
+      if worth_ingesting?(content) do
+        case send_episode(category, content) do
+          :ok -> {sent + 1, errors}
+          :error -> {sent, errors + 1}
+        end
+      else
+        {sent, errors}
       end
     end)
   end
 
-  defp send_episode(category, signals) do
-    content = build_episode_content(category, signals)
+  # Skip episodes that are just repeated "Signal X occurred" with no semantic value.
+  # Minimum 80 chars of actual content after stripping the header line.
+  defp worth_ingesting?(content) do
+    body =
+      content
+      |> String.split("\n", parts: 3)
+      |> List.last("")
+
+    unique_lines =
+      body
+      |> String.split("\n", trim: true)
+      |> Enum.uniq()
+
+    String.length(Enum.join(unique_lines)) >= 80
+  end
+
+  defp send_episode(category, content) do
     space = "project:ichor:#{category}"
 
     case MemoriesClient.ingest(content,
@@ -267,11 +288,15 @@ defmodule Ichor.MemoriesBridge do
   defp narrate(name, data) do
     fields =
       data
-      |> Map.drop([:scope_id])
+      |> Map.drop([:scope_id, :id, :os_pid, :trace_id, :run_id, :session_id])
+      |> Enum.reject(fn {_k, v} -> uuid?(v) end)
       |> Enum.map_join(", ", fn {k, v} -> "#{k}=#{truncate(inspect(v), 60)}" end)
 
     "Signal #{name} occurred#{if fields != "", do: ": #{fields}", else: ""}."
   end
+
+  defp uuid?(v) when is_binary(v), do: Regex.match?(~r/\A[0-9a-f]{8}-[0-9a-f]{4}-/i, v)
+  defp uuid?(_), do: false
 
   defp msg_content(%{content: c}) when is_binary(c), do: c
   defp msg_content(msg), do: inspect(msg, limit: 5)

@@ -1,1 +1,0 @@
-{application,ichor_contracts,[{modules,[]},{optional_applications,[]},{applications,[kernel,stdlib,elixir]},{description,"ichor_contracts"},{registered,[]},{vsn,"0.1.0"}]}.
