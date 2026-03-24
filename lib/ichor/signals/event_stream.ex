@@ -37,23 +37,31 @@ defmodule Ichor.Signals.EventStream do
   @check_interval_ms 30_000
 
   @doc "Ingest a raw hook event map. Normalizes, stores, emits signals, and runs side effects."
-  @spec ingest_raw(map()) :: {:ok, map()}
+  @spec ingest_raw(map()) :: {:ok, map()} | {:error, :event_stream_unavailable}
   def ingest_raw(raw_map) when is_map(raw_map) do
-    {:ok, event} = ingest(raw_map)
+    case ingest(raw_map) do
+      {:ok, event} ->
+        unless tombstoned?(event.session_id) do
+          Signals.emit(:new_event, %{event: event})
+          ingest_event(event)
+        end
 
-    unless tombstoned?(event.session_id) do
-      Signals.emit(:new_event, %{event: event})
-      ingest_event(event)
+        {:ok, event}
+
+      {:error, _} = error ->
+        error
     end
-
-    {:ok, event}
   end
 
   @doc "Record a heartbeat for `agent_id` within `cluster_id`."
-  @spec record_heartbeat(String.t(), String.t()) :: :ok
+  @spec record_heartbeat(String.t(), String.t()) :: :ok | {:error, :event_stream_unavailable}
   def record_heartbeat(agent_id, cluster_id)
       when is_binary(agent_id) and is_binary(cluster_id) do
     GenServer.call(__MODULE__, {:heartbeat, agent_id, cluster_id})
+  catch
+    :exit, {:noproc, _} ->
+      Logger.warning("EventStream process not running, dropping heartbeat")
+      {:error, :event_stream_unavailable}
   end
 
   @doc "Publish an internal fact (watchdog probes, system events, etc.)."
@@ -76,10 +84,16 @@ defmodule Ichor.Signals.EventStream do
   @spec latest_session_state(String.t()) :: map() | nil
   def latest_session_state(session_id) when is_binary(session_id) do
     GenServer.call(__MODULE__, {:get_session_state, session_id})
+  catch
+    :exit, {:noproc, _} -> nil
   end
 
   defp ingest(event_attrs) when is_map(event_attrs) do
     GenServer.call(__MODULE__, {:ingest, event_attrs})
+  catch
+    :exit, {:noproc, _} ->
+      Logger.warning("EventStream process not running, dropping event")
+      {:error, :event_stream_unavailable}
   end
 
   # Public API -- event buffer reads (ETS, no GenServer round-trip)

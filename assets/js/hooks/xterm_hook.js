@@ -42,7 +42,7 @@ export const XtermHook = {
 
     this.term = new Terminal({
       theme,
-      fontSize: 13,
+      fontSize: 11,
       fontFamily: "ui-monospace, 'SF Mono', 'Cascadia Code', 'Fira Code', Consolas, monospace",
       lineHeight: 1.15,
       cursorBlink: true,

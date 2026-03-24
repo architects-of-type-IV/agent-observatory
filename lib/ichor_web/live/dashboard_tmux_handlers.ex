@@ -13,6 +13,8 @@ defmodule IchorWeb.DashboardTmuxHandlers do
   alias Ichor.Infrastructure.Tmux
 
   def dispatch("connect_tmux", p, s), do: handle_connect_tmux(p, s)
+  def dispatch("connect_tmux_split", p, s), do: handle_connect_tmux_split(p, s)
+  def dispatch("connect_all_windows", p, s), do: handle_connect_all_windows(p, s)
   def dispatch("disconnect_tmux", p, s), do: handle_disconnect_tmux(p, s)
   def dispatch("disconnect_tmux_tab", p, s), do: handle_disconnect_tmux_tab(p, s)
   def dispatch("close_all_tmux", p, s), do: handle_close_all_tmux(p, s)
@@ -62,6 +64,34 @@ defmodule IchorWeb.DashboardTmuxHandlers do
       |> push_event("terminal_output", %{session: session_name, data: output})
       |> push_event("toast", %{message: "Opened #{session_name}", type: "success"})
     end
+  end
+
+  def handle_connect_tmux_split(%{"session" => session_name}, socket) do
+    # Connect the session (reuse connect logic) then ensure split mode is on
+    socket = handle_connect_tmux(%{"session" => session_name}, socket)
+
+    split =
+      if socket.assigns.panel_split == :none, do: :horizontal, else: socket.assigns.panel_split
+
+    socket
+    |> assign(:panel_split, split)
+    |> push_event("terminal_panel_update", %{split: to_string(split)})
+  end
+
+  def handle_connect_all_windows(%{"session" => session_name}, socket) do
+    windows = Tmux.list_windows(session_name)
+
+    socket =
+      Enum.reduce(windows, socket, fn win, acc ->
+        handle_connect_tmux(%{"session" => win.target}, acc)
+      end)
+
+    split =
+      if socket.assigns.panel_split == :none, do: :horizontal, else: socket.assigns.panel_split
+
+    socket
+    |> assign(:panel_split, split)
+    |> push_event("terminal_panel_update", %{split: to_string(split)})
   end
 
   def handle_disconnect_tmux(_params, socket) do

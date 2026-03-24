@@ -10,6 +10,40 @@ defmodule Ichor.Factory.PlanningPrompts do
   @mcp_tools_define "create_feature, create_use_case, list_features, list_use_cases, create_checkpoint, create_conversation, gate_check"
   @mcp_tools_build "list_features, list_use_cases, create_phase, create_section, create_task, create_subtask, create_checkpoint, create_conversation, gate_check"
 
+  @doc "Dispatch prompt generation by mode and agent name."
+  @spec for_agent(String.t(), map(), map()) :: String.t()
+  def for_agent(mode, agent, ctx)
+
+  def for_agent("a", %{name: "coordinator"}, ctx),
+    do: mode_a_coordinator(ctx.run_id, ctx.roster, ctx.project_id, ctx.brief)
+
+  def for_agent("a", %{name: "architect"}, ctx),
+    do: mode_a_architect(ctx.run_id, ctx.roster, ctx.project_id, ctx.brief)
+
+  def for_agent("a", %{name: "reviewer"}, ctx),
+    do: mode_a_reviewer(ctx.run_id, ctx.roster, ctx.project_id, ctx.brief)
+
+  def for_agent("b", %{name: "coordinator"}, ctx),
+    do: mode_b_coordinator(ctx.run_id, ctx.roster, ctx.project_id, ctx.brief)
+
+  def for_agent("b", %{name: "analyst"}, ctx),
+    do: mode_b_analyst(ctx.run_id, ctx.roster, ctx.project_id, ctx.brief)
+
+  def for_agent("b", %{name: "designer"}, ctx),
+    do: mode_b_designer(ctx.run_id, ctx.roster, ctx.project_id, ctx.brief)
+
+  def for_agent("c", %{name: "coordinator"}, ctx),
+    do: mode_c_coordinator(ctx.run_id, ctx.roster, ctx.project_id, ctx.brief)
+
+  def for_agent("c", %{name: "planner"}, ctx),
+    do: mode_c_planner(ctx.run_id, ctx.roster, ctx.project_id, ctx.brief)
+
+  def for_agent("c", %{name: "architect"}, ctx),
+    do: mode_c_architect(ctx.run_id, ctx.roster, ctx.project_id, ctx.brief)
+
+  def for_agent(_mode, agent, _ctx),
+    do: "You are #{agent.name}. Follow coordinator instructions."
+
   @doc "Generates the Mode A coordinator prompt."
   @spec mode_a_coordinator(String.t(), String.t(), String.t() | nil, String.t()) :: String.t()
   def mode_a_coordinator(run_id, roster, project_id, brief) do

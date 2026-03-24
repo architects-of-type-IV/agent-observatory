@@ -31,6 +31,7 @@ defmodule IchorWeb.Components.TerminalPanelComponents do
   attr :tmux_panels, :list, required: true
   attr :active_tmux_session, :string, default: nil
   attr :tmux_sessions, :list, required: true
+  attr :tmux_session_windows, :list, default: []
   attr :show_session_picker, :boolean, default: false
   attr :show_panel_settings, :boolean, default: false
 
@@ -246,35 +247,37 @@ defmodule IchorWeb.Components.TerminalPanelComponents do
       <div
         :if={@show_session_picker}
         id="session-picker-dropdown"
-        class="absolute top-8 left-8 z-50 bg-base border border-border rounded-lg shadow-xl py-1 min-w-[200px] max-h-[300px] overflow-y-auto"
+        class="absolute top-8 left-8 z-50 bg-base border border-border rounded-lg shadow-xl py-1 min-w-[240px] max-h-[400px] overflow-y-auto"
         phx-click-away="toggle_session_picker"
       >
         <div class="px-3 py-1.5 text-[10px] text-muted font-semibold uppercase tracking-wider border-b border-border">
           Available Sessions
         </div>
-        <%= for session <- @tmux_sessions do %>
-          <% already_open = session in @tmux_panels %>
-          <button
-            phx-click={unless already_open, do: "connect_tmux"}
-            phx-value-session={session}
-            class={[
-              "w-full text-left px-3 py-1.5 text-[11px] font-mono flex items-center gap-2 transition-colors",
-              if(already_open,
-                do: "text-muted cursor-default",
-                else: "text-default hover:bg-raised cursor-pointer"
-              )
-            ]}
-            disabled={already_open}
-          >
-            <span class={[
-              "w-1.5 h-1.5 rounded-full shrink-0",
-              if(already_open, do: "bg-success", else: "bg-highlight")
-            ]} />
-            {session}
-            <span :if={already_open} class="ml-auto text-[9px] text-muted">open</span>
-          </button>
+        <%= for entry <- @tmux_session_windows do %>
+          <% has_windows = length(entry.windows) > 1 %>
+          <%= if has_windows do %>
+            <%!-- Multi-window session: show session header with Open All + individual windows --%>
+            <div class="flex items-center px-3 pt-2 pb-1 gap-2">
+              <span class="text-[9px] text-muted font-semibold uppercase tracking-wider flex-1">
+                {entry.session}
+              </span>
+              <button
+                phx-click="connect_all_windows"
+                phx-value-session={entry.session}
+                class="text-[8px] font-mono px-1.5 py-0.5 rounded bg-brand/15 hover:bg-brand/25 text-brand transition-colors"
+              >
+                All
+              </button>
+            </div>
+            <%= for win <- entry.windows do %>
+              <.picker_entry target={win.target} label={win.name} panels={@tmux_panels} />
+            <% end %>
+          <% else %>
+            <%!-- Single-window session: show as flat entry --%>
+            <.picker_entry target={entry.session} label={entry.session} panels={@tmux_panels} />
+          <% end %>
         <% end %>
-        <div :if={@tmux_sessions == []} class="px-3 py-2 text-[11px] text-muted italic">
+        <div :if={@tmux_session_windows == []} class="px-3 py-2 text-[11px] text-muted italic">
           No tmux sessions found
         </div>
       </div>
@@ -299,6 +302,42 @@ defmodule IchorWeb.Components.TerminalPanelComponents do
     >
       {@label}
     </button>
+    """
+  end
+
+  attr :target, :string, required: true
+  attr :label, :string, required: true
+  attr :panels, :list, required: true
+
+  defp picker_entry(assigns) do
+    assigns = assign(assigns, :already_open, assigns.target in assigns.panels)
+
+    ~H"""
+    <div class="flex items-center px-3 py-1 gap-2">
+      <span class={[
+        "w-1.5 h-1.5 rounded-full shrink-0",
+        if(@already_open, do: "bg-success", else: "bg-highlight")
+      ]} />
+      <span class="text-[11px] font-mono text-default flex-1 truncate">{@label}</span>
+      <%= if @already_open do %>
+        <span class="text-[9px] text-muted">open</span>
+      <% else %>
+        <button
+          phx-click="connect_tmux"
+          phx-value-session={@target}
+          class="text-[9px] font-mono px-1.5 py-0.5 rounded bg-raised hover:bg-[var(--term-hover)] text-muted hover:text-default transition-colors"
+        >
+          Tab
+        </button>
+        <button
+          phx-click="connect_tmux_split"
+          phx-value-session={@target}
+          class="text-[9px] font-mono px-1.5 py-0.5 rounded bg-raised hover:bg-[var(--term-hover)] text-muted hover:text-default transition-colors"
+        >
+          Split
+        </button>
+      <% end %>
+    </div>
     """
   end
 

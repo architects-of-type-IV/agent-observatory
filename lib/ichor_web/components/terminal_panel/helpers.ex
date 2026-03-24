@@ -13,19 +13,7 @@ defmodule IchorWeb.Components.TerminalPanel.Helpers do
   @spec split_sessions(list(), String.t() | nil, atom()) :: list()
   def split_sessions(panels, active, :none), do: [active || List.first(panels)]
 
-  def split_sessions(panels, active, _split) do
-    case panels do
-      [] ->
-        []
-
-      [single] ->
-        [single]
-
-      _ ->
-        active_idx = Enum.find_index(panels, &(&1 == active)) || 0
-        Enum.slice(panels, active_idx, min(2, length(panels) - active_idx))
-    end
-  end
+  def split_sessions(panels, _active, _split), do: panels
 
   @doc "Compute inline CSS for floating panel with independent width and height."
   @spec floating_style(atom(), integer(), integer()) :: String.t()

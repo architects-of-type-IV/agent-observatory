@@ -113,6 +113,32 @@ defmodule Ichor.Infrastructure.Tmux do
     |> Enum.uniq()
   end
 
+  @doc "List all windows in a session as `%{name: \"window-name\", target: \"session:window\"}`."
+  @spec list_windows(String.t()) :: [%{name: String.t(), target: String.t()}]
+  def list_windows(session) do
+    case Command.try_all(["list-windows", "-t", session, "-F", "\#{window_name}"]) do
+      {:ok, output} ->
+        output
+        |> Parser.split_lines()
+        |> Enum.map(fn name -> %{name: name, target: "#{session}:#{name}"} end)
+
+      {:error, _} ->
+        []
+    end
+  end
+
+  @doc """
+  List all sessions with their windows.
+  Returns `[%{session: "name", windows: [%{name: ..., target: ...}]}]`.
+  """
+  @spec list_sessions_with_windows() :: [%{session: String.t(), windows: list()}]
+  def list_sessions_with_windows do
+    list_sessions()
+    |> Enum.map(fn session ->
+      %{session: session, windows: list_windows(session)}
+    end)
+  end
+
   @doc "Run a tmux command across all known server options, return first success."
   @spec run_command([String.t()]) :: {:ok, String.t()} | {:error, term()}
   def run_command(cmd_args), do: Command.try_all(cmd_args)

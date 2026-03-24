@@ -37,6 +37,18 @@ defmodule Ichor.MemoriesBridge do
     :registry_changed
   ]
 
+  @uuid_re ~r/\A[0-9a-f]{8}-[0-9a-f]{4}-/i
+
+  @extraction_instructions """
+  This is ICHOR IV agent control plane telemetry. \
+  Agent names like "lead", "worker-1", "researcher" are roles, not people. \
+  Session IDs (mes-XXXXX) are ephemeral runtime identifiers. \
+  Elixir modules (Ichor.Mesh.*) are code components, not documents. \
+  Signal names (dag_delta, fleet_changed) are event types, not entities. \
+  Focus on: which agents performed what actions, decisions made and their outcomes, \
+  causal relationships between agent actions, team structure and coordination patterns.\
+  """
+
   @doc false
   @spec start_link(keyword()) :: GenServer.on_start()
   def start_link(opts), do: GenServer.start_link(__MODULE__, opts, name: __MODULE__)
@@ -136,8 +148,6 @@ defmodule Ichor.MemoriesBridge do
     end)
   end
 
-  # Skip episodes that are just repeated "Signal X occurred" with no semantic value.
-  # Minimum 80 chars of actual content after stripping the header line.
   defp worth_ingesting?(content) do
     body =
       content
@@ -158,7 +168,8 @@ defmodule Ichor.MemoriesBridge do
     case MemoriesClient.ingest(content,
            type: "text",
            source: "system",
-           space: space
+           space: space,
+           extraction_instructions: @extraction_instructions
          ) do
       {:ok, _} ->
         :ok
@@ -184,9 +195,7 @@ defmodule Ichor.MemoriesBridge do
     "ICHOR IV control plane observations (#{category} domain, #{timestamp}):\n\n#{body}"
   end
 
-  # Produce natural language so the Memories extraction LLM can
-  # identify entities (agents, teams, plugins) and facts (relationships,
-  # state changes, causal events) from the episode content.
+  # -- Agent lifecycle --------------------------------------------------------
 
   defp narrate(:agent_started, %{name: name, role: role, team: team}),
     do: "Agent \"#{name}\" started with role #{role} on team \"#{team}\"."
@@ -206,11 +215,41 @@ defmodule Ichor.MemoriesBridge do
   defp narrate(:agent_spawned, %{session_id: sid, name: name, capability: cap}),
     do: "Agent \"#{name}\" (session #{sid}) was spawned with capability #{cap}."
 
+  defp narrate(:agent_done, %{session_id: sid, summary: summary}),
+    do: "Agent \"#{sid}\" completed its work. Summary: #{truncate(summary, 200)}."
+
+  defp narrate(:agent_blocked, %{session_id: sid, reason: reason}),
+    do: "Agent \"#{sid}\" is blocked. Reason: #{truncate(reason, 200)}."
+
+  # -- Team lifecycle ---------------------------------------------------------
+
   defp narrate(:team_created, %{name: name}),
     do: "Team \"#{name}\" was created."
 
   defp narrate(:team_disbanded, %{team_name: name}),
     do: "Team \"#{name}\" was disbanded."
+
+  defp narrate(:team_spawn_requested, %{team_name: name, source: source}),
+    do: "Team \"#{name}\" spawn was requested (source: #{source})."
+
+  defp narrate(:team_spawn_started, %{team_name: name}),
+    do: "Team \"#{name}\" spawn process started."
+
+  defp narrate(:team_spawn_ready, %{team_name: name, agent_count: n, session: session}),
+    do: "Team \"#{name}\" is ready with #{n} agents (session: #{session})."
+
+  defp narrate(:team_spawn_failed, %{team_name: name, reason: reason}),
+    do: "Team \"#{name}\" spawn failed: #{truncate(to_string(reason), 150)}."
+
+  # -- Session lifecycle ------------------------------------------------------
+
+  defp narrate(:session_started, %{session_id: sid, model: model, cwd: cwd}),
+    do: "Session \"#{sid}\" started (model: #{model || "unknown"}, cwd: #{cwd || "unknown"})."
+
+  defp narrate(:session_ended, %{session_id: sid}),
+    do: "Session \"#{sid}\" ended."
+
+  # -- Watchdog / entropy -----------------------------------------------------
 
   defp narrate(:nudge_warning, %{session_id: sid, agent_name: name, level: lvl}),
     do: "Agent \"#{name}\" (#{sid}) received a nudge escalation at level #{lvl}."
@@ -224,29 +263,101 @@ defmodule Ichor.MemoriesBridge do
   defp narrate(:entropy_alert, %{session_id: sid, entropy_score: score}),
     do: "Entropy alert for agent \"#{sid}\": repeated pattern detected (score #{score})."
 
-  defp narrate(:decision_log, %{log: log}),
-    do: "Gateway routing decision: #{truncate(inspect(log), 200)}."
+  # -- Gateway / mesh ---------------------------------------------------------
+
+  defp narrate(:decision_log, %{log: log}) do
+    cognition = log.cognition || %{}
+    action = log.action || %{}
+    identity = log.identity || %{}
+
+    agent = identity["agent_id"] || "unknown"
+    intent = cognition["intent"] || "unknown"
+    confidence = cognition["confidence_score"]
+    tool = action["tool_call"] || action["tool_name"]
+    status = action["action_status"] || "unknown"
+
+    parts = ["Agent \"#{agent}\" decided to #{intent}"]
+    parts = if tool, do: parts ++ ["via #{tool}"], else: parts
+    parts = if confidence, do: parts ++ ["(confidence: #{confidence})"], else: parts
+    parts = parts ++ ["-- status: #{status}"]
+
+    Enum.join(parts, " ") <> "."
+  end
+
+  defp narrate(:dead_letter, %{delivery: d}) do
+    to = d[:to] || d["to"] || "unknown"
+    from = d[:from] || d["from"] || "unknown"
+    "Dead letter: message from \"#{from}\" to \"#{to}\" could not be delivered."
+  end
 
   defp narrate(:schema_violation, _data),
     do: "A schema validation violation was detected in the event pipeline."
 
-  defp narrate(:dead_letter, %{delivery: d}),
-    do: "A message was sent to the dead letter queue: #{truncate(inspect(d), 150)}."
+  defp narrate(:agent_message_intercepted, data) do
+    from = data[:from] || data[:agent_id] || "unknown"
+    to = data[:to] || "unknown"
+    content = data[:content] || ""
+    "Agent \"#{from}\" sent message to \"#{to}\": #{truncate(content, 200)}."
+  end
 
-  defp narrate(:message_delivered, %{agent_id: aid, msg_map: msg}),
-    do: "Message delivered to agent \"#{aid}\": #{truncate(msg_content(msg), 200)}."
+  # -- Causal DAG -------------------------------------------------------------
 
-  defp narrate(:task_created, %{task: task}),
-    do: "Task created: #{truncate(inspect(task), 200)}."
+  defp narrate(:dag_delta, %{session_id: sid, added_nodes: nodes}) when is_list(nodes) do
+    node_descriptions =
+      for node <- Enum.take(nodes, 5) do
+        intent = node.intent || "unknown"
+        status = node.action_status || "pending"
+        conf = node.confidence_score
+        ent = node.entropy_score
+        agent = node.agent_id || "unknown"
 
-  defp narrate(:task_updated, %{task: task}),
-    do: "Task status changed: #{truncate(inspect(task), 200)}."
+        scores =
+          [if(conf, do: "confidence=#{conf}"), if(ent, do: "entropy=#{ent}")]
+          |> Enum.reject(&is_nil/1)
+          |> Enum.join(", ")
 
-  defp narrate(:agent_done, %{session_id: sid, summary: summary}),
-    do: "Agent \"#{sid}\" completed its work. Summary: #{truncate(summary, 200)}."
+        "  - #{agent}: #{intent} (#{status}#{if scores != "", do: ", #{scores}", else: ""})"
+      end
 
-  defp narrate(:agent_blocked, %{session_id: sid, reason: reason}),
-    do: "Agent \"#{sid}\" is blocked. Reason: #{truncate(reason, 200)}."
+    overflow = if length(nodes) > 5, do: "\n  (#{length(nodes) - 5} more)", else: ""
+
+    "Causal chain update for session \"#{sid}\" (#{length(nodes)} new steps):\n" <>
+      Enum.join(node_descriptions, "\n") <> overflow
+  end
+
+  # -- Tasks ------------------------------------------------------------------
+
+  defp narrate(:task_created, %{task: task}), do: narrate_task("created", task)
+  defp narrate(:task_updated, %{task: task}), do: narrate_task("updated", task)
+
+  defp narrate_task(verb, task) when is_map(task) do
+    subject = task[:subject] || task["subject"] || "untitled"
+    status = task[:status] || task["status"]
+    owner = task[:owner] || task["owner"]
+    priority = task[:priority] || task["priority"]
+
+    parts = ["Task #{verb}: \"#{subject}\""]
+    parts = if status, do: parts ++ ["status=#{status}"], else: parts
+    parts = if owner && owner != "", do: parts ++ ["owner=#{owner}"], else: parts
+    parts = if priority, do: parts ++ ["priority=#{priority}"], else: parts
+
+    Enum.join(parts, ", ") <> "."
+  end
+
+  defp narrate_task(verb, task), do: "Task #{verb}: #{truncate(to_string(task), 200)}."
+
+  # -- Monitoring / quality gates ---------------------------------------------
+
+  defp narrate(:gate_passed, %{session_id: sid}),
+    do: "Agent \"#{sid}\" passed a quality gate."
+
+  defp narrate(:gate_failed, %{session_id: sid, output: output}),
+    do: "Agent \"#{sid}\" failed a quality gate: #{truncate(output, 150)}."
+
+  defp narrate(:watchdog_sweep, %{checked: checked, paused: paused}),
+    do: "Watchdog sweep: checked #{checked} agents, paused #{paused}."
+
+  # -- MES (manufacturing) ----------------------------------------------------
 
   defp narrate(:mes_cycle_started, %{run_id: rid, team_name: team}),
     do: "MES manufacturing cycle #{rid} started with team \"#{team}\"."
@@ -273,29 +384,79 @@ defmodule Ichor.MemoriesBridge do
   defp narrate(:mes_team_killed, %{session: session}),
     do: "MES team session \"#{session}\" was killed."
 
-  defp narrate(:new_event, %{event: event}),
-    do: "Hook event received: #{truncate(inspect(event), 200)}."
+  defp narrate(:mes_cycle_skipped, %{reason: reason}),
+    do: "MES cycle skipped: #{reason}."
 
-  defp narrate(:gate_passed, %{session_id: sid}),
-    do: "Agent \"#{sid}\" passed a quality gate."
+  defp narrate(:mes_cycle_failed, %{run_id: rid, reason: reason}),
+    do: "MES cycle #{rid} failed: #{truncate(to_string(reason), 150)}."
 
-  defp narrate(:gate_failed, %{session_id: sid, output: output}),
-    do: "Agent \"#{sid}\" failed a quality gate: #{truncate(output, 150)}."
+  # -- Run lifecycle ----------------------------------------------------------
+
+  defp narrate(:run_complete, %{kind: kind, run_id: rid, session: session}),
+    do: "Run #{rid} (#{kind}) completed in session \"#{session}\"."
+
+  defp narrate(:run_terminated, %{kind: kind, run_id: rid, session: session}),
+    do: "Run #{rid} (#{kind}) was terminated in session \"#{session}\"."
+
+  # -- Fleet changes ----------------------------------------------------------
+
+  defp narrate(:fleet_changed, data) do
+    agent = data[:agent_id]
+    if agent, do: "Fleet topology changed (agent: #{agent}).", else: "Fleet topology changed."
+  end
+
+  # -- Hook events (raw) ------------------------------------------------------
+
+  defp narrate(:new_event, %{event: event}) when is_map(event) do
+    hook = event[:hook_event_type] || event["hook_event_type"] || "unknown"
+    tool = event[:tool_name] || event["tool_name"]
+    session = event[:session_id] || event["session_id"]
+
+    base = "Hook event: #{hook}"
+    base = if tool, do: base <> " (tool: #{tool})", else: base
+    base = if session, do: base <> " for session #{session}", else: base
+    base <> "."
+  end
+
+  # -- Memory blocks ----------------------------------------------------------
 
   defp narrate(:block_changed, %{block_id: bid, label: label}),
     do: "Memory block \"#{label}\" (#{bid}) was modified."
 
-  defp narrate(name, data) do
+  defp narrate(:memory_changed, %{block_id: bid}),
+    do: "Memory block #{bid} content changed."
+
+  # -- Messages ---------------------------------------------------------------
+
+  defp narrate(:message_delivered, %{agent_id: aid, msg_map: msg}),
+    do: "Message delivered to agent \"#{aid}\": #{truncate(msg_content(msg), 200)}."
+
+  # -- HITL -------------------------------------------------------------------
+
+  defp narrate(:hitl_intervention_recorded, %{action: action, details: details}),
+    do: "HITL intervention: #{action}. #{truncate(to_string(details), 150)}."
+
+  defp narrate(:hitl_auto_released, %{session_id: sid}),
+    do: "HITL auto-released agent \"#{sid}\"."
+
+  # -- Catch-all: readable key=value without inspect() ------------------------
+
+  defp narrate(name, data) when is_map(data) do
     fields =
       data
       |> Map.drop([:scope_id, :id, :os_pid, :trace_id, :run_id, :session_id])
-      |> Enum.reject(fn {_k, v} -> uuid?(v) end)
-      |> Enum.map_join(", ", fn {k, v} -> "#{k}=#{truncate(inspect(v), 60)}" end)
+      |> Enum.reject(fn {_k, v} -> uuid?(v) or is_struct(v) or is_map(v) or is_list(v) end)
+      |> Enum.map_join(", ", fn {k, v} -> "#{k}=#{truncate(to_string(v), 60)}" end)
 
-    "Signal #{name} occurred#{if fields != "", do: ": #{fields}", else: ""}."
+    case fields do
+      "" -> "#{name} occurred."
+      _ -> "#{name}: #{fields}."
+    end
   end
 
-  defp uuid?(v) when is_binary(v), do: Regex.match?(~r/\A[0-9a-f]{8}-[0-9a-f]{4}-/i, v)
+  defp narrate(name, _data), do: "#{name} occurred."
+
+  defp uuid?(v) when is_binary(v), do: Regex.match?(@uuid_re, v)
   defp uuid?(_), do: false
 
   defp msg_content(%{content: c}) when is_binary(c), do: c

@@ -66,6 +66,7 @@ defmodule IchorWeb.DashboardState do
       sidebar_collapsed: false,
       active_tmux_session: nil,
       tmux_sessions: [],
+      tmux_session_windows: [],
       tmux_panels: [],
       tmux_outputs: %{},
       tmux_layout: :tabs,
@@ -203,8 +204,9 @@ defmodule IchorWeb.DashboardState do
         true -> []
       end
 
-    # Tmux session list (for sidebar)
+    # Tmux session list (for sidebar) + per-session windows
     tmux_session_names = safe_tmux_sessions()
+    tmux_session_windows = safe_tmux_session_windows()
     teams = merge_display_teams(teams, agents, tmux_session_names)
 
     # Unified agent index from Fleet.Agent
@@ -239,6 +241,7 @@ defmodule IchorWeb.DashboardState do
     |> assign(:paused_sessions, paused_sessions)
     |> assign(:mailbox_messages, mailbox_messages)
     |> assign(:tmux_sessions, tmux_session_names)
+    |> assign(:tmux_session_windows, tmux_session_windows)
   end
 
   @doc "View-only recompute: re-derives display assigns from existing data. No Ash/SQL queries."
@@ -271,6 +274,12 @@ defmodule IchorWeb.DashboardState do
 
   defp safe_tmux_sessions do
     Tmux.list_sessions()
+  rescue
+    _ -> []
+  end
+
+  defp safe_tmux_session_windows do
+    Tmux.list_sessions_with_windows()
   rescue
     _ -> []
   end

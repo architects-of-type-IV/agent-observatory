@@ -24,40 +24,53 @@ defmodule Ichor.Infrastructure.HITLRelay do
   end
 
   @doc "Pause a session. Buffers subsequent messages until unpause."
-  @spec pause(String.t(), String.t(), String.t(), String.t()) :: :ok | {:ok, :already_paused}
+  @spec pause(String.t(), String.t(), String.t(), String.t()) ::
+          :ok | {:ok, :already_paused} | {:error, :hitl_unavailable}
   def pause(session_id, agent_id, operator_id, reason) do
     GenServer.call(__MODULE__, {:pause, session_id, agent_id, operator_id, reason})
+  catch
+    :exit, {:noproc, _} -> {:error, :hitl_unavailable}
   end
 
   @doc "Unpause a session. Flushes buffered messages in order."
   @spec unpause(String.t(), String.t(), String.t()) ::
-          {:ok, non_neg_integer()} | {:ok, :not_paused}
+          {:ok, non_neg_integer()} | {:ok, :not_paused} | {:error, :hitl_unavailable}
   def unpause(session_id, agent_id, operator_id) do
     GenServer.call(__MODULE__, {:unpause, session_id, agent_id, operator_id})
+  catch
+    :exit, {:noproc, _} -> {:error, :hitl_unavailable}
   end
 
   @doc "Rewrite a buffered message's payload by trace_id."
-  @spec rewrite(String.t(), String.t(), map()) :: :ok | {:error, :not_found}
+  @spec rewrite(String.t(), String.t(), map()) :: :ok | {:error, :not_found | :hitl_unavailable}
   def rewrite(session_id, trace_id, new_payload) do
     GenServer.call(__MODULE__, {:rewrite, session_id, trace_id, new_payload})
+  catch
+    :exit, {:noproc, _} -> {:error, :hitl_unavailable}
   end
 
   @doc "Inject a new message into the buffer for a paused session."
-  @spec inject(String.t(), String.t(), map()) :: :ok
+  @spec inject(String.t(), String.t(), map()) :: :ok | {:error, :hitl_unavailable}
   def inject(session_id, agent_id, payload) do
     GenServer.call(__MODULE__, {:inject, session_id, agent_id, payload})
+  catch
+    :exit, {:noproc, _} -> {:error, :hitl_unavailable}
   end
 
   @doc "Buffer a message if the session is paused, or pass through if normal."
-  @spec buffer_message(String.t(), map()) :: :ok | :pass_through
+  @spec buffer_message(String.t(), map()) :: :ok | :pass_through | {:error, :hitl_unavailable}
   def buffer_message(session_id, message) do
     GenServer.call(__MODULE__, {:buffer_message, session_id, message})
+  catch
+    :exit, {:noproc, _} -> {:error, :hitl_unavailable}
   end
 
   @doc "Return the current status of a session (:paused or :normal)."
   @spec session_status(String.t()) :: :paused | :normal
   def session_status(session_id) do
     GenServer.call(__MODULE__, {:session_status, session_id})
+  catch
+    :exit, {:noproc, _} -> :normal
   end
 
   @doc "Return all buffered messages for a paused session."
@@ -70,12 +83,16 @@ defmodule Ichor.Infrastructure.HITLRelay do
   @spec paused_sessions() :: [String.t()]
   def paused_sessions do
     GenServer.call(__MODULE__, :paused_sessions)
+  catch
+    :exit, {:noproc, _} -> []
   end
 
   @doc "Discard all buffered messages for a session and unpause."
-  @spec reject(String.t(), String.t(), String.t()) :: :ok
+  @spec reject(String.t(), String.t(), String.t()) :: :ok | {:error, :hitl_unavailable}
   def reject(session_id, agent_id, operator_id) do
     GenServer.call(__MODULE__, {:reject, session_id, agent_id, operator_id})
+  catch
+    :exit, {:noproc, _} -> {:error, :hitl_unavailable}
   end
 
   @impl true

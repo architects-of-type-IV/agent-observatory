@@ -51,7 +51,7 @@ defmodule Ichor.Infrastructure.Tmux.Script do
       |> Helpers.add_permission_args(capability)
       |> Enum.join(" ")
 
-    "#!/bin/sh\ncat '#{prompt_path}' | env -u CLAUDECODE claude #{cli_args}\n"
+    "#!/bin/sh\ncat '#{prompt_path}' | env -u CLAUDECODE claude #{cli_args}\nsleep infinity\n"
   end
 
   defp sanitize_name(name) do

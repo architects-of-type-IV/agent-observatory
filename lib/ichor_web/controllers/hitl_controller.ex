@@ -29,6 +29,11 @@ defmodule IchorWeb.HITLController do
         })
 
         json(conn, %{status: "ok", note: "already_paused"})
+
+      {:error, :hitl_unavailable} ->
+        conn
+        |> put_status(:service_unavailable)
+        |> json(%{status: "error", reason: "hitl unavailable"})
     end
   end
 
@@ -50,6 +55,11 @@ defmodule IchorWeb.HITLController do
 
       {:ok, :not_paused} ->
         json(conn, %{status: "ok", note: "not_paused"})
+
+      {:error, :hitl_unavailable} ->
+        conn
+        |> put_status(:service_unavailable)
+        |> json(%{status: "error", reason: "hitl unavailable"})
     end
   end
 
@@ -71,6 +81,11 @@ defmodule IchorWeb.HITLController do
 
       {:error, :not_found} ->
         conn |> put_status(404) |> json(%{status: "error", reason: "not_found"})
+
+      {:error, :hitl_unavailable} ->
+        conn
+        |> put_status(:service_unavailable)
+        |> json(%{status: "error", reason: "hitl unavailable"})
     end
   end
 
@@ -89,9 +104,16 @@ defmodule IchorWeb.HITLController do
     session_id = conn.params["session_id"]
     operator_id = conn.assigns.operator_id
 
-    :ok = HITLRelay.inject(session_id, agent_id, payload)
-    audit!(session_id, agent_id, operator_id, "inject", %{})
-    json(conn, %{status: "ok"})
+    case HITLRelay.inject(session_id, agent_id, payload) do
+      :ok ->
+        audit!(session_id, agent_id, operator_id, "inject", %{})
+        json(conn, %{status: "ok"})
+
+      {:error, :hitl_unavailable} ->
+        conn
+        |> put_status(:service_unavailable)
+        |> json(%{status: "error", reason: "hitl unavailable"})
+    end
   end
 
   def inject(conn, _params) do

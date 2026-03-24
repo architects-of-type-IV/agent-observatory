@@ -29,7 +29,11 @@ defmodule Ichor.Signals.ProtocolTracker do
 
   @doc "Return aggregate protocol stats."
   @spec get_stats() :: map()
-  def get_stats, do: GenServer.call(__MODULE__, :get_stats)
+  def get_stats do
+    GenServer.call(__MODULE__, :get_stats)
+  catch
+    :exit, {:noproc, _} -> %{}
+  end
 
   # Server
 

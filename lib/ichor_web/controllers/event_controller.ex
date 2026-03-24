@@ -25,14 +25,14 @@ defmodule IchorWeb.EventController do
       os_pid: os_pid
     }
 
-    try do
-      {:ok, event} = EventStream.ingest_raw(event_attrs)
-      conn |> put_status(:created) |> json(%{ok: true, id: event.id})
-    rescue
-      e ->
+    case EventStream.ingest_raw(event_attrs) do
+      {:ok, event} ->
+        conn |> put_status(:created) |> json(%{ok: true, id: event.id})
+
+      {:error, :event_stream_unavailable} ->
         conn
-        |> put_status(:unprocessable_entity)
-        |> json(%{ok: false, error: Exception.message(e)})
+        |> put_status(:service_unavailable)
+        |> json(%{ok: false, error: "event stream unavailable"})
     end
   end
 

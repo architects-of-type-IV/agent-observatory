@@ -25,7 +25,7 @@ config :ichor, Ichor.Repo,
   hostname: "localhost",
   port: 5434,
   database: "ichor_dev",
-  pool_size: 10
+  pool_size: 20
 
 # Signals runtime implementation
 config :ichor, :signals_impl, Ichor.Signals.Runtime

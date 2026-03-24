@@ -19,6 +19,12 @@ defmodule Ichor.Workshop.PipelinePrompts do
   - No speculative abstraction. Only what the task requires.
   """
 
+  @doc "Dispatch prompt generation by agent capability. Workers receive shared context with :worker key."
+  @spec for_agent(map(), map()) :: String.t()
+  def for_agent(%{capability: "coordinator"}, shared), do: coordinator(shared)
+  def for_agent(%{capability: "lead"}, shared), do: lead(shared)
+  def for_agent(_agent, shared), do: worker(shared)
+
   @doc "Generates the coordinator agent prompt for a pipeline run."
   @spec coordinator(map()) :: String.t()
   def coordinator(%{

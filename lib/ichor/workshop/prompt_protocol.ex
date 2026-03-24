@@ -167,6 +167,8 @@ defmodule Ichor.Workshop.PromptProtocol do
   after rendering, which indicates missing vars.
   """
   @spec render_template(String.t(), %{String.t() => String.t()}) :: String.t()
+  def render_template("", _vars), do: ""
+
   def render_template(template, vars) when is_binary(template) and is_map(vars) do
     rendered =
       Regex.replace(~r/\{\{(\w+)\}\}/, template, fn _match, key ->

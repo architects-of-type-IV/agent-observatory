@@ -20,8 +20,6 @@ defmodule Ichor.Workshop.TeamSpec do
   alias Ichor.Infrastructure.TeamSpec, as: Spec
   alias Ichor.Workshop.{CanvasState, PipelinePrompts, Presets, PromptProtocol, Team, TeamPrompts}
 
-  # MES
-
   @doc "Builds a TeamSpec for a MES run."
   @spec build(:mes, String.t(), String.t(), keyword()) :: Spec.t()
   def build(:mes, run_id, team_name, opts) do
@@ -77,14 +75,13 @@ defmodule Ichor.Workshop.TeamSpec do
   @spec session_name(String.t()) :: String.t()
   def session_name(run_id), do: RunRef.session_name(RunRef.new(:mes, run_id))
 
-  # Pipeline
-
   @doc "Builds a TeamSpec for a pipeline execution run."
   @spec build(:pipeline, map(), String.t(), String.t(), [map()], [map()], map(), keyword()) ::
           Spec.t()
   def build(:pipeline, run, session, brief, tasks, worker_groups, prompt_ctx, opts) do
     prompt_mod = Keyword.get(opts, :prompt_module, PipelinePrompts)
     state = pipeline_state(session, worker_groups)
+    worker_map = Map.new(worker_groups, &{&1.name, &1})
 
     shared = %{
       run_id: run.id,
@@ -92,25 +89,29 @@ defmodule Ichor.Workshop.TeamSpec do
       brief: brief,
       jobs: tasks,
       worker_groups: worker_groups,
-      plugin_dir: prompt_ctx.plugin_dir
+      plugin_dir: prompt_ctx.plugin_dir,
+      roster: PromptProtocol.roster_block(session, Enum.map(state.ws_agents, & &1.name))
     }
-
-    roster = pipeline_roster(session, worker_groups)
-    prompt_map = pipeline_prompt_map(prompt_mod, shared, roster, worker_groups)
 
     build_from_state(
       state,
       session: session,
       prompt_dir: prompt_dir(:pipeline, run.id),
       team_metadata: %{run_id: run.id, source: :pipeline},
-      prompt_builder: fn agent, _state -> Map.fetch!(prompt_map, agent.name) end,
+      prompt_builder: fn agent, _state ->
+        agent_shared =
+          case Map.fetch(worker_map, agent.name) do
+            {:ok, worker} -> Map.put(shared, :worker, worker)
+            :error -> shared
+          end
+
+        prompt_mod.for_agent(agent, agent_shared)
+      end,
       agent_metadata_builder: fn agent, state -> pipeline_agent_meta(agent, state, run.id) end,
       window_name_builder: & &1.name,
       agent_id_builder: fn agent, _win, session -> "#{session}-#{agent.name}" end
     )
   end
-
-  # Planning
 
   @doc "Builds a TeamSpec for a planning mode run."
   @spec build(
@@ -125,21 +126,24 @@ defmodule Ichor.Workshop.TeamSpec do
     prompt_mod = Keyword.get(opts, :prompt_module)
     session = "planning-#{mode}-#{run_id}"
     state = planning_state(session, mode)
-    roster = planning_roster(session, mode)
-    prompt_map = planning_prompt_map(prompt_mod, mode, run_id, roster, planning_project_id, brief)
+
+    context = %{
+      run_id: run_id,
+      roster: PromptProtocol.roster_block(session, Enum.map(state.ws_agents, & &1.name)),
+      project_id: planning_project_id,
+      brief: brief
+    }
 
     build_from_state(
       state,
       session: session,
       prompt_dir: prompt_dir(:planning, run_id, mode),
       team_metadata: %{run_id: run_id, source: :planning, mode: mode},
-      prompt_builder: fn agent, _state -> Map.fetch!(prompt_map, agent.name) end,
+      prompt_builder: fn agent, _state -> prompt_mod.for_agent(mode, agent, context) end,
       window_name_builder: & &1.name,
       agent_id_builder: fn agent, _win, session -> "#{session}-#{agent.name}" end
     )
   end
-
-  # Prompt dirs (used by cleanup)
 
   @doc "Returns the prompt directory path for a run."
   @spec prompt_dir(:mes, String.t()) :: String.t()
@@ -162,8 +166,6 @@ defmodule Ichor.Workshop.TeamSpec do
 
   def prompt_root_dir(:planning),
     do: Application.get_env(:ichor, :planning_prompt_root_dir, Path.expand("~/.ichor/planning"))
-
-  # MES internals
 
   defp mes_state(team_name) do
     preset_state = Presets.apply(CanvasState.defaults(), mes_team_name())
@@ -193,7 +195,11 @@ defmodule Ichor.Workshop.TeamSpec do
         Map.put(agent, :persona, Map.get(preset_personas, agent.name, agent.persona))
       end)
 
-    Map.put(db_state, :ws_agents, updated_agents)
+    # Overlay both personas AND comm_rules from preset.
+    # DB comm_rules can be stale (e.g. planner->coordinator instead of planner->lead).
+    db_state
+    |> Map.put(:ws_agents, updated_agents)
+    |> Map.put(:ws_comm_rules, preset_state.ws_comm_rules)
   end
 
   defp mes_team_name do
@@ -222,15 +228,16 @@ defmodule Ichor.Workshop.TeamSpec do
     }
   end
 
-  # Pipeline internals
-
   defp pipeline_state(session, worker_groups) do
+    {:ok, preset} = Presets.fetch("pipeline")
     base = Presets.apply(CanvasState.defaults(), "pipeline")
+    base_ids = Enum.map(base.ws_agents, & &1.id)
+    hub_id = preset.dispatch_hub_id
 
-    injected =
+    {agents, links, rules} =
       worker_groups
       |> Enum.with_index(base.ws_next_id)
-      |> Enum.reduce(base, fn {worker, slot_id}, acc ->
+      |> Enum.reduce({[], [], []}, fn {worker, slot_id}, {acc_a, acc_l, acc_r} ->
         agent = %{
           id: slot_id,
           name: worker.name,
@@ -240,53 +247,34 @@ defmodule Ichor.Workshop.TeamSpec do
           persona: "Pipeline worker. Implements only the tasks assigned to #{worker.name}.",
           file_scope: Enum.join(worker.allowed_files, "\n"),
           quality_gates: "mix compile --warnings-as-errors",
-          x: rem(slot_id - 3, 4) * 180 + 40,
+          x: rem(slot_id - base.ws_next_id, 4) * 180 + 40,
           y: 400
         }
 
-        new_links = [%{from: 1, to: slot_id}, %{from: 2, to: slot_id}]
+        new_links = Enum.map(base_ids, fn id -> %{from: id, to: slot_id} end)
 
-        new_rules = [
-          %{from: 2, to: slot_id, policy: "allow", via: nil},
-          %{from: slot_id, to: 2, policy: "allow", via: nil}
-        ]
+        new_rules =
+          if hub_id do
+            [
+              %{from: hub_id, to: slot_id, policy: "allow", via: nil},
+              %{from: slot_id, to: hub_id, policy: "allow", via: nil}
+            ]
+          else
+            []
+          end
 
-        acc
-        |> Map.update!(:ws_agents, &(&1 ++ [agent]))
-        |> Map.update!(:ws_spawn_links, &(&1 ++ new_links))
-        |> Map.update!(:ws_comm_rules, &(&1 ++ new_rules))
-        |> Map.put(:ws_next_id, slot_id + 1)
+        {[agent | acc_a], new_links ++ acc_l, new_rules ++ acc_r}
       end)
 
-    injected
+    last_id = base.ws_next_id + length(worker_groups)
+
+    base
+    |> Map.update!(:ws_agents, &(&1 ++ Enum.reverse(agents)))
+    |> Map.update!(:ws_spawn_links, &(&1 ++ Enum.reverse(links)))
+    |> Map.update!(:ws_comm_rules, &(&1 ++ Enum.reverse(rules)))
+    |> Map.put(:ws_next_id, last_id)
     |> Map.put(:ws_team_name, session)
     |> Map.put(:ws_cwd, File.cwd!())
-  end
-
-  defp pipeline_roster(session, worker_groups) do
-    names = ["coordinator", "lead"] ++ Enum.map(worker_groups, & &1.name)
-    ids = Enum.map_join(names, "\n", fn name -> "  - #{name}: #{session}-#{name}" end)
-
-    """
-    TEAM ROSTER (use EXACT IDs with send_message/check_inbox):
-    #{ids}
-      - operator: operator
-    Your session ID is: #{session}-YOUR_NAME
-    """
-  end
-
-  defp pipeline_prompt_map(prompt_mod, shared, roster, worker_groups) do
-    shared_r = Map.put(shared, :roster, roster)
-
-    workers =
-      Map.new(worker_groups, fn worker ->
-        {worker.name, prompt_mod.worker(Map.put(shared_r, :worker, worker))}
-      end)
-
-    Map.merge(workers, %{
-      "coordinator" => prompt_mod.coordinator(shared_r),
-      "lead" => prompt_mod.lead(shared_r)
-    })
   end
 
   defp pipeline_agent_meta(agent, state, run_id) do
@@ -300,56 +288,12 @@ defmodule Ichor.Workshop.TeamSpec do
     }
   end
 
-  # Planning internals
-
   defp planning_state(session, mode) do
     CanvasState.defaults()
     |> Presets.apply("planning_#{mode}")
     |> Map.put(:ws_team_name, session)
     |> Map.put(:ws_cwd, File.cwd!())
   end
-
-  defp planning_roster(session, mode) do
-    entries =
-      mode
-      |> planning_agent_names()
-      |> Enum.map_join("\n", fn name -> "  - #{name}: #{session}-#{name}" end)
-
-    """
-    TEAM ROSTER (use EXACT IDs with send_message/check_inbox):
-    #{entries}
-      - operator: operator
-    Your session ID is: #{session}-YOUR_NAME
-    """
-  end
-
-  defp planning_prompt_map(prompt_mod, "a", run_id, roster, project_id, brief) do
-    %{
-      "coordinator" => prompt_mod.mode_a_coordinator(run_id, roster, project_id, brief),
-      "architect" => prompt_mod.mode_a_architect(run_id, roster, project_id, brief),
-      "reviewer" => prompt_mod.mode_a_reviewer(run_id, roster, project_id, brief)
-    }
-  end
-
-  defp planning_prompt_map(prompt_mod, "b", run_id, roster, project_id, brief) do
-    %{
-      "coordinator" => prompt_mod.mode_b_coordinator(run_id, roster, project_id, brief),
-      "analyst" => prompt_mod.mode_b_analyst(run_id, roster, project_id, brief),
-      "designer" => prompt_mod.mode_b_designer(run_id, roster, project_id, brief)
-    }
-  end
-
-  defp planning_prompt_map(prompt_mod, "c", run_id, roster, project_id, brief) do
-    %{
-      "coordinator" => prompt_mod.mode_c_coordinator(run_id, roster, project_id, brief),
-      "planner" => prompt_mod.mode_c_planner(run_id, roster, project_id, brief),
-      "architect" => prompt_mod.mode_c_architect(run_id, roster, project_id, brief)
-    }
-  end
-
-  defp planning_agent_names("a"), do: ~w(coordinator architect reviewer)
-  defp planning_agent_names("b"), do: ~w(coordinator analyst designer)
-  defp planning_agent_names("c"), do: ~w(coordinator planner architect)
 
   defp build_from_state(state, opts) do
     team_name = state.ws_team_name
@@ -374,7 +318,6 @@ defmodule Ichor.Workshop.TeamSpec do
         "#{built_session}-#{built_window_name}"
       end)
 
-    # Common vars computed once per team
     critical_rules = PromptProtocol.critical_rules(tool_prefix)
 
     Spec.new(%{
