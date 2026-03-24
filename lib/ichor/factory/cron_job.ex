@@ -9,7 +9,7 @@ defmodule Ichor.Factory.CronJob do
   use Ash.Resource,
     domain: Ichor.Factory,
     data_layer: AshPostgres.DataLayer,
-    simple_notifiers: [Ichor.Signals.FromAsh],
+    simple_notifiers: [Ichor.Signals.FromAsh, Ichor.Events.FromAsh],
     primary_read_warning?: false
 
   postgres do
