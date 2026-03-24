@@ -330,22 +330,6 @@ defmodule Ichor.MemoriesBridge do
   defp narrate(:task_created, %{task: task}), do: narrate_task("created", task)
   defp narrate(:task_updated, %{task: task}), do: narrate_task("updated", task)
 
-  defp narrate_task(verb, task) when is_map(task) do
-    subject = task[:subject] || task["subject"] || "untitled"
-    status = task[:status] || task["status"]
-    owner = task[:owner] || task["owner"]
-    priority = task[:priority] || task["priority"]
-
-    parts = ["Task #{verb}: \"#{subject}\""]
-    parts = if status, do: parts ++ ["status=#{status}"], else: parts
-    parts = if owner && owner != "", do: parts ++ ["owner=#{owner}"], else: parts
-    parts = if priority, do: parts ++ ["priority=#{priority}"], else: parts
-
-    Enum.join(parts, ", ") <> "."
-  end
-
-  defp narrate_task(verb, task), do: "Task #{verb}: #{truncate(to_string(task), 200)}."
-
   # -- Monitoring / quality gates ---------------------------------------------
 
   defp narrate(:gate_passed, %{session_id: sid}),
@@ -455,6 +439,22 @@ defmodule Ichor.MemoriesBridge do
   end
 
   defp narrate(name, _data), do: "#{name} occurred."
+
+  defp narrate_task(verb, task) when is_map(task) do
+    subject = task[:subject] || task["subject"] || "untitled"
+    status = task[:status] || task["status"]
+    owner = task[:owner] || task["owner"]
+    priority = task[:priority] || task["priority"]
+
+    parts = ["Task #{verb}: \"#{subject}\""]
+    parts = if status, do: parts ++ ["status=#{status}"], else: parts
+    parts = if owner && owner != "", do: parts ++ ["owner=#{owner}"], else: parts
+    parts = if priority, do: parts ++ ["priority=#{priority}"], else: parts
+
+    Enum.join(parts, ", ") <> "."
+  end
+
+  defp narrate_task(verb, task), do: "Task #{verb}: #{truncate(to_string(task), 200)}."
 
   defp uuid?(v) when is_binary(v), do: Regex.match?(@uuid_re, v)
   defp uuid?(_), do: false

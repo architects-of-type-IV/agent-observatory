@@ -69,6 +69,12 @@ defmodule Ichor.Application do
       # Memories bridge (signals -> knowledge graph)
       Ichor.MemoriesBridge,
 
+      # Projector pipeline (GenStage: Ingress -> Router -> Signal processes)
+      {Registry, keys: :unique, name: Ichor.Projector.Registry},
+      Ichor.Projector.Supervisor,
+      Ichor.Events.Ingress,
+      Ichor.Projector.Router,
+
       # Web endpoint (must start last -- depends on all services above)
       IchorWeb.Endpoint
     ]

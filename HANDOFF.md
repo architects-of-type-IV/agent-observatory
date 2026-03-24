@@ -44,6 +44,9 @@ Full Elixir idioms audit of `lib/ichor/signals/` executed. 42 confirmed findings
 - **Wave 2**: Entropy handler for Archon + SignalManager split
 - **Wave 3**: Module relocations
 - **Wave 4**: Specs, types, structs pass
+- **ADR-026**: [Signal as Projector](SPECS/decisions/ADR-026-signal-as-projector.md) -- `use Ichor.Signal` macro, `Ichor.Signals.Memories.*` modules, derived catalog. Supersedes SIG-7/SIG-8 direction.
+- **Ingest struct**: [`lib/ichor/memories_bridge/ingest.ex`](lib/ichor/memories_bridge/ingest.ex) -- Memories API contract (implemented)
+- See Memories [`session-forensics-2026-03-24.md`](/Users/xander/code/www/memories/session-forensics-2026-03-24.md) for full design evolution
 
 ### Build Status
 - `mix compile --warnings-as-errors`: CLEAN

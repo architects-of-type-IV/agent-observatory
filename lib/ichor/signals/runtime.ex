@@ -8,6 +8,7 @@ defmodule Ichor.Signals.Runtime do
   @behaviour Ichor.Signals.Behaviour
 
   alias Ichor.Signals.{Catalog, Message, Topics}
+  alias Ichor.Events.{Event, Ingress, TopicMapping}
 
   @impl true
   @spec emit(atom(), map()) :: :ok
@@ -82,6 +83,7 @@ defmodule Ichor.Signals.Runtime do
     pubsub_broadcast(Topics.category(info.category), message)
     pubsub_broadcast(Topics.scoped(info.category, name, scope_id), message)
     tap_telemetry(name, message)
+    bridge_to_events(message, scope_id)
     :ok
   end
 
@@ -89,6 +91,7 @@ defmodule Ichor.Signals.Runtime do
     pubsub_broadcast(Topics.category(info.category), message)
     pubsub_broadcast(Topics.signal(info.category, message.name), message)
     tap_telemetry(message.name, message)
+    bridge_to_events(message, nil)
     :ok
   end
 
@@ -105,4 +108,37 @@ defmodule Ichor.Signals.Runtime do
   defp pubsub_broadcast(topic, %Message{} = message) do
     Phoenix.PubSub.broadcast(@pubsub, topic, message)
   end
+
+  defp bridge_to_events(%Message{} = message, scope_id) do
+    case TopicMapping.topic(message.name) do
+      {:ok, topic} ->
+        event =
+          Event.new(
+            topic,
+            scope_id || extract_key(message.data),
+            message.data,
+            %{
+              legacy_signal: message.name,
+              source: inspect(message.source),
+              domain: message.domain
+            }
+          )
+
+        Ingress.push(event)
+
+      :noise ->
+        :ok
+
+      :unmapped ->
+        :ok
+    end
+  end
+
+  defp extract_key(data) when is_map(data) do
+    data[:session_id] || data[:run_id] || data[:project_id] ||
+      data[:agent_id] || data[:team_name] || data[:delivery_id] ||
+      data[:job_id] || data[:block_id]
+  end
+
+  defp extract_key(_data), do: nil
 end

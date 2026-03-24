@@ -14,147 +14,189 @@ This creates several problems:
 1. **The catalog is a central bottleneck.** Every new signal requires editing `catalog.ex`. The catalog knows every signal in the system but owns none of them.
 2. **Signal data shapes are implicit.** A signal's data is a bare map. No struct, no type, no spec. Consumers pattern-match on map keys they hope exist.
 3. **Formatting is orphaned.** When the MemoriesBridge needs to convert a signal to prose, it owns 40+ `narrate/2` clauses for data shapes it doesn't control. When a signal's data shape changes, the bridge breaks silently.
-4. **No composition.** Signals are flat atoms. A higher-order signal (e.g., "enough gateway events accumulated to form a Memories episode") must be built outside the signal system.
+4. **No backpressure.** PubSub is fire-and-forget. Slow subscribers get their mailbox flooded.
+5. **Events are framework noise, not domain facts.** Signal names like `new_event`, `fleet_changed`, `registry_changed` are implementation artifacts, not domain-level observations.
 
 ## Decision
 
-**A Signal is a Projector.** Each Signal module subscribes to PubSub topics, projects incoming events into a typed struct, and publishes the result. Signals compose -- a Signal can subscribe to other Signals.
+**A Signal is a Projector.** Each Signal is a GenStage consumer that accumulates events, evaluates a flush condition, and calls a handler when that condition is met.
 
-### Core abstraction
+### Compact mental model
+
+- **Event** = something happened
+- **Signal** = enough happened
+- **Handler** = now act
+
+### Core rules
+
+1. A Signal is NOT a topic. You cannot subscribe to a Signal.
+2. A Signal watches one or more topics until conditions are met, then activates.
+3. When a Signal activates, it publishes to `"signal:<topic>"` via PubSub.
+4. Projectors stay dumb: accumulate, decide flush, call handler.
+5. Real work lives in handlers (Ash Reactor, Oban job, domain module, LLM adapter, aggregator).
+6. Events are domain facts (`chat.message.created`), not framework noise (`resource.updated`).
+7. One event envelope everywhere.
+
+### Event flow
+
+```text
+Ash Action
+  -> Domain Event
+    -> Event Bus
+      -> GenStage Ingress (Producer)
+        -> Signal Router (Consumer)
+          -> Signal Process per {signal_name, key}
+            -> Accumulate events
+            -> When ready: emit Signal
+              -> Signal Handler (Reactor / Oban / module / LLM)
+```
+
+### Event envelope
+
+One struct, everywhere. No varying shapes per signal.
 
 ```elixir
-defmodule Ichor.Mesh.DecisionLog do
-  use Ash.Resource, data_layer: :embedded
-  use Ichor.Signal
-
-  signal do
-    subscribe :gateway
-    publish :decision_log
-  end
-
-  # Ash resource: struct, attributes, types, actions
-  attributes do
-    attribute :meta, :map, public?: true
-    attribute :identity, :map, public?: true
-    attribute :cognition, :map, public?: true
-    attribute :action, :map, public?: true
-    attribute :state_delta, :map, public?: true
-    attribute :control, :map, public?: true
-  end
-
-  # The resource owns its own formatting
-  @spec format(t()) :: String.t()
-  def format(%__MODULE__{} = log) do
-    # ... extracts from its own fields
-  end
-end
-```
-
-The `use Ichor.Signal` macro:
-
-- Injects a supervised GenServer (DynamicSupervisor + Registry)
-- Subscribes to declared PubSub topics at init
-- Delivers incoming messages to `handle_signal/2` (callback)
-- The module projects raw PubSub events into its own struct
-- Publishes the projected struct as a new signal
-
-### Memories integration as composed Signals
-
-The Memories bridge becomes Signal modules under `Ichor.Signals.Memories.*`. Each subscribes to domain Signals and projects them into `%Ichor.MemoriesBridge.Ingest{}` payloads.
-
-```
-Ichor.Signals.Memories.Gateway
-  subscribes to: DecisionLog, DeadLetter, SchemaViolation
-  projects into: %Ingest{type: :text, space: "project:ichor:gateway"}
-  on threshold: Task.start(MemoriesClient, :ingest, [...])
-
-Ichor.Signals.Memories.Fleet
-  subscribes to: AgentStarted, AgentStopped, TeamCreated, ...
-  projects into: %Ingest{type: :text, space: "project:ichor:fleet"}
-
-Ichor.Signals.Memories.Mesh
-  subscribes to: CausalDAG.Node
-  projects into: %Ingest{type: :text, space: "project:ichor:mesh"}
-
-Ichor.Signals.Memories.Agent
-  subscribes to: MessageIntercepted, NudgeWarning, EntropyAlert
-  projects into: %Ingest{type: :message, space: "project:ichor:agent"}
-```
-
-Each is small (~30-50 lines), owns its domain's formatting by calling `format/1` on the source Signals, and decides independently when it has enough content to emit an `%Ingest{}`.
-
-### Catalog becomes derived
-
-The catalog is no longer hand-maintained. At compile time, all modules that `use Ichor.Signal` register their published signal names. The catalog is the compiled set of all Signal modules.
-
-### Supervision
-
-```
-DynamicSupervisor (Ichor.Signals.Supervisor)
-  ├── Ichor.Mesh.DecisionLog        (GenServer, registered)
-  ├── Ichor.Mesh.CausalDAG          (GenServer, registered)
-  ├── Ichor.Signals.Memories.Gateway (GenServer, registered)
-  ├── Ichor.Signals.Memories.Fleet   (GenServer, registered)
-  ├── Ichor.Signals.Memories.Mesh    (GenServer, registered)
-  ├── Ichor.Signals.Memories.Agent   (GenServer, registered)
-  └── ...
-```
-
-Each GenServer crashes independently. Registry provides addressability. The DynamicSupervisor restarts crashed Signals. PubSub subscriptions are re-established on restart via init.
-
-### Data flow
-
-```
-Raw PubSub event (from emit/2)
-  → Signal GenServer (handle_info)
-  → handle_signal/2 callback
-  → projects into typed struct
-  → publishes struct as new signal
-  → downstream Signal GenServers receive it
-  → ...
-  → Memories.Gateway accumulates %DecisionLog{} structs
-  → threshold met → builds %Ingest{} → Task.start(MemoriesClient.ingest)
-```
-
-### The %Ingest{} struct
-
-Already implemented at `Ichor.MemoriesBridge.Ingest`. Matches the Memories `/api/episodes/ingest` API contract:
-
-```elixir
-%Ingest{
-  content: String.t(),
-  type: :text | :message | :json,
-  source: :system,
-  space: "project:ichor:gateway",
-  extraction_instructions: "..."
+%Event{
+  id: Ash.UUID.generate(),
+  topic: "chat.message.created",
+  key: conversation_id,
+  occurred_at: DateTime.utc_now(),
+  causation_id: causation_id,
+  correlation_id: correlation_id,
+  data: %{...},
+  metadata: %{...}
 }
 ```
+
+### Signal envelope
+
+Emitted when a Signal process decides "enough happened."
+
+```elixir
+%Signal{
+  name: "conversation.summary.ready",
+  key: conversation_id,
+  events: [%Event{}, ...],
+  metadata: %{event_count: 5, closed?: true},
+  emitted_at: DateTime.utc_now()
+}
+```
+
+### Signal behaviour
+
+Every signal module implements this contract:
+
+```elixir
+@callback topics() :: [String.t()]
+@callback init_state(key :: term()) :: map()
+@callback handle_event(state :: map(), event :: Event.t()) :: map()
+@callback ready?(state :: map(), trigger :: :event | :timer) :: boolean()
+@callback build_signal(state :: map()) :: Signal.t() | nil
+@callback reset(state :: map()) :: map()
+```
+
+### GenStage topology
+
+```
+Event Bus → GenStage Ingress (Producer) → Signal Router (Consumer)
+                                            → Signal Process (GenServer per {module, key})
+```
+
+- **Ingress**: GenStage producer that bridges the event bus into demand-driven flow
+- **Router**: GenStage consumer that checks each event against signal modules' `topics/0` and routes to the correct Signal process
+- **Signal Process**: GenServer per `{signal_module, key}`. Accumulates events, checks `ready?/2` on each event and on a timer, calls `build_signal/1` and hands to handler on flush
+
+### PubSub is optional for core flow
+
+PubSub is useful for:
+- LiveView dashboards
+- logs
+- metrics
+- observer tooling
+
+But the core signal path does NOT require PubSub:
+
+```text
+Ash -> Events -> GenStage -> SignalRouter -> SignalProcess -> SignalHandler
+```
+
+When a Signal activates it MAY publish to `"signal:<topic>"` for dashboard/observability consumption, but the handler call is the primary activation path.
+
+### Domain facts, not framework noise
+
+```
+chat.message.created       -- good: a thing happened
+memory.fact.extracted      -- good: a thing happened
+agent.run.completed        -- good: a thing happened
+
+resource.updated           -- bad: framework leaked
+ash.action.called          -- bad: implementation detail
+new_event                  -- bad: meaningless
+fleet_changed              -- bad: vague
+```
+
+### Data owns its formatting
+
+Each domain struct owns a `format/1` function that converts it to human-readable prose. No central narrator module. When the struct changes, the formatting changes with it.
+
+### One event can feed multiple signal families
+
+```elixir
+@signal_modules [
+  Signals.ConversationSummary,
+  Signals.EntityExtraction,
+  Signals.FactExtraction
+]
+```
+
+The router checks each event against all signal modules. One event can route into several downstream decisions.
 
 ## Consequences
 
 ### Positive
 
-- **Signals own their data shape.** Struct, type, spec, format -- all on the module that knows the internals.
-- **Catalog is derived, not maintained.** Adding a signal = adding a module. No central file to edit.
-- **Composition.** Signals subscribe to Signals. The Memories projectors are just another layer of Signals.
-- **Crash isolation.** Each Signal is a supervised GenServer. One crash doesn't take down the system.
-- **Testable.** Each Signal module is a pure projection function wrapped in a GenServer. Test the projection without the process.
+- **Backpressure.** GenStage prevents mailbox flooding on slow consumers.
+- **Signals stay small.** Accumulate + decide flush + call handler. ~20-50 lines each.
+- **Handlers do the real work.** Reactor, Oban, domain modules, LLM adapters.
+- **Domain-native events.** Dot-delimited facts, not framework atoms.
+- **One envelope.** Every event has the same shape with causation/correlation tracing.
+- **Composable.** Signal activation publishes to `"signal:<topic>"` which other Signals can watch.
+- **Testable.** Test the behaviour callbacks (pure functions) without processes.
+- **Data owns formatting.** No orphaned narrate clauses.
 
 ### Negative
 
-- **Migration effort.** Every signal in the current catalog needs a module. ~50+ signal types across 11 categories.
-- **Process count.** Each Signal is a GenServer. Hundreds of signals = hundreds of processes. Acceptable on BEAM, but more than today.
-- **Learning curve.** "Signal as Projector" is a new concept for the team.
+- **Migration effort.** 145 current signals across 11 categories need new topic names and signal modules.
+- **GenStage learning curve.** Team needs to understand demand-driven flow.
+- **Process count.** One GenServer per `{signal_module, key}` -- dynamic, cleaned up on idle.
+
+### Not yet decided
+
+- Exact flush conditions per signal (count, time, pattern, or combination)
+- Whether the event envelope should be an Ash embedded resource or a plain struct
+- Supervision strategy for Signal processes (DynamicSupervisor + Registry)
+- Durability: append-only event storage, replay, idempotency, signal checkpoints
+- How to map current 145 atom-based signals to dot-delimited domain facts
 
 ### Migration path
 
-1. Build `use Ichor.Signal` macro
-2. Implement `Ichor.Signals.Memories.*` modules against the new pattern (they subscribe to existing PubSub topics, so they work alongside the current system)
-3. Migrate existing signals one category at a time from catalog to Signal modules
-4. Remove catalog when empty
+1. Build event envelope struct and event bus
+2. Build GenStage ingress (Producer)
+3. Build signal router (Consumer)
+4. Build signal process (GenServer with DynamicSupervisor + Registry)
+5. Build signal behaviour
+6. Implement first signal modules (Memories projectors) alongside existing system
+7. Migrate existing signals one category at a time
+8. Rewrite event names as dot-delimited domain facts
+9. Remove old catalog when empty
 
 ## Related
 
+- [ADR-026-reference-design.md](ADR-026-reference-design.md) -- Complete working example (authoritative)
+- [ADR-026-findings.md](ADR-026-findings.md) -- Full codebase research findings
 - ADR-014: Decision log envelope (DecisionLog struct)
 - ADR-017: Causal DAG (CausalDAG.Node struct)
 - ADR-023: BEAM-native agent processes (DynamicSupervisor + Registry pattern)
+- [`Ingest struct`](../../lib/ichor/memories_bridge/ingest.ex) -- Memories API contract
+- Memories [`tuning-session-2026-03-23.md`](/Users/xander/code/www/memories/tuning-session-2026-03-23.md) -- data quality observations
+- Memories [`session-forensics-2026-03-24.md`](/Users/xander/code/www/memories/session-forensics-2026-03-24.md) -- design evolution from Narrator to Signal as Projector
