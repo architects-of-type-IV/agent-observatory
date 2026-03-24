@@ -15,19 +15,23 @@ defmodule Ichor.Projector.SignalProcess do
   def route(signal_module, event) do
     name = via(signal_module, event.key)
 
-    case GenServer.whereis(name) do
-      nil ->
-        DynamicSupervisor.start_child(
-          Ichor.Projector.Supervisor,
-          {__MODULE__, {signal_module, event.key}}
-        )
+    pid =
+      case GenServer.whereis(name) do
+        nil ->
+          case DynamicSupervisor.start_child(
+                 Ichor.Projector.Supervisor,
+                 {__MODULE__, {signal_module, event.key}}
+               ) do
+            {:ok, pid} -> pid
+            {:error, {:already_started, pid}} -> pid
+            {:error, _reason} -> nil
+          end
 
-        GenServer.cast(name, {:event, event})
+        pid ->
+          pid
+      end
 
-      _pid ->
-        GenServer.cast(name, {:event, event})
-    end
-
+    if pid, do: GenServer.cast(pid, {:event, event})
     :ok
   end
 
@@ -74,14 +78,14 @@ defmodule Ichor.Projector.SignalProcess do
   end
 
   defp flush_and_reset(state) do
-    case state.module.build_signal(state.inner) do
-      nil ->
-        {:noreply, %{state | inner: state.module.reset(state.inner), timer: schedule_flush()}}
+    Process.cancel_timer(state.timer)
 
-      signal ->
-        Ichor.Projector.SignalHandler.handle(signal)
-        {:noreply, %{state | inner: state.module.reset(state.inner), timer: schedule_flush()}}
+    case state.module.build_signal(state.inner) do
+      nil -> :ok
+      signal -> Ichor.Projector.SignalHandler.handle(signal)
     end
+
+    {:noreply, %{state | inner: state.module.reset(state.inner), timer: schedule_flush()}}
   end
 
   defp schedule_flush do

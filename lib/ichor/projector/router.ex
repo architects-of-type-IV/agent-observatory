@@ -22,21 +22,26 @@ defmodule Ichor.Projector.Router do
 
   @impl true
   def init(:ok) do
-    {:consumer, :ok, subscribe_to: [{Ichor.Events.Ingress, max_demand: 50}]}
+    index = build_topic_index(signal_modules())
+    {:consumer, %{topic_index: index}, subscribe_to: [{Ichor.Events.Ingress, max_demand: 50}]}
   end
 
   @impl true
-  def handle_events(events, _from, state) do
-    modules = signal_modules()
-
+  def handle_events(events, _from, %{topic_index: index} = state) do
     Enum.each(events, fn event ->
-      Enum.each(modules, fn mod ->
-        if event.topic in mod.topics() do
-          Ichor.Projector.SignalProcess.route(mod, event)
-        end
-      end)
+      index
+      |> Map.get(event.topic, [])
+      |> Enum.each(fn mod -> Ichor.Projector.SignalProcess.route(mod, event) end)
     end)
 
     {:noreply, [], state}
+  end
+
+  defp build_topic_index(modules) do
+    Enum.reduce(modules, %{}, fn mod, acc ->
+      Enum.reduce(mod.topics(), acc, fn topic, inner_acc ->
+        Map.update(inner_acc, topic, [mod], &[mod | &1])
+      end)
+    end)
   end
 end

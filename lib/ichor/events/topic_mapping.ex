@@ -53,7 +53,6 @@ defmodule Ichor.Events.TopicMapping do
     protocol_update: "monitoring.protocol.stats_recomputed",
     gate_passed: "monitoring.gate.passed",
     gate_failed: "monitoring.gate.failed",
-    watchdog_sweep: "monitoring.watchdog.swept",
 
     # -- nudge domain --
     nudge_warning: "nudge.escalation.warned",

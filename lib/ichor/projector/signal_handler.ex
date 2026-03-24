@@ -21,7 +21,15 @@ defmodule Ichor.Projector.SignalHandler do
         :ok
 
       {mod, fun} ->
-        apply(mod, fun, [signal])
+        try do
+          apply(mod, fun, [signal])
+        rescue
+          e ->
+            Logger.error(
+              "Signal handler #{inspect(mod)}.#{fun}/1 crashed for #{signal.name}: #{Exception.message(e)}"
+            )
+        end
+
         :ok
     end
   end

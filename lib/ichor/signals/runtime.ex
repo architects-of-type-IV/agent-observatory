@@ -7,6 +7,8 @@ defmodule Ichor.Signals.Runtime do
 
   @behaviour Ichor.Signals.Behaviour
 
+  require Logger
+
   alias Ichor.Signals.{Catalog, Message, Topics}
   alias Ichor.Events.{Event, Ingress, TopicMapping}
 
@@ -119,7 +121,7 @@ defmodule Ichor.Signals.Runtime do
             message.data,
             %{
               legacy_signal: message.name,
-              source: inspect(message.source),
+              source: message.source,
               domain: message.domain
             }
           )
@@ -130,15 +132,18 @@ defmodule Ichor.Signals.Runtime do
         :ok
 
       :unmapped ->
+        Logger.debug("Unmapped signal: #{message.name}")
         :ok
     end
   end
 
   defp extract_key(data) when is_map(data) do
-    data[:session_id] || data[:run_id] || data[:project_id] ||
-      data[:agent_id] || data[:team_name] || data[:delivery_id] ||
-      data[:job_id] || data[:block_id]
+    get_key(data, :session_id) || get_key(data, :run_id) || get_key(data, :project_id) ||
+      get_key(data, :agent_id) || get_key(data, :team_name) || get_key(data, :delivery_id) ||
+      get_key(data, :job_id) || get_key(data, :block_id)
   end
 
   defp extract_key(_data), do: nil
+
+  defp get_key(data, key), do: Map.get(data, key) || Map.get(data, Atom.to_string(key))
 end
