@@ -33,8 +33,8 @@ defmodule Ichor.Factory.LifecycleSupervisor do
   def init(_opts) do
     children = [
       {DynamicSupervisor, name: Ichor.Factory.BuildRunSupervisor, strategy: :one_for_one},
-      {Ichor.Factory.ProjectIngestor, []},
-      {Ichor.Factory.ResearchIngestor, []},
+      {Ichor.Projector.MesProjectIngestor, []},
+      {Ichor.Projector.MesResearchIngestor, []},
       {Ichor.Factory.CompletionHandler, []}
     ]
 
