@@ -10,6 +10,7 @@ defmodule Ichor.Factory.PipelineTask do
     data_layer: AshPostgres.DataLayer,
     simple_notifiers: [
       Ichor.Signals.FromAsh,
+      Ichor.Events.FromAsh,
       Ichor.Factory.PipelineTask.Notifiers.SyncRunner
     ]
 

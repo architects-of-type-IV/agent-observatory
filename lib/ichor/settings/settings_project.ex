@@ -8,7 +8,7 @@ defmodule Ichor.Settings.SettingsProject do
   use Ash.Resource,
     domain: Ichor.Settings,
     data_layer: AshPostgres.DataLayer,
-    simple_notifiers: [Ichor.Signals.FromAsh]
+    simple_notifiers: [Ichor.Signals.FromAsh, Ichor.Events.FromAsh]
 
   postgres do
     repo(Ichor.Repo)
