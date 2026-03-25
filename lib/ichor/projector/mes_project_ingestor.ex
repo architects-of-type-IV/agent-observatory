@@ -35,7 +35,7 @@ defmodule Ichor.Projector.MesProjectIngestor do
   end
 
   @impl true
-  def handle_info(%Ichor.Signals.Message{name: :message_delivered, data: data}, state) do
+  def handle_info(%Ichor.Events.Message{name: :message_delivered, data: data}, state) do
     case extract_mes_payload(data) do
       {:ok, payload} ->
         ingest_project(payload, data)
@@ -57,7 +57,7 @@ defmodule Ichor.Projector.MesProjectIngestor do
     {:noreply, state}
   end
 
-  def handle_info(%Ichor.Signals.Message{}, state), do: {:noreply, state}
+  def handle_info(%Ichor.Events.Message{}, state), do: {:noreply, state}
 
   defp extract_mes_payload(%{msg_map: %{to: "operator", content: content} = msg})
        when is_binary(content) do

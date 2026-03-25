@@ -6,8 +6,7 @@ defmodule Ichor.Projector.SignalBuffer do
   """
   use GenServer
 
-  alias Ichor.Signals.Catalog
-  alias Ichor.Signals.Message
+  alias Ichor.Events.Message
 
   @max_events 200
   @table :signal_buffer
@@ -34,7 +33,7 @@ defmodule Ichor.Projector.SignalBuffer do
       _ -> :ok
     end
 
-    Enum.each(Catalog.categories(), &Ichor.Signals.subscribe/1)
+    Enum.each(Ichor.Signals.categories(), &Ichor.Signals.subscribe/1)
     {:ok, %{seq: 0}}
   end
 

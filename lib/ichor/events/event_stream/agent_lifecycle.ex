@@ -1,4 +1,4 @@
-defmodule Ichor.Signals.EventStream.AgentLifecycle do
+defmodule Ichor.Events.EventStream.AgentLifecycle do
   @moduledoc """
   Signal emission helper for hook-originated fleet lifecycle events.
 

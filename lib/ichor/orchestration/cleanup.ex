@@ -7,7 +7,7 @@ defmodule Ichor.Orchestration.Cleanup do
   alias Ichor.Fleet.TeamSupervisor
   alias Ichor.Infrastructure.Tmux.{Launcher, Script}
   alias Ichor.Orchestration.Registration
-  alias Ichor.Signals.EventStream, as: EventRuntime
+  alias Ichor.Events.EventStream, as: EventRuntime
 
   @gc_script Path.expand("~/.claude/skills/dag/scripts/gc.sh")
 

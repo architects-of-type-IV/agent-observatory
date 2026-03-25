@@ -8,7 +8,7 @@ defmodule Ichor.Signals do
 
   use Ash.Domain, extensions: [AshAi]
 
-  alias Ichor.Signals.Runtime
+  alias Ichor.Events.Runtime
 
   resources do
     resource(Ichor.Signals.Operations)

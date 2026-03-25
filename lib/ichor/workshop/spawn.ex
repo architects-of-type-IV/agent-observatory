@@ -5,6 +5,7 @@ defmodule Ichor.Workshop.Spawn do
 
   alias Ichor.Fleet.AgentSpec
   alias Ichor.Orchestration.TeamSpec
+  alias Ichor.Events.Message
   alias Ichor.Signals
   alias Ichor.Workshop.{Presets, PromptProtocol, Team, TeamMember}
 
@@ -70,7 +71,7 @@ defmodule Ichor.Workshop.Spawn do
 
   defp await_spawn_result(request_id, spec, extra_metadata) do
     receive do
-      %Signals.Message{name: :team_spawn_ready, data: %{scope_id: ^request_id, session: session}} ->
+      %Message{name: :team_spawn_ready, data: %{scope_id: ^request_id, session: session}} ->
         {:ok,
          %{
            team_name: spec.team_name,
@@ -81,7 +82,7 @@ defmodule Ichor.Workshop.Spawn do
          }
          |> Map.merge(extra_metadata)}
 
-      %Signals.Message{
+      %Message{
         name: :team_spawn_failed,
         data: %{scope_id: ^request_id, reason: reason}
       } ->

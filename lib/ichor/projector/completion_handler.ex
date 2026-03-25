@@ -10,6 +10,7 @@ defmodule Ichor.Projector.CompletionHandler do
 
   alias Ichor.Factory.{Pipeline, Project}
   alias Ichor.Factory.PluginLoader
+  alias Ichor.Events.Message
   alias Ichor.Signals
 
   @doc false
@@ -23,12 +24,12 @@ defmodule Ichor.Projector.CompletionHandler do
   end
 
   @impl true
-  def handle_info(%Signals.Message{name: :pipeline_completed, data: data}, state) do
+  def handle_info(%Message{name: :pipeline_completed, data: data}, state) do
     handle_completion(data)
     {:noreply, state}
   end
 
-  def handle_info(%Signals.Message{}, state), do: {:noreply, state}
+  def handle_info(%Message{}, state), do: {:noreply, state}
 
   defp handle_completion(%{run_id: run_id}) do
     with {:ok, pipeline} <- Pipeline.get(run_id),

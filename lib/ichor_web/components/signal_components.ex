@@ -8,7 +8,7 @@ defmodule IchorWeb.Components.SignalComponents do
 
   import IchorWeb.UI, only: [input: 1]
 
-  alias Ichor.Signals.{Catalog, Message}
+  alias Ichor.Events.{Message, Registry}
   alias IchorWeb.SignalFeed.Renderer
 
   attr :streams, :any, required: true
@@ -16,8 +16,8 @@ defmodule IchorWeb.Components.SignalComponents do
   attr :stream_paused, :boolean, required: true
 
   def signals_view(assigns) do
-    catalog = Catalog.all() |> Enum.sort_by(fn {name, _} -> name end)
-    categories = Catalog.categories()
+    catalog = Registry.all() |> Enum.sort_by(fn {name, _} -> name end)
+    categories = Registry.categories()
 
     assigns =
       assigns
@@ -42,7 +42,7 @@ defmodule IchorWeb.Components.SignalComponents do
             </span>
           </div>
           <div
-            :for={{name, info} <- Catalog.by_category(cat)}
+            :for={{name, info} <- Registry.by_category(cat)}
             class="px-3 py-1.5 border-t border-border/20 hover:bg-raised/40 transition"
           >
             <div class="flex items-center gap-1.5">
@@ -59,9 +59,6 @@ defmodule IchorWeb.Components.SignalComponents do
             </div>
             <div class="mt-0.5 pl-2">
               <span class="text-[10px] text-muted">{info.doc}</span>
-              <span :if={info.keys != []} class="text-[9px] font-mono text-default ml-1">
-                ({Enum.join(info.keys, ", ")})
-              </span>
             </div>
           </div>
         </div>

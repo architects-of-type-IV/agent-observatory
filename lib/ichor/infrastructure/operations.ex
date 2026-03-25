@@ -7,7 +7,7 @@ defmodule Ichor.Infrastructure.Operations do
 
   alias Ichor.Infrastructure.Tmux
   alias Ichor.Projector.AgentWatchdog
-  alias Ichor.Signals.EventStream
+  alias Ichor.Events.EventStream
   alias Ichor.Workshop.{ActiveTeam, Agent}
 
   actions do

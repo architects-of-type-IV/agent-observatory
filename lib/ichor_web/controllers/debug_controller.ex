@@ -8,7 +8,7 @@ defmodule IchorWeb.DebugController do
   alias Ichor.Infrastructure.Tmux
   alias Ichor.Projector.SignalBuffer, as: Buffer
   alias Ichor.Signals.Bus
-  alias Ichor.Signals.EventStream
+  alias Ichor.Events.EventStream
   alias Ichor.Workshop.ActiveTeam
   alias Ichor.Workshop.Agent
 
@@ -86,7 +86,7 @@ defmodule IchorWeb.DebugController do
     if Process.whereis(EventStream) do
       %{ok: true, pid: inspect(Process.whereis(EventStream))}
     else
-      %{ok: false, error: "Signals.EventStream not running"}
+      %{ok: false, error: "Events.EventStream not running"}
     end
   rescue
     e -> %{ok: false, error: Exception.message(e)}

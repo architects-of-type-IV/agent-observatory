@@ -19,7 +19,7 @@ defmodule Ichor.Factory.Runner do
   alias Ichor.Infrastructure.Tmux.Launcher, as: TmuxLauncher
   alias Ichor.Orchestration.TeamLaunch
   alias Ichor.Signals
-  alias Ichor.Signals.Message
+  alias Ichor.Events.Message
   alias Ichor.Workshop.TeamSpec
 
   @stale_threshold_min 10

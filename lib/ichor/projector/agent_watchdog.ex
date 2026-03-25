@@ -21,7 +21,7 @@ defmodule Ichor.Projector.AgentWatchdog do
   alias Ichor.Projector.AgentWatchdog.EscalationEngine
   alias Ichor.Projector.AgentWatchdog.PaneScanner
   alias Ichor.Signals.Bus
-  alias Ichor.Signals.Message
+  alias Ichor.Events.Message
   alias Ichor.Workshop.AgentEntry
 
   @interval 5_000

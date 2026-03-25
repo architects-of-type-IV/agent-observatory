@@ -5,7 +5,7 @@ defmodule IchorWeb.SignalFeed.Renderers.Agent do
   """
   use Phoenix.Component
 
-  alias Ichor.Signals.Message
+  alias Ichor.Events.Message
   alias IchorWeb.SignalFeed.Primitives
 
   attr :seq, :integer, required: true

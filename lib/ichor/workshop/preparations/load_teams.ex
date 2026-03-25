@@ -8,7 +8,7 @@ defmodule Ichor.Workshop.Preparations.LoadTeams do
   alias Ash.DataLayer.Simple
   alias Ichor.Fleet.AgentProcess
   alias Ichor.Fleet.TeamSupervisor
-  alias Ichor.Signals.EventStream, as: EventRuntime
+  alias Ichor.Events.EventStream, as: EventRuntime
   alias Ichor.Workshop.ActiveTeam
   alias Ichor.Workshop.Analysis.AgentHealth
 

@@ -28,7 +28,7 @@ defmodule Ichor.RuntimeSupervisor do
 
       # Core infrastructure services
       {Ichor.MemoryStore, []},
-      {Ichor.Signals.EventStream, []},
+      {Ichor.Events.EventStream, []},
 
       # Infrastructure and signal-adjacent services
       {Ichor.Infrastructure.TmuxDiscovery, []},

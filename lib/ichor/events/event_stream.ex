@@ -1,4 +1,4 @@
-defmodule Ichor.Signals.EventStream do
+defmodule Ichor.Events.EventStream do
   @moduledoc """
   Unified event runtime. Canonical owner of the in-memory event buffer,
   session aliases, tombstones, tool duration tracking, and heartbeat liveness.
@@ -22,7 +22,7 @@ defmodule Ichor.Signals.EventStream do
   alias Ichor.Events.Event
   alias Ichor.Events.Ingress
   alias Ichor.Signals
-  alias Ichor.Signals.EventStream.{AgentLifecycle, Normalizer}
+  alias Ichor.Events.EventStream.{AgentLifecycle, Normalizer}
 
   @table :event_buffer_events
   @tools :ichor_tool_starts
@@ -218,7 +218,7 @@ defmodule Ichor.Signals.EventStream do
 
   @impl true
   def handle_info(
-        %Ichor.Signals.Message{name: :agent_stopped, data: %{session_id: session_id}},
+        %Ichor.Events.Message{name: :agent_stopped, data: %{session_id: session_id}},
         state
       )
       when is_binary(session_id) do

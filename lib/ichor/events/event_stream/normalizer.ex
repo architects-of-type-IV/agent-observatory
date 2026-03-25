@@ -1,4 +1,4 @@
-defmodule Ichor.Signals.EventStream.Normalizer do
+defmodule Ichor.Events.EventStream.Normalizer do
   @moduledoc """
   Pure event normalization pipeline. Transforms raw hook event maps into
   canonical event structs.

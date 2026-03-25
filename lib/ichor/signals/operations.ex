@@ -7,7 +7,7 @@ defmodule Ichor.Signals.Operations do
 
   alias Ichor.Fleet.AgentProcess
   alias Ichor.Signals.Bus
-  alias Ichor.Signals.EventStream
+  alias Ichor.Events.EventStream
 
   code_interface do
     define(:check_operator_inbox)

@@ -1,10 +1,10 @@
-defmodule Ichor.Signals.Message do
+defmodule Ichor.Events.Message do
   @moduledoc """
-  The single message envelope for all ICHOR signals.
+  The single message envelope for all ICHOR event broadcasts.
 
   Every published signal uses this shape. Consumers pattern match on it:
 
-      def handle_info(%Ichor.Signals.Message{name: :heartbeat, data: data}, state)
+      def handle_info(%Ichor.Events.Message{name: :heartbeat, data: data}, state)
   """
 
   @enforce_keys [:name, :kind, :domain, :data, :timestamp]

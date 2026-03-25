@@ -14,7 +14,7 @@ defmodule Ichor.Projector.MesResearchIngestor do
   alias Ichor.Factory.Project
   alias Ichor.Infrastructure.MemoriesClient
   alias Ichor.Signals
-  alias Ichor.Signals.Message
+  alias Ichor.Events.Message
 
   @research_space "project:ichor:research"
   @briefs_dir "plugins/briefs"

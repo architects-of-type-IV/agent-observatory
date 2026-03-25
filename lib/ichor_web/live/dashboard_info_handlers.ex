@@ -13,7 +13,7 @@ defmodule IchorWeb.DashboardInfoHandlers do
 
   alias Ichor.Factory.Project
   alias Ichor.Infrastructure.Tmux
-  alias Ichor.Signals.Message
+  alias Ichor.Events.Message
   alias IchorWeb.{DashboardArchonHandlers, DashboardMesHandlers}
 
   @max_events 500

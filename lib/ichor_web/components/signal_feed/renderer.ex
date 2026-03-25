@@ -6,7 +6,7 @@ defmodule IchorWeb.SignalFeed.Renderer do
   """
   use Phoenix.Component
 
-  alias Ichor.Signals.Message
+  alias Ichor.Events.Message
 
   alias IchorWeb.SignalFeed.Renderers.{
     Agent,

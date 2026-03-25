@@ -24,7 +24,7 @@ defmodule Ichor.Projector.TeamSpawnHandler do
 
   @impl true
   def handle_info(
-        %Signals.Message{
+        %Ichor.Events.Message{
           name: :team_spawn_requested,
           data: %{scope_id: request_id, spec: %TeamSpec{} = spec, source: source}
         },
@@ -52,7 +52,7 @@ defmodule Ichor.Projector.TeamSpawnHandler do
     {:noreply, state}
   end
 
-  def handle_info(%Signals.Message{}, state), do: {:noreply, state}
+  def handle_info(%Ichor.Events.Message{}, state), do: {:noreply, state}
 
   defp emit_started(request_id, spec, source) do
     Signals.emit(:team_spawn_started, request_id, %{

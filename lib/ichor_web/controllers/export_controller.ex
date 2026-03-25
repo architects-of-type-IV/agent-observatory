@@ -2,7 +2,7 @@ defmodule IchorWeb.ExportController do
   @moduledoc "Exports event data as JSON or CSV for download."
 
   use IchorWeb, :controller
-  alias Ichor.Signals.EventStream
+  alias Ichor.Events.EventStream
 
   def index(conn, params) do
     format = params["format"] || "json"

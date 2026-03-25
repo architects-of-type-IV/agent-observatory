@@ -1,4 +1,4 @@
-defmodule Ichor.Signals.Topics do
+defmodule Ichor.Events.Topics do
   @moduledoc """
   Centralized topic string builder.
 

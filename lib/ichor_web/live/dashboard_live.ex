@@ -22,8 +22,8 @@ defmodule IchorWeb.DashboardLive do
 
   alias Ichor.Factory.Project
   alias Ichor.Projector.SignalBuffer, as: Buffer
-  alias Ichor.Signals.{Catalog, Message}
-  alias Ichor.Signals.EventStream, as: EventRuntime
+  alias Ichor.Events.Message
+  alias Ichor.Events.EventStream, as: EventRuntime
 
   alias IchorWeb.{
     DashboardArchonHandlers,
@@ -88,7 +88,7 @@ defmodule IchorWeb.DashboardLive do
     socket = socket |> assign(default_assigns(%{})) |> assign(:recompute_timer, nil)
 
     if connected?(socket) do
-      Enum.each(Catalog.categories(), &Ichor.Signals.subscribe/1)
+      Enum.each(Ichor.Signals.categories(), &Ichor.Signals.subscribe/1)
 
       # ADR-026: subscribe to signal activation topics
       for signal_mod <- Application.get_env(:ichor, :signal_modules, []) do

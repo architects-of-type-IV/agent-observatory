@@ -22,7 +22,7 @@ defmodule Ichor.Projector.FleetLifecycle do
   alias Ichor.Fleet.Supervisor, as: FleetSupervisor
   alias Ichor.Fleet.TeamSupervisor
   alias Ichor.Signals
-  alias Ichor.Signals.Message
+  alias Ichor.Events.Message
 
   @doc false
   @spec start_link(keyword()) :: GenServer.on_start()

@@ -295,7 +295,7 @@ defmodule Ichor.Fleet.AgentProcess do
     {:stop, :normal, %{state | status: :terminating}}
   end
 
-  def handle_info(%Ichor.Signals.Message{name: :agent_event, data: %{event: event}}, state) do
+  def handle_info(%Ichor.Events.Message{name: :agent_event, data: %{event: event}}, state) do
     case AgentRegistryProjection.update(
            state.id,
            AgentRegistryProjection.fields_from_event(event)

@@ -1,11 +1,11 @@
 defmodule IchorWeb.EventController do
   @moduledoc """
   Thin HTTP adapter for hook events.
-  All domain logic lives in `Ichor.Signals.EventStream`.
+  All domain logic lives in `Ichor.Events.EventStream`.
   """
   use IchorWeb, :controller
 
-  alias Ichor.Signals.EventStream
+  alias Ichor.Events.EventStream
 
   def create(conn, params) do
     {raw, hook_type, source_app, tmux_session, os_pid} = extract_envelope(params)

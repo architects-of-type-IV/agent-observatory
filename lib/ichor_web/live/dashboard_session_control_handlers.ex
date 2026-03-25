@@ -10,7 +10,7 @@ defmodule IchorWeb.DashboardSessionControlHandlers do
   alias Ichor.Infrastructure.Tmux
   alias Ichor.Signals
   alias Ichor.Signals.Bus
-  alias Ichor.Signals.EventStream, as: EventRuntime
+  alias Ichor.Events.EventStream, as: EventRuntime
 
   import IchorWeb.DashboardToast, only: [push_toast: 3]
 
