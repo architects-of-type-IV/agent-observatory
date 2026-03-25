@@ -1,47 +1,58 @@
 # ICHOR IV - Handoff
 
-## Current Status: FRONTEND REFACTOR IN PROGRESS (2026-03-25)
+## Current Status: ARCHITECTURE REFACTOR (2026-03-25)
 
-287 .ex files. Build clean. Zero tests.
+284 .ex files. Build clean. Zero tests.
 
-### Frontend Refactor -- IN PROGRESS
+### Session Summary (massive session)
 
-**Layered component architecture:**
-```
-Layer 0: ui/button.ex, ui/input.ex, ui/select.ex, ui/label.ex
-Layer 1: primitives/badge, dot, panel_header, close_button, empty_panel, nav_icon
-Layer 2: agent/agent_actions, agent_info_list, agent_detail_panel
-Layer 3: page sections (command_view, pipeline_view, etc.)
-```
+**Phase 1: Deep cleanup** (-4,700 lines)
+- Mesh, GenStage remnants, Fleet domain, Signals indirection, Plugin, stale tests, MemoriesBridge
 
-`IchorWeb.UI` library with defdelegate -- single import gives all primitives.
+**Phase 2: ADR-026 Signal-as-Projector** (+1,750 lines net)
+- Full GenStage pipeline: Ingress -> Router -> SignalProcess -> Handler
+- 3 event sources: hooks (EventStream bridge), Ash (FromAsh), legacy signals (Runtime bridge)
+- 3 signal modules: Agent.ToolBudget, Agent.MessageProtocol, Agent.Entropy
+- ActionHandler with real HITL pause + operator notification
+- StoredEvent + Checkpoint Ash resources (durable storage, async writes)
+- Dashboard signal toasts
+- Benchmarks: 514k-1.3M events/sec, crash recovery verified
 
-**Completed extractions:**
-- agent_actions: unified pause/resume/shutdown (was 3 diverging copies)
-- close_button: unified dismiss (was 4 variants)
-- panel_header: section title + actions slot
-- empty_panel: centered empty state
-- status_badge: colored pill indicator
-- status_dot: colored circle indicator
-- nav_icon: sidebar nav link (reduced nav ~140 -> ~50 lines)
-- agent_info_list: dl metadata block (was in 3 files)
-- agent_detail_panel: 229 lines out of command_view
+**Phase 3: Frontend refactor** (ongoing)
+- 9 primitive components extracted (agent_actions, close_button, panel_header, etc.)
+- agent_detail_panel + agent_info_list extracted
+- IchorWeb.UI defdelegate library with Layer 0 HTML primitives
+- Templates migrated to use <.button>, <.input>, <.label>
+- command_view: 526 -> 303 (-42%), dashboard_live: 692 -> 607 (-12%)
 
-**God template reduction:**
-- command_view.html.heex: 526 -> 303 (-42%)
-- dashboard_live.html.heex: 692 -> 607 (-12%)
+**Phase 4: OTP supervision fixes**
+- Task.Supervisor moved before RuntimeSupervisor (dependency ordering)
+- LifecycleSupervisor rest_for_one -> one_for_one (no causal deps)
+- 3 projectors extracted from LifecycleSupervisor
+- DynRunSupervisor renamed to PipelineRunSupervisor
+- SSH tmux adapter trashed
 
-**Next:** Migrate templates to use `<.button>`, `<.input>` from UI library
+**Phase 5: Architecture audit complete, reorg planned**
+- 26-file infrastructure/ junk drawer fully analyzed
+- Hexagonal plan: Ash domains = center + ports + adapters (Ash Resources with :none data layer)
+- Application layer for orchestrators (Runner, Spawn, MesScheduler)
+- Fleet/ for OTP agent processes
+- Supervision tree audited, healing semantics documented
 
-### ADR-026 Signal Pipeline -- COMPLETE
-
-Full GenStage pipeline with 3 event sources, 3 signal modules, ActionHandler, durable storage.
-See commit history: fbbd2ff through d2558e2.
-
-### Deep Cleanup -- COMPLETE
-
-~4,700 lines removed earlier in session. See commits a9f4ac6 through 492d03b.
+### Architectural Principles (from this session)
+- Ash Domains are the ONLY entrypoints
+- Ash Resources with `data_layer: :none` ARE the adapters (no separate adapter layer)
+- Dependencies point inward only: Processes -> Application -> Domains
+- Event = something happened, Signal = enough happened, Handler = now act
+- Naming: big to small (agent.tool.budget.exhausted)
+- Frontend: layered components with defdelegate library, one file per component
 
 ### Build Status
 - `mix compile --warnings-as-errors`: CLEAN
 - `mix test`: 0 tests
+
+### Next Steps
+1. File moves (hexagonal reorg) -- move infrastructure/ files to correct layers
+2. Convert external API modules to Ash Resources with :none data layer (Tmux, Memories, Webhooks)
+3. Fresh tests against signal pipeline + Ash domain APIs
+4. Continue frontend component extraction (workshop_view, detail_panel, signals_view)
