@@ -9,11 +9,11 @@ defmodule Ichor.Workshop.Agent do
 
   use Ash.Resource, domain: Ichor.Workshop
 
-  alias Ichor.Infrastructure.AgentLaunch
+  alias Ichor.Orchestration.AgentLaunch
   alias Ichor.Fleet.AgentProcess
   alias Ichor.Fleet.Supervisor, as: FleetSupervisor
   alias Ichor.Fleet.TeamSupervisor
-  alias Ichor.Infrastructure.Registration
+  alias Ichor.Orchestration.Registration
   alias Ichor.Infrastructure.Tmux
 
   attributes do

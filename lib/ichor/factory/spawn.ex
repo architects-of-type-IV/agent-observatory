@@ -18,7 +18,7 @@ defmodule Ichor.Factory.Spawn do
     - from_project/2
   """
 
-  alias Ichor.Infrastructure.TeamLaunch
+  alias Ichor.Orchestration.TeamLaunch
 
   alias Ichor.Factory.{
     Loader,
@@ -294,7 +294,7 @@ defmodule Ichor.Factory.Spawn do
   end
 
   defp cleanup_module do
-    Application.get_env(:ichor, :mes_cleanup_module, Ichor.Infrastructure.Cleanup)
+    Application.get_env(:ichor, :mes_cleanup_module, Ichor.Orchestration.Cleanup)
   end
 
   defp tmux_launcher do

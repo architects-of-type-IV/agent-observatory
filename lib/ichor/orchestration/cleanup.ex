@@ -1,11 +1,11 @@
-defmodule Ichor.Infrastructure.Cleanup do
+defmodule Ichor.Orchestration.Cleanup do
   @moduledoc """
   Lifecycle cleanup operations for agents, teams, and tmux-backed sessions.
   """
 
   alias Ichor.Fleet.Supervisor, as: FleetSupervisor
   alias Ichor.Fleet.TeamSupervisor
-  alias Ichor.Infrastructure.Registration
+  alias Ichor.Orchestration.Registration
   alias Ichor.Infrastructure.Tmux.{Launcher, Script}
   alias Ichor.Signals.EventStream, as: EventBuffer
 

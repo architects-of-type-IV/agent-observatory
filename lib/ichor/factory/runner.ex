@@ -16,7 +16,7 @@ defmodule Ichor.Factory.Runner do
 
   alias Ichor.Factory.{Pipeline, PipelineGraph, PipelineTask, ResearchContext, RunRef}
   alias Ichor.Factory.Runner.{Exporter, HealthChecker, Modes}
-  alias Ichor.Infrastructure.TeamLaunch
+  alias Ichor.Orchestration.TeamLaunch
   alias Ichor.Infrastructure.Tmux.Launcher, as: TmuxLauncher
   alias Ichor.Signals
   alias Ichor.Signals.Message

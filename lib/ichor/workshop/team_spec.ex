@@ -17,7 +17,7 @@ defmodule Ichor.Workshop.TeamSpec do
 
   alias Ichor.Factory.RunRef
   alias Ichor.Fleet.AgentSpec
-  alias Ichor.Infrastructure.TeamSpec, as: Spec
+  alias Ichor.Orchestration.TeamSpec, as: Spec
   alias Ichor.Workshop.{CanvasState, PipelinePrompts, Presets, PromptProtocol, Team, TeamPrompts}
 
   @doc "Builds a TeamSpec for a MES run."

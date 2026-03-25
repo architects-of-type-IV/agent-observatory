@@ -7,7 +7,7 @@ defmodule Ichor.Factory.PipelineQuery do
   """
 
   alias Ichor.Factory.{JsonlStore, PipelineGraph}
-  alias Ichor.Infrastructure.Cleanup
+  alias Ichor.Orchestration.Cleanup
   alias Ichor.Signals.EventStream
 
   @teams_dir Path.expand("~/.claude/teams")

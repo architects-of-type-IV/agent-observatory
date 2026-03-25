@@ -1,4 +1,4 @@
-defmodule Ichor.Infrastructure.AgentLaunch do
+defmodule Ichor.Orchestration.AgentLaunch do
   @moduledoc """
   Lifecycle operations for launching and stopping individual agents.
   """
@@ -6,9 +6,9 @@ defmodule Ichor.Infrastructure.AgentLaunch do
   require Logger
 
   alias Ichor.Fleet.AgentSpec
-  alias Ichor.Infrastructure.Cleanup
+  alias Ichor.Orchestration.Cleanup
   alias Ichor.Infrastructure.HostRegistry
-  alias Ichor.Infrastructure.Registration
+  alias Ichor.Orchestration.Registration
   alias Ichor.Infrastructure.Tmux.{Launcher, Script}
 
   @agents_dir Path.expand("~/.ichor/agents")

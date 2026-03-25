@@ -14,7 +14,7 @@ defmodule Ichor.Infrastructure.Workers.SessionCleanupWorker do
     max_attempts: 3,
     unique: [period: 60, keys: [:session, :action]]
 
-  alias Ichor.Infrastructure.Cleanup
+  alias Ichor.Orchestration.Cleanup
   alias Ichor.Fleet.Supervisor, as: FleetSupervisor
 
   @impl Oban.Worker

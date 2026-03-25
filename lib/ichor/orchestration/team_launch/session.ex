@@ -1,4 +1,4 @@
-defmodule Ichor.Infrastructure.TeamLaunch.Session do
+defmodule Ichor.Orchestration.TeamLaunch.Session do
   @moduledoc """
   Manages tmux session and window creation for team launches.
 

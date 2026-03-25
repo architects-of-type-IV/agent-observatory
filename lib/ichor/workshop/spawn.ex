@@ -4,7 +4,7 @@ defmodule Ichor.Workshop.Spawn do
   """
 
   alias Ichor.Fleet.AgentSpec
-  alias Ichor.Infrastructure.TeamSpec
+  alias Ichor.Orchestration.TeamSpec
   alias Ichor.Signals
   alias Ichor.Workshop.{Presets, PromptProtocol, Team, TeamMember}
 

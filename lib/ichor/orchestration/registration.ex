@@ -1,4 +1,4 @@
-defmodule Ichor.Infrastructure.Registration do
+defmodule Ichor.Orchestration.Registration do
   @moduledoc """
   Shared process registration for tmux-backed agents and teams.
   """

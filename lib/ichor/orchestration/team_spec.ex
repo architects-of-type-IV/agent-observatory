@@ -1,4 +1,4 @@
-defmodule Ichor.Infrastructure.TeamSpec do
+defmodule Ichor.Orchestration.TeamSpec do
   @moduledoc """
   Explicit runtime spec for launching a multi-agent team session.
   """
