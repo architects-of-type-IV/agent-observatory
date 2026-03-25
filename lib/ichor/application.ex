@@ -60,9 +60,6 @@ defmodule Ichor.Application do
       # Pipeline execution runs
       {DynamicSupervisor, name: Ichor.Factory.DynRunSupervisor, strategy: :one_for_one},
 
-      # Memories bridge (signals -> knowledge graph)
-      Ichor.Projector.MemoriesBridge,
-
       # Web endpoint (must start last -- depends on all services above)
       IchorWeb.Endpoint
     ]
