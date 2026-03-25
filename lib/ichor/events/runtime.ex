@@ -1,30 +1,17 @@
 defmodule Ichor.Events.Runtime do
   @moduledoc """
-  Event broadcast runtime.
-  Owns transport, envelope building, category validation, and PubSub broadcast.
+  PubSub observation layer for ICHOR events.
+
+  Handles subscribe/unsubscribe for PubSub observers (dashboard, projectors)
+  and the temporary `broadcast_event/1` bridge that converts Events to Messages
+  for backward-compatible PubSub consumers.
+
+  Not part of the core event path. Core path: `Events.emit` -> `Ingress.push`.
   """
 
-  require Logger
+  alias Ichor.Events.{Event, Message, Registry, Topics}
 
-  alias Ichor.Events.{Event, Ingress, Message, Registry, Topics}
-
-  @spec emit(atom(), map()) :: :ok
-  def emit(name, data \\ %{}) when is_atom(name) do
-    category = Registry.category_for(name)
-    message = Message.build(name, category, data)
-    broadcast_static(category, message)
-  end
-
-  @spec emit(atom(), String.t(), map()) :: :ok
-  def emit(name, scope_id, data) when is_atom(name) and is_binary(scope_id) do
-    unless Registry.dynamic?(name) do
-      raise ArgumentError, "Signal #{name} is not dynamic; cannot emit with scope_id"
-    end
-
-    category = Registry.category_for(name)
-    message = Message.build(name, category, Map.put(data, :scope_id, scope_id))
-    broadcast_scoped(category, name, scope_id, message)
-  end
+  # ── Subscribe / Unsubscribe ───────────────────────────────────────
 
   @spec subscribe(atom()) :: :ok | {:error, term()}
   def subscribe(name) when is_atom(name) do
@@ -67,21 +54,7 @@ defmodule Ichor.Events.Runtime do
   @spec categories() :: [atom()]
   def categories, do: Registry.categories()
 
-  defp broadcast_scoped(category, name, scope_id, message) do
-    pubsub_broadcast(Topics.category(category), message)
-    pubsub_broadcast(Topics.scoped(category, name, scope_id), message)
-    tap_telemetry(name, message)
-    bridge_to_pipeline(name, message.data)
-    :ok
-  end
-
-  defp broadcast_static(category, message) do
-    pubsub_broadcast(Topics.category(category), message)
-    pubsub_broadcast(Topics.signal(category, message.name), message)
-    tap_telemetry(message.name, message)
-    bridge_to_pipeline(message.name, message.data)
-    :ok
-  end
+  # ── Observer bridge (temporary) ───────────────────────────────────
 
   @doc """
   Bridge an %Event{} to PubSub for observer backward compat.
@@ -89,8 +62,7 @@ defmodule Ichor.Events.Runtime do
   Reads `legacy_name` from event metadata to produce a Message on the
   correct PubSub category topic. No-op if `legacy_name` is absent.
 
-  Temporary -- will be removed when all PubSub subscribers migrate to
-  consume from the GenStage pipeline directly.
+  Temporary -- remove when all PubSub subscribers migrate to pipeline.
   """
   @spec broadcast_event(Event.t()) :: :ok
   def broadcast_event(%Event{metadata: %{legacy_name: name}} = event) when is_atom(name) do
@@ -98,30 +70,13 @@ defmodule Ichor.Events.Runtime do
     message = Message.build(name, category, event.data)
     pubsub_broadcast(Topics.category(category), message)
     pubsub_broadcast(Topics.signal(category, name), message)
-    tap_telemetry(name, message)
+    :telemetry.execute([:ichor, :signal, name], %{count: 1}, %{signal: message})
     :ok
   end
 
   def broadcast_event(%Event{}), do: :ok
 
-  defp bridge_to_pipeline(name, data) do
-    topic = "signal.#{name}"
-    key = extract_key(data)
-    event = Event.new(topic, key, data, %{source: :signal_bridge, legacy_name: name})
-    Ingress.push(event)
-  end
-
-  @key_fields [:session_id, :run_id, :team_name, :project_id, :agent_id]
-
-  defp extract_key(data) when is_map(data) do
-    Enum.find_value(@key_fields, fn field ->
-      Map.get(data, field) || Map.get(data, Atom.to_string(field))
-    end)
-  end
-
-  defp tap_telemetry(name, message) do
-    :telemetry.execute([:ichor, :signal, name], %{count: 1}, %{signal: message})
-  end
+  # ── PubSub helpers ────────────────────────────────────────────────
 
   @pubsub Ichor.PubSub
 

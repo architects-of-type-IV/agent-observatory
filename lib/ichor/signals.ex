@@ -1,9 +1,11 @@
 defmodule Ichor.Signals do
   @moduledoc """
-  Ash domain and runtime facade for the ICHOR signal system.
+  Ash domain for the ICHOR signal system.
 
-  Exposes signal resources and their Ash actions as the canonical domain boundary,
-  and delegates runtime emit/subscribe/unsubscribe operations to Runtime.
+  Owns signal resources (Operations, Checkpoint) and their Ash actions.
+  Subscribe/unsubscribe delegates to Events.Runtime for PubSub observation.
+
+  Event emission uses `Ichor.Events.emit/1` -- not this module.
   """
 
   use Ash.Domain, extensions: [AshAi]
@@ -23,17 +25,6 @@ defmodule Ichor.Signals do
     tool(:recent_messages, Ichor.Signals.Operations, :recent_messages)
     tool(:archon_send_message, Ichor.Signals.Operations, :operator_send_message)
     tool(:agent_events, Ichor.Signals.Operations, :agent_events)
-  end
-
-  @spec emit(atom()) :: :ok
-  @spec emit(atom(), map()) :: :ok
-  def emit(name, data \\ %{}) when is_atom(name) do
-    Runtime.emit(name, data || %{})
-  end
-
-  @spec emit(atom(), String.t(), map()) :: :ok
-  def emit(name, scope_id, data) when is_atom(name) and is_binary(scope_id) do
-    Runtime.emit(name, scope_id, data)
   end
 
   @spec subscribe(atom()) :: :ok | {:error, term()}
