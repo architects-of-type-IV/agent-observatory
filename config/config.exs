@@ -95,7 +95,8 @@ config :ichor, Oban,
 
 config :ichor, :signal_modules, [
   Ichor.Signals.Agent.ToolBudget,
-  Ichor.Signals.Agent.MessageProtocol
+  Ichor.Signals.Agent.MessageProtocol,
+  Ichor.Signals.Agent.Entropy
 ]
 
 # Use Jason for JSON parsing in Phoenix

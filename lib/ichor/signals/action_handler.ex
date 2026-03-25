@@ -38,6 +38,34 @@ defmodule Ichor.Signals.ActionHandler do
     end
   end
 
+  def handle(%Signal{name: "agent.entropy.loop.detected"} = signal) do
+    session_id = signal.key
+    score = signal.metadata[:entropy_score]
+    severity = signal.metadata[:severity]
+    prior = signal.metadata[:prior_severity]
+
+    Logger.warning(
+      "[Signal] #{signal.name} session=#{session_id} score=#{score} severity=#{severity}"
+    )
+
+    case severity do
+      :loop ->
+        Ichor.Signals.emit(:entropy_alert, %{session_id: session_id, entropy_score: score})
+        Ichor.Signals.emit(:node_state_update, %{agent_id: session_id, state: "alert_entropy"})
+
+      :warning ->
+        Ichor.Signals.emit(:node_state_update, %{agent_id: session_id, state: "blocked"})
+
+      :normal when prior in [:warning, :loop] ->
+        Ichor.Signals.emit(:node_state_update, %{agent_id: session_id, state: "active"})
+
+      :normal ->
+        :ok
+    end
+
+    :ok
+  end
+
   def handle(%Signal{name: "agent.message.protocol.violated"} = signal) do
     team_name = signal.key
     violations = signal.metadata[:violations] || []
