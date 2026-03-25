@@ -55,39 +55,32 @@ defmodule Ichor.Signals.Agent.Entropy do
     tool_name = get_in(event.data, [:tool_name]) || get_in(event.data, ["tool_name"])
     hook_type = get_in(event.data, [:hook_event_type]) || get_in(event.data, ["hook_event_type"])
 
-    state = %{state | events: [event | state.events]}
-
     case tool_name do
       name when is_binary(name) ->
-        updated_window = slide_window(state.window ++ [{name, hook_type}], state.window_size)
+        updated_window = slide_window([{name, hook_type} | state.window], state.window_size)
         score = compute_score(updated_window)
         severity = classify(score, state.loop_threshold, state.warning_threshold)
 
         %{
           state
           | window: updated_window,
-            prior_severity: state.prior_severity,
+            events: [event | state.events],
             metadata: %{
               entropy_score: score,
               severity: severity,
               prior_severity: state.prior_severity
             }
         }
-        |> Map.put(:_current_severity, severity)
 
       _ ->
-        state
+        %{state | events: [event | state.events]}
     end
   end
 
   @impl true
   @spec ready?(map(), :event | :timer) :: boolean()
   def ready?(state, :event) do
-    case Map.get(state, :_current_severity) do
-      :loop -> true
-      :warning -> true
-      _ -> false
-    end
+    Map.get(state.metadata, :severity) in [:loop, :warning]
   end
 
   def ready?(_state, :timer), do: false
@@ -118,21 +111,25 @@ defmodule Ichor.Signals.Agent.Entropy do
         prior_severity: current_severity,
         metadata: %{}
     }
-    |> Map.delete(:_current_severity)
   end
 
   # Scoring logic -- preserved exactly from EntropyTracker
 
   @spec slide_window([entropy_tuple()], pos_integer()) :: [entropy_tuple()]
-  defp slide_window(window, max_size) when length(window) > max_size, do: tl(window)
-  defp slide_window(window, _max_size), do: window
+  defp slide_window(window, max_size) do
+    Enum.take(window, max_size)
+  end
 
   @spec compute_score([entropy_tuple()]) :: float()
   defp compute_score([]), do: 1.0
 
   defp compute_score(window) do
-    unique = window |> MapSet.new() |> MapSet.size()
-    Float.round(unique / length(window), 4)
+    {unique_set, count} =
+      Enum.reduce(window, {MapSet.new(), 0}, fn item, {set, n} ->
+        {MapSet.put(set, item), n + 1}
+      end)
+
+    Float.round(MapSet.size(unique_set) / count, 4)
   end
 
   @spec classify(float(), float(), float()) :: severity()

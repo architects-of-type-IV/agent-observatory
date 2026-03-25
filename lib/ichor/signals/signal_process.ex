@@ -91,11 +91,7 @@ defmodule Ichor.Signals.SignalProcess do
 
   @impl true
   def handle_info(msg, %__MODULE__{} = s) do
-    if function_exported?(s.module, :handle_info, 2) do
-      {:noreply, %{s | state: s.module.handle_info(s.state, msg)}}
-    else
-      {:noreply, s}
-    end
+    {:noreply, %{s | state: s.module.handle_info(s.state, msg)}}
   end
 
   defp schedule_tick, do: Process.send_after(self(), :tick, @flush_interval_ms)

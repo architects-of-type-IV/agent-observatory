@@ -69,12 +69,16 @@ defmodule Ichor.Signal do
       @spec reset(map()) :: map()
       def reset(state), do: %{state | events: [], metadata: %{}}
 
+      @spec handle_info(map(), term()) :: map()
+      def handle_info(state, _msg), do: state
+
       defoverridable init_state: 1,
                      handle_event: 2,
                      ready?: 2,
                      build_signal: 1,
                      reset: 1,
-                     signal_name: 0
+                     signal_name: 0,
+                     handle_info: 2
     end
   end
 end

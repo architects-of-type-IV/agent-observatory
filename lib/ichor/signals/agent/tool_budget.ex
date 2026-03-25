@@ -25,8 +25,8 @@ defmodule Ichor.Signals.Agent.ToolBudget do
 
   @impl true
   @spec handle_event(map(), Ichor.Events.Event.t()) :: map()
-  def handle_event(state, event) do
-    %{state | events: [event | state.events], count: state.count + 1}
+  def handle_event(state, _event) do
+    %{state | count: state.count + 1}
   end
 
   @impl true
@@ -43,12 +43,12 @@ defmodule Ichor.Signals.Agent.ToolBudget do
     Ichor.Signals.Signal.new(
       signal_name(),
       state.key,
-      Enum.reverse(state.events),
+      [],
       %{count: state.count, limit: state.limit}
     )
   end
 
   @impl true
   @spec reset(map()) :: map()
-  def reset(state), do: %{state | events: [], count: 0, metadata: %{}}
+  def reset(state), do: %{state | count: 0, metadata: %{}}
 end

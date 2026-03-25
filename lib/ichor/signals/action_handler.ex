@@ -10,9 +10,13 @@ defmodule Ichor.Signals.ActionHandler do
 
   alias Ichor.Signals.Signal
 
+  @tool_budget Ichor.Signals.Agent.ToolBudget.signal_name()
+  @entropy Ichor.Signals.Agent.Entropy.signal_name()
+  @protocol Ichor.Signals.Agent.MessageProtocol.signal_name()
+
   @doc "Dispatch a signal to the appropriate system action."
   @spec handle(Signal.t()) :: :ok
-  def handle(%Signal{name: "agent.tool.budget.exhausted"} = signal) do
+  def handle(%Signal{name: @tool_budget} = signal) do
     session_id = signal.key
     count = signal.metadata[:count]
     limit = signal.metadata[:limit]
@@ -38,7 +42,7 @@ defmodule Ichor.Signals.ActionHandler do
     end
   end
 
-  def handle(%Signal{name: "agent.entropy.loop.detected"} = signal) do
+  def handle(%Signal{name: @entropy} = signal) do
     session_id = signal.key
     score = signal.metadata[:entropy_score]
     severity = signal.metadata[:severity]
@@ -66,7 +70,7 @@ defmodule Ichor.Signals.ActionHandler do
     :ok
   end
 
-  def handle(%Signal{name: "agent.message.protocol.violated"} = signal) do
+  def handle(%Signal{name: @protocol} = signal) do
     team_name = signal.key
     violations = signal.metadata[:violations] || []
 

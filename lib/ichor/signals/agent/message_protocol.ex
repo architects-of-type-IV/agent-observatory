@@ -64,7 +64,10 @@ defmodule Ichor.Signals.Agent.MessageProtocol do
       signal_name(),
       state.key,
       Enum.reverse(state.events),
-      %{violations: Enum.reverse(state.violations), rule_count: length(state.rules)}
+      %{
+        violations: Enum.reverse(state.violations),
+        rule_count: if(is_list(state.rules), do: length(state.rules), else: 0)
+      }
     )
   end
 
