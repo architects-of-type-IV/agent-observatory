@@ -1,6 +1,14 @@
 # ICHOR IV Progress
 
-## ADR-026 Signal-as-Projector (2026-03-25) -- IN PROGRESS
+## Frontend Refactor (2026-03-25) -- IN PROGRESS
+- [x] Audit: 70 files, god templates, 10 repeated patterns identified
+- [x] Wave 1: 7 primitives extracted (agent_actions, close_button, panel_header, empty_panel, status_badge, status_dot, nav_icon) (5727d9b)
+- [x] Wave 2: agent_detail_panel + agent_info_list extracted (29e578d)
+- [x] Layer 0: base HTML primitives (button, input, select, label) + IchorWeb.UI defdelegate library (70e4e71)
+- [ ] Wave 3: Migrate templates to use <.button>, <.input> from library
+- [ ] Wave 4: Extract remaining page sections
+
+## ADR-026 Signal-as-Projector (2026-03-25) -- COMPLETE
 - [x] Wave 1: Foundation -- Event, Signal, Behaviour, Ingress, Router, SignalProcess, DefaultHandler (fbbd2ff)
 - [x] Wave 2: Macro + bridge + signals -- use Ichor.Signal, EventStream bridge, ToolBudget, MessageProtocol (fbbd2ff)
 - [x] Review fixes: race condition, demand tracking, deferred DB query, timer conflict (5a47898)
