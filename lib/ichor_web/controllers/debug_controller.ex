@@ -3,7 +3,6 @@ defmodule IchorWeb.DebugController do
   use IchorWeb, :controller
 
   alias Ichor.Infrastructure.AgentProcess
-  alias Ichor.Infrastructure.HITLRelay
   alias Ichor.Infrastructure.Tmux
   alias Ichor.Projector.ProtocolTracker
   alias Ichor.Projector.SignalBuffer, as: Buffer
@@ -177,12 +176,6 @@ defmodule IchorWeb.DebugController do
     })
   rescue
     e -> json(conn, %{error: Exception.message(e)})
-  end
-
-  def hitl_clear(conn, _params) do
-    paused = HITLRelay.paused_sessions()
-    Enum.each(paused, &HITLRelay.unpause(&1, "system", "debug-clear"))
-    json(conn, %{cleared: length(paused), sessions: paused})
   end
 
   def purge(conn, _params) do

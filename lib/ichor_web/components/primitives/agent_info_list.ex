@@ -18,9 +18,9 @@ defmodule IchorWeb.Components.Primitives.AgentInfoList do
 
   ## Attributes
 
-  - `agent`   – agent map with status, model, role, team_name/team, cwd, etc.
-  - `paused`  – when true, appends "(HITL paused)" to the status row
-  - `class`   – extra CSS classes applied to the outer `<dl>`
+  - `agent`  – agent map with status, model, role, team_name/team, cwd, etc.
+  - `paused` – unused, kept for backwards-compatible call sites
+  - `class`  – extra CSS classes applied to the outer `<dl>`
   """
   attr :agent, :map, required: true
   attr :paused, :boolean, default: false
@@ -41,7 +41,6 @@ defmodule IchorWeb.Components.Primitives.AgentInfoList do
         <dt class="text-low">Status</dt>
         <dd class={member_status_text_class(@agent[:status] || :unknown)}>
           {@agent[:status] || :unknown}
-          <span :if={@paused} class="text-brand ml-1">(HITL paused)</span>
         </dd>
       </div>
       <div :if={@agent[:model]} class="flex justify-between">

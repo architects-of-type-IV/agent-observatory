@@ -18,10 +18,6 @@ defmodule IchorWeb.Router do
     plug :accepts, ["json"]
   end
 
-  pipeline :hitl_auth do
-    plug Ichor.Infrastructure.Plugs.OperatorAuth
-  end
-
   scope "/api", IchorWeb do
     pipe_through :api
 
@@ -32,7 +28,6 @@ defmodule IchorWeb.Router do
     get "/debug/mailboxes", DebugController, :mailboxes
     get "/debug/tmux", DebugController, :tmux
     get "/debug/fleet-agents", DebugController, :fleet_agents
-    post "/debug/hitl-clear", DebugController, :hitl_clear
     post "/debug/purge", DebugController, :purge
     post "/debug/mes-cleanup", DebugController, :mes_cleanup
     get "/debug/mes-signals", DebugController, :mes_signals
@@ -43,15 +38,6 @@ defmodule IchorWeb.Router do
     post "/heartbeat", HeartbeatController, :create
     post "/webhooks/:webhook_id", WebhookController, :create
     post "/rpc", GatewayRpcController, :create
-  end
-
-  scope "/gateway/sessions/:session_id", IchorWeb do
-    pipe_through [:api, :hitl_auth]
-
-    post "/pause", HITLController, :pause
-    post "/unpause", HITLController, :unpause
-    post "/rewrite", HITLController, :rewrite
-    post "/inject", HITLController, :inject
   end
 
   forward "/mcp/archon", AshAi.Mcp.Router,

@@ -14,7 +14,6 @@ defmodule Ichor.Events.FromAsh do
   alias Ichor.Factory.{CronJob, Pipeline, PipelineTask, Project}
   alias Ichor.Infrastructure.WebhookDelivery
   alias Ichor.Settings.SettingsProject
-  alias Ichor.Signals.HITLInterventionEvent
 
   @impl true
   @spec notify(Ash.Notifier.Notification.t()) :: :ok
@@ -269,24 +268,6 @@ defmodule Ichor.Events.FromAsh do
         status: data.status
       },
       %{resource: "WebhookDelivery", action: :mark_dead}
-    )
-  end
-
-  # ---------------------------------------------------------------------------
-  # HITLInterventionEvent
-  # ---------------------------------------------------------------------------
-
-  defp event_for(HITLInterventionEvent, :record, data) do
-    Event.new(
-      "hitl.intervention.recorded",
-      data.session_id,
-      %{
-        event_id: data.id,
-        session_id: data.session_id,
-        agent_id: data.agent_id,
-        action: data.action
-      },
-      %{resource: "HITLInterventionEvent", action: :record}
     )
   end
 

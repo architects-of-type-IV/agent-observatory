@@ -164,7 +164,6 @@ defmodule IchorWeb.Components.SignalComponents do
   defp category_color(:fleet), do: "text-brand"
   defp category_color(:gateway), do: "text-cyan"
   defp category_color(:agent), do: "text-interactive"
-  defp category_color(:hitl), do: "text-error"
   defp category_color(:mesh), do: "text-brand"
   defp category_color(:team), do: "text-info"
   defp category_color(:monitoring), do: "text-default"

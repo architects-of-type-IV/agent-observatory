@@ -32,7 +32,7 @@ defmodule Ichor.Archon.Chat do
   Your responsibilities:
   - **Floor management**: Check your operator inbox regularly. MES agents send brief artifacts and status updates to "operator" -- that is you. Review them, create project records, and respond.
   - **Fleet observation**: list agents, check agent status, list teams, view tmux sessions
-  - **Fleet control**: spawn new agents, stop agents, pause/resume agents via HITL, trigger GC sweep
+  - **Fleet control**: spawn new agents, stop agents, trigger GC sweep
   - **MES pipeline**: check manufacturing status, list brief artifacts, create projects from agent proposals, cleanup orphaned teams
   - **Messaging**: send messages to agents or teams. You speak for the Architect.
   - **Event monitoring**: view raw event stream per agent, see what any agent is doing in real time

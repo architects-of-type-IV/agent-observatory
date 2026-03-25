@@ -2,8 +2,8 @@ defmodule Ichor.Signals.ActionHandler do
   @moduledoc """
   Dispatches signal activations to real system actions.
 
-  Each signal name maps to a concrete response: pausing an agent via HITL,
-  notifying the operator via Bus, or logging for unknown signals.
+  Each signal name maps to a concrete response: notifying the operator via Bus,
+  or logging for unknown signals.
   """
 
   require Logger
@@ -23,24 +23,7 @@ defmodule Ichor.Signals.ActionHandler do
     limit = signal.metadata[:limit]
 
     Logger.warning("[Signal] #{signal.name} session=#{session_id} count=#{count}/#{limit}")
-
-    case Ichor.Infrastructure.HITLRelay.pause(
-           session_id,
-           "system",
-           "system",
-           "Tool budget exhausted (#{count}/#{limit})"
-         ) do
-      :ok ->
-        :ok
-
-      {:ok, :already_paused} ->
-        Logger.debug("[Signal] Session #{session_id} already paused, skipping")
-        :ok
-
-      {:error, reason} ->
-        Logger.warning("[Signal] Failed to pause #{session_id}: #{inspect(reason)}")
-        :ok
-    end
+    :ok
   end
 
   def handle(%Signal{name: @entropy} = signal) do

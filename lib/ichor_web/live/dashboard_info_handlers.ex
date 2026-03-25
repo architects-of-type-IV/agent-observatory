@@ -12,7 +12,7 @@ defmodule IchorWeb.DashboardInfoHandlers do
   import IchorWeb.DashboardNotificationHandlers, only: [handle_agent_crashed: 4]
 
   alias Ichor.Factory.Project
-  alias Ichor.Infrastructure.{HITLRelay, Tmux}
+  alias Ichor.Infrastructure.Tmux
   alias Ichor.Projector.SignalManager
   alias Ichor.Signals.Message
   alias IchorWeb.{DashboardArchonHandlers, DashboardMesHandlers}
@@ -101,14 +101,6 @@ defmodule IchorWeb.DashboardInfoHandlers do
       %{session_id: ^sid} -> {:noreply, assign(socket, :slideout_terminal, output)}
       _ -> {:noreply, socket}
     end
-  end
-
-  # HITL: refresh paused_sessions assign
-  def dispatch(%Message{name: name}, socket) when name in [:gate_open, :gate_close] do
-    paused = HITLRelay.paused_sessions() |> MapSet.new()
-    {:noreply, assign(socket, :paused_sessions, paused)}
-  rescue
-    _ -> {:noreply, socket}
   end
 
   # Nudge/gate: notifications only -- no data changed, no recompute

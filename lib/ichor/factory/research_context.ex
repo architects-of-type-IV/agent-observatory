@@ -14,7 +14,6 @@ defmodule Ichor.Factory.ResearchContext do
   alias Ichor.Factory.Project
 
   @core_plugins [
-    {"HITLRelay", "human-in-the-loop pause/resume gating"},
     {"NudgeEscalator", "stale agent detection + progressive nudging"}
   ]
 

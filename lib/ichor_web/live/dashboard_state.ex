@@ -9,7 +9,6 @@ defmodule IchorWeb.DashboardState do
   import IchorWeb.DashboardTeamHelpers, only: [all_team_sids: 1]
   import IchorWeb.DashboardFeedHelpers, only: [build_feed_groups: 2]
 
-  alias Ichor.Infrastructure.HITLRelay
   alias Ichor.Infrastructure.Tmux
   alias Ichor.Infrastructure.TmuxDiscovery
   alias Ichor.Notes
@@ -209,7 +208,7 @@ defmodule IchorWeb.DashboardState do
     agent_index = build_agent_lookup(agents)
 
     # Template-layer data
-    paused_sessions = safe_paused_sessions()
+    paused_sessions = MapSet.new()
 
     mailbox_messages =
       Bus.recent_messages(50)
@@ -260,12 +259,6 @@ defmodule IchorWeb.DashboardState do
     |> assign(:selected_team, selected_team)
     |> assign(:sel_team, sel_team)
     |> assign(:active_tasks, active_tasks)
-  end
-
-  defp safe_paused_sessions do
-    HITLRelay.paused_sessions() |> MapSet.new()
-  rescue
-    _ -> MapSet.new()
   end
 
   defp safe_tmux_sessions do

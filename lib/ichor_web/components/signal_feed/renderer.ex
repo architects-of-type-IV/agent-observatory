@@ -14,7 +14,6 @@ defmodule IchorWeb.SignalFeed.Renderer do
     Dag,
     Fallback,
     Genesis,
-    Hitl,
     Mes,
     Monitoring
   }
@@ -30,10 +29,6 @@ defmodule IchorWeb.SignalFeed.Renderer do
   def render(%{message: %Message{domain: domain}} = assigns)
       when domain in [:system, :events, :messages, :memory] do
     Core.render(assigns)
-  end
-
-  def render(%{message: %Message{domain: :hitl}} = assigns) do
-    Hitl.render(assigns)
   end
 
   def render(%{message: %Message{domain: :planning}} = assigns) do

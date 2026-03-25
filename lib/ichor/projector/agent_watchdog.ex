@@ -16,7 +16,6 @@ defmodule Ichor.Projector.AgentWatchdog do
 
   alias Ichor.Factory.Board
   alias Ichor.Infrastructure.AgentProcess
-  alias Ichor.Infrastructure.HITLRelay
   alias Ichor.Infrastructure.Tmux
   alias Ichor.Operator.Inbox
   alias Ichor.Projector.AgentWatchdog.EscalationEngine
@@ -213,24 +212,8 @@ defmodule Ichor.Projector.AgentWatchdog do
   end
 
   defp clear_escalation_if_active(session_id, escalations) do
-    case Map.pop(escalations, session_id) do
-      {nil, _} ->
-        escalations
-
-      {entry, rest} ->
-        maybe_unpause(entry, session_id)
-        rest
-    end
-  end
-
-  defp maybe_unpause(%{level: level}, _session_id) when level < 2, do: :ok
-
-  defp maybe_unpause(_entry, session_id) do
-    Task.Supervisor.start_child(Ichor.TaskSupervisor, fn ->
-      HITLRelay.unpause(session_id, session_id, "ichor-auto")
-    end)
-
-    :ok
+    {_, rest} = Map.pop(escalations, session_id)
+    rest
   end
 
   defp execute_escalation(session_id, agent, level) do
@@ -273,8 +256,7 @@ defmodule Ichor.Projector.AgentWatchdog do
   end
 
   defp do_escalate(2, session_id, agent_name) do
-    Logger.warning("AgentWatchdog: Escalating #{agent_name} to HITL pause (level 2)")
-    HITLRelay.pause(session_id, session_id, "ichor", "Auto-paused: no activity detected")
+    Logger.warning("AgentWatchdog: Agent #{agent_name} escalated (level 2) -- no activity")
 
     Ichor.Signals.emit(:nudge_escalated, %{
       session_id: session_id,

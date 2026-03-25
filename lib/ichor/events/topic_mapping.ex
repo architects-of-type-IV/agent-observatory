@@ -57,7 +57,7 @@ defmodule Ichor.Events.TopicMapping do
     # -- nudge domain --
     nudge_warning: "nudge.escalation.warned",
     nudge_sent: "nudge.escalation.nudged",
-    nudge_escalated: "nudge.escalation.hitl_paused",
+    nudge_escalated: "nudge.escalation.escalated",
     nudge_zombie: "nudge.escalation.zombied",
 
     # -- gateway domain --
@@ -72,14 +72,6 @@ defmodule Ichor.Events.TopicMapping do
     gateway_audit: "gateway.routing.audited",
     cron_job_scheduled: "gateway.cron.scheduled",
     cron_job_rescheduled: "gateway.cron.rescheduled",
-
-    # -- hitl domain --
-    gate_open: "hitl.gate.opened",
-    gate_close: "hitl.gate.closed",
-    hitl_auto_released: "hitl.gate.auto_released",
-    hitl_operator_approved: "hitl.operator.approved",
-    hitl_operator_rejected: "hitl.operator.rejected",
-    hitl_intervention_recorded: "hitl.operator.intervention_recorded",
 
     # -- memory domain --
     block_changed: "memory.block.modified",

@@ -19,7 +19,7 @@ defmodule Ichor.Signals.Catalog do
       keys: [:session_id, :name, :role, :team],
       doc: "AgentProcess init"
     },
-    agent_paused: %{category: :fleet, keys: [:session_id, :name], doc: "Agent paused via HITL"},
+    agent_paused: %{category: :fleet, keys: [:session_id, :name], doc: "Agent paused"},
     agent_resumed: %{category: :fleet, keys: [:session_id, :name], doc: "Agent resumed"},
     agent_stopped: %{
       category: :fleet,
@@ -224,7 +224,7 @@ defmodule Ichor.Signals.Catalog do
     nudge_escalated: %{
       category: :agent,
       keys: [:session_id, :agent_name, :level],
-      doc: "Nudge escalation: HITL pause"
+      doc: "Nudge escalation: escalated"
     },
     nudge_zombie: %{
       category: :agent,
@@ -281,38 +281,6 @@ defmodule Ichor.Signals.Catalog do
       category: :gateway,
       keys: [:job_id, :agent_id, :next_fire_at],
       doc: "Cron job rescheduled via Ash action"
-    },
-    gate_open: %{
-      category: :hitl,
-      keys: [:session_id],
-      dynamic: true,
-      doc: "Agent paused, gate opened"
-    },
-    gate_close: %{
-      category: :hitl,
-      keys: [:session_id],
-      dynamic: true,
-      doc: "Agent resumed, gate closed"
-    },
-    hitl_auto_released: %{
-      category: :hitl,
-      keys: [:session_id],
-      doc: "Paused session auto-released by sweep"
-    },
-    hitl_operator_approved: %{
-      category: :hitl,
-      keys: [:session_id],
-      doc: "Operator approved buffered messages"
-    },
-    hitl_operator_rejected: %{
-      category: :hitl,
-      keys: [:session_id],
-      doc: "Operator rejected buffered messages"
-    },
-    hitl_intervention_recorded: %{
-      category: :hitl,
-      keys: [:event_id, :session_id, :agent_id, :operator_id, :action, :details],
-      doc: "HITL operator intervention event persisted"
     }
   }
 

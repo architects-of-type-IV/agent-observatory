@@ -8,6 +8,7 @@ defmodule Ichor.Workshop.Presets do
   """
 
   alias Ichor.Workshop.{AgentSlot, CommRule, SpawnLink}
+
   @mes_coordinator_persona """
   You are the Coordinator for manufacturing run {{run_id}}.
   Your session_id is: {{agent_session_id}}
@@ -239,8 +240,8 @@ defmodule Ichor.Workshop.Presets do
   SYSTEM BOUNDARY MAP (what exists and what does NOT)
   ============================================================
   WHAT THE SYSTEM HAS:
-  - PubSub signal bus: ~75 signals across 13 categories (fleet, system,
-    events, gateway, agent, hitl, mesh, team, monitoring, messages,
+  - PubSub signal bus: signals across categories (fleet, system,
+    events, gateway, agent, mesh, team, monitoring, messages,
     memory, mes). Any BEAM process can subscribe and emit.
   - Fleet: supervised agent processes with tmux backends
   - Gateway: HTTP endpoints that accept events (POST /api/events,

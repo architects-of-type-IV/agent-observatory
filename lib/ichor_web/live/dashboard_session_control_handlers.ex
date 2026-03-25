@@ -1,25 +1,18 @@
 defmodule IchorWeb.DashboardSessionControlHandlers do
   @moduledoc """
   LiveView event handlers for session control functionality.
-  Handles pause, resume, and shutdown operations for agents.
-  Pause/resume goes through HITLRelay for message buffering.
+  Handles shutdown operations for agents and kill-switch / instructions flow.
   """
 
   alias Ichor.Infrastructure.{AgentProcess, FleetSupervisor, TeamSupervisor}
-  alias Ichor.Infrastructure.HITLRelay
   alias Ichor.Infrastructure.Tmux
   alias Ichor.Signals
   alias Ichor.Signals.Bus
   alias Ichor.Signals.EventStream, as: EventRuntime
-  alias Ichor.Workshop.AgentEntry
 
   import IchorWeb.DashboardToast, only: [push_toast: 3]
 
-  def dispatch("pause_agent", p, s), do: handle_pause_agent(p, s)
-  def dispatch("resume_agent", p, s), do: handle_resume_agent(p, s)
   def dispatch("shutdown_agent", p, s), do: handle_shutdown_agent(p, s)
-  def dispatch("hitl_approve", p, s), do: handle_hitl_approve(p, s)
-  def dispatch("hitl_reject", p, s), do: handle_hitl_reject(p, s)
   def dispatch("kill_switch_click", p, s), do: handle_kill_switch_click(p, s)
   def dispatch("kill_switch_first_confirm", p, s), do: handle_kill_switch_first_confirm(p, s)
   def dispatch("kill_switch_second_confirm", p, s), do: handle_kill_switch_second_confirm(p, s)
@@ -27,89 +20,6 @@ defmodule IchorWeb.DashboardSessionControlHandlers do
   def dispatch("push_instructions_intent", p, s), do: handle_push_instructions_intent(p, s)
   def dispatch("push_instructions_confirm", p, s), do: handle_push_instructions_confirm(p, s)
   def dispatch("push_instructions_cancel", p, s), do: handle_push_instructions_cancel(p, s)
-
-  def handle_pause_agent(%{"session_id" => session_id}, socket) do
-    HITLRelay.pause(session_id, session_id, "operator", "Operator paused from dashboard")
-    # Phoenix.PubSub.subscribe is idempotent for the same {pid, topic} pair.
-    # Duplicate subscriptions result in duplicate deliveries, which the catch-all
-    # dispatcher handles safely. No unsubscribe is needed on resume.
-    Signals.subscribe(:gate_open, session_id)
-    Signals.subscribe(:gate_close, session_id)
-
-    Bus.send(%{
-      from: "operator",
-      to: session_id,
-      content: "Pause requested by dashboard",
-      type: :session_control,
-      metadata: %{action: "pause"},
-      transport: :operator
-    })
-
-    paused = MapSet.put(socket.assigns.paused_sessions, session_id)
-    short = AgentEntry.short_id(session_id)
-
-    socket
-    |> Phoenix.Component.assign(:paused_sessions, paused)
-    |> notify_archon_hitl(:paused, short, session_id)
-    |> push_toast(:info, "Agent paused -- messages will be buffered")
-  end
-
-  @doc """
-  Handle resuming an agent session.
-  Unpauses via HITLRelay (flushes buffered messages) AND sends resume command.
-  """
-  def handle_resume_agent(%{"session_id" => session_id}, socket) do
-    HITLRelay.unpause(session_id, session_id, "operator")
-
-    Bus.send(%{
-      from: "operator",
-      to: session_id,
-      content: "Resume requested by dashboard",
-      type: :session_control,
-      metadata: %{action: "resume"},
-      transport: :operator
-    })
-
-    paused = MapSet.delete(socket.assigns.paused_sessions, session_id)
-
-    socket
-    |> Phoenix.Component.assign(:paused_sessions, paused)
-    |> push_toast(:info, "Agent resumed -- buffered messages flushed")
-  end
-
-  @doc """
-  Handle approving buffered messages (same as resume -- flush and unpause).
-  """
-  def handle_hitl_approve(%{"session_id" => session_id}, socket) do
-    paused = MapSet.delete(socket.assigns.paused_sessions, session_id)
-
-    case HITLRelay.unpause(session_id, session_id, "operator") do
-      {:ok, :not_paused} ->
-        socket
-        |> Phoenix.Component.assign(:paused_sessions, paused)
-        |> push_toast(:info, "Session was not paused")
-
-      {:ok, count} ->
-        Signals.emit(:hitl_operator_approved, %{session_id: session_id})
-
-        socket
-        |> Phoenix.Component.assign(:paused_sessions, paused)
-        |> push_toast(:info, "Approved: #{count} buffered messages flushed")
-    end
-  end
-
-  @doc """
-  Handle rejecting buffered messages (discard buffer and unpause).
-  """
-  def handle_hitl_reject(%{"session_id" => session_id}, socket) do
-    HITLRelay.reject(session_id, session_id, "operator")
-    Signals.emit(:hitl_operator_rejected, %{session_id: session_id})
-    paused = MapSet.delete(socket.assigns.paused_sessions, session_id)
-
-    socket
-    |> Phoenix.Component.assign(:paused_sessions, paused)
-    |> push_toast(:warning, "Rejected: buffered messages discarded")
-  end
 
   @doc """
   Handle shutting down an agent session.
@@ -238,22 +148,5 @@ defmodule IchorWeb.DashboardSessionControlHandlers do
       _ ->
         false
     end
-  end
-
-  defp notify_archon_hitl(socket, action, agent_short, session_id) do
-    content =
-      case action do
-        :paused ->
-          "[HITL] Agent #{agent_short} (#{session_id}) has been paused. " <>
-            "Messages to this agent are now being buffered. " <>
-            "Review the HITL Gate in the fleet detail panel to approve or reject."
-      end
-
-    msg = %{role: :system, content: content}
-    messages = (socket.assigns[:archon_messages] || []) ++ [msg]
-
-    socket
-    |> Phoenix.Component.assign(:archon_messages, messages)
-    |> Phoenix.Component.assign(:show_archon, true)
   end
 end
