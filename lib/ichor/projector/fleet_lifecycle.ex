@@ -71,9 +71,6 @@ defmodule Ichor.Projector.FleetLifecycle do
   end
 
   @impl true
-  def handle_info(%Event{}, state), do: {:noreply, state}
-
-  @impl true
   def handle_info(_msg, state), do: {:noreply, state}
 
   defp spawn_agent(session_id, data) do

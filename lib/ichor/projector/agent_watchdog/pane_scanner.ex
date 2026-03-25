@@ -3,7 +3,7 @@ defmodule Ichor.Projector.AgentWatchdog.PaneScanner do
   Tmux pane capture and signal parsing. Scans agent output for done/blocked patterns.
 
   All functions are pure or limit side effects to the tmux capture call. Signal
-  emission (Ichor.Signals.emit) and AgentProcess state updates remain in the caller.
+  emission (Ichor.Events.emit) and AgentProcess state updates remain in the caller.
   """
 
   alias Ichor.Infrastructure.Tmux

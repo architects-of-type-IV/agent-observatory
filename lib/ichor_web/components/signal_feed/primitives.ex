@@ -48,6 +48,34 @@ defmodule IchorWeb.SignalFeed.Primitives do
   end
 
   @doc false
+  def data_to_pairs(nil), do: []
+
+  def data_to_pairs(data) when is_map(data) do
+    data
+    |> Enum.map(fn {k, v} -> %{key: to_string(k), val: format_val(v)} end)
+    |> Enum.sort_by(& &1.key)
+  end
+
+  def data_to_pairs(_), do: []
+
+  @doc false
+  def format_val(nil), do: "nil"
+  def format_val(v) when is_binary(v) and byte_size(v) > 60, do: String.slice(v, 0, 57) <> "..."
+  def format_val(v) when is_binary(v), do: v
+  def format_val(v) when is_atom(v), do: Atom.to_string(v)
+  def format_val(v) when is_number(v), do: to_string(v)
+  def format_val(v) when is_list(v), do: "[#{length(v)} items]"
+
+  def format_val(v) when is_map(v),
+    do: inspect(v, limit: 3, pretty: false) |> String.slice(0, 60)
+
+  def format_val(v), do: inspect(v, limit: 3, printable_limit: 20) |> String.slice(0, 60)
+
+  @doc false
+  def truncate(s, max) when byte_size(s) > max, do: String.slice(s, 0, max - 2) <> ".."
+  def truncate(s, _max), do: s
+
+  @doc false
   def short(nil), do: "?"
   def short(id) when is_binary(id) and byte_size(id) > 8, do: String.slice(id, 0, 8)
   def short(id) when is_binary(id), do: id

@@ -152,8 +152,12 @@ defmodule IchorWeb.Components.SignalComponents do
     Calendar.strftime(dt, "%H:%M:%S")
   end
 
-  defp topic_category(topic),
-    do: topic |> String.split(".", parts: 2) |> hd() |> String.to_existing_atom()
+  @known_categories ~w(agent events fleet gateway memory mes messages monitoring pipeline planning system team)a
+
+  defp topic_category(topic) do
+    prefix = topic |> String.split(".", parts: 2) |> hd()
+    Enum.find(@known_categories, :unknown, &(Atom.to_string(&1) == prefix))
+  end
 
   defp topic_name(topic), do: topic |> String.split(".", parts: 2) |> List.last()
 

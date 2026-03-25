@@ -43,7 +43,7 @@ defmodule IchorWeb.SignalFeed.Renderers.Monitoring do
     assigns =
       assign(assigns,
         sid: Primitives.short(data[:session_id]),
-        summary: truncate(to_string(data[:summary] || ""), 40)
+        summary: Primitives.truncate(to_string(data[:summary] || ""), 40)
       )
 
     ~H"""
@@ -57,7 +57,7 @@ defmodule IchorWeb.SignalFeed.Renderers.Monitoring do
     assigns =
       assign(assigns,
         sid: Primitives.short(data[:session_id]),
-        reason: truncate(to_string(data[:reason] || "?"), 40)
+        reason: Primitives.truncate(to_string(data[:reason] || "?"), 40)
       )
 
     ~H"""
@@ -104,7 +104,9 @@ defmodule IchorWeb.SignalFeed.Renderers.Monitoring do
     task = data[:task] || %{}
 
     assigns =
-      assign(assigns, subject: truncate(to_string(task[:subject] || task["subject"] || "?"), 40))
+      assign(assigns,
+        subject: Primitives.truncate(to_string(task[:subject] || task["subject"] || "?"), 40)
+      )
 
     ~H"""
     <span class="text-[10px] text-default">task created:</span>
@@ -117,7 +119,7 @@ defmodule IchorWeb.SignalFeed.Renderers.Monitoring do
 
     assigns =
       assign(assigns,
-        subject: truncate(to_string(task[:subject] || task["subject"] || "?"), 30),
+        subject: Primitives.truncate(to_string(task[:subject] || task["subject"] || "?"), 30),
         status: to_string(task[:status] || task["status"] || "?")
       )
 
@@ -141,7 +143,7 @@ defmodule IchorWeb.SignalFeed.Renderers.Monitoring do
     assigns =
       assign(assigns,
         topic: topic,
-        pairs: data_to_pairs(data)
+        pairs: Primitives.data_to_pairs(data)
       )
 
     ~H"""
@@ -151,29 +153,4 @@ defmodule IchorWeb.SignalFeed.Renderers.Monitoring do
     </span>
     """
   end
-
-  defp data_to_pairs(nil), do: []
-
-  defp data_to_pairs(data) when is_map(data) do
-    data
-    |> Enum.map(fn {k, v} -> %{key: to_string(k), val: format_val(v)} end)
-    |> Enum.sort_by(& &1.key)
-  end
-
-  defp data_to_pairs(_), do: []
-
-  defp format_val(nil), do: "nil"
-  defp format_val(v) when is_binary(v) and byte_size(v) > 60, do: String.slice(v, 0, 57) <> "..."
-  defp format_val(v) when is_binary(v), do: v
-  defp format_val(v) when is_atom(v), do: Atom.to_string(v)
-  defp format_val(v) when is_number(v), do: to_string(v)
-  defp format_val(v) when is_list(v), do: "[#{length(v)} items]"
-
-  defp format_val(v) when is_map(v),
-    do: inspect(v, limit: 3, pretty: false) |> String.slice(0, 60)
-
-  defp format_val(v), do: inspect(v, limit: 3, printable_limit: 20) |> String.slice(0, 60)
-
-  defp truncate(s, max) when byte_size(s) > max, do: String.slice(s, 0, max - 2) <> ".."
-  defp truncate(s, _max), do: s
 end

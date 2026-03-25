@@ -22,7 +22,7 @@ defmodule Ichor.Events do
   Emit a domain event into the pipeline.
 
   Core path: Ingress.push -> Router -> SignalProcess -> Handler.
-  PubSub broadcast on "events:all" + "events:{key}" for observers.
+  PubSub broadcast on "events:all" for observers (dashboard, signal buffer).
 
       Events.emit(Event.new("fleet.agent.started", session_id, %{name: "worker-1"}))
   """
@@ -30,7 +30,6 @@ defmodule Ichor.Events do
   def emit(%Event{} = event) do
     Ingress.push(event)
     Phoenix.PubSub.broadcast(@pubsub, @all_topic, event)
-    if event.key, do: Phoenix.PubSub.broadcast(@pubsub, "events:#{event.key}", event)
     :ok
   end
 

@@ -255,7 +255,7 @@ defmodule IchorWeb.SignalFeed.Renderers.Agent do
     assigns =
       assign(assigns,
         topic: topic,
-        pairs: data_to_pairs(data)
+        pairs: Primitives.data_to_pairs(data)
       )
 
     ~H"""
@@ -265,28 +265,6 @@ defmodule IchorWeb.SignalFeed.Renderers.Agent do
     </span>
     """
   end
-
-  defp data_to_pairs(nil), do: []
-
-  defp data_to_pairs(data) when is_map(data) do
-    data
-    |> Enum.map(fn {k, v} -> %{key: to_string(k), val: format_val(v)} end)
-    |> Enum.sort_by(& &1.key)
-  end
-
-  defp data_to_pairs(_), do: []
-
-  defp format_val(nil), do: "nil"
-  defp format_val(v) when is_binary(v) and byte_size(v) > 60, do: String.slice(v, 0, 57) <> "..."
-  defp format_val(v) when is_binary(v), do: v
-  defp format_val(v) when is_atom(v), do: Atom.to_string(v)
-  defp format_val(v) when is_number(v), do: to_string(v)
-  defp format_val(v) when is_list(v), do: "[#{length(v)} items]"
-
-  defp format_val(v) when is_map(v),
-    do: inspect(v, limit: 3, pretty: false) |> String.slice(0, 60)
-
-  defp format_val(v), do: inspect(v, limit: 3, printable_limit: 20) |> String.slice(0, 60)
 
   defp nudge_label("warning"), do: "warn"
   defp nudge_label("sent"), do: "nudge sent"

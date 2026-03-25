@@ -152,8 +152,7 @@ defmodule IchorWeb.DashboardInfoHandlers do
     {:noreply, reload_planning_project(socket)}
   end
 
-  # Catch-all: ignore unknown events (new events added won't crash)
-  def dispatch(%Event{}, socket), do: {:noreply, maybe_refresh_archon_manager(socket)}
+  def dispatch(%Event{}, socket), do: {:noreply, socket}
 
   defp reload_planning_project(%{assigns: %{selected_mes_project: nil}} = socket), do: socket
 
