@@ -1,18 +1,13 @@
 defmodule Ichor.Signals.Runtime do
   @moduledoc """
-  Host implementation of the Ichor.Signals contract.
+  Runtime implementation of the Ichor.Signals contract.
   Owns transport, envelope building, catalog validation, and PubSub broadcast.
-  Configured as the signals_impl in config.exs.
   """
-
-  @behaviour Ichor.Signals.Behaviour
 
   require Logger
 
   alias Ichor.Signals.{Catalog, Message, Topics}
-  alias Ichor.Events.{Event, Ingress, TopicMapping}
 
-  @impl true
   @spec emit(atom(), map()) :: :ok
   def emit(name, data \\ %{}) when is_atom(name) do
     info = Catalog.lookup_or_derive(name)
@@ -20,7 +15,6 @@ defmodule Ichor.Signals.Runtime do
     broadcast_static(info, message)
   end
 
-  @impl true
   @spec emit(atom(), String.t(), map()) :: :ok
   def emit(name, scope_id, data) when is_atom(name) and is_binary(scope_id) do
     info = Catalog.lookup_or_derive(name)
@@ -34,7 +28,6 @@ defmodule Ichor.Signals.Runtime do
     broadcast_scoped(info, name, scope_id, message)
   end
 
-  @impl true
   @spec subscribe(atom()) :: :ok | {:error, term()}
   def subscribe(name) when is_atom(name) do
     case Catalog.valid_category?(name) do
@@ -43,7 +36,6 @@ defmodule Ichor.Signals.Runtime do
     end
   end
 
-  @impl true
   @spec subscribe(atom(), String.t()) :: :ok | {:error, term()}
   def subscribe(name, scope_id) when is_atom(name) and is_binary(scope_id) do
     info = Catalog.lookup_or_derive(name)
@@ -51,7 +43,6 @@ defmodule Ichor.Signals.Runtime do
     pubsub_subscribe(Topics.scoped(info.category, name, scope_id))
   end
 
-  @impl true
   @spec unsubscribe(atom()) :: :ok
   def unsubscribe(name) when is_atom(name) do
     case {Catalog.valid_category?(name), Catalog.lookup(name)} do
@@ -61,7 +52,6 @@ defmodule Ichor.Signals.Runtime do
     end
   end
 
-  @impl true
   @spec unsubscribe(atom(), String.t()) :: :ok
   def unsubscribe(name, scope_id) when is_atom(name) and is_binary(scope_id) do
     case Catalog.lookup(name) do
@@ -73,11 +63,9 @@ defmodule Ichor.Signals.Runtime do
     end
   end
 
-  @impl true
   @spec category_topic(atom()) :: String.t()
   def category_topic(category), do: Topics.category(category)
 
-  @impl true
   @spec categories() :: [atom()]
   def categories, do: Catalog.categories()
 
@@ -85,7 +73,6 @@ defmodule Ichor.Signals.Runtime do
     pubsub_broadcast(Topics.category(info.category), message)
     pubsub_broadcast(Topics.scoped(info.category, name, scope_id), message)
     tap_telemetry(name, message)
-    bridge_to_events(message, scope_id)
     :ok
   end
 
@@ -93,7 +80,6 @@ defmodule Ichor.Signals.Runtime do
     pubsub_broadcast(Topics.category(info.category), message)
     pubsub_broadcast(Topics.signal(info.category, message.name), message)
     tap_telemetry(message.name, message)
-    bridge_to_events(message, nil)
     :ok
   end
 
@@ -110,40 +96,4 @@ defmodule Ichor.Signals.Runtime do
   defp pubsub_broadcast(topic, %Message{} = message) do
     Phoenix.PubSub.broadcast(@pubsub, topic, message)
   end
-
-  defp bridge_to_events(%Message{} = message, scope_id) do
-    case TopicMapping.topic(message.name) do
-      {:ok, topic} ->
-        event =
-          Event.new(
-            topic,
-            scope_id || extract_key(message.data),
-            message.data,
-            %{
-              legacy_signal: message.name,
-              source: message.source,
-              domain: message.domain
-            }
-          )
-
-        Ingress.push(event)
-
-      :noise ->
-        :ok
-
-      :unmapped ->
-        Logger.debug("Unmapped signal: #{message.name}")
-        :ok
-    end
-  end
-
-  defp extract_key(data) when is_map(data) do
-    get_key(data, :session_id) || get_key(data, :run_id) || get_key(data, :project_id) ||
-      get_key(data, :agent_id) || get_key(data, :team_name) || get_key(data, :delivery_id) ||
-      get_key(data, :job_id) || get_key(data, :block_id)
-  end
-
-  defp extract_key(_data), do: nil
-
-  defp get_key(data, key), do: Map.get(data, key) || Map.get(data, Atom.to_string(key))
 end

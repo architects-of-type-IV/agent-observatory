@@ -40,7 +40,6 @@ defmodule IchorWeb.Router do
 
   scope "/gateway", IchorWeb do
     pipe_through :api
-    post "/messages", GatewayController, :create
     post "/heartbeat", HeartbeatController, :create
     post "/webhooks/:webhook_id", WebhookController, :create
     post "/rpc", GatewayRpcController, :create

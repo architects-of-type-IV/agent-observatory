@@ -27,9 +27,6 @@ config :ichor, Ichor.Repo,
   database: "ichor_dev",
   pool_size: 20
 
-# Signals runtime implementation
-config :ichor, :signals_impl, Ichor.Signals.Runtime
-
 # Configure the endpoint
 config :ichor, IchorWeb.Endpoint,
   url: [host: "localhost"],

@@ -179,12 +179,7 @@ defmodule Ichor.Infrastructure.HITLRelay do
 
   defp flush_buffer(session_id) do
     entries = Buffer.fetch(session_id)
-
-    Enum.each(entries, fn {key, msg} ->
-      Ichor.Signals.emit(:decision_log, %{log: msg})
-      Buffer.delete(key)
-    end)
-
+    Enum.each(entries, fn {key, _msg} -> Buffer.delete(key) end)
     length(entries)
   end
 end

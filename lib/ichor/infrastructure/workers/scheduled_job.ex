@@ -5,7 +5,6 @@ defmodule Ichor.Infrastructure.Workers.ScheduledJob do
   require Logger
 
   alias Ichor.Factory.CronJob
-  alias Ichor.Infrastructure.CronSchedule
 
   @recurring_interval_ms 60_000
 
@@ -32,8 +31,14 @@ defmodule Ichor.Infrastructure.Workers.ScheduledJob do
     end
   end
 
+  defp next_recurrence(interval_ms) do
+    DateTime.utc_now()
+    |> DateTime.add(interval_ms, :millisecond)
+    |> DateTime.truncate(:second)
+  end
+
   defp perform_recurring(job, job_id, agent_id, payload) do
-    next_fire_at = CronSchedule.next_recurrence(@recurring_interval_ms)
+    next_fire_at = next_recurrence(@recurring_interval_ms)
 
     case CronJob.reschedule(job, next_fire_at) do
       {:ok, _} ->

@@ -13,8 +13,8 @@ defmodule IchorWeb.SignalFeed.Renderer do
     Core,
     Dag,
     Fallback,
-    Gateway,
     Genesis,
+    Hitl,
     Mes,
     Monitoring
   }
@@ -32,9 +32,8 @@ defmodule IchorWeb.SignalFeed.Renderer do
     Core.render(assigns)
   end
 
-  def render(%{message: %Message{domain: domain}} = assigns)
-      when domain in [:gateway, :hitl, :mesh] do
-    Gateway.render(assigns)
+  def render(%{message: %Message{domain: :hitl}} = assigns) do
+    Hitl.render(assigns)
   end
 
   def render(%{message: %Message{domain: :planning}} = assigns) do

@@ -45,9 +45,6 @@ defmodule Ichor.Application do
       Ichor.Projector.FleetLifecycle,
       Ichor.Projector.CleanupDispatcher,
 
-      # Mesh topology services (rest_for_one: causal DAG first, then event bridge)
-      Ichor.Mesh.Supervisor,
-
       # Task supervisor for fire-and-forget tasks
       {Task.Supervisor, name: Ichor.TaskSupervisor},
 
@@ -65,12 +62,6 @@ defmodule Ichor.Application do
 
       # Memories bridge (signals -> knowledge graph)
       Ichor.Projector.MemoriesBridge,
-
-      # Projector pipeline (GenStage: Ingress -> Router -> Signal processes)
-      {Registry, keys: :unique, name: Ichor.Projector.Registry},
-      Ichor.Projector.Supervisor,
-      Ichor.Events.Ingress,
-      Ichor.Projector.Router,
 
       # Web endpoint (must start last -- depends on all services above)
       IchorWeb.Endpoint

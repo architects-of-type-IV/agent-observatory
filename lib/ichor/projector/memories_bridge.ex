@@ -43,8 +43,8 @@ defmodule Ichor.Projector.MemoriesBridge do
   This is ICHOR IV agent control plane telemetry. \
   Agent names like "lead", "worker-1", "researcher" are roles, not people. \
   Session IDs (mes-XXXXX) are ephemeral runtime identifiers. \
-  Elixir modules (Ichor.Mesh.*) are code components, not documents. \
-  Signal names (dag_delta, fleet_changed) are event types, not entities. \
+  Elixir module names are code components, not documents. \
+  Signal names (fleet_changed, run_complete) are event types, not entities. \
   Focus on: which agents performed what actions, decisions made and their outcomes, \
   causal relationships between agent actions, team structure and coordination patterns.\
   """
@@ -255,25 +255,6 @@ defmodule Ichor.Projector.MemoriesBridge do
   defp narrate(:entropy_alert, %{session_id: sid, entropy_score: score}),
     do: "Entropy alert for agent \"#{sid}\": repeated pattern detected (score #{score})."
 
-  defp narrate(:decision_log, %{log: log}) do
-    cognition = log.cognition || %{}
-    action = log.action || %{}
-    identity = log.identity || %{}
-
-    agent = identity["agent_id"] || "unknown"
-    intent = cognition["intent"] || "unknown"
-    confidence = cognition["confidence_score"]
-    tool = action["tool_call"] || action["tool_name"]
-    status = action["action_status"] || "unknown"
-
-    parts = ["Agent \"#{agent}\" decided to #{intent}"]
-    parts = if tool, do: parts ++ ["via #{tool}"], else: parts
-    parts = if confidence, do: parts ++ ["(confidence: #{confidence})"], else: parts
-    parts = parts ++ ["-- status: #{status}"]
-
-    Enum.join(parts, " ") <> "."
-  end
-
   defp narrate(:dead_letter, %{delivery: d}) do
     to = d[:to] || d["to"] || "unknown"
     from = d[:from] || d["from"] || "unknown"
@@ -288,29 +269,6 @@ defmodule Ichor.Projector.MemoriesBridge do
     to = data[:to] || "unknown"
     content = data[:content] || ""
     "Agent \"#{from}\" sent message to \"#{to}\": #{truncate(content, 200)}."
-  end
-
-  defp narrate(:dag_delta, %{session_id: sid, added_nodes: nodes}) when is_list(nodes) do
-    node_descriptions =
-      for node <- Enum.take(nodes, 5) do
-        intent = node.intent || "unknown"
-        status = node.action_status || "pending"
-        conf = node.confidence_score
-        ent = node.entropy_score
-        agent = node.agent_id || "unknown"
-
-        scores =
-          [if(conf, do: "confidence=#{conf}"), if(ent, do: "entropy=#{ent}")]
-          |> Enum.reject(&is_nil/1)
-          |> Enum.join(", ")
-
-        "  - #{agent}: #{intent} (#{status}#{if scores != "", do: ", #{scores}", else: ""})"
-      end
-
-    overflow = if length(nodes) > 5, do: "\n  (#{length(nodes) - 5} more)", else: ""
-
-    "Causal chain update for session \"#{sid}\" (#{length(nodes)} new steps):\n" <>
-      Enum.join(node_descriptions, "\n") <> overflow
   end
 
   defp narrate(:task_created, %{task: task}), do: narrate_task("created", task)

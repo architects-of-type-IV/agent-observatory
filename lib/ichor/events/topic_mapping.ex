@@ -61,7 +61,6 @@ defmodule Ichor.Events.TopicMapping do
     nudge_zombie: "nudge.escalation.zombied",
 
     # -- gateway domain --
-    decision_log: "gateway.message.routed",
     schema_violation: "gateway.schema.violated",
     node_state_update: "gateway.topology.node_updated",
     entropy_alert: "gateway.entropy.detected",
@@ -71,7 +70,6 @@ defmodule Ichor.Events.TopicMapping do
     webhook_delivery_enqueued: "gateway.webhook.enqueued",
     webhook_delivery_delivered: "gateway.webhook.delivered",
     gateway_audit: "gateway.routing.audited",
-    mesh_pause: "gateway.mesh.paused",
     cron_job_scheduled: "gateway.cron.scheduled",
     cron_job_rescheduled: "gateway.cron.rescheduled",
 
@@ -82,9 +80,6 @@ defmodule Ichor.Events.TopicMapping do
     hitl_operator_approved: "hitl.operator.approved",
     hitl_operator_rejected: "hitl.operator.rejected",
     hitl_intervention_recorded: "hitl.operator.intervention_recorded",
-
-    # -- mesh domain --
-    dag_delta: "mesh.dag.updated",
 
     # -- memory domain --
     block_changed: "memory.block.modified",

@@ -122,7 +122,7 @@ defmodule IchorWeb.DashboardInfoHandlers do
   def dispatch(%Message{name: :gate_failed}, socket),
     do: {:noreply, maybe_refresh_archon_manager(socket)}
 
-  @gateway_signals ~w(decision_log schema_violation node_state_update dead_letter capability_update topology_snapshot entropy_alert dag_delta)a
+  @gateway_signals ~w(schema_violation node_state_update dead_letter capability_update topology_snapshot entropy_alert)a
 
   def dispatch(%Message{name: name}, socket) when name in @gateway_signals,
     do: {:noreply, maybe_refresh_archon_manager(socket)}

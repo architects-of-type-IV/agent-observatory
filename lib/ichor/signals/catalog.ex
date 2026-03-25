@@ -165,7 +165,6 @@ defmodule Ichor.Signals.Catalog do
   }
 
   @gateway_agent_defs %{
-    decision_log: %{category: :gateway, keys: [:log], doc: "Inter-agent message routed"},
     schema_violation: %{
       category: :gateway,
       keys: [:event_map],
@@ -207,7 +206,6 @@ defmodule Ichor.Signals.Catalog do
       keys: [:envelope_id, :channel],
       doc: "Message routing audit"
     },
-    mesh_pause: %{category: :gateway, keys: [:initiated_by], doc: "God-mode mesh pause"},
     agent_crashed: %{
       category: :agent,
       keys: [:session_id, :team_name],
@@ -295,12 +293,6 @@ defmodule Ichor.Signals.Catalog do
       keys: [:session_id],
       dynamic: true,
       doc: "Agent resumed, gate closed"
-    },
-    dag_delta: %{
-      category: :mesh,
-      keys: [:session_id, :added_nodes],
-      dynamic: true,
-      doc: "Causal DAG update"
     },
     hitl_auto_released: %{
       category: :hitl,
