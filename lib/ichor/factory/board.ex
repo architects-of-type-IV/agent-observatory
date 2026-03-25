@@ -7,6 +7,9 @@ defmodule Ichor.Factory.Board do
 
   require Logger
 
+  alias Ichor.Events
+  alias Ichor.Events.Event
+
   @tasks_base_dir Path.expand("~/.claude/tasks")
 
   # ---------------------------------------------------------------------------
@@ -227,7 +230,23 @@ defmodule Ichor.Factory.Board do
   end
 
   defp emit(signal, team_name, payload) do
-    Ichor.Signals.emit(signal, team_name, payload)
-    Ichor.Signals.emit(:tasks_updated, %{team_name: team_name})
+    topic =
+      case signal do
+        :task_created -> "team.task.created"
+        :task_updated -> "team.task.updated"
+        :task_deleted -> "team.task.deleted"
+      end
+
+    Events.emit(
+      Event.new(topic, team_name, Map.put(payload, :team_name, team_name), %{
+        legacy_name: signal
+      })
+    )
+
+    Events.emit(
+      Event.new("team.tasks.updated", team_name, %{team_name: team_name}, %{
+        legacy_name: :tasks_updated
+      })
+    )
   end
 end

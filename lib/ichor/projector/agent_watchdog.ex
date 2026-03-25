@@ -14,6 +14,8 @@ defmodule Ichor.Projector.AgentWatchdog do
   use GenServer
   require Logger
 
+  alias Ichor.Events
+  alias Ichor.Events.Event
   alias Ichor.Factory.Board
   alias Ichor.Fleet.AgentProcess
   alias Ichor.Infrastructure.Tmux
@@ -71,7 +73,7 @@ defmodule Ichor.Projector.AgentWatchdog do
   def handle_info(:beat, state) do
     next = state.count + 1
 
-    Ichor.Signals.emit(:heartbeat, %{count: next})
+    Events.emit(Event.new("system.heartbeat", nil, %{count: next}, %{legacy_name: :heartbeat}))
 
     state =
       state
@@ -149,13 +151,23 @@ defmodule Ichor.Projector.AgentWatchdog do
 
   defp handle_crash(session_id, nil) do
     Logger.warning("AgentWatchdog: Detected crash for session #{session_id} (standalone)")
-    Ichor.Signals.emit(:agent_crashed, %{session_id: session_id, team_name: nil})
+
+    Events.emit(
+      Event.new("agent.crashed", session_id, %{session_id: session_id, team_name: nil}, %{
+        legacy_name: :agent_crashed
+      })
+    )
   end
 
   defp handle_crash(session_id, team_name) do
     Logger.warning("AgentWatchdog: Detected crash for session #{session_id} (#{team_name})")
     reassigned_count = reassign_agent_tasks(session_id, team_name)
-    Ichor.Signals.emit(:agent_crashed, %{session_id: session_id, team_name: team_name})
+
+    Events.emit(
+      Event.new("agent.crashed", session_id, %{session_id: session_id, team_name: team_name}, %{
+        legacy_name: :agent_crashed
+      })
+    )
 
     Inbox.write(:agent_crash, %{
       context: team_name,
@@ -231,11 +243,18 @@ defmodule Ichor.Projector.AgentWatchdog do
   defp do_escalate(0, session_id, agent_name, _stale_threshold) do
     Logger.warning("AgentWatchdog: Agent #{agent_name} (#{session_id}) is stale (level 0)")
 
-    Ichor.Signals.emit(:nudge_warning, %{
-      session_id: session_id,
-      agent_name: agent_name,
-      level: 0
-    })
+    Events.emit(
+      Event.new(
+        "agent.nudge.warning",
+        session_id,
+        %{
+          session_id: session_id,
+          agent_name: agent_name,
+          level: 0
+        },
+        %{legacy_name: :nudge_warning}
+      )
+    )
   end
 
   defp do_escalate(1, session_id, agent_name, stale_threshold) do
@@ -258,17 +277,31 @@ defmodule Ichor.Projector.AgentWatchdog do
         Logger.warning("AgentWatchdog: Nudge failed for #{agent_name}: #{inspect(reason)}")
     end
 
-    Ichor.Signals.emit(:nudge_sent, %{session_id: session_id, agent_name: agent_name, level: 1})
+    Events.emit(
+      Event.new(
+        "agent.nudge.sent",
+        session_id,
+        %{session_id: session_id, agent_name: agent_name, level: 1},
+        %{legacy_name: :nudge_sent}
+      )
+    )
   end
 
   defp do_escalate(2, session_id, agent_name, _stale_threshold) do
     Logger.warning("AgentWatchdog: Agent #{agent_name} marked zombie (level 2)")
 
-    Ichor.Signals.emit(:nudge_zombie, %{
-      session_id: session_id,
-      agent_name: agent_name,
-      level: 2
-    })
+    Events.emit(
+      Event.new(
+        "agent.nudge.zombie",
+        session_id,
+        %{
+          session_id: session_id,
+          agent_name: agent_name,
+          level: 2
+        },
+        %{legacy_name: :nudge_zombie}
+      )
+    )
   end
 
   defp do_escalate(_level, _session_id, _agent_name, _stale_threshold), do: :ok
@@ -351,6 +384,7 @@ defmodule Ichor.Projector.AgentWatchdog do
       check_pane_signal(
         :done,
         &PaneScanner.match_done/1,
+        "agent.done",
         :agent_done,
         :summary,
         agent,
@@ -362,6 +396,7 @@ defmodule Ichor.Projector.AgentWatchdog do
       check_pane_signal(
         :blocked,
         &PaneScanner.match_blocked/1,
+        "agent.blocked",
         :agent_blocked,
         :reason,
         agent,
@@ -372,7 +407,7 @@ defmodule Ichor.Projector.AgentWatchdog do
     check_pane_activity(agent, state)
   end
 
-  defp check_pane_signal(kind, match_fn, signal_name, data_key, agent, text, state) do
+  defp check_pane_signal(kind, match_fn, topic, legacy_name, data_key, agent, text, state) do
     case match_fn.(text) do
       {:ok, value} ->
         session_id = session_id(agent)
@@ -384,7 +419,13 @@ defmodule Ichor.Projector.AgentWatchdog do
 
           _ ->
             Logger.info("AgentWatchdog: #{kind} signal from #{agent[:id]}: #{value}")
-            Ichor.Signals.emit(signal_name, Map.put(%{session_id: session_id}, data_key, value))
+
+            Events.emit(
+              Event.new(topic, session_id, Map.put(%{session_id: session_id}, data_key, value), %{
+                legacy_name: legacy_name
+              })
+            )
+
             put_in(state.signals[signal_key], value)
         end
 

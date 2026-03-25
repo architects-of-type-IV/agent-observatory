@@ -11,10 +11,12 @@ defmodule Ichor.Projector.MesResearchIngestor do
 
   require Logger
 
+  alias Ichor.Events
+  alias Ichor.Events.Event
+  alias Ichor.Events.Message
   alias Ichor.Factory.Project
   alias Ichor.Infrastructure.MemoriesClient
   alias Ichor.Signals
-  alias Ichor.Events.Message
 
   @research_space "project:ichor:research"
   @briefs_dir "plugins/briefs"
@@ -54,21 +56,35 @@ defmodule Ichor.Projector.MesResearchIngestor do
           "[MES.MesResearchIngestor] Ingested research for #{data[:title]} (episode: #{episode_id})"
         )
 
-        Signals.emit(:mes_research_ingested, %{
-          run_id: run_id,
-          project_id: project_id,
-          episode_id: episode_id
-        })
+        Events.emit(
+          Event.new(
+            "mes.research.ingested",
+            run_id,
+            %{
+              run_id: run_id,
+              project_id: project_id,
+              episode_id: episode_id
+            },
+            %{legacy_name: :mes_research_ingested}
+          )
+        )
 
       {:error, reason} ->
         Logger.warning(
           "[MES.MesResearchIngestor] Ingest failed for run #{run_id}: #{inspect(reason)}"
         )
 
-        Signals.emit(:mes_research_ingest_failed, %{
-          run_id: run_id,
-          reason: inspect(reason)
-        })
+        Events.emit(
+          Event.new(
+            "mes.research.ingest_failed",
+            run_id,
+            %{
+              run_id: run_id,
+              reason: inspect(reason)
+            },
+            %{legacy_name: :mes_research_ingest_failed}
+          )
+        )
     end
   end
 

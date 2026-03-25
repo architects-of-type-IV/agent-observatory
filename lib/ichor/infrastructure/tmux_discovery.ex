@@ -10,10 +10,11 @@ defmodule Ichor.Infrastructure.TmuxDiscovery do
   use GenServer
   require Logger
 
+  alias Ichor.Events
+  alias Ichor.Events.Event
   alias Ichor.Fleet.AgentProcess
   alias Ichor.Fleet.Supervisor, as: FleetSupervisor
   alias Ichor.Infrastructure.Tmux
-  alias Ichor.Signals
 
   @poll_interval 5_000
 
@@ -49,7 +50,7 @@ defmodule Ichor.Infrastructure.TmuxDiscovery do
     reap_dead_agents(tmux_sessions, all_agents)
     enrich_tmux_channels(tmux_sessions, tmux_panes, all_agents)
 
-    Ichor.Signals.emit(:fleet_changed, %{})
+    Events.emit(Event.new("fleet.registry.changed", nil, %{}, %{legacy_name: :fleet_changed}))
   end
 
   # Enforce the invariant: every agent tmux session has a BEAM process.
@@ -75,7 +76,10 @@ defmodule Ichor.Infrastructure.TmuxDiscovery do
         not MapSet.member?(live_sessions, tmux_session) do
       Logger.info("[TmuxDiscovery] Reaping #{id} -- tmux session #{tmux_session} is gone")
       FleetSupervisor.terminate_agent(id)
-      Signals.emit(:agent_reaped, %{session_id: id})
+
+      Events.emit(
+        Event.new("fleet.agent.reaped", id, %{session_id: id}, %{legacy_name: :agent_reaped})
+      )
     end
   end
 
@@ -89,7 +93,12 @@ defmodule Ichor.Infrastructure.TmuxDiscovery do
 
     case FleetSupervisor.spawn_agent(process_opts) do
       {:ok, _pid} ->
-        Signals.emit(:agent_discovered, %{session_id: session_name})
+        Events.emit(
+          Event.new("fleet.agent.discovered", session_name, %{session_id: session_name}, %{
+            legacy_name: :agent_discovered
+          })
+        )
+
         Logger.info("[TmuxDiscovery] Created BEAM process for tmux session #{session_name}")
 
       {:error, {:already_started, _pid}} ->

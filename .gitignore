@@ -43,6 +43,6 @@ npm-debug.log
 bin/
 _build_xref/
 .expert
-
+.elixir_ls
 # Git worktrees managed by Claude agents — exclude from LSP and build tools
 .claude/worktrees/

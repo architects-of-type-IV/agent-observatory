@@ -13,7 +13,8 @@ defmodule IchorWeb.DashboardMesHandlers do
 
   alias Ichor.Factory.PluginLoader
 
-  alias Ichor.Signals
+  alias Ichor.Events
+  alias Ichor.Events.Event
 
   @spec dispatch(String.t(), map(), Phoenix.LiveView.Socket.t()) :: Phoenix.LiveView.Socket.t()
   def dispatch("toggle_mes_scheduler", _params, socket) do
@@ -67,10 +68,20 @@ defmodule IchorWeb.DashboardMesHandlers do
       {:ok, tasks} ->
         jsonl = PipelineCompiler.to_jsonl_string(tasks)
         tasks_path = Path.join(File.cwd!(), "tasks.jsonl")
+
         case File.write(tasks_path, jsonl <> "\n", [:append]) do
           :ok ->
-            Signals.emit(:mes_pipeline_generated, %{project_id: project_id})
-            put_flash(socket, :info, "DAG generated: #{length(tasks)} tasks appended to tasks.jsonl")
+            Events.emit(
+              Event.new("mes.pipeline.generated", project_id, %{project_id: project_id}, %{
+                legacy_name: :mes_pipeline_generated
+              })
+            )
+
+            put_flash(
+              socket,
+              :info,
+              "DAG generated: #{length(tasks)} tasks appended to tasks.jsonl"
+            )
 
           {:error, reason} ->
             put_flash(socket, :error, "Could not write tasks.jsonl: #{inspect(reason)}")
@@ -84,7 +95,14 @@ defmodule IchorWeb.DashboardMesHandlers do
   def dispatch("mes_launch_dag", %{"project-id" => project_id}, socket) do
     case Spawn.spawn(:pipeline, project_id, project_id) do
       {:ok, %{session: session}} ->
-        Signals.emit(:mes_pipeline_launched, %{project_id: project_id, session: session})
+        Events.emit(
+          Event.new(
+            "mes.pipeline.launched",
+            project_id,
+            %{project_id: project_id, session: session},
+            %{legacy_name: :mes_pipeline_launched}
+          )
+        )
 
         socket
         |> assign(:planning_project, load_planning_project_by_id(project_id))
@@ -100,7 +118,12 @@ defmodule IchorWeb.DashboardMesHandlers do
 
     case Project.pick_up(project, "manual") do
       {:ok, _} ->
-        Signals.emit(:mes_project_picked_up, %{project_id: id, session_id: "manual"})
+        Events.emit(
+          Event.new("mes.project.picked_up", id, %{project_id: id, session_id: "manual"}, %{
+            legacy_name: :mes_project_picked_up
+          })
+        )
+
         assign(socket, :mes_projects, Project.list_all!())
 
       {:error, reason} ->

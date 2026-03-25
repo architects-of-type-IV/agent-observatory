@@ -4,6 +4,8 @@ defmodule Ichor.Infrastructure.Workers.ScheduledJob do
 
   require Logger
 
+  alias Ichor.Events
+  alias Ichor.Events.Event
   alias Ichor.Factory.CronJob
 
   @recurring_interval_ms 60_000
@@ -22,7 +24,15 @@ defmodule Ichor.Infrastructure.Workers.ScheduledJob do
   defp perform_one_time(job, job_id, agent_id, payload) do
     case CronJob.complete(job) do
       :ok ->
-        Ichor.Signals.emit(:scheduled_job, agent_id, %{agent_id: agent_id, payload: payload})
+        Events.emit(
+          Event.new(
+            "agent.scheduled_job",
+            agent_id,
+            %{agent_id: agent_id, payload: payload, scope_id: agent_id},
+            %{legacy_name: :scheduled_job}
+          )
+        )
+
         :ok
 
       {:error, reason} ->
@@ -42,7 +52,15 @@ defmodule Ichor.Infrastructure.Workers.ScheduledJob do
 
     case CronJob.reschedule(job, next_fire_at) do
       {:ok, _} ->
-        Ichor.Signals.emit(:scheduled_job, agent_id, %{agent_id: agent_id, payload: payload})
+        Events.emit(
+          Event.new(
+            "agent.scheduled_job",
+            agent_id,
+            %{agent_id: agent_id, payload: payload, scope_id: agent_id},
+            %{legacy_name: :scheduled_job}
+          )
+        )
+
         enqueue_next_recurring(job_id, agent_id, payload)
 
       {:error, reason} ->

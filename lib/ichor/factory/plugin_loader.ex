@@ -11,7 +11,8 @@ defmodule Ichor.Factory.PluginLoader do
 
   require Logger
 
-  alias Ichor.Signals
+  alias Ichor.Events
+  alias Ichor.Events.Event
 
   @plugins_dir Path.expand("subsystems")
 
@@ -23,11 +24,18 @@ defmodule Ichor.Factory.PluginLoader do
          {:ok, _output} <- compile_project(path),
          {:ok, ebin_dir} <- find_ebin(path),
          {:ok, modules} <- load_modules(ebin_dir) do
-      Signals.emit(:mes_plugin_loaded, %{
-        project_id: project.id,
-        plugin: project.plugin,
-        modules: Enum.map(modules, &inspect/1)
-      })
+      Events.emit(
+        Event.new(
+          "mes.plugin.loaded",
+          project.id,
+          %{
+            project_id: project.id,
+            plugin: project.plugin,
+            modules: Enum.map(modules, &inspect/1)
+          },
+          %{legacy_name: :mes_plugin_loaded}
+        )
+      )
 
       Logger.info("[MES.PluginLoader] Loaded #{length(modules)} modules from #{path}")
       {:ok, modules}

@@ -9,10 +9,11 @@ defmodule Ichor.Signals.Bus do
 
   require Logger
 
+  alias Ichor.Events
+  alias Ichor.Events.Event
   alias Ichor.Fleet.AgentProcess
   alias Ichor.Fleet.TeamSupervisor
   alias Ichor.Infrastructure.Tmux
-  alias Ichor.Signals
 
   @message_log :ichor_message_log
   @max_messages 200
@@ -180,12 +181,17 @@ defmodule Ichor.Signals.Bus do
       ArgumentError -> :ok
     end
 
-    Signals.emit(:fleet_changed, %{})
+    Events.emit(Event.new("fleet.registry.changed", nil, %{}, %{legacy_name: :fleet_changed}))
   end
 
   defp broadcast_delivery(to, from, message, delivered) do
     msg_map = Map.merge(message, %{to: to, from: to_string(from)})
-    Signals.emit(:message_delivered, %{agent_id: to, msg_map: msg_map})
+
+    Events.emit(
+      Event.new("messages.delivered", to, %{agent_id: to, msg_map: msg_map}, %{
+        legacy_name: :message_delivered
+      })
+    )
 
     if delivered == 0 do
       Logger.warning(

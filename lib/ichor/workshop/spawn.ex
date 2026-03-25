@@ -3,9 +3,11 @@ defmodule Ichor.Workshop.Spawn do
   Builds and launches a saved Workshop team definition by name.
   """
 
+  alias Ichor.Events
+  alias Ichor.Events.Event
+  alias Ichor.Events.Message
   alias Ichor.Fleet.AgentSpec
   alias Ichor.Orchestration.TeamSpec
-  alias Ichor.Events.Message
   alias Ichor.Signals
   alias Ichor.Workshop.{Presets, PromptProtocol, Team, TeamMember}
 
@@ -57,11 +59,19 @@ defmodule Ichor.Workshop.Spawn do
     :ok = Signals.subscribe(:team_spawn_ready, request_id)
     :ok = Signals.subscribe(:team_spawn_failed, request_id)
 
-    Signals.emit(:team_spawn_requested, request_id, %{
-      team_name: spec.team_name,
-      spec: spec,
-      source: Map.get(extra_metadata, :source, :team)
-    })
+    Events.emit(
+      Event.new(
+        "fleet.team.spawn_requested",
+        request_id,
+        %{
+          scope_id: request_id,
+          team_name: spec.team_name,
+          spec: spec,
+          source: Map.get(extra_metadata, :source, :team)
+        },
+        %{legacy_name: :team_spawn_requested}
+      )
+    )
 
     await_spawn_result(request_id, spec, extra_metadata)
   after

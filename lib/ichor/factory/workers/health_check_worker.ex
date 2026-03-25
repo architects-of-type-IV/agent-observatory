@@ -11,8 +11,9 @@ defmodule Ichor.Factory.Workers.HealthCheckWorker do
 
   require Logger
 
+  alias Ichor.Events
+  alias Ichor.Events.Event
   alias Ichor.Factory.PipelineQuery
-  alias Ichor.Signals
 
   @health_check_script Path.expand("~/.claude/skills/swarm/scripts/health-check.sh")
 
@@ -23,11 +24,18 @@ defmodule Ichor.Factory.Workers.HealthCheckWorker do
     if project_path && valid_project_path?(project_path) && File.exists?(@health_check_script) do
       case run_health_script(project_path) do
         {:ok, health} ->
-          Signals.emit(:pipeline_health_report, %{
-            run_id: project_path,
-            healthy: health.healthy,
-            issue_count: length(health.issues)
-          })
+          Events.emit(
+            Event.new(
+              "pipeline.health_report",
+              project_path,
+              %{
+                run_id: project_path,
+                healthy: health.healthy,
+                issue_count: length(health.issues)
+              },
+              %{legacy_name: :pipeline_health_report}
+            )
+          )
 
         :error ->
           :ok

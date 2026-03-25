@@ -4,13 +4,14 @@ defmodule IchorWeb.DashboardSessionControlHandlers do
   Handles agent shutdown and global instructions push.
   """
 
+  alias Ichor.Events
+  alias Ichor.Events.Event
+  alias Ichor.Events.EventStream, as: EventRuntime
   alias Ichor.Fleet.AgentProcess
   alias Ichor.Fleet.Supervisor, as: FleetSupervisor
   alias Ichor.Fleet.TeamSupervisor
   alias Ichor.Infrastructure.Tmux
-  alias Ichor.Signals
   alias Ichor.Signals.Bus
-  alias Ichor.Events.EventStream, as: EventRuntime
 
   import IchorWeb.DashboardToast, only: [push_toast: 3]
 
@@ -57,7 +58,15 @@ defmodule IchorWeb.DashboardSessionControlHandlers do
       end
 
     EventRuntime.tombstone_session(session_id)
-    Signals.emit(:agent_stopped, %{session_id: session_id, reason: "dashboard_shutdown"})
+
+    Events.emit(
+      Event.new(
+        "fleet.agent.stopped",
+        session_id,
+        %{session_id: session_id, reason: "dashboard_shutdown"},
+        %{legacy_name: :agent_stopped}
+      )
+    )
 
     short = String.slice(session_id, 0..7)
 

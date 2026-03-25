@@ -15,6 +15,8 @@ defmodule Ichor.Projector.MesProjectIngestor do
 
   require Logger
 
+  alias Ichor.Events
+  alias Ichor.Events.Event
   alias Ichor.Factory.Project
   alias Ichor.Signals
   alias Ichor.Workshop.AgentId
@@ -231,11 +233,18 @@ defmodule Ichor.Projector.MesProjectIngestor do
       {:ok, project} ->
         Logger.info("[MES.MesProjectIngestor] Ingested project: #{project.title} (#{project.id})")
 
-        Signals.emit(:mes_project_created, %{
-          project_id: project.id,
-          title: project.title,
-          run_id: run_id
-        })
+        Events.emit(
+          Event.new(
+            "mes.project.created",
+            project.id,
+            %{
+              project_id: project.id,
+              title: project.title,
+              run_id: run_id
+            },
+            %{legacy_name: :mes_project_created}
+          )
+        )
 
       {:error, :duplicate_plugin} ->
         :ok

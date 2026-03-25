@@ -8,9 +8,11 @@ defmodule Ichor.Projector.CompletionHandler do
 
   require Logger
 
+  alias Ichor.Events
+  alias Ichor.Events.Event
+  alias Ichor.Events.Message
   alias Ichor.Factory.{Pipeline, Project}
   alias Ichor.Factory.PluginLoader
-  alias Ichor.Events.Message
   alias Ichor.Signals
 
   @doc false
@@ -70,11 +72,18 @@ defmodule Ichor.Projector.CompletionHandler do
       {:error, reason} ->
         Project.mark_failed(project, inspect(reason))
 
-        Signals.emit(:mes_plugin_compile_failed, %{
-          run_id: run_id,
-          project_id: project.id,
-          reason: inspect(reason)
-        })
+        Events.emit(
+          Event.new(
+            "mes.plugin.compile_failed",
+            run_id,
+            %{
+              run_id: run_id,
+              project_id: project.id,
+              reason: inspect(reason)
+            },
+            %{legacy_name: :mes_plugin_compile_failed}
+          )
+        )
 
         Logger.warning(
           "[MES.CompletionHandler] Failed to load #{project.plugin}: #{inspect(reason)}"
@@ -83,11 +92,18 @@ defmodule Ichor.Projector.CompletionHandler do
   end
 
   defp handle_output(project, run_id) do
-    Signals.emit(:mes_output_unhandled, %{
-      run_id: run_id,
-      project_id: project.id,
-      output_kind: project.output_kind
-    })
+    Events.emit(
+      Event.new(
+        "mes.output.unhandled",
+        run_id,
+        %{
+          run_id: run_id,
+          project_id: project.id,
+          output_kind: project.output_kind
+        },
+        %{legacy_name: :mes_output_unhandled}
+      )
+    )
 
     Logger.info(
       "[MES.CompletionHandler] No output handler for project #{project.id} kind=#{project.output_kind}"

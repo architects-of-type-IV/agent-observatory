@@ -9,7 +9,8 @@ defmodule Ichor.Factory.Loader do
     Project
   }
 
-  alias Ichor.Signals
+  alias Ichor.Events
+  alias Ichor.Events.Event
 
   @doc "Creates a pipeline and pipeline tasks from a tasks.jsonl file path."
   @spec from_file(String.t(), keyword()) :: {:ok, Pipeline.t()} | {:error, term()}
@@ -54,12 +55,14 @@ defmodule Ichor.Factory.Loader do
 
     with {:ok, pipeline} <- Pipeline.create(pipeline_attrs),
          :ok <- create_pipeline_tasks(raw_items, pipeline.id, wave_map) do
-      Signals.emit(:pipeline_created, %{
-        run_id: pipeline.id,
-        source: source,
-        label: label,
-        task_count: length(raw_items)
-      })
+      Events.emit(
+        Event.new(
+          "pipeline.created",
+          pipeline.id,
+          %{run_id: pipeline.id, source: source, label: label, task_count: length(raw_items)},
+          %{legacy_name: :pipeline_created}
+        )
+      )
 
       {:ok, pipeline}
     end

@@ -1,8 +1,9 @@
 defmodule Ichor.Factory.MesScheduler do
   @moduledoc "MES scheduler control API. The actual tick runs via Oban cron (Workers.MesTick)."
 
+  alias Ichor.Events
+  alias Ichor.Events.Event
   alias Ichor.Factory.Runner
-  alias Ichor.Signals
 
   @pause_flag Path.join(File.cwd!(), "tmp/mes_paused")
 
@@ -11,7 +12,11 @@ defmodule Ichor.Factory.MesScheduler do
   def pause do
     File.mkdir_p!(Path.dirname(@pause_flag))
     File.write!(@pause_flag, "")
-    Signals.emit(:mes_scheduler_paused, %{})
+
+    Events.emit(
+      Event.new("mes.scheduler.paused", nil, %{}, %{legacy_name: :mes_scheduler_paused})
+    )
+
     :ok
   end
 
@@ -19,7 +24,11 @@ defmodule Ichor.Factory.MesScheduler do
   @spec resume() :: :ok
   def resume do
     File.rm(@pause_flag)
-    Signals.emit(:mes_scheduler_resumed, %{})
+
+    Events.emit(
+      Event.new("mes.scheduler.resumed", nil, %{}, %{legacy_name: :mes_scheduler_resumed})
+    )
+
     :ok
   end
 

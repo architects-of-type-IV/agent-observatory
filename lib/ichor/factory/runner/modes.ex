@@ -16,8 +16,9 @@ defmodule Ichor.Factory.Runner.Modes do
   - `:pipeline_on_complete`  — `fn state -> :ok end`
   """
 
+  alias Ichor.Events
+  alias Ichor.Events.Event
   alias Ichor.Factory.{Runner.Mode, RunRef}
-  alias Ichor.Signals
 
   @doc """
   Builds the `%Mode{}` configuration struct for the given `kind`.
@@ -58,11 +59,14 @@ defmodule Ichor.Factory.Runner.Modes do
       hooks: %{
         on_signal: Map.get(runner_hooks, :mes_on_signal),
         on_complete: fn state ->
-          Signals.emit(:run_complete, %{
-            kind: :mes,
-            run_id: state.run_id,
-            session: state.session
-          })
+          Events.emit(
+            Event.new(
+              "fleet.run.complete",
+              state.run_id,
+              %{kind: :mes, run_id: state.run_id, session: state.session},
+              %{legacy_name: :run_complete}
+            )
+          )
         end,
         team_name: team_name
       }
@@ -91,12 +95,19 @@ defmodule Ichor.Factory.Runner.Modes do
       commands: nil,
       hooks: %{
         on_complete: fn state ->
-          Signals.emit(:planning_run_complete, %{
-            run_id: state.run_id,
-            mode: mode_label,
-            session: state.session,
-            delivered_by: "operator"
-          })
+          Events.emit(
+            Event.new(
+              "planning.run.complete",
+              state.run_id,
+              %{
+                run_id: state.run_id,
+                mode: mode_label,
+                session: state.session,
+                delivered_by: "operator"
+              },
+              %{legacy_name: :planning_run_complete}
+            )
+          )
         end
       }
     }

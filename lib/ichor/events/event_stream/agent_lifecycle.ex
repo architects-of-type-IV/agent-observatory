@@ -11,7 +11,8 @@ defmodule Ichor.Events.EventStream.AgentLifecycle do
 
   require Logger
 
-  alias Ichor.Signals
+  alias Ichor.Events
+  alias Ichor.Events.Event
 
   # ETS table names -- must match the constants declared in EventStream.
   @table :event_buffer_events
@@ -65,7 +66,7 @@ defmodule Ichor.Events.EventStream.AgentLifecycle do
   @spec handle_team_event(atom(), map()) :: :ok
   def handle_team_event(signal, input) do
     if team_name = input["team_name"] do
-      Signals.emit(signal, %{team_name: team_name})
+      emit_team_event(signal, team_name)
     end
 
     :ok
@@ -73,6 +74,22 @@ defmodule Ichor.Events.EventStream.AgentLifecycle do
 
   def handle_team_create(input), do: handle_team_event(:team_create_requested, input)
   def handle_team_delete(input), do: handle_team_event(:team_delete_requested, input)
+
+  defp emit_team_event(:team_create_requested, team_name) do
+    Events.emit(
+      Event.new("fleet.team.create_requested", team_name, %{team_name: team_name}, %{
+        legacy_name: :team_create_requested
+      })
+    )
+  end
+
+  defp emit_team_event(:team_delete_requested, team_name) do
+    Events.emit(
+      Event.new("fleet.team.delete_requested", team_name, %{team_name: team_name}, %{
+        legacy_name: :team_delete_requested
+      })
+    )
+  end
 
   # Private helpers
 
@@ -91,12 +108,16 @@ defmodule Ichor.Events.EventStream.AgentLifecycle do
   defp emit_session_started(session_id, event) do
     tmux_session = nil_if_empty(event.tmux_session)
 
-    Signals.emit(:session_started, %{
+    data = %{
       session_id: session_id,
       tmux_session: tmux_session,
       cwd: event.cwd,
       model: event.model_name,
       os_pid: event.os_pid
-    })
+    }
+
+    Events.emit(
+      Event.new("fleet.session.started", session_id, data, %{legacy_name: :session_started})
+    )
   end
 end

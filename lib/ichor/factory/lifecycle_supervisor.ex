@@ -15,6 +15,8 @@ defmodule Ichor.Factory.LifecycleSupervisor do
   """
   use Supervisor
 
+  alias Ichor.Events
+  alias Ichor.Events.Event
   alias Ichor.Fleet.AgentProcess
   alias Ichor.Fleet.Supervisor, as: FleetSupervisor
 
@@ -42,7 +44,11 @@ defmodule Ichor.Factory.LifecycleSupervisor do
 
   defp ensure_operator_process do
     if AgentProcess.alive?("operator") do
-      Ichor.Signals.emit(:mes_operator_ensured, %{status: "already_alive"})
+      Events.emit(
+        Event.new("mes.operator.ensured", "operator", %{status: "already_alive"}, %{
+          legacy_name: :mes_operator_ensured
+        })
+      )
     else
       case FleetSupervisor.spawn_agent(
              id: "operator",
@@ -51,10 +57,18 @@ defmodule Ichor.Factory.LifecycleSupervisor do
              metadata: %{source: :mes, cwd: File.cwd!()}
            ) do
         {:ok, _pid} ->
-          Ichor.Signals.emit(:mes_operator_ensured, %{status: "created"})
+          Events.emit(
+            Event.new("mes.operator.ensured", "operator", %{status: "created"}, %{
+              legacy_name: :mes_operator_ensured
+            })
+          )
 
         {:error, {:already_started, _pid}} ->
-          Ichor.Signals.emit(:mes_operator_ensured, %{status: "already_alive"})
+          Events.emit(
+            Event.new("mes.operator.ensured", "operator", %{status: "already_alive"}, %{
+              legacy_name: :mes_operator_ensured
+            })
+          )
 
         {:error, _reason} ->
           :ok

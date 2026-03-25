@@ -15,6 +15,8 @@ defmodule Ichor.Fleet.AgentProcess do
 
   require Logger
 
+  alias Ichor.Events
+  alias Ichor.Events.Event
   alias Ichor.Fleet.AgentBackend
   alias Ichor.Fleet.AgentDelivery
   alias Ichor.Fleet.AgentRegistryProjection
@@ -191,7 +193,15 @@ defmodule Ichor.Fleet.AgentProcess do
     :pg.join(@pg_scope, {:agent, id}, self())
     if Keyword.get(opts, :liveness_poll, false), do: schedule_liveness_check()
 
-    Ichor.Signals.emit(:agent_started, %{session_id: id, name: name, role: role, team: team})
+    Events.emit(
+      Event.new(
+        "fleet.agent.started",
+        id,
+        %{session_id: id, name: name, role: role, team: team},
+        %{legacy_name: :agent_started}
+      )
+    )
+
     {:ok, state}
   end
 
@@ -214,7 +224,12 @@ defmodule Ichor.Fleet.AgentProcess do
         :ok
     end
 
-    Ichor.Signals.emit(:agent_paused, %{session_id: state.id, name: state.name})
+    Events.emit(
+      Event.new("fleet.agent.paused", state.id, %{session_id: state.id, name: state.name}, %{
+        legacy_name: :agent_paused
+      })
+    )
+
     {:reply, :ok, %{state | status: :paused}}
   end
 
@@ -229,7 +244,12 @@ defmodule Ichor.Fleet.AgentProcess do
         :ok
     end
 
-    Ichor.Signals.emit(:agent_resumed, %{session_id: state.id, name: state.name})
+    Events.emit(
+      Event.new("fleet.agent.resumed", state.id, %{session_id: state.id, name: state.name}, %{
+        legacy_name: :agent_resumed
+      })
+    )
+
     {pending, new_state} = AgentState.drain_pending(state)
     new_state = %{new_state | status: :active}
     async_deliver_many(new_state.backend, pending)
@@ -286,11 +306,14 @@ defmodule Ichor.Fleet.AgentProcess do
   end
 
   def handle_info({:liveness_result, {false, tmux_target}}, state) do
-    Ichor.Signals.emit(:agent_tmux_gone, %{
-      agent_id: state.id,
-      name: state.name,
-      tmux: tmux_target
-    })
+    Events.emit(
+      Event.new(
+        "fleet.agent.tmux_gone",
+        state.id,
+        %{agent_id: state.id, name: state.name, tmux: tmux_target},
+        %{legacy_name: :agent_tmux_gone}
+      )
+    )
 
     {:stop, :normal, %{state | status: :terminating}}
   end
@@ -309,7 +332,12 @@ defmodule Ichor.Fleet.AgentProcess do
         :ok
     end
 
-    Ichor.Signals.emit(:fleet_changed, %{agent_id: state.id})
+    Events.emit(
+      Event.new("fleet.registry.changed", state.id, %{agent_id: state.id}, %{
+        legacy_name: :fleet_changed
+      })
+    )
+
     {:noreply, state}
   end
 
@@ -320,12 +348,14 @@ defmodule Ichor.Fleet.AgentProcess do
 
   @impl true
   def terminate(:normal, %{status: :terminating} = state) do
-    # Tmux window already dead -- skip backend kill, just emit the lifecycle signal.
-    Ichor.Signals.emit(:agent_stopped, %{
-      session_id: state.id,
-      name: state.name,
-      reason: :tmux_gone
-    })
+    Events.emit(
+      Event.new(
+        "fleet.agent.stopped",
+        state.id,
+        %{session_id: state.id, name: state.name, reason: :tmux_gone},
+        %{legacy_name: :agent_stopped}
+      )
+    )
 
     :ok
   end
@@ -333,11 +363,14 @@ defmodule Ichor.Fleet.AgentProcess do
   def terminate(reason, state) do
     AgentBackend.terminate(state.backend)
 
-    Ichor.Signals.emit(:agent_stopped, %{
-      session_id: state.id,
-      name: state.name,
-      reason: reason
-    })
+    Events.emit(
+      Event.new(
+        "fleet.agent.stopped",
+        state.id,
+        %{session_id: state.id, name: state.name, reason: reason},
+        %{legacy_name: :agent_stopped}
+      )
+    )
 
     :ok
   end

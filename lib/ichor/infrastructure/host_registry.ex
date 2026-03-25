@@ -13,6 +13,9 @@ defmodule Ichor.Infrastructure.HostRegistry do
   use GenServer
   require Logger
 
+  alias Ichor.Events
+  alias Ichor.Events.Event
+
   @pg_scope :ichor_agents
   @pg_group :ichor_hosts
 
@@ -159,6 +162,6 @@ defmodule Ichor.Infrastructure.HostRegistry do
   end
 
   defp broadcast_hosts_changed do
-    Ichor.Signals.emit(:hosts_changed, %{})
+    Events.emit(Event.new("fleet.hosts.changed", nil, %{}, %{legacy_name: :hosts_changed}))
   end
 end

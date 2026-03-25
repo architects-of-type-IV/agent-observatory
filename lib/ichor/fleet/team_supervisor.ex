@@ -8,6 +8,8 @@ defmodule Ichor.Fleet.TeamSupervisor do
 
   use DynamicSupervisor
 
+  alias Ichor.Events
+  alias Ichor.Events.Event
   alias Ichor.Fleet.AgentProcess
 
   @team_registry Ichor.Registry
@@ -96,7 +98,14 @@ defmodule Ichor.Fleet.TeamSupervisor do
       %{project: project, strategy: strategy}
     end)
 
-    Ichor.Signals.emit(:team_created, %{name: name, project: project, strategy: strategy})
+    Events.emit(
+      Event.new(
+        "fleet.team.created",
+        name,
+        %{name: name, project: project, strategy: strategy},
+        %{legacy_name: :team_created}
+      )
+    )
 
     # Join :pg group for cluster-wide team discovery
     :pg.join(@pg_scope, {:team, name}, self())

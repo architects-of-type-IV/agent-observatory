@@ -8,6 +8,8 @@ defmodule Ichor.Signals.ActionHandler do
 
   require Logger
 
+  alias Ichor.Events
+  alias Ichor.Events.Event
   alias Ichor.Signals
   alias Ichor.Signals.Signal
 
@@ -38,14 +40,43 @@ defmodule Ichor.Signals.ActionHandler do
 
     case severity do
       :loop ->
-        Signals.emit(:entropy_alert, %{session_id: session_id, entropy_score: score})
-        Signals.emit(:node_state_update, %{agent_id: session_id, state: "alert_entropy"})
+        Events.emit(
+          Event.new(
+            "gateway.entropy.alert",
+            session_id,
+            %{session_id: session_id, entropy_score: score},
+            %{legacy_name: :entropy_alert}
+          )
+        )
+
+        Events.emit(
+          Event.new(
+            "gateway.node.state_update",
+            session_id,
+            %{agent_id: session_id, state: "alert_entropy"},
+            %{legacy_name: :node_state_update}
+          )
+        )
 
       :warning ->
-        Signals.emit(:node_state_update, %{agent_id: session_id, state: "blocked"})
+        Events.emit(
+          Event.new(
+            "gateway.node.state_update",
+            session_id,
+            %{agent_id: session_id, state: "blocked"},
+            %{legacy_name: :node_state_update}
+          )
+        )
 
       :normal when prior in [:warning, :loop] ->
-        Signals.emit(:node_state_update, %{agent_id: session_id, state: "active"})
+        Events.emit(
+          Event.new(
+            "gateway.node.state_update",
+            session_id,
+            %{agent_id: session_id, state: "active"},
+            %{legacy_name: :node_state_update}
+          )
+        )
 
       :normal ->
         :ok

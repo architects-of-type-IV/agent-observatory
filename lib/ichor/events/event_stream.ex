@@ -19,6 +19,7 @@ defmodule Ichor.Events.EventStream do
 
   require Logger
 
+  alias Ichor.Events
   alias Ichor.Events.Event
   alias Ichor.Events.Ingress
   alias Ichor.Signals
@@ -41,7 +42,12 @@ defmodule Ichor.Events.EventStream do
     case ingest(raw_map) do
       {:ok, event} ->
         unless tombstoned?(event.session_id) do
-          Signals.emit(:new_event, %{event: event})
+          Events.emit(
+            Event.new("events.hook.ingested", event.session_id, %{event: event}, %{
+              legacy_name: :new_event
+            })
+          )
+
           bridge_to_pipeline(event)
           ingest_event(event)
         end
@@ -67,7 +73,12 @@ defmodule Ichor.Events.EventStream do
   @doc "Publish an internal fact (watchdog probes, system events, etc.)."
   @spec publish_fact(atom(), map()) :: :ok
   def publish_fact(name, attrs \\ %{}) when is_atom(name) and is_map(attrs) do
-    Signals.emit(:new_event, %{name: name, attrs: attrs})
+    Events.emit(
+      Event.new("events.hook.ingested", nil, %{name: name, attrs: attrs}, %{
+        legacy_name: :new_event
+      })
+    )
+
     :ok
   end
 
@@ -208,7 +219,12 @@ defmodule Ichor.Events.EventStream do
       |> Enum.map(fn {id, _entry} -> id end)
 
     Enum.each(evicted_ids, fn agent_id ->
-      Signals.emit(:agent_evicted, %{session_id: agent_id})
+      Events.emit(
+        Event.new("fleet.agent.evicted", agent_id, %{session_id: agent_id}, %{
+          legacy_name: :agent_evicted
+        })
+      )
+
       Logger.info("Evicted stale agent #{agent_id}")
     end)
 
@@ -233,12 +249,23 @@ defmodule Ichor.Events.EventStream do
     agent_id = AgentLifecycle.resolve_or_create_agent(event.session_id, event)
     maybe_emit_session_end(event.hook_event_type, agent_id)
     handle_channel_events(event)
-    Signals.emit(:agent_event, agent_id, %{event: event})
+
+    Events.emit(
+      Event.new("agent.event", agent_id, %{event: event, scope_id: agent_id}, %{
+        legacy_name: :agent_event
+      })
+    )
+
     :ok
   end
 
   defp maybe_emit_session_end(:SessionEnd, agent_id),
-    do: Signals.emit(:session_ended, %{session_id: agent_id, status: :ended})
+    do:
+      Events.emit(
+        Event.new("fleet.session.ended", agent_id, %{session_id: agent_id, status: :ended}, %{
+          legacy_name: :session_ended
+        })
+      )
 
   defp maybe_emit_session_end(_type, _agent_id), do: :ok
 
@@ -286,10 +313,13 @@ defmodule Ichor.Events.EventStream do
   defp handle_pre_tool_use(_tool_name, _event, _input), do: :ok
 
   defp emit_intercepted(session_id, %{content: content} = fields) do
-    Signals.emit(:agent_message_intercepted, session_id, %{
-      fields
-      | content: String.slice(content, 0, 200)
-    })
+    data = %{fields | content: String.slice(content, 0, 200)}
+
+    Events.emit(
+      Event.new("agent.message.intercepted", session_id, Map.put(data, :scope_id, session_id), %{
+        legacy_name: :agent_message_intercepted
+      })
+    )
   end
 
   defp do_ingest(event_attrs) do

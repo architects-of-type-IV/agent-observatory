@@ -83,6 +83,27 @@ defmodule Ichor.Events.Runtime do
     :ok
   end
 
+  @doc """
+  Bridge an %Event{} to PubSub for observer backward compat.
+
+  Reads `legacy_name` from event metadata to produce a Message on the
+  correct PubSub category topic. No-op if `legacy_name` is absent.
+
+  Temporary -- will be removed when all PubSub subscribers migrate to
+  consume from the GenStage pipeline directly.
+  """
+  @spec broadcast_event(Event.t()) :: :ok
+  def broadcast_event(%Event{metadata: %{legacy_name: name}} = event) when is_atom(name) do
+    category = Registry.category_for(name)
+    message = Message.build(name, category, event.data)
+    pubsub_broadcast(Topics.category(category), message)
+    pubsub_broadcast(Topics.signal(category, name), message)
+    tap_telemetry(name, message)
+    :ok
+  end
+
+  def broadcast_event(%Event{}), do: :ok
+
   defp bridge_to_pipeline(name, data) do
     topic = "signal.#{name}"
     key = extract_key(data)

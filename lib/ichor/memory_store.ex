@@ -29,6 +29,8 @@ defmodule Ichor.MemoryStore do
   """
   use GenServer
 
+  alias Ichor.Events
+  alias Ichor.Events.Event
   alias Ichor.MemoryStore.Persistence
   alias Ichor.MemoryStore.Storage
 
@@ -284,7 +286,15 @@ defmodule Ichor.MemoryStore do
         }
 
         {:ok, _} = Storage.insert_agent(agent)
-        Ichor.Signals.emit(:memory_changed, name, %{agent_name: name, event: :created})
+
+        Events.emit(
+          Event.new(
+            "memory.changed",
+            name,
+            %{agent_name: name, event: :created, scope_id: name},
+            %{legacy_name: :memory_changed}
+          )
+        )
 
         {:reply, {:ok, agent},
          %{state | dirty_blocks: dirty, dirty_agents: MapSet.put(state.dirty_agents, name)}}
@@ -464,10 +474,14 @@ defmodule Ichor.MemoryStore do
   def handle_call({:archival_insert, agent_name, content, tags}, _from, state) do
     {:ok, passage} = Storage.insert_archival(agent_name, content, tags)
 
-    Ichor.Signals.emit(:memory_changed, agent_name, %{
-      agent_name: agent_name,
-      event: :archival_insert
-    })
+    Events.emit(
+      Event.new(
+        "memory.changed",
+        agent_name,
+        %{agent_name: agent_name, event: :archival_insert, scope_id: agent_name},
+        %{legacy_name: :memory_changed}
+      )
+    )
 
     {:reply, {:ok, passage}, %{state | dirty_agents: MapSet.put(state.dirty_agents, agent_name)}}
   end

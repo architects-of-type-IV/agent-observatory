@@ -17,8 +17,9 @@ defmodule Ichor.Factory.Workers.PipelineReconcilerWorker do
 
   require Logger
 
+  alias Ichor.Events
+  alias Ichor.Events.Event
   alias Ichor.Factory.{Pipeline, Runner}
-  alias Ichor.Signals
 
   @impl Oban.Worker
   def perform(%Oban.Job{}) do
@@ -46,11 +47,14 @@ defmodule Ichor.Factory.Workers.PipelineReconcilerWorker do
 
       case Pipeline.archive(pipeline) do
         {:ok, _archived} ->
-          Signals.emit(:pipeline_reconciled, %{
-            pipeline_id: pipeline.id,
-            run_id: pipeline.id,
-            action: :archived
-          })
+          Events.emit(
+            Event.new(
+              "pipeline.reconciled",
+              pipeline.id,
+              %{pipeline_id: pipeline.id, run_id: pipeline.id, action: :archived},
+              %{legacy_name: :pipeline_reconciled}
+            )
+          )
 
           Logger.info("PipelineReconcilerWorker: archived orphaned pipeline #{pipeline.id}")
 

@@ -18,8 +18,9 @@ defmodule Ichor.Factory.Runner do
   alias Ichor.Factory.Runner.{Exporter, HealthChecker, Modes}
   alias Ichor.Infrastructure.Tmux.Launcher, as: TmuxLauncher
   alias Ichor.Orchestration.TeamLaunch
+  alias Ichor.Events
+  alias Ichor.Events.{Event, Message}
   alias Ichor.Signals
-  alias Ichor.Events.Message
   alias Ichor.Workshop.TeamSpec
 
   @stale_threshold_min 10
@@ -277,16 +278,23 @@ defmodule Ichor.Factory.Runner do
     # OTP guarantees terminate/2 runs after {:stop, :normal}, so this covers
     # both the happy path and crashes during run_cleanup.
     if state.status == :completed do
-      Signals.emit(:run_complete, run_complete_payload(state))
+      Events.emit(
+        Event.new("fleet.run.complete", state.run_id, run_complete_payload(state), %{
+          legacy_name: :run_complete
+        })
+      )
     end
 
     emit_signal(state.config.signals.terminated, build_terminate_payload(state))
 
-    Signals.emit(:run_terminated, %{
-      kind: state.kind,
-      run_id: state.run_id,
-      session: state.session
-    })
+    Events.emit(
+      Event.new(
+        "fleet.run.terminated",
+        state.run_id,
+        %{kind: state.kind, run_id: state.run_id, session: state.session},
+        %{legacy_name: :run_terminated}
+      )
+    )
 
     :ok
   end
@@ -329,7 +337,14 @@ defmodule Ichor.Factory.Runner do
         :ok
 
       {:error, reason} ->
-        Signals.emit(:mes_cycle_failed, %{run_id: state.run_id, reason: inspect(reason)})
+        Events.emit(
+          Event.new(
+            "mes.cycle.failed",
+            state.run_id,
+            %{run_id: state.run_id, reason: inspect(reason)},
+            %{legacy_name: :mes_cycle_failed}
+          )
+        )
     end
 
     :ok
@@ -361,18 +376,24 @@ defmodule Ichor.Factory.Runner do
 
     case mes_team_launch().launch_into_existing_session(spec, session) do
       :ok ->
-        Signals.emit(:mes_corrective_agent_spawned, %{
-          run_id: run_id,
-          session: session,
-          attempt: attempt
-        })
+        Events.emit(
+          Event.new(
+            "mes.corrective_agent.spawned",
+            run_id,
+            %{run_id: run_id, session: session, attempt: attempt},
+            %{legacy_name: :mes_corrective_agent_spawned}
+          )
+        )
 
       {:error, err} ->
-        Signals.emit(:mes_corrective_agent_failed, %{
-          run_id: run_id,
-          session: session,
-          reason: inspect(err)
-        })
+        Events.emit(
+          Event.new(
+            "mes.corrective_agent.failed",
+            run_id,
+            %{run_id: run_id, session: session, reason: inspect(err)},
+            %{legacy_name: :mes_corrective_agent_failed}
+          )
+        )
     end
   end
 
@@ -401,11 +422,14 @@ defmodule Ichor.Factory.Runner do
       nodes = Enum.map(pipeline_tasks, &PipelineGraph.to_graph_node/1)
       issues = HealthChecker.health_issues(nodes, DateTime.utc_now())
 
-      Signals.emit(:pipeline_health_report, %{
-        run_id: state.run_id,
-        healthy: issues == [],
-        issue_count: length(issues)
-      })
+      Events.emit(
+        Event.new(
+          "pipeline.health_report",
+          state.run_id,
+          %{run_id: state.run_id, healthy: issues == [], issue_count: length(issues)},
+          %{legacy_name: :pipeline_health_report}
+        )
+      )
     end
 
     :ok
@@ -583,7 +607,39 @@ defmodule Ichor.Factory.Runner do
   defp emit_signal(nil, _payload), do: :ok
 
   defp emit_signal(signal, payload) do
-    Signals.emit(signal, Map.reject(payload, fn {_k, v} -> is_nil(v) end))
+    clean = Map.reject(payload, fn {_k, v} -> is_nil(v) end)
+    key = Map.get(clean, :run_id)
+
+    Events.emit(
+      Event.new(
+        signal_to_topic(signal),
+        key,
+        clean,
+        %{legacy_name: signal}
+      )
+    )
+  end
+
+  # Maps mode signal atoms to topic strings for emit_signal/2.
+  # These are internal lifecycle signals defined in Runner.Mode structs.
+  @signal_topic_map %{
+    mes_run_started: "mes.run.started",
+    mes_tmux_gone: "mes.tmux.gone",
+    mes_run_terminated: "mes.run.terminated",
+    mes_deadline_reached: "mes.deadline.reached",
+    planning_run_init: "planning.run.init",
+    planning_run_complete: "planning.run.complete",
+    planning_tmux_gone: "planning.tmux.gone",
+    planning_run_terminated: "planning.run.terminated",
+    pipeline_ready: "pipeline.ready",
+    pipeline_completed: "pipeline.completed",
+    pipeline_tmux_gone: "pipeline.tmux.gone",
+    pipeline_terminated: "pipeline.terminated",
+    run_complete: "fleet.run.complete"
+  }
+
+  defp signal_to_topic(signal) when is_atom(signal) do
+    Map.get(@signal_topic_map, signal, Atom.to_string(signal) |> String.replace("_", "."))
   end
 
   defp build_terminate_payload(%{kind: :mes} = state) do

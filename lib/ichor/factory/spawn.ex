@@ -31,8 +31,9 @@ defmodule Ichor.Factory.Spawn do
     WorkerGroups
   }
 
+  alias Ichor.Events
+  alias Ichor.Events.Event
   alias Ichor.Factory.PluginScaffold
-  alias Ichor.Signals
   alias Ichor.Workshop.TeamSpec
 
   # ---------------------------------------------------------------------------
@@ -73,13 +74,20 @@ defmodule Ichor.Factory.Spawn do
         project_path: pipeline.project_path
       )
 
-      Signals.emit(:pipeline_ready, %{
-        run_id: pipeline.id,
-        session: session,
-        project_id: project_id,
-        agent_count: length(spec.agents),
-        worker_count: length(worker_groups)
-      })
+      Events.emit(
+        Event.new(
+          "pipeline.ready",
+          pipeline.id,
+          %{
+            run_id: pipeline.id,
+            session: session,
+            project_id: project_id,
+            agent_count: length(spec.agents),
+            worker_count: length(worker_groups)
+          },
+          %{legacy_name: :pipeline_ready}
+        )
+      )
 
       {:ok, %{session: session, run: pipeline}}
     end
@@ -110,20 +118,31 @@ defmodule Ichor.Factory.Spawn do
           project_id: planning_project_id
         )
 
-        Signals.emit(:planning_team_ready, %{
-          session: spec.session,
-          mode: mode,
-          project_id: project_id,
-          agent_count: length(spec.agents)
-        })
+        Events.emit(
+          Event.new(
+            "planning.team.ready",
+            spec.session,
+            %{
+              session: spec.session,
+              mode: mode,
+              project_id: project_id,
+              agent_count: length(spec.agents)
+            },
+            %{legacy_name: :planning_team_ready}
+          )
+        )
 
         {:ok, spec.session}
 
       {:error, reason} ->
-        Signals.emit(:planning_team_spawn_failed, %{
-          session: spec.session,
-          reason: inspect(reason)
-        })
+        Events.emit(
+          Event.new(
+            "planning.team.spawn_failed",
+            spec.session,
+            %{session: spec.session, reason: inspect(reason)},
+            %{legacy_name: :planning_team_spawn_failed}
+          )
+        )
 
         {:error, reason}
     end
@@ -166,7 +185,10 @@ defmodule Ichor.Factory.Spawn do
   @doc "Kills a MES tmux session and cleans up associated prompt files."
   @spec kill_session(String.t()) :: :ok
   def kill_session(session) do
-    Signals.emit(:mes_team_killed, %{session: session})
+    Events.emit(
+      Event.new("mes.team.killed", session, %{session: session}, %{legacy_name: :mes_team_killed})
+    )
+
     _ = cleanup_module().kill_session(session)
 
     run_id =
@@ -205,7 +227,15 @@ defmodule Ichor.Factory.Spawn do
 
     if File.dir?(dir) do
       cleanup_module().cleanup_prompt_dir(dir)
-      Signals.emit(:mes_cleanup, %{target: "prompt_files/#{run_id}"})
+
+      Events.emit(
+        Event.new(
+          "mes.cleanup",
+          run_id,
+          %{target: "prompt_files/#{run_id}"},
+          %{legacy_name: :mes_cleanup}
+        )
+      )
     end
 
     :ok
@@ -222,11 +252,19 @@ defmodule Ichor.Factory.Spawn do
     cleanup_module().cleanup_orphaned_tmux_sessions(active_teams, "mes-")
 
     Enum.each(orphaned_teams, fn name ->
-      Signals.emit(:mes_cleanup, %{target: "orphaned_team/#{name}"})
+      Events.emit(
+        Event.new("mes.cleanup", name, %{target: "orphaned_team/#{name}"}, %{
+          legacy_name: :mes_cleanup
+        })
+      )
     end)
 
     Enum.each(orphaned_sessions, fn session ->
-      Signals.emit(:mes_cleanup, %{target: "orphaned_tmux/#{session}"})
+      Events.emit(
+        Event.new("mes.cleanup", session, %{target: "orphaned_tmux/#{session}"}, %{
+          legacy_name: :mes_cleanup
+        })
+      )
     end)
 
     :ok
@@ -285,7 +323,8 @@ defmodule Ichor.Factory.Spawn do
 
     if File.dir?(path) do
       cleanup_module().cleanup_prompt_dir(path)
-      Signals.emit(:mes_cleanup, %{target: dir})
+
+      Events.emit(Event.new("mes.cleanup", dir, %{target: dir}, %{legacy_name: :mes_cleanup}))
     end
   end
 

@@ -7,6 +7,8 @@ defmodule Ichor.Infrastructure.OutputCapture do
   use GenServer
   require Logger
 
+  alias Ichor.Events
+  alias Ichor.Events.Event
   alias Ichor.Fleet.AgentProcess
   alias Ichor.Infrastructure.Tmux
 
@@ -109,7 +111,15 @@ defmodule Ichor.Infrastructure.OutputCapture do
     prev = Map.get(acc, session_id, "")
 
     if output != prev do
-      Ichor.Signals.emit(:terminal_output, session_id, %{session_id: session_id, output: output})
+      Events.emit(
+        Event.new(
+          "agent.terminal.output",
+          session_id,
+          %{session_id: session_id, output: output, scope_id: session_id},
+          %{legacy_name: :terminal_output}
+        )
+      )
+
       Map.put(acc, session_id, output)
     else
       acc

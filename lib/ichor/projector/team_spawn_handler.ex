@@ -8,6 +8,8 @@ defmodule Ichor.Projector.TeamSpawnHandler do
 
   use GenServer
 
+  alias Ichor.Events
+  alias Ichor.Events.Event
   alias Ichor.Orchestration.TeamLaunch
   alias Ichor.Orchestration.TeamSpec
   alias Ichor.Signals
@@ -34,19 +36,35 @@ defmodule Ichor.Projector.TeamSpawnHandler do
 
     case TeamLaunch.launch(spec) do
       {:ok, session} ->
-        Signals.emit(:team_spawn_ready, request_id, %{
-          session: session,
-          team_name: spec.team_name,
-          agent_count: length(spec.agents),
-          source: source
-        })
+        Events.emit(
+          Event.new(
+            "fleet.team.spawn_ready",
+            request_id,
+            %{
+              scope_id: request_id,
+              session: session,
+              team_name: spec.team_name,
+              agent_count: length(spec.agents),
+              source: source
+            },
+            %{legacy_name: :team_spawn_ready}
+          )
+        )
 
       {:error, reason} ->
-        Signals.emit(:team_spawn_failed, request_id, %{
-          team_name: spec.team_name,
-          reason: inspect(reason),
-          source: source
-        })
+        Events.emit(
+          Event.new(
+            "fleet.team.spawn_failed",
+            request_id,
+            %{
+              scope_id: request_id,
+              team_name: spec.team_name,
+              reason: inspect(reason),
+              source: source
+            },
+            %{legacy_name: :team_spawn_failed}
+          )
+        )
     end
 
     {:noreply, state}
@@ -55,10 +73,18 @@ defmodule Ichor.Projector.TeamSpawnHandler do
   def handle_info(%Ichor.Events.Message{}, state), do: {:noreply, state}
 
   defp emit_started(request_id, spec, source) do
-    Signals.emit(:team_spawn_started, request_id, %{
-      team_name: spec.team_name,
-      agent_count: length(spec.agents),
-      source: source
-    })
+    Events.emit(
+      Event.new(
+        "fleet.team.spawn_started",
+        request_id,
+        %{
+          scope_id: request_id,
+          team_name: spec.team_name,
+          agent_count: length(spec.agents),
+          source: source
+        },
+        %{legacy_name: :team_spawn_started}
+      )
+    )
   end
 end

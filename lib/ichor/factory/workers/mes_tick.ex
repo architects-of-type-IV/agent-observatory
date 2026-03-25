@@ -2,8 +2,9 @@ defmodule Ichor.Factory.Workers.MesTick do
   @moduledoc "Oban cron worker that spawns MES planning runs on a 1-minute schedule."
   use Oban.Worker, queue: :scheduled, max_attempts: 1, unique: [period: 50]
 
+  alias Ichor.Events
+  alias Ichor.Events.Event
   alias Ichor.Factory.{Runner, RunRef}
-  alias Ichor.Signals
 
   @max_concurrent 1
   @pause_flag Path.join(File.cwd!(), "tmp/mes_paused")
@@ -15,15 +16,38 @@ defmodule Ichor.Factory.Workers.MesTick do
 
     cond do
       File.exists?(@pause_flag) ->
-        Signals.emit(:mes_tick, %{paused: true})
+        Events.emit(Event.new("mes.tick", nil, %{paused: true}, %{legacy_name: :mes_tick}))
 
       active < @max_concurrent ->
-        Signals.emit(:mes_tick, %{active_runs: active, total_runs: length(all)})
+        Events.emit(
+          Event.new(
+            "mes.tick",
+            nil,
+            %{active_runs: active, total_runs: length(all)},
+            %{legacy_name: :mes_tick}
+          )
+        )
+
         spawn_run()
 
       true ->
-        Signals.emit(:mes_tick, %{active_runs: active, total_runs: length(all)})
-        Signals.emit(:mes_cycle_skipped, %{active_runs: active})
+        Events.emit(
+          Event.new(
+            "mes.tick",
+            nil,
+            %{active_runs: active, total_runs: length(all)},
+            %{legacy_name: :mes_tick}
+          )
+        )
+
+        Events.emit(
+          Event.new(
+            "mes.cycle.skipped",
+            nil,
+            %{active_runs: active},
+            %{legacy_name: :mes_cycle_skipped}
+          )
+        )
     end
 
     :ok
@@ -41,10 +65,24 @@ defmodule Ichor.Factory.Workers.MesTick do
 
     case Runner.start(:mes, run_id: run_id, team_name: team_name) do
       {:ok, _pid} ->
-        Signals.emit(:mes_cycle_started, %{run_id: run_id, team_name: team_name})
+        Events.emit(
+          Event.new(
+            "mes.cycle.started",
+            run_id,
+            %{run_id: run_id, team_name: team_name},
+            %{legacy_name: :mes_cycle_started}
+          )
+        )
 
       {:error, reason} ->
-        Signals.emit(:mes_cycle_failed, %{run_id: run_id, reason: inspect(reason)})
+        Events.emit(
+          Event.new(
+            "mes.cycle.failed",
+            run_id,
+            %{run_id: run_id, reason: inspect(reason)},
+            %{legacy_name: :mes_cycle_failed}
+          )
+        )
     end
   end
 end
