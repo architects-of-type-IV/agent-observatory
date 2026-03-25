@@ -45,9 +45,6 @@ defmodule Ichor.Events.StoredEvent do
 
     create :record do
       accept([:topic, :key, :occurred_at, :causation_id, :correlation_id, :data, :metadata])
-      upsert?(true)
-      upsert_identity(:id)
-      upsert_condition(expr(false))
     end
 
     read :by_topic do

@@ -49,7 +49,7 @@ defmodule Ichor.Events.Ingress do
 
   defp maybe_persist(%Event{} = event) do
     Task.Supervisor.start_child(Ichor.TaskSupervisor, fn ->
-      StoredEvent.record!(%{
+      StoredEvent.record(%{
         topic: event.topic,
         key: to_string(event.key || ""),
         occurred_at: event.occurred_at,
