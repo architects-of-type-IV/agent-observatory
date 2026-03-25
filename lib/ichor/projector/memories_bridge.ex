@@ -1,4 +1,4 @@
-defmodule Ichor.MemoriesBridge do
+defmodule Ichor.Projector.MemoriesBridge do
   @moduledoc """
   Bridges the Ichor signal stream into the Memories knowledge graph.
 
@@ -195,8 +195,6 @@ defmodule Ichor.MemoriesBridge do
     "ICHOR IV control plane observations (#{category} domain, #{timestamp}):\n\n#{body}"
   end
 
-  # -- Agent lifecycle --------------------------------------------------------
-
   defp narrate(:agent_started, %{name: name, role: role, team: team}),
     do: "Agent \"#{name}\" started with role #{role} on team \"#{team}\"."
 
@@ -221,8 +219,6 @@ defmodule Ichor.MemoriesBridge do
   defp narrate(:agent_blocked, %{session_id: sid, reason: reason}),
     do: "Agent \"#{sid}\" is blocked. Reason: #{truncate(reason, 200)}."
 
-  # -- Team lifecycle ---------------------------------------------------------
-
   defp narrate(:team_created, %{name: name}),
     do: "Team \"#{name}\" was created."
 
@@ -241,15 +237,11 @@ defmodule Ichor.MemoriesBridge do
   defp narrate(:team_spawn_failed, %{team_name: name, reason: reason}),
     do: "Team \"#{name}\" spawn failed: #{truncate(to_string(reason), 150)}."
 
-  # -- Session lifecycle ------------------------------------------------------
-
   defp narrate(:session_started, %{session_id: sid, model: model, cwd: cwd}),
     do: "Session \"#{sid}\" started (model: #{model || "unknown"}, cwd: #{cwd || "unknown"})."
 
   defp narrate(:session_ended, %{session_id: sid}),
     do: "Session \"#{sid}\" ended."
-
-  # -- Watchdog / entropy -----------------------------------------------------
 
   defp narrate(:nudge_warning, %{session_id: sid, agent_name: name, level: lvl}),
     do: "Agent \"#{name}\" (#{sid}) received a nudge escalation at level #{lvl}."
@@ -262,8 +254,6 @@ defmodule Ichor.MemoriesBridge do
 
   defp narrate(:entropy_alert, %{session_id: sid, entropy_score: score}),
     do: "Entropy alert for agent \"#{sid}\": repeated pattern detected (score #{score})."
-
-  # -- Gateway / mesh ---------------------------------------------------------
 
   defp narrate(:decision_log, %{log: log}) do
     cognition = log.cognition || %{}
@@ -300,8 +290,6 @@ defmodule Ichor.MemoriesBridge do
     "Agent \"#{from}\" sent message to \"#{to}\": #{truncate(content, 200)}."
   end
 
-  # -- Causal DAG -------------------------------------------------------------
-
   defp narrate(:dag_delta, %{session_id: sid, added_nodes: nodes}) when is_list(nodes) do
     node_descriptions =
       for node <- Enum.take(nodes, 5) do
@@ -325,12 +313,8 @@ defmodule Ichor.MemoriesBridge do
       Enum.join(node_descriptions, "\n") <> overflow
   end
 
-  # -- Tasks ------------------------------------------------------------------
-
   defp narrate(:task_created, %{task: task}), do: narrate_task("created", task)
   defp narrate(:task_updated, %{task: task}), do: narrate_task("updated", task)
-
-  # -- Monitoring / quality gates ---------------------------------------------
 
   defp narrate(:gate_passed, %{session_id: sid}),
     do: "Agent \"#{sid}\" passed a quality gate."
@@ -340,8 +324,6 @@ defmodule Ichor.MemoriesBridge do
 
   defp narrate(:watchdog_sweep, %{checked: checked, paused: paused}),
     do: "Watchdog sweep: checked #{checked} agents, paused #{paused}."
-
-  # -- MES (manufacturing) ----------------------------------------------------
 
   defp narrate(:mes_cycle_started, %{run_id: rid, team_name: team}),
     do: "MES manufacturing cycle #{rid} started with team \"#{team}\"."
@@ -374,22 +356,16 @@ defmodule Ichor.MemoriesBridge do
   defp narrate(:mes_cycle_failed, %{run_id: rid, reason: reason}),
     do: "MES cycle #{rid} failed: #{truncate(to_string(reason), 150)}."
 
-  # -- Run lifecycle ----------------------------------------------------------
-
   defp narrate(:run_complete, %{kind: kind, run_id: rid, session: session}),
     do: "Run #{rid} (#{kind}) completed in session \"#{session}\"."
 
   defp narrate(:run_terminated, %{kind: kind, run_id: rid, session: session}),
     do: "Run #{rid} (#{kind}) was terminated in session \"#{session}\"."
 
-  # -- Fleet changes ----------------------------------------------------------
-
   defp narrate(:fleet_changed, data) do
     agent = data[:agent_id]
     if agent, do: "Fleet topology changed (agent: #{agent}).", else: "Fleet topology changed."
   end
-
-  # -- Hook events (raw) ------------------------------------------------------
 
   defp narrate(:new_event, %{event: event}) when is_map(event) do
     hook = event[:hook_event_type] || event["hook_event_type"] || "unknown"
@@ -402,28 +378,20 @@ defmodule Ichor.MemoriesBridge do
     base <> "."
   end
 
-  # -- Memory blocks ----------------------------------------------------------
-
   defp narrate(:block_changed, %{block_id: bid, label: label}),
     do: "Memory block \"#{label}\" (#{bid}) was modified."
 
   defp narrate(:memory_changed, %{block_id: bid}),
     do: "Memory block #{bid} content changed."
 
-  # -- Messages ---------------------------------------------------------------
-
   defp narrate(:message_delivered, %{agent_id: aid, msg_map: msg}),
     do: "Message delivered to agent \"#{aid}\": #{truncate(msg_content(msg), 200)}."
-
-  # -- HITL -------------------------------------------------------------------
 
   defp narrate(:hitl_intervention_recorded, %{action: action, details: details}),
     do: "HITL intervention: #{action}. #{truncate(to_string(details), 150)}."
 
   defp narrate(:hitl_auto_released, %{session_id: sid}),
     do: "HITL auto-released agent \"#{sid}\"."
-
-  # -- Catch-all: readable key=value without inspect() ------------------------
 
   defp narrate(name, data) when is_map(data) do
     fields =

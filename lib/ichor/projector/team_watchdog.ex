@@ -1,4 +1,4 @@
-defmodule Ichor.Archon.TeamWatchdog do
+defmodule Ichor.Projector.TeamWatchdog do
   @moduledoc """
   Signal-driven team lifecycle monitor. No timers, no polling.
   Reacts to universal run signals and fleet events to detect unexpected deaths,

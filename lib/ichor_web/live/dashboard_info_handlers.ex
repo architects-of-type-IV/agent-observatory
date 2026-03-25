@@ -11,7 +11,7 @@ defmodule IchorWeb.DashboardInfoHandlers do
   import IchorWeb.DashboardMessagingHandlers, only: [handle_new_mailbox_message: 2]
   import IchorWeb.DashboardNotificationHandlers, only: [handle_agent_crashed: 4]
 
-  alias Ichor.Archon.SignalManager
+  alias Ichor.Projector.SignalManager
   alias Ichor.Factory.Project
   alias Ichor.Infrastructure.{HITLRelay, Tmux}
   alias Ichor.Signals.Message

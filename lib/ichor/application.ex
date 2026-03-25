@@ -64,7 +64,7 @@ defmodule Ichor.Application do
       {DynamicSupervisor, name: Ichor.Factory.DynRunSupervisor, strategy: :one_for_one},
 
       # Memories bridge (signals -> knowledge graph)
-      Ichor.MemoriesBridge,
+      Ichor.Projector.MemoriesBridge,
 
       # Projector pipeline (GenStage: Ingress -> Router -> Signal processes)
       {Registry, keys: :unique, name: Ichor.Projector.Registry},

@@ -1,4 +1,4 @@
-defmodule Ichor.Archon.SignalManager do
+defmodule Ichor.Projector.SignalManager do
   @moduledoc """
   Signal-fed managerial state for Archon.
 

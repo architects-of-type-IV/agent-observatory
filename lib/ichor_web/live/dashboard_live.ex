@@ -22,7 +22,8 @@ defmodule IchorWeb.DashboardLive do
 
   alias Ichor.Factory.Project
   alias Ichor.Infrastructure.AnsiUtils
-  alias Ichor.Signals.{Buffer, Catalog, Message}
+  alias Ichor.Projector.SignalBuffer, as: Buffer
+  alias Ichor.Signals.{Catalog, Message}
   alias Ichor.Signals.EventStream, as: EventRuntime
 
   alias IchorWeb.{

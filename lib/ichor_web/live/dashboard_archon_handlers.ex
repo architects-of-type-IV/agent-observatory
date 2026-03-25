@@ -7,7 +7,7 @@ defmodule IchorWeb.DashboardArchonHandlers do
   import Phoenix.Component, only: [assign: 3]
 
   alias Ichor.Archon.Chat
-  alias Ichor.Archon.SignalManager
+  alias Ichor.Projector.SignalManager
 
   require Logger
 

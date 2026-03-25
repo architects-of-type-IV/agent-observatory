@@ -1,4 +1,4 @@
-defmodule Ichor.Signals.Buffer do
+defmodule Ichor.Projector.SignalBuffer do
   @moduledoc """
   Ring buffer for the Signals nervous system.
   Subscribes to all signal categories via `Ichor.Signals.subscribe/1`.
