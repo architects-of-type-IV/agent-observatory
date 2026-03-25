@@ -4,8 +4,13 @@
 - [x] Wave 1: Foundation -- Event, Signal, Behaviour, Ingress, Router, SignalProcess, DefaultHandler (fbbd2ff)
 - [x] Wave 2: Macro + bridge + signals -- use Ichor.Signal, EventStream bridge, ToolBudget, MessageProtocol (fbbd2ff)
 - [x] Review fixes: race condition, demand tracking, deferred DB query, timer conflict (5a47898)
-- [ ] Wave 3: Wire Ash resources -- replace FromAsh stub with real %Event{} emission
-- [ ] Wave 4: Migrate existing projectors to signal modules
+- [x] Wave 3: FromAsh notifier -- 25 action mappings across 7 Ash resources (213684c)
+- [x] Wave 3.5: ActionHandler + benchmarks + PipelineSupervisor rest_for_one fix (1369a62)
+- [x] Wave 4: EntropyTracker migrated to Signals.Agent.Entropy (310e7ef)
+- [x] Simplify: 13 review findings fixed (b2b921d)
+- [x] Short-term: Runtime bridge -- all 143 PubSub signals flow through GenStage (aa77525)
+- [x] Research: Dashboard migration path mapped (no topic collisions, additive)
+- [x] Research: Durable event storage designed (StoredEvent + Checkpoint Ash resources)
 
 ## Deep Cleanup Session (2026-03-25) -- COMPLETE
 - [x] Phase 1: 9 single-use modules inlined at callsites (a9f4ac6, -208 lines)
