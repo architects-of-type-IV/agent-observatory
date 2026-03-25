@@ -20,15 +20,15 @@ lib/ichor/
 │
 ├── events/
 │   ├── runtime.ex                     # MOVE: Signals.Runtime -> Events.Runtime
-│   ├── event.ex                       # KEEP: Signals.Event (signal emit/query actions)
+│   ├── event.ex                       # (Signals.Event was deleted in f20ac4b)
 │   ├── signals.ex                     # MOVE: Signals.Catalog -> Events.Signals
 │   ├── catalog.ex                     # KEEP: Signals.Catalog (declarative catalog)
 │   ├── query.ex                       # NEW: replaces ephemeral Ash read models
 │   └── projections/
 │       ├── attention.ex               # MOVE: Archon.SignalManager -> Events.Projections.Attention
-│       ├── decision_log.ex            # MOVE: Mesh.DecisionLog -> Events.Projections.DecisionLog
+│       ├── decision_log.ex            # (Mesh.DecisionLog deleted in f20ac4b -- if rebuilt, target goes here)
 │       ├── messages.ex                # MOVE: Observability.Message -> Events.Projections.Messages
-│       ├── topology.ex                # MOVE: Mesh.CausalDAG -> Events.Projections.Topology
+│       ├── topology.ex                # (Mesh.CausalDAG deleted in f20ac4b -- if rebuilt, target goes here)
 │       └── traces.ex                  # MOVE: ProtocolTracker -> Events.Projections.Traces
 │
 ├── fleet/
@@ -115,8 +115,8 @@ lib/ichor/
 | `Ichor.Projects.DateUtils` | DELETE -- absorb into callsite |
 | `Ichor.Projects.ProjectStage` | Move to web presenter/query layer |
 | `Ichor.Archon.SignalManager` | MOVE to Events.Projections.Attention |
-| `Ichor.Mesh.DecisionLog.Helpers` | Absorbed into DecisionLog |
-| `Ichor.Gateway.SchemaInterceptor` | Absorbed into webhook/router ingress |
+| ~~`Ichor.Mesh.DecisionLog.Helpers`~~ | Deleted in f20ac4b |
+| ~~`Ichor.Gateway.SchemaInterceptor`~~ | Deleted in f20ac4b |
 | `Ichor.SystemSupervisor` | REPLACED by Runtime.Supervisor |
 | `Ichor.ObservationSupervisor` | ABSORBED into Runtime.Supervisor |
 
@@ -144,7 +144,7 @@ lib/ichor/
 | `Ichor.Application` | `application.ex` (keep) |
 | `Ichor.SystemSupervisor` | `Ichor.Runtime.Supervisor` |
 | `Ichor.ObservationSupervisor` | absorbed into `Ichor.Runtime.Supervisor` |
-| `Ichor.Mesh.Supervisor` | absorbed into `Ichor.Runtime.Supervisor` or `Ichor.Events.Runtime` |
+| ~~`Ichor.Mesh.Supervisor`~~ | Deleted in f20ac4b |
 | `Ichor.Projects.Runtime` | `Ichor.Projects.Runtime` (keep) |
 | `Ichor.Control.FleetSupervisor` | `Ichor.Fleet.Runtime` |
 
@@ -154,20 +154,22 @@ lib/ichor/
 |---------|--------|
 | `Ichor.Events.Runtime` | `Ichor.Events.Runtime` |
 | `Ichor.Signals.Runtime` | `Ichor.Events.Runtime` (merge) |
-| `Ichor.Signals.Event` | `Ichor.Events.Event` |
+| ~~`Ichor.Signals.Event`~~ | Deleted in f20ac4b |
 | `Ichor.Signals.Catalog` | `Ichor.Events.Catalog` |
 | `Ichor.Signals.EventStream` | `Ichor.Events.Runtime` (absorbed) -- rename to EventStore conceptually |
-| `Ichor.Signals.EventBridge` | `Ichor.Events.Projections.Topology` (split) |
+| ~~`Ichor.Signals.EventBridge`~~ | Deleted in f20ac4b (was EventBridge via Mesh) |
 | `Ichor.Signals.AgentWatchdog` | `Ichor.Fleet.Runtime` (fleet concern) |
 | `Ichor.Signals.FromAsh` | keep if Ash notifiers still needed |
 | `Ichor.Signals.ProtocolTracker` | `Ichor.Events.Projections.Traces` |
 | `Ichor.Signals.EntropyTracker` | `Ichor.Events.Projections.Topology` or DELETE |
 | `Ichor.Signals.Bus` | `Ichor.Transport.MessageBus` |
-| `Ichor.Signals.Buffer` | DELETE |
+| ~~`Ichor.Signals.Behaviour`~~ | Deleted in f20ac4b |
+| ~~`Ichor.Signals.Noop`~~ | Deleted in f20ac4b |
+| ~~`Ichor.Signals.Buffer`~~ | Deleted (confirmed gone from signals/) |
 | `Ichor.Signals.TaskProjection` | `Ichor.Events.Query` |
 | `Ichor.Signals.ToolFailure` | `Ichor.Events.Query` |
-| `Ichor.Mesh.CausalDAG` | `Ichor.Events.Projections.Topology` |
-| `Ichor.Mesh.DecisionLog` | `Ichor.Events.Projections.DecisionLog` |
+| ~~`Ichor.Mesh.CausalDAG`~~ | Deleted in f20ac4b |
+| ~~`Ichor.Mesh.DecisionLog`~~ | Deleted in f20ac4b |
 | `Ichor.Archon.SignalManager` | `Ichor.Events.Projections.Attention` |
 
 ### Fleet / Control

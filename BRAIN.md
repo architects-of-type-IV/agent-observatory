@@ -18,7 +18,6 @@
 
 ## Entropy Scoring
 - Raw events: session_id, tool_name, hook_event_type (atom-keyed).
-- payload["cognition"]["intent"] is NOT in raw events -- DecisionLog-computed.
 - Score with {tool_name, hook_event_type} tuple.
 - classify/3 is pure. emit_state_change/4 is side effect. Separate.
 

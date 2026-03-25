@@ -60,7 +60,7 @@ Signal transport + PubSub broadcast layer. Wraps `Phoenix.PubSub` with typed sig
 
 **Key function**: `Signals.emit(topic, signal)` -- the single entrypoint for all signal emission. Ensures signals go through the catalog, get sequenced, and get broadcast.
 
-**EventBridge bug (P2-2.3 from audit)**: `Signals.EventBridge` calls `Phoenix.PubSub.subscribe/unsubscribe` directly, bypassing `Ichor.Signals`. Should use `Signals.subscribe/unsubscribe`.
+**EventBridge (removed)**: `Signals.EventBridge` and `Mesh.*` (CausalDAG, DecisionLog, Mesh.Supervisor) were deleted in commit f20ac4b. The topology/DAG pipeline no longer exists.
 
 ### Signals.Catalog
 
@@ -110,7 +110,6 @@ Ash (durable truth)
   +--> Signals.FromAsh: emit PubSub signal (observational fanout)
             |
             +--> Dashboard LiveView (UI update -- loss ok)
-            +--> Mesh.EventBridge (topology -- loss ok)
             +--> AgentWatchdog (health check -- loss ok)
             +--> Buffer (replay -- loss ok)
 ```
@@ -127,14 +126,14 @@ Ash (durable truth)
 
 | Topic | Producer | Subscribers | Mandatory? |
 |-------|----------|-------------|-----------|
-| `:new_event` | EventStream | AgentWatchdog, Dashboard, EventBridge | No |
+| `:new_event` | EventStream | AgentWatchdog, Dashboard | No |
 | `:session_discovered` | EventStream (after fix) | Infrastructure (create AgentProcess) | Yes -> Oban |
 | `:agent_crashed` | AgentWatchdog | Factory (reassign tasks), Operator.Inbox | Yes -> Oban |
 | `:team_spawn_requested` | Workshop.Spawn | TeamSpawnHandler | Yes -> direct |
-| `:team_spawned` | TeamSpawnHandler | Dashboard, Mesh | No |
+| `:team_spawned` | TeamSpawnHandler | Dashboard | No |
 | `:run_complete` | Projects.RunManager | TeamWatchdog -> cleanup | Yes -> Oban |
 | `:run_cleanup_needed` | TeamWatchdog | Factory, Infrastructure, Operator.Inbox | Yes -> Oban |
-| `:pipeline_task_claimed` | PipelineTask notifier | Dashboard, EventBridge | No |
+| `:pipeline_task_claimed` | PipelineTask notifier | Dashboard | No |
 | `:message_delivered` | Bus | Dashboard | No |
 | `:fleet_changed` | AgentProcess, Bus | Dashboard | No |
 | `:heartbeat` | AgentWatchdog | Dashboard liveness indicators | No |
@@ -155,11 +154,9 @@ Ash (durable truth)
 
 **Fix**: Emit `:agent_crashed` (already done). Add Factory subscriber that reacts to `:agent_crashed` and reassigns tasks. Add Infrastructure subscriber that reacts to `:escalation_level_2` and calls HITLRelay.pause.
 
-### X3: EventBridge raw PubSub calls (small, Wave 1)
+### X3: EventBridge (resolved -- module deleted)
 
-**Current**: `event_bridge.ex:77,289` calls `Phoenix.PubSub.subscribe/unsubscribe` directly.
-
-**Fix**: Use `Ichor.Signals.subscribe/unsubscribe` instead. One-line change per callsite.
+`Ichor.Gateway.EventBridge`, `Ichor.Mesh.CausalDAG`, `Ichor.Mesh.DecisionLog`, and `Ichor.Mesh.Supervisor` were deleted in commit f20ac4b. The raw PubSub calls no longer exist.
 
 ---
 

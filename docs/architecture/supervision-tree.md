@@ -18,7 +18,7 @@ graph TD
     RS --> TR["Transport.Cron\n(cron execution runtime)"]
     RS --> FR["Fleet.Runtime\n(DynamicSupervisor for agents)"]
     RS --> PR["Projects.Runtime\n(run lifecycle supervisor)"]
-    RS --> MS["Mesh.Supervisor\n-> Events.Projections.Topology"]
+
 
     FR --> AP["AgentProcess\n(per agent, dynamic)"]
     FR --> TS["TeamSupervisor\n(per team, dynamic)"]
@@ -37,7 +37,7 @@ graph TD
 | `Runtime.Supervisor` (new) | -- | `one_for_one` | Independent subsystems; one crash should not cascade |
 | `Fleet.Runtime` (FleetSupervisor) | `one_for_one` dynamic | `one_for_one` dynamic | Each AgentProcess is independent |
 | `Projects.Runtime` | `one_for_one` | `one_for_one` | Runs are independent; one failed run should not kill others |
-| `Mesh.Supervisor` | `one_for_one` | Absorbed into `Runtime.Supervisor` | Only supervises 2 children; not worth a level |
+| ~~`Mesh.Supervisor`~~ | -- | Deleted in f20ac4b | CausalDAG, EventBridge, DecisionLog all removed |
 | `TeamSupervisor` | `:temporary` dynamic per team | `:temporary` | Teams are ephemeral; do not restart |
 
 ---
@@ -82,6 +82,6 @@ Target groups by failure domain so a crash in one subsystem does not affect othe
 - The session activity map (last-seen timestamps per session)
 - The message delivery log
 
-The GenServer serializes **writes** and manages **subscriptions**. Reads go directly to ETS. This is the correct split: `GenServer.call` for writes gives you serialization guarantees without bottlenecking concurrent readers (multiple LiveViews, AgentWatchdog, EventBridge all read simultaneously).
+The GenServer serializes **writes** and manages **subscriptions**. Reads go directly to ETS. This is the correct split: `GenServer.call` for writes gives you serialization guarantees without bottlenecking concurrent readers (multiple LiveViews, AgentWatchdog all read simultaneously).
 
 The `Buffer` GenServer was a mistake because its only job was incrementing a counter -- `:atomics` is correct for that.

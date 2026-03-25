@@ -1,4 +1,4 @@
- # lib/ichor/ Module Tree (179 files)
+ # lib/ichor/ Module Tree
 
 Updated 2026-03-21 after Waves 1-4. Ownership boundaries and notable modules.
 
@@ -131,14 +131,6 @@ lib/ichor/
 │   ├── persistence.ex             # Disk persistence for memory store
 │   └── storage.ex                 # ETS-level memory store operations
 │
-├── mesh/                          # Topology services
-│   ├── causal_dag.ex              # Per-session causal topology DAG
-│   ├── decision_log.ex            # Causal message envelope (embedded)
-│   ├── decision_log/
-│   │   └── helpers.ex             # DecisionLog pure helpers
-│   ├── event_bridge.ex            # Event -> mesh topology bridge
-│   └── supervisor.ex              # Supervises DAG + event bridge
-│
 ├── operator/
 │   └── inbox.ex                   # Agent inbox file writer (A3)
 │
@@ -147,35 +139,16 @@ lib/ichor/
 │   └── info.ex                    # Plugin info struct
 │
 ├── signals/                       # Reactive backbone domain
-│   ├── agent_watchdog.ex          # Signal-driven agent watchdog
-│   ├── agent_watchdog/
-│   │   ├── escalation_engine.ex   # Escalation policy engine
-│   │   └── pane_scanner.ex        # Tmux pane output scanner
-│   ├── behaviour.ex               # Signal behaviour definition
-│   ├── buffer.ex                  # Signal ring buffer
 │   ├── bus.ex                     # Single message delivery authority
 │   ├── catalog.ex                 # Declarative signal catalog
-│   ├── entropy_tracker.ex         # Loop/entropy monitoring
-│   ├── event.ex                   # Signal emit/query actions
-│   ├── event_payload.ex           # Event payload struct
 │   ├── event_stream.ex            # Canonical event buffer + liveness
 │   ├── event_stream/
 │   │   ├── agent_lifecycle.ex     # Signal emission helper (no Infrastructure imports)
 │   │   └── normalizer.ex          # Hook event normalizer
-│   ├── from_ash.ex                # Ash notifier -> signal emission
-│   ├── hitl_intervention_event.ex # Durable HITL audit record (moved from Infrastructure)
+│   ├── hitl_intervention_event.ex # Durable HITL audit record
 │   ├── message.ex                 # Signal message struct
-│   ├── noop.ex                    # No-op signal handler
 │   ├── operations.ex              # Ash action surface for messaging/signals
-│   ├── preparations/
-│   │   ├── event_buffer_reader.ex # Event buffer reader preparation
-│   │   ├── load_task_projections.ex # Task projection loader
-│   │   └── load_tool_failures.ex  # Tool failure loader
-│   ├── protocol_tracker.ex        # Debug trace correlation
 │   ├── runtime.ex                 # Signal transport + PubSub broadcast
-│   ├── schema_interceptor.ex      # Schema interception
-│   ├── task_projection.ex         # Live task projection from event stream
-│   ├── tool_failure.ex            # Live tool-failure projection
 │   └── topics.ex                  # PubSub topic definitions
 │
 └── workshop/                      # Agent + team design domain
@@ -188,8 +161,7 @@ lib/ichor/
     ├── agent_type.ex              # Reusable agent archetype
     ├── analysis/
     │   ├── agent_health.ex        # Agent health analysis
-    │   ├── queries.ex             # Fleet/team query helpers
-    │   └── session_eviction.ex    # Session eviction logic
+    │   └── queries.ex             # Fleet/team query helpers
     ├── canvas_state.ex            # Workshop editor state transitions
     ├── comm_rule.ex               # Communication rule resource
     ├── pipeline_prompts.ex        # Pipeline team prompt templates

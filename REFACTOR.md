@@ -38,9 +38,9 @@ observers, and Archon (the AI floor manager). It contains ~32,900 lines across ~
 | `Ichor.Gateway.Router.Delivery` | gateway/router/delivery.ex | ~80 | Pure Function | Delivers envelope to channel adapters |
 | `Ichor.Gateway.Router.EventIngest` | gateway/router/event_ingest.ex | 155 | Pure Function | Inbound event processing: buffer, broadcast, signal |
 | `Ichor.Gateway.Router.RecipientResolver` | gateway/router/recipient_resolver.ex | ~70 | Pure Function | Resolves channel pattern to agent list |
-| `Ichor.Gateway.EventBridge` | gateway/event_bridge.ex | 293 | GenServer | Transforms events:stream -> DecisionLog, feeds CausalDAG + EntropyTracker |
+| ~~`Ichor.Gateway.EventBridge`~~ | ~~gateway/event_bridge.ex~~ | - | - | DELETED f20ac4b |
 | `Ichor.Gateway.EntropyTracker` | gateway/entropy_tracker.ex | 224 | GenServer | Sliding-window entropy/loop detection per session |
-| `Ichor.Gateway.SchemaInterceptor` | gateway/schema_interceptor.ex | 222 | Pure Function | Validates DecisionLog changesets; enriches with entropy |
+| ~~`Ichor.Gateway.SchemaInterceptor`~~ | ~~gateway/schema_interceptor.ex~~ | - | - | DELETED f20ac4b |
 | `Ichor.Gateway.HeartbeatManager` | gateway/heartbeat_manager.ex | ~120 | GenServer | Tracks agent heartbeats; detects zombies |
 | `Ichor.Gateway.HITLRelay` | gateway/hitl_relay.ex | 219 | GenServer | Human-in-the-loop pause/resume for agents |
 | `Ichor.Gateway.CronScheduler` | gateway/cron_scheduler.ex | ~100 | GenServer | Cron job management |
@@ -63,6 +63,8 @@ observers, and Archon (the AI floor manager). It contains ~32,900 lines across ~
 | `Ichor.Workshop.AgentEntry` | gateway/agent_registry/agent_entry.ex | ~80 | Pure Function | Agent entry helpers (UUID detection, short_id) |
 
 ### Fleet
+
+> **Note (2026-03-25)**: The Fleet.Session Ash resource, Fleet.Supervisor, and Fleet.Preparations.LoadSessions were deleted in commit f20ac4b. The modules in the table below are historical inventory from an earlier architecture and may no longer reflect the current codebase.
 
 | Module | File | Lines | Type | Purpose |
 |--------|------|-------|------|---------|
@@ -298,8 +300,8 @@ observers, and Archon (the AI floor manager). It contains ~32,900 lines across ~
 | `DashboardState` | `Ichor.Fleet.{Agent,Team}` | code_interface |
 | `DashboardMesHandlers` | `Ichor.Genesis.{Node,ModeSpawner}` | Direct |
 | `Mes.CompletionHandler` | `Ichor.Genesis.Node` | code_interface |
-| `Gateway.EventBridge` | `Ichor.Mesh.{CausalDAG,DecisionLog}` | Direct |
-| `Gateway.SchemaInterceptor` | `Ichor.Mesh.DecisionLog` | Direct |
+| ~~`Gateway.EventBridge`~~ | ~~`Ichor.Mesh.{CausalDAG,DecisionLog}`~~ | Deleted (f20ac4b) |
+| ~~`Gateway.SchemaInterceptor`~~ | ~~`Ichor.Mesh.DecisionLog`~~ | Deleted (f20ac4b) |
 
 ### Sub-apps that call INTO this app
 
@@ -321,7 +323,6 @@ graph TD
     App --> Core[CoreSupervisor]
     App --> Gateway[GatewaySupervisor]
     App --> Fleet[Fleet.FleetSupervisor]
-    App --> Mesh[ObservationSupervisor]
     App --> TaskSup[Task.Supervisor]
     App --> MES[Mes.Supervisor]
     App --> Genesis[Genesis.Supervisor]
@@ -366,20 +367,16 @@ sequenceDiagram
     participant Hook as Claude Code Hook
     participant GW as Gateway.Router
     participant EB as EventBuffer
-    participant EVB as Gateway.EventBridge
     participant Sig as Ichor.Signals
     participant LiveView as DashboardLive
-    participant DAG as CausalDAG
 
-    Hook->>GW: POST /events (DecisionLog JSON)
+    Hook->>GW: POST /events (hook event JSON)
     GW->>EB: EventBuffer.ingest(attrs)
     GW->>Sig: emit(:new_event, event)
     Sig-->>LiveView: handle_info(new_event)
-    Sig-->>EVB: handle_info(new_event)
-    EVB->>Sig: emit(:decision_log, log)
-    Sig-->>LiveView: handle_info(decision_log)
-    EVB->>DAG: CausalDAG.insert(session_id, node)
 ```
+
+Note: EventBridge, CausalDAG, DecisionLog, and SchemaInterceptor were deleted in commit f20ac4b.
 
 ### MES Manufacturing Pipeline
 
@@ -445,11 +442,9 @@ sequenceDiagram
 2. `Ichor.Gateway.HitlEvents` (gateway/hitl_events.ex:6,11) defines `GateOpenEvent` and
    `GateCloseEvent` as nested modules.
 
-3. `Ichor.Mesh.DecisionLog` (mesh/decision_log.ex:17,54,84,120,158,183) defines six nested
-   modules: `Meta`, `Identity`, `Cognition`, `Action`, `StateDelta`, `Control`. This is the
-   worst case -- lives in ichor_mesh, not ichor.
+3. ~~`Ichor.Mesh.DecisionLog` (mesh/decision_log.ex) -- DELETED in f20ac4b~~
 
-4. `Ichor.Mesh.CausalDAG` (mesh/causal_dag.ex:14) defines nested `Node` struct.
+4. ~~`Ichor.Mesh.CausalDAG` (mesh/causal_dag.ex) -- DELETED in f20ac4b~~
 
 ### HIGH: Direct Ash.create/update/destroy bypassing code_interface
 
@@ -489,11 +484,9 @@ should receive a plain struct from its caller, not reach into Genesis domain to 
 `Run.get/1`, `Run.archive/1`, `Job.by_run/1`, `Job.reset/1`. These should go through `Ichor.Dag`
 domain or a DAG service facade.
 
-### LOW: EventBridge calling Mesh modules from Gateway namespace
+### ~~LOW: EventBridge calling Mesh modules from Gateway namespace~~ (resolved -- deleted)
 
-`Ichor.Gateway.EventBridge` calls `Ichor.Mesh.CausalDAG` and `Ichor.Mesh.DecisionLog` directly.
-While both live under the ichor app, Gateway and Mesh are notionally separate bounded contexts.
-Consider making this an explicit allowed cross-context dependency or abstracting via signal.
+`Ichor.Gateway.EventBridge`, `Ichor.Mesh.CausalDAG`, and `Ichor.Mesh.DecisionLog` were all deleted in commit f20ac4b.
 
 ### LOW: AgentMonitor subscribes to raw PubSub "events:stream" topic
 
@@ -545,11 +538,9 @@ This bypasses the catalog-validated signal system. Use signal subscription throu
 5. **`Ichor.Archon.MemoriesClient` (212 lines)**: Nested modules `IngestResult`,
    `ChunkedIngestResult`, `SearchResult`, `QueryResult` must be extracted to own files.
 
-6. **`Ichor.Mesh.DecisionLog` (277 lines)**: Six nested structs (`Meta`, `Identity`, `Cognition`,
-   `Action`, `StateDelta`, `Control`) violate nested module rule and bloat the file.
+6. ~~**`Ichor.Mesh.DecisionLog`** -- DELETED in f20ac4b~~
 
-7. **`Ichor.Gateway.SchemaInterceptor` (222 lines)**: Mixed responsibilities: validation,
-   entropy enrichment, alert deduplication, violation event building. Split validate from enrich.
+7. ~~**`Ichor.Gateway.SchemaInterceptor`** -- DELETED in f20ac4b~~
 
 8. **`Ichor.Dag.Prompts` (262 lines)**: Pure prompt strings, same as TeamPrompts issue.
    Split by worker role.
@@ -577,7 +568,7 @@ This bypasses the catalog-validated signal system. Use signal subscription throu
 
 ### HIGH (correctness + principle violations)
 
-- [ ] Extract nested modules from `MemoriesClient`, `HitlEvents`, `DecisionLog`, `CausalDAG`
+- [ ] Extract nested modules from `MemoriesClient`, `HitlEvents` (DecisionLog and CausalDAG were deleted in f20ac4b)
 - [ ] Fix `Workshop.Persistence` to use code_interface not raw `Ash.create/update/destroy`
 - [ ] Fix `ExportController` to use Events code_interface
 - [ ] Remove `subscribe_gateway_topics` no-op or restore meaningful subscription
@@ -589,9 +580,8 @@ This bypasses the catalog-validated signal system. Use signal subscription throu
 - [ ] Split `TeamPrompts` (486L) by mode
 - [ ] Split `PlanningPrompts` (312L) by mode A/B/C
 - [ ] Split `Dag.Prompts` (262L) by worker role
-- [ ] Split `DecisionLog` nested structs into own files
 - [ ] Remove `Mes.TeamSpawner` facade (single-caller pure delegate)
-- [ ] Gateway cross-domain: isolate EventBridge's Mesh dependency via signal or explicit dep
+- ~~[ ] Gateway cross-domain: isolate EventBridge's Mesh dependency~~ (resolved -- deleted f20ac4b)
 - [ ] Dag.Spawner should not call Genesis.Node.get -- caller should pass the node struct
 
 ### LOW (cleanup)

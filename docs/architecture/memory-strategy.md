@@ -27,7 +27,7 @@ Access pattern for all tables: **write through GenServer, read directly from ETS
 
 **ETS type**: `:ordered_set` on `{session_id, seq}` for events. `:set` for session map.
 
-**Concurrency**: Multiple readers (LiveViews, AgentWatchdog, EventBridge) read concurrently. Single writer (GenServer) ensures monotonic sequence numbers.
+**Concurrency**: Multiple readers (LiveViews, AgentWatchdog) read concurrently. Single writer (GenServer) ensures monotonic sequence numbers.
 
 **Retention**: Ring buffer with configurable max size (default: 1000 events). Eviction: drop oldest when full.
 

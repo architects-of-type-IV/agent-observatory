@@ -35,7 +35,7 @@ with renderer dispatch under
 `Ichor.SignalBus` exists so Discovery and Reactor can enumerate signal-facing
 Ash actions. Current resources are:
 
-- `Ichor.Signals.Event`
+- ~~`Ichor.Signals.Event`~~ (deleted in f20ac4b)
 - `Ichor.Signals.Operations`
 - `Ichor.Signals.TaskProjection`
 - `Ichor.Signals.ToolFailure`
@@ -77,17 +77,7 @@ history.
 
 ## Topology
 
-Some `dag` naming still exists in Signals, but it is intentional mesh topology,
-not Factory pipeline execution.
-
-That includes:
-
-- `mesh:dag_delta`
-- `Ichor.Mesh.CausalDag`
-- `Ichor.Mesh.EventBridge`
-
-This is separate from the `Pipeline` / `PipelineTask` execution model in
-Factory.
+**Mesh subsystem deleted (f20ac4b)**: The `Ichor.Mesh` namespace (CausalDAG, EventBridge, DecisionLog, Mesh.Supervisor) was removed. The `mesh:dag_delta` signal topic and topology pipeline no longer exist.
 
 ## Key Files
 
@@ -99,5 +89,5 @@ Factory.
 - [/Users/xander/code/www/kardashev/observatory/lib/ichor/signals/event_stream.ex](/Users/xander/code/www/kardashev/observatory/lib/ichor/signals/event_stream.ex)
 - [/Users/xander/code/www/kardashev/observatory/lib/ichor/signals/tool_failure.ex](/Users/xander/code/www/kardashev/observatory/lib/ichor/signals/tool_failure.ex)
 - [/Users/xander/code/www/kardashev/observatory/lib/ichor/signals/task_projection.ex](/Users/xander/code/www/kardashev/observatory/lib/ichor/signals/task_projection.ex)
-- [/Users/xander/code/www/kardashev/observatory/lib/ichor/signals/agent_watchdog.ex](/Users/xander/code/www/kardashev/observatory/lib/ichor/signals/agent_watchdog.ex)
-- [/Users/xander/code/www/kardashev/observatory/lib/ichor/mesh/supervisor.ex](/Users/xander/code/www/kardashev/observatory/lib/ichor/mesh/supervisor.ex)
+- ~~`lib/ichor/signals/agent_watchdog.ex`~~ (deleted in f20ac4b)
+- ~~`lib/ichor/mesh/supervisor.ex`~~ (deleted in f20ac4b)

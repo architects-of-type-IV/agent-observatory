@@ -280,13 +280,6 @@ graph TB
         Reg[Registry]
     end
 
-    subgraph Mesh["Mesh (observability)"]
-        direction TB
-        DAG[CausalDAG]
-        EB[EventBridge]
-        DL[DecisionLog]
-    end
-
     Workshop -->|"compile spec"| Infra
     Factory -->|"launch teams"| Workshop
     Factory -->|"launch via"| Infra
@@ -302,7 +295,6 @@ graph TB
     style Archon fill:#f3e5f5,stroke:#7b1fa2
     style SignalBus fill:#fff3e0,stroke:#e65100
     style Infra fill:#eceff1,stroke:#546e7a
-    style Mesh fill:#fce4ec,stroke:#c62828
 ```
 
 ---
@@ -765,8 +757,6 @@ flowchart TB
     subgraph Subscribers["Signal Subscribers"]
         AW[AgentWatchdog]
         TW[TeamWatchdog]
-        EB[EventBridge]
-        BUF[Buffer]
         LV[LiveView]
         PM[PipelineMonitor]
     end
@@ -774,7 +764,6 @@ flowchart TB
     subgraph Reactors["Reactions"]
         OJ[Oban Jobs]
         UI[UI Update]
-        MESH[Mesh DAG Update]
         ESC[Escalation]
     end
 
@@ -785,15 +774,11 @@ flowchart TB
 
     SIG -.-> AW
     SIG -.-> TW
-    SIG -.-> EB
-    SIG -.-> BUF
     SIG -.-> LV
     SIG -.-> PM
 
     AW --> ESC
     TW --> OJ
-    EB --> MESH
-    BUF --> UI
     LV --> UI
     PM --> OJ
 
