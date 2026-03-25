@@ -20,6 +20,11 @@ defmodule IchorWeb.Components.CommandComponents do
     ]
 
   alias IchorWeb.Components.FleetHelpers, as: FH
+  import IchorWeb.Components.Primitives.AgentActions
+  import IchorWeb.Components.Primitives.CloseButton
+  import IchorWeb.Components.Primitives.EmptyPanel
+  import IchorWeb.Components.Primitives.StatusBadge
+  import IchorWeb.Components.Primitives.StatusDot
 
   embed_templates "command_components/*"
 

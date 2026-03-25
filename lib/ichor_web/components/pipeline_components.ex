@@ -6,6 +6,7 @@ defmodule IchorWeb.Components.PipelineComponents do
 
   use Phoenix.Component
   import IchorWeb.IchorComponents
+  import IchorWeb.Components.Primitives.StatusDot
 
   embed_templates "pipeline_components/*"
 

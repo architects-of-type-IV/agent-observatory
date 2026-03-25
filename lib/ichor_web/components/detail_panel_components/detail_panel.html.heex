@@ -16,9 +16,7 @@
         {ev.tool_name}
       </span>
     </div>
-    <button phx-click="close_detail" class="text-muted hover:text-default transition p-0.5">
-      <.close_icon />
-    </button>
+    <.close_button on_click="close_detail" />
   </div>
 
   <div class="px-3 py-2 border-b border-border/50">
@@ -164,9 +162,7 @@
         {task[:status]}
       </span>
     </div>
-    <button phx-click="close_task_detail" class="text-muted hover:text-default transition p-0.5">
-      <.close_icon />
-    </button>
+    <.close_button on_click="close_task_detail" />
   </div>
 
   <div class="px-3 py-2 border-b border-border/50">
@@ -252,7 +248,7 @@
 
   <div class="sticky top-0 bg-base/95 backdrop-blur border-b border-border px-3 py-2 flex items-center justify-between">
     <div class="flex items-center gap-2">
-      <span class={"w-1.5 h-1.5 rounded-full shrink-0 #{member_status_color(agent)}"}></span>
+      <.status_dot color={member_status_color(agent)} />
       <span class="text-xs font-semibold text-high">{agent[:name] || "Agent"}</span>
       <IchorWeb.IchorComponents.model_badge model={agent[:model]} />
     </div>
@@ -261,7 +257,18 @@
       phx-value-id={agent[:agent_id]}
       class="text-muted hover:text-default transition p-0.5"
     >
-      <.close_icon />
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        class="h-4 w-4"
+        viewBox="0 0 20 20"
+        fill="currentColor"
+      >
+        <path
+          fill-rule="evenodd"
+          d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+          clip-rule="evenodd"
+        />
+      </svg>
     </button>
   </div>
 

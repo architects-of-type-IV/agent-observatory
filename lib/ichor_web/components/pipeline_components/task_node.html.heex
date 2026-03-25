@@ -9,10 +9,7 @@
   >
     <div class="flex items-center gap-1.5 text-xs">
       <span class="font-mono text-default">#{@task_id}</span>
-      <span class={[
-        "w-1.5 h-1.5 rounded-full shrink-0",
-        task_dot(status)
-      ]} />
+      <.status_dot color={task_dot(status)} />
     </div>
     <div class="text-[10px] text-default truncate mt-0.5 max-w-[120px]">
       {@task.subject}

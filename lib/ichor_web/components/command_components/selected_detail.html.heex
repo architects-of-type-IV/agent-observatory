@@ -3,12 +3,7 @@
   <div :if={@agent}>
     <div class="flex items-center justify-between mb-3">
       <h3 class="text-sm font-semibold text-high">{@agent[:name] || "Agent"}</h3>
-      <button
-        phx-click="clear_command_selection"
-        class="text-xs text-muted hover:text-default"
-      >
-        x
-      </button>
+      <.close_button on_click="clear_command_selection" />
     </div>
 
     <dl class="space-y-2 text-xs mb-4">
@@ -40,27 +35,7 @@
 
     <%!-- Agent actions --%>
     <div class="flex flex-wrap gap-1.5 mb-4">
-      <button
-        phx-click="pause_agent"
-        phx-value-session_id={@agent[:agent_id]}
-        class="px-2 py-1 bg-highlight text-high rounded text-xs hover:bg-highlight transition"
-      >
-        Pause
-      </button>
-      <button
-        phx-click="resume_agent"
-        phx-value-session_id={@agent[:agent_id]}
-        class="px-2 py-1 bg-highlight text-high rounded text-xs hover:bg-highlight transition"
-      >
-        Resume
-      </button>
-      <button
-        phx-click="shutdown_agent"
-        phx-value-session_id={@agent[:agent_id]}
-        class="px-2 py-1 bg-error/20 text-error rounded text-xs hover:bg-error/30 transition"
-      >
-        Shutdown
-      </button>
+      <.agent_actions session_id={to_string(@agent[:agent_id] || "")} paused={false} />
       <button
         phx-click="open_agent_slideout"
         phx-value-session_id={@agent[:agent_id]}
@@ -104,12 +79,7 @@
   <div :if={!@agent && @task}>
     <div class="flex items-center justify-between mb-3">
       <h3 class="text-sm font-semibold text-high">Task #{@task.id}</h3>
-      <button
-        phx-click="clear_command_selection"
-        class="text-xs text-muted hover:text-default"
-      >
-        x
-      </button>
+      <.close_button on_click="clear_command_selection" />
     </div>
     <p class="text-xs text-high mb-3">{@task.subject}</p>
     <dl class="space-y-2 text-xs">

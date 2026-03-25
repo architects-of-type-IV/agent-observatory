@@ -1,9 +1,12 @@
 defmodule IchorWeb.Components.Ichor.EmptyState do
   @moduledoc """
   Renders an empty state with icon and guidance text.
+  Delegates to EmptyPanel with a generous vertical padding default.
   """
 
   use Phoenix.Component
+
+  import IchorWeb.Components.Primitives.EmptyPanel
 
   @doc """
   Renders an empty state with icon and guidance text.
@@ -20,10 +23,7 @@ defmodule IchorWeb.Components.Ichor.EmptyState do
 
   def empty_state(assigns) do
     ~H"""
-    <div class="flex flex-col items-center justify-center py-24 text-muted">
-      <p class="text-lg">{@title}</p>
-      <p class="text-sm mt-1 text-muted">{@description}</p>
-    </div>
+    <.empty_panel title={@title} description={@description} class="py-24" />
     """
   end
 end

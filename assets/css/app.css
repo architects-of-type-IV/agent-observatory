@@ -293,10 +293,10 @@
   @apply p-2 flex-1 overflow-y-auto;
 }
 
-/* Section title used in sidebar, detail panel, inspector */
+/* Section title used in sidebar, detail panel, inspector, and panel headers */
 .ichor-section-title {
   color: hsl(var(--ichor-text-low));
-  @apply text-[9px] font-semibold uppercase tracking-wider;
+  @apply text-[10px] font-semibold uppercase tracking-wider;
 }
 
 /* Sidebar items -- team/session rows */

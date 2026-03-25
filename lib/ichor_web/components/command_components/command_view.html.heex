@@ -40,7 +40,7 @@ selected = @selected_command_agent %>
           phx-click="select_command_agent"
           phx-value-id={agent[:agent_id]}
         >
-          <span class={"w-1.5 h-1.5 rounded-full shrink-0 #{status_dot_color(agent[:status] || :idle)}"} />
+          <.status_dot color={status_dot_color(agent[:status] || :idle)} />
           <span class="text-[11px] text-high truncate flex-1">
             {agent[:name] || agent[:agent_id]}
           </span>
@@ -65,10 +65,7 @@ selected = @selected_command_agent %>
         </div>
       <% end %>
 
-      <div :if={all_agents == []} class="px-3 py-8 text-center">
-        <div class="text-[10px] text-muted uppercase tracking-wider mb-1">No agents detected</div>
-        <div class="text-[10px] text-muted">Start a Claude session to see it here.</div>
-      </div>
+      <.empty_panel :if={all_agents == []} title="No agents detected" description="Start a Claude session to see it here." class="px-3 py-8" />
     </div>
   </div>
 
@@ -239,26 +236,19 @@ selected = @selected_command_agent %>
                   {to_label}
                 </span>
                 <span class="flex-1" />
-                <span class={"text-[9px] px-1.5 py-0.5 rounded #{if msg.read, do: "text-success", else: "text-brand bg-brand/10"}"}>
-                  {if msg.read, do: "read", else: "unread"}
-                </span>
+                <.status_badge
+                  label={if msg.read, do: "read", else: "unread"}
+                  color={if msg.read, do: "muted", else: "brand"}
+                />
                 <%= case msg[:transport] do %>
                   <% :mcp -> %>
-                    <span class="text-[9px] px-1.5 py-0.5 rounded bg-interactive/15 text-interactive">
-                      mcp
-                    </span>
+                    <.status_badge label="mcp" color="interactive" />
                   <% :operator -> %>
-                    <span class="text-[9px] px-1.5 py-0.5 rounded bg-brand/10 text-brand">
-                      operator
-                    </span>
+                    <.status_badge label="operator" color="brand" />
                   <% :hook -> %>
-                    <span class="text-[9px] px-1.5 py-0.5 rounded bg-warning/15 text-warning">
-                      hook
-                    </span>
+                    <.status_badge label="hook" color="warning" />
                   <% _ -> %>
-                    <span class="text-[9px] px-1.5 py-0.5 rounded bg-success/15 text-success">
-                      http
-                    </span>
+                    <.status_badge label="http" color="success" />
                 <% end %>
                 <span class="text-[9px] text-muted font-mono tabular-nums">
                   {FH.format_timestamp(msg.timestamp)}
@@ -330,12 +320,7 @@ selected = @selected_command_agent %>
       end %>
     <div class="px-3 py-1.5 border-b border-border flex items-center justify-between shrink-0">
       <h3 class="text-[11px] font-semibold text-high">{sel_name}</h3>
-      <button
-        phx-click="clear_command_selection"
-        class="text-[11px] text-muted hover:text-high cursor-pointer"
-      >
-        x
-      </button>
+      <.close_button on_click="clear_command_selection" />
     </div>
     <div class="flex-1 overflow-y-auto">
       <%!-- Info --%>
@@ -403,14 +388,6 @@ selected = @selected_command_agent %>
         </h4>
         <div class="flex flex-wrap gap-1.5">
           <button
-            :if={sel_tmux}
-            phx-click="connect_tmux"
-            phx-value-session={sel_tmux}
-            class="ichor-btn bg-brand/15 text-brand hover:bg-brand/25"
-          >
-            Tmux
-          </button>
-          <button
             phx-click="open_agent_slideout"
             phx-value-session_id={sel_id}
             class="ichor-btn ichor-btn-primary"
@@ -425,29 +402,11 @@ selected = @selected_command_agent %>
           >
             {if is_traced, do: "Tracing", else: "Trace"}
           </button>
-          <button
-            :if={!is_hitl_paused}
-            phx-click="pause_agent"
-            phx-value-session_id={sel_session_id || sel_id}
-            class="ichor-btn ichor-btn-muted"
-          >
-            Pause
-          </button>
-          <button
-            :if={is_hitl_paused}
-            phx-click="resume_agent"
-            phx-value-session_id={sel_session_id || sel_id}
-            class="ichor-btn ichor-btn-muted"
-          >
-            Resume
-          </button>
-          <button
-            phx-click="shutdown_agent"
-            phx-value-session_id={sel_session_id || sel_id}
-            class="ichor-btn ichor-btn-muted text-error"
-          >
-            Shutdown
-          </button>
+          <.agent_actions
+            session_id={sel_session_id || sel_id}
+            paused={is_hitl_paused}
+            tmux_session={sel_tmux}
+          />
         </div>
       </div>
 
