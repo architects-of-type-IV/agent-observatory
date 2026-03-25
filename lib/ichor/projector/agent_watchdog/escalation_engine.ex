@@ -1,4 +1,4 @@
-defmodule Ichor.Signals.AgentWatchdog.EscalationEngine do
+defmodule Ichor.Projector.AgentWatchdog.EscalationEngine do
   @moduledoc """
   Pure escalation decision engine. Takes agent staleness data and returns escalation
   actions without executing them.

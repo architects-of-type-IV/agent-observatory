@@ -19,13 +19,13 @@ defmodule Ichor.RuntimeSupervisor do
 
       # Infrastructure and signal-adjacent services
       {Ichor.Infrastructure.TmuxDiscovery, []},
-      {Ichor.Signals.EntropyTracker, []},
+      {Ichor.Projector.EntropyTracker, []},
       {Ichor.Infrastructure.HITLRelay, []},
       {Ichor.Infrastructure.OutputCapture, []},
 
       # Monitoring and observability services
-      {Ichor.Signals.AgentWatchdog, []},
-      {Ichor.Signals.ProtocolTracker, []},
+      {Ichor.Projector.AgentWatchdog, []},
+      {Ichor.Projector.ProtocolTracker, []},
       {Ichor.Projector.SignalBuffer, []},
       {Ichor.Projector.SignalManager, []},
       {Ichor.Projector.TeamWatchdog, []}

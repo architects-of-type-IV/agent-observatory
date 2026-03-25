@@ -1,4 +1,4 @@
-defmodule Ichor.Signals.AgentWatchdog.PaneScanner do
+defmodule Ichor.Projector.AgentWatchdog.PaneScanner do
   @moduledoc """
   Tmux pane capture and signal parsing. Scans agent output for done/blocked patterns.
 

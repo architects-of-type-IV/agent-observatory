@@ -8,7 +8,7 @@ defmodule IchorWeb.DebugController do
   alias Ichor.Projector.SignalBuffer, as: Buffer
   alias Ichor.Signals.Bus
   alias Ichor.Signals.EventStream
-  alias Ichor.Signals.ProtocolTracker
+  alias Ichor.Projector.ProtocolTracker
   alias Ichor.Workshop.ActiveTeam
   alias Ichor.Workshop.Agent
 

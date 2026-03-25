@@ -1,4 +1,4 @@
-defmodule Ichor.Signals.EntropyTracker do
+defmodule Ichor.Projector.EntropyTracker do
   @moduledoc """
   Sliding-window entropy tracker for per-session loop detection.
 

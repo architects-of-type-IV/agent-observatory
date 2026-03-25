@@ -1,4 +1,4 @@
-defmodule Ichor.Signals.ProtocolTracker do
+defmodule Ichor.Projector.ProtocolTracker do
   @moduledoc """
   Tracks messages across communication protocols (HTTP events, PubSub,
   Mailbox ETS, CommandQueue filesystem) and correlates them into

@@ -1,4 +1,4 @@
-defmodule Ichor.Signals.AgentWatchdog do
+defmodule Ichor.Projector.AgentWatchdog do
   @moduledoc """
   Consolidated agent health monitor. Replaces Heartbeat, AgentMonitor,
   NudgeEscalator, and PaneMonitor with a single GenServer and one timer.
@@ -19,8 +19,8 @@ defmodule Ichor.Signals.AgentWatchdog do
   alias Ichor.Infrastructure.HITLRelay
   alias Ichor.Infrastructure.Tmux
   alias Ichor.Operator.Inbox
-  alias Ichor.Signals.AgentWatchdog.EscalationEngine
-  alias Ichor.Signals.AgentWatchdog.PaneScanner
+  alias Ichor.Projector.AgentWatchdog.EscalationEngine
+  alias Ichor.Projector.AgentWatchdog.PaneScanner
   alias Ichor.Signals.Bus
   alias Ichor.Signals.Message
   alias Ichor.Workshop.AgentEntry
