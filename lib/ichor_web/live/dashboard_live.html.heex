@@ -401,7 +401,6 @@
             comms_agent_filter={@comms_agent_filter}
             activity_tab={@activity_tab}
             agent_index={@agent_index}
-            paused_sessions={@paused_sessions}
             mailbox_messages={@mailbox_messages}
           />
         </div>
@@ -572,7 +571,6 @@
     <div class="px-4 py-2.5 border-t border-border shrink-0 flex gap-1.5">
       <.agent_actions
         session_id={so_sid}
-        paused={false}
         tmux_session={so[:channels][:tmux]}
       />
       <div class="flex-1"></div>

@@ -35,7 +35,7 @@
 
     <%!-- Agent actions --%>
     <div class="flex flex-wrap gap-1.5 mb-4">
-      <.agent_actions session_id={to_string(@agent[:agent_id] || "")} paused={false} />
+      <.agent_actions session_id={to_string(@agent[:agent_id] || "")} />
       <button
         phx-click="open_agent_slideout"
         phx-value-session_id={@agent[:agent_id]}

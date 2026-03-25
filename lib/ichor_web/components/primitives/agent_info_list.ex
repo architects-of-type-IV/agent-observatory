@@ -19,11 +19,9 @@ defmodule IchorWeb.Components.Primitives.AgentInfoList do
   ## Attributes
 
   - `agent`  – agent map with status, model, role, team_name/team, cwd, etc.
-  - `paused` – unused, kept for backwards-compatible call sites
   - `class`  – extra CSS classes applied to the outer `<dl>`
   """
   attr :agent, :map, required: true
-  attr :paused, :boolean, default: false
   attr :class, :string, default: ""
 
   def agent_info_list(assigns) do

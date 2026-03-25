@@ -70,7 +70,7 @@ defmodule IchorWeb.DashboardLive do
   # select_team needs view recompute (derives sel_team + active_tasks)
   @selection_recompute ~w(select_team)
 
-  @session_control_events ~w(shutdown_agent kill_switch_click kill_switch_first_confirm kill_switch_second_confirm kill_switch_cancel push_instructions_intent push_instructions_confirm push_instructions_cancel)
+  @session_control_events ~w(shutdown_agent push_instructions_intent push_instructions_confirm push_instructions_cancel)
   @tmux_events ~w(connect_tmux connect_tmux_split connect_all_windows disconnect_tmux disconnect_tmux_tab close_all_tmux switch_tmux_tab toggle_tmux_layout send_tmux_keys kill_tmux_session kill_sidebar_tmux launch_session toggle_terminal_panel close_terminal_panel cycle_panel_position set_panel_position set_panel_width set_panel_height set_panel_split set_panel_theme set_panel_layout terminal_panel_init terminal_panel_resize terminal_resized toggle_session_picker toggle_panel_settings)
   @pipeline_events ~w(select_pipeline_project heal_pipeline_task heal_task reset_pipeline_stale run_pipeline_health_check reassign_pipeline_task claim_pipeline_task trigger_pipeline_gc select_pipeline_task select_command_agent send_command_message clear_command_selection)
   @task_events ~w(update_task_status reassign_task delete_task)

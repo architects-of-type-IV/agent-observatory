@@ -16,7 +16,6 @@ defmodule IchorWeb.Components.Primitives.AgentActions do
   All buttons fire phx-click events with phx-value-session_id set to `session_id`.
   """
   attr :session_id, :string, required: true
-  attr :paused, :boolean, default: false
   attr :tmux_session, :string, default: nil
 
   def agent_actions(assigns) do

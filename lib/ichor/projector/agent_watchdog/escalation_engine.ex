@@ -5,7 +5,7 @@ defmodule Ichor.Projector.AgentWatchdog.EscalationEngine do
 
   Determines which stale agents need to advance to the next escalation level and
   calls the provided execute_fn for each transition. The actual side effects
-  (signals, HITL, Bus.send) remain in the caller.
+  (signals, Bus.send) remain in the caller.
   """
 
   @doc """

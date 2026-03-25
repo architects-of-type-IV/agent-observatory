@@ -21,7 +21,6 @@ defmodule IchorWeb.Components.Agent.AgentDetailPanel do
   attr :agent_id, :string, required: true
   attr :teams, :list, default: []
   attr :messages, :list, default: []
-  attr :paused, :boolean, default: false
   attr :names, :map, default: %{}
   attr :agent_filter, :list, default: []
 
@@ -47,7 +46,7 @@ defmodule IchorWeb.Components.Agent.AgentDetailPanel do
       <%!-- Info --%>
       <div class="px-3 py-2.5 border-b border-border/50">
         <h4 class="text-[10px] font-semibold text-low uppercase tracking-wider mb-2">Info</h4>
-        <.agent_info_list agent={@agent} paused={@paused} />
+        <.agent_info_list agent={@agent} />
       </div>
 
       <%!-- Recent Messages --%>
@@ -99,7 +98,6 @@ defmodule IchorWeb.Components.Agent.AgentDetailPanel do
           </button>
           <.agent_actions
             session_id={@sel_session_id || @agent_id}
-            paused={@paused}
             tmux_session={@sel_tmux}
           />
         </div>

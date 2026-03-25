@@ -13,10 +13,6 @@ defmodule IchorWeb.DashboardSessionControlHandlers do
   import IchorWeb.DashboardToast, only: [push_toast: 3]
 
   def dispatch("shutdown_agent", p, s), do: handle_shutdown_agent(p, s)
-  def dispatch("kill_switch_click", p, s), do: handle_kill_switch_click(p, s)
-  def dispatch("kill_switch_first_confirm", p, s), do: handle_kill_switch_first_confirm(p, s)
-  def dispatch("kill_switch_second_confirm", p, s), do: handle_kill_switch_second_confirm(p, s)
-  def dispatch("kill_switch_cancel", p, s), do: handle_kill_switch_cancel(p, s)
   def dispatch("push_instructions_intent", p, s), do: handle_push_instructions_intent(p, s)
   def dispatch("push_instructions_confirm", p, s), do: handle_push_instructions_confirm(p, s)
   def dispatch("push_instructions_cancel", p, s), do: handle_push_instructions_cancel(p, s)
@@ -76,32 +72,7 @@ defmodule IchorWeb.DashboardSessionControlHandlers do
     |> push_toast(:warning, "#{short} -- #{Enum.join(details, " / ")}")
   end
 
-  # Phase 5: Kill-switch state machine
-  def handle_kill_switch_click(_params, socket) do
-    Phoenix.Component.assign(socket, :kill_switch_confirm_step, :first)
-  end
-
-  def handle_kill_switch_first_confirm(_params, socket) do
-    Phoenix.Component.assign(socket, :kill_switch_confirm_step, :second)
-  end
-
-  def handle_kill_switch_second_confirm(
-        _params,
-        %{assigns: %{kill_switch_confirm_step: :second}} = socket
-      ) do
-    dispatch_mesh_pause(socket)
-    Phoenix.Component.assign(socket, :kill_switch_confirm_step, nil)
-  end
-
-  def handle_kill_switch_second_confirm(_params, socket) do
-    Phoenix.Component.assign(socket, :kill_switch_confirm_step, nil)
-  end
-
-  def handle_kill_switch_cancel(_params, socket) do
-    Phoenix.Component.assign(socket, :kill_switch_confirm_step, nil)
-  end
-
-  # Phase 5: Global Instructions handlers
+  # Global Instructions handlers
   def handle_push_instructions_intent(%{"agent_class" => agent_class}, socket) do
     Phoenix.Component.assign(socket, :instructions_confirm_pending, agent_class)
   end
@@ -125,12 +96,6 @@ defmodule IchorWeb.DashboardSessionControlHandlers do
 
   def handle_push_instructions_cancel(_params, socket) do
     Phoenix.Component.assign(socket, :instructions_confirm_pending, nil)
-  end
-
-  defp dispatch_mesh_pause(socket) do
-    Signals.emit(:mesh_pause, %{initiated_by: "god_mode"})
-
-    socket
   end
 
   defp kill_tmux_for_agent(session_id) do

@@ -76,7 +76,6 @@ defmodule IchorWeb.DashboardState do
       show_session_picker: false,
       show_panel_settings: false,
       agent_index: %{},
-      paused_sessions: MapSet.new(),
       mailbox_messages: [],
       # Workshop team builder
       ws_agents: [],
@@ -208,8 +207,6 @@ defmodule IchorWeb.DashboardState do
     agent_index = build_agent_lookup(agents)
 
     # Template-layer data
-    paused_sessions = MapSet.new()
-
     mailbox_messages =
       Bus.recent_messages(50)
       |> Enum.sort_by(& &1.timestamp, {:desc, DateTime})
@@ -233,7 +230,6 @@ defmodule IchorWeb.DashboardState do
     |> assign(:sel_team, sel_team)
     |> assign(:errors, errors)
     |> assign(:error_groups, error_groups)
-    |> assign(:paused_sessions, paused_sessions)
     |> assign(:mailbox_messages, mailbox_messages)
     |> assign(:tmux_sessions, tmux_session_names)
     |> assign(:tmux_session_windows, tmux_session_windows)
