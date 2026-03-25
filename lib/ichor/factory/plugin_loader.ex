@@ -32,8 +32,7 @@ defmodule Ichor.Factory.PluginLoader do
             project_id: project.id,
             plugin: project.plugin,
             modules: Enum.map(modules, &inspect/1)
-          },
-          %{legacy_name: :mes_plugin_loaded}
+          }
         )
       )
 

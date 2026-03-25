@@ -20,8 +20,7 @@ defmodule Ichor.Factory.Workers.OrphanSweepWorker do
       Event.new(
         "mes.maintenance.init",
         nil,
-        %{monitored: active_runs},
-        %{legacy_name: :mes_maintenance_init}
+        %{monitored: active_runs}
       )
     )
 
@@ -36,8 +35,7 @@ defmodule Ichor.Factory.Workers.OrphanSweepWorker do
           Event.new(
             "mes.maintenance.error",
             "sweep",
-            %{run_id: "sweep", reason: reason},
-            %{legacy_name: :mes_maintenance_error}
+            %{run_id: "sweep", reason: reason}
           )
         )
 

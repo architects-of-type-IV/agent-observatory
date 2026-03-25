@@ -45,8 +45,7 @@ defmodule Ichor.Projector.TeamSpawnHandler do
               team_name: spec.team_name,
               agent_count: length(spec.agents),
               source: source
-            },
-            %{legacy_name: :team_spawn_ready}
+            }
           )
         )
 
@@ -60,8 +59,7 @@ defmodule Ichor.Projector.TeamSpawnHandler do
               team_name: spec.team_name,
               reason: inspect(reason),
               source: source
-            },
-            %{legacy_name: :team_spawn_failed}
+            }
           )
         )
     end
@@ -81,8 +79,7 @@ defmodule Ichor.Projector.TeamSpawnHandler do
           team_name: spec.team_name,
           agent_count: length(spec.agents),
           source: source
-        },
-        %{legacy_name: :team_spawn_started}
+        }
       )
     )
   end

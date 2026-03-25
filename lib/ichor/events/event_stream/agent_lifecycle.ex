@@ -76,19 +76,11 @@ defmodule Ichor.Events.EventStream.AgentLifecycle do
   def handle_team_delete(input), do: handle_team_event(:team_delete_requested, input)
 
   defp emit_team_event(:team_create_requested, team_name) do
-    Events.emit(
-      Event.new("fleet.team.create_requested", team_name, %{team_name: team_name}, %{
-        legacy_name: :team_create_requested
-      })
-    )
+    Events.emit(Event.new("fleet.team.create_requested", team_name, %{team_name: team_name}))
   end
 
   defp emit_team_event(:team_delete_requested, team_name) do
-    Events.emit(
-      Event.new("fleet.team.delete_requested", team_name, %{team_name: team_name}, %{
-        legacy_name: :team_delete_requested
-      })
-    )
+    Events.emit(Event.new("fleet.team.delete_requested", team_name, %{team_name: team_name}))
   end
 
   # Private helpers
@@ -116,8 +108,6 @@ defmodule Ichor.Events.EventStream.AgentLifecycle do
       os_pid: event.os_pid
     }
 
-    Events.emit(
-      Event.new("fleet.session.started", session_id, data, %{legacy_name: :session_started})
-    )
+    Events.emit(Event.new("fleet.session.started", session_id, data))
   end
 end

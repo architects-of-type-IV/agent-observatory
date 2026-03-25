@@ -240,8 +240,7 @@ defmodule Ichor.Projector.MesProjectIngestor do
               project_id: project.id,
               title: project.title,
               run_id: run_id
-            },
-            %{legacy_name: :mes_project_created}
+            }
           )
         )
 

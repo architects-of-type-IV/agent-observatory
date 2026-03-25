@@ -13,9 +13,7 @@ defmodule Ichor.Factory.MesScheduler do
     File.mkdir_p!(Path.dirname(@pause_flag))
     File.write!(@pause_flag, "")
 
-    Events.emit(
-      Event.new("mes.scheduler.paused", nil, %{}, %{legacy_name: :mes_scheduler_paused})
-    )
+    Events.emit(Event.new("mes.scheduler.paused", nil, %{}))
 
     :ok
   end
@@ -25,9 +23,7 @@ defmodule Ichor.Factory.MesScheduler do
   def resume do
     File.rm(@pause_flag)
 
-    Events.emit(
-      Event.new("mes.scheduler.resumed", nil, %{}, %{legacy_name: :mes_scheduler_resumed})
-    )
+    Events.emit(Event.new("mes.scheduler.resumed", nil, %{}))
 
     :ok
   end

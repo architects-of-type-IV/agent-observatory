@@ -181,17 +181,13 @@ defmodule Ichor.Signals.Bus do
       ArgumentError -> :ok
     end
 
-    Events.emit(Event.new("fleet.registry.changed", nil, %{}, %{legacy_name: :fleet_changed}))
+    Events.emit(Event.new("fleet.registry.changed", nil, %{}))
   end
 
   defp broadcast_delivery(to, from, message, delivered) do
     msg_map = Map.merge(message, %{to: to, from: to_string(from)})
 
-    Events.emit(
-      Event.new("messages.delivered", to, %{agent_id: to, msg_map: msg_map}, %{
-        legacy_name: :message_delivered
-      })
-    )
+    Events.emit(Event.new("messages.delivered", to, %{agent_id: to, msg_map: msg_map}))
 
     if delivered == 0 do
       Logger.warning(

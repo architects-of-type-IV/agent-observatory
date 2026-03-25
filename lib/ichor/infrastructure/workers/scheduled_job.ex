@@ -28,8 +28,7 @@ defmodule Ichor.Infrastructure.Workers.ScheduledJob do
           Event.new(
             "agent.scheduled_job",
             agent_id,
-            %{agent_id: agent_id, payload: payload, scope_id: agent_id},
-            %{legacy_name: :scheduled_job}
+            %{agent_id: agent_id, payload: payload, scope_id: agent_id}
           )
         )
 
@@ -56,8 +55,7 @@ defmodule Ichor.Infrastructure.Workers.ScheduledJob do
           Event.new(
             "agent.scheduled_job",
             agent_id,
-            %{agent_id: agent_id, payload: payload, scope_id: agent_id},
-            %{legacy_name: :scheduled_job}
+            %{agent_id: agent_id, payload: payload, scope_id: agent_id}
           )
         )
 

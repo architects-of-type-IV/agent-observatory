@@ -32,8 +32,7 @@ defmodule Ichor.Factory.Workers.HealthCheckWorker do
                 run_id: project_path,
                 healthy: health.healthy,
                 issue_count: length(health.issues)
-              },
-              %{legacy_name: :pipeline_health_report}
+              }
             )
           )
 

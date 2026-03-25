@@ -59,8 +59,7 @@ defmodule Ichor.Factory.Loader do
         Event.new(
           "pipeline.created",
           pipeline.id,
-          %{run_id: pipeline.id, source: source, label: label, task_count: length(raw_items)},
-          %{legacy_name: :pipeline_created}
+          %{run_id: pipeline.id, source: source, label: label, task_count: length(raw_items)}
         )
       )
 

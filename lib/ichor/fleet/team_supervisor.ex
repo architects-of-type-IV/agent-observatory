@@ -102,8 +102,7 @@ defmodule Ichor.Fleet.TeamSupervisor do
       Event.new(
         "fleet.team.created",
         name,
-        %{name: name, project: project, strategy: strategy},
-        %{legacy_name: :team_created}
+        %{name: name, project: project, strategy: strategy}
       )
     )
 

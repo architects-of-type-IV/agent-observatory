@@ -44,11 +44,7 @@ defmodule Ichor.Factory.LifecycleSupervisor do
 
   defp ensure_operator_process do
     if AgentProcess.alive?("operator") do
-      Events.emit(
-        Event.new("mes.operator.ensured", "operator", %{status: "already_alive"}, %{
-          legacy_name: :mes_operator_ensured
-        })
-      )
+      Events.emit(Event.new("mes.operator.ensured", "operator", %{status: "already_alive"}))
     else
       case FleetSupervisor.spawn_agent(
              id: "operator",
@@ -57,18 +53,10 @@ defmodule Ichor.Factory.LifecycleSupervisor do
              metadata: %{source: :mes, cwd: File.cwd!()}
            ) do
         {:ok, _pid} ->
-          Events.emit(
-            Event.new("mes.operator.ensured", "operator", %{status: "created"}, %{
-              legacy_name: :mes_operator_ensured
-            })
-          )
+          Events.emit(Event.new("mes.operator.ensured", "operator", %{status: "created"}))
 
         {:error, {:already_started, _pid}} ->
-          Events.emit(
-            Event.new("mes.operator.ensured", "operator", %{status: "already_alive"}, %{
-              legacy_name: :mes_operator_ensured
-            })
-          )
+          Events.emit(Event.new("mes.operator.ensured", "operator", %{status: "already_alive"}))
 
         {:error, _reason} ->
           :ok

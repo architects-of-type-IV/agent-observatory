@@ -60,8 +60,7 @@ defmodule Ichor.Fleet.Supervisor do
               team_name: team_name,
               pid: inspect(pid),
               result: inspect(result)
-            },
-            %{legacy_name: :team_disbanded}
+            }
           )
         )
 
@@ -72,8 +71,7 @@ defmodule Ichor.Fleet.Supervisor do
           Event.new(
             "fleet.team.disbanded",
             team_name,
-            %{team_name: team_name, result: "not_found"},
-            %{legacy_name: :team_disbanded}
+            %{team_name: team_name, result: "not_found"}
           )
         )
 

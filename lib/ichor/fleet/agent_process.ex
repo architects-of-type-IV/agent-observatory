@@ -197,8 +197,7 @@ defmodule Ichor.Fleet.AgentProcess do
       Event.new(
         "fleet.agent.started",
         id,
-        %{session_id: id, name: name, role: role, team: team},
-        %{legacy_name: :agent_started}
+        %{session_id: id, name: name, role: role, team: team}
       )
     )
 
@@ -225,9 +224,7 @@ defmodule Ichor.Fleet.AgentProcess do
     end
 
     Events.emit(
-      Event.new("fleet.agent.paused", state.id, %{session_id: state.id, name: state.name}, %{
-        legacy_name: :agent_paused
-      })
+      Event.new("fleet.agent.paused", state.id, %{session_id: state.id, name: state.name})
     )
 
     {:reply, :ok, %{state | status: :paused}}
@@ -245,9 +242,7 @@ defmodule Ichor.Fleet.AgentProcess do
     end
 
     Events.emit(
-      Event.new("fleet.agent.resumed", state.id, %{session_id: state.id, name: state.name}, %{
-        legacy_name: :agent_resumed
-      })
+      Event.new("fleet.agent.resumed", state.id, %{session_id: state.id, name: state.name})
     )
 
     {pending, new_state} = AgentState.drain_pending(state)
@@ -310,8 +305,7 @@ defmodule Ichor.Fleet.AgentProcess do
       Event.new(
         "fleet.agent.tmux_gone",
         state.id,
-        %{agent_id: state.id, name: state.name, tmux: tmux_target},
-        %{legacy_name: :agent_tmux_gone}
+        %{agent_id: state.id, name: state.name, tmux: tmux_target}
       )
     )
 
@@ -332,11 +326,7 @@ defmodule Ichor.Fleet.AgentProcess do
         :ok
     end
 
-    Events.emit(
-      Event.new("fleet.registry.changed", state.id, %{agent_id: state.id}, %{
-        legacy_name: :fleet_changed
-      })
-    )
+    Events.emit(Event.new("fleet.registry.changed", state.id, %{agent_id: state.id}))
 
     {:noreply, state}
   end
@@ -352,8 +342,7 @@ defmodule Ichor.Fleet.AgentProcess do
       Event.new(
         "fleet.agent.stopped",
         state.id,
-        %{session_id: state.id, name: state.name, reason: :tmux_gone},
-        %{legacy_name: :agent_stopped}
+        %{session_id: state.id, name: state.name, reason: :tmux_gone}
       )
     )
 
@@ -367,8 +356,7 @@ defmodule Ichor.Fleet.AgentProcess do
       Event.new(
         "fleet.agent.stopped",
         state.id,
-        %{session_id: state.id, name: state.name, reason: reason},
-        %{legacy_name: :agent_stopped}
+        %{session_id: state.id, name: state.name, reason: reason}
       )
     )
 

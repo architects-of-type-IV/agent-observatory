@@ -63,8 +63,7 @@ defmodule Ichor.Factory.Runner.Modes do
             Event.new(
               "fleet.run.complete",
               state.run_id,
-              %{kind: :mes, run_id: state.run_id, session: state.session},
-              %{legacy_name: :run_complete}
+              %{kind: :mes, run_id: state.run_id, session: state.session}
             )
           )
         end,
@@ -104,8 +103,7 @@ defmodule Ichor.Factory.Runner.Modes do
                 mode: mode_label,
                 session: state.session,
                 delivered_by: "operator"
-              },
-              %{legacy_name: :planning_run_complete}
+              }
             )
           )
         end

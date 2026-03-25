@@ -44,8 +44,7 @@ defmodule Ichor.Signals.ActionHandler do
           Event.new(
             "gateway.entropy.alert",
             session_id,
-            %{session_id: session_id, entropy_score: score},
-            %{legacy_name: :entropy_alert}
+            %{session_id: session_id, entropy_score: score}
           )
         )
 
@@ -53,8 +52,7 @@ defmodule Ichor.Signals.ActionHandler do
           Event.new(
             "gateway.node.state_update",
             session_id,
-            %{agent_id: session_id, state: "alert_entropy"},
-            %{legacy_name: :node_state_update}
+            %{agent_id: session_id, state: "alert_entropy"}
           )
         )
 
@@ -63,8 +61,7 @@ defmodule Ichor.Signals.ActionHandler do
           Event.new(
             "gateway.node.state_update",
             session_id,
-            %{agent_id: session_id, state: "blocked"},
-            %{legacy_name: :node_state_update}
+            %{agent_id: session_id, state: "blocked"}
           )
         )
 
@@ -73,8 +70,7 @@ defmodule Ichor.Signals.ActionHandler do
           Event.new(
             "gateway.node.state_update",
             session_id,
-            %{agent_id: session_id, state: "active"},
-            %{legacy_name: :node_state_update}
+            %{agent_id: session_id, state: "active"}
           )
         )
 

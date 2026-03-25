@@ -63,8 +63,7 @@ defmodule IchorWeb.DashboardSessionControlHandlers do
       Event.new(
         "fleet.agent.stopped",
         session_id,
-        %{session_id: session_id, reason: "dashboard_shutdown"},
-        %{legacy_name: :agent_stopped}
+        %{session_id: session_id, reason: "dashboard_shutdown"}
       )
     )
 

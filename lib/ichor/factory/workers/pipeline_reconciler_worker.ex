@@ -51,8 +51,7 @@ defmodule Ichor.Factory.Workers.PipelineReconcilerWorker do
             Event.new(
               "pipeline.reconciled",
               pipeline.id,
-              %{pipeline_id: pipeline.id, run_id: pipeline.id, action: :archived},
-              %{legacy_name: :pipeline_reconciled}
+              %{pipeline_id: pipeline.id, run_id: pipeline.id, action: :archived}
             )
           )
 

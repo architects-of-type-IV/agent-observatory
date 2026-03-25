@@ -65,8 +65,7 @@ defmodule Ichor.Workshop.Spawn do
           team_name: spec.team_name,
           spec: spec,
           source: Map.get(extra_metadata, :source, :team)
-        },
-        %{legacy_name: :team_spawn_requested}
+        }
       )
     )
 

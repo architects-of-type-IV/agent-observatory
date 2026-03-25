@@ -162,6 +162,6 @@ defmodule Ichor.Infrastructure.HostRegistry do
   end
 
   defp broadcast_hosts_changed do
-    Events.emit(Event.new("fleet.hosts.changed", nil, %{}, %{legacy_name: :hosts_changed}))
+    Events.emit(Event.new("fleet.hosts.changed", nil, %{}))
   end
 end

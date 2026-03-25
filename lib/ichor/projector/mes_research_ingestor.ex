@@ -62,8 +62,7 @@ defmodule Ichor.Projector.MesResearchIngestor do
               run_id: run_id,
               project_id: project_id,
               episode_id: episode_id
-            },
-            %{legacy_name: :mes_research_ingested}
+            }
           )
         )
 
@@ -79,8 +78,7 @@ defmodule Ichor.Projector.MesResearchIngestor do
             %{
               run_id: run_id,
               reason: inspect(reason)
-            },
-            %{legacy_name: :mes_research_ingest_failed}
+            }
           )
         )
     end

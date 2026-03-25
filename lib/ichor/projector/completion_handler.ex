@@ -78,8 +78,7 @@ defmodule Ichor.Projector.CompletionHandler do
               run_id: run_id,
               project_id: project.id,
               reason: inspect(reason)
-            },
-            %{legacy_name: :mes_plugin_compile_failed}
+            }
           )
         )
 
@@ -98,8 +97,7 @@ defmodule Ichor.Projector.CompletionHandler do
           run_id: run_id,
           project_id: project.id,
           output_kind: project.output_kind
-        },
-        %{legacy_name: :mes_output_unhandled}
+        }
       )
     )
 

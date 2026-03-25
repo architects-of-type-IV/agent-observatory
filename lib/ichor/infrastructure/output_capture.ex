@@ -115,8 +115,7 @@ defmodule Ichor.Infrastructure.OutputCapture do
         Event.new(
           "agent.terminal.output",
           session_id,
-          %{session_id: session_id, output: output, scope_id: session_id},
-          %{legacy_name: :terminal_output}
+          %{session_id: session_id, output: output, scope_id: session_id}
         )
       )
 

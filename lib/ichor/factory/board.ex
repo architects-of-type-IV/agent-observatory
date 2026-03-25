@@ -237,16 +237,8 @@ defmodule Ichor.Factory.Board do
         :task_deleted -> "team.task.deleted"
       end
 
-    Events.emit(
-      Event.new(topic, team_name, Map.put(payload, :team_name, team_name), %{
-        legacy_name: signal
-      })
-    )
+    Events.emit(Event.new(topic, team_name, Map.put(payload, :team_name, team_name)))
 
-    Events.emit(
-      Event.new("team.tasks.updated", team_name, %{team_name: team_name}, %{
-        legacy_name: :tasks_updated
-      })
-    )
+    Events.emit(Event.new("team.tasks.updated", team_name, %{team_name: team_name}))
   end
 end

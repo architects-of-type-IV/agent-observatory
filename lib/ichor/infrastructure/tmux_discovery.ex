@@ -50,7 +50,7 @@ defmodule Ichor.Infrastructure.TmuxDiscovery do
     reap_dead_agents(tmux_sessions, all_agents)
     enrich_tmux_channels(tmux_sessions, tmux_panes, all_agents)
 
-    Events.emit(Event.new("fleet.registry.changed", nil, %{}, %{legacy_name: :fleet_changed}))
+    Events.emit(Event.new("fleet.registry.changed", nil, %{}))
   end
 
   # Enforce the invariant: every agent tmux session has a BEAM process.
@@ -77,9 +77,7 @@ defmodule Ichor.Infrastructure.TmuxDiscovery do
       Logger.info("[TmuxDiscovery] Reaping #{id} -- tmux session #{tmux_session} is gone")
       FleetSupervisor.terminate_agent(id)
 
-      Events.emit(
-        Event.new("fleet.agent.reaped", id, %{session_id: id}, %{legacy_name: :agent_reaped})
-      )
+      Events.emit(Event.new("fleet.agent.reaped", id, %{session_id: id}))
     end
   end
 
@@ -94,9 +92,7 @@ defmodule Ichor.Infrastructure.TmuxDiscovery do
     case FleetSupervisor.spawn_agent(process_opts) do
       {:ok, _pid} ->
         Events.emit(
-          Event.new("fleet.agent.discovered", session_name, %{session_id: session_name}, %{
-            legacy_name: :agent_discovered
-          })
+          Event.new("fleet.agent.discovered", session_name, %{session_id: session_name})
         )
 
         Logger.info("[TmuxDiscovery] Created BEAM process for tmux session #{session_name}")

@@ -291,8 +291,7 @@ defmodule Ichor.MemoryStore do
           Event.new(
             "memory.changed",
             name,
-            %{agent_name: name, event: :created, scope_id: name},
-            %{legacy_name: :memory_changed}
+            %{agent_name: name, event: :created, scope_id: name}
           )
         )
 
@@ -478,8 +477,7 @@ defmodule Ichor.MemoryStore do
       Event.new(
         "memory.changed",
         agent_name,
-        %{agent_name: agent_name, event: :archival_insert, scope_id: agent_name},
-        %{legacy_name: :memory_changed}
+        %{agent_name: agent_name, event: :archival_insert, scope_id: agent_name}
       )
     )
 

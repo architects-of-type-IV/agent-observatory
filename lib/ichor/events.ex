@@ -5,7 +5,6 @@ defmodule Ichor.Events do
   Core path: `Events.emit(Event.new(...))` -> Ingress -> Router -> SignalProcess -> Handler
 
   PubSub broadcast is an observer side-channel for dashboard/logging, not part of the core flow.
-  During migration, `legacy_name` metadata bridges events to the old PubSub system.
   """
 
   use Ash.Domain

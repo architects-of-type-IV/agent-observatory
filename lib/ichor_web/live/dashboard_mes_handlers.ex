@@ -72,9 +72,7 @@ defmodule IchorWeb.DashboardMesHandlers do
         case File.write(tasks_path, jsonl <> "\n", [:append]) do
           :ok ->
             Events.emit(
-              Event.new("mes.pipeline.generated", project_id, %{project_id: project_id}, %{
-                legacy_name: :mes_pipeline_generated
-              })
+              Event.new("mes.pipeline.generated", project_id, %{project_id: project_id})
             )
 
             put_flash(
@@ -99,8 +97,7 @@ defmodule IchorWeb.DashboardMesHandlers do
           Event.new(
             "mes.pipeline.launched",
             project_id,
-            %{project_id: project_id, session: session},
-            %{legacy_name: :mes_pipeline_launched}
+            %{project_id: project_id, session: session}
           )
         )
 
@@ -119,9 +116,7 @@ defmodule IchorWeb.DashboardMesHandlers do
     case Project.pick_up(project, "manual") do
       {:ok, _} ->
         Events.emit(
-          Event.new("mes.project.picked_up", id, %{project_id: id, session_id: "manual"}, %{
-            legacy_name: :mes_project_picked_up
-          })
+          Event.new("mes.project.picked_up", id, %{project_id: id, session_id: "manual"})
         )
 
         assign(socket, :mes_projects, Project.list_all!())

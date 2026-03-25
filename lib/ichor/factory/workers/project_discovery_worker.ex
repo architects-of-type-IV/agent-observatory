@@ -26,9 +26,7 @@ defmodule Ichor.Factory.Workers.ProjectDiscoveryWorker do
 
     state_map = Map.put(board, :health, %{})
 
-    Events.emit(
-      Event.new("pipeline.status", nil, %{state_map: state_map}, %{legacy_name: :pipeline_status})
-    )
+    Events.emit(Event.new("pipeline.status", nil, %{state_map: state_map}))
 
     :ok
   end

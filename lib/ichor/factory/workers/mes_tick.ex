@@ -16,15 +16,14 @@ defmodule Ichor.Factory.Workers.MesTick do
 
     cond do
       File.exists?(@pause_flag) ->
-        Events.emit(Event.new("mes.tick", nil, %{paused: true}, %{legacy_name: :mes_tick}))
+        Events.emit(Event.new("mes.tick", nil, %{paused: true}))
 
       active < @max_concurrent ->
         Events.emit(
           Event.new(
             "mes.tick",
             nil,
-            %{active_runs: active, total_runs: length(all)},
-            %{legacy_name: :mes_tick}
+            %{active_runs: active, total_runs: length(all)}
           )
         )
 
@@ -35,8 +34,7 @@ defmodule Ichor.Factory.Workers.MesTick do
           Event.new(
             "mes.tick",
             nil,
-            %{active_runs: active, total_runs: length(all)},
-            %{legacy_name: :mes_tick}
+            %{active_runs: active, total_runs: length(all)}
           )
         )
 
@@ -44,8 +42,7 @@ defmodule Ichor.Factory.Workers.MesTick do
           Event.new(
             "mes.cycle.skipped",
             nil,
-            %{active_runs: active},
-            %{legacy_name: :mes_cycle_skipped}
+            %{active_runs: active}
           )
         )
     end
@@ -69,8 +66,7 @@ defmodule Ichor.Factory.Workers.MesTick do
           Event.new(
             "mes.cycle.started",
             run_id,
-            %{run_id: run_id, team_name: team_name},
-            %{legacy_name: :mes_cycle_started}
+            %{run_id: run_id, team_name: team_name}
           )
         )
 
@@ -79,8 +75,7 @@ defmodule Ichor.Factory.Workers.MesTick do
           Event.new(
             "mes.cycle.failed",
             run_id,
-            %{run_id: run_id, reason: inspect(reason)},
-            %{legacy_name: :mes_cycle_failed}
+            %{run_id: run_id, reason: inspect(reason)}
           )
         )
     end

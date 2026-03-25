@@ -277,11 +277,7 @@ defmodule Ichor.Factory.Runner do
     # OTP guarantees terminate/2 runs after {:stop, :normal}, so this covers
     # both the happy path and crashes during run_cleanup.
     if state.status == :completed do
-      Events.emit(
-        Event.new("fleet.run.complete", state.run_id, run_complete_payload(state), %{
-          legacy_name: :run_complete
-        })
-      )
+      Events.emit(Event.new("fleet.run.complete", state.run_id, run_complete_payload(state)))
     end
 
     emit_signal(state.config.signals.terminated, build_terminate_payload(state))
@@ -290,8 +286,7 @@ defmodule Ichor.Factory.Runner do
       Event.new(
         "fleet.run.terminated",
         state.run_id,
-        %{kind: state.kind, run_id: state.run_id, session: state.session},
-        %{legacy_name: :run_terminated}
+        %{kind: state.kind, run_id: state.run_id, session: state.session}
       )
     )
 
@@ -340,8 +335,7 @@ defmodule Ichor.Factory.Runner do
           Event.new(
             "mes.cycle.failed",
             state.run_id,
-            %{run_id: state.run_id, reason: inspect(reason)},
-            %{legacy_name: :mes_cycle_failed}
+            %{run_id: state.run_id, reason: inspect(reason)}
           )
         )
     end
@@ -379,8 +373,7 @@ defmodule Ichor.Factory.Runner do
           Event.new(
             "mes.corrective_agent.spawned",
             run_id,
-            %{run_id: run_id, session: session, attempt: attempt},
-            %{legacy_name: :mes_corrective_agent_spawned}
+            %{run_id: run_id, session: session, attempt: attempt}
           )
         )
 
@@ -389,8 +382,7 @@ defmodule Ichor.Factory.Runner do
           Event.new(
             "mes.corrective_agent.failed",
             run_id,
-            %{run_id: run_id, session: session, reason: inspect(err)},
-            %{legacy_name: :mes_corrective_agent_failed}
+            %{run_id: run_id, session: session, reason: inspect(err)}
           )
         )
     end
@@ -425,8 +417,7 @@ defmodule Ichor.Factory.Runner do
         Event.new(
           "pipeline.health_report",
           state.run_id,
-          %{run_id: state.run_id, healthy: issues == [], issue_count: length(issues)},
-          %{legacy_name: :pipeline_health_report}
+          %{run_id: state.run_id, healthy: issues == [], issue_count: length(issues)}
         )
       )
     end
@@ -614,8 +605,7 @@ defmodule Ichor.Factory.Runner do
       Event.new(
         signal_to_topic(signal),
         key,
-        clean,
-        %{legacy_name: signal}
+        clean
       )
     )
   end
