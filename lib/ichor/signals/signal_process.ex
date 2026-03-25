@@ -50,7 +50,7 @@ defmodule Ichor.Signals.SignalProcess do
   def init(opts) do
     module = Keyword.fetch!(opts, :module)
     key = Keyword.fetch!(opts, :key)
-    handler = Keyword.get(opts, :handler, Ichor.Signals.DefaultHandler)
+    handler = Keyword.get(opts, :handler, Ichor.Signals.ActionHandler)
     signal_state = module.init_state(key)
     schedule_tick()
 

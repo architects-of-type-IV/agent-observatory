@@ -1,6 +1,12 @@
 defmodule Ichor.RuntimeSupervisor do
   @moduledoc """
   Supervises independent runtime services under a single one_for_one supervisor.
+
+  The GenStage pipeline (Ingress + Router) is nested under
+  `Ichor.Signals.PipelineSupervisor` with a `rest_for_one` strategy so that a
+  Router restart always re-subscribes to a live Ingress. ProcessRegistry and
+  ProcessSupervisor are siblings here (not inside PipelineSupervisor) so that
+  SignalProcesses survive a pipeline restart.
   """
   use Supervisor
 
@@ -13,10 +19,12 @@ defmodule Ichor.RuntimeSupervisor do
   @impl true
   def init(_opts) do
     children = [
+      # Signal process bookkeeping -- must start before PipelineSupervisor
       {Registry, keys: :unique, name: Ichor.Signals.ProcessRegistry},
       {DynamicSupervisor, name: Ichor.Signals.ProcessSupervisor, strategy: :one_for_one},
-      Ichor.Events.Ingress,
-      Ichor.Signals.Router,
+
+      # GenStage pipeline: Ingress + Router under rest_for_one (see PipelineSupervisor)
+      Ichor.Signals.PipelineSupervisor,
 
       # Core infrastructure services
       {Ichor.MemoryStore, []},
