@@ -18,8 +18,6 @@ defmodule IchorWeb.DashboardLive do
   import IchorWeb.DashboardWorkshopHandlers,
     only: [list_teams: 0, list_agent_types: 0, push_ws_state: 1]
 
-  import IchorWeb.DashboardMessagingHandlers, only: [subscribe_to_mailboxes: 1]
-
   alias Ichor.Factory.Project
   alias Ichor.Projector.SignalBuffer, as: Buffer
   alias Ichor.Events.Event
@@ -167,7 +165,6 @@ defmodule IchorWeb.DashboardLive do
   def handle_info(:load_data, socket) do
     events = EventRuntime.latest_per_session()
     socket = socket |> assign(:events, events) |> recompute()
-    subscribe_to_mailboxes(socket.assigns.sessions)
     {:noreply, socket}
   end
 

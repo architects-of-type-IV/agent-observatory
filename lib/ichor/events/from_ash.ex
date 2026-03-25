@@ -19,62 +19,43 @@ defmodule Ichor.Events.FromAsh do
   @spec notify(Ash.Notifier.Notification.t()) :: :ok
   def notify(%Ash.Notifier.Notification{resource: resource, action: action, data: data}) do
     case event_for(resource, action.name, data) do
-      nil ->
-        :ok
-
-      event ->
-        Ingress.push(event)
-        :ok
+      nil -> :ok
+      event -> Ingress.push(event)
     end
+
+    :ok
   end
 
-  # ---------------------------------------------------------------------------
-  # Pipeline
-  # ---------------------------------------------------------------------------
+  # ── Pipeline (same payload shape across 4 actions) ──────────────
 
-  defp event_for(Pipeline, :create, data) do
+  @pipeline_topics %{
+    create: "pipeline.run.created",
+    complete: "pipeline.run.completed",
+    fail: "pipeline.run.failed",
+    archive: "pipeline.run.archived"
+  }
+
+  defp event_for(Pipeline, action, data) when is_map_key(@pipeline_topics, action) do
     Event.new(
-      "pipeline.run.created",
+      @pipeline_topics[action],
       data.id,
       %{run_id: data.id, label: data.label, source: data.source},
-      %{resource: "Pipeline", action: :create}
+      %{resource: "Pipeline", action: action}
     )
   end
 
-  defp event_for(Pipeline, :complete, data) do
-    Event.new(
-      "pipeline.run.completed",
-      data.id,
-      %{run_id: data.id, label: data.label, source: data.source},
-      %{resource: "Pipeline", action: :complete}
-    )
-  end
+  # ── PipelineTask (same payload shape across 4 actions) ──────────
 
-  defp event_for(Pipeline, :fail, data) do
-    Event.new(
-      "pipeline.run.failed",
-      data.id,
-      %{run_id: data.id, label: data.label, source: data.source},
-      %{resource: "Pipeline", action: :fail}
-    )
-  end
+  @task_topics %{
+    claim: "pipeline.task.claimed",
+    complete: "pipeline.task.completed",
+    fail: "pipeline.task.failed",
+    reset: "pipeline.task.reset"
+  }
 
-  defp event_for(Pipeline, :archive, data) do
+  defp event_for(PipelineTask, action, data) when is_map_key(@task_topics, action) do
     Event.new(
-      "pipeline.run.archived",
-      data.id,
-      %{run_id: data.id, label: data.label, source: data.source},
-      %{resource: "Pipeline", action: :archive}
-    )
-  end
-
-  # ---------------------------------------------------------------------------
-  # PipelineTask
-  # ---------------------------------------------------------------------------
-
-  defp event_for(PipelineTask, :claim, data) do
-    Event.new(
-      "pipeline.task.claimed",
+      @task_topics[action],
       data.run_id,
       %{
         task_id: data.id,
@@ -84,154 +65,56 @@ defmodule Ichor.Events.FromAsh do
         status: data.status,
         owner: data.owner
       },
-      %{resource: "PipelineTask", action: :claim}
+      %{resource: "PipelineTask", action: action}
     )
   end
 
-  defp event_for(PipelineTask, :complete, data) do
-    Event.new(
-      "pipeline.task.completed",
-      data.run_id,
-      %{
-        task_id: data.id,
-        run_id: data.run_id,
-        external_id: data.external_id,
-        subject: data.subject,
-        status: data.status,
-        owner: data.owner
-      },
-      %{resource: "PipelineTask", action: :complete}
-    )
+  # ── Project (same payload shape across 6 actions) ───────────────
+
+  @project_topics %{
+    create: "project.created",
+    advance: "project.stage.advanced",
+    pick_up: "project.claimed",
+    mark_compiled: "project.compiled",
+    mark_loaded: "project.plugin.loaded",
+    mark_failed: "project.failed"
+  }
+
+  defp event_for(Project, action, data) when is_map_key(@project_topics, action) do
+    Event.new(@project_topics[action], data.id, %{project_id: data.id, title: data.title}, %{
+      resource: "Project",
+      action: action
+    })
   end
 
-  defp event_for(PipelineTask, :fail, data) do
+  # ── SettingsProject (same payload shape across 3 actions) ───────
+
+  @settings_topics %{
+    create: "settings.project.created",
+    update: "settings.project.updated",
+    destroy: "settings.project.destroyed"
+  }
+
+  defp event_for(SettingsProject, action, data) when is_map_key(@settings_topics, action) do
     Event.new(
-      "pipeline.task.failed",
-      data.run_id,
-      %{
-        task_id: data.id,
-        run_id: data.run_id,
-        external_id: data.external_id,
-        subject: data.subject,
-        status: data.status,
-        owner: data.owner
-      },
-      %{resource: "PipelineTask", action: :fail}
-    )
-  end
-
-  defp event_for(PipelineTask, :reset, data) do
-    Event.new(
-      "pipeline.task.reset",
-      data.run_id,
-      %{
-        task_id: data.id,
-        run_id: data.run_id,
-        external_id: data.external_id,
-        subject: data.subject,
-        status: data.status,
-        owner: data.owner
-      },
-      %{resource: "PipelineTask", action: :reset}
-    )
-  end
-
-  # ---------------------------------------------------------------------------
-  # Project
-  # ---------------------------------------------------------------------------
-
-  defp event_for(Project, :create, data) do
-    Event.new(
-      "project.created",
-      data.id,
-      %{project_id: data.id, title: data.title},
-      %{resource: "Project", action: :create}
-    )
-  end
-
-  defp event_for(Project, :advance, data) do
-    Event.new(
-      "project.stage.advanced",
-      data.id,
-      %{project_id: data.id, title: data.title},
-      %{resource: "Project", action: :advance}
-    )
-  end
-
-  defp event_for(Project, :pick_up, data) do
-    Event.new(
-      "project.claimed",
-      data.id,
-      %{project_id: data.id, title: data.title},
-      %{resource: "Project", action: :pick_up}
-    )
-  end
-
-  defp event_for(Project, :mark_compiled, data) do
-    Event.new(
-      "project.compiled",
-      data.id,
-      %{project_id: data.id, title: data.title},
-      %{resource: "Project", action: :mark_compiled}
-    )
-  end
-
-  defp event_for(Project, :mark_loaded, data) do
-    Event.new(
-      "project.plugin.loaded",
-      data.id,
-      %{project_id: data.id, title: data.title},
-      %{resource: "Project", action: :mark_loaded}
-    )
-  end
-
-  defp event_for(Project, :mark_failed, data) do
-    Event.new(
-      "project.failed",
-      data.id,
-      %{project_id: data.id, title: data.title},
-      %{resource: "Project", action: :mark_failed}
-    )
-  end
-
-  # ---------------------------------------------------------------------------
-  # SettingsProject
-  # ---------------------------------------------------------------------------
-
-  defp event_for(SettingsProject, :create, data) do
-    Event.new(
-      "settings.project.created",
+      @settings_topics[action],
       data.id,
       %{project_id: data.id, name: data.name, is_active: data.is_active},
-      %{resource: "SettingsProject", action: :create}
+      %{resource: "SettingsProject", action: action}
     )
   end
 
-  defp event_for(SettingsProject, :update, data) do
-    Event.new(
-      "settings.project.updated",
-      data.id,
-      %{project_id: data.id, name: data.name, is_active: data.is_active},
-      %{resource: "SettingsProject", action: :update}
-    )
-  end
+  # ── WebhookDelivery (same payload shape across 3 actions) ───────
 
-  defp event_for(SettingsProject, :destroy, data) do
-    Event.new(
-      "settings.project.destroyed",
-      data.id,
-      %{project_id: data.id, name: data.name, is_active: data.is_active},
-      %{resource: "SettingsProject", action: :destroy}
-    )
-  end
+  @webhook_topics %{
+    enqueue: "webhook.delivery.enqueued",
+    mark_delivered: "webhook.delivery.completed",
+    mark_dead: "webhook.delivery.failed"
+  }
 
-  # ---------------------------------------------------------------------------
-  # WebhookDelivery
-  # ---------------------------------------------------------------------------
-
-  defp event_for(WebhookDelivery, :enqueue, data) do
+  defp event_for(WebhookDelivery, action, data) when is_map_key(@webhook_topics, action) do
     Event.new(
-      "webhook.delivery.enqueued",
+      @webhook_topics[action],
       data.id,
       %{
         delivery_id: data.id,
@@ -239,63 +122,27 @@ defmodule Ichor.Events.FromAsh do
         target_url: data.target_url,
         status: data.status
       },
-      %{resource: "WebhookDelivery", action: :enqueue}
+      %{resource: "WebhookDelivery", action: action}
     )
   end
 
-  defp event_for(WebhookDelivery, :mark_delivered, data) do
-    Event.new(
-      "webhook.delivery.completed",
-      data.id,
-      %{
-        delivery_id: data.id,
-        agent_id: data.agent_id,
-        target_url: data.target_url,
-        status: data.status
-      },
-      %{resource: "WebhookDelivery", action: :mark_delivered}
-    )
-  end
+  # ── CronJob ─────────────────────────────────────────────────────
 
-  defp event_for(WebhookDelivery, :mark_dead, data) do
-    Event.new(
-      "webhook.delivery.failed",
-      data.id,
-      %{
-        delivery_id: data.id,
-        agent_id: data.agent_id,
-        target_url: data.target_url,
-        status: data.status
-      },
-      %{resource: "WebhookDelivery", action: :mark_dead}
-    )
-  end
+  @cron_topics %{
+    schedule_once: "cron.job.scheduled",
+    reschedule: "cron.job.rescheduled"
+  }
 
-  # ---------------------------------------------------------------------------
-  # CronJob
-  # ---------------------------------------------------------------------------
-
-  defp event_for(CronJob, :schedule_once, data) do
+  defp event_for(CronJob, action, data) when is_map_key(@cron_topics, action) do
     Event.new(
-      "cron.job.scheduled",
+      @cron_topics[action],
       data.agent_id,
       %{job_id: data.id, agent_id: data.agent_id, next_fire_at: data.next_fire_at},
-      %{resource: "CronJob", action: :schedule_once}
+      %{resource: "CronJob", action: action}
     )
   end
 
-  defp event_for(CronJob, :reschedule, data) do
-    Event.new(
-      "cron.job.rescheduled",
-      data.agent_id,
-      %{job_id: data.id, agent_id: data.agent_id, next_fire_at: data.next_fire_at},
-      %{resource: "CronJob", action: :reschedule}
-    )
-  end
-
-  # ---------------------------------------------------------------------------
-  # Catch-all: unmapped pairs are silently ignored
-  # ---------------------------------------------------------------------------
+  # ── Catch-all: unmapped pairs silently ignored ──────────────────
 
   defp event_for(_resource, _action, _data), do: nil
 end

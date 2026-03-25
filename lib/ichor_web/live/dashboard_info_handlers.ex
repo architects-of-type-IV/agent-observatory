@@ -8,7 +8,6 @@ defmodule IchorWeb.DashboardInfoHandlers do
   import Phoenix.Component, only: [assign: 3]
   import IchorWeb.DashboardState, only: [recompute: 1]
   import IchorWeb.DashboardTmuxHandlers, only: [refresh_tmux_panels: 1]
-  import IchorWeb.DashboardMessagingHandlers, only: [handle_new_mailbox_message: 2]
   import IchorWeb.DashboardNotificationHandlers, only: [handle_agent_crashed: 4]
 
   alias Ichor.Factory.Project
@@ -77,11 +76,8 @@ defmodule IchorWeb.DashboardInfoHandlers do
 
   def dispatch(%Event{topic: "system.heartbeat"}, socket), do: {:noreply, socket}
 
-  def dispatch(
-        %Event{topic: "messages.delivered", data: %{msg_map: %{message: message}}},
-        socket
-      ),
-      do: handle_new_mailbox_message(message, socket)
+  def dispatch(%Event{topic: "messages.delivered"}, socket),
+    do: {:noreply, schedule_recompute(socket)}
 
   def dispatch(%Event{topic: "pipeline.status", data: %{state_map: state}}, socket) do
     merged = Map.merge(socket.assigns.pipeline_state, state)

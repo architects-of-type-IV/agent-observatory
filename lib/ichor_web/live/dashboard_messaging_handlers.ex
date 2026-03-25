@@ -79,16 +79,6 @@ defmodule IchorWeb.DashboardMessagingHandlers do
     end
   end
 
-  def handle_new_mailbox_message(_message, socket) do
-    {:noreply, socket}
-  end
-
-  def subscribe_to_mailboxes(sessions) do
-    Enum.each(sessions, fn s ->
-      Phoenix.PubSub.subscribe(Ichor.PubSub, "agent:#{s.session_id}")
-    end)
-  end
-
   def handle_set_message_target(%{"target" => target}, socket) do
     Phoenix.Component.assign(socket, :selected_message_target, target)
   end
