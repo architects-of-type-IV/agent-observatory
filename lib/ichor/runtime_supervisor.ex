@@ -36,10 +36,7 @@ defmodule Ichor.RuntimeSupervisor do
 
       # Monitoring and observability services
       {Ichor.Projector.AgentWatchdog, []},
-      {Ichor.Projector.ProtocolTracker, []},
-      {Ichor.Projector.SignalBuffer, []},
-      {Ichor.Projector.SignalManager, []},
-      {Ichor.Projector.TeamWatchdog, []}
+      {Ichor.Projector.SignalBuffer, []}
     ]
 
     Supervisor.init(children, strategy: :one_for_one, max_restarts: 10, max_seconds: 60)

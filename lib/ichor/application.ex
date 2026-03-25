@@ -47,7 +47,6 @@ defmodule Ichor.Application do
 
       # Projectors: react to Signals-originated events and perform side effects
       Ichor.Projector.FleetLifecycle,
-      Ichor.Projector.CleanupDispatcher,
 
       # Factory planning and pipeline lifecycle
       Ichor.Factory.LifecycleSupervisor,

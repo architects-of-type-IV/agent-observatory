@@ -7,7 +7,6 @@ defmodule IchorWeb.DashboardArchonHandlers do
   import Phoenix.Component, only: [assign: 3]
 
   alias Ichor.Archon.Chat
-  alias Ichor.Projector.SignalManager
 
   require Logger
 
@@ -31,10 +30,8 @@ defmodule IchorWeb.DashboardArchonHandlers do
   @doc "Refresh Archon's manager-facing snapshot assigns."
   def refresh_manager_state(socket) do
     socket
-    |> assign(:archon_snapshot, SignalManager.snapshot())
-    |> assign(:archon_attention, SignalManager.attention())
-  rescue
-    _ -> socket
+    |> assign(:archon_snapshot, %{})
+    |> assign(:archon_attention, [])
   end
 
   @doc "Execute a shortcode command, clearing previous output."

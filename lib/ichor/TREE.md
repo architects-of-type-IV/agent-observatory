@@ -1,6 +1,6 @@
 # lib/ichor/ Module Tree
 
-Updated 2026-03-25 after hexagonal reorg: fleet/ and orchestration/ extracted from infrastructure/, HITL removed, CompletionHandler + TeamSpawnHandler moved to Projector/, ansi_utils + topic_mapping + pub_sub.ex deleted. New: PruneStoredEventsWorker, MemoriesOperations, TmuxOperations, WebhookOperations (Ash wrappers for I/O adapters).
+Updated 2026-03-25 after hexagonal reorg: fleet/ and orchestration/ extracted from infrastructure/, HITL removed, CompletionHandler + TeamSpawnHandler moved to Projector/, ansi_utils + topic_mapping + pub_sub.ex deleted. New: PruneStoredEventsWorker, MemoriesOperations, TmuxOperations, WebhookOperations (Ash wrappers for I/O adapters). Removed: ProtocolTracker, SignalManager, TeamWatchdog, CleanupDispatcher projectors + their 3 Oban workers (ArchiveRunWorker, ResetRunTasksWorker, SessionCleanupWorker). PipelineReconciler is the safety net.
 
 ```
 lib/ichor/
@@ -66,13 +66,11 @@ lib/ichor/
 │   ├── validator.ex               # Pipeline structure validation
 │   ├── worker_groups.ex           # Worker group builder for pipeline spawns
 │   └── workers/
-│       ├── archive_run_worker.ex              # Oban: archive completed pipeline run (AD-8)
 │       ├── health_check_worker.ex             # Oban cron: pipeline health check
 │       ├── mes_tick.ex                        # Oban cron: MES scheduler tick
 │       ├── orphan_sweep_worker.ex             # Oban cron: orphan team cleanup
 │       ├── pipeline_reconciler_worker.ex      # Oban cron: detect orphaned pipelines (AD-8 safety net)
-│       ├── project_discovery_worker.ex        # Oban cron: scan directories for new projects
-│       └── reset_run_tasks_worker.ex          # Oban: reset in_progress tasks on crash (AD-8)
+│       └── project_discovery_worker.ex        # Oban cron: scan directories for new projects
 │
 ├── fleet/                         # OTP process layer: live agent and team GenServers (9 files)
 │   ├── agent_backend.ex           # Selects delivery backend for an agent (tmux/webhook/mailbox)
@@ -108,7 +106,6 @@ lib/ichor/
 │   ├── webhook_operations.ex      # Ash resource: domain-level surface for webhook delivery operations
 │   └── workers/
 │       ├── scheduled_job.ex               # Oban: fire a scheduled cron job
-│       ├── session_cleanup_worker.ex      # Oban: kill tmux session or disband fleet team
 │       └── webhook_delivery_worker.ex     # Oban: deliver webhook with retry
 │
 ├── memory_store/
@@ -132,16 +129,12 @@ lib/ichor/
 │   ├── agent_watchdog/
 │   │   ├── escalation_engine.ex   # Progressive nudge/pause/zombie escalation logic
 │   │   └── pane_scanner.ex        # Scans tmux panes for DONE/BLOCKED markers
-│   ├── cleanup_dispatcher.ex      # Routes :cleanup signals -> Oban workers (archive, reset, disband, kill)
 │   ├── completion_handler.ex      # DAG completion signal handler (moved from Factory)
 │   ├── fleet_lifecycle.ex         # Reacts to :fleet signals -> spawn/terminate AgentProcess + TeamSupervisor
 │   ├── mes_project_ingestor.ex    # Detects MES project payloads in messages, creates Factory.Project
 │   ├── mes_research_ingestor.ex   # On :mes_project_created, ingests brief artifact into Memories
-│   ├── protocol_tracker.ex        # Correlates multi-protocol message traces in ETS
 │   ├── signal_buffer.ex           # Ring buffer (200 entries) for all signals; re-broadcasts on "signals:feed"
-│   ├── signal_manager.ex          # Archon's signal-fed state: compact attention queue, severity tracking
-│   ├── team_spawn_handler.ex      # Signal-driven team spawn listener (moved from Workshop)
-│   └── team_watchdog.ex           # Detects unexpected team deaths, dispatches :cleanup signals
+│   └── team_spawn_handler.ex      # Signal-driven team spawn listener (moved from Workshop)
 │
 ├── settings/                      # Settings Ash domain
 │   ├── settings_project.ex        # SettingsProject Ash resource (registered projects)

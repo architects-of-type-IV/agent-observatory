@@ -12,18 +12,14 @@ defmodule Ichor.Signals.Catalog do
   until ALL consumers of the old PubSub system have migrated to the new GenStage pipeline
   (ADR-026).
 
-  PubSub removal is currently blocked by 25 subscribers across these files:
-  - DashboardLive (subscribes to all 14 categories via `Catalog.categories/0`)
+  PubSub removal is currently blocked by 20 subscribers across these files:
+  - DashboardLive (subscribes to all categories via `Catalog.categories/0`)
   - SignalBuffer (subscribes to all categories, re-broadcasts on signals:feed)
-  - SignalManager (subscribes to all categories for rolling counts)
-  - TeamWatchdog (subscribes to :fleet, :pipeline, :planning, :monitoring)
-  - CleanupDispatcher (subscribes to :cleanup)
   - AgentWatchdog (subscribes to :events, :fleet)
   - MesProjectIngestor (subscribes to :messages)
   - TeamSpawnHandler (subscribes to :fleet)
   - CompletionHandler (subscribes to :pipeline)
   - MesResearchIngestor (subscribes to :mes)
-  - ProtocolTracker (subscribes to :events, :heartbeat)
   - FleetLifecycle (subscribes to :fleet)
   - EventStream (subscribes to :fleet)
   - AgentProcess (subscribes to :agent_event per session)
@@ -187,11 +183,6 @@ defmodule Ichor.Signals.Catalog do
       category: :monitoring,
       keys: [:session_id, :reason],
       doc: "Agent signalled BLOCKED"
-    },
-    watchdog_sweep: %{
-      category: :monitoring,
-      keys: [:orphaned_count],
-      doc: "TeamWatchdog periodic sweep completed"
     }
   }
 
@@ -653,19 +644,6 @@ defmodule Ichor.Signals.Catalog do
     }
   }
 
-  @archon_cleanup_defs %{
-    run_cleanup_needed: %{
-      category: :cleanup,
-      keys: [:run_id, :action],
-      doc: "TeamWatchdog detected a run needing cleanup; Oban worker reacts"
-    },
-    session_cleanup_needed: %{
-      category: :cleanup,
-      keys: [:session, :action],
-      doc: "TeamWatchdog detected a session needing cleanup; Oban worker reacts"
-    }
-  }
-
   @settings_defs %{
     settings_project_created: %{
       category: :system,
@@ -689,7 +667,6 @@ defmodule Ichor.Signals.Catalog do
            |> Map.merge(@team_monitoring_defs)
            |> Map.merge(@mes_defs)
            |> Map.merge(@planning_pipeline_defs)
-           |> Map.merge(@archon_cleanup_defs)
            |> Map.merge(@settings_defs)
 
   @catalog Map.new(@signals, fn {k, v} -> {k, Map.put_new(v, :dynamic, false)} end)

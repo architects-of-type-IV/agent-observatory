@@ -198,11 +198,6 @@ defmodule IchorWeb.Components.ArchonComponents.CommandHud do
           value={if @health["heartbeat"], do: "UP", else: "DOWN"}
           ok={@health["heartbeat"]}
         />
-        <.health_row
-          label="ProtocolTracker"
-          value={if @health["protocol_tracker"], do: "UP", else: "DOWN"}
-          ok={@health["protocol_tracker"]}
-        />
       </div>
     </div>
     """

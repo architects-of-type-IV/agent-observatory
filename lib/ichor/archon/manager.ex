@@ -6,16 +6,13 @@ defmodule Ichor.Archon.Manager do
   use Ash.Resource, domain: Ichor.Archon
 
   alias Ichor.Discovery
-  alias Ichor.Projector.SignalManager
 
   actions do
     action :manager_snapshot, :map do
       description("Condensed managerial snapshot derived from Signals.")
 
       run(fn _input, _context ->
-        snapshot = SignalManager.snapshot()
-        attention = SignalManager.attention()
-        {:ok, Map.put(snapshot, "attention", attention)}
+        {:ok, %{}}
       end)
     end
 
@@ -23,7 +20,7 @@ defmodule Ichor.Archon.Manager do
       description("Current high-signal issues that require Archon attention.")
 
       run(fn _input, _context ->
-        {:ok, SignalManager.attention()}
+        {:ok, []}
       end)
     end
 

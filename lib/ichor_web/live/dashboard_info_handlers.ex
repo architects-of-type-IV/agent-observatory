@@ -13,7 +13,6 @@ defmodule IchorWeb.DashboardInfoHandlers do
 
   alias Ichor.Factory.Project
   alias Ichor.Infrastructure.Tmux
-  alias Ichor.Projector.SignalManager
   alias Ichor.Signals.Message
   alias IchorWeb.{DashboardArchonHandlers, DashboardMesHandlers}
 
@@ -88,13 +87,6 @@ defmodule IchorWeb.DashboardInfoHandlers do
     merged = Map.merge(socket.assigns.pipeline_state, state)
     {:noreply, socket |> assign(:pipeline_state, merged) |> maybe_refresh_archon_manager()}
   end
-
-  def dispatch(%Message{name: :protocol_update, data: %{stats_map: stats}}, socket),
-    do:
-      {:noreply,
-       socket
-       |> assign(:protocol_stats, stats)
-       |> maybe_refresh_archon_manager()}
 
   def dispatch(%Message{name: :terminal_output, data: %{session_id: sid, output: output}}, socket) do
     case socket.assigns.agent_slideout do
@@ -176,14 +168,6 @@ defmodule IchorWeb.DashboardInfoHandlers do
       end
 
     assign(socket, :planning_project, project)
-  end
-
-  defp maybe_refresh_archon_manager(%{assigns: %{show_archon: true}} = socket) do
-    socket
-    |> assign(:archon_snapshot, SignalManager.snapshot())
-    |> assign(:archon_attention, SignalManager.attention())
-  rescue
-    _ -> socket
   end
 
   defp maybe_refresh_archon_manager(socket), do: socket

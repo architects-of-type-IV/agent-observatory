@@ -6,7 +6,6 @@ defmodule IchorWeb.DebugController do
   alias Ichor.Fleet.Supervisor, as: FleetSupervisor
   alias Ichor.Fleet.TeamSupervisor
   alias Ichor.Infrastructure.Tmux
-  alias Ichor.Projector.ProtocolTracker
   alias Ichor.Projector.SignalBuffer, as: Buffer
   alias Ichor.Signals.Bus
   alias Ichor.Signals.EventStream
@@ -93,34 +92,8 @@ defmodule IchorWeb.DebugController do
     e -> %{ok: false, error: Exception.message(e)}
   end
 
-  def traces(conn, params) do
-    traces = ProtocolTracker.get_traces()
-    limit = String.to_integer(params["limit"] || "50")
-    type_filter = params["type"]
-
-    filtered =
-      traces
-      |> maybe_filter_type(type_filter)
-      |> Enum.take(limit)
-      |> Enum.map(fn t ->
-        %{
-          id: t.id,
-          type: t.type,
-          from: t.from,
-          to: t.to,
-          content_preview: t.content_preview,
-          message_type: t.message_type,
-          timestamp: t.timestamp,
-          hops:
-            Enum.map(t.hops, fn h ->
-              %{protocol: h.protocol, status: h.status, at: h.at, detail: h.detail}
-            end)
-        }
-      end)
-
-    stats = ProtocolTracker.get_stats()
-
-    json(conn, %{count: length(filtered), total: length(traces), stats: stats, traces: filtered})
+  def traces(conn, _params) do
+    json(conn, %{count: 0, total: 0, stats: %{}, traces: []})
   end
 
   def mailboxes(conn, _params) do
@@ -243,21 +216,6 @@ defmodule IchorWeb.DebugController do
       panes: panes,
       agents_with_tmux: agents_with_tmux
     })
-  end
-
-  @trace_type_map %{
-    "send_message" => :send_message,
-    "team_create" => :team_create,
-    "agent_spawn" => :agent_spawn
-  }
-
-  defp maybe_filter_type(traces, nil), do: traces
-
-  defp maybe_filter_type(traces, type) do
-    case Map.fetch(@trace_type_map, type) do
-      {:ok, atom_type} -> Enum.filter(traces, &(&1.type == atom_type))
-      :error -> traces
-    end
   end
 
   defp check_ets_tables do

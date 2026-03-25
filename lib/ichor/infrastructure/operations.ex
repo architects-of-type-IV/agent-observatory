@@ -7,7 +7,6 @@ defmodule Ichor.Infrastructure.Operations do
 
   alias Ichor.Infrastructure.Tmux
   alias Ichor.Projector.AgentWatchdog
-  alias Ichor.Projector.ProtocolTracker
   alias Ichor.Signals.EventStream
   alias Ichor.Workshop.{ActiveTeam, Agent}
 
@@ -24,8 +23,7 @@ defmodule Ichor.Infrastructure.Operations do
              "active_agents" => Enum.count(agents, fn agent -> agent.status == :active end),
              "teams" => length(teams),
              "event_buffer" => alive?(EventStream),
-             "heartbeat" => alive?(AgentWatchdog),
-             "protocol_tracker" => alive?(ProtocolTracker)
+             "heartbeat" => alive?(AgentWatchdog)
            }}
         end
       end)
