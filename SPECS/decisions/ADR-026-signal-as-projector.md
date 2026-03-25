@@ -190,6 +190,60 @@ The core GenStage pipeline is implemented:
 - `MemoriesBridge` projector replacement (deleted without replacement)
 - Event name normalization to `chat.message.created` style (old atom names still in use for PubSub)
 
+### Migration blocker assessment (2026-03-25)
+
+**`Signals.emit` call sites: 98**
+Spread across: factory/* (40+), fleet/*, infrastructure/*, projector/*, signals/*, workshop/*, ichor_web/*
+
+**`Signals.subscribe` call sites: 25**
+Consumers blocking PubSub removal:
+- `DashboardLive` -- subscribes to all 14 categories via `Catalog.categories/0`
+- `SignalBuffer` -- subscribes to all categories, re-broadcasts on `signals:feed`
+- `SignalManager` -- subscribes to all categories for rolling counts
+- `TeamWatchdog` -- subscribes to `:fleet`, `:pipeline`, `:planning`, `:monitoring`
+- `CleanupDispatcher` -- subscribes to `:cleanup`
+- `AgentWatchdog` -- subscribes to `:events`, `:fleet`
+- `MesProjectIngestor` -- subscribes to `:messages`
+- `TeamSpawnHandler` -- subscribes to `:fleet`
+- `CompletionHandler` -- subscribes to `:pipeline`
+- `MesResearchIngestor` -- subscribes to `:mes`
+- `ProtocolTracker` -- subscribes to `:events`, `:heartbeat`
+- `FleetLifecycle` -- subscribes to `:fleet`
+- `EventStream` -- subscribes to `:fleet`
+- `AgentProcess` -- subscribes to `:agent_event` per session (dynamic)
+- `Runner` -- subscribes to various categories per run
+- `Workshop.Spawn` -- subscribes to `:team_spawn_ready`/`:team_spawn_failed` per request (request-scoped)
+
+**Why `Signals.emit` cannot be replaced with direct `Ingress.push` yet:**
+`Runtime.emit` already bridges every signal to the GenStage pipeline via `bridge_to_pipeline/2`
+(wraps in `Event.new("signal.#{name}", ...)` and calls `Ingress.push`). So the 3 new signal modules
+(`Agent.ToolBudget`, `Agent.MessageProtocol`, `Agent.Entropy`) already receive events from this bridge.
+Direct `Ingress.push` would only make sense AFTER the emitting module stops needing the PubSub side of
+`Signals.emit` -- i.e., after ALL subscribers for that signal category have migrated away.
+
+**No `Signals.emit` calls can be safely removed today.** Every emit is consumed by at least one
+PubSub subscriber. The bridge in `Runtime.emit` handles the new pipeline already.
+
+**Catalog cannot be removed.** It is used by `DashboardLive`, `SignalBuffer`, and `SignalManager`
+to iterate all categories for bulk subscription. These three alone block Catalog removal even if
+all other consumers migrate.
+
+**Recommended next migration target:**
+`:cleanup` category is the smallest isolated category (2 signals, 1 subscriber: `CleanupDispatcher`).
+Converting `CleanupDispatcher` to a GenStage consumer watching `"signal.run_cleanup_needed"` and
+`"signal.session_cleanup_needed"` would be a low-risk proof-of-concept for the category-level
+migration pattern.
+
+### Projectors that cannot be migrated to signal modules (2026-03-25)
+
+**`Projector.TeamWatchdog`** -- stays as a projector. Cannot be expressed as `use Ichor.Signal` for two structural reasons:
+
+1. **Cross-key state correlation.** TeamWatchdog accumulates `completed_runs` from `:run_complete` events (keyed by `run_id`) and reads that set when handling `:team_disbanded` (keyed by `team_name`) and `:agent_stopped` (keyed by `session_id`). The Signal model is per-`{module, key}` -- different keys means different SignalProcess instances with no shared state. No single SignalProcess can see both the `:run_complete` history and the `:team_disbanded` trigger.
+
+2. **Multi-signal dispatch per event.** A single `:run_complete` triggers up to 5 downstream signals (`:archive_run`, `:reset_tasks`, `:disband_team`, `:kill_session`, `:notify_operator`). The Signal model emits one signal per activation. Combined with (1), this is not a fit.
+
+**`Projector.ProtocolTracker`** and **`Projector.SignalManager`** -- stay as projectors. Both expose public ETS-backed query APIs (`get_stats/0`, `get_traces/0`, `snapshot/0`, `attention/0`). Signal modules are pure accumulators with no public API surface.
+
 ### Migration path
 
 1. Build event envelope struct and event bus

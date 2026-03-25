@@ -4,6 +4,37 @@ defmodule Ichor.Signals.Catalog do
   Source of truth for signal validation, the /signals page, and Archon Watchdog.
 
   Add new signals here. If it's not in the catalog, `Signals.emit/2` raises.
+
+  ## Legacy status
+
+  This module is tightly coupled to the old PubSub-based signal system (`Signals.emit/2`
+  -> `Runtime` -> Phoenix.PubSub broadcast + `Ingress.push` bridge). It cannot be removed
+  until ALL consumers of the old PubSub system have migrated to the new GenStage pipeline
+  (ADR-026).
+
+  PubSub removal is currently blocked by 25 subscribers across these files:
+  - DashboardLive (subscribes to all 14 categories via `Catalog.categories/0`)
+  - SignalBuffer (subscribes to all categories, re-broadcasts on signals:feed)
+  - SignalManager (subscribes to all categories for rolling counts)
+  - TeamWatchdog (subscribes to :fleet, :pipeline, :planning, :monitoring)
+  - CleanupDispatcher (subscribes to :cleanup)
+  - AgentWatchdog (subscribes to :events, :fleet)
+  - MesProjectIngestor (subscribes to :messages)
+  - TeamSpawnHandler (subscribes to :fleet)
+  - CompletionHandler (subscribes to :pipeline)
+  - MesResearchIngestor (subscribes to :mes)
+  - ProtocolTracker (subscribes to :events, :heartbeat)
+  - FleetLifecycle (subscribes to :fleet)
+  - EventStream (subscribes to :fleet)
+  - AgentProcess (subscribes to :agent_event per session)
+  - Runner (subscribes to various categories per run)
+  - Workshop.Spawn (subscribes to :team_spawn_ready/:team_spawn_failed per request)
+
+  Migration path (ADR-026 step 7-9):
+  1. Migrate each subscriber category to GenStage pipeline topics
+  2. Replace Signals.emit call sites with direct Ingress.push where possible
+  3. Remove Catalog.categories() calls from each consumer
+  4. Remove this module once empty
   """
 
   @type signal_def :: %{
