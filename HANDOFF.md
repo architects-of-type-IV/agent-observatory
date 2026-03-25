@@ -1,83 +1,87 @@
 # ICHOR IV - Handoff
 
-## Current Status: HEXAGONAL REORG COMPLETE (2026-03-25)
+## Current Status: EVENT/SIGNAL NAMESPACE SEPARATION COMPLETE (2026-03-25)
 
-156 .ex files. Build clean. Zero tests.
+~153 .ex files. Build clean. Zero tests.
 
-### Hexagonal Architecture (current state)
+### Architecture (current)
 
+```
+Ash Action / GenServer / Worker
+  -> Events.emit(Event.new("topic.string", key, data))
+    -> Ingress.push (GenStage pipeline: Router -> SignalProcess -> Handler)
+    -> PubSub broadcast on "events:all" + "events:{key}"
+      -> Dashboard, SignalBuffer, Projectors match on %Event{topic: "..."}
+```
+
+### Event System (Events.*)
+- `Events.emit/1` -- single public API, takes `%Event{}`
+- `Events.subscribe_all/0` -- observe all events on "events:all"
+- `Events.subscribe_key/1` -- observe events for a specific key
+- `Events.Event` -- envelope struct: topic (string), key, data, metadata, occurred_at
+- `Events.Ingress` -- GenStage producer (buffered demand tracking)
+- `Events.StoredEvent` -- append-only PostgreSQL log
+- `Events.EventStream` -- hook event ingestion (Claude Code webhooks)
+- `Events.Registry` -- event topic catalog for /signals page sidebar (131 entries)
+
+### Signal System (Signals.*)
+- `Ichor.Signals` -- Ash Domain (Operations, Checkpoint resources)
+- `Ichor.Signal` -- behaviour + `use` macro for signal modules
+- `SignalProcess` -- GenServer per {signal_module, key}, accumulates events
+- `Router` -- GenStage consumer, routes events to signal modules by topic
+- `ActionHandler` -- dispatches signal activations to handlers
+- `PipelineSupervisor` -- rest_for_one wrapping Ingress + Router
+- 3 signal modules: ToolBudget, MessageProtocol, Entropy
+- `Bus` -- message delivery authority
+- `Operations` -- Ash Resource for agent messaging
+
+### Hexagonal Layers
 ```
 lib/ichor/
-  factory/          # Ash domain: Pipeline, Project, PipelineTask + workers (37 files)
-  workshop/         # Ash domain: Agent, Team, Prompt + presets (27 files)
-  signals/          # Ash domain + ADR-026 GenStage pipeline (20 files)
-  settings/         # Ash domain: SettingsProject (4 files)
-  archon/           # Ash domain: system governor (5 files)
-  events/           # Ash domain: StoredEvent + Ingress (4 files)
-  fleet/            # OTP processes: AgentProcess, Supervisor, TeamSupervisor (9 files)
-  orchestration/    # Use cases: AgentLaunch, TeamLaunch, Registration, Cleanup, TeamSpec (6 files)
-  infrastructure/   # I/O boundary: Tmux, webhooks, memories, host_registry (19 files)
-  projector/        # Signal subscribers (13 files)
-  signal.ex         # use Ichor.Signal macro
-  + other root modules (application.ex, discovery.ex, etc.)
+  factory/          # Ash domain: Pipeline, Project, PipelineTask + workers
+  workshop/         # Ash domain: Agent, Team, Prompt + presets
+  signals/          # Ash domain + GenStage signal pipeline
+  settings/         # Ash domain: SettingsProject
+  archon/           # Ash domain: system governor
+  events/           # Ash domain: StoredEvent, Event, Ingress, EventStream, Registry
+  fleet/            # OTP processes: AgentProcess, Supervisor, TeamSupervisor
+  orchestration/    # Use cases: AgentLaunch, TeamLaunch, Registration, Cleanup
+  infrastructure/   # I/O boundary: Tmux, webhooks, memories, host_registry
+  projector/        # Event subscribers: AgentWatchdog, FleetLifecycle, etc.
 ```
 
-### Session Summary
+### What Was Done This Session
 
-**Deep cleanup**: -4,700 lines (Mesh, GenStage remnants, Fleet domain, Plugin, tests, MemoriesBridge)
-**ADR-026 pipeline**: GenStage pipeline with 3 signal modules, ActionHandler, StoredEvent+Checkpoint
-**Frontend**: 9 primitive components + UI library with defdelegate, templates migrated
-**HITL removed**: -1,002 lines (entire subsystem: HITLRelay, hitl/buffer.ex, hitl/session_state.ex)
-**OTP fixes**: Task.Supervisor ordering, LifecycleSupervisor strategy, projector extraction
-**Hexagonal reorg**: Fleet (9 files) + Orchestration (6 files) extracted from Infrastructure; CompletionHandler + TeamSpawnHandler moved to Projector/
-**Docs**: 11 architecture docs updated, TREE.md + REFACTOR.md rewritten, BRAIN.md updated, supervision-tree.md + signals-domain.md + architecture.md fixed
+1. **Catalog -> Registry**: Replaced 722-line Signals.Catalog with 250-line Events.Registry
+2. **Namespace separation**: Moved event infra (Registry, Runtime, Message, Topics, EventStream) from Signals.* to Events.*
+3. **Emit migration**: All 98 Signals.emit(:atom, data) calls -> Events.emit(Event.new("topic", key, data))
+4. **Subscriber migration**: All 19 Signals.subscribe calls -> Events.subscribe_all/subscribe_key
+5. **Renderer migration**: All 100+ %Message{name: :atom} patterns -> %Event{topic: "string"}
+6. **Dead code removal**: Deleted Message, Runtime, Topics, Signals facade emit/subscribe
 
-### Infrastructure (19 files -- all I/O boundary)
+### Immediate Next: Remove legacy_name metadata
 
-Tmux (5): tmux.ex, tmux/, tmux_discovery.ex
-External clients (2): memories_client.ex, webhook_adapter.ex
-Ash Resources (2): operations.ex, webhook_delivery.ex
-GenServer adapters (2): host_registry.ex, output_capture.ex
-Pure helpers (1): channel.ex
-Workers (3): workers/
-Other (4): cron_scheduler.ex, plugs/, (5 files total with subdirs)
+All Events still carry `%{legacy_name: :atom}` in metadata. This was the migration bridge.
+Now that all renderers match on topic strings, legacy_name is dead. Remove it from all 98 emit sites.
 
-### Key Module Path Changes (hexagonal reorg)
+### Open Items (from previous session, still pending)
 
-| Old Path | New Path |
-|----------|---------|
-| `Infrastructure.FleetSupervisor` | `Fleet.Supervisor` |
-| `Infrastructure.TeamSupervisor` | `Fleet.TeamSupervisor` |
-| `Infrastructure.AgentProcess` | `Fleet.AgentProcess` |
-| `Infrastructure.AgentLaunch` | `Orchestration.AgentLaunch` |
-| `Infrastructure.TeamLaunch` | `Orchestration.TeamLaunch` |
-| `Infrastructure.Registration` | `Orchestration.Registration` |
-| `Infrastructure.Cleanup` | `Orchestration.Cleanup` |
-| `Infrastructure.TeamSpec` | `Orchestration.TeamSpec` |
-| `Factory.CompletionHandler` | `Projector.CompletionHandler` |
-| `Workshop.TeamSpawnHandler` | `Projector.TeamSpawnHandler` |
-
-### Open Items (architecture debt)
-
-HIGH (correctness + principle violations):
-- [ ] Extract result structs from `Infrastructure.MemoriesClient` into own files
+HIGH:
 - [ ] Fix `DashboardWorkshopHandlers` to use Workshop code_interface (not `Ash.destroy!` directly)
 - [ ] Fix `WorkshopTypes` to use Workshop code_interface (not `Ash.destroy!` directly)
 - [ ] Fix `ExportController` to use `Ichor.Events` domain code_interface
 
-MEDIUM (maintainability):
-- [ ] X1: EventStream fleet mutations (calls Fleet directly, should emit signal)
-- [ ] X2: AgentWatchdog calls Factory.Board.update_task directly (should emit signal)
-- [ ] Split `DashboardFeedHelpers` if > 300L
+MEDIUM:
+- [ ] X1: EventStream fleet mutations (calls Fleet directly, should emit event)
+- [ ] X2: AgentWatchdog calls Factory.Board.update_task directly (should emit event)
 - [ ] `MemoryStore` GenServer: evaluate if ETS public reads can bypass GenServer serialization
 
-LOW (cleanup):
-- [ ] Remove dead `ProtocolTracker.compute_stats` command_queue fields (always return 0)
+LOW:
 - [ ] Frontend Wave 3: Migrate templates to use <.button>, <.input> from library
 - [ ] Frontend Wave 4: Extract remaining page sections
+- [ ] Fresh tests against event pipeline + Ash domain code_interfaces
 
 ### Build Status
 - `mix compile --warnings-as-errors`: CLEAN
 - `mix test`: 0 tests
-- Credo strict: 0 issues
-- Dialyzer: clean (gen_stage PLT suppressed)
+- Credo strict: 0 issues (last checked)

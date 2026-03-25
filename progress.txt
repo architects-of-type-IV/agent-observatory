@@ -1,5 +1,16 @@
 # ICHOR IV Progress
 
+## Event/Signal Namespace Separation (2026-03-25) -- COMPLETE
+- [x] Catalog (722L) -> Registry (250L): slim event-to-category mapping
+- [x] Namespace move: Registry, Runtime, Message, Topics, EventStream from Signals.* to Events.*
+- [x] Emit migration: 98 Signals.emit(:atom, data) -> Events.emit(Event.new("topic", key, data))
+- [x] Subscriber migration: 19 Signals.subscribe -> Events.subscribe_all/subscribe_key
+- [x] Renderer migration: 100+ %Message{name: :atom} -> %Event{topic: "string"} across 9 files
+- [x] Dead code: Deleted Message, Runtime, Topics, Signals facade emit/subscribe
+- [x] Signals facade: pure Ash Domain now (Operations + Checkpoint resources only)
+- [x] New API: Events.emit/1, Events.subscribe_all/0, Events.subscribe_key/1
+- [ ] Remove legacy_name metadata from all 98 emit sites (next)
+
 ## Documentation Sync (2026-03-25) -- COMPLETE
 - [x] TREE.md: fully rewritten for hexagonal reorg (fleet/, orchestration/, projector/ with CompletionHandler+TeamSpawnHandler, HITL removed)
 - [x] REFACTOR.md: Fleet section updated (fleet/ + orchestration/ extracted from Infrastructure), CompletionHandler + TeamSpawnHandler moved to Projector

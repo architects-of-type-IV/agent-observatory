@@ -68,18 +68,22 @@ Key extractions from today's session:
 - `Projector.TeamSpawnHandler` was `Workshop.TeamSpawnHandler`
 - HITL subsystem removed entirely (-1,002 lines): no HITLRelay, no hitl/buffer.ex, no hitl/session_state.ex
 
-## Signals Architecture (ADR-026 -- COMPLETE)
-- Old PubSub system still running in parallel (Signals.emit -> Runtime -> PubSub broadcast).
-- GenStage pipeline live: Event -> Ingress -> Router -> SignalProcess -> ActionHandler.
-- `use Ichor.Signal` macro for declarative signal creation.
-- EventStream bridges hook events into both systems (old PubSub + new Ingress).
-- FromAsh notifier: 25 action mappings across 7 Ash resources (Wave 3 done).
-- Naming rule: big to small, dot-delimited. agent.tool.budget.exhausted.
-- Event = something happened. Signal = enough happened. Handler = now act.
-- Signal modules: Agent.ToolBudget (budget enforcement), Agent.MessageProtocol (comm rules), Agent.Entropy (loop detection).
-- SignalProcess: one GenServer per {module, key}, DynamicSupervisor + Registry, idle shutdown 5 min.
-- StoredEvent (PostgreSQL): durable append-only event log.
-- Checkpoint (PostgreSQL): tracks last processed event per signal module+key for crash recovery.
+## Event/Signal Architecture (ADR-026 -- COMPLETE)
+
+Core path: `Events.emit(Event.new("topic", key, data))` -> Ingress -> Router -> SignalProcess -> Handler
+
+- Event = something happened (domain fact, dot-delimited topic string)
+- Signal = enough happened (accumulation threshold met)
+- Handler = now act (Oban, Reactor, Ash action)
+- PubSub is observer-only: "events:all" + "events:{key}" for dashboard/projectors
+- `use Ichor.Signal` macro for declarative signal creation
+- Signal modules: Agent.ToolBudget, Agent.MessageProtocol, Agent.Entropy
+- SignalProcess: one GenServer per {module, key}, DynamicSupervisor + Registry, idle shutdown 5 min
+- StoredEvent (PostgreSQL): durable append-only event log
+- Checkpoint (PostgreSQL): crash recovery per signal module+key
+- Events.*: Event, Ingress, StoredEvent, EventStream, Registry (topic catalog)
+- Signals.*: Ash Domain, Signal behaviour, SignalProcess, Router, ActionHandler, Bus, Operations
+- Old Message/Runtime/Topics/Catalog: DELETED. No atom-based emit. No category-based PubSub.
 
 ## Audit Pipeline Lessons
 - 6 parallel agents can step on each other -- syntax errors from map keyword mixing.
