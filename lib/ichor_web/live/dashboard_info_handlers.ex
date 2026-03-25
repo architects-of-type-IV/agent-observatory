@@ -127,6 +127,11 @@ defmodule IchorWeb.DashboardInfoHandlers do
   def dispatch(%Message{name: name}, socket) when name in @gateway_signals,
     do: {:noreply, maybe_refresh_archon_manager(socket)}
 
+  # ADR-026: signal pipeline activations
+  def dispatch({:signal_activated, %Ichor.Signals.Signal{} = signal}, socket) do
+    {:noreply, socket |> push_signal_toast(signal) |> schedule_recompute()}
+  end
+
   def dispatch({:archon_response, result}, socket),
     do: {:noreply, DashboardArchonHandlers.handle_archon_response(result, socket)}
 
@@ -190,4 +195,31 @@ defmodule IchorWeb.DashboardInfoHandlers do
   end
 
   defp maybe_refresh_archon_manager(socket), do: socket
+
+  defp push_signal_toast(socket, signal) do
+    {level, msg} = signal_toast(signal)
+    IchorWeb.DashboardToast.push_toast(socket, level, msg)
+  end
+
+  defp signal_toast(%Ichor.Signals.Signal{name: "agent.tool.budget"} = s) do
+    count = s.metadata[:count]
+    limit = s.metadata[:limit]
+    key = String.slice(to_string(s.key), 0, 12)
+    {:warning, "Budget exhausted — session #{key} (#{count}/#{limit} tools)"}
+  end
+
+  defp signal_toast(%Ichor.Signals.Signal{name: "agent.message.protocol"} = s) do
+    violations = s.metadata[:violations] || []
+    {:error, "Protocol violation — #{s.key}: #{length(violations)} comm rule violation(s)"}
+  end
+
+  defp signal_toast(%Ichor.Signals.Signal{name: "agent.entropy"} = s) do
+    score = s.metadata[:entropy_score]
+    key = String.slice(to_string(s.key), 0, 12)
+    {:warning, "Loop detected — session #{key} entropy #{score}"}
+  end
+
+  defp signal_toast(%Ichor.Signals.Signal{name: name} = s) do
+    {:info, "Signal #{name} — key=#{s.key} events=#{length(s.events)}"}
+  end
 end

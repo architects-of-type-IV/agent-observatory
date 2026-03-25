@@ -90,6 +90,12 @@ defmodule IchorWeb.DashboardLive do
 
     if connected?(socket) do
       Enum.each(Catalog.categories(), &Ichor.Signals.subscribe/1)
+
+      # ADR-026: subscribe to signal activation topics
+      for signal_mod <- Application.get_env(:ichor, :signal_modules, []) do
+        Phoenix.PubSub.subscribe(Ichor.PubSub, "signal:#{signal_mod.signal_name()}")
+      end
+
       send(self(), :load_data)
     end
 
@@ -181,6 +187,9 @@ defmodule IchorWeb.DashboardLive do
         {:noreply, stream_insert(socket, :signals, {seq, message}, at: 0, limit: 200)}
     end
   end
+
+  def handle_info({:signal_activated, %Ichor.Signals.Signal{} = signal}, socket),
+    do: DashboardInfoHandlers.dispatch({:signal_activated, signal}, socket)
 
   def handle_info(msg, socket), do: DashboardInfoHandlers.dispatch(msg, socket)
 

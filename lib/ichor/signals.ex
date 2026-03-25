@@ -13,6 +13,7 @@ defmodule Ichor.Signals do
   resources do
     resource(Ichor.Signals.Operations)
     resource(Ichor.Signals.HITLInterventionEvent)
+    resource(Ichor.Signals.Checkpoint)
   end
 
   tools do
