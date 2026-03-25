@@ -9,7 +9,8 @@ defmodule Ichor.Signals.Bus do
 
   require Logger
 
-  alias Ichor.Infrastructure.{AgentProcess, TeamSupervisor}
+  alias Ichor.Fleet.AgentProcess
+  alias Ichor.Fleet.TeamSupervisor
   alias Ichor.Infrastructure.Tmux
   alias Ichor.Signals
 

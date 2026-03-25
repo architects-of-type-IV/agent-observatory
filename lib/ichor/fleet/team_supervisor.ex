@@ -1,4 +1,4 @@
-defmodule Ichor.Infrastructure.TeamSupervisor do
+defmodule Ichor.Fleet.TeamSupervisor do
   @moduledoc """
   A team is a DynamicSupervisor. Its children are AgentProcess GenServers.
   The supervisor's restart strategy governs how member failures propagate.
@@ -8,7 +8,7 @@ defmodule Ichor.Infrastructure.TeamSupervisor do
 
   use DynamicSupervisor
 
-  alias Ichor.Infrastructure.AgentProcess
+  alias Ichor.Fleet.AgentProcess
 
   @team_registry Ichor.Registry
   @pg_scope :ichor_agents

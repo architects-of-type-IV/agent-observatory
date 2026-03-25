@@ -5,10 +5,10 @@ defmodule Ichor.Infrastructure.Registration do
 
   require Logger
 
-  alias Ichor.Infrastructure.AgentProcess
-  alias Ichor.Infrastructure.AgentSpec
-  alias Ichor.Infrastructure.FleetSupervisor
-  alias Ichor.Infrastructure.TeamSupervisor
+  alias Ichor.Fleet.AgentProcess
+  alias Ichor.Fleet.AgentSpec
+  alias Ichor.Fleet.Supervisor, as: FleetSupervisor
+  alias Ichor.Fleet.TeamSupervisor
 
   @doc "Ensure a TeamSupervisor exists for `name`, creating it if absent."
   @spec ensure_team(String.t()) :: :ok | {:error, term()}

@@ -2,7 +2,7 @@ defmodule IchorWeb.DebugController do
   @moduledoc "System diagnostics endpoint for quick debugging."
   use IchorWeb, :controller
 
-  alias Ichor.Infrastructure.AgentProcess
+  alias Ichor.Fleet.AgentProcess
   alias Ichor.Infrastructure.Tmux
   alias Ichor.Projector.ProtocolTracker
   alias Ichor.Projector.SignalBuffer, as: Buffer
@@ -186,7 +186,8 @@ defmodule IchorWeb.DebugController do
   end
 
   def mes_cleanup(conn, _params) do
-    alias Ichor.Infrastructure.{FleetSupervisor, TeamSupervisor}
+    alias Ichor.Fleet.TeamSupervisor
+    alias Ichor.Fleet.Supervisor, as: FleetSupervisor
 
     before = Enum.map(TeamSupervisor.list_all(), &elem(&1, 0))
     mes_teams = Enum.filter(before, &String.starts_with?(&1, "mes-"))

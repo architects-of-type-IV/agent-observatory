@@ -6,7 +6,7 @@ defmodule Ichor.Workshop.Preparations.LoadAgents do
   use Ash.Resource.Preparation
 
   alias Ash.DataLayer.Simple
-  alias Ichor.Infrastructure.AgentProcess
+  alias Ichor.Fleet.AgentProcess
   alias Ichor.Workshop.Agent
 
   @impl true

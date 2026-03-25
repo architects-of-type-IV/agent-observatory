@@ -10,8 +10,8 @@ defmodule Ichor.Infrastructure.TmuxDiscovery do
   use GenServer
   require Logger
 
-  alias Ichor.Infrastructure.AgentProcess
-  alias Ichor.Infrastructure.FleetSupervisor
+  alias Ichor.Fleet.AgentProcess
+  alias Ichor.Fleet.Supervisor, as: FleetSupervisor
   alias Ichor.Infrastructure.Tmux
   alias Ichor.Signals
 

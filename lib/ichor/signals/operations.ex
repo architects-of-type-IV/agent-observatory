@@ -5,7 +5,7 @@ defmodule Ichor.Signals.Operations do
 
   use Ash.Resource, domain: Ichor.Signals
 
-  alias Ichor.Infrastructure.AgentProcess
+  alias Ichor.Fleet.AgentProcess
   alias Ichor.Signals.Bus
   alias Ichor.Signals.EventStream
 

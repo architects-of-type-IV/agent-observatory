@@ -15,7 +15,7 @@ defmodule Ichor.Projector.AgentWatchdog do
   require Logger
 
   alias Ichor.Factory.Board
-  alias Ichor.Infrastructure.AgentProcess
+  alias Ichor.Fleet.AgentProcess
   alias Ichor.Infrastructure.Tmux
   alias Ichor.Operator.Inbox
   alias Ichor.Projector.AgentWatchdog.EscalationEngine

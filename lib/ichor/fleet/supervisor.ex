@@ -1,22 +1,22 @@
-defmodule Ichor.Infrastructure.FleetSupervisor do
+defmodule Ichor.Fleet.Supervisor do
   @moduledoc """
   Top-level DynamicSupervisor for the fleet. Holds team supervisors and
   standalone agent processes (agents not assigned to any team).
 
   This is the root of the BEAM-native agent hierarchy:
 
-      FleetSupervisor (DynamicSupervisor)
-        +-- TeamSupervisor "squad-alpha" (DynamicSupervisor)
-        |     +-- AgentProcess "lead-1"
-        |     +-- AgentProcess "worker-1"
-        +-- TeamSupervisor "squad-beta"
-        |     +-- AgentProcess "coord-1"
-        +-- AgentProcess "standalone-scout"    # no team
+      Fleet.Supervisor (DynamicSupervisor)
+        +-- Fleet.TeamSupervisor "squad-alpha" (DynamicSupervisor)
+        |     +-- Fleet.AgentProcess "lead-1"
+        |     +-- Fleet.AgentProcess "worker-1"
+        +-- Fleet.TeamSupervisor "squad-beta"
+        |     +-- Fleet.AgentProcess "coord-1"
+        +-- Fleet.AgentProcess "standalone-scout"    # no team
   """
 
   use DynamicSupervisor
 
-  alias Ichor.Infrastructure.{AgentProcess, TeamSupervisor}
+  alias Ichor.Fleet.{AgentProcess, TeamSupervisor}
 
   @doc "Start the fleet supervisor."
   @spec start_link(keyword()) :: Supervisor.on_start()

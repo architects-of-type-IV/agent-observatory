@@ -5,7 +5,7 @@ defmodule IchorWeb.DashboardSlideoutHandlers do
 
   import Phoenix.Component, only: [assign: 3]
 
-  alias Ichor.Infrastructure.AgentProcess
+  alias Ichor.Fleet.AgentProcess
   alias Ichor.Infrastructure.OutputCapture
 
   def handle_open_agent_slideout(sid, socket) do

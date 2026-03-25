@@ -290,7 +290,7 @@ defmodule Ichor.Factory.Spawn do
   end
 
   defp team_entries do
-    Application.get_env(:ichor, :mes_team_supervisor_module, Ichor.Infrastructure.TeamSupervisor).list_all()
+    Application.get_env(:ichor, :mes_team_supervisor_module, Ichor.Fleet.TeamSupervisor).list_all()
   end
 
   defp cleanup_module do

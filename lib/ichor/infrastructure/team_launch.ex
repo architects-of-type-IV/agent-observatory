@@ -10,7 +10,7 @@ defmodule Ichor.Infrastructure.TeamLaunch do
   On failure, teardown cleans up any partially-created resources.
   """
 
-  alias Ichor.Infrastructure.FleetSupervisor
+  alias Ichor.Fleet.Supervisor, as: FleetSupervisor
   alias Ichor.Infrastructure.Registration
   alias Ichor.Infrastructure.TeamLaunch.Session
   alias Ichor.Infrastructure.TeamSpec

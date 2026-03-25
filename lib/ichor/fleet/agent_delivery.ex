@@ -1,4 +1,4 @@
-defmodule Ichor.Infrastructure.AgentDelivery do
+defmodule Ichor.Fleet.AgentDelivery do
   @moduledoc """
   Routes normalized messages to the appropriate backend transport.
 
@@ -12,7 +12,7 @@ defmodule Ichor.Infrastructure.AgentDelivery do
   All functions are side-effect wrappers; they do not mutate process state.
   """
 
-  alias Ichor.Infrastructure.AgentMessage
+  alias Ichor.Fleet.AgentMessage
   alias Ichor.Infrastructure.Tmux
   alias Ichor.Infrastructure.WebhookAdapter
 

@@ -1,4 +1,4 @@
-defmodule Ichor.Infrastructure.AgentMessage do
+defmodule Ichor.Fleet.AgentMessage do
   @moduledoc """
   Helpers for normalizing and inspecting agent messages.
 

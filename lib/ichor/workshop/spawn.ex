@@ -3,7 +3,7 @@ defmodule Ichor.Workshop.Spawn do
   Builds and launches a saved Workshop team definition by name.
   """
 
-  alias Ichor.Infrastructure.AgentSpec
+  alias Ichor.Fleet.AgentSpec
   alias Ichor.Infrastructure.TeamSpec
   alias Ichor.Signals
   alias Ichor.Workshop.{Presets, PromptProtocol, Team, TeamMember}

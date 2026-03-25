@@ -43,7 +43,7 @@ defmodule Ichor.Application do
       Ichor.RuntimeSupervisor,
 
       # Fleet supervisor (BEAM-native teams + agents, after Gateway for channel access)
-      Ichor.Infrastructure.FleetSupervisor,
+      Ichor.Fleet.Supervisor,
 
       # Projectors: react to Signals-originated events and perform side effects
       Ichor.Projector.FleetLifecycle,

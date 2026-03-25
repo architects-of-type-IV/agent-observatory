@@ -1,4 +1,4 @@
-defmodule Ichor.Infrastructure.AgentProcess do
+defmodule Ichor.Fleet.AgentProcess do
   @moduledoc """
   A living agent in the fleet. Each agent is a GenServer process with a native
   BEAM mailbox. The process IS the agent -- its PID is the canonical identity,
@@ -15,10 +15,10 @@ defmodule Ichor.Infrastructure.AgentProcess do
 
   require Logger
 
-  alias Ichor.Infrastructure.AgentBackend
-  alias Ichor.Infrastructure.AgentDelivery
-  alias Ichor.Infrastructure.AgentRegistryProjection
-  alias Ichor.Infrastructure.AgentState
+  alias Ichor.Fleet.AgentBackend
+  alias Ichor.Fleet.AgentDelivery
+  alias Ichor.Fleet.AgentRegistryProjection
+  alias Ichor.Fleet.AgentState
 
   @type_iv_registry Ichor.Registry
   @pg_scope :ichor_agents

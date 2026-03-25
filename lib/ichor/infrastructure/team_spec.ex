@@ -3,7 +3,7 @@ defmodule Ichor.Infrastructure.TeamSpec do
   Explicit runtime spec for launching a multi-agent team session.
   """
 
-  alias Ichor.Infrastructure.AgentSpec
+  alias Ichor.Fleet.AgentSpec
 
   @enforce_keys [:team_name, :session, :cwd, :agents, :prompt_dir]
   defstruct [:team_name, :session, :cwd, :agents, :prompt_dir, metadata: %{}]

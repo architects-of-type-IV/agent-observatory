@@ -4,7 +4,9 @@ defmodule IchorWeb.DashboardSessionControlHandlers do
   Handles shutdown operations for agents and kill-switch / instructions flow.
   """
 
-  alias Ichor.Infrastructure.{AgentProcess, FleetSupervisor, TeamSupervisor}
+  alias Ichor.Fleet.AgentProcess
+  alias Ichor.Fleet.Supervisor, as: FleetSupervisor
+  alias Ichor.Fleet.TeamSupervisor
   alias Ichor.Infrastructure.Tmux
   alias Ichor.Signals
   alias Ichor.Signals.Bus

@@ -1,4 +1,4 @@
-defmodule Ichor.Infrastructure.AgentState do
+defmodule Ichor.Fleet.AgentState do
   @moduledoc """
   Pure state-transition helpers for `AgentProcess`.
 
@@ -15,7 +15,7 @@ defmodule Ichor.Infrastructure.AgentState do
                          drained to the backend on resume.
   """
 
-  alias Ichor.Infrastructure.AgentMessage
+  alias Ichor.Fleet.AgentMessage
 
   @max_message_log 200
   @max_inbox 200

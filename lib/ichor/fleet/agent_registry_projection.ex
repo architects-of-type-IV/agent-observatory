@@ -1,4 +1,4 @@
-defmodule Ichor.Infrastructure.AgentRegistryProjection do
+defmodule Ichor.Fleet.AgentRegistryProjection do
   @moduledoc """
   Builds and derives registry metadata for agent processes.
 

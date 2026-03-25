@@ -18,9 +18,9 @@ defmodule Ichor.Projector.FleetLifecycle do
 
   require Logger
 
-  alias Ichor.Infrastructure.AgentProcess
-  alias Ichor.Infrastructure.FleetSupervisor
-  alias Ichor.Infrastructure.TeamSupervisor
+  alias Ichor.Fleet.AgentProcess
+  alias Ichor.Fleet.Supervisor, as: FleetSupervisor
+  alias Ichor.Fleet.TeamSupervisor
   alias Ichor.Signals
   alias Ichor.Signals.Message
 

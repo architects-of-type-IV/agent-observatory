@@ -5,7 +5,7 @@ defmodule Ichor.Infrastructure.AgentLaunch do
 
   require Logger
 
-  alias Ichor.Infrastructure.AgentSpec
+  alias Ichor.Fleet.AgentSpec
   alias Ichor.Infrastructure.Cleanup
   alias Ichor.Infrastructure.HostRegistry
   alias Ichor.Infrastructure.Registration

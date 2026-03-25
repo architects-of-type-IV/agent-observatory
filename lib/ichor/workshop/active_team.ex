@@ -9,8 +9,8 @@ defmodule Ichor.Workshop.ActiveTeam do
 
   use Ash.Resource, domain: Ichor.Workshop
 
-  alias Ichor.Infrastructure.FleetSupervisor
-  alias Ichor.Infrastructure.TeamSupervisor
+  alias Ichor.Fleet.Supervisor, as: FleetSupervisor
+  alias Ichor.Fleet.TeamSupervisor
 
   attributes do
     attribute(:name, :string, primary_key?: true, allow_nil?: false, public?: true)

@@ -1,4 +1,4 @@
-defmodule Ichor.Infrastructure.AgentSpec do
+defmodule Ichor.Fleet.AgentSpec do
   @moduledoc """
   Explicit runtime spec for launching a single tmux-backed agent.
   """

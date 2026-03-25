@@ -6,8 +6,8 @@ defmodule Ichor.Workshop.Preparations.LoadTeams do
   use Ash.Resource.Preparation
 
   alias Ash.DataLayer.Simple
-  alias Ichor.Infrastructure.AgentProcess
-  alias Ichor.Infrastructure.TeamSupervisor
+  alias Ichor.Fleet.AgentProcess
+  alias Ichor.Fleet.TeamSupervisor
   alias Ichor.Signals.EventStream, as: EventBuffer
   alias Ichor.Workshop.ActiveTeam
   alias Ichor.Workshop.Analysis.AgentHealth

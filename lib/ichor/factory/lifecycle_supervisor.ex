@@ -15,7 +15,8 @@ defmodule Ichor.Factory.LifecycleSupervisor do
   """
   use Supervisor
 
-  alias Ichor.Infrastructure.{AgentProcess, FleetSupervisor}
+  alias Ichor.Fleet.AgentProcess
+  alias Ichor.Fleet.Supervisor, as: FleetSupervisor
 
   @doc false
   @spec start_link(keyword()) :: Supervisor.on_start()

@@ -1,4 +1,4 @@
-defmodule Ichor.Infrastructure.AgentBackend do
+defmodule Ichor.Fleet.AgentBackend do
   @moduledoc """
   Backend liveness checks and graceful/forced termination helpers.
 

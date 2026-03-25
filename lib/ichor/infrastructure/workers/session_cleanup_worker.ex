@@ -15,7 +15,7 @@ defmodule Ichor.Infrastructure.Workers.SessionCleanupWorker do
     unique: [period: 60, keys: [:session, :action]]
 
   alias Ichor.Infrastructure.Cleanup
-  alias Ichor.Infrastructure.FleetSupervisor
+  alias Ichor.Fleet.Supervisor, as: FleetSupervisor
 
   @impl Oban.Worker
   def perform(%Oban.Job{args: %{"session" => session, "action" => "kill"}}) do
