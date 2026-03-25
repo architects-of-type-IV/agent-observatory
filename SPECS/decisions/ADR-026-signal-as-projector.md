@@ -1,6 +1,7 @@
 ---
-status: proposed
+status: implemented
 date: 2026-03-24
+implemented: 2026-03-25
 ---
 
 # ADR-026: Signal as Projector
@@ -170,13 +171,24 @@ The router checks each event against all signal modules. One event can route int
 - **GenStage learning curve.** Team needs to understand demand-driven flow.
 - **Process count.** One GenServer per `{signal_module, key}` -- dynamic, cleaned up on idle.
 
-### Not yet decided
+### Implementation Status (2026-03-25)
 
-- Exact flush conditions per signal (count, time, pattern, or combination)
-- Whether the event envelope should be an Ash embedded resource or a plain struct
-- Supervision strategy for Signal processes (DynamicSupervisor + Registry)
-- Durability: append-only event storage, replay, idempotency, signal checkpoints
-- How to map current 145 atom-based signals to dot-delimited domain facts
+The core GenStage pipeline is implemented:
+
+- `Events.Ingress` (GenStage producer) -- bridges `Signals.emit` calls into demand-driven flow
+- `Signals.Router` (GenStage consumer) -- routes events to SignalProcess accumulators by topic
+- `Signals.SignalProcess` (transient GenServer per {module, key}) -- accumulates events, idle timeout 5 min
+- `Signals.ActionHandler` -- dispatches activations to HITL/Bus/etc.
+- `Signals.PipelineSupervisor` (rest_for_one) -- wraps Ingress + Router
+- `Signals.Behaviour` -- callback contract
+- 3 signal modules: `Agent.ToolBudget`, `Agent.MessageProtocol`, `Agent.Entropy`
+- `Events.StoredEvent` (Ash resource, PostgreSQL) -- durable append-only event log
+- `Signals.Checkpoint` (Ash resource, PostgreSQL) -- projector resume positions
+
+**Not yet done:**
+- Full migration of 145 atom-based signals to dot-delimited domain facts (partial)
+- `MemoriesBridge` projector replacement (deleted without replacement)
+- Event name normalization to `chat.message.created` style (old atom names still in use for PubSub)
 
 ### Migration path
 

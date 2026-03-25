@@ -192,10 +192,8 @@ defmodule IchorWeb.Components.Agent.AgentDetailPanel do
   defp fetch_hitl_buffer(_agent_id, false), do: []
 
   defp fetch_hitl_buffer(agent_id, true) do
-    try do
-      Ichor.Infrastructure.HITLRelay.buffered_messages(agent_id)
-    rescue
-      _ -> []
-    end
+    Ichor.Infrastructure.HITLRelay.buffered_messages(agent_id)
+  rescue
+    _ -> []
   end
 end

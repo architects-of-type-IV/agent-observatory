@@ -1,6 +1,6 @@
 # ICHOR IV - Handoff
 
-## Current Status: ARCHITECTURE REFACTOR (2026-03-25)
+## Current Status: ARCHITECTURE REFACTOR (2026-03-25) -- DOCS UPDATED
 
 284 .ex files. Build clean. Zero tests.
 
@@ -50,6 +50,17 @@
 ### Build Status
 - `mix compile --warnings-as-errors`: CLEAN
 - `mix test`: 0 tests
+
+### Architecture Docs Updated (2026-03-25)
+- `docs/architecture/decisions.md` -- AD-8 extended with StoredEvent; AshSqlite -> AshPostgres
+- `docs/architecture/signals-domain.md` -- GenStage pipeline section added (ADR-026)
+- `docs/architecture/supervision-tree.md` -- Full current tree diagram + strategy table
+- `docs/architecture/2026-03-23-ichor-v2.md` -- Status updated, deleted subsystems marked, migration status table
+- `docs/pages/signals.md` -- GenStage pipeline section + updated key files list
+- `docs/pages/pipeline.md` -- PipelineMonitor -> ProjectDiscoveryWorker corrected
+- `docs/pages/fleet.md` -- :mesh_pause legacy note added
+- `docs/diagrams/architecture.md` -- Domain Boundaries diagram + Signal Flow diagram updated
+- `SPECS/decisions/ADR-026-signal-as-projector.md` -- status: proposed -> implemented
 
 ### Next Steps
 1. File moves (hexagonal reorg) -- move infrastructure/ files to correct layers

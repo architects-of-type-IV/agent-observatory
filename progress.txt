@@ -1,5 +1,16 @@
 # ICHOR IV Progress
 
+## Architecture Docs Update (2026-03-25) -- COMPLETE
+- [x] decisions.md: AD-8 extended with StoredEvent + Checkpoint; AshSqlite -> AshPostgres noted
+- [x] signals-domain.md: GenStage pipeline section added (Ingress/Router/SignalProcess/ActionHandler/PipelineSupervisor + 3 signal modules)
+- [x] supervision-tree.md: Full current tree diagram with PipelineRunSupervisor, RuntimeSupervisor, extracted projectors; strategy table updated
+- [x] 2026-03-23-ichor-v2.md: Status PARTIALLY IMPLEMENTED; Signals section updated with GenStage; Archon moved items marked; supervision tree noted as proposed; migration status table added
+- [x] pages/signals.md: GenStage pipeline section; StoredEvent/Checkpoint domain; key files list updated
+- [x] pages/pipeline.md: PipelineMonitor -> ProjectDiscoveryWorker (Oban cron); projects/runtime.ex -> pipeline_query.ex
+- [x] pages/fleet.md: :mesh_pause legacy note
+- [x] diagrams/architecture.md: Domain Boundaries updated (Projectors, Events domains added, Mesh removed); Signal Flow updated with GenStage
+- [x] SPECS/decisions/ADR-026-signal-as-projector.md: status proposed -> implemented; implementation status section added
+
 ## Frontend Refactor (2026-03-25) -- IN PROGRESS
 - [x] Audit: 70 files, god templates, 10 repeated patterns identified
 - [x] Wave 1: 7 primitives extracted (agent_actions, close_button, panel_header, empty_panel, status_badge, status_dot, nav_icon) (5727d9b)

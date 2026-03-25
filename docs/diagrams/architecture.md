@@ -27,7 +27,7 @@ graph LR
         G[watchdog checks health]
         H[cleanup archives run]
         I[board refreshes]
-        J[mesh builds topology]
+        J["~~mesh builds topology~~\n(Mesh deleted f20ac4b)"]
     end
 
     A --> S
@@ -40,7 +40,6 @@ graph LR
     S -.-> G
     S -.-> H
     S -.-> I
-    S -.-> J
 
     style S fill:#fff3e0,stroke:#e65100,stroke-width:3px
 ```
@@ -227,6 +226,8 @@ graph TB
 
 ## Domain Boundaries
 
+> **Note (2026-03-25)**: Fleet domain was not implemented as a separate Ash domain. Fleet functionality remains in Infrastructure (FleetSupervisor, AgentProcess). The Mesh domain was deleted in f20ac4b. AshSqlite was replaced by AshPostgres.
+
 ```mermaid
 graph TB
     subgraph Workshop["Workshop Domain (design)"]
@@ -250,24 +251,40 @@ graph TB
         Runner[Runner GenServer]
         Spawn[Spawn orchestrator]
         Loader[Loader]
-        PM[PipelineMonitor]
+        PDW[ProjectDiscoveryWorker\nOban cron]
     end
 
     subgraph Archon["Archon Domain (system agent)"]
         direction TB
         Manager[Manager]
         Memory[Memory]
-        TW[TeamWatchdog]
     end
 
     subgraph SignalBus["SignalBus Domain (reactive backbone)"]
         direction TB
-        Event[Event]
         Ops[Operations]
         ES[EventStream store]
-        AW[AgentWatchdog]
         Bus[Bus delivery]
-        Buffer[Buffer]
+        Router[Router GenStage]
+        SP[SignalProcess accumulators]
+        AH[ActionHandler]
+        Checkpoint[Checkpoint]
+    end
+
+    subgraph Events["Events Domain"]
+        direction TB
+        Ingress[Ingress GenStage]
+        StoredEvent[StoredEvent]
+    end
+
+    subgraph Projectors["Projector namespace"]
+        direction TB
+        AW[AgentWatchdog]
+        TW[TeamWatchdog]
+        SM[SignalManager]
+        SB[SignalBuffer]
+        FL[FleetLifecycle]
+        CD[CleanupDispatcher]
     end
 
     subgraph Infra["Infrastructure (host layer)"]
@@ -287,13 +304,18 @@ graph TB
     SignalBus -.->|"signals"| Factory
     SignalBus -.->|"signals"| Archon
     SignalBus -.->|"signals"| Infra
+    SignalBus -->|"feeds"| Events
+    Events --> SignalBus
     Archon -->|"MCP actions"| Workshop
     Archon -->|"MCP actions"| Factory
+    Projectors -.->|"subscribe to signals"| SignalBus
 
     style Workshop fill:#e8f5e8,stroke:#2e7d32
     style Factory fill:#e3f2fd,stroke:#1565c0
     style Archon fill:#f3e5f5,stroke:#7b1fa2
     style SignalBus fill:#fff3e0,stroke:#e65100
+    style Events fill:#fff8e1,stroke:#f57f17
+    style Projectors fill:#fce4ec,stroke:#880e4f
     style Infra fill:#eceff1,stroke:#546e7a
 ```
 
@@ -445,6 +467,9 @@ sequenceDiagram
     participant ES as EventStream
     participant ETS as ETS Buffer
     participant Sig as Signals PubSub
+    participant ING as Events.Ingress
+    participant Router as Signals.Router
+    participant SP as SignalProcess
     participant AW as AgentWatchdog
     participant LV as Dashboard LiveView
     participant UI as Browser
@@ -465,6 +490,11 @@ sequenceDiagram
         Sig-->>LV: :new_event
         LV->>LV: recompute assigns
         LV->>UI: push diff
+    and
+        Note over ING: also feeds GenStage pipeline
+        Sig-->>ING: push event
+        ING->>Router: demand-driven
+        Router->>SP: route to signal modules
     end
 ```
 
@@ -741,6 +771,8 @@ flowchart LR
 
 ## Signal Flow: The Reactive Backbone
 
+> **Updated 2026-03-25**: GenStage pipeline added (ADR-026). PipelineMonitor replaced by ProjectDiscoveryWorker Oban cron.
+
 ```mermaid
 flowchart TB
     subgraph Producers["Signal Producers"]
@@ -754,17 +786,29 @@ flowchart TB
         SIG((Signals Bus))
     end
 
+    subgraph GenStage["GenStage Pipeline ADR-026"]
+        ING[Events.Ingress]
+        RO[Signals.Router]
+        SP[SignalProcess per key]
+        AH[ActionHandler]
+    end
+
+    subgraph StoredEvents["Durable Storage"]
+        SE[Events.StoredEvent]
+        CP[Signals.Checkpoint]
+    end
+
     subgraph Subscribers["Signal Subscribers"]
-        AW[AgentWatchdog]
-        TW[TeamWatchdog]
+        AW[Projector.AgentWatchdog]
+        TW[Projector.TeamWatchdog]
         LV[LiveView]
-        PM[PipelineMonitor]
+        PDW[ProjectDiscoveryWorker\nOban cron]
     end
 
     subgraph Reactors["Reactions"]
         OJ[Oban Jobs]
         UI[UI Update]
-        ESC[Escalation]
+        ESC[Escalation / HITL]
     end
 
     EC -->|:new_event| SIG
@@ -775,15 +819,24 @@ flowchart TB
     SIG -.-> AW
     SIG -.-> TW
     SIG -.-> LV
-    SIG -.-> PM
+    SIG --> ING
+
+    ING --> SE
+    ING --> RO
+    RO --> SP
+    SP --> AH
+    AH --> ESC
+    SP --> CP
 
     AW --> ESC
     TW --> OJ
     LV --> UI
-    PM --> OJ
+    PDW --> OJ
 
     style SIG fill:#fff3e0,stroke:#e65100,stroke-width:3px
     style OJ fill:#e8f5e8
+    style ING fill:#fff8e1,stroke:#f57f17
+    style SE fill:#fff8e1,stroke:#f57f17
 ```
 
 ---

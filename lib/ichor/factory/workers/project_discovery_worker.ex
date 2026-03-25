@@ -34,24 +34,25 @@ defmodule Ichor.Factory.Workers.ProjectDiscoveryWorker do
     case Ichor.Settings.list_settings_projects() do
       {:ok, existing} ->
         known_paths = MapSet.new(existing, fn p -> p.location.path end)
-
-        Enum.each(event_projects, fn {name, path} ->
-          unless MapSet.member?(known_paths, path) do
-            case Ichor.Settings.create_settings_project(%{
-                   name: name,
-                   location: %{type: :local, path: path}
-                 }) do
-              {:ok, _} ->
-                :ok
-
-              {:error, reason} ->
-                Logger.warning("Auto-register project #{name}: #{inspect(reason)}")
-            end
-          end
-        end)
+        Enum.each(event_projects, &maybe_register_project(&1, known_paths))
 
       {:error, reason} ->
         Logger.warning("ensure_settings_projects: #{inspect(reason)}")
+    end
+  end
+
+  defp maybe_register_project({name, path}, known_paths) do
+    unless MapSet.member?(known_paths, path) do
+      case Ichor.Settings.create_settings_project(%{
+             name: name,
+             location: %{type: :local, path: path}
+           }) do
+        {:ok, _} ->
+          :ok
+
+        {:error, reason} ->
+          Logger.warning("Auto-register project #{name}: #{inspect(reason)}")
+      end
     end
   end
 

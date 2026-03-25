@@ -191,7 +191,7 @@ A global overlay (defined in `dashboard_live.html.heex`, not fleet-specific, but
 
 ## Kill Switch (global session control state machine)
 
-Defined in `DashboardSessionControlHandlers`, accessible from elsewhere in the dashboard. Three-step confirmation (`kill_switch_click` -> `kill_switch_first_confirm` -> `kill_switch_second_confirm`). On second confirmation emits `:mesh_pause` signal with `initiated_by: "god_mode"`, pausing the entire mesh. Cancel resets state at any step.
+Defined in `DashboardSessionControlHandlers`, accessible from elsewhere in the dashboard. Three-step confirmation (`kill_switch_click` -> `kill_switch_first_confirm` -> `kill_switch_second_confirm`). On second confirmation emits `:mesh_pause` signal with `initiated_by: "god_mode"`. Note: the Mesh subsystem (CausalDAG etc.) was deleted in f20ac4b; the signal name is legacy but the event still triggers a global pause. Cancel resets state at any step.
 
 ---
 

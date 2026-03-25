@@ -99,6 +99,8 @@ Related: [Index](INDEX.md) | [Codex Sparring](../reviews/2026-03-21-codex-sparri
 
 **Consequences**: PubSub is demoted to observation-only. Cleanup/reassignment/webhook retry insert Oban jobs directly. The reconciler catches crash-window failures. Every Oban worker must be idempotent. Constraint: no mandatory work flows through PubSub alone.
 
+**StoredEvent (ADR-026 addition)**: `Events.StoredEvent` is the durable append-only event log (PostgreSQL-backed Ash resource, table `stored_events`). Every domain event that flows through the GenStage pipeline (Ingress -> Router -> SignalProcess) is persisted asynchronously. Signal bridge events (`source: :signal_bridge`) are excluded to avoid noise. `Signals.Checkpoint` (table `signal_checkpoints`) tracks the last processed event position per signal module+key, allowing projectors to resume after restart without full replay.
+
 ---
 
 ## Tech Choices Summary
@@ -106,7 +108,7 @@ Related: [Index](INDEX.md) | [Codex Sparring](../reviews/2026-03-21-codex-sparri
 | Choice | Reason |
 |--------|--------|
 | **Ash** (not raw Ecto) | Actions are first-class: typed, described, policy-guarded, discoverable. Enables Discovery (planned) |
-| **AshSqlite** | Single-node developer tool. No Postgres infrastructure required |
+| ~~**AshSqlite**~~ -> **AshPostgres** | Migrated from SQLite to PostgreSQL (commit 3fff70f). Single-node developer deployment. All Ash resources use `AshPostgres.DataLayer` and `Ichor.Repo`. |
 | **Oban** | Replaces MesScheduler, CronScheduler, PipelineMonitor health check GenServer patterns |
 | **tmux** | Claude agents require PTY with visible output + text input. `tmux attach` = zero-cost debugging |
 | **ETS for runtime projections** | O(1) concurrent reads without GenServer serialization. Multiple LiveViews read simultaneously |

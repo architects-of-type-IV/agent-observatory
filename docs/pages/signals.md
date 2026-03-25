@@ -11,6 +11,28 @@ Current architecture:
 - internal delivery authority for messages: `Ichor.Signals.Bus`
 - canonical event buffer: `Ichor.Signals.EventStream`
 
+### GenStage Pipeline (ADR-026)
+
+Signals now also flows through a GenStage demand-driven pipeline in parallel with PubSub broadcast:
+
+```
+Signals.emit(topic, payload)
+  ├─> Phoenix.PubSub (observational broadcast -- fire and forget)
+  └─> Events.Ingress (GenStage producer)
+        -> Signals.Router (consumer, routes by topic)
+           -> Signals.SignalProcess (per {module, key} accumulator)
+              -> Signals.ActionHandler (HITL pause, Bus notification, etc.)
+```
+
+Three signal modules accumulate events per-session and trigger actions:
+- `Signals.Agent.ToolBudget` -- pauses agent via HITLRelay when tool budget exhausted
+- `Signals.Agent.MessageProtocol` -- tracks protocol violations
+- `Signals.Agent.Entropy` -- detects repetitive loops
+
+Durable storage:
+- `Events.StoredEvent` (Ash resource, PostgreSQL) -- append-only event log populated by Ingress
+- `Signals.Checkpoint` (Ash resource, PostgreSQL) -- last processed position per projector
+
 `Observability` is no longer a separate domain for live viewing. Live tool
 failures, task projections, and recent events now belong to the signals side of
 the system.
@@ -39,6 +61,10 @@ Ash actions. Current resources are:
 - `Ichor.Signals.Operations`
 - `Ichor.Signals.TaskProjection`
 - `Ichor.Signals.ToolFailure`
+- `Ichor.Signals.Checkpoint` (ADR-026 -- projector resume positions)
+
+`Ichor.Events` domain (separate from SignalBus):
+- `Events.StoredEvent` -- durable append-only event log (PostgreSQL)
 
 Messaging-related tools exposed from the domain currently include:
 
@@ -81,13 +107,23 @@ history.
 
 ## Key Files
 
-- [/Users/xander/code/www/kardashev/observatory/lib/ichor/signal_bus.ex](/Users/xander/code/www/kardashev/observatory/lib/ichor/signal_bus.ex)
-- [/Users/xander/code/www/kardashev/observatory/lib/ichor/signals/catalog.ex](/Users/xander/code/www/kardashev/observatory/lib/ichor/signals/catalog.ex)
-- [/Users/xander/code/www/kardashev/observatory/lib/ichor/signals/operations.ex](/Users/xander/code/www/kardashev/observatory/lib/ichor/signals/operations.ex)
-- [/Users/xander/code/www/kardashev/observatory/lib/ichor/signals/bus.ex](/Users/xander/code/www/kardashev/observatory/lib/ichor/signals/bus.ex)
-- [/Users/xander/code/www/kardashev/observatory/lib/ichor/signals/runtime.ex](/Users/xander/code/www/kardashev/observatory/lib/ichor/signals/runtime.ex)
-- [/Users/xander/code/www/kardashev/observatory/lib/ichor/signals/event_stream.ex](/Users/xander/code/www/kardashev/observatory/lib/ichor/signals/event_stream.ex)
-- [/Users/xander/code/www/kardashev/observatory/lib/ichor/signals/tool_failure.ex](/Users/xander/code/www/kardashev/observatory/lib/ichor/signals/tool_failure.ex)
-- [/Users/xander/code/www/kardashev/observatory/lib/ichor/signals/task_projection.ex](/Users/xander/code/www/kardashev/observatory/lib/ichor/signals/task_projection.ex)
-- ~~`lib/ichor/signals/agent_watchdog.ex`~~ (deleted in f20ac4b)
+- `lib/ichor/signal_bus.ex` -- Ash domain facade
+- `lib/ichor/signals/catalog.ex` -- signal definitions
+- `lib/ichor/signals/operations.ex` -- public Ash actions
+- `lib/ichor/signals/bus.ex` -- message delivery authority
+- `lib/ichor/signals/runtime.ex` -- PubSub broadcast + Ingress bridge
+- `lib/ichor/signals/event_stream.ex` -- ETS event store + broadcaster
+- `lib/ichor/signals/router.ex` -- GenStage consumer (ADR-026)
+- `lib/ichor/signals/signal_process.ex` -- per {module,key} accumulator GenServer (ADR-026)
+- `lib/ichor/signals/action_handler.ex` -- signal action dispatch (ADR-026)
+- `lib/ichor/signals/pipeline_supervisor.ex` -- rest_for_one Ingress+Router (ADR-026)
+- `lib/ichor/signals/agent/tool_budget.ex` -- ToolBudget signal module (ADR-026)
+- `lib/ichor/signals/agent/entropy.ex` -- Entropy signal module (ADR-026)
+- `lib/ichor/signals/agent/message_protocol.ex` -- MessageProtocol signal module (ADR-026)
+- `lib/ichor/signals/checkpoint.ex` -- Ash resource for projector resume (ADR-026)
+- `lib/ichor/events/ingress.ex` -- GenStage producer (ADR-026)
+- `lib/ichor/events/stored_event.ex` -- durable event log Ash resource (ADR-026)
+- `lib/ichor/signals/tool_failure.ex`
+- `lib/ichor/signals/task_projection.ex`
+- ~~`lib/ichor/signals/agent_watchdog.ex`~~ (deleted, moved to `lib/ichor/projector/agent_watchdog.ex`)
 - ~~`lib/ichor/mesh/supervisor.ex`~~ (deleted in f20ac4b)

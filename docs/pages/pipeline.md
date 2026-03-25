@@ -289,7 +289,7 @@ Hidden `<div id="browser-notifications" phx-hook="BrowserNotifications">` -- pus
 
 | Data | Source | Update Mechanism |
 |---|---|---|
-| `pipeline_state` | `Ichor.Factory.PipelineMonitor` runtime state | Signal `:pipeline_status` broadcast received by `DashboardInfoHandlers.dispatch/2`, assigns `pipeline_state` |
+| `pipeline_state` | `Ichor.Factory.Workers.ProjectDiscoveryWorker` (Oban cron, `:maintenance` queue, every minute) via `Ichor.Factory.PipelineQuery` | Signal `:pipeline_status` broadcast received by `DashboardInfoHandlers.dispatch/2`, assigns `pipeline_state`. `PipelineMonitor` GenServer was replaced by this Oban worker. |
 | `tasks` | Factory pipeline task state | Refreshed by pipeline runtime and operator actions |
 | Watched projects | Auto-discovered from: event CWD buffer, `~/.claude/teams/` config.json files, `~/.claude/teams/.archive/` | Re-scanned on every `:poll_tasks` cycle |
 | Dependency graph | Computed by `Ichor.Factory.PipelineGraph` (pure functions): waves, critical path, edge list | Recomputed on every task refresh |
@@ -324,8 +324,8 @@ Pipeline mutations flow through the Factory runtime and monitor layers, then bro
 
 ### Real-Time Update Flow
 
-1. `Ichor.Factory.PipelineMonitor` refreshes pipeline state from the active Factory runtime
-2. On change: emits `Ichor.Signals.emit(:pipeline_status, %{state_map: state})`
+1. `Ichor.Factory.Workers.ProjectDiscoveryWorker` (Oban cron) scans discovery directories, computes board state via `PipelineQuery`
+2. On completion: emits `Ichor.Signals.emit(:pipeline_status, %{state_map: state})`
 3. `DashboardLive` subscribed to all signal categories at mount
 4. `handle_info(%Message{name: :pipeline_status, ...}, socket)` in `DashboardInfoHandlers` assigns new `pipeline_state`
 5. Template re-renders kanban, DAG graph, and header stats reactively
@@ -342,7 +342,8 @@ Pipeline mutations flow through the Factory runtime and monitor layers, then bro
 | `/Users/xander/code/www/kardashev/observatory/lib/ichor_web/components/pipeline_components/dag_node.html.heex` | Single DAG node button |
 | `/Users/xander/code/www/kardashev/observatory/lib/ichor_web/components/pipeline_components.ex` | Pipeline component module + styling helpers |
 | `/Users/xander/code/www/kardashev/observatory/lib/ichor_web/live/dashboard_pipeline_handlers.ex` | Pipeline event handler dispatch |
-| `/Users/xander/code/www/kardashev/observatory/lib/ichor/projects/runtime.ex` | Runtime GenServer: discovery, polling, task mutations, health checks |
+| `/Users/xander/code/www/kardashev/observatory/lib/ichor/factory/workers/project_discovery_worker.ex` | Oban cron: discovery, board state computation, `:pipeline_status` emit (replaced `Projects.Runtime` GenServer) |
+| `/Users/xander/code/www/kardashev/observatory/lib/ichor/factory/pipeline_query.ex` | Pure query module: reads tasks.jsonl, computes board state |
 | `/Users/xander/code/www/kardashev/observatory/lib/ichor/projects/graph.ex` | Pure DAG computation: waves, edges, critical path, stats |
 | `/Users/xander/code/www/kardashev/observatory/lib/ichor_web/live/dashboard_state.ex` | `recompute/1` -- derives all dashboard assigns from Ash queries |
 | `/Users/xander/code/www/kardashev/observatory/lib/ichor_web/components/sidebar_components.ex` | Right sidebar: teams, sessions, tmux, message composer |

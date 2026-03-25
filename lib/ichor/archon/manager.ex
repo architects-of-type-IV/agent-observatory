@@ -5,8 +5,8 @@ defmodule Ichor.Archon.Manager do
 
   use Ash.Resource, domain: Ichor.Archon
 
-  alias Ichor.Projector.SignalManager
   alias Ichor.Discovery
+  alias Ichor.Projector.SignalManager
 
   actions do
     action :manager_snapshot, :map do

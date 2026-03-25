@@ -1,7 +1,7 @@
 # Signals Domain
 Related: [Index](INDEX.md) | [Decisions](decisions.md) | [Infrastructure](infrastructure.md) | [Diagrams](../diagrams/architecture.md)
 
-Signals owns: signal emit/broadcast surface, message delivery (Bus), event store, signal catalog.
+Signals owns: signal emit/broadcast surface, message delivery (Bus), event store, signal catalog, GenStage pipeline, signal accumulator processes.
 Signals does NOT own: fleet health monitoring (AgentWatchdog -- fleet concern), fleet mutations (should emit signal, let Infrastructure react).
 
 ---
@@ -13,6 +13,46 @@ Signals is the nervous system. Everything that happens in the app becomes a sign
 The rule: producers emit, subscribers react. A producer never knows who's listening. A subscriber never calls the producer. Signals is the only coupling point between domains.
 
 **But**: signals are NOT a universal replacement for direct calls. Signals cross domain boundaries. Direct calls stay within a subsystem. Overusing signals creates event soup. (AD-2)
+
+---
+
+## GenStage Pipeline (ADR-026)
+
+The signal system now runs two parallel paths:
+
+```
+Domain event
+  ├─> Signals.emit -> Phoenix.PubSub broadcast (fire-and-forget, observational)
+  │
+  └─> Events.Ingress (GenStage producer)
+        -> Signals.Router (GenStage consumer, topic-based routing)
+           -> Signals.SignalProcess (per {module, key} accumulator GenServer)
+              -> Signals.ActionHandler (dispatch to real system actions)
+```
+
+**GenStage pipeline components:**
+
+| Module | Role |
+|--------|------|
+| `Events.Ingress` | GenStage producer. Buffers events pushed via `Ingress.push/1`. Also persists to `StoredEvent` (async, excludes `:signal_bridge` source). |
+| `Signals.Router` | GenStage consumer. Builds a routing table from registered signal modules. Routes each event to matching modules based on topic. |
+| `Signals.SignalProcess` | Stateful accumulator GenServer. One per `{signal_module, key}`. Accumulates events, calls `handler` on flush (after `ready?` check). Idle timeout 5 min, flush interval 10s. Started dynamically by Router via `ProcessSupervisor` + `ProcessRegistry`. |
+| `Signals.ActionHandler` | Dispatches signal activations to concrete system actions (HITL pause, Bus notification, etc.). |
+| `Signals.PipelineSupervisor` | `rest_for_one` supervisor wrapping Ingress + Router. Router restart re-subscribes to a live Ingress. |
+
+**Three signal modules (ADR-026 projectors):**
+
+| Module | Topic | Key | Action |
+|--------|-------|-----|--------|
+| `Signals.Agent.ToolBudget` | tool_use events | session_id | Pauses agent via HITLRelay when tool budget exhausted |
+| `Signals.Agent.MessageProtocol` | message events | session_id | Tracks protocol violations |
+| `Signals.Agent.Entropy` | tool_use/message events | session_id | Detects repetitive loops |
+
+**`Signals.Behaviour`** -- the callback contract all signal modules implement: `signal_name/0`, `topics/0`, `key_for_event/1`, `accumulate/2`, `ready?/1`, `flush/1`.
+
+**Durable storage:**
+- `Events.StoredEvent` -- Ash resource (PostgreSQL, table `stored_events`). Append-only event log populated by Ingress.
+- `Signals.Checkpoint` -- Ash resource (PostgreSQL, table `signal_checkpoints`). Identity `{signal_module, key}`. Tracks last processed position per projector for crash recovery.
 
 ---
 
@@ -58,7 +98,9 @@ Single message delivery authority. Routes directed agent-to-agent and operator-t
 
 Signal transport + PubSub broadcast layer. Wraps `Phoenix.PubSub` with typed signal emission.
 
-**Key function**: `Signals.emit(topic, signal)` -- the single entrypoint for all signal emission. Ensures signals go through the catalog, get sequenced, and get broadcast.
+**Key function**: `Signals.emit(topic, signal)` -- the single entrypoint for all signal emission. Ensures signals go through the catalog, get sequenced, and get broadcast. Signals also calls `Events.Ingress.push/1` to feed the GenStage pipeline.
+
+**Deleted indirection layer**: `Signals.Behaviour`, `Signals.Noop`, `Signals.Event`, and the `impl()` dispatch pattern were removed in the ADR-026 refactoring. Signal module abstraction now uses the `Signals.Behaviour` callback contract (see GenStage Pipeline section above).
 
 **EventBridge (removed)**: `Signals.EventBridge` and `Mesh.*` (CausalDAG, DecisionLog, Mesh.Supervisor) were deleted in commit f20ac4b. The topology/DAG pipeline no longer exists.
 
@@ -68,11 +110,9 @@ Declarative signal catalog. Lists all valid signal topics, their payload shapes,
 
 Used by `Ichor.Discovery` (planned) to expose signals as observable events in the workflow builder.
 
-### Signals.Buffer -> DELETE (after fix)
+### Signals.Buffer (now `Projector.SignalBuffer`)
 
-Ring buffer for Dashboard replay. Current implementation uses a GenServer to increment a monotonic counter -- this serializes unnecessarily.
-
-**Fix (P3 from audit)**: Replace counter with `:atomics`. Keep GenServer for subscription management only. Or absorb entirely into `Events.Runtime`.
+Ring buffer for Dashboard replay. Moved from `Signals.Buffer` to `Projector.SignalBuffer` during the projector extraction refactoring. Lives under `RuntimeSupervisor` (not LifecycleSupervisor).
 
 ### Signals.FromAsh
 
@@ -80,21 +120,17 @@ Ash notifier -> signal emission. Fires after Ash action commits to translate res
 
 Per AD-8: Ash notifiers are the correct place to insert Oban jobs for mandatory reactions (not PubSub subscribers). `FromAsh` handles both: emit the observational signal AND insert the Oban job if mandatory work must follow.
 
-### Signals.AgentWatchdog -> Fleet.Runtime (move pending)
+### Projector.AgentWatchdog (formerly Signals.AgentWatchdog)
 
-**Wrong home** (W1 from audit): AgentWatchdog monitors fleet health. It subscribes to signals, but its purpose is fleet monitoring -- it belongs near the fleet, not in the Signals namespace.
+Moved from `Signals.AgentWatchdog` to `Projector.AgentWatchdog` during the projector extraction refactoring. Lives under `RuntimeSupervisor` (not LifecycleSupervisor).
 
-**Current behavior**:
+**Behavior**:
 - Beats every 5s
 - Detects sessions stale > 120s -> checks AgentProcess + tmux window liveness
 - On crash: reassigns tasks on Board, emits `:agent_crashed`, writes inbox notification
 - Escalation: nudge warning -> Bus message -> HITLRelay.pause -> zombie alert
 
-**Current violations (P2 from audit)**:
-- 2.1: calls `Infrastructure.HITLRelay.pause/unpause` directly (should emit signal)
-- 2.2: calls `Factory.Board.list_tasks + update_task` directly (should subscribe to `:agent_crashed`)
-
-**Target**: Move to `Fleet.Runtime`. Emit signals for decisions. Infrastructure subscriber handles HITLRelay. Factory subscriber handles task reassignment.
+The violations noted in the audit (P2.1, P2.2 -- direct cross-domain calls) are tracked but not yet fully resolved.
 
 ---
 
@@ -160,10 +196,13 @@ Ash (durable truth)
 
 ---
 
-## Planned: AgentWatchdog Move
+## Deleted Subsystems
 
-AgentWatchdog lives in `Signals.AgentWatchdog` because "it's driven by signals." But its purpose -- fleet health monitoring -- belongs to the fleet. The signals subscription is an implementation detail.
+### Signals indirection layer (deleted)
+`Signals.Behaviour` (old impl() dispatch), `Signals.Noop`, `Signals.Event` (Ash resource for signal storage), and `MemoriesBridge` projector were removed. Signal modules now use the `Signals.Behaviour` callback directly.
 
-**Target location**: `Fleet.Runtime` namespace (or a dedicated `Fleet.HealthMonitor`).
+### Tmux.Ssh adapter (deleted)
+Removed from `Infrastructure.Tmux` namespace. Remote tmux via SSH is no longer part of the system.
 
-**Migration path**: Move the module to `lib/ichor/fleet/health_monitor.ex`. Update the supervisor. Keep subscription topics unchanged.
+### DefaultHandler and Benchmark (deleted)
+Removed from the signal handling and performance tooling namespaces.

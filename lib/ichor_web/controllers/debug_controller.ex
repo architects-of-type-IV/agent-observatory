@@ -5,10 +5,10 @@ defmodule IchorWeb.DebugController do
   alias Ichor.Infrastructure.AgentProcess
   alias Ichor.Infrastructure.HITLRelay
   alias Ichor.Infrastructure.Tmux
+  alias Ichor.Projector.ProtocolTracker
   alias Ichor.Projector.SignalBuffer, as: Buffer
   alias Ichor.Signals.Bus
   alias Ichor.Signals.EventStream
-  alias Ichor.Projector.ProtocolTracker
   alias Ichor.Workshop.ActiveTeam
   alias Ichor.Workshop.Agent
 

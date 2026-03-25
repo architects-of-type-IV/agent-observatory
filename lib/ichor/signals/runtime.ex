@@ -93,15 +93,13 @@ defmodule Ichor.Signals.Runtime do
     Ingress.push(event)
   end
 
-  defp extract_key(data) when is_map(data) do
-    data[:session_id] || data["session_id"] ||
-      data[:run_id] || data["run_id"] ||
-      data[:team_name] || data["team_name"] ||
-      data[:project_id] || data["project_id"] ||
-      data[:agent_id] || data["agent_id"]
-  end
+  @key_fields [:session_id, :run_id, :team_name, :project_id, :agent_id]
 
-  defp extract_key(_data), do: nil
+  defp extract_key(data) when is_map(data) do
+    Enum.find_value(@key_fields, fn field ->
+      Map.get(data, field) || Map.get(data, Atom.to_string(field))
+    end)
+  end
 
   defp tap_telemetry(name, message) do
     :telemetry.execute([:ichor, :signal, name], %{count: 1}, %{signal: message})
