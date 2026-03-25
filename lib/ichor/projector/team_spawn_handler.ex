@@ -1,4 +1,4 @@
-defmodule Ichor.Workshop.TeamSpawnHandler do
+defmodule Ichor.Projector.TeamSpawnHandler do
   @moduledoc """
   Signal-driven team launch worker.
 

@@ -1,4 +1,4 @@
-defmodule Ichor.Factory.CompletionHandler do
+defmodule Ichor.Projector.CompletionHandler do
   @moduledoc """
   Reacts to pipeline completion and dispatches the appropriate build output flow.
   Follows the ProjectIngestor pattern: subscribe to signal, call domain APIs.

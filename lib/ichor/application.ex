@@ -57,12 +57,8 @@ defmodule Ichor.Application do
       # LifecycleSupervisor)
       Ichor.Projector.MesProjectIngestor,
       Ichor.Projector.MesResearchIngestor,
-      Ichor.Factory.CompletionHandler,
-
-      # Workshop runtime launch listener (signal-driven team spawns)
-      # NOTE: TeamSpawnHandler is a projector/signal subscriber; future step is to group it
-      # with the projectors above under a dedicated Projectors.Supervisor.
-      Ichor.Workshop.TeamSpawnHandler,
+      Ichor.Projector.CompletionHandler,
+      Ichor.Projector.TeamSpawnHandler,
 
       # Planning runs
       {DynamicSupervisor, name: Ichor.Factory.PlanRunSupervisor, strategy: :one_for_one},
