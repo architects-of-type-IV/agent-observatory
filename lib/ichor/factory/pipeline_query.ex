@@ -6,7 +6,7 @@ defmodule Ichor.Factory.PipelineQuery do
   Discovery and health checks run as Oban cron workers.
   """
 
-  alias Ichor.Factory.{DateUtils, JsonlStore, PipelineGraph}
+  alias Ichor.Factory.{JsonlStore, PipelineGraph}
   alias Ichor.Infrastructure.Cleanup
   alias Ichor.Signals.EventStream
 
@@ -262,7 +262,7 @@ defmodule Ichor.Factory.PipelineQuery do
   end
 
   defp stale_with_threshold?(task, now, threshold_min) do
-    case DateUtils.parse_timestamp(task.updated) do
+    case parse_timestamp(task.updated) do
       nil -> true
       timestamp -> DateTime.diff(now, timestamp, :minute) > threshold_min
     end
@@ -299,4 +299,23 @@ defmodule Ichor.Factory.PipelineQuery do
   end
 
   defp field(map, key, default), do: map[key] || default
+
+  defp parse_timestamp(""), do: nil
+
+  defp parse_timestamp(str) when is_binary(str) do
+    str = String.replace(str, "Z", "")
+
+    case DateTime.from_iso8601(str <> "Z") do
+      {:ok, dt, _} ->
+        dt
+
+      _ ->
+        case NaiveDateTime.from_iso8601(str) do
+          {:ok, ndt} -> DateTime.from_naive!(ndt, "Etc/UTC")
+          _ -> nil
+        end
+    end
+  end
+
+  defp parse_timestamp(_), do: nil
 end

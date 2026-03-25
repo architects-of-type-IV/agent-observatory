@@ -8,10 +8,7 @@ defmodule Ichor.Factory.PipelineTask do
   use Ash.Resource,
     domain: Ichor.Factory,
     data_layer: AshPostgres.DataLayer,
-    simple_notifiers: [
-      Ichor.Events.FromAsh,
-      Ichor.Factory.PipelineTask.Notifiers.SyncRunner
-    ]
+    simple_notifiers: [Ichor.Events.FromAsh]
 
   postgres do
     repo(Ichor.Repo)

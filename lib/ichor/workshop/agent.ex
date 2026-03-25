@@ -11,9 +11,10 @@ defmodule Ichor.Workshop.Agent do
 
   alias Ichor.Infrastructure.AgentLaunch
   alias Ichor.Infrastructure.AgentProcess
+  alias Ichor.Infrastructure.FleetSupervisor
   alias Ichor.Infrastructure.Registration
+  alias Ichor.Infrastructure.TeamSupervisor
   alias Ichor.Infrastructure.Tmux
-  alias Ichor.Workshop.AgentLookup
 
   attributes do
     attribute(:agent_id, :string, primary_key?: true, allow_nil?: false, public?: true)
@@ -26,10 +27,11 @@ defmodule Ichor.Workshop.Agent do
       public?(true)
     end
 
-    attribute(:health, Ichor.Workshop.Types.HealthStatus,
-      default: :unknown,
-      public?: true
-    )
+    attribute :health, :atom do
+      constraints(one_of: [:healthy, :warning, :critical, :unknown])
+      default(:unknown)
+      public?(true)
+    end
 
     attribute(:current_tool, :map, public?: true)
     attribute(:event_count, :integer, default: 0, public?: true)
@@ -105,7 +107,7 @@ defmodule Ichor.Workshop.Agent do
       run(fn input, _context ->
         query = input.arguments.agent_id
 
-        case AgentLookup.find_agent(query) do
+        case find_agent(query) do
           nil ->
             {:ok, %{"found" => false, "query" => query}}
 
@@ -175,7 +177,7 @@ defmodule Ichor.Workshop.Agent do
             if args[:backend], do: Keyword.put(o, :backend, args.backend), else: o
           end)
 
-        case AgentLookup.spawn_in_fleet(args[:team_name], opts) do
+        case spawn_in_fleet(args[:team_name], opts) do
           {:ok, pid} ->
             {:ok, %{agent_id: args.id, pid: inspect(pid), status: :active}}
 
@@ -380,7 +382,7 @@ defmodule Ichor.Workshop.Agent do
       argument(:agent_id, :string, allow_nil?: false)
 
       run(fn input, _context ->
-        case AgentLookup.find_agent(input.arguments.agent_id) do
+        case find_agent(input.arguments.agent_id) do
           nil ->
             {:error, "agent not found: #{input.arguments.agent_id}"}
 
@@ -427,6 +429,50 @@ defmodule Ichor.Workshop.Agent do
     define(:stop_agent, args: [:agent_id])
     define(:terminate_agent, args: [:agent_id])
     define(:update_instructions, args: [:agent_id, :instructions])
+  end
+
+  defp spawn_in_fleet(nil, opts) do
+    FleetSupervisor.spawn_agent(opts)
+  end
+
+  defp spawn_in_fleet(team_name, opts) do
+    if not TeamSupervisor.exists?(team_name) do
+      FleetSupervisor.create_team(name: team_name)
+    end
+
+    TeamSupervisor.spawn_member(team_name, opts)
+  end
+
+  defp find_agent(query) when is_binary(query) do
+    AgentProcess.list_all()
+    |> Enum.find_value(fn {id, meta} ->
+      agent_id = meta[:session_id] || id
+      name = meta[:short_name] || meta[:name] || id
+
+      if agent_id == query or id == query or
+           meta[:session_id] == query or meta[:short_name] == query or
+           meta[:name] == query do
+        build_agent_match(agent_id, name, meta)
+      end
+    end)
+  end
+
+  defp build_agent_match(agent_id, name, meta) do
+    %{
+      agent_id: agent_id,
+      session_id: meta[:session_id] || agent_id,
+      name: name,
+      short_name: meta[:short_name],
+      role: to_string(meta[:role] || :worker),
+      model: meta[:model],
+      status: meta[:status],
+      cwd: meta[:cwd],
+      current_tool: meta[:current_tool],
+      last_event_at: meta[:last_event_at],
+      tmux_session: get_in(meta, [:channels, :tmux]),
+      channels: meta[:channels] || %{},
+      team_name: meta[:team]
+    }
   end
 
   defp maybe_put(map, _key, nil), do: map

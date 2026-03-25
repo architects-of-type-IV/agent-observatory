@@ -6,8 +6,6 @@ defmodule Ichor.Signals.EventStream do
   Public API:
   - `ingest_raw/1`           -- normalize a raw hook map, store, and emit signals
   - `record_heartbeat/2`     -- normalize a heartbeat into a trace event, update liveness
-  - `publish_fact/2`         -- publish an internal fact (watchdog probes, etc.)
-  - `subscribe/2`            -- subscribe to the normalized event stream
   - `latest_session_state/1` -- liveness/alias/last-seen for a session
   - `list_events/0`          -- all buffered events (most recent first)
   - `latest_per_session/0`   -- latest event per session (dashboard seed)

@@ -1,55 +1,52 @@
 # ICHOR IV - Handoff
 
-## Current Status: SIGNALS AUDIT PIPELINE COMPLETE (2026-03-22)
+## Current Status: DEAD CODE CLEANUP COMPLETE (2026-03-25)
 
-Full Elixir idioms audit of `lib/ichor/signals/` executed. 42 confirmed findings across 27 files. All fixed. Build clean. Credo strict 0 issues. 211 tests pass. Dialyzer 1 pre-existing warning (not ours).
+Refactor items 6, 11, 13, 15, 16 + inline AgentLookup executed. All deleted/inlined.
+Build clean. 211 tests, 13 failures (all pre-existing, unrelated to this work).
 
 ### What Was Done This Session
 
-1. **Bug fix**: AgentState inbox for tmux-backed agents (`695e108`, `46d0cd5`)
-2. **Forensic audit**: Boundary, shape, coupling analysis of signals domain
-3. **Wave 1 shape fixes** (`612fede`):
-   - entropy_tracker.ex: decomposed classify_and_store/8, config in init, signal-driven scoring
-   - schema_interceptor.ex: removed all entropy coupling
-   - event_bridge.ex: removed entropy coupling
-   - event_stream.ex: inline uuid?, pure tombstoned?, merged emit_intercepted
-   - protocol_tracker.ex: merged 3 trace clauses into build_trace/2
-4. **Audit pipeline** (6 parallel agents, 32 fixes):
-   - normalizer.ex: coerce_hook_type catch-all -> :unknown, get_field uses Map.fetch
-   - event_stream.ex: lookup_tool_start accepts atom+string guards, tombstone sweep added
-   - buffer.ex: ETS init guard against restart crash
-   - agent_watchdog.ex: merged pane signal twins, removed safe_emit, session_id helper, Map.filter, maybe_unpause dispatch-first + Task.start
-   - pane_scanner.ex: match_marker/2 generic function
-   - escalation_engine.ex: aligned :id fallback key
-   - agent_lifecycle.ex: merged team twins, nil_if_empty pattern match
-   - message.ex: build/3 delegates to build/4
-   - entropy_tracker.ex: @impl true on catch-all
-   - bus.ex: Enum.each+length, monotonic ETS key, Logger.warning on missing :from, explicit case
-   - catalog.ex: 3 SettingsProject signals added, lookup! -> lookup_or_derive
-   - from_ash.ex: documented pipeline :fail -> :pipeline_completed
-   - signals.ex: @spec for emit/1 arity
-   - runtime.ex: broadcast_scoped helper
-   - operations.ex: with instead of case, removed nil fields, added code_interface
-   - load_task_projections.ex: pattern match in function head
-   - task_projection.ex: :string -> :atom with one_of constraint
-   - protocol_tracker.ex: O(n) heap eviction replacing O(n log n) sort
-   - event_payload.ex -> trace_event.ex: filename matches module
-5. **Credo gardening**: 18 issues fixed across 14 files (alias ordering, nested modules, length/1 in tests, board.ex nesting)
-6. **Dialyzer**: Fixed watchdog maybe_unpause unreachable pattern
+**Dead code cleanup -- 9 modules deleted, logic inlined at callsites:**
 
-### Remaining (Wave 2+)
+1. **Item 6**: Deleted `SyncRunner` notifier from `PipelineTask.simple_notifiers`. Fragile `Code.ensure_loaded?` + `try/rescue` pattern gone.
+2. **Item 11a**: Inlined `WorkStatus` Ash enum type into `RoadmapItem` as `constraints(one_of: [...])`.
+3. **Item 11b**: Inlined `HealthStatus` Ash enum type into `Workshop.Agent` attribute.
+4. **Item 11c+d**: Inlined `LocationType` and `AuthMethodType` into `SettingsProject.Location`.
+5. **Item 12b**: Inlined `AgentLookup` (61 lines) into `Workshop.Agent` as private `spawn_in_fleet/2`, `find_agent/1`, `build_agent_match/3`. Removed public module.
+6. **Item 13a**: Inlined `DateUtils.parse_timestamp/1` into both `PipelineGraph` and `PipelineQuery` as private defp.
+7. **Item 13b**: Inlined `SessionEviction.evict_stale/2` into `DashboardState` as private `evict_stale/2` + `do_evict_stale/2`.
+8. **Item 15**: Replaced `%TeamPreset{...}` bare struct with plain maps in `Presets`. Deleted `TeamPreset` module.
+9. **Item 16**: Removed dead public functions:
+   - `EntropyTracker`: removed `record_and_score/2`, `register_agent/2`, `get_window/1`, `reset/0` + their `handle_call`/`handle_cast` clauses
+   - `EscalationEngine`: removed `clear/2` (dead, `AgentWatchdog` uses `Map.pop` directly)
+   - `EventStream`: removed `subscribe/2` and `publish_fact/2` (zero callers)
+   - `ProtocolTracker`: removed stale `mailbox: %{total_unread: 0}` and `command_queue: %{total_pending: 0}` from `compute_stats/0`
 
-- **SIG-7**: Handler behaviour + facade dispatch
-- **SIG-8**: Split catalog into catalog/
-- **Wave 2**: Entropy handler for Archon + SignalManager split
-- **Wave 3**: Module relocations
-- **Wave 4**: Specs, types, structs pass
-- **ADR-026**: [Signal as Projector](SPECS/decisions/ADR-026-signal-as-projector.md) -- `use Ichor.Signal` macro, `Ichor.Signals.Memories.*` modules, derived catalog. Supersedes SIG-7/SIG-8 direction.
-- **Ingest struct**: [`lib/ichor/memories_bridge/ingest.ex`](lib/ichor/memories_bridge/ingest.ex) -- Memories API contract (implemented)
-- See Memories [`session-forensics-2026-03-24.md`](/Users/xander/code/www/memories/session-forensics-2026-03-24.md) for full design evolution
+**Simplify pass fixes:**
+- `evict_stale`: replaced `case boolean do` with idiomatic `if`
+- `do_evict_stale`: replaced `stale_sids == MapSet.new()` with `MapSet.size(stale_sids) == 0`
+- Added missing trailing newline to `pipeline_graph.ex`
+
+### Modules Deleted (moved to tmp/trash/)
+- `Ichor.Factory.PipelineTask.Notifiers.SyncRunner`
+- `Ichor.Factory.Types.WorkStatus`
+- `Ichor.Workshop.Types.HealthStatus`
+- `Ichor.Settings.Types.LocationType`
+- `Ichor.Settings.Types.AuthMethodType`
+- `Ichor.Workshop.AgentLookup`
+- `Ichor.Factory.DateUtils`
+- `Ichor.Workshop.Analysis.SessionEviction`
+- `Ichor.Workshop.Presets.TeamPreset`
 
 ### Build Status
 - `mix compile --warnings-as-errors`: CLEAN
-- `mix credo --strict`: 0 issues
-- `mix test`: 211 pass, 0 failures
-- `mix dialyzer`: 1 pre-existing warning (event_bridge get_nested)
+- `mix test`: 211 tests, 13 failures (all pre-existing -- Ash MustBeAtomic + UUID cast errors)
+
+### Remaining Work (from prior sessions)
+- **SIG-7**: Handler behaviour + facade dispatch
+- **SIG-8**: Split catalog into catalog/
+- **Wave 2**: Entropy handler + SignalManager split
+- **Wave 3**: Module relocations
+- **Wave 4**: Specs, types, structs
+- **ADR-026**: `use Ichor.Signal` macro, `Ichor.Signals.Memories.*` modules

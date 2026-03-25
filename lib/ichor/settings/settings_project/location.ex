@@ -9,8 +9,9 @@ defmodule Ichor.Settings.SettingsProject.Location do
   use Ash.Resource, data_layer: :embedded
 
   attributes do
-    attribute :type, Ichor.Settings.Types.LocationType do
+    attribute :type, :atom do
       allow_nil?(false)
+      constraints(one_of: [:local, :remote])
       public?(true)
     end
 
@@ -22,7 +23,11 @@ defmodule Ichor.Settings.SettingsProject.Location do
     attribute(:host, :string, public?: true)
     attribute(:port, :integer, default: 22, public?: true)
     attribute(:username, :string, public?: true)
-    attribute(:auth_method, Ichor.Settings.Types.AuthMethodType, public?: true)
+
+    attribute :auth_method, :atom do
+      constraints(one_of: [:ssh_key, :password])
+      public?(true)
+    end
   end
 
   actions do

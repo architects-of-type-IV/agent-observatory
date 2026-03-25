@@ -67,15 +67,6 @@ defmodule Ichor.Projector.AgentWatchdog.EscalationEngine do
   end
 
   @doc """
-  Removes the escalation entry for a session that has become active again.
-
-  Returns the updated escalations map. The caller is responsible for any
-  HITL unpause side effects before or after calling this.
-  """
-  @spec clear(session_id :: String.t(), escalations :: map()) :: map()
-  def clear(session_id, escalations), do: Map.delete(escalations, session_id)
-
-  @doc """
   Returns the session_id for an agent metadata map.
   """
   @spec agent_session_id(agent :: map()) :: String.t() | nil

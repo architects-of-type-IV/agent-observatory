@@ -7,7 +7,6 @@ defmodule Ichor.Projector.ProtocolTracker do
   use GenServer
   require Logger
 
-  alias Ichor.Infrastructure.AgentProcess
   alias Ichor.Signals.Message
 
   @table_name :protocol_traces
@@ -163,12 +162,7 @@ defmodule Ichor.Projector.ProtocolTracker do
 
     %{
       traces: :ets.info(@table_name, :size),
-      by_type: Enum.frequencies_by(traces, & &1.type),
-      mailbox: %{
-        agents: length(AgentProcess.list_all()),
-        total_unread: 0
-      },
-      command_queue: %{total_pending: 0}
+      by_type: Enum.frequencies_by(traces, & &1.type)
     }
   end
 

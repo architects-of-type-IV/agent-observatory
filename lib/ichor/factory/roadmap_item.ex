@@ -27,8 +27,9 @@ defmodule Ichor.Factory.RoadmapItem do
       public?(true)
     end
 
-    attribute :status, Ichor.Factory.Types.WorkStatus do
+    attribute :status, :atom do
       allow_nil?(false)
+      constraints(one_of: [:pending, :in_progress, :completed, :blocked])
       default(:pending)
       public?(true)
     end

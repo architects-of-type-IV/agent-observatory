@@ -17,7 +17,6 @@ defmodule IchorWeb.DashboardState do
   alias Ichor.Workshop.ActiveTeam
   alias Ichor.Workshop.Agent
   alias Ichor.Workshop.Analysis.Queries, as: FQ
-  alias Ichor.Workshop.Analysis.SessionEviction
 
   def default_assigns(disk_teams) do
     %{
@@ -159,7 +158,7 @@ defmodule IchorWeb.DashboardState do
     assigns = socket.assigns
 
     # Evict events from stale sessions (no activity in TTL)
-    events = SessionEviction.evict_stale(assigns.events, assigns.now)
+    events = evict_stale(assigns.events, assigns.now)
     socket = assign(socket, :events, events)
     assigns = socket.assigns
 
@@ -416,5 +415,34 @@ defmodule IchorWeb.DashboardState do
         _ -> Map.put(acc, key, entry)
       end
     end)
+  end
+
+  @session_ttl_seconds 600
+
+  defp evict_stale([], _now), do: []
+
+  defp evict_stale(events, now) do
+    oldest = List.last(events)
+
+    if DateTime.diff(now, oldest.inserted_at) > @session_ttl_seconds do
+      do_evict_stale(events, now)
+    else
+      events
+    end
+  end
+
+  defp do_evict_stale(events, now) do
+    stale_sids =
+      for {sid, evts} <- Enum.group_by(events, & &1.session_id),
+          latest = Enum.max_by(evts, & &1.inserted_at, DateTime),
+          DateTime.diff(now, latest.inserted_at) > @session_ttl_seconds,
+          into: MapSet.new(),
+          do: sid
+
+    if MapSet.size(stale_sids) == 0 do
+      events
+    else
+      Enum.reject(events, &MapSet.member?(stale_sids, &1.session_id))
+    end
   end
 end

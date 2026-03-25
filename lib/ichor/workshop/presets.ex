@@ -8,8 +8,6 @@ defmodule Ichor.Workshop.Presets do
   """
 
   alias Ichor.Workshop.{AgentSlot, CommRule, SpawnLink}
-  alias Ichor.Workshop.Presets.TeamPreset
-
   @mes_coordinator_persona """
   You are the Coordinator for manufacturing run {{run_id}}.
   Your session_id is: {{agent_session_id}}
@@ -346,7 +344,7 @@ defmodule Ichor.Workshop.Presets do
   """
 
   @presets %{
-    "pipeline" => %TeamPreset{
+    "pipeline" => %{
       label: "Pipeline Execution",
       color: "cyan",
       team_name: "pipeline-execution",
@@ -383,7 +381,7 @@ defmodule Ichor.Workshop.Presets do
         %CommRule{from: 2, to: 1}
       ]
     },
-    "solo" => %TeamPreset{
+    "solo" => %{
       label: "Solo Builder",
       color: "success",
       team_name: "solo",
@@ -405,7 +403,7 @@ defmodule Ichor.Workshop.Presets do
       links: [],
       rules: []
     },
-    "research" => %TeamPreset{
+    "research" => %{
       label: "Research Squad",
       color: "violet",
       team_name: "research-squad",
@@ -462,7 +460,7 @@ defmodule Ichor.Workshop.Presets do
           do: %CommRule{from: w, to: l}
         )
     },
-    "review" => %TeamPreset{
+    "review" => %{
       label: "Review Chain",
       color: "brand",
       team_name: "review-chain",
@@ -523,7 +521,7 @@ defmodule Ichor.Workshop.Presets do
         %CommRule{from: 4, to: 1, policy: "deny"}
       ]
     },
-    "mes" => %TeamPreset{
+    "mes" => %{
       label: "MES Factory",
       color: "warning",
       team_name: "mes",
@@ -594,7 +592,7 @@ defmodule Ichor.Workshop.Presets do
         %CommRule{from: 5, to: 2}
       ]
     },
-    "planning_a" => %TeamPreset{
+    "planning_a" => %{
       label: "Planning Mode A",
       color: "violet",
       team_name: "planning",
@@ -639,7 +637,7 @@ defmodule Ichor.Workshop.Presets do
         %CommRule{from: 3, to: 1}
       ]
     },
-    "planning_b" => %TeamPreset{
+    "planning_b" => %{
       label: "Planning Mode B",
       color: "violet",
       team_name: "planning",
@@ -684,7 +682,7 @@ defmodule Ichor.Workshop.Presets do
         %CommRule{from: 3, to: 1}
       ]
     },
-    "planning_c" => %TeamPreset{
+    "planning_c" => %{
       label: "Planning Mode C",
       color: "violet",
       team_name: "planning",
@@ -746,7 +744,7 @@ defmodule Ichor.Workshop.Presets do
   end
 
   @doc "Fetch a preset by name."
-  @spec fetch(String.t()) :: {:ok, TeamPreset.t()} | :error
+  @spec fetch(String.t()) :: {:ok, map()} | :error
   def fetch(name), do: Map.fetch(@presets, name)
 
   @doc """
