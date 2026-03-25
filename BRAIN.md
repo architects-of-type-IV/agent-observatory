@@ -50,11 +50,16 @@
 - String references in templates (PluginScaffold) don't count as real callers.
 - Mesh subsystem was ~1000 lines with zero external consumers. Found by tracing Ichor.Mesh.* references outside lib/ichor/mesh/.
 
-## Signals Architecture (post-cleanup)
-- Signals.emit -> Runtime directly (no more impl() indirection or Behaviour/Noop).
-- FromAsh notifier is a stub (kept as compile target for resources listing it).
-- GenStage pipeline fully removed (Events domain, Ingress, Projector infra).
-- bridge_to_events dual-emit path removed from Runtime.
+## Signals Architecture (ADR-026 in progress)
+- Old PubSub system still running (Signals.emit -> Runtime -> PubSub broadcast).
+- New GenStage pipeline running alongside: Event -> Ingress -> Router -> SignalProcess -> Handler.
+- `use Ichor.Signal` macro for declarative signal creation.
+- EventStream bridges hook events into both systems (old PubSub + new Ingress).
+- FromAsh notifier is a stub -- Wave 3 replaces it with real %Event{} emission.
+- Naming rule: big to small, dot-delimited. agent.tool.budget.exhausted.
+- Event = something happened. Signal = enough happened. Handler = now act.
+- Signal modules: Agent.ToolBudget (budget enforcement), Agent.MessageProtocol (comm rules).
+- SignalProcess: one GenServer per {module, key}, DynamicSupervisor + Registry, idle shutdown.
 
 ## Audit Pipeline Lessons
 - 6 parallel agents can step on each other -- syntax errors from map keyword mixing.

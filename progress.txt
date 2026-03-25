@@ -1,5 +1,12 @@
 # ICHOR IV Progress
 
+## ADR-026 Signal-as-Projector (2026-03-25) -- IN PROGRESS
+- [x] Wave 1: Foundation -- Event, Signal, Behaviour, Ingress, Router, SignalProcess, DefaultHandler (fbbd2ff)
+- [x] Wave 2: Macro + bridge + signals -- use Ichor.Signal, EventStream bridge, ToolBudget, MessageProtocol (fbbd2ff)
+- [x] Review fixes: race condition, demand tracking, deferred DB query, timer conflict (5a47898)
+- [ ] Wave 3: Wire Ash resources -- replace FromAsh stub with real %Event{} emission
+- [ ] Wave 4: Migrate existing projectors to signal modules
+
 ## Deep Cleanup Session (2026-03-25) -- COMPLETE
 - [x] Phase 1: 9 single-use modules inlined at callsites (a9f4ac6, -208 lines)
 - [x] Phase 2: Mesh subsystem + GenStage pipeline + Fleet domain + Signals indirection deleted (f20ac4b, -1980 lines)

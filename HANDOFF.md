@@ -1,58 +1,61 @@
 # ICHOR IV - Handoff
 
-## Current Status: DEEP CLEANUP SESSION (2026-03-25)
+## Current Status: ADR-026 IMPLEMENTATION IN PROGRESS (2026-03-25)
 
-260 .ex files, ~24k lines. Build clean. Tests deleted (stale against dissolved APIs).
+268 .ex files. Build clean. Zero tests (fresh tests needed post-refactor).
 
 ### What Was Done This Session
 
-**Phase 1: Single-use module inlining (a9f4ac6)**
-- 9 modules deleted, logic inlined at callsites (-208 lines)
-- SyncRunner, 4 Ash enum types, AgentLookup, DateUtils, SessionEviction, TeamPreset
-- 7 dead public functions removed across EntropyTracker, EscalationEngine, EventStream, ProtocolTracker
+**Phase 1-5: Deep cleanup (~4,700 lines removed)**
+- 9 single-use modules inlined (a9f4ac6)
+- Mesh subsystem + GenStage remnants + Fleet domain + Signals indirection deleted (f20ac4b)
+- Plugin behaviour deleted (66590ff)
+- 11 stale test files deleted (eeb769c)
+- 10 docs updated (a212f88)
+- MemoriesBridge removed (492d03b)
+- Phantom LSP warnings fixed via .gitignore (492d03b)
 
-**Phase 2: Dead subsystem removal (f20ac4b)**
-- Mesh subsystem trashed: CausalDAG, EventBridge, DecisionLog, Mesh.Supervisor (~870 lines)
-- SchemaInterceptor, GatewayController, gateway renderer trashed
-- GenStage pipeline remnants: Events domain, Ingress, Projector infrastructure (Supervisor/Behaviour/Router/Signal/SignalHandler/SignalProcess)
-- Signals indirection: Behaviour, Noop, Event, configurable impl() pattern
-- Fleet domain: Fleet.Session, Fleet.Supervisor, Fleet.Preparations.LoadSessions
-- bridge_to_events dual-emit path in Signals.Runtime
-- FromAsh notifier stubbed (compile target only)
-- HITL renderer extracted from deleted gateway renderer
-- Total: 37 files, -1980 lines
+**Phase 6: ADR-026 Signal-as-Projector pipeline (fbbd2ff, 5a47898)**
 
-**Phase 3: Plugin behaviour removal (66590ff)**
-- Ichor.Plugin behaviour + Ichor.Plugin.Info struct deleted (-124 lines)
-- Zero implementors in repo; MES plans plugins but runtime contract was never wired
-- Empty mesh/ and protocol_components/ directories cleaned up
+Wave 1 -- Foundation (runs alongside existing PubSub):
+- `%Event{}` struct with dot-delimited topics, key-based routing
+- `%Signal{}` struct emitted when accumulation threshold met
+- `Ichor.Signals.Behaviour` -- 7-callback contract (topics, signal_name, init_state, handle_event, ready?, build_signal, reset)
+- `Ichor.Events.Ingress` -- GenStage Producer with demand tracking
+- `Ichor.Signals.Router` -- GenStage Consumer, routes by topic match
+- `Ichor.Signals.SignalProcess` -- GenServer per {module, key}, DynamicSupervisor + Registry, idle shutdown, race-safe start
+- `Ichor.Signals.DefaultHandler` -- logs activations
 
-**Phase 4: Test removal (eeb769c)**
-- 11 test files deleted (-2220 lines)
-- All 13 failures were pre-existing (Ash MustBeAtomic + UUID cast errors from prior refactors)
-- test_helper.exs kept
+Wave 2 -- Macro, bridge, first signals:
+- `use Ichor.Signal` macro -- declarative signal creation with defaults
+- EventStream bridge -- hook events push `%Event{}` into Ingress
+- `Ichor.Signals.Agent.ToolBudget` -- fires `"agent.tool.budget.exhausted"` on threshold
+- `Ichor.Signals.Agent.MessageProtocol` -- fires `"agent.message.protocol.violated"` on comm rule breach
 
-**Phase 5: Documentation update (a212f88)**
-- 10 docs updated to remove stale Mesh/GenStage/Fleet/Plugin references
-- TREE.md, architecture docs, diagrams, BRAIN.md, REFACTOR.md
-
-### Session Total
-~4,700 lines removed across 5 commits.
+Review fixes (5a47898):
+- Race condition in push_event/3 (match {:error, {:already_started, pid}})
+- Ingress demand tracking (dispatch from handle_cast when demand > 0)
+- MessageProtocol deferred DB query (rules: :pending until handle_info loads)
+- Timer conflict fixed (Process.send_after instead of send_interval)
+- signal_name/0 added to Behaviour contract
 
 ### Build Status
 - `mix compile --warnings-as-errors`: CLEAN
-- `mix test`: 0 tests (all removed, fresh tests needed post-refactor)
+- `mix test`: 0 tests
 
-### Known Diagnostics (pre-existing, not from this session)
-- `Ichor.Signals.Runtime` functions show as undefined in LSP (compilation order)
-- `Ichor.Signals.EventStream` functions undefined in controllers
-- `Ichor.Infrastructure.HITLRelay` functions undefined in hitl_controller
+### Architecture: ADR-026 Event Flow
+```
+Ash Action -> %Event{} -> Ingress (Producer) -> Router (Consumer) -> SignalProcess per {module, key} -> accumulate -> ready? -> Handler
+```
+Naming: big to small. `agent.tool.budget.exhausted`, not `ToolBudgetExceeded`.
+Event = something happened. Signal = enough happened. Handler = now act.
 
-### Remaining Work
-- **SIG-7**: Handler behaviour + facade dispatch
-- **SIG-8**: Split catalog into catalog/
-- **Wave 2**: Entropy handler + SignalManager split
-- **Wave 3**: Module relocations
-- **Wave 4**: Specs, types, structs
-- **ADR-026**: `use Ichor.Signal` macro, `Ichor.Signals.Memories.*` modules
-- **Diagnostics**: Fix undefined function warnings in controllers + signals.ex
+### Next: Wave 3 -- Wire Ash Resources
+Replace FromAsh stub with real %Event{} emission in Ash action after_action callbacks:
+- pipeline.run.created/completed/failed/archived
+- pipeline.task.claimed/completed/failed/reset
+- project.created/stage.advanced
+- settings.project.created/updated/destroyed
+
+### Old SIG items -- OBSOLETE
+SIG-7, SIG-8, old Wave 2-4 are superseded by ADR-026. The catalog will be replaced by per-module topics/0 as signals are migrated.
