@@ -42,19 +42,27 @@ Related: [Database Schema](../diagrams/database-schema.md) | [Architecture Diagr
 | **Workshop** | Domain for designing and building agents and teams | `/workshop` | Factory (Workshop designs, Factory executes) |
 | **Factory** | Domain for turning project-briefs into project requirements via MES pipeline | `/mes` | Workshop (Factory plans and builds projects, not teams) |
 | **Archon** | Domain exposing Archon's management tool surface (Manager, Memory) | system-wide | The Archon agent itself (the domain is the tool surface, the agent is the identity) |
-| **SignalBus** | Domain for the reactive pub/sub backbone | `/signals` | A message bus (Bus is for agent-to-agent messages; SignalBus is for system events) |
-| **Infrastructure** | Runtime host layer: supervisors, registry, tmux, adapters | none | Not a business domain. No business logic belongs here |
-| **Mesh** | Observability topology layer: CausalDAG, EventBridge, DecisionLog | topology view | Not a network mesh |
+| **Signals** | Ash Domain for the reactive pub/sub backbone. Owns the GenStage pipeline, SignalProcess accumulators, Bus, and Checkpoint resources (ADR-026) | `/signals` | A message bus (Bus is for agent-to-agent messages; Signals is for system events) |
+| **Events** | Ash Domain for durable event storage. Owns the append-only StoredEvent log | system-wide | The signal pipeline (Events stores raw data; Signals processes and routes it) |
+| **Infrastructure** | I/O boundary only: external adapters wrapped as Ash Resources with `:none` data layer (tmux, webhook, Memories API). No business logic, no supervisors | none | Fleet (fleet owns OTP processes; Infrastructure owns external I/O) |
+| **Fleet** | OTP process layer: AgentProcess GenServers, TeamSupervisor, FleetSupervisor. Manages live agent lifecycle in BEAM | none | Infrastructure (fleet is OTP process management; infrastructure is external I/O) |
+| **Orchestration** | Use-case orchestrators: agent and team launch/cleanup. Composes fleet and infrastructure into complete workflows | none | Fleet (orchestration calls fleet + infrastructure; fleet owns the processes) |
 
 ## Concepts
 
 | Term | Definition | Not to be confused with |
 |------|-----------|----------------------|
-| **Signal** | A system event broadcast via PubSub. Produced by actions, consumed by subscribers | A message (signals are observe-only broadcasts; messages are directed communications) |
+| **Signal** | A domain event accumulated and flushed by the GenStage pipeline (ADR-026). A `%Signal{}` struct carries the events that triggered a flush for a given `{signal_module, key}` pair. Distinct from a raw `%Event{}` | A message (signals are system-level events; messages are directed agent-to-agent communications) |
 | **Message** | A directed communication from one agent/operator to another, delivered via Bus | A signal (messages have a sender, recipient, and content; signals are fire-and-forget broadcasts) |
-| **Bus** | `Ichor.Signals.Bus` -- the message delivery authority. Routes agent-to-agent and operator-to-agent messages | SignalBus (the Bus delivers messages; SignalBus broadcasts signals. Different systems) |
-| **Event** | A hook event from a Claude agent, received via HTTP POST to `/api/events` | A signal (events are raw hook data from agents; signals are system-level broadcasts derived from events) |
-| **EventStream** | ETS-backed event store + normalizer. Stores hook events, emits signals | A live stream (it's a store you query, despite the name) |
+| **Bus** | `Ichor.Signals.Bus` -- the message delivery authority. Routes agent-to-agent and operator-to-agent messages | The Signals domain (Bus delivers directed messages; Signals routes system events. Different systems) |
+| **Event** | A hook event from a Claude agent, received via HTTP POST to `/api/events`. Also: any domain event emitted by the `FromAsh` Ash notifier | A signal (events are raw input data; signals are processed domain events) |
+| **StoredEvent** | Ash resource: append-only durable log of all events in PostgreSQL. Used for replay and projection rebuilds | A signal (StoredEvent is persistence; signals are ephemeral processing artifacts) |
+| **Ingress** | GenStage producer at the head of the signal pipeline. Receives events and buffers them for downstream consumers | A web endpoint (Ingress is a GenStage process, not HTTP) |
+| **Router** | GenStage consumer that dispatches events to per-topic `SignalProcess` instances. One Router receives from one Ingress | A Phoenix router (the signal Router routes events; the Phoenix router routes HTTP/LiveView) |
+| **SignalProcess** | Stateful accumulator GenServer per `{signal_module, key}` pair. Collects events and flushes a `%Signal{}` when the module's condition is met | AgentProcess (SignalProcess accumulates events; AgentProcess manages a live agent's BEAM state) |
+| **ActionHandler** | Dispatches flushed signals to concrete system actions (Oban job insertion, Bus delivery, log emission) | A Phoenix controller action |
+| **Checkpoint** | Ash resource that tracks the last processed event ID per signal module. Enables crash-safe pipeline resume without reprocessing | A git checkpoint or stage gate |
+| **EventStream** | ETS-backed event buffer + liveness tracking. Stores hook events, emits normalised events into the pipeline (canonical event owner) | A live stream (it's a store you query, despite the name) |
 | **Team** | A group of agents with defined roles, spawn links, and comm rules | A tmux session (a team runs IN a tmux session, but the team is the logical group) |
 | **Session** | A tmux session that hosts one or more agent windows | An agent (a session contains agents; `session_id` identifies the tmux session, not the agent) |
 | **Session ID** | A string identifying an agent's tmux window within a session. Format: `"{session}-{agent-name}"` | A tmux session name (session ID is per-agent-window, session name is per-team) |
@@ -83,19 +91,18 @@ Related: [Database Schema](../diagrams/database-schema.md) | [Architecture Diagr
 | **Pipeline run** | Multi-agent build execution. Agents implement tasks from a roadmap in parallel | User clicks "Build" on MES page |
 | **Workshop launch** | Ad-hoc team launch from the Workshop canvas. No lifecycle monitor (Runner) | User clicks "Launch Team" on Workshop page |
 
-## Infrastructure
+## Fleet and Orchestration
 
 | Term | Definition | Not to be confused with |
 |------|-----------|----------------------|
-| **FleetSupervisor** | DynamicSupervisor that owns all AgentProcess instances | A team supervisor |
-| **TeamSupervisor** | Organizes agents within a team for group operations (list members, disband) | FleetSupervisor (TeamSupervisor is logical grouping; FleetSupervisor is OTP supervision) |
+| **FleetSupervisor** | DynamicSupervisor (`Ichor.Fleet.Supervisor`) that owns all AgentProcess instances | A team supervisor |
+| **TeamSupervisor** | Per-team DynamicSupervisor (`Ichor.Fleet.TeamSupervisor`). Organizes agents for group operations (list members, disband) | FleetSupervisor (TeamSupervisor is logical grouping; FleetSupervisor is OTP supervision) |
 | **AgentProcess** | GenServer representing a live agent in the BEAM. Holds mailbox, backend, status | The Claude process (AgentProcess is the BEAM side; the Claude agent runs in tmux) |
-| **TeamLaunch** | Infrastructure module that executes a TeamSpec: writes scripts, creates tmux, registers agents | Workshop.Spawn (TeamLaunch is the infrastructure execution; Spawn is the domain orchestrator) |
+| **TeamLaunch** | Orchestration module (`Ichor.Orchestration.TeamLaunch`) that executes a TeamSpec: writes scripts, creates tmux sessions, registers agents | Workshop.Spawn (TeamLaunch is the execution; Spawn is the domain orchestrator that calls it) |
 | **Registry** | `Ichor.Registry` -- Elixir Registry for agent process lookup by ID | A service registry or DNS |
 | **Board** | File-backed task board (`tasks.jsonl`). Used by PipelineQuery for external project interop | Dashboard (the Board is the data; the Dashboard is the UI) |
-| **SessionLifecycle** | Infrastructure subscriber that reacts to session/team signals by spawning/terminating fleet processes | AgentWatchdog (SessionLifecycle handles fleet mutations; AgentWatchdog monitors health) |
-| **RunCleanupDispatcher** | Factory subscriber that bridges `:run_cleanup_needed` signals to Oban cleanup workers | TeamWatchdog (the dispatcher inserts jobs; TeamWatchdog emits signals) |
-| **SessionCleanupDispatcher** | Infrastructure subscriber that bridges `:session_cleanup_needed` signals to Oban cleanup workers | SessionLifecycle (different concern: lifecycle vs cleanup) |
+| **FleetLifecycle** | Projector (`Ichor.Projector.FleetLifecycle`) that reacts to fleet signals by spawning/terminating AgentProcess and TeamSupervisor instances | AgentWatchdog (FleetLifecycle handles fleet mutations; AgentWatchdog monitors health) |
+| **CleanupDispatcher** | Projector (`Ichor.Projector.CleanupDispatcher`) that routes cleanup signals to Oban workers (archive, reset, disband, kill) | TeamWatchdog (the dispatcher inserts jobs; TeamWatchdog emits the signals) |
 
 ## Implemented (formerly planned)
 
@@ -127,3 +134,4 @@ Related: [Database Schema](../diagrams/database-schema.md) | [Architecture Diagr
 | **ProjectDiscoveryWorker** | maintenance | cron 1m | Scans for tasks.jsonl files, emits :pipeline_status |
 | **OrphanSweepWorker** | maintenance | cron 5m | Cleans up orphaned teams with no live agents |
 | **PipelineReconcilerWorker** | maintenance | cron 5m | AD-8 safety net: archives pipelines stuck in :active with no Runner |
+| **PruneStoredEventsWorker** | maintenance | cron daily 3am | Prunes StoredEvent records older than 7 days; keeps append-only log bounded |

@@ -1,17 +1,24 @@
 # lib/ichor/ Module Tree
 
-Updated 2026-03-25 after hexagonal reorg: fleet/ and orchestration/ extracted from infrastructure/, HITL removed, CompletionHandler + TeamSpawnHandler moved to Projector/, ansi_utils + topic_mapping + pub_sub.ex deleted.
+Updated 2026-03-25 after hexagonal reorg: fleet/ and orchestration/ extracted from infrastructure/, HITL removed, CompletionHandler + TeamSpawnHandler moved to Projector/, ansi_utils + topic_mapping + pub_sub.ex deleted. New: PruneStoredEventsWorker, MemoriesOperations, TmuxOperations, WebhookOperations (Ash wrappers for I/O adapters).
 
 ```
 lib/ichor/
 ├── application.ex                 # OTP application entry point, supervision tree root
+├── archon.ex                      # Ash Domain: Archon manager + memory tool surface
 ├── discovery.ex                   # Planned: expose Ash actions by Domain for UI composition
+├── events.ex                      # Ash Domain: durable event storage (stored event log)
+├── factory.ex                     # Ash Domain: MES planning + pipeline execution
+├── infrastructure.ex              # Ash Domain: I/O boundary adapters (tmux, webhook, memories)
 ├── mcp_profiles.ex                # MCP tool profile definitions
 ├── memory_store.ex                # Letta-compatible three-tier agent memory (blocks, recall, archival)
 ├── notes.ex                       # ETS-backed operator annotation store
 ├── repo.ex                        # Ecto repository (PostgreSQL)
 ├── runtime_supervisor.ex          # Shared runtime: Registry, ProcessSupervisor, PubSub bridge
+├── settings.ex                    # Ash Domain: application-wide settings and configuration
 ├── signal.ex                      # `use Ichor.Signal` macro -- declarative signal module definition
+├── signals.ex                     # Ash Domain + runtime facade for the signal system
+├── workshop.ex                    # Ash Domain: Workshop team and agent authoring
 │
 ├── archon/                        # App manager agent (Archon domain)
 │   ├── chat.ex                    # LLM-backed Archon conversation engine
@@ -23,7 +30,9 @@ lib/ichor/
 │   ├── event.ex                   # %Event{} struct -- single envelope used everywhere
 │   ├── from_ash.ex                # Ash notifier: bridges Ash actions -> Event pipeline
 │   ├── ingress.ex                 # GenStage producer: receives events, buffers for downstream
-│   └── stored_event.ex            # Ash resource: append-only durable event log (PostgreSQL)
+│   ├── stored_event.ex            # Ash resource: append-only durable event log (PostgreSQL)
+│   └── workers/
+│       └── prune_stored_events_worker.ex  # Oban cron daily: prune StoredEvent records older than 7 days
 │
 ├── factory/                       # MES project planning + pipeline execution domain (37 files)
 │   ├── artifact.ex                # Embedded SDLC artifact
@@ -76,11 +85,12 @@ lib/ichor/
 │   ├── supervisor.ex              # DynamicSupervisor for teams and standalone agents
 │   └── team_supervisor.ex         # Per-team DynamicSupervisor
 │
-├── infrastructure/                # I/O boundary: external adapters only (19 files)
+├── infrastructure/                # I/O boundary: external adapters only (21 files)
 │   ├── channel.ex                 # Channel behaviour (tmux, webhook, mailbox)
 │   ├── cron_scheduler.ex          # Cron scheduling API (Oban-backed)
 │   ├── host_registry.ex           # ETS registry for BEAM cluster nodes
 │   ├── memories_client.ex         # HTTP client for external Memories knowledge graph API
+│   ├── memories_operations.ex     # Ash resource: domain-level surface for all Memories API operations
 │   ├── operations.ex              # Ash action surface for infrastructure operations
 │   ├── output_capture.ex          # Polls tmux pane output
 │   ├── plugs/
@@ -92,8 +102,10 @@ lib/ichor/
 │   │   ├── script.ex              # Generates agent launch scripts
 │   │   └── server_selector.ex     # Selects the target tmux server
 │   ├── tmux_discovery.ex          # Discovers active tmux sessions
+│   ├── tmux_operations.ex         # Ash resource: domain-level surface for all tmux operations
 │   ├── webhook_adapter.ex         # Webhook HTTP delivery adapter
 │   ├── webhook_delivery.ex        # Durable webhook delivery Ash resource
+│   ├── webhook_operations.ex      # Ash resource: domain-level surface for webhook delivery operations
 │   └── workers/
 │       ├── scheduled_job.ex               # Oban: fire a scheduled cron job
 │       ├── session_cleanup_worker.ex      # Oban: kill tmux session or disband fleet team

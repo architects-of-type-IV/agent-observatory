@@ -4,40 +4,51 @@ ICHOR IV is a Phoenix LiveView dashboard for orchestrating multi-agent Claude Co
 
 ## Architecture
 
-The application is organized into five Ash Domains:
+The application follows a hexagonal design with six Ash Domains plus dedicated namespaces for fleet process management, use-case orchestration, and signal-driven projectors:
 
-| Domain | Path | Responsibility |
-|--------|------|----------------|
+| Domain / Namespace | Path | Responsibility |
+|--------------------|------|----------------|
 | **Workshop** | `/workshop` | Design agent types, teams, spawn links, and comm rules. Compile and launch teams. |
 | **Factory** | `/mes` | Turn project briefs into requirements via the MES planning pipeline. Track pipeline runs and tasks. |
-| **SignalBus** | system-wide | Reactive pub/sub backbone. All system events are signals; all mandatory reactions are Oban jobs. |
+| **Signals** | system-wide | Reactive GenStage backbone (ADR-026). All system events flow through a producer/consumer pipeline; all mandatory reactions are Oban jobs. |
+| **Events** | system-wide | Append-only durable event log (`StoredEvent`). Ash notifier bridges Ash actions into the pipeline. |
 | **Archon** | system-wide | App manager agent. Exposes management tool surface (memory, command manifest, signal-fed state). |
-| **Infrastructure** | host layer | Supervisors, registry, tmux adapters, TeamLaunch, agent processes. No business logic. |
+| **Settings** | `/settings` | Application-wide configuration: registered projects, git info, folder locations. |
+| **Infrastructure** | I/O boundary | External adapters only: tmux, webhook, Memories API. Wrapped as Ash Resources with `:none` data layer for policy-ready, code-interface-callable access. No business logic. |
+| **fleet/** | OTP layer | Live agent and team GenServers (`AgentProcess`, `TeamSupervisor`, `FleetSupervisor`). |
+| **orchestration/** | use-case layer | Agent and team launch/cleanup orchestrators. Consumes fleet and infrastructure. |
+| **projector/** | signal consumers | Signal-driven GenServer projectors that react to domain events (watchdogs, ingestors, dispatchers). |
 
-### Signal Flow
+### Signal Pipeline (ADR-026)
 
-Ash actions emit signals via `Ichor.Signals.Runtime` (PubSub broadcast). Subscribers receive signals and decide whether to act. For observational purposes, subscribers read and update state. For mandatory side effects (cleanup, archival, session teardown), subscribers insert Oban jobs rather than acting inline. This keeps the reactive path reliable across restarts.
+Ash actions emit events via the `FromAsh` notifier. Events flow through a GenStage pipeline: `Ingress` (producer) buffers them; `Router` (consumer) dispatches to per-topic `SignalProcess` accumulators. Signals are flushed to `ActionHandler`, which executes mandatory side effects (Oban jobs) and observational projections.
 
 ```
-Ash action -> Signal emitted -> PubSub broadcast
-                                     |
-                              Subscribers receive
-                                     |
-                    observational    |    mandatory
-                    (read state)     |    (insert Oban job)
-                                     |
-                              Oban worker runs
+Ash action -> FromAsh notifier -> Ingress (GenStage producer)
+                                         |
+                                  Router (GenStage consumer)
+                                         |
+                              SignalProcess per {module, key}
+                                         |
+                               ActionHandler: flush signal
+                                    /              \
+                            Oban job inserted    PubSub broadcast
+                            (mandatory effect)   (observational)
 ```
 
 ### Oban Workers
 
-Eleven workers across five queues handle durable side effects: `MesTick` (cron, MES scheduler), `ScheduledJob`, `WebhookDeliveryWorker` (HTTP POST with backoff), `ArchiveRunWorker`, `ResetRunTasksWorker`, `DisbandTeamWorker`, `KillSessionWorker`, `HealthCheckWorker` (cron), `ProjectDiscoveryWorker` (cron, scans for `tasks.jsonl`), `OrphanSweepWorker` (cron), and `PipelineReconcilerWorker` (cron, AD-8 safety net).
+Twelve workers across five queues handle durable side effects: `MesTick` (cron, MES scheduler), `ScheduledJob`, `WebhookDeliveryWorker` (HTTP POST with backoff), `ArchiveRunWorker`, `ResetRunTasksWorker`, `DisbandTeamWorker`, `KillSessionWorker`, `HealthCheckWorker` (cron), `ProjectDiscoveryWorker` (cron, scans for `tasks.jsonl`), `OrphanSweepWorker` (cron), `PipelineReconcilerWorker` (cron, AD-8 safety net), and `PruneStoredEventsWorker` (cron daily, 7-day event retention).
+
+### Frontend
+
+The UI is a single Phoenix LiveView at `/` split into ~35 handler modules. A component library under `lib/ichor_web/components/` provides reusable Tailwind components organized into named namespaces (`signal_feed/`, `command_components/`, `primitives/`, `ui/`, etc.). Terminal panels use xterm.js for tmux output rendering.
 
 ## Prerequisites
 
 - Elixir 1.19 / Erlang 27
 - `tmux` (agents run in tmux sessions; required at runtime)
-- SQLite (no external database needed)
+- PostgreSQL (database backend)
 - Node.js (for asset compilation via esbuild and Tailwind)
 
 ## Setup
@@ -62,11 +73,12 @@ mix ecto.reset
 
 ## Project Structure
 
-- `lib/ichor/` -- all application code, organized by domain. See [TREE.md](lib/ichor/TREE.md) for the annotated module tree.
+- `lib/ichor/` -- all application code, organized by domain. See [TREE.md](lib/ichor/TREE.md) for the annotated module tree (~160 .ex files).
+- `lib/ichor_web/` -- Phoenix LiveView, controllers, and component library (~130 .ex/.heex files).
 - `docs/architecture/` -- architecture decision records and domain specs. See [INDEX.md](docs/architecture/INDEX.md) for the recommended reading order.
 - `docs/diagrams/` -- Mermaid architecture diagrams and database ERD.
 - `contracts/ichor_contracts/` -- shared behaviour contracts (in transition to main app).
-- `priv/repo/migrations/` -- Ash-generated SQLite migrations.
+- `priv/repo/migrations/` -- Ash-generated PostgreSQL migrations.
 
 ## Key Concepts
 
