@@ -27,7 +27,6 @@ Ichor.Supervisor (one_for_one)
   │   ├── MemoryStore
   │   ├── Signals.EventStream            (ETS event store + broadcaster)
   │   ├── Infrastructure.TmuxDiscovery
-  │   ├── Infrastructure.HITLRelay
   │   ├── Infrastructure.OutputCapture
   │   ├── Projector.AgentWatchdog
   │   ├── Projector.ProtocolTracker
@@ -35,9 +34,9 @@ Ichor.Supervisor (one_for_one)
   │   ├── Projector.SignalManager
   │   └── Projector.TeamWatchdog
   │
-  ├── Infrastructure.FleetSupervisor (DynamicSupervisor)
-  │   ├── AgentProcess (per agent, dynamic)
-  │   └── TeamSupervisor (per team, dynamic)
+  ├── Fleet.Supervisor (DynamicSupervisor)      <-- was Infrastructure.FleetSupervisor
+  │   ├── Fleet.AgentProcess (per agent, dynamic)
+  │   └── Fleet.TeamSupervisor (per team, dynamic)
   │
   ├── Projector.FleetLifecycle
   ├── Projector.CleanupDispatcher
@@ -47,8 +46,8 @@ Ichor.Supervisor (one_for_one)
   │
   ├── Projector.MesProjectIngestor           <-- extracted from LifecycleSupervisor
   ├── Projector.MesResearchIngestor          <-- extracted from LifecycleSupervisor
-  ├── Factory.CompletionHandler              <-- extracted from LifecycleSupervisor
-  ├── Workshop.TeamSpawnHandler
+  ├── Projector.CompletionHandler            <-- moved from Factory, extracted from LifecycleSupervisor
+  ├── Projector.TeamSpawnHandler             <-- moved from Workshop
   ├── DynamicSupervisor (Ichor.Factory.PlanRunSupervisor)
   ├── DynamicSupervisor (Ichor.Factory.PipelineRunSupervisor)   <-- was DynRunSupervisor
   └── IchorWeb.Endpoint
@@ -57,7 +56,10 @@ Ichor.Supervisor (one_for_one)
 **Key changes from prior design:**
 - `Task.Supervisor` now starts before `RuntimeSupervisor` (OutputCapture and AgentProcess both use `Ichor.TaskSupervisor`)
 - `LifecycleSupervisor` is `one_for_one` (was `rest_for_one`), owns only `BuildRunSupervisor`
-- 3 projectors extracted from `LifecycleSupervisor` to top-level app children: `MesProjectIngestor`, `MesResearchIngestor`, `CompletionHandler`
+- 5 projectors extracted to top-level app children: `MesProjectIngestor`, `MesResearchIngestor`, `CompletionHandler`, `TeamSpawnHandler` (from Workshop), plus `FleetLifecycle` and `CleanupDispatcher`
+- `Fleet.Supervisor` extracted from `Infrastructure` into its own `fleet/` namespace (hexagonal reorg)
+- `Orchestration.TeamLaunch` extracted from `Infrastructure` into its own `orchestration/` namespace
+- `HITLRelay` removed entirely (HITL subsystem deleted)
 - `DynRunSupervisor` renamed to `PipelineRunSupervisor`
 - `Signals.PipelineSupervisor` (`rest_for_one`) wraps Ingress + Router -- Router restart re-subscribes to a live Ingress
 
@@ -75,7 +77,7 @@ The earlier target described in the architecture audit (Runtime.Supervisor group
 | `Ichor.RuntimeSupervisor` | `one_for_one` | Runtime services; independent subsystems |
 | `Signals.PipelineSupervisor` | `rest_for_one` | Ingress + Router must restart together |
 | `Signals.ProcessSupervisor` | `one_for_one` (DynSup) | Per-session SignalProcess accumulator processes |
-| `Infrastructure.FleetSupervisor` | `one_for_one` (DynSup) | Each AgentProcess is independent |
+| `Fleet.Supervisor` | `one_for_one` (DynSup) | Each AgentProcess is independent |
 | `Factory.LifecycleSupervisor` | `one_for_one` | Was rest_for_one; only owns BuildRunSupervisor now |
 | `Factory.BuildRunSupervisor` | `one_for_one` (DynSup) | Build runs are independent |
 | `Factory.PlanRunSupervisor` | `one_for_one` (DynSup) | Planning runs are independent |
@@ -90,15 +92,15 @@ The earlier target described in the architecture audit (Runtime.Supervisor group
 | Process | Status | Notes |
 |---------|--------|-------|
 | `Signals.EventStream` | Keep GenServer + ETS | Owns ETS write path + subscription fanout |
-| `Infrastructure.AgentProcess` | Keep GenServer | IS the agent. Holds mailbox, backend, live state. |
-| `Infrastructure.FleetSupervisor` | Keep DynSup | Owns the AgentProcess lifecycle tree |
+| `Fleet.AgentProcess` | Keep GenServer | IS the agent. Holds mailbox, backend, live state. |
+| `Fleet.Supervisor` | Keep DynSup | Owns the AgentProcess lifecycle tree |
 | `Events.Ingress` | GenStage producer | Bridges domain events into demand-driven signal pipeline |
 | `Signals.Router` | GenStage consumer | Routes events to SignalProcess accumulators |
 | `Signals.SignalProcess` | Transient GenServer | Per {module, key} accumulator; idle timeout 5 min |
-| `Infrastructure.HITLRelay` | Keep GenServer | Holds pause/unpause state |
 | `Factory.Runner` (build runs) | Keep GenServer | Monitors live run state, manages lifecycle |
 | `Projector.TeamWatchdog` | Signal subscriber | Enqueues Oban cleanup jobs on run_complete |
 | `Projector.AgentWatchdog` | GenServer (5s tick) | Fleet health, crash detection, escalation |
+| ~~`Infrastructure.HITLRelay`~~ | DELETED | HITL subsystem removed (-1,002 lines) |
 | ~~`Factory.MesScheduler`~~ | Replaced by Oban cron | `Workers.MesTick` drives the MES schedule |
 | ~~`Signals.Buffer`~~ | Replaced by `Projector.SignalBuffer` | Moved to Projector namespace |
 

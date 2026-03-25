@@ -1,5 +1,24 @@
 # ICHOR IV Progress
 
+## Documentation Sync (2026-03-25) -- COMPLETE
+- [x] TREE.md: fully rewritten for hexagonal reorg (fleet/, orchestration/, projector/ with CompletionHandler+TeamSpawnHandler, HITL removed)
+- [x] REFACTOR.md: Fleet section updated (fleet/ + orchestration/ extracted from Infrastructure), CompletionHandler + TeamSpawnHandler moved to Projector
+- [x] BRAIN.md: Hexagonal Architecture section added; Signals ADR-026 marked COMPLETE
+- [x] supervision-tree.md: HITLRelay removed, Fleet.Supervisor replaces Infrastructure.FleetSupervisor, CompletionHandler/TeamSpawnHandler in Projector
+- [x] signals-domain.md: AgentWatchdog escalation updated (no HITLRelay), X2 violation note updated
+- [x] docs/diagrams/architecture.md: Domain boundary diagram updated with fleet/ and orchestration/ namespaces
+- [x] HANDOFF.md: Final session state with accurate file counts, module path changes table, open items
+- [x] progress.txt: Hexagonal reorg completion entries added
+
+## Hexagonal Reorg (2026-03-25) -- COMPLETE
+- [x] fleet/ extracted (9 files): AgentProcess, Supervisor, TeamSupervisor, backends, message delivery
+- [x] orchestration/ extracted (6 files): AgentLaunch, TeamLaunch, Registration, Cleanup, TeamSpec
+- [x] Infrastructure reduced to 19 files (I/O boundary only): Tmux, webhooks, memories, host_registry
+- [x] Projector.CompletionHandler moved from Factory.CompletionHandler
+- [x] Projector.TeamSpawnHandler moved from Workshop.TeamSpawnHandler
+- [x] HITL subsystem removed: HITLRelay + hitl/buffer.ex + hitl/session_state.ex (-1,002 lines)
+- [x] Build: mix compile --warnings-as-errors CLEAN; Credo strict 0 issues; Dialyzer clean
+
 ## Architecture Docs Update (2026-03-25) -- COMPLETE
 - [x] decisions.md: AD-8 extended with StoredEvent + Checkpoint; AshSqlite -> AshPostgres noted
 - [x] signals-domain.md: GenStage pipeline section added (Ingress/Router/SignalProcess/ActionHandler/PipelineSupervisor + 3 signal modules)

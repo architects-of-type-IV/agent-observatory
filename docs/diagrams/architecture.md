@@ -73,8 +73,8 @@ graph TB
         J["Compile to TeamSpec"]
     end
 
-    subgraph "Infrastructure"
-        K["TeamLaunch.launch"]
+    subgraph "Orchestration + Infrastructure"
+        K["Orchestration.TeamLaunch.launch"]
         L["Write scripts"]
         M["Create tmux session"]
         N["Register in fleet"]
@@ -226,7 +226,7 @@ graph TB
 
 ## Domain Boundaries
 
-> **Note (2026-03-25)**: Fleet domain was not implemented as a separate Ash domain. Fleet functionality remains in Infrastructure (FleetSupervisor, AgentProcess). The Mesh domain was deleted in f20ac4b. AshSqlite was replaced by AshPostgres.
+> **Note (2026-03-25)**: Hexagonal reorg complete. Fleet processes live in `fleet/` namespace. Orchestration use cases live in `orchestration/` namespace. Infrastructure is I/O boundary only. HITL subsystem deleted. Mesh domain deleted in f20ac4b. AshSqlite replaced by AshPostgres.
 
 ```mermaid
 graph TB
@@ -277,7 +277,7 @@ graph TB
         StoredEvent[StoredEvent]
     end
 
-    subgraph Projectors["Projector namespace"]
+    subgraph Projectors["Projector namespace (13 modules)"]
         direction TB
         AW[AgentWatchdog]
         TW[TeamWatchdog]
@@ -285,30 +285,50 @@ graph TB
         SB[SignalBuffer]
         FL[FleetLifecycle]
         CD[CleanupDispatcher]
+        CH[CompletionHandler]
+        TSH[TeamSpawnHandler]
     end
 
-    subgraph Infra["Infrastructure (host layer)"]
+    subgraph FleetLayer["fleet/ (OTP process layer)"]
         direction TB
-        FS[FleetSupervisor]
-        AP[AgentProcess]
-        TL[TeamLaunch]
-        Tmux[Tmux adapter]
-        HITL[HITLRelay]
-        Reg[Registry]
+        AP[Fleet.AgentProcess]
+        FS[Fleet.Supervisor]
+        FTS[Fleet.TeamSupervisor]
     end
 
-    Workshop -->|"compile spec"| Infra
+    subgraph Orchestration["orchestration/ (use cases)"]
+        direction TB
+        TL[TeamLaunch]
+        AL[AgentLaunch]
+        Reg[Registration]
+        CL[Cleanup]
+        OTS[TeamSpec struct]
+    end
+
+    subgraph Infra["infrastructure/ (I/O boundary only)"]
+        direction TB
+        Tmux[Tmux adapter]
+        HR[HostRegistry]
+        MC[MemoriesClient]
+        WH[WebhookAdapter]
+    end
+
+    Workshop -->|"compile spec"| Orchestration
     Factory -->|"launch teams"| Workshop
-    Factory -->|"launch via"| Infra
+    Factory -->|"launch via"| Orchestration
+    Orchestration -->|"creates processes"| FleetLayer
+    Orchestration -->|"I/O via"| Infra
     SignalBus -.->|"signals"| Workshop
     SignalBus -.->|"signals"| Factory
     SignalBus -.->|"signals"| Archon
-    SignalBus -.->|"signals"| Infra
+    SignalBus -.->|"signals"| FleetLayer
     SignalBus -->|"feeds"| Events
     Events --> SignalBus
     Archon -->|"MCP actions"| Workshop
     Archon -->|"MCP actions"| Factory
     Projectors -.->|"subscribe to signals"| SignalBus
+    Projectors -->|"orchestrate"| Orchestration
+    Projectors -->|"orchestrate"| FleetLayer
 
     style Workshop fill:#e8f5e8,stroke:#2e7d32
     style Factory fill:#e3f2fd,stroke:#1565c0
@@ -316,6 +336,8 @@ graph TB
     style SignalBus fill:#fff3e0,stroke:#e65100
     style Events fill:#fff8e1,stroke:#f57f17
     style Projectors fill:#fce4ec,stroke:#880e4f
+    style FleetLayer fill:#e0f2f1,stroke:#00695c
+    style Orchestration fill:#f1f8e9,stroke:#558b2f
     style Infra fill:#eceff1,stroke:#546e7a
 ```
 
@@ -333,7 +355,7 @@ sequenceDiagram
     participant WS as Workshop.Spawn
     participant TSH as TeamSpawnHandler
     participant TS as TeamSpec
-    participant TL as TeamLaunch
+    participant TL as Orchestration.TeamLaunch
     participant Tmux as tmux
 
     UI->>WH: ws_launch_team
@@ -364,7 +386,7 @@ flowchart LR
     G[agent_metadata fn] --> E
     E --> H[iterate agents in spawn_order]
     H --> I[AgentSpec.new per agent]
-    I --> J[Infrastructure.TeamSpec]
+    I --> J[Orchestration.TeamSpec]
 
     style A fill:#e8f5e8
     style C fill:#e8f5e8
@@ -386,7 +408,7 @@ sequenceDiagram
     participant V as Validator
     participant WG as WorkerGroups
     participant TS as TeamSpec
-    participant TL as TeamLaunch
+    participant TL as Orchestration.TeamLaunch
     participant R as Runner
     participant Tmux as tmux
 
@@ -399,7 +421,7 @@ sequenceDiagram
     FS->>WG: build(tasks)
     WG-->>FS: worker_groups
     FS->>TS: build(:pipeline, run, session, brief, tasks, groups, ctx)
-    TS-->>FS: Infrastructure.TeamSpec
+    TS-->>FS: Orchestration.TeamSpec
     FS->>TL: TeamLaunch.launch(spec)
     TL->>Tmux: create session + windows
     Tmux-->>TL: running
@@ -432,17 +454,17 @@ flowchart TB
         K --> L["TeamSpec.build(:planning)"]
 
         D --> M[Workshop.Spawn]
-        M --> N["Infrastructure.TeamSpec.new (direct)"]
+        M --> N["Orchestration.TeamSpec.new (direct)"]
     end
 
     subgraph "Convergence"
-        G --> O[Infrastructure.TeamLaunch.launch]
+        G --> O[Orchestration.TeamLaunch.launch]
         J --> O
         L --> O
         N --> O
     end
 
-    subgraph "Infrastructure"
+    subgraph "Orchestration + Infrastructure"
         O --> P[Scripts.write_all]
         P --> Q[Session.create_all]
         Q --> R[Registration.register_all]
@@ -521,7 +543,7 @@ flowchart TD
     G --> H{escalation level?}
     H -->|0| I[emit :nudge_warning]
     H -->|1| J[Bus.send nudge message]
-    H -->|2| K[HITLRelay.pause]
+    H -->|2| K[emit :nudge_zombie level 2]
     H -->|3| L[emit :nudge_zombie]
 
     I --> M[scan_all_panes]
@@ -650,7 +672,7 @@ sequenceDiagram
     participant Sig as Signals
     participant TW as TeamWatchdog
     participant Fac as Factory
-    participant Infra as Infrastructure
+    participant Infra as Orchestration + Fleet
     participant Inbox as ~/.claude/inbox/
 
     R->>R: detect completion
@@ -663,7 +685,7 @@ sequenceDiagram
 
     TW->>Fac: Pipeline.get + Pipeline.archive
     TW->>Fac: PipelineTask.by_run + reset each
-    TW->>Infra: FleetSupervisor.disband_team
+    TW->>Infra: Fleet.Supervisor.disband_team
     TW->>Infra: Spawn.kill_session (tmux)
     TW->>Inbox: write JSON notification
 
@@ -719,8 +741,8 @@ flowchart LR
         CS[CanvasState]
     end
 
-    subgraph Infrastructure
-        IST[Infrastructure.TeamSpec struct]
+    subgraph Orchestration
+        IST[Orchestration.TeamSpec struct]
     end
 
     PP -->|"imported into"| TS
@@ -753,8 +775,8 @@ flowchart LR
         WS[Workshop.Spawn]
     end
 
-    subgraph Infrastructure
-        IST[Infrastructure.TeamSpec struct]
+    subgraph Orchestration
+        IST[Orchestration.TeamSpec struct]
     end
 
     FS -->|"prompt_builder: &PP.mode_a/3"| TS

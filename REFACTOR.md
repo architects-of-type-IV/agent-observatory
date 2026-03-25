@@ -4,14 +4,17 @@
 
 The host app is the composition root. It owns: the Phoenix web layer, the ADR-026 GenStage
 signal pipeline, agent fleet GenServers, the Factory/MES runtime, monitoring projectors, and
-Archon (the AI floor manager). It contains ~179 .ex files across 6 Ash Domains.
+Archon (the AI floor manager). It contains ~156 .ex files across 6 Ash Domains + fleet/orchestration layers.
 
-**Architecture as of 2026-03-25:**
+**Architecture as of 2026-03-25 (hexagonal reorg complete):**
 - ADR-026 GenStage pipeline is live: `Events.Ingress` (producer) -> `Signals.Router` (consumer) -> `Signals.SignalProcess` per {module, key}
 - `Ichor.Signal` macro provides `use Ichor.Signal` for declarative signal module definition
-- `Projector/` namespace: all reactive GenServers that subscribe to Signals (replaced old Monitor + Gateway GenServers)
-- `Infrastructure/` namespace: fleet adapters, team launch, agent processes (replaced old Fleet + Gateway namespaces)
-- Frontend component library: `IchorWeb.UI` (button, input, label, select) and `IchorWeb.Components.Primitives`
+- `Projector/` namespace: all reactive GenServers that subscribe to Signals -- includes `CompletionHandler` and `TeamSpawnHandler` (moved from Factory/Workshop)
+- `Fleet/` namespace: OTP process layer -- `AgentProcess`, `Supervisor`, `TeamSupervisor`, backends, message delivery (extracted from Infrastructure)
+- `Orchestration/` namespace: use case orchestrators -- `AgentLaunch`, `TeamLaunch`, `Registration`, `Cleanup`, `TeamSpec` (extracted from Infrastructure)
+- `Infrastructure/` namespace: I/O boundary only -- Tmux adapters, webhooks, memories client, host registry (18 files, down from 34)
+- HITL subsystem removed: `HITLRelay`, `hitl/buffer.ex`, `hitl/session_state.ex` deleted (-1,002 lines)
+- Frontend component library: `IchorWeb.UI` (button, input, label, select) and `IchorWeb.Components.Primitives` (9 primitives)
 - Supervision tree: `RuntimeSupervisor` owns Registry + ProcessSupervisor + pipeline; `Signals.PipelineSupervisor` uses rest_for_one
 
 ---
@@ -51,28 +54,40 @@ The `Ichor.Gateway` namespace has been fully dissolved. Modules were either dele
 
 The inbound event ingestion path is now: HTTP POST /events -> `Events.Ingress.push/1` -> GenStage -> `Signals.Router` -> `Signals.SignalProcess`.
 
-### Fleet (DISSOLVED -> Infrastructure)
+### Fleet (EXTRACTED -> fleet/ namespace)
 
-The `Ichor.Fleet` namespace has been fully dissolved. Surviving modules were moved to `Ichor.Infrastructure`:
+The original `Ichor.Fleet` namespace was first dissolved into `Ichor.Infrastructure`, then extracted
+again into its own `Ichor.Fleet` namespace as part of the hexagonal reorg (2026-03-25). Fleet is now
+the OTP process layer -- the live agent BEAM processes.
 
-| Old Module | New Location |
-|------------|-------------|
-| `Fleet.FleetSupervisor` | `Infrastructure.FleetSupervisor` |
-| `Fleet.TeamSupervisor` | `Infrastructure.TeamSupervisor` |
-| `Fleet.AgentProcess` | `Infrastructure.AgentProcess` |
-| `Fleet.HostRegistry` | `Infrastructure.HostRegistry` |
-| `Fleet.Lifecycle.AgentLaunch` | `Infrastructure.AgentLaunch` |
-| `Fleet.Lifecycle.TeamLaunch` | `Infrastructure.TeamLaunch` |
-| `Fleet.Lifecycle.Registration` | `Infrastructure.Registration` |
-| `Fleet.Lifecycle.Cleanup` | `Infrastructure.Cleanup` |
-| `Fleet.Analysis.Queries` | `Workshop.Analysis.Queries` |
-| `Fleet.Analysis.AgentHealth` | `Workshop.Analysis.AgentHealth` |
-| `Fleet.Preparations.LoadAgents` | `Workshop.Preparations.LoadAgents` |
-| `Fleet.Preparations.LoadTeams` | `Workshop.Preparations.LoadTeams` |
+**Current `fleet/` namespace (9 files):**
 
-**Deleted** (not migrated): `Fleet.Runtime`, `Fleet.RuntimeView`, `Fleet.RuntimeQuery`, `Fleet.RuntimeHooks`, `Fleet.Lifecycle` (facade), `Fleet.Overseer`, `Fleet.Comms`, `Fleet.Queries`, `Fleet.Lookup`, `Fleet.SessionEviction`, `Fleet.Analysis.SessionEviction`, `Fleet.Session` (Ash resource), `Fleet.Preparations.LoadSessions`
+| Module | Purpose |
+|--------|---------|
+| `Fleet.AgentProcess` | BEAM GenServer per live agent (mailbox, liveness polling) |
+| `Fleet.AgentBackend` | Selects delivery backend for an agent (tmux/webhook/mailbox) |
+| `Fleet.AgentDelivery` | Delivers messages to an agent via its backend |
+| `Fleet.AgentMessage` | Agent message Ash resource |
+| `Fleet.AgentRegistryProjection` | Builds/derives ETS registry metadata for agent processes |
+| `Fleet.AgentSpec` | Generic runtime agent spec struct |
+| `Fleet.AgentState` | Agent state Ash resource |
+| `Fleet.Supervisor` | DynamicSupervisor for teams and standalone agents |
+| `Fleet.TeamSupervisor` | Per-team DynamicSupervisor |
 
-The `AgentRegistryProjection` module is new: it extracts registry metadata projection logic from `AgentProcess` for testability.
+**Extracted to `orchestration/` namespace (6 files):**
+
+| Old Location | New Module | Purpose |
+|--------------|-----------|---------|
+| `Infrastructure.AgentLaunch` | `Orchestration.AgentLaunch` | Lifecycle operations for individual agent start/stop |
+| `Infrastructure.TeamLaunch` | `Orchestration.TeamLaunch` | Orchestrates full team launch (prompts -> tmux -> registration) |
+| `Infrastructure.Registration` | `Orchestration.Registration` | Agent/team BEAM Registry registration helpers |
+| `Infrastructure.Cleanup` | `Orchestration.Cleanup` | Runtime cleanup: kill tmux sessions, remove files |
+| `Infrastructure.TeamSpec` | `Orchestration.TeamSpec` | Generic runtime team spec struct |
+| _(new)_ | `Orchestration.TeamLaunch.Session` | Creates tmux session and windows during team launch |
+
+**Deleted** (not migrated from original Fleet): `Fleet.Runtime`, `Fleet.RuntimeView`, `Fleet.RuntimeQuery`, `Fleet.RuntimeHooks`, `Fleet.Lifecycle` (facade), `Fleet.Overseer`, `Fleet.Comms`, `Fleet.Queries`, `Fleet.Lookup`, `Fleet.SessionEviction`, `Fleet.Analysis.SessionEviction`, `Fleet.Session` (Ash resource), `Fleet.Preparations.LoadSessions`
+
+**Moved to Workshop:** `Fleet.Analysis.Queries` -> `Workshop.Analysis.Queries`, `Fleet.Analysis.AgentHealth` -> `Workshop.Analysis.AgentHealth`, `Fleet.Preparations.LoadAgents` -> `Workshop.Preparations.LoadAgents`, `Fleet.Preparations.LoadTeams` -> `Workshop.Preparations.LoadTeams`
 
 ### Monitoring (DISSOLVED -> Projector)
 
@@ -83,10 +98,12 @@ into the `Ichor.Projector` namespace. All projectors are signal-driven GenServer
 |------------|---------|
 | `Projector.AgentWatchdog` | `AgentMonitor` + `NudgeEscalator` + `PaneMonitor` + `Heartbeat` |
 | `Projector.CleanupDispatcher` | `Factory.Subscribers.RunCleanupDispatcher` + `Infrastructure.Subscribers.SessionCleanupDispatcher` + `Infrastructure.Subscribers.SessionLifecycle` |
+| `Projector.CompletionHandler` | `Factory.CompletionHandler` (moved from Factory to Projector) |
 | `Projector.FleetLifecycle` | `Infrastructure.Subscribers.SessionLifecycle` |
 | `Projector.ProtocolTracker` | `ProtocolTracker` (moved, same purpose) |
 | `Projector.SignalBuffer` | `Signals.Buffer` (moved, same purpose) |
 | `Projector.SignalManager` | `Archon.SignalManager` (moved) |
+| `Projector.TeamSpawnHandler` | `Workshop.TeamSpawnHandler` (moved from Workshop to Projector) |
 | `Projector.TeamWatchdog` | `Archon.TeamWatchdog` (moved) |
 | `Projector.MesProjectIngestor` | `Mes.ProjectIngestor` (moved) |
 | `Projector.MesResearchIngestor` | `Mes.ResearchIngestor` + `MemoriesBridge` (moved + merged) |
@@ -103,12 +120,12 @@ The MES namespace was dissolved into the `Factory` Ash Domain. The table below s
 |--------|------|---------|
 | `Ichor.Factory.Runner` | factory/runner.ex | MES/pipeline run lifecycle GenServer |
 | `Ichor.Factory.MesScheduler` | factory/mes_scheduler.ex | Pause/resume/status API (Oban tick) |
-| `Ichor.Factory.CompletionHandler` | factory/completion_handler.ex | DAG completion -> next stage |
+| `Ichor.Projector.CompletionHandler` | projector/completion_handler.ex | DAG completion -> next stage (moved from Factory) |
 | `Ichor.Factory.Spawn` | factory/spawn.ex | Planning/pipeline team launch + cleanup |
 | `Ichor.Factory.Loader` | factory/loader.ex | Loads project/pipeline data |
 | `Ichor.Factory.ResearchContext` | factory/research_context.ex | Research context builder |
 | ~~`Ichor.Mes.TeamSpawner`~~ | ~~mes/team_spawner.ex~~ | DELETED -- 23-line pure delegate, callers use Infrastructure directly |
-| ~~`Ichor.Mes.TeamLifecycle`~~ | ~~mes/team_lifecycle.ex~~ | DELETED -- absorbed into Infrastructure.TeamLaunch |
+| ~~`Ichor.Mes.TeamLifecycle`~~ | ~~mes/team_lifecycle.ex~~ | DELETED -- absorbed into Orchestration.TeamLaunch |
 | ~~`Ichor.Mes.TeamSpecBuilder`~~ | ~~mes/team_spec_builder.ex~~ | DELETED -- absorbed into Workshop.TeamSpec |
 | ~~`Ichor.Mes.TeamCleanup`~~ | ~~mes/team_cleanup.ex~~ | DELETED |
 | ~~`Ichor.Mes.Janitor`~~ | ~~mes/janitor.ex~~ | DELETED -- absorbed into Projector.TeamWatchdog |
@@ -237,7 +254,7 @@ graph TD
     App --> HostReg[Infrastructure.HostRegistry]
     App --> Notes[Notes]
     App --> MemStore[MemoryStore]
-    App --> Fleet[Infrastructure.FleetSupervisor]
+    App --> Fleet[Fleet.Supervisor]
     App --> Runtime[RuntimeSupervisor]
     App --> PipelineSup[Signals.PipelineSupervisor]
     App --> Projectors[Projector GenServers]
@@ -261,8 +278,8 @@ graph TD
     Projectors --> MesProjIngest[Projector.MesProjectIngestor]
     Projectors --> MesResIngest[Projector.MesResearchIngestor]
 
-    Fleet --> TeamSup1[TeamSupervisor per team]
-    Fleet --> AgentProc[AgentProcess standalone]
+    Fleet --> TeamSup1[Fleet.TeamSupervisor per team]
+    Fleet --> AgentProc[Fleet.AgentProcess standalone]
 ```
 
 ### ADR-026 Event Flow (current)
@@ -293,17 +310,17 @@ sequenceDiagram
 sequenceDiagram
     participant Sched as Factory.MesScheduler
     participant Runner as Factory.Runner
-    participant TeamLaunch as Infrastructure.TeamLaunch
+    participant TeamLaunch as Orchestration.TeamLaunch
     participant Tmux as tmux
-    participant Fleet as Infrastructure.FleetSupervisor
-    participant Agent as AgentProcess
+    participant Fleet as Fleet.Supervisor
+    participant Agent as Fleet.AgentProcess
     participant Ingestor as Projector.MesProjectIngestor
     participant Proj as Factory.Project
 
     Sched->>Runner: start_link(run_id, team_name)
     Runner->>TeamLaunch: spawn_run(run_id, team_name)
     TeamLaunch->>Tmux: new-session
-    TeamLaunch->>Fleet: register AgentProcesses
+    TeamLaunch->>Fleet: register Fleet.AgentProcesses
     Agent-->>Ingestor: message -> :mes_project_created signal
     Ingestor->>Proj: Project.create(attrs)
 ```

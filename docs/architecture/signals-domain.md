@@ -44,7 +44,7 @@ Domain event
 
 | Module | Topic | Key | Action |
 |--------|-------|-----|--------|
-| `Signals.Agent.ToolBudget` | tool_use events | session_id | Pauses agent via HITLRelay when tool budget exhausted |
+| `Signals.Agent.ToolBudget` | tool_use events | session_id | Fires when tool budget exhausted (HITLRelay removed; action via ActionHandler) |
 | `Signals.Agent.MessageProtocol` | message events | session_id | Tracks protocol violations |
 | `Signals.Agent.Entropy` | tool_use/message events | session_id | Detects repetitive loops |
 
@@ -126,9 +126,9 @@ Moved from `Signals.AgentWatchdog` to `Projector.AgentWatchdog` during the proje
 
 **Behavior**:
 - Beats every 5s
-- Detects sessions stale > 120s -> checks AgentProcess + tmux window liveness
+- Detects sessions stale > 120s -> checks `Fleet.AgentProcess` + tmux window liveness
 - On crash: reassigns tasks on Board, emits `:agent_crashed`, writes inbox notification
-- Escalation: nudge warning -> Bus message -> HITLRelay.pause -> zombie alert
+- Escalation: nudge warning -> Bus message -> zombie alert (HITLRelay removed)
 
 The violations noted in the audit (P2.1, P2.2 -- direct cross-domain calls) are tracked but not yet fully resolved.
 
@@ -163,7 +163,7 @@ Ash (durable truth)
 | Topic | Producer | Subscribers | Mandatory? |
 |-------|----------|-------------|-----------|
 | `:new_event` | EventStream | AgentWatchdog, Dashboard | No |
-| `:session_discovered` | EventStream (after fix) | Infrastructure (create AgentProcess) | Yes -> Oban |
+| `:session_discovered` | EventStream (after fix) | Fleet subscriber (create Fleet.AgentProcess) | Yes -> Oban |
 | `:agent_crashed` | AgentWatchdog | Factory (reassign tasks), Operator.Inbox | Yes -> Oban |
 | `:team_spawn_requested` | Workshop.Spawn | TeamSpawnHandler | Yes -> direct |
 | `:team_spawned` | TeamSpawnHandler | Dashboard | No |
@@ -186,9 +186,11 @@ Ash (durable truth)
 
 ### X2: AgentWatchdog direct cross-domain calls (medium priority)
 
-**Current**: AgentWatchdog calls `Factory.Board.update_task` and `Infrastructure.HITLRelay.pause` directly.
+**Current**: AgentWatchdog calls `Factory.Board.update_task` directly on crash detection.
 
-**Fix**: Emit `:agent_crashed` (already done). Add Factory subscriber that reacts to `:agent_crashed` and reassigns tasks. Add Infrastructure subscriber that reacts to `:escalation_level_2` and calls HITLRelay.pause.
+**Fix**: Emit `:agent_crashed` (already done). Add Factory subscriber that reacts to `:agent_crashed` and reassigns tasks via Oban job.
+
+**Note**: `HITLRelay.pause` is no longer part of the escalation chain -- HITL subsystem was deleted. Escalation level 2 now emits a zombie alert signal only.
 
 ### X3: EventBridge (resolved -- module deleted)
 

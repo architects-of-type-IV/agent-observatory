@@ -34,7 +34,7 @@
 
 ## GenServer Patterns
 - terminate/2 is canonical emission point for lifecycle signals.
-- Task.start for fire-and-forget calls that may fail (e.g. HITLRelay.unpause).
+- Task.start for fire-and-forget calls that may fail (e.g. async agent notification).
 - Don't use try/catch/rescue for GenServer calls to other processes.
 
 ## Centralized Code Interface
@@ -50,16 +50,36 @@
 - String references in templates (PluginScaffold) don't count as real callers.
 - Mesh subsystem was ~1000 lines with zero external consumers. Found by tracing Ichor.Mesh.* references outside lib/ichor/mesh/.
 
-## Signals Architecture (ADR-026 in progress)
-- Old PubSub system still running (Signals.emit -> Runtime -> PubSub broadcast).
-- New GenStage pipeline running alongside: Event -> Ingress -> Router -> SignalProcess -> Handler.
+## Hexagonal Architecture (as of 2026-03-25)
+
+Six layers with clear responsibilities:
+
+- **Ash Domains** (Workshop, Factory, Signals, Events, Archon, Settings): business state + actions
+- **fleet/**: OTP process layer -- AgentProcess GenServers, Fleet.Supervisor, TeamSupervisor
+- **orchestration/**: use case orchestrators -- TeamLaunch, AgentLaunch, Registration, Cleanup, TeamSpec
+- **infrastructure/**: I/O boundary only -- Tmux adapters, webhooks, memories client (18 files)
+- **projector/**: signal-driven GenServers that react to signals -- 13 modules including CompletionHandler + TeamSpawnHandler
+- **Web layer**: LiveView + controllers, Phoenix-specific only
+
+Key extractions from today's session:
+- `Fleet.Supervisor` was `Infrastructure.FleetSupervisor`
+- `Orchestration.TeamLaunch` was `Infrastructure.TeamLaunch`
+- `Projector.CompletionHandler` was `Factory.CompletionHandler`
+- `Projector.TeamSpawnHandler` was `Workshop.TeamSpawnHandler`
+- HITL subsystem removed entirely (-1,002 lines): no HITLRelay, no hitl/buffer.ex, no hitl/session_state.ex
+
+## Signals Architecture (ADR-026 -- COMPLETE)
+- Old PubSub system still running in parallel (Signals.emit -> Runtime -> PubSub broadcast).
+- GenStage pipeline live: Event -> Ingress -> Router -> SignalProcess -> ActionHandler.
 - `use Ichor.Signal` macro for declarative signal creation.
 - EventStream bridges hook events into both systems (old PubSub + new Ingress).
-- FromAsh notifier is a stub -- Wave 3 replaces it with real %Event{} emission.
+- FromAsh notifier: 25 action mappings across 7 Ash resources (Wave 3 done).
 - Naming rule: big to small, dot-delimited. agent.tool.budget.exhausted.
 - Event = something happened. Signal = enough happened. Handler = now act.
-- Signal modules: Agent.ToolBudget (budget enforcement), Agent.MessageProtocol (comm rules).
-- SignalProcess: one GenServer per {module, key}, DynamicSupervisor + Registry, idle shutdown.
+- Signal modules: Agent.ToolBudget (budget enforcement), Agent.MessageProtocol (comm rules), Agent.Entropy (loop detection).
+- SignalProcess: one GenServer per {module, key}, DynamicSupervisor + Registry, idle shutdown 5 min.
+- StoredEvent (PostgreSQL): durable append-only event log.
+- Checkpoint (PostgreSQL): tracks last processed event per signal module+key for crash recovery.
 
 ## Audit Pipeline Lessons
 - 6 parallel agents can step on each other -- syntax errors from map keyword mixing.

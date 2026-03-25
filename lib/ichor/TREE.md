@@ -1,6 +1,6 @@
- # lib/ichor/ Module Tree
+# lib/ichor/ Module Tree
 
-Updated 2026-03-25 after ADR-026 Signal pipeline, Infrastructure reorg, and module consolidation.
+Updated 2026-03-25 after hexagonal reorg: fleet/ and orchestration/ extracted from infrastructure/, HITL removed, CompletionHandler + TeamSpawnHandler moved to Projector/, ansi_utils + topic_mapping + pub_sub.ex deleted.
 
 ```
 lib/ichor/
@@ -9,7 +9,6 @@ lib/ichor/
 ├── mcp_profiles.ex                # MCP tool profile definitions
 ├── memory_store.ex                # Letta-compatible three-tier agent memory (blocks, recall, archival)
 ├── notes.ex                       # ETS-backed operator annotation store
-├── pub_sub.ex                     # PubSub configuration constants
 ├── repo.ex                        # Ecto repository (PostgreSQL)
 ├── runtime_supervisor.ex          # Shared runtime: Registry, ProcessSupervisor, PubSub bridge
 ├── signal.ex                      # `use Ichor.Signal` macro -- declarative signal module definition
@@ -24,13 +23,11 @@ lib/ichor/
 │   ├── event.ex                   # %Event{} struct -- single envelope used everywhere
 │   ├── from_ash.ex                # Ash notifier: bridges Ash actions -> Event pipeline
 │   ├── ingress.ex                 # GenStage producer: receives events, buffers for downstream
-│   ├── stored_event.ex            # Ash resource: append-only durable event log (PostgreSQL)
-│   └── topic_mapping.ex           # Maps legacy atom signal names -> dot-delimited topics
+│   └── stored_event.ex            # Ash resource: append-only durable event log (PostgreSQL)
 │
-├── factory/                       # MES project planning + pipeline execution domain
+├── factory/                       # MES project planning + pipeline execution domain (37 files)
 │   ├── artifact.ex                # Embedded SDLC artifact
 │   ├── board.ex                   # Board state Ash resource
-│   ├── completion_handler.ex      # DAG completion signal handler
 │   ├── cron_job.ex                # Durable cron job Ash resource
 │   ├── floor.ex                   # Factory operator control action surface
 │   ├── jsonl_store.ex             # JSONL file read/write helpers
@@ -68,36 +65,26 @@ lib/ichor/
 │       ├── project_discovery_worker.ex        # Oban cron: scan directories for new projects
 │       └── reset_run_tasks_worker.ex          # Oban: reset in_progress tasks on crash (AD-8)
 │
-├── infrastructure/                # Host layer: adapters, fleet processes, runtime
+├── fleet/                         # OTP process layer: live agent and team GenServers (9 files)
 │   ├── agent_backend.ex           # Selects delivery backend for an agent (tmux/webhook/mailbox)
 │   ├── agent_delivery.ex          # Delivers messages to an agent via its backend
-│   ├── agent_launch.ex            # Lifecycle operations for individual agent start/stop
 │   ├── agent_message.ex           # Agent message Ash resource
 │   ├── agent_process.ex           # BEAM GenServer per live agent (mailbox, liveness polling)
 │   ├── agent_registry_projection.ex # Builds/derives ETS registry metadata for agent processes
 │   ├── agent_spec.ex              # Generic runtime agent spec struct
 │   ├── agent_state.ex             # Agent state Ash resource
-│   ├── ansi_utils.ex              # ANSI escape -> HTML rendering
+│   ├── supervisor.ex              # DynamicSupervisor for teams and standalone agents
+│   └── team_supervisor.ex         # Per-team DynamicSupervisor
+│
+├── infrastructure/                # I/O boundary: external adapters only (19 files)
 │   ├── channel.ex                 # Channel behaviour (tmux, webhook, mailbox)
-│   ├── cleanup.ex                 # Runtime cleanup: kill tmux sessions, remove files
 │   ├── cron_scheduler.ex          # Cron scheduling API (Oban-backed)
-│   ├── fleet_supervisor.ex        # DynamicSupervisor for teams and standalone agents
-│   ├── hitl_relay.ex              # HITL pause/unpause lifecycle GenServer with ETS buffer
-│   ├── hitl/
-│   │   ├── buffer.ex              # ETS buffer for messages while session is paused
-│   │   └── session_state.ex       # HITL per-session pause state
 │   ├── host_registry.ex           # ETS registry for BEAM cluster nodes
 │   ├── memories_client.ex         # HTTP client for external Memories knowledge graph API
 │   ├── operations.ex              # Ash action surface for infrastructure operations
 │   ├── output_capture.ex          # Polls tmux pane output
 │   ├── plugs/
 │   │   └── operator_auth.ex       # Phoenix plug: validates operator auth header
-│   ├── registration.ex            # Agent/team BEAM Registry registration helpers
-│   ├── team_launch.ex             # Orchestrates full team launch (prompts -> tmux -> registration)
-│   ├── team_launch/
-│   │   └── session.ex             # Creates tmux session and windows during team launch
-│   ├── team_spec.ex               # Generic runtime team spec struct
-│   ├── team_supervisor.ex         # Per-team DynamicSupervisor
 │   ├── tmux.ex                    # Tmux runtime adapter
 │   ├── tmux/
 │   │   ├── command.ex             # Builds tmux CLI commands
@@ -119,18 +106,29 @@ lib/ichor/
 ├── operator/
 │   └── inbox.ex                   # Writes messages to agent inbox files on disk
 │
-├── projector/                     # Signal-driven GenServer projectors (react to Signals domain)
+├── orchestration/                 # Use case orchestrators: agent + team launch/cleanup (6 files)
+│   ├── agent_launch.ex            # Lifecycle operations for individual agent start/stop
+│   ├── cleanup.ex                 # Runtime cleanup: kill tmux sessions, remove files
+│   ├── registration.ex            # Agent/team BEAM Registry registration helpers
+│   ├── team_launch.ex             # Orchestrates full team launch (prompts -> tmux -> registration)
+│   ├── team_launch/
+│   │   └── session.ex             # Creates tmux session and windows during team launch
+│   └── team_spec.ex               # Generic runtime team spec struct
+│
+├── projector/                     # Signal-driven GenServer projectors (13 files)
 │   ├── agent_watchdog.ex          # Consolidated health monitor: heartbeat, crash detection, escalation, pane scan
 │   ├── agent_watchdog/
 │   │   ├── escalation_engine.ex   # Progressive nudge/pause/zombie escalation logic
 │   │   └── pane_scanner.ex        # Scans tmux panes for DONE/BLOCKED markers
 │   ├── cleanup_dispatcher.ex      # Routes :cleanup signals -> Oban workers (archive, reset, disband, kill)
+│   ├── completion_handler.ex      # DAG completion signal handler (moved from Factory)
 │   ├── fleet_lifecycle.ex         # Reacts to :fleet signals -> spawn/terminate AgentProcess + TeamSupervisor
 │   ├── mes_project_ingestor.ex    # Detects MES project payloads in messages, creates Factory.Project
 │   ├── mes_research_ingestor.ex   # On :mes_project_created, ingests brief artifact into Memories
 │   ├── protocol_tracker.ex        # Correlates multi-protocol message traces in ETS
 │   ├── signal_buffer.ex           # Ring buffer (200 entries) for all signals; re-broadcasts on "signals:feed"
 │   ├── signal_manager.ex          # Archon's signal-fed state: compact attention queue, severity tracking
+│   ├── team_spawn_handler.ex      # Signal-driven team spawn listener (moved from Workshop)
 │   └── team_watchdog.ex           # Detects unexpected team deaths, dispatches :cleanup signals
 │
 ├── settings/                      # Settings Ash domain
@@ -139,8 +137,8 @@ lib/ichor/
 │       ├── git_info.ex            # Embedded git info (branch, commit, dirty)
 │       └── location.ex            # Embedded filesystem location
 │
-├── signals/                       # Reactive backbone: ADR-026 GenStage pipeline
-│   ├── action_handler.ex          # Dispatches Signal activations to system actions (HITL, Bus, log)
+├── signals/                       # Reactive backbone: ADR-026 GenStage pipeline (20 files)
+│   ├── action_handler.ex          # Dispatches Signal activations to system actions (Bus, log, etc.)
 │   ├── behaviour.ex               # Signal module behaviour contract (6 callbacks)
 │   ├── bus.ex                     # Single message delivery authority
 │   ├── catalog.ex                 # Declarative signal catalog with category metadata
@@ -149,7 +147,6 @@ lib/ichor/
 │   ├── event_stream/
 │   │   ├── agent_lifecycle.ex     # Signal emission helpers for agent lifecycle events
 │   │   └── normalizer.ex          # Normalizes raw hook events into %Event{} structs
-│   ├── hitl_intervention_event.ex # Ash resource: durable HITL audit record
 │   ├── message.ex                 # Signal message struct
 │   ├── operations.ex              # Ash action surface for messaging and signal operations
 │   ├── pipeline_supervisor.ex     # Supervises Ingress (producer) + Router (consumer) with rest_for_one
@@ -163,7 +160,7 @@ lib/ichor/
 │       ├── message_protocol.ex    # Signal: checks messages against team comm_rules
 │       └── tool_budget.ex         # Signal: fires when tool calls exceed session limit
 │
-└── workshop/                      # Agent + team design domain
+└── workshop/                      # Agent + team design domain (27 files)
     ├── active_team.ex             # Read action surface for active teams (ETS-backed)
     ├── agent.ex                   # Read action surface for live agents (ETS-backed)
     ├── agent_def.ex               # Persisted agent definition Ash resource (belongs to AgentType)
@@ -189,7 +186,6 @@ lib/ichor/
     ├── team.ex                    # Durable authored team definition (Ash resource)
     ├── team_member.ex             # Team member definition (Ash resource)
     ├── team_prompts.ex            # Prompt templates for MES team agent roles
-    ├── team_spawn_handler.ex      # Signal-driven team spawn listener
     ├── team_spec.ex               # TeamSpec builder with prompt_module injection (AD-6)
     ├── team_sync.ex               # Team sync utilities
     └── types/
