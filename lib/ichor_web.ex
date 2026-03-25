@@ -88,6 +88,8 @@ defmodule IchorWeb do
       # Core UI components
       import IchorWeb.CoreComponents
       import IchorWeb.IchorComponents, only: [stable_select: 1]
+      # UI component library (Layer 0 primitives + Layer 1 semantic primitives)
+      import IchorWeb.UI
 
       # Common modules used in templates
       alias IchorWeb.Layouts
