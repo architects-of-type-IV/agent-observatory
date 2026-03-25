@@ -5,9 +5,9 @@ defmodule Ichor.Application do
 
   use Application
 
-  alias Ichor.Orchestration.AgentLaunch
   alias Ichor.Infrastructure.CronScheduler
   alias Ichor.Notes
+  alias Ichor.Orchestration.AgentLaunch
   alias Ichor.Signals.Bus
 
   @impl true

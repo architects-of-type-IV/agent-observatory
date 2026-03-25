@@ -168,9 +168,6 @@ defmodule IchorWeb.DashboardState do
     ]
 
     [teams, all_teams, agents] = Task.await_many(tasks, 5_000)
-    event_tasks = []
-    errors = []
-    error_groups = []
 
     # Session derivation (Fleet.Queries)
     all_sessions =
@@ -192,11 +189,7 @@ defmodule IchorWeb.DashboardState do
     sel_team = find_team(teams, selected_team)
 
     active_tasks =
-      cond do
-        sel_team && sel_team.tasks != [] -> sel_team.tasks
-        event_tasks != [] -> event_tasks
-        true -> []
-      end
+      if sel_team && sel_team.tasks != [], do: sel_team.tasks, else: []
 
     # Tmux session list (for sidebar) + per-session windows
     tmux_session_names = safe_tmux_sessions()
@@ -228,8 +221,8 @@ defmodule IchorWeb.DashboardState do
     |> assign(:event_notes, event_notes)
     |> assign(:selected_team, selected_team)
     |> assign(:sel_team, sel_team)
-    |> assign(:errors, errors)
-    |> assign(:error_groups, error_groups)
+    |> assign(:errors, [])
+    |> assign(:error_groups, [])
     |> assign(:mailbox_messages, mailbox_messages)
     |> assign(:tmux_sessions, tmux_session_names)
     |> assign(:tmux_session_windows, tmux_session_windows)

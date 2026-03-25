@@ -8,7 +8,7 @@ defmodule Ichor.Workshop.Preparations.LoadTeams do
   alias Ash.DataLayer.Simple
   alias Ichor.Fleet.AgentProcess
   alias Ichor.Fleet.TeamSupervisor
-  alias Ichor.Signals.EventStream, as: EventBuffer
+  alias Ichor.Signals.EventStream, as: EventRuntime
   alias Ichor.Workshop.ActiveTeam
   alias Ichor.Workshop.Analysis.AgentHealth
 
@@ -16,7 +16,7 @@ defmodule Ichor.Workshop.Preparations.LoadTeams do
 
   @impl true
   def prepare(query, _opts, _context) do
-    events = EventBuffer.list_events()
+    events = EventRuntime.list_events()
     now = DateTime.utc_now()
 
     registry_by_id = build_registry_lookup()

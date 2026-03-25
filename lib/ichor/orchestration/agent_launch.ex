@@ -6,10 +6,10 @@ defmodule Ichor.Orchestration.AgentLaunch do
   require Logger
 
   alias Ichor.Fleet.AgentSpec
-  alias Ichor.Orchestration.Cleanup
   alias Ichor.Infrastructure.HostRegistry
-  alias Ichor.Orchestration.Registration
   alias Ichor.Infrastructure.Tmux.{Launcher, Script}
+  alias Ichor.Orchestration.Cleanup
+  alias Ichor.Orchestration.Registration
 
   @agents_dir Path.expand("~/.ichor/agents")
 

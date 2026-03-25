@@ -5,9 +5,9 @@ defmodule Ichor.Orchestration.Cleanup do
 
   alias Ichor.Fleet.Supervisor, as: FleetSupervisor
   alias Ichor.Fleet.TeamSupervisor
-  alias Ichor.Orchestration.Registration
   alias Ichor.Infrastructure.Tmux.{Launcher, Script}
-  alias Ichor.Signals.EventStream, as: EventBuffer
+  alias Ichor.Orchestration.Registration
+  alias Ichor.Signals.EventStream, as: EventRuntime
 
   @gc_script Path.expand("~/.claude/skills/dag/scripts/gc.sh")
 
@@ -23,7 +23,7 @@ defmodule Ichor.Orchestration.Cleanup do
         :ok
       end
 
-    EventBuffer.remove_session(agent_id)
+    EventRuntime.remove_session(agent_id)
     result
   end
 
