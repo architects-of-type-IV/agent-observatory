@@ -49,6 +49,17 @@ defmodule Ichor.Signals.Agent.ToolBudget do
   end
 
   @impl true
+  def handle(%Ichor.Signals.Signal{} = signal) do
+    require Logger
+
+    Logger.warning(
+      "[Signal] #{signal.name} session=#{signal.key} count=#{signal.metadata[:count]}/#{signal.metadata[:limit]}"
+    )
+
+    :ok
+  end
+
+  @impl true
   @spec reset(map()) :: map()
   def reset(state), do: %{state | count: 0, metadata: %{}}
 end

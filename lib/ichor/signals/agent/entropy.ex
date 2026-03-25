@@ -101,6 +101,54 @@ defmodule Ichor.Signals.Agent.Entropy do
   end
 
   @impl true
+  def handle(%Ichor.Signals.Signal{} = signal) do
+    require Logger
+    score = signal.metadata[:entropy_score]
+    severity = signal.metadata[:severity]
+
+    Logger.warning(
+      "[Signal] #{signal.name} session=#{signal.key} score=#{score} severity=#{severity}"
+    )
+
+    case severity do
+      :loop ->
+        Ichor.Events.emit(
+          Ichor.Events.Event.new("gateway.entropy.alert", signal.key, %{
+            session_id: signal.key,
+            entropy_score: score
+          })
+        )
+
+        Ichor.Events.emit(
+          Ichor.Events.Event.new("gateway.node.state_update", signal.key, %{
+            agent_id: signal.key,
+            state: "alert_entropy"
+          })
+        )
+
+      :warning ->
+        Ichor.Events.emit(
+          Ichor.Events.Event.new("gateway.node.state_update", signal.key, %{
+            agent_id: signal.key,
+            state: "blocked"
+          })
+        )
+
+      :normal ->
+        if signal.metadata[:prior_severity] in [:warning, :loop] do
+          Ichor.Events.emit(
+            Ichor.Events.Event.new("gateway.node.state_update", signal.key, %{
+              agent_id: signal.key,
+              state: "active"
+            })
+          )
+        end
+    end
+
+    :ok
+  end
+
+  @impl true
   @spec reset(map()) :: map()
   def reset(state) do
     current_severity = get_in(state, [:metadata, :severity]) || :normal

@@ -21,7 +21,7 @@ defmodule Ichor.Signals.SignalProcess do
   @idle_timeout_ms 300_000
   @flush_interval_ms 10_000
 
-  defstruct [:module, :key, :state, :handler, last_event_at: nil]
+  defstruct [:module, :key, :state, last_event_at: nil]
 
   @spec start_link(keyword()) :: GenServer.on_start()
   def start_link(opts) do
@@ -55,12 +55,11 @@ defmodule Ichor.Signals.SignalProcess do
   def init(opts) do
     module = Keyword.fetch!(opts, :module)
     key = Keyword.fetch!(opts, :key)
-    handler = Keyword.get(opts, :handler, Ichor.Signals.ActionHandler)
     signal_state = module.init_state(key)
     signal_state = maybe_replay(module, key, signal_state)
     schedule_tick()
 
-    {:ok, %__MODULE__{module: module, key: key, state: signal_state, handler: handler}}
+    {:ok, %__MODULE__{module: module, key: key, state: signal_state}}
   end
 
   @impl true
@@ -154,7 +153,11 @@ defmodule Ichor.Signals.SignalProcess do
         s
 
       signal ->
-        s.handler.handle(signal)
+        module = s.module
+
+        Task.Supervisor.start_child(Ichor.TaskSupervisor, fn ->
+          module.handle(signal)
+        end)
 
         Phoenix.PubSub.broadcast(
           Ichor.PubSub,

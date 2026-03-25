@@ -71,6 +71,14 @@ defmodule Ichor.Signal do
       @spec reset(map()) :: map()
       def reset(state), do: %{state | events: [], metadata: %{}}
 
+      @impl true
+      @spec handle(Ichor.Signals.Signal.t()) :: :ok
+      def handle(%Ichor.Signals.Signal{} = signal) do
+        require Logger
+        Logger.info("[Signal] #{signal.name} key=#{inspect(signal.key)}")
+        :ok
+      end
+
       @spec handle_info(map(), term()) :: map()
       def handle_info(state, _msg), do: state
 
@@ -80,6 +88,7 @@ defmodule Ichor.Signal do
                      build_signal: 1,
                      reset: 1,
                      signal_name: 0,
+                     handle: 1,
                      handle_info: 2
     end
   end

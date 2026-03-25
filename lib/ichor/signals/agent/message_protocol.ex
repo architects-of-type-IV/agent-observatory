@@ -74,6 +74,22 @@ defmodule Ichor.Signals.Agent.MessageProtocol do
   end
 
   @impl true
+  def handle(%Ichor.Signals.Signal{} = signal) do
+    violations = signal.metadata[:violations] || []
+    Logger.warning("[Signal] #{signal.name} team=#{signal.key} violations=#{length(violations)}")
+
+    Ichor.Signals.Bus.send(%{
+      from: "system",
+      to: "operator",
+      content:
+        "Protocol violation in team #{signal.key}: #{length(violations)} violation(s) detected",
+      type: :alert
+    })
+
+    :ok
+  end
+
+  @impl true
   @spec reset(map()) :: map()
   def reset(state), do: %{state | events: [], violations: [], metadata: %{}}
 

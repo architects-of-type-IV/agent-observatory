@@ -13,5 +13,6 @@ defmodule Ichor.Signals.Behaviour do
   @callback handle_event(state :: map(), event :: Event.t()) :: map()
   @callback ready?(state :: map(), trigger :: :event | :timer) :: boolean()
   @callback build_signal(state :: map()) :: Signal.t() | nil
+  @callback handle(signal :: Signal.t()) :: :ok
   @callback reset(state :: map()) :: map()
 end
