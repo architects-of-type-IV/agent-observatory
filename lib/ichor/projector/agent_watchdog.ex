@@ -29,7 +29,7 @@ defmodule Ichor.Projector.AgentWatchdog do
 
   @default_stale_threshold 600
   @default_nudge_interval 300
-  @default_max_level 3
+  @default_max_level 2
 
   # State shape:
   # %{
@@ -50,13 +50,20 @@ defmodule Ichor.Projector.AgentWatchdog do
     Ichor.Signals.subscribe(:fleet)
     schedule()
 
+    cfg = %{
+      stale_threshold: config(:stale_threshold_sec, @default_stale_threshold),
+      nudge_interval: config(:nudge_interval_sec, @default_nudge_interval),
+      max_level: config(:max_level, @default_max_level)
+    }
+
     {:ok,
      %{
        count: 0,
        sessions: %{},
        escalations: %{},
        captures: %{},
-       signals: %{}
+       signals: %{},
+       cfg: cfg
      }}
   end
 
@@ -181,9 +188,9 @@ defmodule Ichor.Projector.AgentWatchdog do
 
   defp run_escalation_check(state) do
     now = DateTime.utc_now()
-    stale_threshold = config(:stale_threshold_sec, @default_stale_threshold)
-    nudge_interval = config(:nudge_interval_sec, @default_nudge_interval)
-    max_level = config(:max_level, @default_max_level)
+
+    %{stale_threshold: stale_threshold, nudge_interval: nudge_interval, max_level: max_level} =
+      state.cfg
 
     stale_agents =
       AgentProcess.list_all()
@@ -200,7 +207,7 @@ defmodule Ichor.Projector.AgentWatchdog do
         now,
         nudge_interval,
         max_level,
-        &execute_escalation/3
+        &execute_escalation(&1, &2, &3, stale_threshold)
       )
 
     pruned =
@@ -216,12 +223,12 @@ defmodule Ichor.Projector.AgentWatchdog do
     rest
   end
 
-  defp execute_escalation(session_id, agent, level) do
+  defp execute_escalation(session_id, agent, level, stale_threshold) do
     agent_name = agent[:name] || agent[:short_name] || AgentEntry.short_id(session_id)
-    do_escalate(level, session_id, agent_name)
+    do_escalate(level, session_id, agent_name, stale_threshold)
   end
 
-  defp do_escalate(0, session_id, agent_name) do
+  defp do_escalate(0, session_id, agent_name, _stale_threshold) do
     Logger.warning("AgentWatchdog: Agent #{agent_name} (#{session_id}) is stale (level 0)")
 
     Ichor.Signals.emit(:nudge_warning, %{
@@ -231,12 +238,11 @@ defmodule Ichor.Projector.AgentWatchdog do
     })
   end
 
-  defp do_escalate(1, session_id, agent_name) do
+  defp do_escalate(1, session_id, agent_name, stale_threshold) do
     Logger.warning("AgentWatchdog: Nudging #{agent_name} via tmux (level 1)")
-    threshold = config(:stale_threshold_sec, @default_stale_threshold)
 
     nudge_message =
-      "[Ichor] Are you still working? No activity detected for >#{threshold}s. " <>
+      "[Ichor] Are you still working? No activity detected for >#{stale_threshold}s. " <>
         "Reply or take action to clear this alert."
 
     case Bus.send(%{
@@ -255,27 +261,17 @@ defmodule Ichor.Projector.AgentWatchdog do
     Ichor.Signals.emit(:nudge_sent, %{session_id: session_id, agent_name: agent_name, level: 1})
   end
 
-  defp do_escalate(2, session_id, agent_name) do
-    Logger.warning("AgentWatchdog: Agent #{agent_name} escalated (level 2) -- no activity")
+  defp do_escalate(2, session_id, agent_name, _stale_threshold) do
+    Logger.warning("AgentWatchdog: Agent #{agent_name} marked zombie (level 2)")
 
-    Ichor.Signals.emit(:nudge_escalated, %{
+    Ichor.Signals.emit(:nudge_zombie, %{
       session_id: session_id,
       agent_name: agent_name,
       level: 2
     })
   end
 
-  defp do_escalate(3, session_id, agent_name) do
-    Logger.warning("AgentWatchdog: Agent #{agent_name} marked zombie (level 3)")
-
-    Ichor.Signals.emit(:nudge_zombie, %{
-      session_id: session_id,
-      agent_name: agent_name,
-      level: 3
-    })
-  end
-
-  defp do_escalate(_level, _session_id, _agent_name), do: :ok
+  defp do_escalate(_level, _session_id, _agent_name, _stale_threshold), do: :ok
 
   defp update_session_activity(%{hook_event_type: :SessionStart} = event, sessions) do
     team_name = extract_team_name(event)

@@ -14,6 +14,8 @@ defmodule Ichor.Workshop do
       define :create_agent_type, action: :create
       define :update_agent_type, action: :update
       define :destroy_agent_type, action: :destroy
+      define :get_agent_type_by_id, action: :read, get_by: [:id]
+      define :list_sorted_agent_types, action: :sorted
     end
 
     resource Ichor.Workshop.AgentDef do
@@ -32,9 +34,12 @@ defmodule Ichor.Workshop do
 
     resource Ichor.Workshop.Team do
       define :list_teams, action: :read
+      define :list_all_teams, action: :list_all
       define :create_team, action: :create
       define :update_team, action: :update
       define :destroy_team, action: :destroy
+      define :get_team_by_id, action: :read, get_by: [:id]
+      define :spawn_team, action: :spawn_team, args: [:name]
     end
 
     resource(Ichor.Workshop.Agent)

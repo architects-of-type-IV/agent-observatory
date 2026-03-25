@@ -7,12 +7,13 @@ defmodule IchorWeb.DashboardWorkshopHandlers do
 
   import Phoenix.Component, only: [assign: 3]
 
-  alias Ichor.Workshop.{AgentType, CanvasState, Presets, Team, TeamSync}
+  alias Ichor.Workshop
+  alias Ichor.Workshop.{CanvasState, Presets, TeamSync}
   alias IchorWeb.WorkshopPersistence, as: WP
   alias Phoenix.LiveView
 
-  def list_teams, do: Team.list_all!()
-  def list_agent_types, do: AgentType.sorted!()
+  def list_teams, do: Workshop.list_all_teams!()
+  def list_agent_types, do: Workshop.list_sorted_agent_types!()
   defdelegate push_ws_state(socket), to: WP
 
   def handle_event("ws_add_agent", _, socket) do
@@ -31,7 +32,7 @@ defmodule IchorWeb.DashboardWorkshopHandlers do
   end
 
   def handle_event("ws_add_agent_from_type", %{"id" => id}, socket) do
-    case AgentType.by_id(id) do
+    case Workshop.get_agent_type_by_id(id) do
       {:ok, type} ->
         state =
           socket.assigns
@@ -121,7 +122,7 @@ defmodule IchorWeb.DashboardWorkshopHandlers do
 
   def handle_event("ws_clear", _, socket) do
     if bp_id = socket.assigns[:ws_team_id] do
-      with {:ok, team} <- Team.by_id(bp_id), do: Team.destroy(team)
+      with {:ok, team} <- Workshop.get_team_by_id(bp_id), do: Workshop.destroy_team(team)
     end
 
     {:noreply, socket |> WP.clear_canvas() |> assign(:ws_team_id, nil) |> push_ws_state()}
@@ -145,9 +146,9 @@ defmodule IchorWeb.DashboardWorkshopHandlers do
   end
 
   defp launch_team(state) do
-    with {:ok, team} <- Team.by_id(state.ws_team_id),
+    with {:ok, team} <- Workshop.get_team_by_id(state.ws_team_id),
          :ok <- TeamSync.sync_from_workshop_state(team, state) do
-      Team.spawn_team(team.name)
+      Workshop.spawn_team(team.name)
     end
   end
 

@@ -83,7 +83,8 @@ config :ichor, Oban,
        {"* * * * *", Ichor.Factory.Workers.HealthCheckWorker},
        {"* * * * *", Ichor.Factory.Workers.ProjectDiscoveryWorker},
        {"*/5 * * * *", Ichor.Factory.Workers.OrphanSweepWorker},
-       {"*/5 * * * *", Ichor.Factory.Workers.PipelineReconcilerWorker}
+       {"*/5 * * * *", Ichor.Factory.Workers.PipelineReconcilerWorker},
+       {"0 3 * * *", Ichor.Events.Workers.PruneStoredEventsWorker}
      ]}
   ],
   queues: [

@@ -5,6 +5,9 @@ defmodule Ichor.Signals.SignalProcess do
 
   Started dynamically by the Router via DynamicSupervisor + Registry.
   Shuts down after idle timeout.
+
+  On startup, replays stored events from the last checkpoint position to rebuild
+  accumulator state before accepting live events (ADR-026).
   """
 
   use GenServer, restart: :transient
@@ -12,6 +15,8 @@ defmodule Ichor.Signals.SignalProcess do
   require Logger
 
   alias Ichor.Events.Event
+  alias Ichor.Events.StoredEvent
+  alias Ichor.Signals.Checkpoint
 
   @idle_timeout_ms 300_000
   @flush_interval_ms 10_000
@@ -52,6 +57,7 @@ defmodule Ichor.Signals.SignalProcess do
     key = Keyword.fetch!(opts, :key)
     handler = Keyword.get(opts, :handler, Ichor.Signals.ActionHandler)
     signal_state = module.init_state(key)
+    signal_state = maybe_replay(module, key, signal_state)
     schedule_tick()
 
     {:ok, %__MODULE__{module: module, key: key, state: signal_state, handler: handler}}
@@ -96,6 +102,52 @@ defmodule Ichor.Signals.SignalProcess do
 
   defp schedule_tick, do: Process.send_after(self(), :tick, @flush_interval_ms)
 
+  defp maybe_replay(module, key, state) do
+    module_name = to_string(module)
+    key_str = to_string(key)
+
+    case Checkpoint.for_resume(module_name, key_str) do
+      {:ok, [%Checkpoint{} = checkpoint | _]} ->
+        replay_from(module, checkpoint.last_event_occurred_at, state)
+
+      _ ->
+        state
+    end
+  rescue
+    err ->
+      Logger.warning("[SignalProcess] Replay error for #{inspect(module)}: #{inspect(err)}")
+      state
+  end
+
+  defp replay_from(module, since, state) do
+    topics = module.topics()
+
+    case StoredEvent.for_replay(topics, since) do
+      {:ok, events} ->
+        Enum.reduce(events, state, fn stored, acc ->
+          event = stored_to_event(stored)
+          module.handle_event(acc, event)
+        end)
+
+      {:error, reason} ->
+        Logger.warning("[SignalProcess] for_replay failed: #{inspect(reason)}")
+        state
+    end
+  end
+
+  defp stored_to_event(%StoredEvent{} = stored) do
+    %Event{
+      id: stored.id,
+      topic: stored.topic,
+      key: stored.key,
+      occurred_at: stored.occurred_at,
+      causation_id: stored.causation_id,
+      correlation_id: stored.correlation_id,
+      data: stored.data,
+      metadata: stored.metadata
+    }
+  end
+
   defp flush(%__MODULE__{} = s) do
     case s.module.build_signal(s.state) do
       nil ->
@@ -110,7 +162,22 @@ defmodule Ichor.Signals.SignalProcess do
           {:signal_activated, signal}
         )
 
+        persist_checkpoint(s)
         %{s | state: s.module.reset(s.state)}
     end
+  end
+
+  defp persist_checkpoint(%__MODULE__{} = s) do
+    module_name = to_string(s.module)
+    key_str = to_string(s.key)
+    now = DateTime.utc_now()
+
+    Task.Supervisor.start_child(Ichor.TaskSupervisor, fn ->
+      Checkpoint.create(%{
+        signal_module: module_name,
+        key: key_str,
+        last_event_occurred_at: now
+      })
+    end)
   end
 end
