@@ -14,8 +14,8 @@ defmodule Ichor.Infrastructure.Workers.SessionCleanupWorker do
     max_attempts: 3,
     unique: [period: 60, keys: [:session, :action]]
 
-  alias Ichor.Orchestration.Cleanup
   alias Ichor.Fleet.Supervisor, as: FleetSupervisor
+  alias Ichor.Orchestration.Cleanup
 
   @impl Oban.Worker
   def perform(%Oban.Job{args: %{"session" => session, "action" => "kill"}}) do

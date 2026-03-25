@@ -30,6 +30,8 @@ defmodule Ichor.Signal do
     quote do
       @behaviour Ichor.Signals.Behaviour
 
+      alias Ichor.Signals.Signal
+
       @impl true
       @spec signal_name() :: String.t()
       def signal_name do
@@ -57,7 +59,7 @@ defmodule Ichor.Signal do
       @impl true
       @spec build_signal(map()) :: Ichor.Signals.Signal.t()
       def build_signal(state) do
-        Ichor.Signals.Signal.new(
+        Signal.new(
           signal_name(),
           state.key,
           Enum.reverse(state.events),

@@ -9,8 +9,8 @@ defmodule IchorWeb.DashboardTmuxHandlers do
   import Phoenix.LiveView, only: [push_event: 3]
   import IchorWeb.DashboardToast, only: [push_toast: 3]
 
-  alias Ichor.Orchestration.AgentLaunch
   alias Ichor.Infrastructure.Tmux
+  alias Ichor.Orchestration.AgentLaunch
 
   def dispatch("connect_tmux", p, s), do: handle_connect_tmux(p, s)
   def dispatch("connect_tmux_split", p, s), do: handle_connect_tmux_split(p, s)

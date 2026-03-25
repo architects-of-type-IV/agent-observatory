@@ -11,10 +11,10 @@ defmodule Ichor.Orchestration.TeamLaunch do
   """
 
   alias Ichor.Fleet.Supervisor, as: FleetSupervisor
+  alias Ichor.Infrastructure.Tmux.{Launcher, Script}
   alias Ichor.Orchestration.Registration
   alias Ichor.Orchestration.TeamLaunch.Session
   alias Ichor.Orchestration.TeamSpec
-  alias Ichor.Infrastructure.Tmux.{Launcher, Script}
 
   @doc "Launch a full multi-agent team: creates tmux session, all windows, and registers all agents."
   @spec launch(TeamSpec.t()) :: {:ok, String.t()} | {:error, term()}

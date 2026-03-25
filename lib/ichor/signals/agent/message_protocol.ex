@@ -22,6 +22,8 @@ defmodule Ichor.Signals.Agent.MessageProtocol do
 
   require Logger
 
+  alias Ichor.Workshop.Team
+
   @impl true
   @spec topics() :: [String.t()]
   def topics, do: ["agent.message.sent"]
@@ -84,7 +86,7 @@ defmodule Ichor.Signals.Agent.MessageProtocol do
 
   @spec load_comm_rules(String.t()) :: [map()]
   defp load_comm_rules(team_name) do
-    case Ichor.Workshop.Team.by_name(team_name) do
+    case Team.by_name(team_name) do
       {:ok, team} -> Enum.filter(team.comm_rules || [], &deny_rule?/1)
       _ -> []
     end

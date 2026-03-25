@@ -11,7 +11,10 @@ defmodule Ichor.MixProject do
       aliases: aliases(),
       deps: deps(),
       listeners: [Phoenix.CodeReloader],
-      dialyzer: [plt_add_apps: [:mix, :ex_unit, :gen_stage]],
+      dialyzer: [
+        plt_add_apps: [:mix, :ex_unit, :gen_stage],
+        ignore_warnings: ".dialyzer_ignore.exs"
+      ],
       xref: [exclude: xref_excludes()],
       consolidate_protocols: Mix.env() != :dev
     ]

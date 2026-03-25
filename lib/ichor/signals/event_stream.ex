@@ -19,6 +19,8 @@ defmodule Ichor.Signals.EventStream do
 
   require Logger
 
+  alias Ichor.Events.Event
+  alias Ichor.Events.Ingress
   alias Ichor.Signals
   alias Ichor.Signals.EventStream.{AgentLifecycle, Normalizer}
 
@@ -434,28 +436,28 @@ defmodule Ichor.Signals.EventStream do
 
       topic ->
         domain_event =
-          Ichor.Events.Event.new(
+          Event.new(
             topic,
             event.session_id,
             Map.from_struct(event),
             %{source: :event_stream, hook_type: event.hook_event_type}
           )
 
-        Ichor.Events.Ingress.push(domain_event)
+        Ingress.push(domain_event)
     end
   end
 
   @spec bridge_message_sent(String.t(), map()) :: :ok
   defp bridge_message_sent(session_id, fields) do
     domain_event =
-      Ichor.Events.Event.new(
+      Event.new(
         "agent.message.sent",
         session_id,
         fields,
         %{source: :event_stream}
       )
 
-    Ichor.Events.Ingress.push(domain_event)
+    Ingress.push(domain_event)
   end
 
   defp event_topic(:PreToolUse), do: "agent.tool.started"

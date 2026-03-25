@@ -111,7 +111,7 @@ defmodule Ichor.Infrastructure.Tmux do
     |> Enum.uniq()
   end
 
-  @doc "List all windows in a session as `%{name: \"window-name\", target: \"session:window\"}`."
+  @doc ~S'List all windows in a session as `%{name: "window-name", target: "session:window"}`.'
   @spec list_windows(String.t()) :: [%{name: String.t(), target: String.t()}]
   def list_windows(session) do
     case Command.try_all(["list-windows", "-t", session, "-F", "\#{window_name}"]) do

@@ -3,6 +3,8 @@ defmodule IchorWeb.DebugController do
   use IchorWeb, :controller
 
   alias Ichor.Fleet.AgentProcess
+  alias Ichor.Fleet.Supervisor, as: FleetSupervisor
+  alias Ichor.Fleet.TeamSupervisor
   alias Ichor.Infrastructure.Tmux
   alias Ichor.Projector.ProtocolTracker
   alias Ichor.Projector.SignalBuffer, as: Buffer
@@ -186,9 +188,6 @@ defmodule IchorWeb.DebugController do
   end
 
   def mes_cleanup(conn, _params) do
-    alias Ichor.Fleet.TeamSupervisor
-    alias Ichor.Fleet.Supervisor, as: FleetSupervisor
-
     before = Enum.map(TeamSupervisor.list_all(), &elem(&1, 0))
     mes_teams = Enum.filter(before, &String.starts_with?(&1, "mes-"))
 
