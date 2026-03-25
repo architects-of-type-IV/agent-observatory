@@ -19,6 +19,7 @@ defmodule IchorWeb.DashboardLive do
     only: [list_teams: 0, list_agent_types: 0, push_ws_state: 1]
 
   import IchorWeb.DashboardMessagingHandlers, only: [subscribe_to_mailboxes: 1]
+  import IchorWeb.Components.Primitives.AgentInfoList
   import IchorWeb.Components.Primitives.NavIcon
   import IchorWeb.Components.Primitives.AgentActions
   import IchorWeb.Components.Primitives.CloseButton

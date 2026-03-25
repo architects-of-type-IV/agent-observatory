@@ -20,6 +20,7 @@ defmodule IchorWeb.Components.CommandComponents do
     ]
 
   alias IchorWeb.Components.FleetHelpers, as: FH
+  import IchorWeb.Components.Agent.AgentDetailPanel
   import IchorWeb.Components.Primitives.AgentActions
   import IchorWeb.Components.Primitives.CloseButton
   import IchorWeb.Components.Primitives.EmptyPanel

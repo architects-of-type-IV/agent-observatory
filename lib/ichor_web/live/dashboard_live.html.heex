@@ -521,37 +521,7 @@
 
     <%!-- Agent Info --%>
     <div class="px-4 py-3 border-b border-border/50 shrink-0">
-      <dl class="grid grid-cols-2 gap-x-4 gap-y-1.5 text-[11px]">
-        <div :if={so[:status]} class="flex justify-between col-span-2">
-          <dt class="text-low">Status</dt>
-          <dd class={"font-medium #{if so[:status] == :active, do: "text-success", else: "text-default"}"}>
-            {so[:status]}
-          </dd>
-        </div>
-        <div :if={so[:role]} class="flex justify-between col-span-2">
-          <dt class="text-low">Role</dt>
-          <dd class="text-high">{so[:role]}</dd>
-        </div>
-        <div :if={so[:team]} class="flex justify-between col-span-2">
-          <dt class="text-low">Team</dt>
-          <dd class="text-high">{so[:team]}</dd>
-        </div>
-        <div :if={so[:cwd]} class="flex justify-between col-span-2">
-          <dt class="text-low">CWD</dt>
-          <dd class="text-high font-mono truncate max-w-[200px]" title={so[:cwd]}>
-            {Path.basename(to_string(so[:cwd]))}
-          </dd>
-        </div>
-        <div :if={so[:channels]} class="flex justify-between col-span-2">
-          <dt class="text-low">Channels</dt>
-          <dd class="text-default font-mono text-[10px]">
-            {so[:channels]
-            |> Map.reject(fn {_k, v} -> is_nil(v) end)
-            |> Map.keys()
-            |> Enum.join(", ")}
-          </dd>
-        </div>
-      </dl>
+      <.agent_info_list agent={so} />
     </div>
 
     <%!-- Terminal Output --%>

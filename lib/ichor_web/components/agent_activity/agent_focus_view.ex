@@ -5,7 +5,7 @@ defmodule IchorWeb.Components.AgentActivity.AgentFocusView do
 
   use Phoenix.Component
   import IchorWeb.Components.AgentActivity.ActivityStream
-  import IchorWeb.Presentation, only: [member_status_dot_class: 1]
+  import IchorWeb.Components.Primitives.AgentInfoList
 
   attr :agent, :map, required: true
   attr :events, :list, required: true
@@ -45,40 +45,7 @@ defmodule IchorWeb.Components.AgentActivity.AgentFocusView do
         <div class="p-4 space-y-4">
           <div>
             <h3 class="text-xs font-semibold text-low uppercase mb-2">Agent Info</h3>
-            <div class="space-y-1 text-xs">
-              <div class="flex justify-between">
-                <span class="text-low">Name:</span>
-                <span class="text-high">{@agent[:name] || "?"}</span>
-              </div>
-              <div class="flex justify-between">
-                <span class="text-low">Type:</span>
-                <span class="text-high">{@agent[:agent_type] || "?"}</span>
-              </div>
-              <div class="flex justify-between">
-                <span class="text-low">Model:</span>
-                <span class="text-high">{@agent[:model] || "?"}</span>
-              </div>
-              <div class="flex justify-between">
-                <span class="text-low">Status:</span>
-                <span class={member_status_dot_class(@agent)}>
-                  {format_status(@agent[:status])}
-                </span>
-              </div>
-              <div :if={@agent[:cwd]} class="flex justify-between">
-                <span class="text-low">CWD:</span>
-                <span class="text-default font-mono text-[10px] truncate">
-                  {@agent[:cwd]}
-                </span>
-              </div>
-              <div :if={@agent[:uptime]} class="flex justify-between">
-                <span class="text-low">Uptime:</span>
-                <span class="text-high">{@agent[:uptime]}</span>
-              </div>
-              <div :if={@agent[:event_count]} class="flex justify-between">
-                <span class="text-low">Events:</span>
-                <span class="text-high">{@agent[:event_count]}</span>
-              </div>
-            </div>
+            <.agent_info_list agent={@agent} />
           </div>
 
           <div :if={@tasks != []}>
@@ -110,10 +77,4 @@ defmodule IchorWeb.Components.AgentActivity.AgentFocusView do
     </div>
     """
   end
-
-  # Helper for status display
-  defp format_status(:active), do: "Active"
-  defp format_status(:idle), do: "Idle"
-  defp format_status(:stopped), do: "Stopped"
-  defp format_status(_), do: "Unknown"
 end
