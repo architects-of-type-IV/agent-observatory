@@ -41,6 +41,7 @@ defmodule Ichor.Signals.EventStream do
       {:ok, event} ->
         unless tombstoned?(event.session_id) do
           Signals.emit(:new_event, %{event: event})
+          bridge_to_pipeline(event)
           ingest_event(event)
         end
 
@@ -262,23 +263,29 @@ defmodule Ichor.Signals.EventStream do
     do: AgentLifecycle.handle_team_delete(input)
 
   defp handle_pre_tool_use("SendMessage", event, input) do
-    emit_intercepted(event.session_id, %{
+    fields = %{
       from: event.session_id,
       to: input["recipient"],
       content: input["content"] || input["summary"] || "",
       type: input["type"] || "message"
-    })
+    }
+
+    emit_intercepted(event.session_id, fields)
+    bridge_message_sent(event.session_id, fields)
   end
 
   defp handle_pre_tool_use("mcp__ichor__send_message", event, input) do
     args = input["input"] || %{}
 
-    emit_intercepted(event.session_id, %{
+    fields = %{
       from: args["from_session_id"] || event.session_id,
       to: args["to_session_id"],
       content: args["content"] || "",
       type: "message"
-    })
+    }
+
+    emit_intercepted(event.session_id, fields)
+    bridge_message_sent(event.session_id, fields)
   end
 
   defp handle_pre_tool_use(_tool_name, _event, _input), do: :ok
@@ -436,4 +443,50 @@ defmodule Ichor.Signals.EventStream do
       _ -> :ok
     end
   end
+
+  # ADR-026: EventStream -> GenStage Ingress bridge
+
+  # Converts a normalized hook event to an %Event{} domain fact and pushes it
+  # into the GenStage Ingress so Signal projectors can accumulate it.
+  # Returns :ok for all unrecognised event types (no-op, no error).
+  @spec bridge_to_pipeline(map()) :: :ok
+  defp bridge_to_pipeline(event) do
+    case event_topic(event.hook_event_type) do
+      nil ->
+        :ok
+
+      topic ->
+        domain_event =
+          Ichor.Events.Event.new(
+            topic,
+            event.session_id,
+            Map.from_struct(event) |> Map.drop([:__struct__]),
+            %{source: :event_stream, hook_type: event.hook_event_type}
+          )
+
+        Ichor.Events.Ingress.push(domain_event)
+    end
+  end
+
+  # Pushes an `agent.message.sent` domain event into the GenStage Ingress.
+  # Called from SendMessage / mcp__ichor__send_message intercept handlers.
+  @spec bridge_message_sent(String.t(), map()) :: :ok
+  defp bridge_message_sent(session_id, fields) do
+    domain_event =
+      Ichor.Events.Event.new(
+        "agent.message.sent",
+        session_id,
+        fields,
+        %{source: :event_stream}
+      )
+
+    Ichor.Events.Ingress.push(domain_event)
+  end
+
+  defp event_topic(:PreToolUse), do: "agent.tool.started"
+  defp event_topic(:PostToolUse), do: "agent.tool.completed"
+  defp event_topic(:PostToolUseFailure), do: "agent.tool.failed"
+  defp event_topic(:SessionStart), do: "agent.session.started"
+  defp event_topic(:SessionEnd), do: "agent.session.ended"
+  defp event_topic(_), do: nil
 end

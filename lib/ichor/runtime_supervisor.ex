@@ -13,6 +13,12 @@ defmodule Ichor.RuntimeSupervisor do
   @impl true
   def init(_opts) do
     children = [
+      # ADR-026: Signal-as-Projector pipeline
+      {Registry, keys: :unique, name: Ichor.Signals.ProcessRegistry},
+      {DynamicSupervisor, name: Ichor.Signals.ProcessSupervisor, strategy: :one_for_one},
+      Ichor.Events.Ingress,
+      Ichor.Signals.Router,
+
       # Core infrastructure services
       {Ichor.MemoryStore, []},
       {Ichor.Signals.EventStream, []},

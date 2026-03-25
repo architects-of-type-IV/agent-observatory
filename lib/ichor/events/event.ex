@@ -1,11 +1,11 @@
 defmodule Ichor.Events.Event do
   @moduledoc """
-  Normalized event envelope. One shape for every domain event in the system.
+  Single event envelope for all domain facts in the ICHOR event system.
 
-  Events are domain facts, not framework noise:
-  - "agent.session.started" not "session_started"
-  - "chat.message.created" not "new_event"
-  - "pipeline.task.completed" not "pipeline_task_completed"
+  Events use dot-delimited topic strings (not atoms):
+  - "chat.message.created" -- good: domain fact
+  - "agent.session.started" -- good: domain fact
+  - "new_event" -- bad: framework noise
   """
 
   @enforce_keys [:id, :topic, :key, :occurred_at, :data]
@@ -17,7 +17,7 @@ defmodule Ichor.Events.Event do
     :causation_id,
     :correlation_id,
     :data,
-    :metadata
+    metadata: %{}
   ]
 
   @type t :: %__MODULE__{
@@ -28,18 +28,16 @@ defmodule Ichor.Events.Event do
           causation_id: String.t() | nil,
           correlation_id: String.t() | nil,
           data: map(),
-          metadata: map() | nil
+          metadata: map()
         }
 
   @spec new(String.t(), term(), map(), map()) :: t()
-  def new(topic, key, data, metadata \\ %{}) do
+  def new(topic, key, data, metadata \\ %{}) when is_binary(topic) do
     %__MODULE__{
       id: Ash.UUID.generate(),
       topic: topic,
       key: key,
       occurred_at: DateTime.utc_now(),
-      causation_id: nil,
-      correlation_id: nil,
       data: data,
       metadata: metadata
     }
