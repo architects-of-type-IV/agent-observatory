@@ -46,5 +46,5 @@ defmodule Ichor.Factory.RunRef do
   @spec supervisor(:mes | :pipeline | :planning) :: module()
   def supervisor(:mes), do: Ichor.Factory.BuildRunSupervisor
   def supervisor(:planning), do: Ichor.Factory.PlanRunSupervisor
-  def supervisor(:pipeline), do: Ichor.Factory.DynRunSupervisor
+  def supervisor(:pipeline), do: Ichor.Factory.PipelineRunSupervisor
 end

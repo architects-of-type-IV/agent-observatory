@@ -14,7 +14,6 @@ defmodule Ichor.Infrastructure.AgentDelivery do
 
   alias Ichor.Infrastructure.AgentMessage
   alias Ichor.Infrastructure.Tmux
-  alias Ichor.Infrastructure.Tmux.Ssh, as: SshTmux
   alias Ichor.Infrastructure.WebhookAdapter
 
   @doc "Deliver a single message to the given backend. Returns `:ok` or `{:error, reason}`."
@@ -23,14 +22,6 @@ defmodule Ichor.Infrastructure.AgentDelivery do
 
   def deliver(%{type: :tmux, session: session}, msg) when is_binary(session) do
     Tmux.deliver(session, %{content: AgentMessage.content(msg)})
-  end
-
-  def deliver(%{type: :ssh_tmux, address: address}, msg) when is_binary(address) do
-    SshTmux.deliver(address, %{content: AgentMessage.content(msg)})
-  end
-
-  def deliver(%{type: :ssh_tmux, session: session, host: host}, msg) do
-    SshTmux.deliver("#{session}@#{host}", %{content: AgentMessage.content(msg)})
   end
 
   def deliver(%{type: :webhook, url: url}, msg) do

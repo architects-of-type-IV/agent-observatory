@@ -35,6 +35,10 @@ defmodule Ichor.Application do
       # Fleet host registry (tracks BEAM nodes in the cluster)
       Ichor.Infrastructure.HostRegistry,
 
+      # Task supervisor for fire-and-forget tasks (must start before RuntimeSupervisor and
+      # FleetSupervisor -- OutputCapture and AgentProcess both call Ichor.TaskSupervisor)
+      {Task.Supervisor, name: Ichor.TaskSupervisor},
+
       # Runtime services (shared infrastructure, monitoring, and signal-adjacent processes)
       Ichor.RuntimeSupervisor,
 
@@ -45,20 +49,26 @@ defmodule Ichor.Application do
       Ichor.Projector.FleetLifecycle,
       Ichor.Projector.CleanupDispatcher,
 
-      # Task supervisor for fire-and-forget tasks
-      {Task.Supervisor, name: Ichor.TaskSupervisor},
-
       # Factory planning and pipeline lifecycle
       Ichor.Factory.LifecycleSupervisor,
 
+      # Projectors: signal subscribers for MES project/research ingestion and run completion
+      # (independent of BuildRunSupervisor -- no causal dependency, so not nested inside
+      # LifecycleSupervisor)
+      Ichor.Projector.MesProjectIngestor,
+      Ichor.Projector.MesResearchIngestor,
+      Ichor.Factory.CompletionHandler,
+
       # Workshop runtime launch listener (signal-driven team spawns)
+      # NOTE: TeamSpawnHandler is a projector/signal subscriber; future step is to group it
+      # with the projectors above under a dedicated Projectors.Supervisor.
       Ichor.Workshop.TeamSpawnHandler,
 
       # Planning runs
       {DynamicSupervisor, name: Ichor.Factory.PlanRunSupervisor, strategy: :one_for_one},
 
       # Pipeline execution runs
-      {DynamicSupervisor, name: Ichor.Factory.DynRunSupervisor, strategy: :one_for_one},
+      {DynamicSupervisor, name: Ichor.Factory.PipelineRunSupervisor, strategy: :one_for_one},
 
       # Web endpoint (must start last -- depends on all services above)
       IchorWeb.Endpoint

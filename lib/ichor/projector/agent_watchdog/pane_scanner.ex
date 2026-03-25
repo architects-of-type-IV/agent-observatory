@@ -7,24 +7,19 @@ defmodule Ichor.Projector.AgentWatchdog.PaneScanner do
   """
 
   alias Ichor.Infrastructure.Tmux
-  alias Ichor.Infrastructure.Tmux.Ssh, as: SshTmux
 
   @capture_lines 30
 
   @doc """
   Resolves the capture target and capture function for an agent.
 
-  Returns `{target, capture_fn}` when the agent has a tmux or ssh_tmux channel
+  Returns `{target, capture_fn}` when the agent has a tmux channel
   with a valid target string, or `nil` when no scan is possible.
   """
   @spec resolve_capture_target(agent :: map()) ::
           {String.t(), (String.t() -> {:ok, String.t()} | {:error, any()})} | nil
   def resolve_capture_target(%{channels: %{tmux: target}}) when is_binary(target) do
     if capture_target?(target), do: {target, &Tmux.capture_pane(&1, lines: @capture_lines)}
-  end
-
-  def resolve_capture_target(%{channels: %{ssh_tmux: target}}) when is_binary(target) do
-    if capture_target?(target), do: {target, &SshTmux.capture_pane(&1, lines: @capture_lines)}
   end
 
   def resolve_capture_target(_), do: nil

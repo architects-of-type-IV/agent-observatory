@@ -1,11 +1,12 @@
 defmodule Ichor.Factory.LifecycleSupervisor do
   @moduledoc """
-  Top-level supervisor for Factory planning and pipeline execution.
+  Supervisor for the Factory build run lifecycle.
 
   It owns:
-  - run supervisors for planning and build runs
-  - project ingestion and research ingestion
-  - completion handling
+  - BuildRunSupervisor (DynamicSupervisor for active build runs)
+
+  Signal subscribers (MesProjectIngestor, MesResearchIngestor, CompletionHandler) are
+  independent of BuildRunSupervisor and are started as top-level application children.
 
   The MES tick is now driven by Oban cron (`Workers.MesTick`).
 
@@ -32,13 +33,10 @@ defmodule Ichor.Factory.LifecycleSupervisor do
   @impl true
   def init(_opts) do
     children = [
-      {DynamicSupervisor, name: Ichor.Factory.BuildRunSupervisor, strategy: :one_for_one},
-      {Ichor.Projector.MesProjectIngestor, []},
-      {Ichor.Projector.MesResearchIngestor, []},
-      {Ichor.Factory.CompletionHandler, []}
+      {DynamicSupervisor, name: Ichor.Factory.BuildRunSupervisor, strategy: :one_for_one}
     ]
 
-    Supervisor.init(children, strategy: :rest_for_one, max_restarts: 10, max_seconds: 60)
+    Supervisor.init(children, strategy: :one_for_one, max_restarts: 10, max_seconds: 60)
   end
 
   defp ensure_operator_process do
