@@ -19,7 +19,7 @@ defmodule Ichor.Events.Workers.PruneStoredEventsWorker do
     result =
       Ichor.Events.StoredEvent
       |> Ash.Query.new()
-      |> Ash.bulk_destroy(:prune, %{before: cutoff}, return_errors?: true)
+      |> Ash.bulk_destroy(:prune, %{before: cutoff}, return_errors?: true, domain: Ichor.Events)
 
     case result do
       %Ash.BulkResult{status: :success} ->

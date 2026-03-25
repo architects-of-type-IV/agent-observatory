@@ -44,13 +44,15 @@ defmodule Ichor.Settings.SettingsProject do
     defaults([:read, :destroy])
 
     create :create do
-      accept(:*)
+      accept([:name, :is_active, :location])
       change(Ichor.Settings.SettingsProject.GitInfo)
     end
 
     update :update do
-      accept(:*)
+      # require_atomic? disabled: GitInfo change calls System.cmd (side effect),
+      # and location is an embedded resource -- neither can be expressed as atomic SQL.
       require_atomic?(false)
+      accept([:name, :is_active, :location])
       change(Ichor.Settings.SettingsProject.GitInfo)
     end
   end
