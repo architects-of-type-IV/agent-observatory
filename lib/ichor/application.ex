@@ -41,12 +41,9 @@ defmodule Ichor.Application do
       # Fleet supervisor (BEAM-native teams + agents, after Gateway for channel access)
       Ichor.Infrastructure.FleetSupervisor,
 
-      # Infrastructure subscriber: reacts to Signals-originated session/team lifecycle events
-      Ichor.Infrastructure.Subscribers.SessionLifecycle,
-
-      # Archon cleanup subscribers: react to TeamWatchdog signals and insert domain-local Oban jobs
-      Ichor.Factory.Subscribers.RunCleanupDispatcher,
-      Ichor.Infrastructure.Subscribers.SessionCleanupDispatcher,
+      # Projectors: react to Signals-originated events and perform side effects
+      Ichor.Projector.FleetLifecycle,
+      Ichor.Projector.CleanupDispatcher,
 
       # Mesh topology services (rest_for_one: causal DAG first, then event bridge)
       Ichor.Mesh.Supervisor,
