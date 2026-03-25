@@ -1,18 +1,20 @@
 defmodule Ichor.Signals.Behaviour do
   @moduledoc """
-  Contract for Signal modules. Each Signal is a stateful accumulator that
-  watches event topics, accumulates events, and flushes when ready.
+  Contract for Signal modules.
+
+  A signal is a stateful accumulator that watches domain events,
+  accumulates them, and emits a signal when a readiness condition is met.
+  The handler (what to DO with the signal) is separate.
   """
 
   alias Ichor.Events.Event
   alias Ichor.Signals.Signal
 
-  @callback signal_name() :: String.t()
-  @callback topics() :: [String.t()]
-  @callback init_state(key :: term()) :: map()
-  @callback handle_event(state :: map(), event :: Event.t()) :: map()
-  @callback ready?(state :: map(), trigger :: :event | :timer) :: boolean()
+  @callback name() :: atom()
+  @callback accepts?(event :: Event.t()) :: boolean()
+  @callback init(key :: term()) :: map()
+  @callback handle_event(event :: Event.t(), state :: map()) :: map()
+  @callback ready?(state :: map(), reason :: :event | :timer) :: boolean()
   @callback build_signal(state :: map()) :: Signal.t() | nil
-  @callback handle(signal :: Signal.t()) :: :ok
   @callback reset(state :: map()) :: map()
 end

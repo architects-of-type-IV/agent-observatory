@@ -1,10 +1,10 @@
 defmodule Ichor.Signals.Router do
   @moduledoc """
   GenStage consumer that receives events from Ingress and routes them
-  to the appropriate Signal processes based on topic matching.
+  to matching Signal processes based on `accepts?/1`.
 
-  Signal modules register their topics via `topics/0` callback.
-  One event can route to multiple signal modules.
+  Each signal module decides whether it accepts an event. One event
+  can route to multiple signal modules.
   """
 
   use GenStage
@@ -21,40 +21,33 @@ defmodule Ichor.Signals.Router do
 
   @impl true
   def init(_opts) do
-    {:consumer, %{routing_table: build_routing_table()},
+    {:consumer, %{modules: signal_modules()},
      subscribe_to: [{Ichor.Events.Ingress, max_demand: 50}]}
   end
 
   @impl true
   def handle_events(events, _from, state) do
-    Enum.each(events, fn %Event{} = event ->
-      modules = Map.get(state.routing_table, event.topic, [])
-
-      Enum.each(modules, fn module ->
-        SignalProcess.push_event(module, event.key, event)
-      end)
-    end)
-
+    Enum.each(events, &route(&1, state.modules))
     {:noreply, [], state}
   end
 
-  @doc "Rebuild the routing table. Call after adding new signal modules."
-  @spec refresh_routes() :: :ok
-  def refresh_routes do
-    GenStage.cast(__MODULE__, :refresh_routes)
+  @doc "Reload the signal module list from config."
+  @spec refresh_modules() :: :ok
+  def refresh_modules do
+    GenStage.cast(__MODULE__, :refresh_modules)
   end
 
   @impl true
-  def handle_cast(:refresh_routes, state) do
-    {:noreply, [], %{state | routing_table: build_routing_table()}}
+  def handle_cast(:refresh_modules, state) do
+    {:noreply, [], %{state | modules: signal_modules()}}
   end
 
-  defp build_routing_table do
-    signal_modules()
-    |> Enum.flat_map(fn module ->
-      Enum.map(module.topics(), fn topic -> {topic, module} end)
+  defp route(%Event{} = event, modules) do
+    modules
+    |> Enum.filter(& &1.accepts?(event))
+    |> Enum.each(fn module ->
+      SignalProcess.push_event(module, event.key, event)
     end)
-    |> Enum.group_by(&elem(&1, 0), &elem(&1, 1))
   end
 
   defp signal_modules do

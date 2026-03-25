@@ -1,65 +1,39 @@
 defmodule Ichor.Signals.Agent.ToolBudget do
   @moduledoc """
-  Signal projector that watches `agent.tool.completed` events per session.
+  Fires when tool calls per session exceed a budget limit.
 
-  Fires `"agent.tool.budget.exhausted"` when the tool count for a session
-  exceeds the configured limit. The default limit is 500 tool calls per
-  session lifecycle.
-
-  Key: session_id (string)
+  Key: session_id
+  Fires: "agent.tool.budget.exhausted"
   """
 
   use Ichor.Signal
 
+  @accepted_topics ["agent.tool.completed"]
   @default_limit 500
 
   @impl true
-  @spec topics() :: [String.t()]
-  def topics, do: ["agent.tool.completed"]
+  def name, do: :tool_budget
 
   @impl true
-  @spec init_state(term()) :: map()
-  def init_state(key) do
-    %{key: key, events: [], count: 0, limit: @default_limit, metadata: %{}}
-  end
+  def accepts?(%Event{topic: topic}), do: topic in @accepted_topics
 
   @impl true
-  @spec handle_event(map(), Ichor.Events.Event.t()) :: map()
-  def handle_event(state, _event) do
-    %{state | count: state.count + 1}
-  end
+  def init(key), do: %{key: key, events: [], count: 0, limit: @default_limit}
 
   @impl true
-  @spec ready?(map(), :event | :timer) :: boolean()
+  def handle_event(_event, state), do: %{state | count: state.count + 1}
+
+  @impl true
   def ready?(state, _trigger), do: state.count >= state.limit
 
   @impl true
-  @spec signal_name() :: String.t()
-  def signal_name, do: "agent.tool.budget.exhausted"
-
-  @impl true
-  @spec build_signal(map()) :: Ichor.Signals.Signal.t()
   def build_signal(state) do
-    Ichor.Signals.Signal.new(
-      signal_name(),
-      state.key,
-      [],
-      %{count: state.count, limit: state.limit}
-    )
+    Signal.new("agent.tool.budget.exhausted", state.key, [], %{
+      count: state.count,
+      limit: state.limit
+    })
   end
 
   @impl true
-  def handle(%Ichor.Signals.Signal{} = signal) do
-    require Logger
-
-    Logger.warning(
-      "[Signal] #{signal.name} session=#{signal.key} count=#{signal.metadata[:count]}/#{signal.metadata[:limit]}"
-    )
-
-    :ok
-  end
-
-  @impl true
-  @spec reset(map()) :: map()
-  def reset(state), do: %{state | count: 0, metadata: %{}}
+  def reset(state), do: %{state | count: 0, events: []}
 end

@@ -1,13 +1,12 @@
 defmodule Ichor.Signals.SignalProcess do
   @moduledoc """
-  Stateful accumulator GenServer. One per {signal_module, key}.
-  Accumulates events, checks ready?, calls handler on flush.
+  Generic per-key signal process that delegates policy to a signal module.
+
+  One per {signal_module, key}. Accumulates events, checks readiness,
+  dispatches to SignalHandler async on flush.
 
   Started dynamically by the Router via DynamicSupervisor + Registry.
-  Shuts down after idle timeout.
-
-  On startup, replays stored events from the last checkpoint position to rebuild
-  accumulator state before accepting live events (ADR-026).
+  Replays stored events from last checkpoint on startup (ADR-026).
   """
 
   use GenServer, restart: :transient
@@ -18,17 +17,24 @@ defmodule Ichor.Signals.SignalProcess do
   alias Ichor.Events.StoredEvent
   alias Ichor.Signals.Checkpoint
 
+  @flush_interval 10_000
   @idle_timeout_ms 300_000
-  @flush_interval_ms 10_000
 
-  defstruct [:module, :key, :state, last_event_at: nil]
-
-  @spec start_link(keyword()) :: GenServer.on_start()
   def start_link(opts) do
-    module = Keyword.fetch!(opts, :module)
+    signal_module = Keyword.fetch!(opts, :signal)
     key = Keyword.fetch!(opts, :key)
-    name = {:via, Registry, {Ichor.Signals.ProcessRegistry, {module, key}}}
-    GenServer.start_link(__MODULE__, opts, name: name)
+    GenServer.start_link(__MODULE__, opts, name: via(signal_module, key))
+  end
+
+  def child_spec(opts) do
+    signal_module = Keyword.fetch!(opts, :signal)
+    key = Keyword.fetch!(opts, :key)
+
+    %{
+      id: {__MODULE__, signal_module, key},
+      start: {__MODULE__, :start_link, [opts]},
+      restart: :transient
+    }
   end
 
   @spec push_event(module(), term(), Event.t()) :: :ok
@@ -41,7 +47,7 @@ defmodule Ichor.Signals.SignalProcess do
         [] ->
           case DynamicSupervisor.start_child(
                  Ichor.Signals.ProcessSupervisor,
-                 {__MODULE__, module: module, key: key}
+                 {__MODULE__, signal: module, key: key}
                ) do
             {:ok, pid} -> pid
             {:error, {:already_started, pid}} -> pid
@@ -51,86 +57,135 @@ defmodule Ichor.Signals.SignalProcess do
     GenServer.cast(pid, {:event, event})
   end
 
+  defp via(signal_module, key) do
+    {:via, Registry, {Ichor.Signals.ProcessRegistry, {signal_module, key}}}
+  end
+
   @impl true
   def init(opts) do
-    module = Keyword.fetch!(opts, :module)
+    signal_module = Keyword.fetch!(opts, :signal)
     key = Keyword.fetch!(opts, :key)
-    signal_state = module.init_state(key)
-    signal_state = maybe_replay(module, key, signal_state)
-    schedule_tick()
+    data = signal_module.init(key)
+    data = maybe_replay(signal_module, key, data)
 
-    {:ok, %__MODULE__{module: module, key: key, state: signal_state}}
+    state = %{
+      signal_module: signal_module,
+      key: key,
+      data: data,
+      timer_ref: nil,
+      last_event_at: nil
+    }
+
+    {:ok, schedule_flush(state)}
   end
 
   @impl true
-  def handle_cast({:event, %Event{} = event}, %__MODULE__{} = s) do
-    new_signal_state = s.module.handle_event(s.state, event)
-    s = %{s | state: new_signal_state, last_event_at: System.monotonic_time(:millisecond)}
+  def handle_cast({:event, %Event{} = event}, state) do
+    state =
+      state
+      |> apply_event(event)
+      |> Map.put(:last_event_at, System.monotonic_time(:millisecond))
+      |> maybe_emit(:event)
 
-    if s.module.ready?(new_signal_state, :event) do
-      {:noreply, flush(s)}
-    else
-      {:noreply, s}
-    end
+    {:noreply, state}
   end
 
   @impl true
-  def handle_info(:tick, %__MODULE__{} = s) do
+  def handle_info(:flush, state) do
     now = System.monotonic_time(:millisecond)
-    idle_ms = if s.last_event_at, do: now - s.last_event_at, else: 0
+    idle_ms = if state.last_event_at, do: now - state.last_event_at, else: 0
 
-    cond do
-      idle_ms >= @idle_timeout_ms ->
-        Logger.debug("[SignalProcess] Idle shutdown #{inspect(s.module)}:#{inspect(s.key)}")
-        {:stop, :normal, s}
+    if idle_ms >= @idle_timeout_ms do
+      Logger.debug(
+        "[SignalProcess] Idle shutdown #{inspect(state.signal_module)}:#{inspect(state.key)}"
+      )
 
-      s.module.ready?(s.state, :timer) ->
-        schedule_tick()
-        {:noreply, flush(s)}
+      {:stop, :normal, state}
+    else
+      state =
+        state
+        |> clear_timer()
+        |> maybe_emit(:timer)
+        |> schedule_flush()
 
-      true ->
-        schedule_tick()
-        {:noreply, s}
+      {:noreply, state}
     end
   end
 
-  @impl true
-  def handle_info(msg, %__MODULE__{} = s) do
-    {:noreply, %{s | state: s.module.handle_info(s.state, msg)}}
+  def handle_info(msg, %{signal_module: m, data: d} = state) do
+    {:noreply, %{state | data: m.handle_info(d, msg)}}
   end
 
-  defp schedule_tick, do: Process.send_after(self(), :tick, @flush_interval_ms)
+  defp apply_event(%{signal_module: m, data: d} = state, event) do
+    %{state | data: m.handle_event(event, d)}
+  end
 
-  defp maybe_replay(module, key, state) do
+  defp maybe_emit(%{signal_module: m, data: d} = state, reason) do
+    if m.ready?(d, reason), do: emit_signal(state), else: state
+  end
+
+  defp emit_signal(%{signal_module: m, data: d} = state) do
+    case m.build_signal(d) do
+      nil ->
+        state
+
+      signal ->
+        Task.Supervisor.start_child(Ichor.TaskSupervisor, fn ->
+          Ichor.Signals.SignalHandler.handle(signal)
+        end)
+
+        Phoenix.PubSub.broadcast(
+          Ichor.PubSub,
+          "signal:#{signal.name}",
+          {:signal_activated, signal}
+        )
+
+        persist_checkpoint(state)
+        %{state | data: m.reset(d)}
+    end
+  end
+
+  defp schedule_flush(state) do
+    ref = Process.send_after(self(), :flush, @flush_interval)
+    %{state | timer_ref: ref}
+  end
+
+  defp clear_timer(%{timer_ref: nil} = state), do: state
+
+  defp clear_timer(%{timer_ref: ref} = state) do
+    Process.cancel_timer(ref)
+    %{state | timer_ref: nil}
+  end
+
+  defp maybe_replay(module, key, data) do
     module_name = to_string(module)
     key_str = to_string(key)
 
     case Checkpoint.for_resume(module_name, key_str) do
       {:ok, [%Checkpoint{} = checkpoint | _]} ->
-        replay_from(module, checkpoint.last_event_occurred_at, state)
+        replay_from(module, checkpoint.last_event_occurred_at, data)
 
       _ ->
-        state
+        data
     end
   rescue
     err ->
       Logger.warning("[SignalProcess] Replay error for #{inspect(module)}: #{inspect(err)}")
-      state
+      data
   end
 
-  defp replay_from(module, since, state) do
-    topics = module.topics()
-
-    case StoredEvent.for_replay(topics, since) do
+  defp replay_from(module, since, data) do
+    # Collect all topics this module accepts by checking stored events
+    case StoredEvent.since(since) do
       {:ok, events} ->
-        Enum.reduce(events, state, fn stored, acc ->
-          event = stored_to_event(stored)
-          module.handle_event(acc, event)
-        end)
+        events
+        |> Enum.map(&stored_to_event/1)
+        |> Enum.filter(&module.accepts?/1)
+        |> Enum.reduce(data, fn event, acc -> module.handle_event(event, acc) end)
 
       {:error, reason} ->
-        Logger.warning("[SignalProcess] for_replay failed: #{inspect(reason)}")
-        state
+        Logger.warning("[SignalProcess] Replay failed: #{inspect(reason)}")
+        data
     end
   end
 
@@ -147,32 +202,9 @@ defmodule Ichor.Signals.SignalProcess do
     }
   end
 
-  defp flush(%__MODULE__{} = s) do
-    case s.module.build_signal(s.state) do
-      nil ->
-        s
-
-      signal ->
-        module = s.module
-
-        Task.Supervisor.start_child(Ichor.TaskSupervisor, fn ->
-          module.handle(signal)
-        end)
-
-        Phoenix.PubSub.broadcast(
-          Ichor.PubSub,
-          "signal:#{signal.name}",
-          {:signal_activated, signal}
-        )
-
-        persist_checkpoint(s)
-        %{s | state: s.module.reset(s.state)}
-    end
-  end
-
-  defp persist_checkpoint(%__MODULE__{} = s) do
-    module_name = to_string(s.module)
-    key_str = to_string(s.key)
+  defp persist_checkpoint(state) do
+    module_name = to_string(state.signal_module)
+    key_str = to_string(state.key)
     now = DateTime.utc_now()
 
     Task.Supervisor.start_child(Ichor.TaskSupervisor, fn ->
