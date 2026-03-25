@@ -7,7 +7,6 @@ defmodule Ichor.Infrastructure.AgentProcess do
   Backend transport (tmux, SSH, webhook) is handled by `AgentDelivery`.
   Message normalization lives in `AgentMessage`.
   Registry projection logic lives in `AgentRegistryProjection`.
-  Lifecycle signal emission lives in `AgentLifecycle`.
   Backend liveness/termination lives in `AgentBackend`.
   Pure state transitions live in `AgentState`.
   """
@@ -18,7 +17,6 @@ defmodule Ichor.Infrastructure.AgentProcess do
 
   alias Ichor.Infrastructure.AgentBackend
   alias Ichor.Infrastructure.AgentDelivery
-  alias Ichor.Infrastructure.AgentLifecycle
   alias Ichor.Infrastructure.AgentRegistryProjection
   alias Ichor.Infrastructure.AgentState
 
@@ -193,7 +191,7 @@ defmodule Ichor.Infrastructure.AgentProcess do
     :pg.join(@pg_scope, {:agent, id}, self())
     if Keyword.get(opts, :liveness_poll, false), do: schedule_liveness_check()
 
-    AgentLifecycle.agent_started(id, name, role, team)
+    Ichor.Signals.emit(:agent_started, %{session_id: id, name: name, role: role, team: team})
     {:ok, state}
   end
 
@@ -216,7 +214,7 @@ defmodule Ichor.Infrastructure.AgentProcess do
         :ok
     end
 
-    AgentLifecycle.agent_paused(state.id, state.name)
+    Ichor.Signals.emit(:agent_paused, %{session_id: state.id, name: state.name})
     {:reply, :ok, %{state | status: :paused}}
   end
 
@@ -231,7 +229,7 @@ defmodule Ichor.Infrastructure.AgentProcess do
         :ok
     end
 
-    AgentLifecycle.agent_resumed(state.id, state.name)
+    Ichor.Signals.emit(:agent_resumed, %{session_id: state.id, name: state.name})
     {pending, new_state} = AgentState.drain_pending(state)
     new_state = %{new_state | status: :active}
     async_deliver_many(new_state.backend, pending)
@@ -323,13 +321,24 @@ defmodule Ichor.Infrastructure.AgentProcess do
   @impl true
   def terminate(:normal, %{status: :terminating} = state) do
     # Tmux window already dead -- skip backend kill, just emit the lifecycle signal.
-    AgentLifecycle.agent_stopped(state.id, state.name, :tmux_gone)
+    Ichor.Signals.emit(:agent_stopped, %{
+      session_id: state.id,
+      name: state.name,
+      reason: :tmux_gone
+    })
+
     :ok
   end
 
   def terminate(reason, state) do
     AgentBackend.terminate(state.backend)
-    AgentLifecycle.agent_stopped(state.id, state.name, reason)
+
+    Ichor.Signals.emit(:agent_stopped, %{
+      session_id: state.id,
+      name: state.name,
+      reason: reason
+    })
+
     :ok
   end
 

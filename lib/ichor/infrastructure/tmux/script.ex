@@ -3,8 +3,6 @@ defmodule Ichor.Infrastructure.Tmux.Script do
   Materializes prompt and launch script files for tmux-backed agents.
   """
 
-  alias Ichor.Infrastructure.Tmux.Helpers
-
   @doc "Write the prompt file and launch shell script for an agent to `base_dir`."
   @spec write_agent_files(String.t(), String.t(), String.t(), String.t(), String.t()) ::
           {:ok, map()} | {:error, term()}
@@ -48,7 +46,7 @@ defmodule Ichor.Infrastructure.Tmux.Script do
   def render_script(prompt_path, model, capability) do
     cli_args =
       ["--model", model]
-      |> Helpers.add_permission_args(capability)
+      |> add_permission_args(capability)
       |> Enum.join(" ")
 
     "#!/bin/sh\ncat '#{prompt_path}' | env -u CLAUDECODE claude #{cli_args}\nsleep infinity\n"
@@ -57,4 +55,25 @@ defmodule Ichor.Infrastructure.Tmux.Script do
   defp sanitize_name(name) do
     String.replace(name, ~r/[^a-zA-Z0-9_-]/, "")
   end
+
+  defp add_permission_args(args, cap) when cap in ["builder", "lead", "coordinator"],
+    do: args ++ ["--dangerously-skip-permissions"]
+
+  defp add_permission_args(args, "scout"),
+    do:
+      args ++
+        [
+          "--allowedTools",
+          "Read",
+          "Glob",
+          "Grep",
+          "WebSearch",
+          "WebFetch",
+          "Bash",
+          "mcp__ichor__check_inbox",
+          "mcp__ichor__send_message",
+          "mcp__ichor__acknowledge_message"
+        ]
+
+  defp add_permission_args(args, _), do: args
 end

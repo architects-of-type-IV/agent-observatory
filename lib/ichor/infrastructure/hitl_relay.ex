@@ -5,13 +5,11 @@ defmodule Ichor.Infrastructure.HITLRelay do
   When a session is paused, incoming messages are buffered in ETS via
   `HITL.Buffer`.  On unpause, buffered messages are flushed in arrival order
   via PubSub.  Session pause/resume state is managed by `HITL.SessionState`.
-  Signal emission is delegated to `HITL.Events`.
   """
 
   use GenServer
 
   alias Ichor.Infrastructure.HITL.Buffer
-  alias Ichor.Infrastructure.HITL.Events
   alias Ichor.Infrastructure.HITL.SessionState
 
   @sweep_interval :timer.minutes(30)
@@ -109,7 +107,7 @@ defmodule Ichor.Infrastructure.HITLRelay do
         {:reply, {:ok, :already_paused}, state}
 
       false ->
-        Events.gate_open(session_id)
+        Ichor.Signals.emit(:gate_open, session_id, %{session_id: session_id})
         {:reply, :ok, SessionState.pause(state, session_id)}
     end
   end
@@ -118,7 +116,7 @@ defmodule Ichor.Infrastructure.HITLRelay do
     case SessionState.paused?(state, session_id) do
       true ->
         flushed_count = flush_buffer(session_id)
-        Events.gate_close(session_id)
+        Ichor.Signals.emit(:gate_close, session_id, %{session_id: session_id})
         {:reply, {:ok, flushed_count}, SessionState.resume(state, session_id)}
 
       false ->
@@ -156,7 +154,7 @@ defmodule Ichor.Infrastructure.HITLRelay do
 
   def handle_call({:reject, session_id, _agent_id, _operator_id}, _from, state) do
     Buffer.discard(session_id)
-    Events.gate_close(session_id)
+    Ichor.Signals.emit(:gate_close, session_id, %{session_id: session_id})
     {:reply, :ok, SessionState.resume(state, session_id)}
   end
 
@@ -166,7 +164,7 @@ defmodule Ichor.Infrastructure.HITLRelay do
 
     Enum.each(abandoned, fn sid ->
       flush_buffer(sid)
-      Events.auto_released(sid)
+      Ichor.Signals.emit(:hitl_auto_released, %{session_id: sid})
     end)
 
     schedule_sweep()
@@ -183,7 +181,7 @@ defmodule Ichor.Infrastructure.HITLRelay do
     entries = Buffer.fetch(session_id)
 
     Enum.each(entries, fn {key, msg} ->
-      Events.decision_log(msg)
+      Ichor.Signals.emit(:decision_log, %{log: msg})
       Buffer.delete(key)
     end)
 

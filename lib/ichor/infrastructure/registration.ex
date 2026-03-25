@@ -9,7 +9,6 @@ defmodule Ichor.Infrastructure.Registration do
   alias Ichor.Infrastructure.AgentSpec
   alias Ichor.Infrastructure.FleetSupervisor
   alias Ichor.Infrastructure.TeamSupervisor
-  alias Ichor.Infrastructure.Tmux.Helpers
 
   @doc "Ensure a TeamSupervisor exists for `name`, creating it if absent."
   @spec ensure_team(String.t()) :: :ok | {:error, term()}
@@ -28,11 +27,11 @@ defmodule Ichor.Infrastructure.Registration do
     process_opts = [
       id: spec.agent_id,
       name: spec.name,
-      role: Helpers.capability_to_role(spec.capability || "builder"),
+      role: capability_to_role(spec.capability || "builder"),
       team: spec.team_name,
       liveness_poll: true,
       backend: %{type: :tmux, session: tmux_target},
-      capabilities: Helpers.capabilities_for(spec.capability || "builder"),
+      capabilities: capabilities_for(spec.capability || "builder"),
       metadata:
         Map.put(spec.metadata, :cwd, spec.cwd) |> Map.put_new(:model, spec.model || "sonnet")
     ]
@@ -128,4 +127,13 @@ defmodule Ichor.Infrastructure.Registration do
         end
     end
   end
+
+  defp capability_to_role("coordinator"), do: :coordinator
+  defp capability_to_role("lead"), do: :lead
+  defp capability_to_role(_), do: :worker
+
+  defp capabilities_for("coordinator"), do: [:read, :write, :spawn, :assign, :escalate, :kill]
+  defp capabilities_for("lead"), do: [:read, :write, :spawn, :assign, :escalate]
+  defp capabilities_for("scout"), do: [:read]
+  defp capabilities_for(_), do: [:read, :write]
 end

@@ -7,8 +7,8 @@ defmodule Ichor.Projector.CleanupDispatcher do
 
     - `:run_cleanup_needed` with `action: :archive`      -> ArchiveRunWorker
     - `:run_cleanup_needed` with `action: :reset_tasks`  -> ResetRunTasksWorker
-    - `:session_cleanup_needed` with `action: :disband`  -> DisbandTeamWorker
-    - `:session_cleanup_needed` with `action: :kill`     -> KillSessionWorker
+    - `:session_cleanup_needed` with `action: :disband`  -> SessionCleanupWorker (action: "disband")
+    - `:session_cleanup_needed` with `action: :kill`     -> SessionCleanupWorker (action: "kill")
 
   All Oban inserts use a 60-second deduplication window to avoid duplicate jobs
   for the same resource.
@@ -20,8 +20,7 @@ defmodule Ichor.Projector.CleanupDispatcher do
 
   alias Ichor.Factory.Workers.ArchiveRunWorker
   alias Ichor.Factory.Workers.ResetRunTasksWorker
-  alias Ichor.Infrastructure.Workers.DisbandTeamWorker
-  alias Ichor.Infrastructure.Workers.KillSessionWorker
+  alias Ichor.Infrastructure.Workers.SessionCleanupWorker
   alias Ichor.Signals
   alias Ichor.Signals.Message
 
@@ -58,7 +57,13 @@ defmodule Ichor.Projector.CleanupDispatcher do
         %Message{name: :session_cleanup_needed, data: %{session: session, action: :disband}},
         state
       ) do
-    insert_job(%{"session" => session}, DisbandTeamWorker, period: 60, keys: [:session])
+    insert_job(
+      %{"session" => session, "action" => "disband"},
+      SessionCleanupWorker,
+      period: 60,
+      keys: [:session, :action]
+    )
+
     {:noreply, state}
   end
 
@@ -67,7 +72,13 @@ defmodule Ichor.Projector.CleanupDispatcher do
         %Message{name: :session_cleanup_needed, data: %{session: session, action: :kill}},
         state
       ) do
-    insert_job(%{"session" => session}, KillSessionWorker, period: 60, keys: [:session])
+    insert_job(
+      %{"session" => session, "action" => "kill"},
+      SessionCleanupWorker,
+      period: 60,
+      keys: [:session, :action]
+    )
+
     {:noreply, state}
   end
 

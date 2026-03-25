@@ -10,13 +10,11 @@ defmodule Ichor.Infrastructure.Tmux do
 
   Low-level command execution lives in `Tmux.Command`.
   Server discovery and caching lives in `Tmux.ServerSelector`.
-  Output parsing lives in `Tmux.Parser`.
   """
 
   @behaviour Ichor.Infrastructure.Channel
 
   alias Ichor.Infrastructure.Tmux.Command
-  alias Ichor.Infrastructure.Tmux.Parser
   alias Ichor.Infrastructure.Tmux.ServerSelector
 
   @impl true
@@ -89,8 +87,8 @@ defmodule Ichor.Infrastructure.Tmux do
       case Command.run(args ++ ["list-panes", "-a", "-F", @pane_format]) do
         {:ok, output} ->
           output
-          |> Parser.split_lines()
-          |> Enum.map(&Parser.parse_pane_line/1)
+          |> split_lines()
+          |> Enum.map(&parse_pane_line/1)
           |> Enum.reject(&is_nil/1)
 
         {:error, _} ->
@@ -106,7 +104,7 @@ defmodule Ichor.Infrastructure.Tmux do
     ServerSelector.server_arg_sets()
     |> Enum.flat_map(fn args ->
       case Command.run(args ++ ["list-sessions", "-F", "\#{session_name}"]) do
-        {:ok, output} -> Parser.split_lines(output)
+        {:ok, output} -> split_lines(output)
         {:error, _} -> []
       end
     end)
@@ -119,7 +117,7 @@ defmodule Ichor.Infrastructure.Tmux do
     case Command.try_all(["list-windows", "-t", session, "-F", "\#{window_name}"]) do
       {:ok, output} ->
         output
-        |> Parser.split_lines()
+        |> split_lines()
         |> Enum.map(fn name -> %{name: name, target: "#{session}:#{name}"} end)
 
       {:error, _} ->
@@ -146,4 +144,21 @@ defmodule Ichor.Infrastructure.Tmux do
   @doc "Return tmux args for the first responsive ichor server."
   @spec socket_args() :: [String.t()]
   def socket_args, do: ServerSelector.first_responsive()
+
+  # --- Parser helpers (inlined from Tmux.Parser) ---
+
+  defp parse_pane_line(line) do
+    case String.split(line, "\t") do
+      [pane_id, session, title, pid] ->
+        %{pane_id: pane_id, session: session, title: title, pid: pid}
+
+      [pane_id, session, title] ->
+        %{pane_id: pane_id, session: session, title: title, pid: nil}
+
+      _ ->
+        nil
+    end
+  end
+
+  defp split_lines(output), do: String.split(output, "\n", trim: true)
 end

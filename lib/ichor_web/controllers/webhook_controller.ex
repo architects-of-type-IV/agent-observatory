@@ -3,13 +3,13 @@ defmodule IchorWeb.WebhookController do
 
   use IchorWeb, :controller
 
-  alias Ichor.Infrastructure.WebhookRouter
+  alias Ichor.Infrastructure.WebhookAdapter
 
   def create(conn, %{"webhook_id" => webhook_id}) do
     with {:ok, signature} <- get_signature(conn),
          {:ok, body} <- read_body_once(conn),
          {:ok, secret} <- get_secret(webhook_id),
-         true <- WebhookRouter.verify_signature(body, secret, signature) do
+         true <- WebhookAdapter.verify_signature(body, secret, signature) do
       conn
       |> put_status(:ok)
       |> json(%{"status" => "ok", "webhook_id" => webhook_id})

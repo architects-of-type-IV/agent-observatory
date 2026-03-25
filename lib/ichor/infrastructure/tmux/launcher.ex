@@ -3,7 +3,7 @@ defmodule Ichor.Infrastructure.Tmux.Launcher do
   Shared tmux session and window lifecycle operations.
   """
 
-  alias Ichor.Infrastructure.Tmux.Helpers
+  @ichor_socket Path.expand("~/.ichor/tmux/obs.sock")
 
   @doc "Create a new detached tmux session with a named first window running `command`."
   @spec create_session(String.t(), String.t(), String.t(), String.t()) :: :ok | {:error, term()}
@@ -46,9 +46,16 @@ defmodule Ichor.Infrastructure.Tmux.Launcher do
   end
 
   defp tmux(args) do
-    case System.cmd("tmux", Helpers.tmux_args() ++ args, stderr_to_stdout: true) do
+    case System.cmd("tmux", tmux_args() ++ args, stderr_to_stdout: true) do
       {output, 0} -> {:ok, output}
       {output, code} -> {:error, {:tmux_failed, code, String.trim(output)}}
+    end
+  end
+
+  defp tmux_args do
+    case File.exists?(@ichor_socket) do
+      true -> ["-S", @ichor_socket]
+      false -> ["-L", "obs"]
     end
   end
 end

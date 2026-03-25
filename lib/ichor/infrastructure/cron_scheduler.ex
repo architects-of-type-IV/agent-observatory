@@ -4,7 +4,6 @@ defmodule Ichor.Infrastructure.CronScheduler do
   require Logger
 
   alias Ichor.Factory.CronJob
-  alias Ichor.Infrastructure.CronSchedule
   alias Ichor.Infrastructure.Workers.ScheduledJob
 
   @doc """
@@ -16,8 +15,8 @@ defmodule Ichor.Infrastructure.CronScheduler do
   @spec schedule_once(String.t(), pos_integer(), term()) ::
           :ok | {:error, :invalid_delay | :insert_failed}
   def schedule_once(agent_id, delay_ms, payload) do
-    with :ok <- CronSchedule.validate_delay(delay_ms),
-         next_fire_at = CronSchedule.next_fire_at(delay_ms),
+    with :ok <- validate_delay(delay_ms),
+         next_fire_at = next_fire_at(delay_ms),
          encoded = Jason.encode!(payload),
          {:ok, job} <- CronJob.schedule_once(agent_id, encoded, next_fire_at) do
       enqueue_once_job(job, agent_id, encoded, delay_ms)
@@ -67,7 +66,7 @@ defmodule Ichor.Infrastructure.CronScheduler do
   def recover_jobs do
     list_all_jobs()
     |> Enum.each(fn job ->
-      delay = max(CronSchedule.delay_until(job.next_fire_at), 0)
+      delay = delay_until(job.next_fire_at)
       delay_seconds = div(delay, 1000)
 
       result =
@@ -86,4 +85,19 @@ defmodule Ichor.Infrastructure.CronScheduler do
       end
     end)
   end
+
+  # --- Schedule math helpers (inlined from CronSchedule) ---
+
+  defp next_fire_at(delay_ms) when is_integer(delay_ms) and delay_ms > 0 do
+    DateTime.utc_now()
+    |> DateTime.add(delay_ms, :millisecond)
+    |> DateTime.truncate(:second)
+  end
+
+  defp delay_until(%DateTime{} = fire_at) do
+    max(DateTime.diff(fire_at, DateTime.utc_now(), :millisecond), 0)
+  end
+
+  defp validate_delay(delay_ms) when is_integer(delay_ms) and delay_ms > 0, do: :ok
+  defp validate_delay(_), do: {:error, :invalid_delay}
 end
