@@ -1,13 +1,7 @@
 <div class="space-y-4">
   <div class="flex items-center justify-between">
     <h2 class="text-[11px] font-semibold text-high uppercase tracking-wider">Projects</h2>
-    <button
-      phx-click="settings_project_event"
-      phx-value-action="new"
-      class="ichor-btn text-[10px] px-2 py-1"
-    >
-      + Add Project
-    </button>
+    <.button phx-click="settings_project_event" phx-value-action="new">+ Add Project</.button>
   </div>
 
   <%!-- Create/Edit form --%>
@@ -69,14 +63,11 @@
                 class="flex-1 bg-base border border-border rounded px-2 py-1 text-[11px] text-high focus:border-interactive focus:outline-none"
                 placeholder="/path/to/project"
               />
-              <button
+              <.button
                 type="button"
                 phx-click="settings_project_event"
                 phx-value-action="browse"
-                class="ichor-btn text-[10px] px-2 py-1"
-              >
-                Browse
-              </button>
+              >Browse</.button>
             </div>
           </div>
 
@@ -139,22 +130,16 @@
               <div class="flex items-center justify-between px-2 py-1.5 border-t border-border-subtle bg-raised/50">
                 <span class="text-[10px] text-muted font-mono truncate">{@folder_browser.current}</span>
                 <div class="flex gap-2 shrink-0">
-                  <button
+                  <.button
                     type="button"
                     phx-click="settings_project_event"
                     phx-value-action="browse_close"
-                    class="ichor-btn-muted text-[10px] px-2 py-0.5"
-                  >
-                    Cancel
-                  </button>
-                  <button
+                  >Cancel</.button>
+                  <.button
                     type="button"
                     phx-click="settings_project_event"
                     phx-value-action="browse_select"
-                    class="ichor-btn text-[10px] px-2 py-0.5"
-                  >
-                    Select
-                  </button>
+                  >Select</.button>
                 </div>
               </div>
             </div>
@@ -210,15 +195,12 @@
         </.inputs_for>
 
         <div class="flex gap-2 mt-4">
-          <button type="submit" name="action" value="save" class="ichor-btn text-[10px] px-3 py-1">Save</button>
-          <button
+          <button type="submit" name="action" value="save" class="ichor-btn ichor-btn-muted">Save</button>
+          <.button
             type="button"
             phx-click="settings_project_event"
             phx-value-action="cancel"
-            class="ichor-btn-muted text-[10px] px-3 py-1"
-          >
-            Cancel
-          </button>
+          >Cancel</.button>
         </div>
       </.form>
     </div>

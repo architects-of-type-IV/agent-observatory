@@ -58,19 +58,13 @@
       <form phx-submit="send_command_message" class="flex gap-2">
         <input type="hidden" name="to" value={@agent[:agent_id]} />
         <div id={"cmd-msg-#{@agent[:agent_id]}"} phx-update="ignore" class="flex-1">
-          <input
-            type="text"
+          <.input
             name="content"
             placeholder={"Message #{@agent[:name] || "agent"}..."}
-            class="w-full bg-raised border border-border-subtle rounded px-2 py-1 text-xs text-high placeholder-muted focus:border-interactive focus:ring-0 focus:outline-none"
+            class="w-full"
           />
         </div>
-        <button
-          type="submit"
-          class="px-2 py-1 bg-interactive/20 text-interactive rounded text-xs hover:bg-interactive/30 transition"
-        >
-          Send
-        </button>
+        <.button type="submit" variant="primary">Send</.button>
       </form>
     </div>
   </div>

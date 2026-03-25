@@ -45,14 +45,13 @@
     <div class="px-2 pb-1.5 flex flex-col gap-1">
       <div class="ichor-pill">
         <form phx-change="search_feed" class="flex-1">
-          <input
-            type="text"
+          <IchorWeb.UI.input
             name="q"
             value={@search_feed}
             placeholder="Search events... (tool, command, file, message, team)"
             autocomplete="off"
             phx-debounce="150"
-            class="w-full bg-raised/80 px-2 py-1 text-[11px] text-high placeholder-muted focus:outline-none border-none"
+            class="w-full border-none"
           />
         </form>
         <form phx-change="filter">
@@ -577,9 +576,7 @@
         tmux_session={so[:channels][:tmux]}
       />
       <div class="flex-1"></div>
-      <button phx-click="close_agent_slideout" class="ichor-btn ichor-btn-muted text-[10px]">
-        Close
-      </button>
+      <IchorWeb.UI.button phx-click="close_agent_slideout">Close</IchorWeb.UI.button>
     </div>
   </div>
 </div>

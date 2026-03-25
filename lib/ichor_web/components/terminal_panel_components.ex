@@ -14,6 +14,8 @@ defmodule IchorWeb.Components.TerminalPanelComponents do
 
   use Phoenix.Component
 
+  import IchorWeb.UI, only: [button: 1]
+
   import IchorWeb.Components.TerminalPanel.Helpers,
     only: [floating_style: 3, split_sessions: 3]
 
@@ -237,7 +239,7 @@ defmodule IchorWeb.Components.TerminalPanelComponents do
                 autocomplete="off"
                 class="flex-1 term-input"
               />
-              <button type="submit" class="ichor-btn ichor-btn-primary text-[10px]">Send</button>
+              <.button type="submit" variant="primary">Send</.button>
             </form>
           </div>
         </div>

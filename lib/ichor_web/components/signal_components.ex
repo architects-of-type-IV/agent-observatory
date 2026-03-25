@@ -6,6 +6,8 @@ defmodule IchorWeb.Components.SignalComponents do
   """
   use Phoenix.Component
 
+  import IchorWeb.UI, only: [input: 1]
+
   alias Ichor.Signals.{Catalog, Message}
   alias IchorWeb.SignalFeed.Renderer
 
@@ -72,14 +74,13 @@ defmodule IchorWeb.Components.SignalComponents do
             Live Feed
           </h3>
           <form phx-change="stream_search" class="flex-1">
-            <input
-              type="text"
+            <.input
               name="q"
               value={@stream_filter}
               placeholder="Filter by signal, category, or content..."
               autocomplete="off"
               phx-debounce="100"
-              class="w-full bg-raised/80 px-2 py-1 text-[11px] text-high placeholder-muted focus:outline-none border border-border-subtle/60 rounded"
+              class="w-full"
             />
           </form>
           <button

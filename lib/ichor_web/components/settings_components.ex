@@ -6,6 +6,8 @@ defmodule IchorWeb.Components.SettingsComponents do
 
   use Phoenix.Component
 
+  import IchorWeb.UI, only: [button: 1]
+
   embed_templates "settings_components/*"
 
   @categories [

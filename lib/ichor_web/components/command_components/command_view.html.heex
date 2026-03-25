@@ -103,9 +103,9 @@ selected = @selected_command_agent %>
             phx-hook="ClearFormOnSubmit"
             class="flex-1 min-w-0"
           >
-            <input type="text" name="content" placeholder="Message..." class="w-full ichor-input" />
+            <.input name="content" placeholder="Message..." class="w-full" />
           </div>
-          <button type="submit" class="ichor-btn ichor-btn-primary shrink-0">Send</button>
+          <.button type="submit" variant="primary" class="shrink-0">Send</.button>
         </form>
         <form phx-submit="launch_session" class="flex gap-1 shrink-0">
           <div id="project-select-stable" phx-update="ignore">
@@ -116,7 +116,7 @@ selected = @selected_command_agent %>
               <% end %>
             </select>
           </div>
-          <button type="submit" class="ichor-btn ichor-btn-success shrink-0">Launch</button>
+          <.button type="submit" variant="success" class="shrink-0">Launch</.button>
         </form>
       </div>
     </div>

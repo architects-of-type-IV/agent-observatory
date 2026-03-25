@@ -38,21 +38,22 @@ tree = wc.spawn_tree_html(@ws_agents, @ws_spawn_links) %>
         <%= if @ws_agent_types != [] do %>
           <div class="flex items-center gap-0.5">
             <%= for type <- @ws_agent_types do %>
-              <button
+              <.button
                 phx-click="ws_add_agent_from_type"
                 phx-value-id={type.id}
-                class="ichor-btn ichor-btn-muted text-[9px] flex items-center gap-1 cursor-pointer"
+                size="xs"
+                class="flex items-center gap-1 cursor-pointer"
                 title={"Add #{type.name} agent"}
               >
                 <span
                   class="w-[5px] h-[5px] rounded-full shrink-0"
                   style={"background: #{wc.cap_dot(type.capability)}"}
                 /> + {type.name}
-              </button>
+              </.button>
             <% end %>
           </div>
         <% else %>
-          <button phx-click="ws_add_agent" class="ichor-btn ichor-btn-success">+ Agent</button>
+          <.button phx-click="ws_add_agent" variant="success">+ Agent</.button>
         <% end %>
         <span class="flex-1" />
         <span class="text-[10px] text-low">
@@ -106,12 +107,9 @@ tree = wc.spawn_tree_html(@ws_agents, @ws_spawn_links) %>
           </h4>
           <form phx-change="ws_update_team" phx-submit="ws_update_team" class="space-y-2">
             <div>
-              <label class="block text-[10px] font-semibold text-low uppercase tracking-wider mb-1">
-                Team Name
-              </label>
-              <input
-                type="text"
-                class="w-full ichor-input"
+              <.label class="block mb-1">Team Name</.label>
+              <.input
+                class="w-full"
                 value={@ws_team_name}
                 name="name"
                 phx-debounce="300"
@@ -119,9 +117,7 @@ tree = wc.spawn_tree_html(@ws_agents, @ws_spawn_links) %>
             </div>
             <div class="flex gap-2">
               <div class="flex-1">
-                <label class="block text-[10px] font-semibold text-low uppercase tracking-wider mb-1">
-                  Strategy
-                </label>
+                <.label class="block mb-1">Strategy</.label>
                 <select class="w-full ichor-select" name="strategy">
                   <option value="one_for_one" selected={@ws_strategy == "one_for_one"}>
                     one_for_one
@@ -135,9 +131,7 @@ tree = wc.spawn_tree_html(@ws_agents, @ws_spawn_links) %>
                 </select>
               </div>
               <div class="flex-1">
-                <label class="block text-[10px] font-semibold text-low uppercase tracking-wider mb-1">
-                  Default Model
-                </label>
+                <.label class="block mb-1">Default Model</.label>
                 <select class="w-full ichor-select" name="default_model">
                   <option value="sonnet" selected={@ws_default_model == "sonnet"}>sonnet</option>
                   <option value="opus" selected={@ws_default_model == "opus"}>opus</option>
@@ -146,12 +140,9 @@ tree = wc.spawn_tree_html(@ws_agents, @ws_spawn_links) %>
               </div>
             </div>
             <div>
-              <label class="block text-[10px] font-semibold text-low uppercase tracking-wider mb-1">
-                Project / CWD
-              </label>
-              <input
-                type="text"
-                class="w-full ichor-input font-mono"
+              <.label class="block mb-1">Project / CWD</.label>
+              <.input
+                class="w-full font-mono"
                 value={@ws_cwd}
                 name="cwd"
                 phx-debounce="300"
@@ -167,12 +158,9 @@ tree = wc.spawn_tree_html(@ws_agents, @ws_spawn_links) %>
           </h4>
           <form phx-change="ws_update_agent" phx-submit="ws_update_agent" class="space-y-2">
             <div>
-              <label class="block text-[10px] font-semibold text-low uppercase tracking-wider mb-1">
-                Name
-              </label>
-              <input
-                type="text"
-                class="w-full ichor-input"
+              <.label class="block mb-1">Name</.label>
+              <.input
+                class="w-full"
                 value={selected.name}
                 name="name"
                 phx-debounce="300"
@@ -180,9 +168,7 @@ tree = wc.spawn_tree_html(@ws_agents, @ws_spawn_links) %>
             </div>
             <div class="flex gap-2">
               <div class="flex-1">
-                <label class="block text-[10px] font-semibold text-low uppercase tracking-wider mb-1">
-                  Capability
-                </label>
+                <.label class="block mb-1">Capability</.label>
                 <select class="w-full ichor-select" name="capability">
                   <option
                     :for={cap <- ~w(builder scout reviewer lead coordinator)}
@@ -194,9 +180,7 @@ tree = wc.spawn_tree_html(@ws_agents, @ws_spawn_links) %>
                 </select>
               </div>
               <div class="flex-1">
-                <label class="block text-[10px] font-semibold text-low uppercase tracking-wider mb-1">
-                  Model
-                </label>
+                <.label class="block mb-1">Model</.label>
                 <select class="w-full ichor-select" name="model">
                   <option
                     :for={m <- ~w(sonnet opus haiku)}
@@ -209,9 +193,7 @@ tree = wc.spawn_tree_html(@ws_agents, @ws_spawn_links) %>
               </div>
             </div>
             <div>
-              <label class="block text-[10px] font-semibold text-low uppercase tracking-wider mb-1">
-                Permission Mode
-              </label>
+              <.label class="block mb-1">Permission Mode</.label>
               <select class="w-full ichor-select" name="permission">
                 <option
                   :for={p <- ~w(default plan dangerously_skip)}
@@ -223,9 +205,7 @@ tree = wc.spawn_tree_html(@ws_agents, @ws_spawn_links) %>
               </select>
             </div>
             <div>
-              <label class="block text-[10px] font-semibold text-low uppercase tracking-wider mb-1">
-                Persona / System Prompt
-              </label>
+              <.label class="block mb-1">Persona / System Prompt</.label>
               <textarea
                 class="w-full ichor-input"
                 rows="3"
@@ -235,9 +215,7 @@ tree = wc.spawn_tree_html(@ws_agents, @ws_spawn_links) %>
               >{selected.persona}</textarea>
             </div>
             <div>
-              <label class="block text-[10px] font-semibold text-low uppercase tracking-wider mb-1">
-                File Scope (one per line)
-              </label>
+              <.label class="block mb-1">File Scope (one per line)</.label>
               <textarea
                 class="w-full ichor-input font-mono"
                 rows="2"
@@ -247,9 +225,7 @@ tree = wc.spawn_tree_html(@ws_agents, @ws_spawn_links) %>
               >{selected.file_scope}</textarea>
             </div>
             <div>
-              <label class="block text-[10px] font-semibold text-low uppercase tracking-wider mb-1">
-                Quality Gates (one per line)
-              </label>
+              <.label class="block mb-1">Quality Gates (one per line)</.label>
               <textarea
                 class="w-full ichor-input font-mono"
                 rows="2"
@@ -259,9 +235,7 @@ tree = wc.spawn_tree_html(@ws_agents, @ws_spawn_links) %>
               >{selected.quality_gates}</textarea>
             </div>
           </form>
-          <button phx-click="ws_remove_agent" class="w-full ichor-btn ichor-btn-danger mt-2">
-            Remove Agent
-          </button>
+          <.button phx-click="ws_remove_agent" variant="danger" class="w-full mt-2">Remove Agent</.button>
         </div>
 
         <%!-- Spawn hierarchy tree --%>
@@ -358,20 +332,10 @@ tree = wc.spawn_tree_html(@ws_agents, @ws_spawn_links) %>
               Saved Blueprints
             </h4>
             <div class="flex gap-1">
-              <button
-                :if={@ws_team_id}
-                phx-click="ws_new_team"
-                class="ichor-btn ichor-btn-muted text-[9px]"
-              >
-                New
-              </button>
-              <button
-                :if={@ws_agents != []}
-                phx-click="ws_save_team"
-                class="ichor-btn ichor-btn-muted text-[9px]"
-              >
+              <.button :if={@ws_team_id} phx-click="ws_new_team" size="xs">New</.button>
+              <.button :if={@ws_agents != []} phx-click="ws_save_team" size="xs">
                 {if @ws_team_id, do: "Update", else: "Save"}
-              </button>
+              </.button>
             </div>
           </div>
           <%= if @ws_teams == [] do %>
@@ -409,12 +373,7 @@ tree = wc.spawn_tree_html(@ws_agents, @ws_spawn_links) %>
             <h4 class="text-[10px] font-semibold text-low uppercase tracking-wider">
               Agent Types
             </h4>
-            <button
-              phx-click="ws_edit_type_new"
-              class="ichor-btn ichor-btn-muted text-[9px] cursor-pointer"
-            >
-              + New Type
-            </button>
+            <.button phx-click="ws_edit_type_new" size="xs" class="cursor-pointer">+ New Type</.button>
           </div>
 
           <%!-- Type list --%>
@@ -477,13 +436,7 @@ tree = wc.spawn_tree_html(@ws_agents, @ws_spawn_links) %>
               </div>
               <div>
                 <label class="block text-[9px] text-low mb-0.5">Name</label>
-                <input
-                  type="text"
-                  name="name"
-                  value={t.name}
-                  class="w-full ichor-input text-[10px]"
-                  required
-                />
+                <.input name="name" value={t.name} class="w-full text-[10px]" required />
               </div>
               <div class="flex gap-1.5">
                 <div class="flex-1">
@@ -551,19 +504,12 @@ tree = wc.spawn_tree_html(@ws_agents, @ws_spawn_links) %>
                 >{t.default_quality_gates}</textarea>
               </div>
               <div class="flex gap-1 pt-1">
-                <button
-                  type="submit"
-                  class="ichor-btn ichor-btn-success text-[9px] flex-1 cursor-pointer"
-                >
+                <.button type="submit" variant="success" size="xs" class="flex-1 cursor-pointer">
                   {if is_new, do: "Create", else: "Save"}
-                </button>
-                <button
-                  type="button"
-                  phx-click="ws_cancel_edit_type"
-                  class="ichor-btn ichor-btn-muted text-[9px] cursor-pointer"
-                >
+                </.button>
+                <.button type="button" phx-click="ws_cancel_edit_type" size="xs" class="cursor-pointer">
                   Cancel
-                </button>
+                </.button>
               </div>
             </form>
           <% end %>
@@ -571,13 +517,12 @@ tree = wc.spawn_tree_html(@ws_agents, @ws_spawn_links) %>
 
         <%!-- Launch --%>
         <div :if={@ws_agents != []} class="px-3 py-2.5">
-          <button
+          <.button
             phx-click="ws_launch_team"
-            class="w-full ichor-btn ichor-btn-success text-xs py-2"
+            variant="success"
+            class="w-full py-2"
             data-confirm={"Launch team \"#{@ws_team_name}\" with #{length(@ws_agents)} agents?"}
-          >
-            Launch Team
-          </button>
+          >Launch Team</.button>
         </div>
       </div>
     </div>

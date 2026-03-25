@@ -6,6 +6,8 @@ defmodule IchorWeb.Components.WorkshopComponents do
 
   use Phoenix.Component
 
+  import IchorWeb.UI, only: [button: 1, input: 1, label: 1]
+
   embed_templates "workshop_components/*"
 
   attr :ws_agents, :list, required: true

@@ -5,6 +5,7 @@ defmodule IchorWeb.Components.CommandComponents do
   """
 
   use Phoenix.Component
+  import IchorWeb.UI, only: [button: 1, input: 1]
   import IchorWeb.DashboardFormatHelpers
   import IchorWeb.IchorComponents
   import IchorWeb.Components.FeedComponents, only: [feed_view: 1]

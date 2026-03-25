@@ -8,6 +8,7 @@ defmodule IchorWeb.Components.Agent.AgentDetailPanel do
 
   use Phoenix.Component
 
+  import IchorWeb.UI, only: [button: 1, input: 1]
   import IchorWeb.Components.Primitives.AgentActions
   import IchorWeb.Components.Primitives.AgentInfoList
   import IchorWeb.Components.Primitives.CloseButton
@@ -83,13 +84,13 @@ defmodule IchorWeb.Components.Agent.AgentDetailPanel do
           Actions
         </h4>
         <div class="flex flex-wrap gap-1.5">
-          <button
+          <.button
             phx-click="open_agent_slideout"
             phx-value-session_id={@agent_id}
-            class="ichor-btn ichor-btn-primary"
+            variant="primary"
           >
             Focus
-          </button>
+          </.button>
           <% is_traced = @agent_id in @agent_filter %>
           <button
             phx-click="trace_agent"
@@ -165,13 +166,12 @@ defmodule IchorWeb.Components.Agent.AgentDetailPanel do
         <div phx-update="ignore" id={"fleet-msg-#{@agent_id}"} phx-hook="ClearFormOnSubmit">
           <form phx-submit="send_command_message" class="flex gap-1.5">
             <input type="hidden" name="to" value={@agent_id} />
-            <input
-              type="text"
+            <.input
               name="content"
               placeholder={"Message #{@sel_name}..."}
-              class="flex-1 ichor-input"
+              class="flex-1"
             />
-            <button type="submit" class="ichor-btn ichor-btn-primary">Send</button>
+            <.button type="submit" variant="primary">Send</.button>
           </form>
         </div>
       </div>

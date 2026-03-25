@@ -4,6 +4,7 @@ defmodule IchorWeb.Components.SidebarComponents do
   """
   use Phoenix.Component
 
+  import IchorWeb.UI, only: [input: 1]
   import IchorWeb.Presentation, only: [member_status_dot_class: 1]
 
   import IchorWeb.DashboardFormatHelpers,
@@ -104,14 +105,13 @@ defmodule IchorWeb.Components.SidebarComponents do
         </h2>
       </div>
       <form phx-change="search_sessions" class="mb-1.5 px-0.5">
-        <input
-          type="text"
+        <.input
           name="q"
           value={@search_sessions}
           placeholder="Search sessions..."
           autocomplete="off"
           phx-debounce="150"
-          class="w-full ichor-input"
+          class="w-full"
         />
       </form>
       <div class="space-y-0.5">
