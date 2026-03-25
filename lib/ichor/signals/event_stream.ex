@@ -22,7 +22,6 @@ defmodule Ichor.Signals.EventStream do
   alias Ichor.Signals
   alias Ichor.Signals.EventStream.{AgentLifecycle, Normalizer}
 
-  # ETS table names (preserved for compatibility)
   @table :event_buffer_events
   @tools :ichor_tool_starts
   @aliases :ichor_session_aliases
@@ -95,8 +94,6 @@ defmodule Ichor.Signals.EventStream do
       {:error, :event_stream_unavailable}
   end
 
-  # Public API -- event buffer reads (ETS, no GenServer round-trip)
-
   @doc "Get all events from the buffer (most recent first)."
   @spec list_events() :: [map()]
   def list_events do
@@ -147,8 +144,6 @@ defmodule Ichor.Signals.EventStream do
   def tombstone_session(session_id) do
     GenServer.cast(__MODULE__, {:tombstone, session_id})
   end
-
-  # GenServer lifecycle
 
   @doc false
   @spec start_link(keyword()) :: GenServer.on_start()
@@ -232,8 +227,6 @@ defmodule Ichor.Signals.EventStream do
   @impl true
   def handle_info(_msg, state), do: {:noreply, state}
 
-  # Ingest pipeline
-
   defp ingest_event(event) do
     agent_id = AgentLifecycle.resolve_or_create_agent(event.session_id, event)
     maybe_emit_session_end(event.hook_event_type, agent_id)
@@ -297,8 +290,6 @@ defmodule Ichor.Signals.EventStream do
     })
   end
 
-  # Core ingest logic -- runs inside the GenServer process (ETS owner)
-
   defp do_ingest(event_attrs) do
     sanitized = Map.update(event_attrs, :payload, %{}, &Normalizer.sanitize_payload/1)
 
@@ -327,8 +318,6 @@ defmodule Ichor.Signals.EventStream do
 
     {:ok, event}
   end
-
-  # ETS helpers -- session aliases and tool timing
 
   @uuid_pattern ~r/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
@@ -365,8 +354,6 @@ defmodule Ichor.Signals.EventStream do
 
   defp track_tool_start(attrs), do: attrs
 
-  # ETS buffer helpers
-
   defp keep_latest(acc, event) do
     sid = event.session_id
 
@@ -386,11 +373,6 @@ defmodule Ichor.Signals.EventStream do
     if size > @max_events do
       evict_count = size - @max_events
 
-      # Fold once to collect the N oldest entries without a full sort.
-      # We maintain a max-heap of size `evict_count` by tracking the
-      # worst (newest) candidate seen so far, replacing it when we find
-      # something older.  For small evict_count (almost always 1) this
-      # is O(n) with negligible constant vs. O(n log n) sort.
       :ets.foldl(
         fn {id, e}, acc -> evict_candidate(acc, id, e.inserted_at, evict_count) end,
         %{},
@@ -444,11 +426,6 @@ defmodule Ichor.Signals.EventStream do
     end
   end
 
-  # ADR-026: EventStream -> GenStage Ingress bridge
-
-  # Converts a normalized hook event to an %Event{} domain fact and pushes it
-  # into the GenStage Ingress so Signal projectors can accumulate it.
-  # Returns :ok for all unrecognised event types (no-op, no error).
   @spec bridge_to_pipeline(map()) :: :ok
   defp bridge_to_pipeline(event) do
     case event_topic(event.hook_event_type) do
@@ -460,7 +437,7 @@ defmodule Ichor.Signals.EventStream do
           Ichor.Events.Event.new(
             topic,
             event.session_id,
-            Map.from_struct(event) |> Map.drop([:__struct__]),
+            Map.from_struct(event),
             %{source: :event_stream, hook_type: event.hook_event_type}
           )
 
@@ -468,8 +445,6 @@ defmodule Ichor.Signals.EventStream do
     end
   end
 
-  # Pushes an `agent.message.sent` domain event into the GenStage Ingress.
-  # Called from SendMessage / mcp__ichor__send_message intercept handlers.
   @spec bridge_message_sent(String.t(), map()) :: :ok
   defp bridge_message_sent(session_id, fields) do
     domain_event =

@@ -7,6 +7,7 @@ defmodule Ichor.Signals.Behaviour do
   alias Ichor.Events.Event
   alias Ichor.Signals.Signal
 
+  @callback signal_name() :: String.t()
   @callback topics() :: [String.t()]
   @callback init_state(key :: term()) :: map()
   @callback handle_event(state :: map(), event :: Event.t()) :: map()

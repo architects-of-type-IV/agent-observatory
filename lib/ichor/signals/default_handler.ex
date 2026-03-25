@@ -1,7 +1,6 @@
 defmodule Ichor.Signals.DefaultHandler do
   @moduledoc """
   Default signal handler. Logs the activation.
-  Real handlers dispatch to Oban, Reactor, domain modules, or LLM adapters.
   """
 
   require Logger

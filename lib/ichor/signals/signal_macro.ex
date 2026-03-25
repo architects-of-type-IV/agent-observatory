@@ -30,7 +30,7 @@ defmodule Ichor.Signal do
     quote do
       @behaviour Ichor.Signals.Behaviour
 
-      @doc "Dot-delimited signal name derived from the module path after 'Signals'."
+      @impl true
       @spec signal_name() :: String.t()
       def signal_name do
         __MODULE__

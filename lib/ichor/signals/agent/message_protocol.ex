@@ -29,12 +29,16 @@ defmodule Ichor.Signals.Agent.MessageProtocol do
   @impl true
   @spec init_state(term()) :: map()
   def init_state(key) do
-    rules = load_comm_rules(key)
-    %{key: key, events: [], violations: [], rules: rules, metadata: %{}}
+    send(self(), {:load_rules, key})
+    %{key: key, events: [], violations: [], rules: :pending, metadata: %{}}
   end
 
   @impl true
   @spec handle_event(map(), Ichor.Events.Event.t()) :: map()
+  def handle_event(%{rules: :pending} = state, event) do
+    %{state | events: [event | state.events]}
+  end
+
   def handle_event(state, event) do
     case check_violation(event, state.rules) do
       nil ->
@@ -49,6 +53,7 @@ defmodule Ichor.Signals.Agent.MessageProtocol do
   @spec ready?(map(), :event | :timer) :: boolean()
   def ready?(state, _trigger), do: state.violations != []
 
+  @impl true
   @spec signal_name() :: String.t()
   def signal_name, do: "agent.message.protocol.violated"
 
@@ -67,8 +72,13 @@ defmodule Ichor.Signals.Agent.MessageProtocol do
   @spec reset(map()) :: map()
   def reset(state), do: %{state | events: [], violations: [], metadata: %{}}
 
-  # Load deny rules from the Workshop team blueprint.
-  # Gracefully returns [] if the team does not exist or the DB is unavailable.
+  @spec handle_info(map(), term()) :: map()
+  def handle_info(state, {:load_rules, key}) do
+    %{state | rules: load_comm_rules(key)}
+  end
+
+  def handle_info(state, _msg), do: state
+
   @spec load_comm_rules(String.t()) :: [map()]
   defp load_comm_rules(team_name) do
     case Ichor.Workshop.Team.by_name(team_name) do
@@ -87,10 +97,6 @@ defmodule Ichor.Signals.Agent.MessageProtocol do
   defp deny_rule?(%Ichor.Workshop.CommRule{policy: "deny"}), do: true
   defp deny_rule?(_), do: false
 
-  # Check whether a message event violates any deny rule.
-  # CommRule.from/to are slot indices (integers); event data carries session IDs
-  # (strings) in the :from/:to keys. We check string representations to allow
-  # both integer and string matching.
   @spec check_violation(Ichor.Events.Event.t(), [Ichor.Workshop.CommRule.t()]) :: map() | nil
   defp check_violation(event, rules) do
     from = get_field(event.data, :from) || get_field(event.data, "from")
@@ -103,8 +109,6 @@ defmodule Ichor.Signals.Agent.MessageProtocol do
     end)
   end
 
-  # A deny rule fires when the message from/to match the rule's slot definitions.
-  # Slots can be expressed as integers or their string equivalents.
   defp matches_rule?(%Ichor.Workshop.CommRule{policy: "deny"} = rule, from, to) do
     slot_matches?(rule.from, from) and slot_matches?(rule.to, to)
   end

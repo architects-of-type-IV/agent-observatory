@@ -93,7 +93,6 @@ config :ichor, Oban,
     scheduled: 2
   ]
 
-# ADR-026: Signal-as-Projector pipeline -- signal module registry
 config :ichor, :signal_modules, [
   Ichor.Signals.Agent.ToolBudget,
   Ichor.Signals.Agent.MessageProtocol

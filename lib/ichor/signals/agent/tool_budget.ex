@@ -33,6 +33,7 @@ defmodule Ichor.Signals.Agent.ToolBudget do
   @spec ready?(map(), :event | :timer) :: boolean()
   def ready?(state, _trigger), do: state.count >= state.limit
 
+  @impl true
   @spec signal_name() :: String.t()
   def signal_name, do: "agent.tool.budget.exhausted"
 

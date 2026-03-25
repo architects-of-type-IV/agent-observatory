@@ -20,18 +20,23 @@ defmodule Ichor.Events.Ingress do
 
   @impl true
   def init(_opts) do
-    {:producer, %{queue: :queue.new()}, dispatcher: GenStage.BroadcastDispatcher}
+    {:producer, %{queue: :queue.new(), demand: 0}, dispatcher: GenStage.BroadcastDispatcher}
   end
 
   @impl true
-  def handle_cast({:push, event}, %{queue: queue} = state) do
-    {:noreply, [], %{state | queue: :queue.in(event, queue)}}
+  def handle_cast({:push, event}, %{queue: queue, demand: demand} = state) do
+    queue = :queue.in(event, queue)
+    {to_dispatch, remaining} = take_from_queue(queue, demand, [])
+    new_demand = demand - length(to_dispatch)
+    {:noreply, to_dispatch, %{state | queue: remaining, demand: new_demand}}
   end
 
   @impl true
-  def handle_demand(demand, %{queue: queue} = state) when demand > 0 do
-    {events, remaining} = take_from_queue(queue, demand, [])
-    {:noreply, events, %{state | queue: remaining}}
+  def handle_demand(incoming, %{queue: queue, demand: demand} = state) do
+    total = demand + incoming
+    {to_dispatch, remaining} = take_from_queue(queue, total, [])
+    new_demand = total - length(to_dispatch)
+    {:noreply, to_dispatch, %{state | queue: remaining, demand: new_demand}}
   end
 
   defp take_from_queue(queue, 0, acc), do: {Enum.reverse(acc), queue}
