@@ -439,7 +439,7 @@ defmodule Ichor.Signals.EventStream do
           Event.new(
             topic,
             event.session_id,
-            Map.from_struct(event),
+            Map.drop(event, [:__struct__]),
             %{source: :event_stream, hook_type: event.hook_event_type}
           )
 
