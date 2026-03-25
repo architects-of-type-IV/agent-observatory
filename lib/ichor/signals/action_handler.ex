@@ -8,6 +8,7 @@ defmodule Ichor.Signals.ActionHandler do
 
   require Logger
 
+  alias Ichor.Signals
   alias Ichor.Signals.Signal
 
   @tool_budget Ichor.Signals.Agent.ToolBudget.signal_name()
@@ -54,14 +55,14 @@ defmodule Ichor.Signals.ActionHandler do
 
     case severity do
       :loop ->
-        Ichor.Signals.emit(:entropy_alert, %{session_id: session_id, entropy_score: score})
-        Ichor.Signals.emit(:node_state_update, %{agent_id: session_id, state: "alert_entropy"})
+        Signals.emit(:entropy_alert, %{session_id: session_id, entropy_score: score})
+        Signals.emit(:node_state_update, %{agent_id: session_id, state: "alert_entropy"})
 
       :warning ->
-        Ichor.Signals.emit(:node_state_update, %{agent_id: session_id, state: "blocked"})
+        Signals.emit(:node_state_update, %{agent_id: session_id, state: "blocked"})
 
       :normal when prior in [:warning, :loop] ->
-        Ichor.Signals.emit(:node_state_update, %{agent_id: session_id, state: "active"})
+        Signals.emit(:node_state_update, %{agent_id: session_id, state: "active"})
 
       :normal ->
         :ok
@@ -76,7 +77,7 @@ defmodule Ichor.Signals.ActionHandler do
 
     Logger.warning("[Signal] #{signal.name} team=#{team_name} violations=#{length(violations)}")
 
-    Ichor.Signals.Bus.send(%{
+    Signals.Bus.send(%{
       from: "system",
       to: "operator",
       content:

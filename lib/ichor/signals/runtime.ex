@@ -6,6 +6,7 @@ defmodule Ichor.Signals.Runtime do
 
   require Logger
 
+  alias Ichor.Events.{Event, Ingress}
   alias Ichor.Signals.{Catalog, Message, Topics}
 
   @spec emit(atom(), map()) :: :ok
@@ -73,6 +74,7 @@ defmodule Ichor.Signals.Runtime do
     pubsub_broadcast(Topics.category(info.category), message)
     pubsub_broadcast(Topics.scoped(info.category, name, scope_id), message)
     tap_telemetry(name, message)
+    bridge_to_pipeline(name, message.data)
     :ok
   end
 
@@ -80,8 +82,26 @@ defmodule Ichor.Signals.Runtime do
     pubsub_broadcast(Topics.category(info.category), message)
     pubsub_broadcast(Topics.signal(info.category, message.name), message)
     tap_telemetry(message.name, message)
+    bridge_to_pipeline(message.name, message.data)
     :ok
   end
+
+  defp bridge_to_pipeline(name, data) do
+    topic = "signal.#{name}"
+    key = extract_key(data)
+    event = Event.new(topic, key, data, %{source: :signal_bridge, legacy_name: name})
+    Ingress.push(event)
+  end
+
+  defp extract_key(data) when is_map(data) do
+    data[:session_id] || data["session_id"] ||
+      data[:run_id] || data["run_id"] ||
+      data[:team_name] || data["team_name"] ||
+      data[:project_id] || data["project_id"] ||
+      data[:agent_id] || data["agent_id"]
+  end
+
+  defp extract_key(_data), do: nil
 
   defp tap_telemetry(name, message) do
     :telemetry.execute([:ichor, :signal, name], %{count: 1}, %{signal: message})
