@@ -10,10 +10,8 @@ defmodule Ichor.Projector.CompletionHandler do
 
   alias Ichor.Events
   alias Ichor.Events.Event
-  alias Ichor.Events.Message
   alias Ichor.Factory.{Pipeline, Project}
   alias Ichor.Factory.PluginLoader
-  alias Ichor.Signals
 
   @doc false
   @spec start_link(keyword()) :: GenServer.on_start()
@@ -21,17 +19,17 @@ defmodule Ichor.Projector.CompletionHandler do
 
   @impl true
   def init(_opts) do
-    Signals.subscribe(:pipeline)
+    Ichor.Events.subscribe_all()
     {:ok, %{}}
   end
 
   @impl true
-  def handle_info(%Message{name: :pipeline_completed, data: data}, state) do
+  def handle_info(%Event{topic: "pipeline.completed", data: data}, state) do
     handle_completion(data)
     {:noreply, state}
   end
 
-  def handle_info(%Message{}, state), do: {:noreply, state}
+  def handle_info(%Event{}, state), do: {:noreply, state}
 
   defp handle_completion(%{run_id: run_id}) do
     with {:ok, pipeline} <- Pipeline.get(run_id),

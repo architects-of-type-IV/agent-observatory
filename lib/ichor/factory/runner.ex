@@ -19,8 +19,7 @@ defmodule Ichor.Factory.Runner do
   alias Ichor.Infrastructure.Tmux.Launcher, as: TmuxLauncher
   alias Ichor.Orchestration.TeamLaunch
   alias Ichor.Events
-  alias Ichor.Events.{Event, Message}
-  alias Ichor.Signals
+  alias Ichor.Events.Event
   alias Ichor.Workshop.TeamSpec
 
   @stale_threshold_min 10
@@ -185,7 +184,7 @@ defmodule Ichor.Factory.Runner do
       started_at: DateTime.utc_now()
     }
 
-    subscribe_all(config.subscriptions)
+    Ichor.Events.subscribe_all()
     schedule_timers(config.timers, state)
     schedule_checks(config.checks)
 
@@ -224,10 +223,10 @@ defmodule Ichor.Factory.Runner do
     {:noreply, state}
   end
 
-  def handle_info(%Message{name: name} = msg, state) do
-    state = dispatch_to_hook(msg, state)
+  def handle_info(%Event{topic: topic} = event, state) do
+    state = dispatch_to_hook(event, state)
 
-    case check_completion(name, msg, state) do
+    case check_completion(topic, event, state) do
       :complete ->
         state = %{state | status: :completed}
         run_cleanup(state)
@@ -351,7 +350,7 @@ defmodule Ichor.Factory.Runner do
   end
 
   defp mes_on_signal(
-         %Message{name: :mes_quality_gate_failed, data: %{run_id: run_id} = data},
+         %Event{topic: "mes.quality_gate.failed", data: %{run_id: run_id} = data},
          %{run_id: run_id} = state
        ) do
     failures = Map.get(state.runtime, :gate_failures, 0) + 1
@@ -360,13 +359,13 @@ defmodule Ichor.Factory.Runner do
   end
 
   defp mes_on_signal(
-         %Message{name: :mes_quality_gate_escalated, data: %{run_id: run_id}},
+         %Event{topic: "mes.quality_gate.escalated", data: %{run_id: run_id}},
          %{run_id: run_id} = state
        ) do
     %{state | deadline_passed: true}
   end
 
-  defp mes_on_signal(_msg, state), do: state
+  defp mes_on_signal(_event, state), do: state
 
   defp mes_spawn_corrective_agent(run_id, session, reason, attempt) do
     spec =
@@ -479,10 +478,6 @@ defmodule Ichor.Factory.Runner do
     end
   end
 
-  defp subscribe_all(subscriptions) do
-    Enum.each(subscriptions, &Signals.subscribe/1)
-  end
-
   defp schedule_timers(timers, state) do
     schedule_liveness(timers)
 
@@ -548,38 +543,43 @@ defmodule Ichor.Factory.Runner do
     end
   end
 
-  defp check_completion(name, msg, state) do
+  defp check_completion(topic, event, state) do
     case state.config.completion do
       nil ->
         :continue
 
-      %{source: :signal, signal: signal} when name == signal ->
-        maybe_complete_on_signal(msg, state)
+      %{source: :signal, signal: signal} ->
+        if topic == signal_to_topic(signal),
+          do: maybe_complete_on_signal(event, state),
+          else: :continue
 
-      %{source: :signal_or_message, signal: signal} when name == signal ->
-        maybe_complete_on_signal(msg, state)
+      %{source: :signal_or_message, signal: signal} ->
+        cond do
+          topic == signal_to_topic(signal) -> maybe_complete_on_signal(event, state)
+          topic == "messages.delivered" -> maybe_complete_on_message(event, state)
+          true -> :continue
+        end
 
-      %{source: :signal_or_message} when name == :message_delivered ->
-        maybe_complete_on_message(msg, state)
-
-      %{source: :message_delivered} when name == :message_delivered ->
-        maybe_complete_on_message(msg, state)
+      %{source: :message_delivered} ->
+        if topic == "messages.delivered",
+          do: maybe_complete_on_message(event, state),
+          else: :continue
 
       _ ->
         :continue
     end
   end
 
-  defp maybe_complete_on_signal(%Message{data: %{run_id: run_id}}, %{run_id: run_id} = state) do
+  defp maybe_complete_on_signal(%Event{data: %{run_id: run_id}}, %{run_id: run_id} = state) do
     on_complete = get_in(state.config, [Access.key(:hooks), Access.key(:on_complete)])
     if on_complete, do: on_complete.(state)
     :complete
   end
 
-  defp maybe_complete_on_signal(_msg, _state), do: :continue
+  defp maybe_complete_on_signal(_event, _state), do: :continue
 
   defp maybe_complete_on_message(
-         %Message{data: %{msg_map: %{to: "operator", from: from}}},
+         %Event{data: %{msg_map: %{to: "operator", from: from}}},
          state
        )
        when is_binary(from) do
@@ -597,7 +597,7 @@ defmodule Ichor.Factory.Runner do
     end
   end
 
-  defp maybe_complete_on_message(_msg, _state), do: :continue
+  defp maybe_complete_on_message(_event, _state), do: :continue
 
   defp from_coordinator?(from, coordinator_id),
     do: from == coordinator_id or String.starts_with?(from, coordinator_id)

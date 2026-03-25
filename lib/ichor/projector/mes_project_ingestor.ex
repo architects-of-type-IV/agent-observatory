@@ -18,7 +18,6 @@ defmodule Ichor.Projector.MesProjectIngestor do
   alias Ichor.Events
   alias Ichor.Events.Event
   alias Ichor.Factory.Project
-  alias Ichor.Signals
   alias Ichor.Workshop.AgentId
 
   @required_keys ~w(title description plugin signal_interface)
@@ -32,12 +31,12 @@ defmodule Ichor.Projector.MesProjectIngestor do
 
   @impl true
   def init(_opts) do
-    Signals.subscribe(:messages)
+    Ichor.Events.subscribe_all()
     {:ok, %{}}
   end
 
   @impl true
-  def handle_info(%Ichor.Events.Message{name: :message_delivered, data: data}, state) do
+  def handle_info(%Event{topic: "messages.delivered", data: data}, state) do
     case extract_mes_payload(data) do
       {:ok, payload} ->
         ingest_project(payload, data)
@@ -59,7 +58,7 @@ defmodule Ichor.Projector.MesProjectIngestor do
     {:noreply, state}
   end
 
-  def handle_info(%Ichor.Events.Message{}, state), do: {:noreply, state}
+  def handle_info(%Event{}, state), do: {:noreply, state}
 
   defp extract_mes_payload(%{msg_map: %{to: "operator", content: content} = msg})
        when is_binary(content) do

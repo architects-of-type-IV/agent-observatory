@@ -1,16 +1,17 @@
 defmodule IchorWeb.SignalFeed.Renderers.Genesis do
   @moduledoc """
-  Renders planning and pipeline lifecycle signals.
+  Renders signals in the planning topic namespace.
+  Covers project and run lifecycle signals.
   """
   use Phoenix.Component
 
-  alias Ichor.Events.Message
+  alias Ichor.Events.Event
   alias IchorWeb.SignalFeed.Primitives
 
   attr :seq, :integer, required: true
-  attr :message, :any, required: true
+  attr :event, :any, required: true
 
-  def render(%{message: %Message{name: :project_created, data: data}} = assigns) do
+  def render(%{event: %Event{topic: "planning.project.created", data: data}} = assigns) do
     assigns =
       assign(assigns,
         title: to_string(data[:title] || "?"),
@@ -25,7 +26,7 @@ defmodule IchorWeb.SignalFeed.Renderers.Genesis do
     """
   end
 
-  def render(%{message: %Message{name: :project_advanced, data: data}} = assigns) do
+  def render(%{event: %Event{topic: "planning.project.advanced", data: data}} = assigns) do
     assigns =
       assign(assigns,
         title: to_string(data[:title] || "?"),
@@ -40,7 +41,7 @@ defmodule IchorWeb.SignalFeed.Renderers.Genesis do
     """
   end
 
-  def render(%{message: %Message{name: :project_artifact_created, data: data}} = assigns) do
+  def render(%{event: %Event{topic: "planning.project.artifact_created", data: data}} = assigns) do
     assigns =
       assign(assigns,
         type: to_string(data[:type] || "artifact"),
@@ -53,7 +54,7 @@ defmodule IchorWeb.SignalFeed.Renderers.Genesis do
     """
   end
 
-  def render(%{message: %Message{name: :planning_team_ready, data: data}} = assigns) do
+  def render(%{event: %Event{topic: "planning.team.ready", data: data}} = assigns) do
     assigns =
       assign(assigns,
         mode: to_string(data[:mode] || "?"),
@@ -66,7 +67,7 @@ defmodule IchorWeb.SignalFeed.Renderers.Genesis do
     """
   end
 
-  def render(%{message: %Message{name: :planning_team_spawn_failed, data: data}} = assigns) do
+  def render(%{event: %Event{topic: "planning.team.spawn_failed", data: data}} = assigns) do
     assigns = assign(assigns, reason: to_string(data[:reason] || "?"))
 
     ~H"""
@@ -75,7 +76,7 @@ defmodule IchorWeb.SignalFeed.Renderers.Genesis do
     """
   end
 
-  def render(%{message: %Message{name: :planning_team_killed, data: data}} = assigns) do
+  def render(%{event: %Event{topic: "planning.team.killed", data: data}} = assigns) do
     assigns = assign(assigns, session: to_string(data[:session] || "?"))
 
     ~H"""
@@ -84,7 +85,7 @@ defmodule IchorWeb.SignalFeed.Renderers.Genesis do
     """
   end
 
-  def render(%{message: %Message{name: :planning_run_init, data: data}} = assigns) do
+  def render(%{event: %Event{topic: "planning.run.init", data: data}} = assigns) do
     assigns =
       assign(assigns,
         run_id: Primitives.short(data[:run_id]),
@@ -98,7 +99,7 @@ defmodule IchorWeb.SignalFeed.Renderers.Genesis do
     """
   end
 
-  def render(%{message: %Message{name: :planning_run_complete, data: data}} = assigns) do
+  def render(%{event: %Event{topic: "planning.run.complete", data: data}} = assigns) do
     assigns =
       assign(assigns,
         run_id: Primitives.short(data[:run_id]),
@@ -112,7 +113,7 @@ defmodule IchorWeb.SignalFeed.Renderers.Genesis do
     """
   end
 
-  def render(%{message: %Message{name: :planning_run_terminated, data: data}} = assigns) do
+  def render(%{event: %Event{topic: "planning.run.terminated", data: data}} = assigns) do
     assigns = assign(assigns, run_id: Primitives.short(data[:run_id]))
 
     ~H"""
@@ -121,7 +122,7 @@ defmodule IchorWeb.SignalFeed.Renderers.Genesis do
     """
   end
 
-  def render(%{message: %Message{name: :planning_tmux_gone, data: data}} = assigns) do
+  def render(%{event: %Event{topic: "planning.tmux_gone", data: data}} = assigns) do
     assigns = assign(assigns, run_id: Primitives.short(data[:run_id]))
 
     ~H"""
@@ -130,11 +131,15 @@ defmodule IchorWeb.SignalFeed.Renderers.Genesis do
     """
   end
 
-  def render(%{message: %Message{data: data}} = assigns) do
-    assigns = assign(assigns, :pairs, data_to_pairs(data))
+  def render(%{event: %Event{topic: topic, data: data}} = assigns) do
+    assigns =
+      assign(assigns,
+        topic: topic,
+        pairs: data_to_pairs(data)
+      )
 
     ~H"""
-    <span class="text-[10px] text-muted font-mono mr-1">{@message.name}</span>
+    <span class="text-[10px] text-muted font-mono mr-1">{@topic}</span>
     <span :for={p <- @pairs} class="mr-1">
       <Primitives.kv key={p.key} value={p.val} />
     </span>

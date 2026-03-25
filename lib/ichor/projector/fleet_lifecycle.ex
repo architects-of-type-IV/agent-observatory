@@ -18,11 +18,10 @@ defmodule Ichor.Projector.FleetLifecycle do
 
   require Logger
 
+  alias Ichor.Events.Event
   alias Ichor.Fleet.AgentProcess
   alias Ichor.Fleet.Supervisor, as: FleetSupervisor
   alias Ichor.Fleet.TeamSupervisor
-  alias Ichor.Signals
-  alias Ichor.Events.Message
 
   @doc false
   @spec start_link(keyword()) :: GenServer.on_start()
@@ -30,13 +29,13 @@ defmodule Ichor.Projector.FleetLifecycle do
 
   @impl true
   def init(_opts) do
-    Signals.subscribe(:fleet)
+    Ichor.Events.subscribe_all()
     {:ok, %{}}
   end
 
   @impl true
   def handle_info(
-        %Message{name: :session_started, data: %{session_id: session_id} = data},
+        %Event{topic: "fleet.session.started", data: %{session_id: session_id} = data},
         state
       ) do
     unless AgentProcess.alive?(session_id), do: spawn_agent(session_id, data)
@@ -45,7 +44,7 @@ defmodule Ichor.Projector.FleetLifecycle do
 
   @impl true
   def handle_info(
-        %Message{name: :session_ended, data: %{session_id: session_id}},
+        %Event{topic: "fleet.session.ended", data: %{session_id: session_id}},
         state
       ) do
     AgentProcess.update_fields(session_id, %{status: :ended})
@@ -55,7 +54,7 @@ defmodule Ichor.Projector.FleetLifecycle do
 
   @impl true
   def handle_info(
-        %Message{name: :team_create_requested, data: %{team_name: team_name}},
+        %Event{topic: "fleet.team.create_requested", data: %{team_name: team_name}},
         state
       ) do
     unless TeamSupervisor.exists?(team_name), do: create_team(team_name)
@@ -64,7 +63,7 @@ defmodule Ichor.Projector.FleetLifecycle do
 
   @impl true
   def handle_info(
-        %Message{name: :team_delete_requested, data: %{team_name: team_name}},
+        %Event{topic: "fleet.team.delete_requested", data: %{team_name: team_name}},
         state
       ) do
     FleetSupervisor.disband_team(team_name)
@@ -72,7 +71,7 @@ defmodule Ichor.Projector.FleetLifecycle do
   end
 
   @impl true
-  def handle_info(%Message{}, state), do: {:noreply, state}
+  def handle_info(%Event{}, state), do: {:noreply, state}
 
   @impl true
   def handle_info(_msg, state), do: {:noreply, state}

@@ -12,7 +12,6 @@ defmodule Ichor.Projector.TeamSpawnHandler do
   alias Ichor.Events.Event
   alias Ichor.Orchestration.TeamLaunch
   alias Ichor.Orchestration.TeamSpec
-  alias Ichor.Signals
 
   @doc false
   @spec start_link(keyword()) :: GenServer.on_start()
@@ -20,14 +19,14 @@ defmodule Ichor.Projector.TeamSpawnHandler do
 
   @impl true
   def init(_opts) do
-    Signals.subscribe(:fleet)
+    Ichor.Events.subscribe_all()
     {:ok, %{}}
   end
 
   @impl true
   def handle_info(
-        %Ichor.Events.Message{
-          name: :team_spawn_requested,
+        %Event{
+          topic: "fleet.team.spawn_requested",
           data: %{scope_id: request_id, spec: %TeamSpec{} = spec, source: source}
         },
         state
@@ -70,7 +69,7 @@ defmodule Ichor.Projector.TeamSpawnHandler do
     {:noreply, state}
   end
 
-  def handle_info(%Ichor.Events.Message{}, state), do: {:noreply, state}
+  def handle_info(%Event{}, state), do: {:noreply, state}
 
   defp emit_started(request_id, spec, source) do
     Events.emit(

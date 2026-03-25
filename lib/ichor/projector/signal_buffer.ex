@@ -1,12 +1,12 @@
 defmodule Ichor.Projector.SignalBuffer do
   @moduledoc """
-  Ring buffer for the Signals nervous system.
-  Subscribes to all signal categories via `Ichor.Signals.subscribe/1`.
-  Re-broadcasts each raw signal on "signals:feed" for the /signals LiveView page.
+  Ring buffer for the event stream.
+  Subscribes to all events via `Ichor.Events.subscribe_all/0`.
+  Re-broadcasts each event on "signals:feed" for the /signals LiveView page.
   """
   use GenServer
 
-  alias Ichor.Events.Message
+  alias Ichor.Events.Event
 
   @max_events 200
   @table :signal_buffer
@@ -15,8 +15,8 @@ defmodule Ichor.Projector.SignalBuffer do
   @spec start_link(keyword()) :: GenServer.on_start()
   def start_link(opts), do: GenServer.start_link(__MODULE__, opts, name: __MODULE__)
 
-  @doc "Return the last N captured signals as `{seq, %Message{}}` tuples, newest first."
-  @spec recent(non_neg_integer()) :: [{non_neg_integer(), Message.t()}]
+  @doc "Return the last N captured events as `{seq, %Event{}}` tuples, newest first."
+  @spec recent(non_neg_integer()) :: [{non_neg_integer(), Event.t()}]
   def recent(limit \\ 100) do
     @table
     |> :ets.tab2list()
@@ -33,16 +33,16 @@ defmodule Ichor.Projector.SignalBuffer do
       _ -> :ok
     end
 
-    Enum.each(Ichor.Signals.categories(), &Ichor.Signals.subscribe/1)
+    Ichor.Events.subscribe_all()
     {:ok, %{seq: 0}}
   end
 
   @impl true
-  def handle_info(%Message{} = sig, %{seq: seq} = state) do
+  def handle_info(%Event{} = event, %{seq: seq} = state) do
     next = seq + 1
-    :ets.insert(@table, {next, sig})
+    :ets.insert(@table, {next, event})
     maybe_evict(next)
-    Phoenix.PubSub.broadcast(Ichor.PubSub, "signals:feed", {:signal, next, sig})
+    Phoenix.PubSub.broadcast(Ichor.PubSub, "signals:feed", {:signal, next, event})
     {:noreply, %{state | seq: next}}
   end
 

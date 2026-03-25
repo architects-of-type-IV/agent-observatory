@@ -22,7 +22,7 @@ defmodule IchorWeb.DashboardLive do
 
   alias Ichor.Factory.Project
   alias Ichor.Projector.SignalBuffer, as: Buffer
-  alias Ichor.Events.Message
+  alias Ichor.Events.Event
   alias Ichor.Events.EventStream, as: EventRuntime
 
   alias IchorWeb.{
@@ -88,7 +88,7 @@ defmodule IchorWeb.DashboardLive do
     socket = socket |> assign(default_assigns(%{})) |> assign(:recompute_timer, nil)
 
     if connected?(socket) do
-      Enum.each(Ichor.Signals.categories(), &Ichor.Signals.subscribe/1)
+      Ichor.Events.subscribe_all()
 
       # ADR-026: subscribe to signal activation topics
       for signal_mod <- Application.get_env(:ichor, :signal_modules, []) do
@@ -171,19 +171,19 @@ defmodule IchorWeb.DashboardLive do
     {:noreply, socket}
   end
 
-  def handle_info({:signal, seq, %Message{} = message}, socket) do
+  def handle_info({:signal, seq, %Event{} = event}, socket) do
     cond do
       socket.assigns.stream_paused ->
         {:noreply, socket}
 
-      not passes_filter?(message, socket.assigns.stream_filter) ->
+      not passes_filter?(event, socket.assigns.stream_filter) ->
         {:noreply, socket}
 
       not Map.has_key?(socket.assigns[:streams] || %{}, :signals) ->
         {:noreply, socket}
 
       true ->
-        {:noreply, stream_insert(socket, :signals, {seq, message}, at: 0, limit: 200)}
+        {:noreply, stream_insert(socket, :signals, {seq, event}, at: 0, limit: 200)}
     end
   end
 
@@ -376,20 +376,15 @@ defmodule IchorWeb.DashboardLive do
     Buffer.recent(200) |> Enum.filter(&signal_matches?(&1, f))
   end
 
-  defp passes_filter?(_message, ""), do: true
+  defp passes_filter?(_event, ""), do: true
 
-  defp passes_filter?(%Message{domain: domain, name: name}, filter) do
+  defp passes_filter?(%Event{topic: topic}, filter) do
     f = String.downcase(filter)
-
-    String.contains?(Atom.to_string(domain), f) or
-      String.contains?(Atom.to_string(name), f) or
-      String.contains?("#{domain}:#{name}", f)
+    String.contains?(String.downcase(topic), f)
   end
 
-  defp signal_matches?({_seq, %Message{domain: domain, name: name}}, f) do
-    String.contains?(Atom.to_string(domain), f) or
-      String.contains?(Atom.to_string(name), f) or
-      String.contains?("#{domain}:#{name}", f)
+  defp signal_matches?({_seq, %Event{topic: topic}}, f) do
+    String.contains?(String.downcase(topic), f)
   end
 
   defp archon_parse_position(pos), do: Map.get(@archon_positions, to_string(pos), :center)

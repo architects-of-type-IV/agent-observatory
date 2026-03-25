@@ -1,17 +1,17 @@
 defmodule IchorWeb.SignalFeed.Renderers.Mes do
   @moduledoc """
-  Renders signals in the :mes domain.
+  Renders signals in the mes topic namespace.
   Covers project lifecycle, scheduler, tmux spawning, quality gates, and research.
   """
   use Phoenix.Component
 
-  alias Ichor.Events.Message
+  alias Ichor.Events.Event
   alias IchorWeb.SignalFeed.Primitives
 
   attr :seq, :integer, required: true
-  attr :message, :any, required: true
+  attr :event, :any, required: true
 
-  def render(%{message: %Message{name: :mes_project_created, data: data}} = assigns) do
+  def render(%{event: %Event{topic: "mes.project.created", data: data}} = assigns) do
     assigns =
       assign(assigns,
         title: to_string(data[:title] || "?"),
@@ -26,7 +26,7 @@ defmodule IchorWeb.SignalFeed.Renderers.Mes do
     """
   end
 
-  def render(%{message: %Message{name: :mes_project_picked_up, data: data}} = assigns) do
+  def render(%{event: %Event{topic: "mes.project.picked_up", data: data}} = assigns) do
     assigns =
       assign(assigns,
         project_id: Primitives.short(data[:project_id]),
@@ -40,7 +40,7 @@ defmodule IchorWeb.SignalFeed.Renderers.Mes do
     """
   end
 
-  def render(%{message: %Message{name: :mes_project_compiled, data: data}} = assigns) do
+  def render(%{event: %Event{topic: "mes.project.compiled", data: data}} = assigns) do
     assigns = assign(assigns, title: to_string(data[:title] || "?"))
 
     ~H"""
@@ -50,7 +50,7 @@ defmodule IchorWeb.SignalFeed.Renderers.Mes do
     """
   end
 
-  def render(%{message: %Message{name: :mes_project_failed, data: data}} = assigns) do
+  def render(%{event: %Event{topic: "mes.project.failed", data: data}} = assigns) do
     assigns = assign(assigns, title: to_string(data[:title] || "?"))
 
     ~H"""
@@ -60,7 +60,7 @@ defmodule IchorWeb.SignalFeed.Renderers.Mes do
     """
   end
 
-  def render(%{message: %Message{name: :mes_plugin_loaded, data: data}} = assigns) do
+  def render(%{event: %Event{topic: "mes.plugin.loaded", data: data}} = assigns) do
     assigns =
       assign(assigns,
         plugin: to_string(data[:plugin] || "?"),
@@ -75,7 +75,7 @@ defmodule IchorWeb.SignalFeed.Renderers.Mes do
     """
   end
 
-  def render(%{message: %Message{name: :mes_plugin_compile_failed, data: data}} = assigns) do
+  def render(%{event: %Event{topic: "mes.plugin.compile_failed", data: data}} = assigns) do
     assigns = assign(assigns, reason: to_string(data[:reason] || "?"))
 
     ~H"""
@@ -84,7 +84,7 @@ defmodule IchorWeb.SignalFeed.Renderers.Mes do
     """
   end
 
-  def render(%{message: %Message{name: :mes_output_unhandled, data: data}} = assigns) do
+  def render(%{event: %Event{topic: "mes.output.unhandled", data: data}} = assigns) do
     assigns =
       assign(assigns,
         output_kind: to_string(data[:output_kind] || "?"),
@@ -98,7 +98,7 @@ defmodule IchorWeb.SignalFeed.Renderers.Mes do
     """
   end
 
-  def render(%{message: %Message{name: :mes_cycle_started, data: data}} = assigns) do
+  def render(%{event: %Event{topic: "mes.cycle.started", data: data}} = assigns) do
     assigns =
       assign(assigns,
         run_id: Primitives.short(data[:run_id]),
@@ -112,7 +112,7 @@ defmodule IchorWeb.SignalFeed.Renderers.Mes do
     """
   end
 
-  def render(%{message: %Message{name: :mes_cycle_skipped, data: data}} = assigns) do
+  def render(%{event: %Event{topic: "mes.cycle.skipped", data: data}} = assigns) do
     assigns = assign(assigns, active: to_string(data[:active_runs] || "?"))
 
     ~H"""
@@ -121,7 +121,7 @@ defmodule IchorWeb.SignalFeed.Renderers.Mes do
     """
   end
 
-  def render(%{message: %Message{name: :mes_cycle_failed, data: data}} = assigns) do
+  def render(%{event: %Event{topic: "mes.cycle.failed", data: data}} = assigns) do
     assigns = assign(assigns, reason: to_string(data[:reason] || "?"))
 
     ~H"""
@@ -130,7 +130,7 @@ defmodule IchorWeb.SignalFeed.Renderers.Mes do
     """
   end
 
-  def render(%{message: %Message{name: :mes_cycle_timeout, data: data}} = assigns) do
+  def render(%{event: %Event{topic: "mes.cycle.timeout", data: data}} = assigns) do
     assigns = assign(assigns, team: to_string(data[:team_name] || "?"))
 
     ~H"""
@@ -139,7 +139,7 @@ defmodule IchorWeb.SignalFeed.Renderers.Mes do
     """
   end
 
-  def render(%{message: %Message{name: :mes_team_ready, data: data}} = assigns) do
+  def render(%{event: %Event{topic: "mes.team.ready", data: data}} = assigns) do
     assigns =
       assign(assigns,
         session: to_string(data[:session] || "?"),
@@ -153,7 +153,7 @@ defmodule IchorWeb.SignalFeed.Renderers.Mes do
     """
   end
 
-  def render(%{message: %Message{name: :mes_team_killed, data: data}} = assigns) do
+  def render(%{event: %Event{topic: "mes.team.killed", data: data}} = assigns) do
     assigns = assign(assigns, session: to_string(data[:session] || "?"))
 
     ~H"""
@@ -162,7 +162,7 @@ defmodule IchorWeb.SignalFeed.Renderers.Mes do
     """
   end
 
-  def render(%{message: %Message{name: :mes_quality_gate_passed, data: data}} = assigns) do
+  def render(%{event: %Event{topic: "mes.quality_gate.passed", data: data}} = assigns) do
     assigns =
       assign(assigns,
         gate: to_string(data[:gate] || "?"),
@@ -175,7 +175,7 @@ defmodule IchorWeb.SignalFeed.Renderers.Mes do
     """
   end
 
-  def render(%{message: %Message{name: :mes_quality_gate_failed, data: data}} = assigns) do
+  def render(%{event: %Event{topic: "mes.quality_gate.failed", data: data}} = assigns) do
     assigns =
       assign(assigns,
         gate: to_string(data[:gate] || "?"),
@@ -190,7 +190,7 @@ defmodule IchorWeb.SignalFeed.Renderers.Mes do
     """
   end
 
-  def render(%{message: %Message{name: :mes_quality_gate_escalated, data: data}} = assigns) do
+  def render(%{event: %Event{topic: "mes.quality_gate.escalated", data: data}} = assigns) do
     assigns =
       assign(assigns,
         gate: to_string(data[:gate] || "?"),
@@ -205,7 +205,7 @@ defmodule IchorWeb.SignalFeed.Renderers.Mes do
     """
   end
 
-  def render(%{message: %Message{name: :mes_research_ingested, data: data}} = assigns) do
+  def render(%{event: %Event{topic: "mes.research.ingested", data: data}} = assigns) do
     assigns =
       assign(assigns,
         run_id: Primitives.short(data[:run_id]),
@@ -219,7 +219,7 @@ defmodule IchorWeb.SignalFeed.Renderers.Mes do
     """
   end
 
-  def render(%{message: %Message{name: :mes_research_ingest_failed, data: data}} = assigns) do
+  def render(%{event: %Event{topic: "mes.research.ingest_failed", data: data}} = assigns) do
     assigns = assign(assigns, reason: to_string(data[:reason] || "?"))
 
     ~H"""
@@ -228,7 +228,7 @@ defmodule IchorWeb.SignalFeed.Renderers.Mes do
     """
   end
 
-  def render(%{message: %Message{name: :mes_pipeline_generated, data: data}} = assigns) do
+  def render(%{event: %Event{topic: "mes.pipeline.generated", data: data}} = assigns) do
     assigns = assign(assigns, project_id: Primitives.short(data[:project_id]))
 
     ~H"""
@@ -237,7 +237,7 @@ defmodule IchorWeb.SignalFeed.Renderers.Mes do
     """
   end
 
-  def render(%{message: %Message{name: :mes_pipeline_launched, data: data}} = assigns) do
+  def render(%{event: %Event{topic: "mes.pipeline.launched", data: data}} = assigns) do
     assigns =
       assign(assigns,
         project_id: Primitives.short(data[:project_id]),
@@ -251,9 +251,8 @@ defmodule IchorWeb.SignalFeed.Renderers.Mes do
     """
   end
 
-  def render(%{message: %Message{name: name, data: data}} = assigns)
-      when name in [:mes_scheduler_init, :mes_scheduler_paused, :mes_scheduler_resumed] do
-    assigns = assign(assigns, label: scheduler_label(name), tick: data[:tick])
+  def render(%{event: %Event{topic: "mes.scheduler." <> suffix, data: data}} = assigns) do
+    assigns = assign(assigns, label: scheduler_label(suffix), tick: data[:tick])
 
     ~H"""
     <span class="text-[10px] text-muted">{@label}</span>
@@ -261,7 +260,7 @@ defmodule IchorWeb.SignalFeed.Renderers.Mes do
     """
   end
 
-  def render(%{message: %Message{name: :mes_tick, data: data}} = assigns) do
+  def render(%{event: %Event{topic: "mes.tick", data: data}} = assigns) do
     assigns =
       assign(assigns,
         tick: to_string(data[:tick] || "?"),
@@ -274,7 +273,7 @@ defmodule IchorWeb.SignalFeed.Renderers.Mes do
     """
   end
 
-  def render(%{message: %Message{name: :mes_agent_registered, data: data}} = assigns) do
+  def render(%{event: %Event{topic: "mes.agent.registered", data: data}} = assigns) do
     assigns = assign(assigns, name: to_string(data[:agent_name] || "?"))
 
     ~H"""
@@ -284,7 +283,7 @@ defmodule IchorWeb.SignalFeed.Renderers.Mes do
     """
   end
 
-  def render(%{message: %Message{name: :mes_agent_stopped, data: data}} = assigns) do
+  def render(%{event: %Event{topic: "mes.agent.stopped", data: data}} = assigns) do
     assigns =
       assign(assigns,
         agent_id: Primitives.short(data[:agent_id]),
@@ -299,7 +298,7 @@ defmodule IchorWeb.SignalFeed.Renderers.Mes do
     """
   end
 
-  def render(%{message: %Message{name: :agent_tmux_gone, data: data}} = assigns) do
+  def render(%{event: %Event{topic: "fleet.agent.tmux_gone", data: data}} = assigns) do
     assigns = assign(assigns, agent_id: Primitives.short(data[:agent_id]))
 
     ~H"""
@@ -308,7 +307,7 @@ defmodule IchorWeb.SignalFeed.Renderers.Mes do
     """
   end
 
-  def render(%{message: %Message{name: :mes_agent_register_failed, data: data}} = assigns) do
+  def render(%{event: %Event{topic: "mes.agent.register_failed", data: data}} = assigns) do
     assigns =
       assign(assigns,
         name: to_string(data[:agent_name] || "?"),
@@ -322,7 +321,7 @@ defmodule IchorWeb.SignalFeed.Renderers.Mes do
     """
   end
 
-  def render(%{message: %Message{name: :mes_run_init, data: data}} = assigns) do
+  def render(%{event: %Event{topic: "mes.run.init", data: data}} = assigns) do
     assigns =
       assign(assigns,
         run_id: Primitives.short(data[:run_id]),
@@ -336,7 +335,7 @@ defmodule IchorWeb.SignalFeed.Renderers.Mes do
     """
   end
 
-  def render(%{message: %Message{name: :mes_run_started, data: data}} = assigns) do
+  def render(%{event: %Event{topic: "mes.run.started", data: data}} = assigns) do
     assigns =
       assign(assigns,
         run_id: Primitives.short(data[:run_id]),
@@ -350,7 +349,7 @@ defmodule IchorWeb.SignalFeed.Renderers.Mes do
     """
   end
 
-  def render(%{message: %Message{name: :mes_run_terminated, data: data}} = assigns) do
+  def render(%{event: %Event{topic: "mes.run.terminated", data: data}} = assigns) do
     assigns = assign(assigns, run_id: Primitives.short(data[:run_id]))
 
     ~H"""
@@ -359,7 +358,7 @@ defmodule IchorWeb.SignalFeed.Renderers.Mes do
     """
   end
 
-  def render(%{message: %Message{name: :mes_maintenance_init, data: data}} = assigns) do
+  def render(%{event: %Event{topic: "mes.maintenance.init", data: data}} = assigns) do
     assigns = assign(assigns, monitored: to_string(data[:monitored] || 0))
 
     ~H"""
@@ -368,7 +367,7 @@ defmodule IchorWeb.SignalFeed.Renderers.Mes do
     """
   end
 
-  def render(%{message: %Message{name: :mes_maintenance_cleaned, data: data}} = assigns) do
+  def render(%{event: %Event{topic: "mes.maintenance.cleaned", data: data}} = assigns) do
     assigns =
       assign(assigns,
         run_id: Primitives.short(data[:run_id]),
@@ -382,7 +381,7 @@ defmodule IchorWeb.SignalFeed.Renderers.Mes do
     """
   end
 
-  def render(%{message: %Message{name: :mes_maintenance_error, data: data}} = assigns) do
+  def render(%{event: %Event{topic: "mes.maintenance.error", data: data}} = assigns) do
     assigns =
       assign(assigns,
         run_id: Primitives.short(data[:run_id]),
@@ -396,7 +395,7 @@ defmodule IchorWeb.SignalFeed.Renderers.Mes do
     """
   end
 
-  def render(%{message: %Message{name: :mes_prompts_written, data: data}} = assigns) do
+  def render(%{event: %Event{topic: "mes.prompts.written", data: data}} = assigns) do
     assigns =
       assign(assigns,
         run_id: Primitives.short(data[:run_id]),
@@ -410,7 +409,7 @@ defmodule IchorWeb.SignalFeed.Renderers.Mes do
     """
   end
 
-  def render(%{message: %Message{name: :mes_tmux_spawning, data: data}} = assigns) do
+  def render(%{event: %Event{topic: "mes.tmux.spawning", data: data}} = assigns) do
     assigns =
       assign(assigns,
         session: to_string(data[:session] || "?"),
@@ -424,7 +423,7 @@ defmodule IchorWeb.SignalFeed.Renderers.Mes do
     """
   end
 
-  def render(%{message: %Message{name: :mes_tmux_session_created, data: data}} = assigns) do
+  def render(%{event: %Event{topic: "mes.tmux.session_created", data: data}} = assigns) do
     assigns =
       assign(assigns,
         session: to_string(data[:session] || "?"),
@@ -438,7 +437,7 @@ defmodule IchorWeb.SignalFeed.Renderers.Mes do
     """
   end
 
-  def render(%{message: %Message{name: :mes_tmux_spawn_failed, data: data}} = assigns) do
+  def render(%{event: %Event{topic: "mes.tmux.spawn_failed", data: data}} = assigns) do
     assigns =
       assign(assigns,
         session: to_string(data[:session] || "?"),
@@ -452,7 +451,7 @@ defmodule IchorWeb.SignalFeed.Renderers.Mes do
     """
   end
 
-  def render(%{message: %Message{name: :mes_tmux_window_created, data: data}} = assigns) do
+  def render(%{event: %Event{topic: "mes.tmux.window_created", data: data}} = assigns) do
     assigns =
       assign(assigns,
         session: to_string(data[:session] || "?"),
@@ -465,7 +464,7 @@ defmodule IchorWeb.SignalFeed.Renderers.Mes do
     """
   end
 
-  def render(%{message: %Message{name: :mes_team_spawn_failed, data: data}} = assigns) do
+  def render(%{event: %Event{topic: "mes.team.spawn_failed", data: data}} = assigns) do
     assigns =
       assign(assigns,
         session: to_string(data[:session] || "?"),
@@ -479,7 +478,7 @@ defmodule IchorWeb.SignalFeed.Renderers.Mes do
     """
   end
 
-  def render(%{message: %Message{name: :mes_operator_ensured, data: data}} = assigns) do
+  def render(%{event: %Event{topic: "mes.operator.ensured", data: data}} = assigns) do
     assigns = assign(assigns, status: to_string(data[:status] || "?"))
 
     ~H"""
@@ -488,7 +487,7 @@ defmodule IchorWeb.SignalFeed.Renderers.Mes do
     """
   end
 
-  def render(%{message: %Message{name: :mes_cleanup, data: data}} = assigns) do
+  def render(%{event: %Event{topic: "mes.cleanup", data: data}} = assigns) do
     assigns = assign(assigns, target: to_string(data[:target] || "?"))
 
     ~H"""
@@ -497,11 +496,24 @@ defmodule IchorWeb.SignalFeed.Renderers.Mes do
     """
   end
 
-  def render(%{message: %Message{data: data}} = assigns) do
-    assigns = assign(assigns, :pairs, data_to_pairs(data))
+  def render(%{event: %Event{topic: "mes.corrective_agent." <> _, data: data}} = assigns) do
+    assigns = assign(assigns, sid: Primitives.short(data[:session_id] || data[:agent_id]))
 
     ~H"""
-    <span class="text-[10px] text-muted font-mono mr-1">{@message.name}</span>
+    <span class="text-[10px] text-muted">corrective agent</span>
+    <Primitives.kv :if={@sid != "?"} key="sid" value={@sid} />
+    """
+  end
+
+  def render(%{event: %Event{topic: topic, data: data}} = assigns) do
+    assigns =
+      assign(assigns,
+        topic: topic,
+        pairs: data_to_pairs(data)
+      )
+
+    ~H"""
+    <span class="text-[10px] text-muted font-mono mr-1">{@topic}</span>
     <span :for={p <- @pairs} class="mr-1">
       <Primitives.kv key={p.key} value={p.val} />
     </span>
@@ -530,7 +542,8 @@ defmodule IchorWeb.SignalFeed.Renderers.Mes do
 
   defp format_val(v), do: inspect(v, limit: 3, printable_limit: 20) |> String.slice(0, 60)
 
-  defp scheduler_label(:mes_scheduler_init), do: "scheduler init"
-  defp scheduler_label(:mes_scheduler_paused), do: "scheduler paused"
-  defp scheduler_label(:mes_scheduler_resumed), do: "scheduler resumed"
+  defp scheduler_label("init"), do: "scheduler init"
+  defp scheduler_label("paused"), do: "scheduler paused"
+  defp scheduler_label("resumed"), do: "scheduler resumed"
+  defp scheduler_label(other), do: "scheduler #{other}"
 end

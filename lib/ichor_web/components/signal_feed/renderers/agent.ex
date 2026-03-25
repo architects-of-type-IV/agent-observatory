@@ -1,17 +1,17 @@
 defmodule IchorWeb.SignalFeed.Renderers.Agent do
   @moduledoc """
-  Renders signals in the :agent and :fleet domains.
+  Renders signals in the agent and fleet topic namespaces.
   Covers agent lifecycle, nudge escalation, team events, and memory.
   """
   use Phoenix.Component
 
-  alias Ichor.Events.Message
+  alias Ichor.Events.Event
   alias IchorWeb.SignalFeed.Primitives
 
   attr :seq, :integer, required: true
-  attr :message, :any, required: true
+  attr :event, :any, required: true
 
-  def render(%{message: %Message{name: :agent_started, data: data}} = assigns) do
+  def render(%{event: %Event{topic: "fleet.agent.started", data: data}} = assigns) do
     assigns =
       assign(assigns,
         sid: Primitives.short(data[:session_id]),
@@ -26,7 +26,7 @@ defmodule IchorWeb.SignalFeed.Renderers.Agent do
     """
   end
 
-  def render(%{message: %Message{name: :agent_stopped, data: data}} = assigns) do
+  def render(%{event: %Event{topic: "fleet.agent.stopped", data: data}} = assigns) do
     assigns =
       assign(assigns,
         sid: Primitives.short(data[:session_id]),
@@ -39,7 +39,7 @@ defmodule IchorWeb.SignalFeed.Renderers.Agent do
     """
   end
 
-  def render(%{message: %Message{name: :agent_crashed, data: data}} = assigns) do
+  def render(%{event: %Event{topic: "agent.crashed", data: data}} = assigns) do
     assigns =
       assign(assigns,
         sid: Primitives.short(data[:session_id]),
@@ -53,7 +53,7 @@ defmodule IchorWeb.SignalFeed.Renderers.Agent do
     """
   end
 
-  def render(%{message: %Message{name: :agent_paused, data: data}} = assigns) do
+  def render(%{event: %Event{topic: "fleet.agent.paused", data: data}} = assigns) do
     assigns = assign(assigns, sid: Primitives.short(data[:session_id]))
 
     ~H"""
@@ -61,7 +61,7 @@ defmodule IchorWeb.SignalFeed.Renderers.Agent do
     """
   end
 
-  def render(%{message: %Message{name: :agent_resumed, data: data}} = assigns) do
+  def render(%{event: %Event{topic: "fleet.agent.resumed", data: data}} = assigns) do
     assigns = assign(assigns, sid: Primitives.short(data[:session_id]))
 
     ~H"""
@@ -69,7 +69,7 @@ defmodule IchorWeb.SignalFeed.Renderers.Agent do
     """
   end
 
-  def render(%{message: %Message{name: :agent_evicted, data: data}} = assigns) do
+  def render(%{event: %Event{topic: "fleet.agent.evicted", data: data}} = assigns) do
     assigns = assign(assigns, sid: Primitives.short(data[:session_id]))
 
     ~H"""
@@ -79,7 +79,7 @@ defmodule IchorWeb.SignalFeed.Renderers.Agent do
     """
   end
 
-  def render(%{message: %Message{name: :agent_reaped, data: data}} = assigns) do
+  def render(%{event: %Event{topic: "fleet.agent.reaped", data: data}} = assigns) do
     assigns = assign(assigns, sid: Primitives.short(data[:session_id]))
 
     ~H"""
@@ -89,7 +89,7 @@ defmodule IchorWeb.SignalFeed.Renderers.Agent do
     """
   end
 
-  def render(%{message: %Message{name: :agent_discovered, data: data}} = assigns) do
+  def render(%{event: %Event{topic: "fleet.agent.discovered", data: data}} = assigns) do
     assigns = assign(assigns, sid: Primitives.short(data[:session_id]))
 
     ~H"""
@@ -97,7 +97,7 @@ defmodule IchorWeb.SignalFeed.Renderers.Agent do
     """
   end
 
-  def render(%{message: %Message{name: :agent_spawned, data: data}} = assigns) do
+  def render(%{event: %Event{topic: "agent.spawned", data: data}} = assigns) do
     assigns =
       assign(assigns,
         sid: Primitives.short(data[:session_id]),
@@ -112,13 +112,14 @@ defmodule IchorWeb.SignalFeed.Renderers.Agent do
     """
   end
 
-  def render(%{message: %Message{name: name, data: data}} = assigns)
-      when name in [:nudge_warning, :nudge_sent, :nudge_escalated, :nudge_zombie] do
+  def render(%{event: %Event{topic: "agent.nudge." <> _, data: data}} = assigns) do
+    nudge_suffix = String.replace_prefix(assigns.event.topic, "agent.nudge.", "")
+
     assigns =
       assign(assigns,
         sid: Primitives.short(data[:session_id]),
         level: to_string(data[:level] || "?"),
-        label: nudge_label(name)
+        label: nudge_label(nudge_suffix)
       )
 
     ~H"""
@@ -128,7 +129,7 @@ defmodule IchorWeb.SignalFeed.Renderers.Agent do
     """
   end
 
-  def render(%{message: %Message{name: :team_created, data: data}} = assigns) do
+  def render(%{event: %Event{topic: "fleet.team.created", data: data}} = assigns) do
     assigns =
       assign(assigns,
         name: to_string(data[:name] || "?"),
@@ -141,7 +142,7 @@ defmodule IchorWeb.SignalFeed.Renderers.Agent do
     """
   end
 
-  def render(%{message: %Message{name: :team_disbanded, data: data}} = assigns) do
+  def render(%{event: %Event{topic: "fleet.team.disbanded", data: data}} = assigns) do
     assigns = assign(assigns, name: to_string(data[:team_name] || "?"))
 
     ~H"""
@@ -151,19 +152,19 @@ defmodule IchorWeb.SignalFeed.Renderers.Agent do
     """
   end
 
-  def render(%{message: %Message{name: :fleet_changed}} = assigns) do
+  def render(%{event: %Event{topic: "fleet.registry.changed"}} = assigns) do
     ~H"""
     <span class="text-[10px] text-muted">fleet state changed</span>
     """
   end
 
-  def render(%{message: %Message{name: :hosts_changed}} = assigns) do
+  def render(%{event: %Event{topic: "fleet.hosts.changed"}} = assigns) do
     ~H"""
     <span class="text-[10px] text-muted">cluster topology changed</span>
     """
   end
 
-  def render(%{message: %Message{name: :tasks_updated, data: data}} = assigns) do
+  def render(%{event: %Event{topic: "team.tasks.updated", data: data}} = assigns) do
     assigns = assign(assigns, team: data[:team_name])
 
     ~H"""
@@ -171,7 +172,7 @@ defmodule IchorWeb.SignalFeed.Renderers.Agent do
     """
   end
 
-  def render(%{message: %Message{name: :agent_event, data: data}} = assigns) do
+  def render(%{event: %Event{topic: "agent.event", data: data}} = assigns) do
     event = data[:event] || %{}
 
     assigns =
@@ -187,7 +188,7 @@ defmodule IchorWeb.SignalFeed.Renderers.Agent do
     """
   end
 
-  def render(%{message: %Message{name: :agent_message_intercepted, data: data}} = assigns) do
+  def render(%{event: %Event{topic: "agent.message.intercepted", data: data}} = assigns) do
     assigns =
       assign(assigns,
         from: Primitives.short(data[:from]),
@@ -202,7 +203,7 @@ defmodule IchorWeb.SignalFeed.Renderers.Agent do
     """
   end
 
-  def render(%{message: %Message{name: :terminal_output, data: data}} = assigns) do
+  def render(%{event: %Event{topic: "agent.terminal.output", data: data}} = assigns) do
     assigns = assign(assigns, sid: Primitives.short(data[:session_id] || data[:scope_id]))
 
     ~H"""
@@ -211,7 +212,7 @@ defmodule IchorWeb.SignalFeed.Renderers.Agent do
     """
   end
 
-  def render(%{message: %Message{name: :mailbox_message, data: data}} = assigns) do
+  def render(%{event: %Event{topic: "agent.mailbox.message", data: data}} = assigns) do
     msg = data[:message] || %{}
 
     assigns =
@@ -227,7 +228,7 @@ defmodule IchorWeb.SignalFeed.Renderers.Agent do
     """
   end
 
-  def render(%{message: %Message{name: :agent_instructions, data: data}} = assigns) do
+  def render(%{event: %Event{topic: "agent.instructions", data: data}} = assigns) do
     assigns =
       assign(assigns,
         cls: to_string(data[:agent_class] || "?"),
@@ -241,7 +242,7 @@ defmodule IchorWeb.SignalFeed.Renderers.Agent do
     """
   end
 
-  def render(%{message: %Message{name: :scheduled_job, data: data}} = assigns) do
+  def render(%{event: %Event{topic: "agent.scheduled_job", data: data}} = assigns) do
     assigns = assign(assigns, agent_id: Primitives.short(data[:agent_id]))
 
     ~H"""
@@ -250,11 +251,15 @@ defmodule IchorWeb.SignalFeed.Renderers.Agent do
     """
   end
 
-  def render(%{message: %Message{data: data}} = assigns) do
-    assigns = assign(assigns, :pairs, data_to_pairs(data))
+  def render(%{event: %Event{topic: topic, data: data}} = assigns) do
+    assigns =
+      assign(assigns,
+        topic: topic,
+        pairs: data_to_pairs(data)
+      )
 
     ~H"""
-    <span class="text-[10px] text-muted font-mono mr-1">{@message.name}</span>
+    <span class="text-[10px] text-muted font-mono mr-1">{@topic}</span>
     <span :for={p <- @pairs} class="mr-1">
       <Primitives.kv key={p.key} value={p.val} />
     </span>
@@ -283,8 +288,9 @@ defmodule IchorWeb.SignalFeed.Renderers.Agent do
 
   defp format_val(v), do: inspect(v, limit: 3, printable_limit: 20) |> String.slice(0, 60)
 
-  defp nudge_label(:nudge_warning), do: "warn"
-  defp nudge_label(:nudge_sent), do: "nudge sent"
-  defp nudge_label(:nudge_escalated), do: "escalated"
-  defp nudge_label(:nudge_zombie), do: "zombie"
+  defp nudge_label("warning"), do: "warn"
+  defp nudge_label("sent"), do: "nudge sent"
+  defp nudge_label("escalated"), do: "escalated"
+  defp nudge_label("zombie"), do: "zombie"
+  defp nudge_label(other), do: other
 end

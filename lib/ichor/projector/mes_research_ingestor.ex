@@ -13,10 +13,8 @@ defmodule Ichor.Projector.MesResearchIngestor do
 
   alias Ichor.Events
   alias Ichor.Events.Event
-  alias Ichor.Events.Message
   alias Ichor.Factory.Project
   alias Ichor.Infrastructure.MemoriesClient
-  alias Ichor.Signals
 
   @research_space "project:ichor:research"
   @briefs_dir "plugins/briefs"
@@ -27,17 +25,17 @@ defmodule Ichor.Projector.MesResearchIngestor do
 
   @impl true
   def init(_opts) do
-    Signals.subscribe(:mes)
+    Ichor.Events.subscribe_all()
     {:ok, %{}}
   end
 
   @impl true
-  def handle_info(%Message{name: :mes_project_created, data: data}, state) do
+  def handle_info(%Event{topic: "mes.project.created", data: data}, state) do
     ingest_research(data)
     {:noreply, state}
   end
 
-  def handle_info(%Message{}, state), do: {:noreply, state}
+  def handle_info(%Event{}, state), do: {:noreply, state}
 
   defp ingest_research(%{project_id: project_id, run_id: run_id} = data) do
     project = load_project(project_id)

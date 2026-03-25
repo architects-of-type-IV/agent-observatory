@@ -189,7 +189,7 @@ defmodule Ichor.Fleet.AgentProcess do
         :ok
     end
 
-    Ichor.Signals.subscribe(:agent_event, id)
+    Ichor.Events.subscribe_key(id)
     :pg.join(@pg_scope, {:agent, id}, self())
     if Keyword.get(opts, :liveness_poll, false), do: schedule_liveness_check()
 
@@ -318,7 +318,7 @@ defmodule Ichor.Fleet.AgentProcess do
     {:stop, :normal, %{state | status: :terminating}}
   end
 
-  def handle_info(%Ichor.Events.Message{name: :agent_event, data: %{event: event}}, state) do
+  def handle_info(%Ichor.Events.Event{topic: "agent.event", data: %{event: event}}, state) do
     case AgentRegistryProjection.update(
            state.id,
            AgentRegistryProjection.fields_from_event(event)

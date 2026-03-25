@@ -5,10 +5,8 @@ defmodule Ichor.Workshop.Spawn do
 
   alias Ichor.Events
   alias Ichor.Events.Event
-  alias Ichor.Events.Message
   alias Ichor.Fleet.AgentSpec
   alias Ichor.Orchestration.TeamSpec
-  alias Ichor.Signals
   alias Ichor.Workshop.{Presets, PromptProtocol, Team, TeamMember}
 
   @spawn_timeout 30_000
@@ -56,8 +54,7 @@ defmodule Ichor.Workshop.Spawn do
   end
 
   defp do_request_spawn(request_id, spec, extra_metadata) do
-    :ok = Signals.subscribe(:team_spawn_ready, request_id)
-    :ok = Signals.subscribe(:team_spawn_failed, request_id)
+    :ok = Ichor.Events.subscribe_key(request_id)
 
     Events.emit(
       Event.new(
@@ -75,13 +72,12 @@ defmodule Ichor.Workshop.Spawn do
 
     await_spawn_result(request_id, spec, extra_metadata)
   after
-    Signals.unsubscribe(:team_spawn_ready, request_id)
-    Signals.unsubscribe(:team_spawn_failed, request_id)
+    Ichor.Events.unsubscribe_key(request_id)
   end
 
   defp await_spawn_result(request_id, spec, extra_metadata) do
     receive do
-      %Message{name: :team_spawn_ready, data: %{scope_id: ^request_id, session: session}} ->
+      %Event{topic: "fleet.team.spawn_ready", key: ^request_id, data: %{session: session}} ->
         {:ok,
          %{
            team_name: spec.team_name,
@@ -92,10 +88,7 @@ defmodule Ichor.Workshop.Spawn do
          }
          |> Map.merge(extra_metadata)}
 
-      %Message{
-        name: :team_spawn_failed,
-        data: %{scope_id: ^request_id, reason: reason}
-      } ->
+      %Event{topic: "fleet.team.spawn_failed", key: ^request_id, data: %{reason: reason}} ->
         {:error, reason}
     after
       @spawn_timeout ->

@@ -1,17 +1,17 @@
 defmodule IchorWeb.SignalFeed.Renderers.Monitoring do
   @moduledoc """
-  Renders signals in the :monitoring and :team domains.
+  Renders signals in the monitoring and team topic namespaces.
   Covers quality gates, agent status, task events, and watchdog.
   """
   use Phoenix.Component
 
-  alias Ichor.Events.Message
+  alias Ichor.Events.Event
   alias IchorWeb.SignalFeed.Primitives
 
   attr :seq, :integer, required: true
-  attr :message, :any, required: true
+  attr :event, :any, required: true
 
-  def render(%{message: %Message{name: :gate_passed, data: data}} = assigns) do
+  def render(%{event: %Event{topic: "monitoring.gate.passed", data: data}} = assigns) do
     assigns =
       assign(assigns,
         sid: Primitives.short(data[:session_id]),
@@ -25,7 +25,7 @@ defmodule IchorWeb.SignalFeed.Renderers.Monitoring do
     """
   end
 
-  def render(%{message: %Message{name: :gate_failed, data: data}} = assigns) do
+  def render(%{event: %Event{topic: "monitoring.gate.failed", data: data}} = assigns) do
     assigns =
       assign(assigns,
         sid: Primitives.short(data[:session_id]),
@@ -39,7 +39,7 @@ defmodule IchorWeb.SignalFeed.Renderers.Monitoring do
     """
   end
 
-  def render(%{message: %Message{name: :agent_done, data: data}} = assigns) do
+  def render(%{event: %Event{topic: "monitoring.agent.done", data: data}} = assigns) do
     assigns =
       assign(assigns,
         sid: Primitives.short(data[:session_id]),
@@ -53,7 +53,7 @@ defmodule IchorWeb.SignalFeed.Renderers.Monitoring do
     """
   end
 
-  def render(%{message: %Message{name: :agent_blocked, data: data}} = assigns) do
+  def render(%{event: %Event{topic: "monitoring.agent.blocked", data: data}} = assigns) do
     assigns =
       assign(assigns,
         sid: Primitives.short(data[:session_id]),
@@ -67,7 +67,7 @@ defmodule IchorWeb.SignalFeed.Renderers.Monitoring do
     """
   end
 
-  def render(%{message: %Message{name: :protocol_update, data: data}} = assigns) do
+  def render(%{event: %Event{topic: "monitoring.protocol.update", data: data}} = assigns) do
     stats = data[:stats_map] || %{}
 
     assigns =
@@ -83,7 +83,7 @@ defmodule IchorWeb.SignalFeed.Renderers.Monitoring do
     """
   end
 
-  def render(%{message: %Message{name: :watchdog_sweep, data: data}} = assigns) do
+  def render(%{event: %Event{topic: "monitoring.watchdog.sweep", data: data}} = assigns) do
     assigns =
       assign(assigns,
         orphaned: to_string(data[:orphaned_count] || 0),
@@ -100,7 +100,7 @@ defmodule IchorWeb.SignalFeed.Renderers.Monitoring do
     """
   end
 
-  def render(%{message: %Message{name: :task_created, data: data}} = assigns) do
+  def render(%{event: %Event{topic: "team.task.created", data: data}} = assigns) do
     task = data[:task] || %{}
 
     assigns =
@@ -112,7 +112,7 @@ defmodule IchorWeb.SignalFeed.Renderers.Monitoring do
     """
   end
 
-  def render(%{message: %Message{name: :task_updated, data: data}} = assigns) do
+  def render(%{event: %Event{topic: "team.task.updated", data: data}} = assigns) do
     task = data[:task] || %{}
 
     assigns =
@@ -128,7 +128,7 @@ defmodule IchorWeb.SignalFeed.Renderers.Monitoring do
     """
   end
 
-  def render(%{message: %Message{name: :task_deleted, data: data}} = assigns) do
+  def render(%{event: %Event{topic: "team.task.deleted", data: data}} = assigns) do
     assigns = assign(assigns, task_id: Primitives.short(data[:task_id]))
 
     ~H"""
@@ -137,11 +137,15 @@ defmodule IchorWeb.SignalFeed.Renderers.Monitoring do
     """
   end
 
-  def render(%{message: %Message{data: data}} = assigns) do
-    assigns = assign(assigns, :pairs, data_to_pairs(data))
+  def render(%{event: %Event{topic: topic, data: data}} = assigns) do
+    assigns =
+      assign(assigns,
+        topic: topic,
+        pairs: data_to_pairs(data)
+      )
 
     ~H"""
-    <span class="text-[10px] text-muted font-mono mr-1">{@message.name}</span>
+    <span class="text-[10px] text-muted font-mono mr-1">{@topic}</span>
     <span :for={p <- @pairs} class="mr-1">
       <Primitives.kv key={p.key} value={p.val} />
     </span>

@@ -3,14 +3,11 @@ defmodule Ichor.Signals do
   Ash domain for the ICHOR signal system.
 
   Owns signal resources (Operations, Checkpoint) and their Ash actions.
-  Subscribe/unsubscribe delegates to Events.Runtime for PubSub observation.
-
-  Event emission uses `Ichor.Events.emit/1` -- not this module.
+  Event emission uses `Ichor.Events.emit/1`.
+  Event observation uses `Ichor.Events.subscribe_all/0` and `subscribe_key/1`.
   """
 
   use Ash.Domain, extensions: [AshAi]
-
-  alias Ichor.Events.Runtime
 
   resources do
     resource(Ichor.Signals.Operations)
@@ -26,24 +23,4 @@ defmodule Ichor.Signals do
     tool(:archon_send_message, Ichor.Signals.Operations, :operator_send_message)
     tool(:agent_events, Ichor.Signals.Operations, :agent_events)
   end
-
-  @spec subscribe(atom()) :: :ok | {:error, term()}
-  def subscribe(name) when is_atom(name), do: Runtime.subscribe(name)
-
-  @spec subscribe(atom(), String.t()) :: :ok | {:error, term()}
-  def subscribe(name, scope_id) when is_atom(name) and is_binary(scope_id),
-    do: Runtime.subscribe(name, scope_id)
-
-  @spec unsubscribe(atom()) :: :ok
-  def unsubscribe(name) when is_atom(name), do: Runtime.unsubscribe(name)
-
-  @spec unsubscribe(atom(), String.t()) :: :ok
-  def unsubscribe(name, scope_id) when is_atom(name) and is_binary(scope_id),
-    do: Runtime.unsubscribe(name, scope_id)
-
-  @spec category_topic(atom()) :: String.t()
-  def category_topic(category), do: Runtime.category_topic(category)
-
-  @spec categories() :: [atom()]
-  def categories, do: Runtime.categories()
 end

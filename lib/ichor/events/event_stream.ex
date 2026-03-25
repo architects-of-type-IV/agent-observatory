@@ -22,7 +22,6 @@ defmodule Ichor.Events.EventStream do
   alias Ichor.Events
   alias Ichor.Events.Event
   alias Ichor.Events.Ingress
-  alias Ichor.Signals
   alias Ichor.Events.EventStream.{AgentLifecycle, Normalizer}
 
   @table :event_buffer_events
@@ -82,12 +81,12 @@ defmodule Ichor.Events.EventStream do
     :ok
   end
 
-  @doc "Subscribe to the normalized event stream. Delegates to Signals."
+  @doc "Subscribe to all events. For key-scoped subscriptions use Events.subscribe_key/1."
   @spec subscribe(atom(), keyword()) :: :ok | {:error, term()}
-  def subscribe(topic, opts \\ []) when is_atom(topic) do
+  def subscribe(_topic, opts \\ []) do
     case Keyword.get(opts, :scope_id) do
-      nil -> Signals.subscribe(topic)
-      scope_id -> Signals.subscribe(topic, scope_id)
+      nil -> Events.subscribe_all()
+      scope_id -> Events.subscribe_key(scope_id)
     end
   end
 
@@ -168,7 +167,7 @@ defmodule Ichor.Events.EventStream do
   def init(_opts) do
     Enum.each([@table, @tools, @aliases, @tombstones], &ensure_ets/1)
     :timer.send_interval(@check_interval_ms, :check_heartbeats)
-    Signals.subscribe(:fleet)
+    Events.subscribe_all()
     {:ok, %{}}
   end
 
@@ -234,7 +233,7 @@ defmodule Ichor.Events.EventStream do
 
   @impl true
   def handle_info(
-        %Ichor.Events.Message{name: :agent_stopped, data: %{session_id: session_id}},
+        %Event{topic: "fleet.agent.stopped", data: %{session_id: session_id}},
         state
       )
       when is_binary(session_id) do

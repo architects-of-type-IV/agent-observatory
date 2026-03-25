@@ -23,7 +23,6 @@ defmodule Ichor.Projector.AgentWatchdog do
   alias Ichor.Projector.AgentWatchdog.EscalationEngine
   alias Ichor.Projector.AgentWatchdog.PaneScanner
   alias Ichor.Signals.Bus
-  alias Ichor.Events.Message
   alias Ichor.Workshop.AgentEntry
 
   @interval 5_000
@@ -48,8 +47,7 @@ defmodule Ichor.Projector.AgentWatchdog do
 
   @impl true
   def init(_opts) do
-    Ichor.Signals.subscribe(:events)
-    Ichor.Signals.subscribe(:fleet)
+    Ichor.Events.subscribe_all()
     schedule()
 
     cfg = %{
@@ -87,20 +85,20 @@ defmodule Ichor.Projector.AgentWatchdog do
   end
 
   @impl true
-  def handle_info(%Message{name: :new_event, data: %{event: event}}, state) do
+  def handle_info(%Event{topic: "events.hook.ingested", data: %{event: event}}, state) do
     sessions = update_session_activity(event, state.sessions)
     escalations = clear_escalation_if_active(event.session_id, state.escalations)
     {:noreply, %{state | sessions: sessions, escalations: escalations}}
   end
 
   @impl true
-  def handle_info(%Message{name: :agent_stopped, data: %{session_id: session_id}}, state)
+  def handle_info(%Event{topic: "fleet.agent.stopped", data: %{session_id: session_id}}, state)
       when is_binary(session_id) do
     {:noreply, drop_session_state(state, session_id)}
   end
 
   @impl true
-  def handle_info(%Message{name: :team_disbanded, data: %{team_name: team_name}}, state)
+  def handle_info(%Event{topic: "fleet.team.disbanded", data: %{team_name: team_name}}, state)
       when is_binary(team_name) do
     {:noreply, drop_team_state(state, team_name)}
   end

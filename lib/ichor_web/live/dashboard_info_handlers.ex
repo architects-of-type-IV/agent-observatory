@@ -13,7 +13,7 @@ defmodule IchorWeb.DashboardInfoHandlers do
 
   alias Ichor.Factory.Project
   alias Ichor.Infrastructure.Tmux
-  alias Ichor.Events.Message
+  alias Ichor.Events.Event
   alias IchorWeb.{DashboardArchonHandlers, DashboardMesHandlers}
 
   @max_events 500
@@ -31,7 +31,7 @@ defmodule IchorWeb.DashboardInfoHandlers do
     {:noreply, socket |> assign(:recompute_timer, nil) |> recompute()}
   end
 
-  def dispatch(%Message{name: :new_event, data: %{event: event}}, socket) do
+  def dispatch(%Event{topic: "events.hook.ingested", data: %{event: event}}, socket) do
     events = [event | socket.assigns.events] |> Enum.take(@max_events)
 
     {:noreply,
@@ -42,24 +42,21 @@ defmodule IchorWeb.DashboardInfoHandlers do
      |> schedule_recompute()}
   end
 
-  def dispatch(%Message{name: :tasks_updated}, socket),
+  def dispatch(%Event{topic: "team.tasks.updated"}, socket),
     do: {:noreply, schedule_recompute(socket)}
 
-  def dispatch(%Message{name: :agent_crashed, data: data}, socket),
+  def dispatch(%Event{topic: "agent.crashed", data: data}, socket),
     do:
       {:noreply,
        handle_agent_crashed(data.session_id, data[:team_name], 0, socket) |> schedule_recompute()}
 
-  def dispatch(%Message{name: :agent_spawned}, socket),
+  def dispatch(%Event{topic: "fleet.agent.started"}, socket),
     do: {:noreply, schedule_recompute(socket)}
 
-  def dispatch(%Message{name: :agent_stopped}, socket),
+  def dispatch(%Event{topic: "fleet.agent.stopped"}, socket),
     do: {:noreply, schedule_recompute(socket)}
 
-  def dispatch(%Message{name: :registry_changed}, socket),
-    do: {:noreply, schedule_recompute(socket)}
-
-  def dispatch(%Message{name: :fleet_changed}, socket),
+  def dispatch(%Event{topic: "fleet.registry.changed"}, socket),
     do: {:noreply, schedule_recompute(socket)}
 
   def dispatch({:refresh_terminal, session}, socket) do
@@ -75,20 +72,26 @@ defmodule IchorWeb.DashboardInfoHandlers do
     end
   end
 
-  def dispatch(%Message{name: :heartbeat}, %{assigns: %{tmux_panels: [_ | _]}} = socket),
+  def dispatch(%Event{topic: "system.heartbeat"}, %{assigns: %{tmux_panels: [_ | _]}} = socket),
     do: {:noreply, refresh_tmux_panels(socket)}
 
-  def dispatch(%Message{name: :heartbeat}, socket), do: {:noreply, socket}
+  def dispatch(%Event{topic: "system.heartbeat"}, socket), do: {:noreply, socket}
 
-  def dispatch(%Message{name: :mailbox_message, data: %{message: message}}, socket),
-    do: handle_new_mailbox_message(message, socket)
+  def dispatch(
+        %Event{topic: "messages.delivered", data: %{msg_map: %{message: message}}},
+        socket
+      ),
+      do: handle_new_mailbox_message(message, socket)
 
-  def dispatch(%Message{name: :pipeline_status, data: %{state_map: state}}, socket) do
+  def dispatch(%Event{topic: "pipeline.status", data: %{state_map: state}}, socket) do
     merged = Map.merge(socket.assigns.pipeline_state, state)
     {:noreply, socket |> assign(:pipeline_state, merged) |> maybe_refresh_archon_manager()}
   end
 
-  def dispatch(%Message{name: :terminal_output, data: %{session_id: sid, output: output}}, socket) do
+  def dispatch(
+        %Event{topic: "agent.terminal.output", data: %{session_id: sid, output: output}},
+        socket
+      ) do
     case socket.assigns.agent_slideout do
       %{session_id: ^sid} -> {:noreply, assign(socket, :slideout_terminal, output)}
       _ -> {:noreply, socket}
@@ -96,19 +99,20 @@ defmodule IchorWeb.DashboardInfoHandlers do
   end
 
   # Nudge/gate: notifications only -- no data changed, no recompute
-  def dispatch(%Message{name: name}, socket)
-      when name in [:nudge_warning, :nudge_sent, :nudge_escalated, :nudge_zombie],
-      do: {:noreply, maybe_refresh_archon_manager(socket)}
+  @nudge_topics ~w(agent.nudge.warning agent.nudge.sent agent.nudge.escalated agent.nudge.zombie)
 
-  def dispatch(%Message{name: :gate_passed}, socket),
+  def dispatch(%Event{topic: topic}, socket) when topic in @nudge_topics,
     do: {:noreply, maybe_refresh_archon_manager(socket)}
 
-  def dispatch(%Message{name: :gate_failed}, socket),
+  def dispatch(%Event{topic: "gateway.gate.passed"}, socket),
     do: {:noreply, maybe_refresh_archon_manager(socket)}
 
-  @gateway_signals ~w(schema_violation node_state_update dead_letter capability_update topology_snapshot entropy_alert)a
+  def dispatch(%Event{topic: "gateway.gate.failed"}, socket),
+    do: {:noreply, maybe_refresh_archon_manager(socket)}
 
-  def dispatch(%Message{name: name}, socket) when name in @gateway_signals,
+  @gateway_topics ~w(gateway.entropy.alert gateway.node.state_update)
+
+  def dispatch(%Event{topic: topic}, socket) when topic in @gateway_topics,
     do: {:noreply, maybe_refresh_archon_manager(socket)}
 
   # ADR-026: signal pipeline activations
@@ -122,41 +126,34 @@ defmodule IchorWeb.DashboardInfoHandlers do
   def dispatch({:dismiss_toast, id}, socket),
     do: {:noreply, IchorWeb.DashboardToast.dismiss_toast(socket, id)}
 
-  def dispatch(%Message{name: :mes_project_created}, socket) do
+  def dispatch(%Event{topic: "mes.project.created"}, socket) do
     {:noreply, assign(socket, :mes_projects, Project.list_all!())}
   end
 
-  def dispatch(%Message{name: name}, socket)
-      when name in [:mes_scheduler_paused, :mes_scheduler_resumed, :mes_cycle_started],
-      do:
-        {:noreply,
-         assign(socket, :mes_scheduler_status, DashboardMesHandlers.fetch_scheduler_status())}
+  @mes_scheduler_topics ~w(mes.scheduler.paused mes.scheduler.resumed mes.cycle.started)
 
-  def dispatch(%Message{name: :mes_plugin_loaded}, socket) do
+  def dispatch(%Event{topic: topic}, socket) when topic in @mes_scheduler_topics,
+    do:
+      {:noreply,
+       assign(socket, :mes_scheduler_status, DashboardMesHandlers.fetch_scheduler_status())}
+
+  def dispatch(%Event{topic: "mes.plugin.loaded"}, socket) do
     {:noreply, assign(socket, :mes_projects, Project.list_all!())}
   end
 
-  def dispatch(%Message{name: name}, socket)
-      when name in [
-             :mes_cycle_timeout,
-             :mes_project_picked_up,
-             :mes_research_ingested,
-             :mes_research_ingest_failed
-           ],
-      do: {:noreply, maybe_refresh_archon_manager(socket)}
+  @mes_archon_topics ~w(mes.cycle.failed mes.cycle.timeout mes.project.picked_up mes.research.ingested mes.research.ingest_failed)
 
-  def dispatch(%Message{name: name}, socket)
-      when name in [
-             :project_artifact_created,
-             :planning_team_ready,
-             :planning_run_complete,
-             :planning_team_killed
-           ] do
+  def dispatch(%Event{topic: topic}, socket) when topic in @mes_archon_topics,
+    do: {:noreply, maybe_refresh_archon_manager(socket)}
+
+  @planning_reload_topics ~w(planning.artifact.created planning.team.ready planning.run.complete planning.team.killed)
+
+  def dispatch(%Event{topic: topic}, socket) when topic in @planning_reload_topics do
     {:noreply, reload_planning_project(socket)}
   end
 
-  # Catch-all: ignore unknown signals (new signals added to catalog won't crash)
-  def dispatch(%Message{}, socket), do: {:noreply, maybe_refresh_archon_manager(socket)}
+  # Catch-all: ignore unknown events (new events added won't crash)
+  def dispatch(%Event{}, socket), do: {:noreply, maybe_refresh_archon_manager(socket)}
 
   defp reload_planning_project(%{assigns: %{selected_mes_project: nil}} = socket), do: socket
 

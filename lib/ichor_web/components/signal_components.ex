@@ -1,14 +1,14 @@
 defmodule IchorWeb.Components.SignalComponents do
   @moduledoc """
   Components for the /signals nervous system page.
-  The live feed uses a Phoenix stream of {seq, %Message{}} tuples.
+  The live feed uses a Phoenix stream of {seq, %Event{}} tuples.
   Per-signal rendering is delegated to IchorWeb.SignalFeed.Renderer.
   """
   use Phoenix.Component
 
   import IchorWeb.UI, only: [input: 1]
 
-  alias Ichor.Events.{Message, Registry}
+  alias Ichor.Events.{Event, Registry}
   alias IchorWeb.SignalFeed.Renderer
 
   attr :streams, :any, required: true
@@ -106,29 +106,29 @@ defmodule IchorWeb.Components.SignalComponents do
             </thead>
             <tbody id="signals" phx-update="stream">
               <tr
-                :for={{dom_id, {seq, message}} <- @streams.signals}
+                :for={{dom_id, {seq, event}} <- @streams.signals}
                 id={dom_id}
-                class={"border-b border-raised hover:bg-surface-raised/50 #{row_class(message)}"}
+                class={"border-b border-raised hover:bg-surface-raised/50 #{row_class(event)}"}
               >
                 <td class="px-2 py-0.5 text-medium font-mono text-[10px] w-[70px]">
-                  {format_ts(message.timestamp)}
+                  {format_ts(event.occurred_at)}
                 </td>
                 <td class="px-2 py-0.5 w-[80px]">
-                  <span class={"text-[10px] font-medium #{category_color(message.domain)}"}>
-                    {message.domain}
+                  <span class={"text-[10px] font-medium #{category_color(topic_category(event.topic))}"}>
+                    {topic_category(event.topic)}
                   </span>
                 </td>
                 <td class="px-2 py-0.5 w-[120px]">
                   <button
                     phx-click="stream_filter_topic"
-                    phx-value-topic={"#{message.domain}:#{message.name}"}
-                    class={"font-mono text-[10px] cursor-pointer hover:underline #{category_color(message.domain)}"}
+                    phx-value-topic={event.topic}
+                    class={"font-mono text-[10px] cursor-pointer hover:underline #{category_color(topic_category(event.topic))}"}
                   >
-                    {message.name}
+                    {topic_name(event.topic)}
                   </button>
                 </td>
                 <td class="px-2 py-0.5 flex items-center gap-1 flex-wrap">
-                  <Renderer.render seq={seq} message={message} />
+                  <Renderer.render seq={seq} event={event} />
                 </td>
               </tr>
             </tbody>
@@ -148,14 +148,14 @@ defmodule IchorWeb.Components.SignalComponents do
 
   defp format_ts(nil), do: "--:--:--"
 
-  defp format_ts(monotonic_ms) when is_integer(monotonic_ms) do
-    wall_ms = System.time_offset(:millisecond) + monotonic_ms
-    wall_s = div(wall_ms, 1000)
-    h = div(wall_s, 3600) |> rem(24)
-    m = div(wall_s, 60) |> rem(60)
-    s = rem(wall_s, 60)
-    :io_lib.format("~2..0B:~2..0B:~2..0B", [h, m, s]) |> IO.iodata_to_binary()
+  defp format_ts(%DateTime{} = dt) do
+    Calendar.strftime(dt, "%H:%M:%S")
   end
+
+  defp topic_category(topic),
+    do: topic |> String.split(".", parts: 2) |> hd() |> String.to_existing_atom()
+
+  defp topic_name(topic), do: topic |> String.split(".", parts: 2) |> List.last()
 
   defp category_color(:events), do: "text-success"
   defp category_color(:fleet), do: "text-brand"
@@ -172,14 +172,12 @@ defmodule IchorWeb.Components.SignalComponents do
   defp category_color(:mes), do: "text-default"
   defp category_color(_), do: "text-muted"
 
-  defp row_class(%Message{name: :agent_crashed}), do: "bg-error/5"
-  defp row_class(%Message{name: :schema_violation}), do: "bg-error/5"
-  defp row_class(%Message{name: :dead_letter}), do: "bg-error/5"
+  defp row_class(%Event{topic: "agent.crashed"}), do: "bg-error/5"
+  defp row_class(%Event{topic: "gateway.schema.violation"}), do: "bg-error/5"
+  defp row_class(%Event{topic: "gateway.dead_letter"}), do: "bg-error/5"
 
-  defp row_class(%Message{name: name})
-       when name in [:nudge_warning, :nudge_sent, :nudge_escalated, :nudge_zombie],
-       do: "bg-brand/5"
+  defp row_class(%Event{topic: "agent.nudge." <> _}), do: "bg-brand/5"
 
-  defp row_class(%Message{name: name}) when name in [:gate_passed, :gate_failed], do: "bg-info/5"
+  defp row_class(%Event{topic: "monitoring.gate." <> _}), do: "bg-info/5"
   defp row_class(_), do: ""
 end
