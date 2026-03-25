@@ -40,8 +40,21 @@
 ## Centralized Code Interface
 - Define action interfaces on the Domain, not the Resource.
 
-## AshSqlite
-- No aggregates. No ALTER COLUMN.
+## AshSqlite (historical -- now on PostgreSQL)
+- Migrated to PostgreSQL. SQLite limitations no longer apply.
+
+## Dead Code Hunting Pattern
+- For each directory under lib/, check if modules inside are referenced from OUTSIDE that dir.
+- For each supervised process, trace whether its public API is called from anywhere.
+- PubSub: check broadcast topics have subscribers, and vice versa.
+- String references in templates (PluginScaffold) don't count as real callers.
+- Mesh subsystem was ~1000 lines with zero external consumers. Found by tracing Ichor.Mesh.* references outside lib/ichor/mesh/.
+
+## Signals Architecture (post-cleanup)
+- Signals.emit -> Runtime directly (no more impl() indirection or Behaviour/Noop).
+- FromAsh notifier is a stub (kept as compile target for resources listing it).
+- GenStage pipeline fully removed (Events domain, Ingress, Projector infra).
+- bridge_to_events dual-emit path removed from Runtime.
 
 ## Audit Pipeline Lessons
 - 6 parallel agents can step on each other -- syntax errors from map keyword mixing.

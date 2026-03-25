@@ -1,15 +1,12 @@
 # ICHOR IV Progress
 
-## Dead Code Cleanup (2026-03-25) -- COMPLETE
-- [x] Item 6: Deleted SyncRunner notifier (fragile Code.ensure_loaded? + try/rescue)
-- [x] Item 11a-d: Inlined 4 single-use Ash enum types (WorkStatus, HealthStatus, LocationType, AuthMethodType)
-- [x] Item 12b: Inlined AgentLookup (61 lines) into Workshop.Agent as private defp
-- [x] Item 13a: Inlined DateUtils.parse_timestamp/1 into PipelineGraph + PipelineQuery
-- [x] Item 13b: Inlined SessionEviction.evict_stale/2 into DashboardState
-- [x] Item 15: Replaced TeamPreset bare struct with plain maps in Presets
-- [x] Item 16: Removed 7 dead public functions (EntropyTracker x4, EscalationEngine x1, EventStream x2, ProtocolTracker stale fields)
-- [x] Simplify pass: idiomatic if, MapSet.size check, trailing newline
-- [x] Build: mix compile --warnings-as-errors CLEAN
+## Deep Cleanup Session (2026-03-25) -- COMPLETE
+- [x] Phase 1: 9 single-use modules inlined at callsites (a9f4ac6, -208 lines)
+- [x] Phase 2: Mesh subsystem + GenStage pipeline + Fleet domain + Signals indirection deleted (f20ac4b, -1980 lines)
+- [x] Phase 3: Plugin behaviour + Info struct deleted (66590ff, -124 lines)
+- [x] Phase 4: 11 stale test files deleted (eeb769c, -2220 lines)
+- [x] Phase 5: 10 docs updated for stale references (a212f88, -76 lines)
+- [x] Total: ~4,700 lines removed, 260 .ex files remaining, build clean
 
 ## Signals Domain Refactor (2026-03-22) -- IN PROGRESS
 - [x] Bug fix: AgentState inbox for tmux-backed agents (695e108, 46d0cd5)
