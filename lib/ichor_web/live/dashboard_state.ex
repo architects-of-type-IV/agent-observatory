@@ -14,8 +14,6 @@ defmodule IchorWeb.DashboardState do
   alias Ichor.Infrastructure.TmuxDiscovery
   alias Ichor.Notes
   alias Ichor.Signals.Bus
-  alias Ichor.Signals.TaskProjection
-  alias Ichor.Signals.ToolFailure
   alias Ichor.Workshop.ActiveTeam
   alias Ichor.Workshop.Agent
   alias Ichor.Workshop.Analysis.Queries, as: FQ
@@ -169,14 +167,13 @@ defmodule IchorWeb.DashboardState do
     tasks = [
       Task.async(fn -> ActiveTeam.alive!() end),
       Task.async(fn -> ActiveTeam.all!() end),
-      Task.async(fn -> Agent.all!() end),
-      Task.async(fn -> TaskProjection.current!() |> Enum.map(&task_to_map/1) end),
-      Task.async(fn -> ToolFailure.recent!() end),
-      Task.async(fn -> ToolFailure.by_tool!() end)
+      Task.async(fn -> Agent.all!() end)
     ]
 
-    [teams, all_teams, agents, event_tasks, errors, error_groups] =
-      Task.await_many(tasks, 5_000)
+    [teams, all_teams, agents] = Task.await_many(tasks, 5_000)
+    event_tasks = []
+    errors = []
+    error_groups = []
 
     # Session derivation (Fleet.Queries)
     all_sessions =
@@ -297,9 +294,6 @@ defmodule IchorWeb.DashboardState do
   defp infrastructure_entry?(%{session_id: sid}) do
     sid == "operator" or TmuxDiscovery.infrastructure_session?(sid)
   end
-
-  defp task_to_map(%{id: _id} = t), do: Map.from_struct(t)
-  defp task_to_map(t) when is_map(t), do: t
 
   defp tmux_feed_entry(s, now) do
     %{

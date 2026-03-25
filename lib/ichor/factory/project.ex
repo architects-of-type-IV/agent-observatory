@@ -10,7 +10,7 @@ defmodule Ichor.Factory.Project do
   use Ash.Resource,
     domain: Ichor.Factory,
     data_layer: AshPostgres.DataLayer,
-    simple_notifiers: [Ichor.Signals.FromAsh, Ichor.Events.FromAsh]
+    simple_notifiers: [Ichor.Events.FromAsh]
 
   alias Ichor.Factory.{Artifact, ProjectView, RoadmapItem}
 

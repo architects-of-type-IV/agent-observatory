@@ -13,8 +13,6 @@ defmodule Ichor.Signals do
   resources do
     resource(Ichor.Signals.Event)
     resource(Ichor.Signals.Operations)
-    resource(Ichor.Signals.TaskProjection)
-    resource(Ichor.Signals.ToolFailure)
     resource(Ichor.Signals.HITLInterventionEvent)
   end
 

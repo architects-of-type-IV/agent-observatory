@@ -245,7 +245,7 @@ end
 - All analysis logic is in `Analysis` (pure, no side effects). `Correlator` handles signal I/O only.
 - `Analysis` functions must return `[]` / `nil` on empty window — never crash.
 - Do NOT call `EntropyTracker` directly from the Correlator — react to its `entropy_alert` signals.
-- Do NOT use `Ichor.Signals.Buffer` for storage — maintain an in-process window list in GenServer state.
+- Do NOT use `Ichor.Projector.SignalBuffer` for storage — maintain an in-process window list in GenServer state.
 - `extract_agent_id/1` must never raise — use pattern matching with fallback.
 - New catalog signals (`correlation_detected`, `bottleneck_identified`, `pipeline_stall_detected`) must be added to Catalog before first emit.
 - `find_correlations/2` is O(n²) over unique agents. Cap agent count in analysis to 20 to bound compute on a large fleet.

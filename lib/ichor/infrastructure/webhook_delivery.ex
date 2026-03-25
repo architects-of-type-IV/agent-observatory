@@ -4,7 +4,7 @@ defmodule Ichor.Infrastructure.WebhookDelivery do
   use Ash.Resource,
     domain: Ichor.Infrastructure,
     data_layer: AshPostgres.DataLayer,
-    simple_notifiers: [Ichor.Signals.FromAsh, Ichor.Events.FromAsh]
+    simple_notifiers: [Ichor.Events.FromAsh]
 
   postgres do
     repo(Ichor.Repo)
