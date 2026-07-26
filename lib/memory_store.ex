@@ -11,8 +11,8 @@ defmodule MemoryStore do
   set it always sees. Each block has a `label`, a `description` telling the
   agent what the block is for, a `value`, a character `limit`, and a
   `read_only` flag. Blocks are addressed by id and can be attached to several
-  agents at once, so a shared "organization" block stays consistent across a
-  fleet.
+  agents at once, so a shared "organization" block stays consistent across all
+  of them.
 
   **Recall memory** — the conversation log, newest first, searchable by
   substring or date range. ETS keeps the most recent
