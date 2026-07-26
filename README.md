@@ -1,91 +1,152 @@
-# ICHOR IV
+# fleet_analysis
 
-ICHOR IV is a Phoenix LiveView dashboard for orchestrating multi-agent Claude Code teams. The Architect (human user) designs agent teams in the Workshop, runs software development projects through the Factory, and observes the entire system via a reactive signal backbone. Each agent is a Claude Code instance running in a tmux window; ICHOR manages their lifecycle, routing, and coordination without the Architect having to touch a terminal.
+Health, session, and topology derivation from a fleet's raw event log.
 
-## Architecture
+Extracted from the ICHOR IV agent observatory. Pure functions over event lists —
+no processes, no storage, no clock of its own. No dependencies.
 
-The application follows a hexagonal design with six Ash Domains plus dedicated namespaces for fleet process management, use-case orchestration, and signal-driven projectors:
+## The failure modes worth naming
 
-| Domain / Namespace | Path | Responsibility |
-|--------------------|------|----------------|
-| **Workshop** | `/workshop` | Design agent types, teams, spawn links, and comm rules. Compile and launch teams. |
-| **Factory** | `/mes` | Turn project briefs into requirements via the MES planning pipeline. Track pipeline runs and tasks. |
-| **Signals** | system-wide | Reactive GenStage backbone (ADR-026). All system events flow through a producer/consumer pipeline; all mandatory reactions are Oban jobs. |
-| **Events** | system-wide | Append-only durable event log (`StoredEvent`). Ash notifier bridges Ash actions into the pipeline. |
-| **Archon** | system-wide | App manager agent. Exposes management tool surface (memory, command manifest, signal-fed state). |
-| **Settings** | `/settings` | Application-wide configuration: registered projects, git info, folder locations. |
-| **Infrastructure** | I/O boundary | External adapters only: tmux, webhook, Memories API. Wrapped as Ash Resources with `:none` data layer for policy-ready, code-interface-callable access. No business logic. |
-| **fleet/** | OTP layer | Live agent and team GenServers (`AgentProcess`, `TeamSupervisor`, `FleetSupervisor`). |
-| **orchestration/** | use-case layer | Agent and team launch/cleanup orchestrators. Consumes fleet and infrastructure. |
-| **projector/** | signal consumers | Signal-driven GenServer projectors that react to domain events (watchdogs, ingestors, dispatchers). |
+A stuck agent and a looping agent both look perfectly healthy from outside. The
+process is up, the tmux pane is open, the supervisor is content, nothing raises.
+They are only visible as *shapes in the event log*:
 
-### Signal Pipeline (ADR-026)
+**Stuck** — a gap. No events for longer than the threshold. The agent is alive
+and doing nothing.
 
-Ash actions emit events via the `FromAsh` notifier. Events flow through a GenStage pipeline: `Ingress` (producer) buffers them; `Router` (consumer) dispatches to per-topic `SignalProcess` accumulators. Signals are flushed to `ActionHandler`, which executes mandatory side effects (Oban jobs) and observational projections.
+**Looping** — a repeat. The same tool called three times running. The agent is
+busy and making no progress: re-reading a file it already read, retrying a
+command that will keep failing. Every liveness measure says it's fine.
 
-```
-Ash action -> FromAsh notifier -> Ingress (GenStage producer)
-                                         |
-                                  Router (GenStage consumer)
-                                         |
-                              SignalProcess per {module, key}
-                                         |
-                               ActionHandler: flush signal
-                                    /              \
-                            Oban job inserted    PubSub broadcast
-                            (mandatory effect)   (observational)
-```
+**Failing** — a ratio. Most tool calls returning errors. Working, getting
+nowhere.
 
-### Oban Workers
+That's why this is a library and not a supervisor callback. OTP can tell you a
+process died; it cannot tell you a process is politely spinning.
 
-Twelve workers across five queues handle durable side effects: `MesTick` (cron, MES scheduler), `ScheduledJob`, `WebhookDeliveryWorker` (HTTP POST with backoff), `ArchiveRunWorker`, `ResetRunTasksWorker`, `DisbandTeamWorker`, `KillSessionWorker`, `HealthCheckWorker` (cron), `ProjectDiscoveryWorker` (cron, scans for `tasks.jsonl`), `OrphanSweepWorker` (cron), `PipelineReconcilerWorker` (cron, AD-8 safety net), and `PruneStoredEventsWorker` (cron daily, 7-day event retention).
+## What it computes
 
-### Frontend
+| Module | From | To |
+|---|---|---|
+| `FleetAnalysis.Health` | one agent's events | stuck / looping / failing |
+| `FleetAnalysis.Sessions` | all events | session summaries |
+| `FleetAnalysis.Topology` | sessions + teams | graph nodes and edges |
+| `FleetAnalysis.Entry` | — | id and role helpers |
 
-The UI is a single Phoenix LiveView at `/` split into ~35 handler modules. A component library under `lib/ichor_web/components/` provides reusable Tailwind components organized into named namespaces (`signal_feed/`, `command_components/`, `primitives/`, `ui/`, etc.). Terminal panels use xterm.js for tmux output rendering.
+## Install
 
-## Prerequisites
-
-- Elixir 1.19 / Erlang 27
-- `tmux` (agents run in tmux sessions; required at runtime)
-- PostgreSQL (database backend)
-- Node.js (for asset compilation via esbuild and Tailwind)
-
-## Setup
-
-```bash
-mix deps.get
-mix ash.setup       # creates DB, runs migrations, seeds
-mix phx.server      # starts on http://localhost:4005
+```elixir
+def deps do
+  [{:fleet_analysis, path: "../fleet_analysis"}]
+end
 ```
 
-For a full asset rebuild:
+## Use
 
-```bash
-mix assets.build
+```elixir
+events = MyApp.Events.recent()
+now = DateTime.utc_now()
+
+# One agent
+FleetAnalysis.health(agent_events, now)
+#=> %{health: :critical, issues: [{:stuck, event}], failure_rate: 0.0,
+#=>   stuck?: true, loops: []}
+
+# The whole fleet, grouped in one pass
+FleetAnalysis.health_by_session(events, now)
+FleetAnalysis.unhealthy(events, now)     #=> [{"session-id", health}], worst first
+
+# Sessions and graph
+sessions = FleetAnalysis.sessions(events, tmux: TmuxChannel.list_sessions())
+{nodes, edges} = FleetAnalysis.topology(sessions, MyApp.Teams.all(), now)
 ```
 
-To reset the database:
+`now` is always an argument, never read from the clock. That makes historical
+windows possible and tests deterministic.
 
-```bash
-mix ecto.reset
+## Design notes
+
+**Sessions are derived, not stored.** A session is inferred by grouping the
+append-only event log on `{source_app, session_id}`. A separately maintained
+session table can disagree with what actually happened; a derivation cannot.
+
+**Sessions with no events still appear.** A tmux session that has never emitted
+an event is invisible to a pure event query — and a freshly spawned agent that
+died before its first event is exactly the case you most want to see. Pass
+`:tmux` with the live session names and those show up with zero events.
+
+**Topology merges what ran with what was configured.** A team member that never
+started has no session; a session outside any team has no member. Both get
+nodes. The gap between them is usually the interesting part: an orphan member
+node is an agent that failed to start.
+
+**Stuck and looping outrank failure rate.** A high failure rate often resolves
+on its own. Silence and spinning do not.
+
+## Events
+
+Events are whatever the host already has — Ecto schemas, Ash resources, or plain
+maps. `FleetAnalysis.Event` documents the fields read:
+
+| Field | Used for |
+|---|---|
+| `:inserted_at` | Ordering and every staleness calculation |
+| `:session_id` | Grouping events into sessions |
+| `:hook_event_type` | `:PreToolUse`, `:PostToolUse`, `:PostToolUseFailure`, `:SessionEnd` |
+| `:source_app` | Fallback session label |
+| `:tool_name` | Loop detection |
+| `:payload` / `:model_name` | Model lookup |
+| `:cwd`, `:permission_mode`, `:tmux_session` | Carried through |
+
+Every one is optional. An analysis pass over a live log is exactly where partial
+records turn up — a truncated write, an older schema, a test fixture — and
+crashing the dashboard over one malformed event is the wrong trade.
+
+## Configuration
+
+These are judgement calls about what "unhealthy" means, and the right numbers
+depend on what your agents do. An agent running long builds is legitimately
+silent for minutes; one that should be answering messages is not.
+
+```elixir
+config :fleet_analysis,
+  stuck_after_sec: 60,
+  idle_after_sec: 120,
+  loop_window: 5,
+  loop_min_repeats: 3,
+  failure_rate_warning: 0.3,
+  failure_rate_critical: 0.5
 ```
 
-## Project Structure
+## Tests
 
-- `lib/ichor/` -- all application code, organized by domain. See [TREE.md](lib/ichor/TREE.md) for the annotated module tree (~160 .ex files).
-- `lib/ichor_web/` -- Phoenix LiveView, controllers, and component library (~130 .ex/.heex files).
-- `docs/architecture/` -- architecture decision records and domain specs. See [INDEX.md](docs/architecture/INDEX.md) for the recommended reading order.
-- `docs/diagrams/` -- Mermaid architecture diagrams and database ERD.
-- `contracts/ichor_contracts/` -- shared behaviour contracts (in transition to main app).
-- `priv/repo/migrations/` -- Ash-generated PostgreSQL migrations.
+```
+mix test
+```
 
-## Key Concepts
+90 tests and 21 doctests covering each failure mode and its thresholds, session
+grouping and tmux merging, node and edge construction, and malformed events and
+teams throughout.
 
-See [docs/plans/GLOSSARY.md](docs/plans/GLOSSARY.md) for canonical definitions of overloaded terms. Words like Team, Agent, Run, Pipeline, Session, and Spawn mean different things depending on which domain you are reading. The glossary disambiguates each one.
+## Changes from the original
 
-Start with the architecture docs before reading code:
+- Namespace `Ichor.Workshop.Analysis.*` → `FleetAnalysis.*`; `Queries` split
+  into `Sessions` and `Topology`, and `Workshop.AgentEntry` became
+  `FleetAnalysis.Entry`.
+- Every threshold moved from module attributes to configuration.
+- Event field access goes through `FleetAnalysis.Event`, which tolerates missing
+  fields instead of raising.
 
-1. [decisions.md](docs/architecture/decisions.md) -- eight load-bearing design decisions (AD-1 through AD-8)
-2. [GLOSSARY.md](docs/plans/GLOSSARY.md) -- canonical term definitions
-3. [diagrams/architecture.md](docs/diagrams/architecture.md) -- domain map and signal flow diagrams
+Fixed along the way:
+
+- **A partial event crashed the analysis.** `e.payload["model"]` and
+  `e.model_name` raise `KeyError` on any event map lacking those keys, taking
+  down the whole pass — and with it the dashboard — over one bad record.
+- **`short_id/1` raised on an empty string.** `String.slice("", 0, 8)` is fine,
+  but the UUID guard fell through to returning `""`, rendering a nameless row.
+  Empty and non-binary input now give `"?"`.
+
+Added: `health_by_session/2` and `unhealthy/2`, which group the log once instead
+of making callers filter it per agent; `Health.stuck?/2` and `detect_loops/1` are
+now public, and `Topology.state/2`, `duration/1`, and `short_model/1` were
+private helpers worth exposing and testing.
