@@ -1,91 +1,128 @@
-# ICHOR IV
+# tmux_channel
 
-ICHOR IV is a Phoenix LiveView dashboard for orchestrating multi-agent Claude Code teams. The Architect (human user) designs agent teams in the Workshop, runs software development projects through the Factory, and observes the entire system via a reactive signal backbone. Each agent is a Claude Code instance running in a tmux window; ICHOR manages their lifecycle, routing, and coordination without the Architect having to touch a terminal.
+Deliver messages to processes running in tmux, and read their output back.
 
-## Architecture
+Extracted from the ICHOR IV agent observatory, where it is the transport for
+talking to agents that each live in a tmux window. It has no dependencies —
+just Elixir, OTP, and the `tmux` binary.
 
-The application follows a hexagonal design with six Ash Domains plus dedicated namespaces for fleet process management, use-case orchestration, and signal-driven projectors:
+## Why it exists
 
-| Domain / Namespace | Path | Responsibility |
-|--------------------|------|----------------|
-| **Workshop** | `/workshop` | Design agent types, teams, spawn links, and comm rules. Compile and launch teams. |
-| **Factory** | `/mes` | Turn project briefs into requirements via the MES planning pipeline. Track pipeline runs and tasks. |
-| **Signals** | system-wide | Reactive GenStage backbone (ADR-026). All system events flow through a producer/consumer pipeline; all mandatory reactions are Oban jobs. |
-| **Events** | system-wide | Append-only durable event log (`StoredEvent`). Ash notifier bridges Ash actions into the pipeline. |
-| **Archon** | system-wide | App manager agent. Exposes management tool surface (memory, command manifest, signal-fed state). |
-| **Settings** | `/settings` | Application-wide configuration: registered projects, git info, folder locations. |
-| **Infrastructure** | I/O boundary | External adapters only: tmux, webhook, Memories API. Wrapped as Ash Resources with `:none` data layer for policy-ready, code-interface-callable access. No business logic. |
-| **fleet/** | OTP layer | Live agent and team GenServers (`AgentProcess`, `TeamSupervisor`, `FleetSupervisor`). |
-| **orchestration/** | use-case layer | Agent and team launch/cleanup orchestrators. Consumes fleet and infrastructure. |
-| **projector/** | signal consumers | Signal-driven GenServer projectors that react to domain events (watchdogs, ingestors, dispatchers). |
+Sending text to an interactive program in a tmux pane is more awkward than it
+looks:
 
-### Signal Pipeline (ADR-026)
+- **Writing to a temp file and having the target `cat` it** trips file-read
+  permission prompts in the target program.
+- **A single shared paste buffer** gets clobbered when two senders overlap.
+- **`send-keys` immediately after `paste-buffer`** submits an empty line,
+  because tmux pastes asynchronously.
+- **Panes are spread across servers** — an explicit socket, a named server, the
+  default server — and a reader that only checks one of them misses the rest.
 
-Ash actions emit events via the `FromAsh` notifier. Events flow through a GenStage pipeline: `Ingress` (producer) buffers them; `Router` (consumer) dispatches to per-topic `SignalProcess` accumulators. Signals are flushed to `ActionHandler`, which executes mandatory side effects (Oban jobs) and observational projections.
+`tmux_channel` handles all four: a uniquely named buffer per delivery, a settle
+delay before Enter, and reads that fan out across every reachable server.
 
-```
-Ash action -> FromAsh notifier -> Ingress (GenStage producer)
-                                         |
-                                  Router (GenStage consumer)
-                                         |
-                              SignalProcess per {module, key}
-                                         |
-                               ActionHandler: flush signal
-                                    /              \
-                            Oban job inserted    PubSub broadcast
-                            (mandatory effect)   (observational)
+## Install
+
+```elixir
+def deps do
+  [{:tmux_channel, path: "../tmux_channel"}]
+end
 ```
 
-### Oban Workers
+## Use
 
-Twelve workers across five queues handle durable side effects: `MesTick` (cron, MES scheduler), `ScheduledJob`, `WebhookDeliveryWorker` (HTTP POST with backoff), `ArchiveRunWorker`, `ResetRunTasksWorker`, `DisbandTeamWorker`, `KillSessionWorker`, `HealthCheckWorker` (cron), `ProjectDiscoveryWorker` (cron, scans for `tasks.jsonl`), `OrphanSweepWorker` (cron), `PipelineReconcilerWorker` (cron, AD-8 safety net), and `PruneStoredEventsWorker` (cron daily, 7-day event retention).
+```elixir
+# Create a session
+:ok = TmuxChannel.Launcher.create_session("team-a", "/srv/project", "builder", "cat")
 
-### Frontend
+# Send it a message
+:ok = TmuxChannel.deliver("team-a", %{from: "scheduler", content: "status?"})
 
-The UI is a single Phoenix LiveView at `/` split into ~35 handler modules. A component library under `lib/ichor_web/components/` provides reusable Tailwind components organized into named namespaces (`signal_feed/`, `command_components/`, `primitives/`, `ui/`, etc.). Terminal panels use xterm.js for tmux output rendering.
+# Read the pane back
+{:ok, output} = TmuxChannel.capture_pane("team-a")
+{:ok, raw}    = TmuxChannel.capture_pane("team-a", ansi: true)
 
-## Prerequisites
-
-- Elixir 1.19 / Erlang 27
-- `tmux` (agents run in tmux sessions; required at runtime)
-- PostgreSQL (database backend)
-- Node.js (for asset compilation via esbuild and Tailwind)
-
-## Setup
-
-```bash
-mix deps.get
-mix ash.setup       # creates DB, runs migrations, seeds
-mix phx.server      # starts on http://localhost:4005
+# Look around
+TmuxChannel.list_sessions()              #=> ["team-a"]
+TmuxChannel.list_windows("team-a")       #=> [%{name: "builder", target: "team-a:builder"}]
+TmuxChannel.list_panes()                 #=> [%{pane_id: "%0", session: "team-a", ...}]
+TmuxChannel.available?("team-a")         #=> true
 ```
 
-For a full asset rebuild:
+Addresses are either session names or pane ids (`%3`); `available?/1` tells them
+apart by the leading `%`.
 
-```bash
-mix assets.build
+## Modules
+
+| Module | Role |
+|---|---|
+| `TmuxChannel` | Delivery, pane capture, and listings |
+| `TmuxChannel.Channel` | Behaviour for delivery adapters — implement it for non-tmux transports |
+| `TmuxChannel.Launcher` | Session and window lifecycle, targeting one server deterministically |
+| `TmuxChannel.Script` | Writes the prompt file and launch script for an agent |
+| `TmuxChannel.Command` | `System.cmd/3` wrapper with multi-server fallback |
+| `TmuxChannel.ServerSelector` | Resolves and caches which servers to try |
+| `TmuxChannel.Parser` | Parses tmux's tab-delimited `-F` output |
+| `TmuxChannel.Config` | All runtime configuration, with defaults |
+
+### Read fan-out vs. deterministic writes
+
+`TmuxChannel` reads across every server in priority order and takes the first
+success, so it finds panes wherever they are. `TmuxChannel.Launcher` targets a
+single server — the socket if it exists, otherwise the named server — because
+"whichever server answered first" is fine for a query and wrong for
+`new-session`.
+
+## Configuration
+
+Everything has a working default; none of this is required.
+
+```elixir
+config :tmux_channel,
+  socket_path: "~/.tmux_channel/tmux.sock",  # tried first, when the file exists
+  server_name: "tmux_channel",               # tmux -L <name>
+  buffer_prefix: "tmux-channel",             # prefix for per-delivery buffer names
+  server_cache_ttl_ms: 5_000,                # how long a process caches server resolution
+  paste_settle_ms: 150,                      # delay between paste-buffer and Enter
+  script_command: "env -u CLAUDECODE claude",
+  model_flag: "--model",
+  permission_profiles: %{
+    "builder" => ["--dangerously-skip-permissions"],
+    "scout" => ["--allowedTools", "Read", "Glob", "Grep"]
+  }
 ```
 
-To reset the database:
+`permission_profiles` maps a capability name to the extra CLI arguments
+`TmuxChannel.Script` appends. An unknown capability adds nothing, so the default
+is always the least privileged.
 
-```bash
-mix ecto.reset
+If `paste_settle_ms` is too low you will see empty lines submitted instead of
+your message; raise it on a loaded host.
+
+## Tests
+
+```
+mix test
 ```
 
-## Project Structure
+Tests that need a real tmux server are tagged `:tmux` and create their own
+throwaway server, so they never touch your sessions. They are skipped
+automatically when `tmux` is not on `PATH`.
 
-- `lib/ichor/` -- all application code, organized by domain. See [TREE.md](lib/ichor/TREE.md) for the annotated module tree (~160 .ex files).
-- `lib/ichor_web/` -- Phoenix LiveView, controllers, and component library (~130 .ex/.heex files).
-- `docs/architecture/` -- architecture decision records and domain specs. See [INDEX.md](docs/architecture/INDEX.md) for the recommended reading order.
-- `docs/diagrams/` -- Mermaid architecture diagrams and database ERD.
-- `contracts/ichor_contracts/` -- shared behaviour contracts (in transition to main app).
-- `priv/repo/migrations/` -- Ash-generated PostgreSQL migrations.
+## Changes from the original
 
-## Key Concepts
-
-See [docs/plans/GLOSSARY.md](docs/plans/GLOSSARY.md) for canonical definitions of overloaded terms. Words like Team, Agent, Run, Pipeline, Session, and Spawn mean different things depending on which domain you are reading. The glossary disambiguates each one.
-
-Start with the architecture docs before reading code:
-
-1. [decisions.md](docs/architecture/decisions.md) -- eight load-bearing design decisions (AD-1 through AD-8)
-2. [GLOSSARY.md](docs/plans/GLOSSARY.md) -- canonical term definitions
-3. [diagrams/architecture.md](docs/diagrams/architecture.md) -- domain map and signal flow diagrams
+- Namespace `Ichor.Infrastructure.Tmux.*` → `TmuxChannel.*`; the `Channel`
+  behaviour moved in alongside it.
+- Hardcoded `~/.ichor/tmux/obs.sock` and `-L obs` are now configuration, with
+  neutral defaults. To keep the original behaviour, set `socket_path:
+  "~/.ichor/tmux/obs.sock"` and `server_name: "obs"`.
+- The Jason fallback for a payload with no `:content` is now `inspect/1`, which
+  removes the last dependency.
+- Pane-line parsing moved into `TmuxChannel.Parser` so it is testable without a
+  running tmux.
+- Script arguments are shell-quoted, so a path containing a quote can no longer
+  break out of the generated script.
+- `Command.run/1` now returns `{:error, :tmux_not_found}` instead of raising
+  when there is no `tmux` on `PATH`.
+- `Launcher.send_exit/2` takes the text to send, defaulting to `/exit`.
