@@ -1,91 +1,189 @@
-# ICHOR IV
+# memory_store
 
-ICHOR IV is a Phoenix LiveView dashboard for orchestrating multi-agent Claude Code teams. The Architect (human user) designs agent teams in the Workshop, runs software development projects through the Factory, and observes the entire system via a reactive signal backbone. Each agent is a Claude Code instance running in a tmux window; ICHOR manages their lifecycle, routing, and coordination without the Architect having to touch a terminal.
+Three-tier memory for long-running agents: pinned context blocks, searchable
+conversation history, and an unbounded archival store.
 
-## Architecture
+Extracted from the ICHOR IV agent observatory. Modelled on Letta's memory
+design, but with no vector database, no external services, and no dependencies —
+ETS for hot reads, JSON and JSONL files for durability.
 
-The application follows a hexagonal design with six Ash Domains plus dedicated namespaces for fleet process management, use-case orchestration, and signal-driven projectors:
+## The three tiers
 
-| Domain / Namespace | Path | Responsibility |
-|--------------------|------|----------------|
-| **Workshop** | `/workshop` | Design agent types, teams, spawn links, and comm rules. Compile and launch teams. |
-| **Factory** | `/mes` | Turn project briefs into requirements via the MES planning pipeline. Track pipeline runs and tasks. |
-| **Signals** | system-wide | Reactive GenStage backbone (ADR-026). All system events flow through a producer/consumer pipeline; all mandatory reactions are Oban jobs. |
-| **Events** | system-wide | Append-only durable event log (`StoredEvent`). Ash notifier bridges Ash actions into the pipeline. |
-| **Archon** | system-wide | App manager agent. Exposes management tool surface (memory, command manifest, signal-fed state). |
-| **Settings** | `/settings` | Application-wide configuration: registered projects, git info, folder locations. |
-| **Infrastructure** | I/O boundary | External adapters only: tmux, webhook, Memories API. Wrapped as Ash Resources with `:none` data layer for policy-ready, code-interface-callable access. No business logic. |
-| **fleet/** | OTP layer | Live agent and team GenServers (`AgentProcess`, `TeamSupervisor`, `FleetSupervisor`). |
-| **orchestration/** | use-case layer | Agent and team launch/cleanup orchestrators. Consumes fleet and infrastructure. |
-| **projector/** | signal consumers | Signal-driven GenServer projectors that react to domain events (watchdogs, ingestors, dispatchers). |
+| Tier | Analogy | What it holds |
+|---|---|---|
+| **Core** | RAM | Named blocks pinned into the agent's context — the working set it always sees |
+| **Recall** | Conversation log | Chronological messages, searchable by substring or date range |
+| **Archival** | Disk | Unbounded tagged passages the agent writes and searches deliberately |
 
-### Signal Pipeline (ADR-026)
+Core blocks are addressed by id and can be attached to several agents at once,
+so a shared "organization" block stays consistent across a fleet — edit it
+through one agent and every other agent sees the change.
 
-Ash actions emit events via the `FromAsh` notifier. Events flow through a GenStage pipeline: `Ingress` (producer) buffers them; `Router` (consumer) dispatches to per-topic `SignalProcess` accumulators. Signals are flushed to `ActionHandler`, which executes mandatory side effects (Oban jobs) and observational projections.
+## Install
 
-```
-Ash action -> FromAsh notifier -> Ingress (GenStage producer)
-                                         |
-                                  Router (GenStage consumer)
-                                         |
-                              SignalProcess per {module, key}
-                                         |
-                               ActionHandler: flush signal
-                                    /              \
-                            Oban job inserted    PubSub broadcast
-                            (mandatory effect)   (observational)
+```elixir
+def deps do
+  [{:memory_store, path: "../memory_store"}]
+end
 ```
 
-### Oban Workers
+Requires Elixir 1.18+ for the built-in `JSON` module, which is what keeps the
+project dependency-free.
 
-Twelve workers across five queues handle durable side effects: `MesTick` (cron, MES scheduler), `ScheduledJob`, `WebhookDeliveryWorker` (HTTP POST with backoff), `ArchiveRunWorker`, `ResetRunTasksWorker`, `DisbandTeamWorker`, `KillSessionWorker`, `HealthCheckWorker` (cron), `ProjectDiscoveryWorker` (cron, scans for `tasks.jsonl`), `OrphanSweepWorker` (cron), `PipelineReconcilerWorker` (cron, AD-8 safety net), and `PruneStoredEventsWorker` (cron daily, 7-day event retention).
+Add it to your supervision tree:
 
-### Frontend
-
-The UI is a single Phoenix LiveView at `/` split into ~35 handler modules. A component library under `lib/ichor_web/components/` provides reusable Tailwind components organized into named namespaces (`signal_feed/`, `command_components/`, `primitives/`, `ui/`, etc.). Terminal panels use xterm.js for tmux output rendering.
-
-## Prerequisites
-
-- Elixir 1.19 / Erlang 27
-- `tmux` (agents run in tmux sessions; required at runtime)
-- PostgreSQL (database backend)
-- Node.js (for asset compilation via esbuild and Tailwind)
-
-## Setup
-
-```bash
-mix deps.get
-mix ash.setup       # creates DB, runs migrations, seeds
-mix phx.server      # starts on http://localhost:4005
+```elixir
+children = [MemoryStore]
 ```
 
-For a full asset rebuild:
+## Use
 
-```bash
-mix assets.build
+```elixir
+{:ok, _} = MemoryStore.create_agent("scout", [
+  %{label: "persona", value: "You survey codebases.", description: "Who I am"},
+  %{label: "human",   value: "Prefers terse answers."}
+])
+
+# Agent-facing edit tools
+{:ok, _} = MemoryStore.memory_rethink("scout", "human", "Prefers detail.")
+{:ok, _} = MemoryStore.memory_replace("scout", "persona", "survey", "audit")
+{:ok, _} = MemoryStore.memory_insert("scout", "persona", 0, "Rule zero.")
+
+# Render for a system prompt
+{:ok, text} = MemoryStore.compile_memory("scout")
+#=> <memory_block label="persona" read_only="false">
+#=>   <!-- Who I am -->
+#=>   You audit codebases.
+#=>   </memory_block>
+
+# Recall
+{:ok, _} = MemoryStore.add_recall("scout", :user, "deploy the service")
+{:ok, hits} = MemoryStore.conversation_search("scout", "deploy")
+{:ok, hits} = MemoryStore.conversation_search_date("scout", from, to)
+
+# Archival
+{:ok, _} = MemoryStore.archival_memory_insert("scout", "Repo uses Ash.", ["stack"])
+{:ok, hits} = MemoryStore.archival_memory_search("scout", "ash", tags: ["stack"])
 ```
 
-To reset the database:
+### Sharing a block between agents
 
-```bash
-mix ecto.reset
+```elixir
+{:ok, org} = MemoryStore.create_block(%{label: "org", value: "Acme"})
+{:ok, _} = MemoryStore.create_agent("scout", [%{label: "persona"}], [org.id])
+{:ok, _} = MemoryStore.create_agent("builder", [], [org.id])
+
+MemoryStore.memory_rethink("scout", "org", "Acme Corp")
+# builder sees "Acme Corp" too
 ```
 
-## Project Structure
+`read_only: true` blocks reject the agent-facing tools (`memory_replace`,
+`memory_insert`, `memory_rethink`) with `{:error, :read_only}`, while
+`update_block/2` still works — so the host application can edit what the agent
+cannot.
 
-- `lib/ichor/` -- all application code, organized by domain. See [TREE.md](lib/ichor/TREE.md) for the annotated module tree (~160 .ex files).
-- `lib/ichor_web/` -- Phoenix LiveView, controllers, and component library (~130 .ex/.heex files).
-- `docs/architecture/` -- architecture decision records and domain specs. See [INDEX.md](docs/architecture/INDEX.md) for the recommended reading order.
-- `docs/diagrams/` -- Mermaid architecture diagrams and database ERD.
-- `contracts/ichor_contracts/` -- shared behaviour contracts (in transition to main app).
-- `priv/repo/migrations/` -- Ash-generated PostgreSQL migrations.
+## Persistence
 
-## Key Concepts
+```
+<data_dir>/
+  blocks/<block_id>.json        one file per block; shared, so not under an agent
+  agents/<name>/agent.json      the agent record and its block ids
+  agents/<name>/recall.jsonl    conversation history, oldest first
+  agents/<name>/archival.jsonl  archival passages, oldest first
+```
 
-See [docs/plans/GLOSSARY.md](docs/plans/GLOSSARY.md) for canonical definitions of overloaded terms. Words like Team, Agent, Run, Pipeline, Session, and Spawn mean different things depending on which domain you are reading. The glossary disambiguates each one.
+Writes land in ETS immediately and flush to disk on a timer, and again on clean
+shutdown. Only records touched since the last flush are rewritten. A hard kill
+can lose up to one flush interval — call `MemoryStore.flush/0` for a durability
+point.
 
-Start with the architecture docs before reading code:
+JSONL files are oldest-first so they read as an append log; ETS holds entries
+newest-first for cheap prepends. Recall and archival files are rewritten in
+full rather than appended, so a deleted passage actually disappears.
 
-1. [decisions.md](docs/architecture/decisions.md) -- eight load-bearing design decisions (AD-1 through AD-8)
-2. [GLOSSARY.md](docs/plans/GLOSSARY.md) -- canonical term definitions
-3. [diagrams/architecture.md](docs/diagrams/architecture.md) -- domain map and signal flow diagrams
+### Bounded ETS, unbounded disk
+
+ETS keeps the newest `recall_limit` and `archival_ets_limit` entries per agent.
+Once archival is at capacity, searches and counts read the JSONL file instead,
+so older passages stay findable rather than silently dropping out of results.
+Recall search does not fall back to disk — it covers the ETS window only.
+
+## Configuration
+
+Everything has a default; none of this is required.
+
+```elixir
+config :memory_store,
+  data_dir: "~/.memory_store",
+  flush_interval_ms: 10_000,
+  default_block_limit: 2_000,
+  recall_limit: 200,
+  archival_ets_limit: 500,
+  max_agents: 100,
+  max_blocks: 1_000,
+  notifier: MemoryStore.Notifier.Noop
+```
+
+`MemoryStore` is a singleton — one named process over named ETS tables — so
+configuration is application env rather than per-instance options. Set
+`:data_dir` before starting the process.
+
+## Notifications
+
+`MemoryStore.Notifier` is how the store tells a host application that memory
+changed, without depending on the host's event system:
+
+```elixir
+defmodule MyApp.MemoryNotifier do
+  @behaviour MemoryStore.Notifier
+
+  @impl true
+  def notify(event, agent_name, payload) do
+    Phoenix.PubSub.broadcast(MyApp.PubSub, "memory", {event, agent_name, payload})
+  end
+end
+
+config :memory_store, notifier: MyApp.MemoryNotifier
+```
+
+Events are `:agent_created` and `:archival_insert`. They fire after the mutation
+is applied, from inside the store process — so a slow implementation blocks the
+store, and the result is ignored. Do not route work that must not be lost
+through here.
+
+`MemoryStore.Notifier.ProcessMessage` ships as a ready-made adapter that sends
+`{:memory_store, event, agent_name, payload}` to a configured pid or registered
+name.
+
+## Tests
+
+```
+mix test
+```
+
+103 tests covering all three tiers, block sharing, limits, persistence
+round-trips, and recovery from corrupt files on disk.
+
+## Changes from the original
+
+- Namespace `Ichor.MemoryStore.*` → `MemoryStore.*`.
+- `Ichor.Events.emit/1` replaced by the `MemoryStore.Notifier` behaviour,
+  defaulting to a no-op, which removes the dependency on a signal bus.
+- Jason replaced with the built-in `JSON` module. Block and agent files are now
+  written compact rather than pretty-printed.
+- Data directory and every limit moved from module attributes to configuration.
+- ETS table names are prefixed `memory_store_` rather than `letta_`.
+
+Fixed along the way:
+
+- **Block order was reversed.** `create_agent/3` reversed the list of blocks it
+  had just created, so `["persona", "human"]` compiled as `human` then
+  `persona`. Order is now preserved.
+- **Emptying a log left stale entries on disk.** Recall and archival files were
+  only written when the entry list was non-empty, so deleting the last passage
+  left the old file in place and it reloaded on restart. An emptied log now
+  removes the file.
+- **Shutdown lost up to one flush interval.** The store now traps exits and
+  flushes in `terminate/2`; `flush/0` exposes a synchronous flush.
+- **`created_at` and `updated_at` differed on a new block**, because the clock
+  was read twice. One read now, so a fresh block compares equal.
