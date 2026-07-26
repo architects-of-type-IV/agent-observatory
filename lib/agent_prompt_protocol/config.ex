@@ -7,6 +7,8 @@ defmodule AgentPromptProtocol.Config do
       config :agent_prompt_protocol,
         send_function: "send_message",
         inbox_function: "check_inbox",
+        tool_prefix: "",
+        session_separator: "-",
         operator_id: "operator",
         operator_description: "final deliverables to the dashboard",
         operator_capabilities: ["coordinator"],
@@ -18,11 +20,22 @@ defmodule AgentPromptProtocol.Config do
   tools are called something else, the generated rules would instruct the agent
   to call functions that do not exist — which is the single most effective way
   to make a prompt fail silently.
+
+  Set `:tool_prefix` once rather than threading it through every call; a prompt
+  whose blocks disagree about the tool's name has the same problem.
+
+  ## The session separator
+
+  Session ids are `<session><sep><name>`. This is not cosmetic: the same
+  convention has to hold wherever ids are generated and wherever endpoints are
+  created. See `AgentPromptProtocol.session_id/2`.
   """
 
   @defaults %{
     send_function: "send_message",
     inbox_function: "check_inbox",
+    tool_prefix: "",
+    session_separator: "-",
     operator_id: "operator",
     operator_description: "final deliverables to the dashboard",
     operator_capabilities: ["coordinator"],
@@ -36,6 +49,14 @@ defmodule AgentPromptProtocol.Config do
   @doc "Name of the tool an agent calls to poll its inbox."
   @spec inbox_function() :: String.t()
   def inbox_function, do: get(:inbox_function)
+
+  @doc "Prefix applied to both tool names, for hosts that namespace their tools."
+  @spec tool_prefix() :: String.t()
+  def tool_prefix, do: get(:tool_prefix)
+
+  @doc "Separator between the run session and the agent name in a session id."
+  @spec session_separator() :: String.t()
+  def session_separator, do: get(:session_separator)
 
   @doc "Session id of the human-facing operator endpoint."
   @spec operator_id() :: String.t()

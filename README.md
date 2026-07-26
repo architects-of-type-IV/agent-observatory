@@ -23,9 +23,12 @@ So the value here is not the text. It's that there is exactly one copy of it.
 | Function | Block | Answers |
 |---|---|---|
 | `critical_rules/1` | CRITICAL RULES | How do I communicate at all? |
-| `roster_block/2` | TEAM ROSTER | Who exists and what are their ids? |
+| `roster_block/3` | TEAM ROSTER | Who exists and what are their ids? |
 | `allowed_contacts/5` | ALLOWED CONTACTS | Who may I talk to, and who not? |
-| `announce_ready/1` | PHASE 0 | How do I prove I am alive? |
+| `announce_ready/2` | PHASE 0 | How do I prove I am alive? |
+
+Plus `session_id/2` and `roster_entries/2`, which are the data behind the
+roster — see below.
 
 ## Install
 
@@ -46,18 +49,40 @@ agents = [
 
 rules = [
   %{from: 1, to: 2, policy: "allow"},
-  %{from: 3, to: 1, policy: "route", via: 2}
+  %{from: 3, to: 1, policy: "route", via: 2},
+  %{from: 3, to: 2, policy: "deny"}
 ]
 
-AgentPromptProtocol.critical_rules("mcp__team__")
+AgentPromptProtocol.critical_rules()
 AgentPromptProtocol.roster_block("run-7", ["coordinator", "lead", "builder"])
 AgentPromptProtocol.allowed_contacts(1, rules, agents, "run-7",
-  AgentPromptProtocol.extra_contacts_for(hd(agents)))
+  extra_contacts: AgentPromptProtocol.extra_contacts_for(hd(agents)))
 AgentPromptProtocol.announce_ready("run-7-coordinator")
 ```
 
-Session ids follow `<session>-<name>`. `roster_block/2` and `allowed_contacts/5`
-agree on that convention, which is the whole point.
+## Session ids are shared infrastructure
+
+`session_id/2` builds `<session><sep><name>`, and everything else derives from
+it — the roster, the contacts block, and, outside this library, whatever creates
+the tmux sessions or mailboxes the agents actually run in.
+
+That makes it the one function that must not be reimplemented anywhere. If
+session creation and prompt generation compute ids differently, agents address
+endpoints that do not exist, and nothing raises. Drive session creation from
+`roster_entries/2` and the two cannot drift:
+
+```elixir
+entries = AgentPromptProtocol.roster_entries("review-abc123", ["lead", "builder"])
+#=> [{"lead", "review-abc123-lead"}, {"builder", "review-abc123-builder"}]
+
+# the same ids the prompt will name
+for {name, session_id} <- entries do
+  TmuxChannel.Launcher.create_window("review-abc123", name, cwd, launch_cmd)
+  # ... and session_id is what agents address
+end
+
+AgentPromptProtocol.roster_from_entries(entries)
+```
 
 ## Design notes
 
@@ -68,17 +93,26 @@ the tool. The prose looks like progress and produces nothing. Naming the failure
 mode explicitly — "If you find yourself typing 'I would send...' STOP" — is what
 stops it.
 
-**Routed contacts list the relay, not the target.** With
-`%{from: 3, to: 1, policy: "route", via: 2}`, agent 3 sees the *relay's* session
-id, described as `coordinator (routed via lead)`. That's what it must actually
-send to. Agent 1 stays in the deny line, so the indirection holds.
+**Three policies.** `"allow"` is a direct channel. `"route"` is indirect — the
+sender sees the *relay's* session id, described as `lead (routed via reviewer)`,
+because that is what it must actually send to, and the real destination stays in
+the deny line so the indirection holds. `"deny"` is an explicit prohibition, and
+it overrides any `"allow"` or `"route"` between the same pair regardless of the
+order rules appear in.
+
+**Contacts resolving to the same id share a line.** A direct channel to a relay
+plus a route through it both address the relay. Two consecutive identical ids
+read as a duplicate and invite a model to collapse them, so they are merged:
+`- "review-1-reviewer" -- reviewer; also relays to lead (routed via reviewer)`.
 
 **Denial is stated, not implied.** Everyone unreachable is named in an explicit
 "Do NOT message ... directly" line. A roster that merely omits someone reads, to
 a model, as an oversight it can helpfully work around.
 
 **Tool names are configurable**, because rules naming a tool the agent does not
-have are worse than no rules at all.
+have are worse than no rules at all — and the prefix is applied to *every* block,
+because a prompt whose blocks disagree about the tool's name has the same
+problem.
 
 ## Templating
 
@@ -119,6 +153,8 @@ Everything has a default; none of this is required.
 config :agent_prompt_protocol,
   send_function: "send_message",
   inbox_function: "check_inbox",
+  tool_prefix: "",
+  session_separator: "-",
   operator_id: "operator",
   operator_description: "final deliverables to the dashboard",
   operator_capabilities: ["coordinator"],
@@ -135,10 +171,15 @@ intermediate chatter never reaches the dashboard.
 mix test
 ```
 
-68 tests and 16 doctests covering every block, both comm-rule policies, the
-deny-line logic, template rendering and its missing-variable modes, and id
-parsing. One test asserts the property the library exists for: that the ids in
-the roster match the ids in the allowed-contacts block.
+90 tests and 18 doctests covering every block, all three comm-rule policies and
+their precedence, contact merging, the deny-line logic, template rendering and
+its missing-variable modes, and id parsing. Two assert the properties the library
+exists for: that the ids in the roster match the ids in the allowed-contacts
+block, and that a configured tool prefix reaches every mention of the tool in
+every block.
+
+One test renders the review-chain team's wiring verbatim — it is the only
+team definition that uses all three policies at once.
 
 ## Changes from the original
 
@@ -161,3 +202,16 @@ Fixed along the way:
   Kinds are now compared as strings against the configured list.
 - `AgentId.parse/1` no longer raises on a non-binary input, and `valid?/1` is
   new.
+- **`"deny"` was silently ignored.** Only `"allow"` and `"route"` were matched,
+  so a `deny` rule fell through both filters. The rendered output happened to be
+  right — denial there is by omission — but nothing stated the intent, nothing
+  tested it, and an `allow` alongside a `deny` would have won. Deny is now
+  explicit and takes precedence.
+- **The tool prefix reached only `critical_rules/1`.** One prompt could say
+  `mcp__ichor__send_message` in its rules and `send_message` in its roster two
+  paragraphs later — exactly the drift this library exists to prevent. It is now
+  configuration, applied uniformly.
+- **Two contacts resolving to the same session id printed as two lines.**
+
+Added: `session_id/2` and `roster_entries/2`, exposing the id convention as data
+so session creation and prompt generation cannot diverge.

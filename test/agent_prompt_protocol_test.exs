@@ -8,6 +8,8 @@ defmodule AgentPromptProtocolTest do
       for key <- [
             :send_function,
             :inbox_function,
+            :tool_prefix,
+            :session_separator,
             :operator_id,
             :operator_description,
             :operator_capabilities
@@ -231,7 +233,8 @@ defmodule AgentPromptProtocolTest do
       rules = [%{from: 1, to: 2, policy: "allow"}]
       extra = [{"operator", "final deliverables"}]
 
-      block = AgentPromptProtocol.allowed_contacts(1, rules, agents, "run-7", extra)
+      block =
+        AgentPromptProtocol.allowed_contacts(1, rules, agents, "run-7", extra_contacts: extra)
 
       assert block =~ ~s("operator" -- final deliverables)
       assert block =~ "run-7-lead"
@@ -274,6 +277,234 @@ defmodule AgentPromptProtocolTest do
 
       assert AgentPromptProtocol.extra_contacts_for(%{capability: "coordinator"}) ==
                [{"human", "the boss"}]
+    end
+  end
+
+  describe "session_id/2 and roster_entries/2" do
+    test "session_id builds the shared convention" do
+      assert AgentPromptProtocol.session_id("review-abc123", "lead") == "review-abc123-lead"
+    end
+
+    test "session_id honours a configured separator" do
+      Application.put_env(:agent_prompt_protocol, :session_separator, ":")
+
+      assert AgentPromptProtocol.session_id("run-7", "lead") == "run-7:lead"
+    end
+
+    test "roster_entries pairs each name with its id, in order" do
+      assert AgentPromptProtocol.roster_entries("run-7", ["lead", "builder"]) ==
+               [{"lead", "run-7-lead"}, {"builder", "run-7-builder"}]
+    end
+
+    test "roster_entries is empty for no names" do
+      assert AgentPromptProtocol.roster_entries("run-7", []) == []
+    end
+
+    test "the ids in roster_entries are exactly the ids in the roster block" do
+      names = ["lead", "builder"]
+      block = AgentPromptProtocol.roster_block("run-7", names)
+
+      for {_name, sid} <- AgentPromptProtocol.roster_entries("run-7", names) do
+        assert block =~ sid
+      end
+    end
+
+    test "the ids used for session creation match those in the contacts block", %{agents: agents} do
+      # The property that matters: whatever creates endpoints from roster_entries
+      # produces exactly the ids the prompt tells agents to address.
+      rules = [%{from: 1, to: 2, policy: "allow"}]
+      names = Enum.map(agents, & &1.name)
+
+      entries = AgentPromptProtocol.roster_entries("run-7", names)
+      block = AgentPromptProtocol.allowed_contacts(1, rules, agents, "run-7")
+
+      {_, lead_sid} = Enum.find(entries, fn {name, _} -> name == "lead" end)
+      assert block =~ lead_sid
+    end
+
+    test "a configured separator flows through every block", %{agents: agents} do
+      Application.put_env(:agent_prompt_protocol, :session_separator, ":")
+
+      assert AgentPromptProtocol.roster_block("run-7", ["lead"]) =~ "run-7:lead"
+
+      assert AgentPromptProtocol.allowed_contacts(
+               1,
+               [%{from: 1, to: 2, policy: "allow"}],
+               agents,
+               "run-7"
+             ) =~ "run-7:lead"
+    end
+  end
+
+  describe "tool prefix consistency" do
+    test "a configured prefix reaches every block", %{agents: agents} do
+      Application.put_env(:agent_prompt_protocol, :tool_prefix, "mcp__ichor__")
+
+      blocks = [
+        AgentPromptProtocol.critical_rules(),
+        AgentPromptProtocol.roster_block("run-7", ["lead"]),
+        AgentPromptProtocol.allowed_contacts(1, [], agents, "run-7"),
+        AgentPromptProtocol.announce_ready("run-7-lead")
+      ]
+
+      # Every mention of the tool must carry the prefix. A prompt whose blocks
+      # disagree about the tool's name is the failure this library prevents.
+      for block <- blocks do
+        for [match] <- Regex.scan(~r/\S*send_message/, block) do
+          assert match == "mcp__ichor__send_message", "unprefixed in: #{block}"
+        end
+      end
+    end
+
+    test "an explicit prefix overrides the configured one" do
+      Application.put_env(:agent_prompt_protocol, :tool_prefix, "cfg__")
+
+      assert AgentPromptProtocol.critical_rules("arg__") =~ "arg__send_message"
+      refute AgentPromptProtocol.critical_rules("arg__") =~ "cfg__send_message"
+    end
+
+    test "roster_block takes a prefix" do
+      assert AgentPromptProtocol.roster_block("run-7", ["lead"], "p__") =~ "p__send_message"
+    end
+
+    test "announce_ready takes a prefix" do
+      assert AgentPromptProtocol.announce_ready("run-7-lead", "p__") =~ "p__send_message"
+    end
+
+    test "allowed_contacts takes a prefix", %{agents: agents} do
+      block = AgentPromptProtocol.allowed_contacts(1, [], agents, "run-7", tool_prefix: "p__")
+
+      assert block =~ "p__send_message"
+    end
+  end
+
+  describe "allowed_contacts/5 with deny rules" do
+    test "a deny rule grants nothing", %{agents: agents} do
+      rules = [%{from: 1, to: 2, policy: "deny"}]
+
+      block = AgentPromptProtocol.allowed_contacts(1, rules, agents, "run-7")
+
+      refute block =~ ~s("run-7-lead")
+    end
+
+    test "a denied agent is named in the deny line", %{agents: agents} do
+      rules = [%{from: 1, to: 2, policy: "deny"}]
+
+      block = AgentPromptProtocol.allowed_contacts(1, rules, agents, "run-7")
+
+      assert block =~ "Do NOT message"
+      assert block =~ "lead"
+    end
+
+    test "deny overrides an allow between the same pair", %{agents: agents} do
+      rules = [
+        %{from: 1, to: 2, policy: "allow"},
+        %{from: 1, to: 2, policy: "deny"}
+      ]
+
+      block = AgentPromptProtocol.allowed_contacts(1, rules, agents, "run-7")
+
+      refute block =~ ~s("run-7-lead" -- lead)
+    end
+
+    test "deny overrides regardless of rule order", %{agents: agents} do
+      rules = [
+        %{from: 1, to: 2, policy: "deny"},
+        %{from: 1, to: 2, policy: "allow"}
+      ]
+
+      block = AgentPromptProtocol.allowed_contacts(1, rules, agents, "run-7")
+
+      refute block =~ ~s("run-7-lead" -- lead)
+    end
+
+    test "deny overrides a route to the same target", %{agents: agents} do
+      rules = [
+        %{from: 3, to: 1, policy: "route", via: 2},
+        %{from: 3, to: 1, policy: "deny"}
+      ]
+
+      block = AgentPromptProtocol.allowed_contacts(3, rules, agents, "run-7")
+
+      refute block =~ "routed via"
+    end
+
+    test "denying one target leaves others intact", %{agents: agents} do
+      rules = [
+        %{from: 1, to: 2, policy: "allow"},
+        %{from: 1, to: 3, policy: "deny"}
+      ]
+
+      block = AgentPromptProtocol.allowed_contacts(1, rules, agents, "run-7")
+
+      assert block =~ ~s("run-7-lead" -- lead)
+      refute block =~ ~s("run-7-builder" -- builder)
+    end
+
+    test "the review-chain preset wiring renders correctly" do
+      # lead(1), reviewer(2), builder(3), scout(4) -- the one preset that uses
+      # the full policy vocabulary.
+      agents = [
+        %{id: 1, name: "lead"},
+        %{id: 2, name: "reviewer"},
+        %{id: 3, name: "builder"},
+        %{id: 4, name: "scout"}
+      ]
+
+      rules = [
+        %{from: 4, to: 2, policy: "allow"},
+        %{from: 2, to: 1, policy: "allow"},
+        %{from: 3, to: 2, policy: "allow"},
+        %{from: 1, to: 3, policy: "allow"},
+        %{from: 3, to: 1, policy: "route", via: 2},
+        %{from: 4, to: 1, policy: "deny"}
+      ]
+
+      scout = AgentPromptProtocol.allowed_contacts(4, rules, agents, "review-1")
+      assert scout =~ ~s("review-1-reviewer" -- reviewer)
+      refute scout =~ ~s("review-1-lead")
+      assert scout =~ "Do NOT message"
+
+      builder = AgentPromptProtocol.allowed_contacts(3, rules, agents, "review-1")
+      assert builder =~ "routed via reviewer"
+    end
+  end
+
+  describe "allowed_contacts/5 merging" do
+    test "a direct channel and a route to the same relay share one line", %{agents: agents} do
+      rules = [
+        %{from: 3, to: 2, policy: "allow"},
+        %{from: 3, to: 1, policy: "route", via: 2}
+      ]
+
+      block = AgentPromptProtocol.allowed_contacts(3, rules, agents, "run-7")
+
+      # One line for the reviewer's id, not two consecutive identical ids.
+      assert length(Regex.scan(~r/"run-7-lead"/, block)) == 1
+      assert block =~ "also relays to"
+    end
+
+    test "the merged line names both the relay and the destination", %{agents: agents} do
+      rules = [
+        %{from: 3, to: 2, policy: "allow"},
+        %{from: 3, to: 1, policy: "route", via: 2}
+      ]
+
+      block = AgentPromptProtocol.allowed_contacts(3, rules, agents, "run-7")
+
+      assert block =~ "lead"
+      assert block =~ "coordinator (routed via lead)"
+    end
+
+    test "distinct ids stay on separate lines", %{agents: agents} do
+      rules = [
+        %{from: 1, to: 2, policy: "allow"},
+        %{from: 1, to: 3, policy: "allow"}
+      ]
+
+      block = AgentPromptProtocol.allowed_contacts(1, rules, agents, "run-7")
+
+      refute block =~ "also relays to"
     end
   end
 
