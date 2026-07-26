@@ -1,91 +1,156 @@
-# ICHOR IV
+# memories_client
 
-ICHOR IV is a Phoenix LiveView dashboard for orchestrating multi-agent Claude Code teams. The Architect (human user) designs agent teams in the Workshop, runs software development projects through the Factory, and observes the entire system via a reactive signal backbone. Each agent is a Claude Code instance running in a tmux window; ICHOR manages their lifecycle, routing, and coordination without the Architect having to touch a terminal.
+Client for the Memories knowledge-graph API.
 
-## Architecture
+Extracted from the ICHOR IV agent observatory, where an app-manager agent used
+it to record what it observed and recall it during conversations. No
+dependencies — the HTTP transport is a behaviour, defaulting to OTP's `:httpc`.
 
-The application follows a hexagonal design with six Ash Domains plus dedicated namespaces for fleet process management, use-case orchestration, and signal-driven projectors:
+## Three operations
 
-| Domain / Namespace | Path | Responsibility |
-|--------------------|------|----------------|
-| **Workshop** | `/workshop` | Design agent types, teams, spawn links, and comm rules. Compile and launch teams. |
-| **Factory** | `/mes` | Turn project briefs into requirements via the MES planning pipeline. Track pipeline runs and tasks. |
-| **Signals** | system-wide | Reactive GenStage backbone (ADR-026). All system events flow through a producer/consumer pipeline; all mandatory reactions are Oban jobs. |
-| **Events** | system-wide | Append-only durable event log (`StoredEvent`). Ash notifier bridges Ash actions into the pipeline. |
-| **Archon** | system-wide | App manager agent. Exposes management tool surface (memory, command manifest, signal-fed state). |
-| **Settings** | `/settings` | Application-wide configuration: registered projects, git info, folder locations. |
-| **Infrastructure** | I/O boundary | External adapters only: tmux, webhook, Memories API. Wrapped as Ash Resources with `:none` data layer for policy-ready, code-interface-callable access. No business logic. |
-| **fleet/** | OTP layer | Live agent and team GenServers (`AgentProcess`, `TeamSupervisor`, `FleetSupervisor`). |
-| **orchestration/** | use-case layer | Agent and team launch/cleanup orchestrators. Consumes fleet and infrastructure. |
-| **projector/** | signal consumers | Signal-driven GenServer projectors that react to domain events (watchdogs, ingestors, dispatchers). |
+| Call | Does |
+|---|---|
+| `ingest/2` | Write an observation into the graph |
+| `search/2` | Retrieve matching facts or episodes |
+| `query_memory/2` | Ask a natural-language question over the graph |
 
-### Signal Pipeline (ADR-026)
+## Install
 
-Ash actions emit events via the `FromAsh` notifier. Events flow through a GenStage pipeline: `Ingress` (producer) buffers them; `Router` (consumer) dispatches to per-topic `SignalProcess` accumulators. Signals are flushed to `ActionHandler`, which executes mandatory side effects (Oban jobs) and observational projections.
-
-```
-Ash action -> FromAsh notifier -> Ingress (GenStage producer)
-                                         |
-                                  Router (GenStage consumer)
-                                         |
-                              SignalProcess per {module, key}
-                                         |
-                               ActionHandler: flush signal
-                                    /              \
-                            Oban job inserted    PubSub broadcast
-                            (mandatory effect)   (observational)
+```elixir
+def deps do
+  [{:memories_client, path: "../memories_client"}]
+end
 ```
 
-### Oban Workers
+Requires Elixir 1.18+ for the built-in `JSON` module.
 
-Twelve workers across five queues handle durable side effects: `MesTick` (cron, MES scheduler), `ScheduledJob`, `WebhookDeliveryWorker` (HTTP POST with backoff), `ArchiveRunWorker`, `ResetRunTasksWorker`, `DisbandTeamWorker`, `KillSessionWorker`, `HealthCheckWorker` (cron), `ProjectDiscoveryWorker` (cron, scans for `tasks.jsonl`), `OrphanSweepWorker` (cron), `PipelineReconcilerWorker` (cron, AD-8 safety net), and `PruneStoredEventsWorker` (cron daily, 7-day event retention).
-
-### Frontend
-
-The UI is a single Phoenix LiveView at `/` split into ~35 handler modules. A component library under `lib/ichor_web/components/` provides reusable Tailwind components organized into named namespaces (`signal_feed/`, `command_components/`, `primitives/`, `ui/`, etc.). Terminal panels use xterm.js for tmux output rendering.
-
-## Prerequisites
-
-- Elixir 1.19 / Erlang 27
-- `tmux` (agents run in tmux sessions; required at runtime)
-- PostgreSQL (database backend)
-- Node.js (for asset compilation via esbuild and Tailwind)
-
-## Setup
-
-```bash
-mix deps.get
-mix ash.setup       # creates DB, runs migrations, seeds
-mix phx.server      # starts on http://localhost:4005
+```elixir
+config :memories_client,
+  url: "https://memories.example.com",
+  api_key: {:system, "MEMORIES_API_KEY"},
+  group_id: "archon",
+  user_id: "archon"
 ```
 
-For a full asset rebuild:
+`:api_key` accepts `{:system, "VAR"}` to read the environment at call time,
+keeping the secret out of compiled config. A plain string also works.
 
-```bash
-mix assets.build
+## Use
+
+```elixir
+{:ok, result} = MemoriesClient.ingest("The deploy pipeline uses Oban.", source: "agent")
+#=> %{episode_id: "e1", group_id: "archon", status: "ok", sync_status: "pending"}
+
+{:ok, facts} = MemoriesClient.search("deploy pipeline", limit: 5)
+#=> [%{uuid: "u1", fact: "Deploys use Oban", score: 0.87, ...}]
+
+{:ok, answer} = MemoriesClient.query_memory("How do deploys work?")
+#=> %{answer: "Via Oban.", citations: [...], context: %{...}}
 ```
 
-To reset the database:
+### Options
 
-```bash
-mix ecto.reset
+- `search/2` — `:scope` (`"edges"` or `"episodes"`), `:limit`, `:user_id`
+- `ingest/2` — `:type`, `:source`, `:space`, `:extraction_instructions`, `:user_id`
+- `query_memory/2` — `:limit`
+
+A long document may be split server-side; `ingest/2` then returns
+`%{chunked: true, chunk_count: n, episodes: [...]}`. Check for the `:chunked`
+key to tell the two shapes apart.
+
+## Response normalisation
+
+Responses come back as flat maps with atom keys, so callers never touch raw JSON
+string keys. Fields the server omits are present as `nil` rather than absent —
+so `result.score` is always safe, and a caller can pattern-match without first
+checking that a key exists.
+
+Errors are uniform:
+
+- `{:error, {:http_error, status, body}}` — the server answered with a non-2xx;
+  the body is decoded when it is JSON, and passed through when it is not
+- `{:error, reason}` — no response arrived at all
+
+Status 200–202 counts as success. `202` matters: ingest is asynchronous
+server-side, and accepting the episode is the expected reply.
+
+## Swapping the HTTP transport
+
+The client builds requests and maps responses; moving the bytes is somebody
+else's problem. The default `:httpc` adapter has no dependencies and is fine for
+low volume. For anything busy, point `:http` at your own adapter and inherit its
+pooling, retries, and telemetry:
+
+```elixir
+defmodule MyApp.ReqAdapter do
+  @behaviour MemoriesClient.HTTP
+
+  @impl true
+  def post(url, body, headers) do
+    case Req.post(url, body: body, headers: headers) do
+      {:ok, %{status: status, body: body}} -> {:ok, status, body}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+end
+
+config :memories_client, http: MyApp.ReqAdapter
 ```
 
-## Project Structure
+Return `{:ok, status, body}` for *any* completed request, including 4xx and 5xx —
+the client decides what counts as a failure. The body may be a raw string or an
+already-decoded map; adapters that decode JSON themselves need no special
+handling.
 
-- `lib/ichor/` -- all application code, organized by domain. See [TREE.md](lib/ichor/TREE.md) for the annotated module tree (~160 .ex files).
-- `lib/ichor_web/` -- Phoenix LiveView, controllers, and component library (~130 .ex/.heex files).
-- `docs/architecture/` -- architecture decision records and domain specs. See [INDEX.md](docs/architecture/INDEX.md) for the recommended reading order.
-- `docs/diagrams/` -- Mermaid architecture diagrams and database ERD.
-- `contracts/ichor_contracts/` -- shared behaviour contracts (in transition to main app).
-- `priv/repo/migrations/` -- Ash-generated PostgreSQL migrations.
+### The default adapter
 
-## Key Concepts
+`MemoriesClient.HTTP.Httpc` verifies TLS against the OS certificate store via
+`:public_key.cacerts_get/0`. Timeouts default to 30 s request and 15 s connect:
 
-See [docs/plans/GLOSSARY.md](docs/plans/GLOSSARY.md) for canonical definitions of overloaded terms. Words like Team, Agent, Run, Pipeline, Session, and Spawn mean different things depending on which domain you are reading. The glossary disambiguates each one.
+```elixir
+config :memories_client,
+  timeout_ms: 30_000,
+  connect_timeout_ms: 15_000,
+  httpc_ssl_options: [...]   # only if you need a custom CA bundle
+```
 
-Start with the architecture docs before reading code:
+## Wire format
 
-1. [decisions.md](docs/architecture/decisions.md) -- eight load-bearing design decisions (AD-1 through AD-8)
-2. [GLOSSARY.md](docs/plans/GLOSSARY.md) -- canonical term definitions
-3. [diagrams/architecture.md](docs/diagrams/architecture.md) -- domain map and signal flow diagrams
+The API is AshJsonApi, so requests are `application/vnd.api+json` with a
+`{"data": {...}}` envelope and a bearer token. That is handled internally;
+callers pass plain values.
+
+## Tests
+
+```
+mix test
+```
+
+31 tests covering request shaping (URL, headers, envelope, defaults and
+overrides), response normalisation for all three calls including the chunked
+ingest shape, and every error path. They run against a stub adapter that records
+requests, so no server is needed.
+
+## Changes from the original
+
+- Namespace `Ichor.Infrastructure.MemoriesClient` → `MemoriesClient`.
+- Req replaced by the `MemoriesClient.HTTP` behaviour, with an `:httpc` adapter
+  as the default — this is what makes the project dependency-free.
+- Configuration moved from a nested `config :ichor, :memories` keyword list to
+  flat `:memories_client` keys, with `{:system, "VAR"}` support for the API key
+  and an error that names the missing key.
+- The `MemoriesOperations` Ash resource wrapper was dropped; it re-mapped every
+  result back to string keys purely to satisfy Ash's action types, which has no
+  meaning outside that host.
+
+Fixed along the way:
+
+- **A non-list search response leaked out unnormalised.** `search/2` guarded on
+  `is_list(results)` inside a `with`, so a non-list response fell through the
+  guard and was returned raw, bypassing the mapping. Results are now always
+  normalised to a list.
+- **An undecodable body raised.** Decoding is now attempted and the raw body
+  passed through on failure, so a proxy returning an HTML error page yields
+  `{:error, {:http_error, 502, "<html>..."}}` rather than an exception.
+- `:user_id` can now be overridden per call; it was previously always the
+  configured default.
