@@ -2,7 +2,7 @@ defmodule Signals do
   @moduledoc """
   Stateful accumulators that correlate unrelated events into conclusions.
 
-  Extracted from ICHOR IV. No required dependencies.
+  No required dependencies.
 
   ## The idea
 

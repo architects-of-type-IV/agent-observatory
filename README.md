@@ -2,7 +2,7 @@
 
 Stateful accumulators that correlate unrelated events into conclusions.
 
-Extracted from ICHOR IV. No required dependencies.
+No required dependencies.
 
 > Every event in the system is a topic. Topics are the atoms. Signals are the
 > molecules.
@@ -116,32 +116,32 @@ timer, because no event will ever arrive to say so. `interval/0` is what makes
 this possible, and `ready?(state, :timer)` is where it gets decided. Note it
 latches: a persistently silent agent alerts once, not every tick.
 
-**Across subjects** — `CrashCascade`. Three *different* agents failing. Per-agent
-partitioning could never see more than one, so the signal declares
-`partition_key(_) = "fleet"` and accumulates fleet-wide.
+**Across subjects** — `CrashCascade`. Three *different* subjects failing.
+Per-subject partitioning could never see more than one, so the signal declares
+`partition_key(_) = "global"` and accumulates across all of them.
 
 That last one matters more than it looks. **How a signal partitions is the
-signal's business, not the emitter's.** `agent.crashed` is right to carry the
-agent as its subject; a downstream signal wanting to count across agents says so
-itself. Otherwise every emitter has to know every consumer.
+signal's business, not the emitter's.** An event is right to carry its own
+subject; a downstream signal wanting to count across subjects says so itself.
+Otherwise every emitter has to know every consumer.
 
 ## Meta-signals
 
-`FleetDegraded` watches `signal.*` — other signals' conclusions. Several
+`CompoundAlert` watches `signal.*` — other signals' conclusions. Several
 *distinct kinds* of problem at once is a different claim than any one of them.
 
 ```
 ### subscription graph
   loop_detected    watches ["agent.tool.invoked"]
   crash_cascade    watches ["agent.crashed"]
-  fleet_degraded   watches ["signal.*"]   [meta]
+  compound_alert   watches ["signal.*"]   [meta]
 
 ### what got concluded
   signal.loop_detected     subject="agent-1" depth=1
       %{tool: "Read", repeats: 3, agent_id: "agent-1"}
-  signal.crash_cascade     subject="fleet"   depth=1
+  signal.crash_cascade     subject="global"   depth=1
       %{count: 3, agents: ["agent-3", "agent-2", "agent-1"]}
-  signal.fleet_degraded    subject="fleet"   depth=2
+  signal.compound_alert    subject="global"   depth=2
       %{signals: ["crash_cascade", "loop_detected"]}
 ```
 
@@ -159,7 +159,7 @@ broker without translation.
 |---|---|
 | `type` | The topic, dot-delimited big-to-small: `agent.tool.completed` |
 | `source` | What produced it: `backend`, `frontend`, `temporal`, or a URI |
-| `subject` | Default partition key — the agent, team, or run |
+| `subject` | Default partition key — what the event is about |
 | `id`, `time`, `data` | As specified |
 
 `to_cloudevent/1` and `from_cloudevent/1` round-trip, with extensions flattened
@@ -204,7 +204,7 @@ them wrong.
 The dedup window is bounded (`:dedup_window`, default 256) because an
 accumulator reasons over a window anyway — a duplicate arriving long after that
 window has nothing left to corrupt — and unbounded it would leak on a process
-meant to run for the life of the fleet.
+meant to run for the life of the system.
 
 ## Behaviours
 
@@ -232,18 +232,18 @@ boundary, restart recovery, and the CloudEvents round-trip.
 
 ## Provenance
 
-The model comes from ICHOR's `ADR-025-signal-mental-model-accumulator-not-topic`
+The model comes from `ADR-025-signal-mental-model-accumulator-not-topic`
 — *"A Signal is something that listens to one or many topics. A Signal is not a
 topic. You cannot subscribe to a Signal."* The ergonomics come from
-Observatory's `use Ichor.Signal` macro. The durable projector with checkpointed
-positions comes from Ichor's `SignalProjector`.
+a `use Signal` macro in a sibling codebase. The durable projector with
+checkpointed positions comes from that codebase's `SignalProjector`.
 
 Added here, from neither: per-signal timer intervals (the topic tables call for
 5s through 5min; both implementations hardcoded one), declarative wildcard
 `topics/0`, `partition_key/1`, emissions routed back for composition, the depth
 cutoff that makes composition safe, and identity-based idempotency.
 
-Fixed: Observatory's `SignalProcess` called `handle_info/2` on signal modules,
+Fixed: the original `SignalProcess` called `handle_info/2` on signal modules,
 but the callback was in neither the behaviour nor the macro and no module
 defined it — so any stray message (a monitor `:DOWN`, a late timer) crashed the
 accumulator. Here it's a defaulted optional callback.

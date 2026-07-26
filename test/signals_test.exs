@@ -3,7 +3,7 @@ defmodule SignalsTest do
 
   alias Signals.Examples.AgentSilent
   alias Signals.Examples.CrashCascade
-  alias Signals.Examples.FleetDegraded
+  alias Signals.Examples.CompoundAlert
   alias Signals.Examples.LoopDetected
   alias Signals.Sink.Collector
 
@@ -50,12 +50,12 @@ defmodule SignalsTest do
   end
 
   describe "subscriptions/0" do
-    @tag signals: [LoopDetected, FleetDegraded]
+    @tag signals: [LoopDetected, CompoundAlert]
     test "reports the graph and flags meta-signals" do
       graph = Signals.subscriptions()
 
       loop = Enum.find(graph, &(&1.signal == LoopDetected))
-      meta = Enum.find(graph, &(&1.signal == FleetDegraded))
+      meta = Enum.find(graph, &(&1.signal == CompoundAlert))
 
       assert loop.topics == ["agent.tool.invoked"]
       refute loop.meta?
@@ -195,7 +195,7 @@ defmodule SignalsTest do
   end
 
   describe "CrashCascade — correlation across subjects" do
-    # The emitter sets the natural subject; CrashCascade partitions fleet-wide.
+    # The emitter sets the natural subject; CrashCascade partitions globally.
     defp crash(agent), do: emit("agent.crashed", subject: agent)
 
     @tag signals: [CrashCascade], sink: Collector
@@ -212,7 +212,7 @@ defmodule SignalsTest do
       crash("agent-3")
 
       assert [emission] = Collector.emissions_of("crash_cascade")
-      assert Enum.sort(emission.data.agents) == ["agent-1", "agent-2", "agent-3"]
+      assert Enum.sort(emission.data.subjects) == ["agent-1", "agent-2", "agent-3"]
     end
 
     @tag signals: [CrashCascade], sink: Collector
@@ -224,27 +224,27 @@ defmodule SignalsTest do
   end
 
   describe "meta-signals — a signal consuming signals" do
-    @tag signals: [LoopDetected, CrashCascade, FleetDegraded], sink: Signals.Sink.Local
+    @tag signals: [LoopDetected, CrashCascade, CompoundAlert], sink: Signals.Sink.Local
     test "an emission is an ordinary event, so a meta-signal accumulates it" do
-      Signals.subscribe(["signal.fleet_degraded"])
+      Signals.subscribe(["signal.compound_alert"])
 
       for _ <- 1..3, do: invoke("agent-1", "Read")
       crash("agent-1")
       crash("agent-2")
       crash("agent-3")
 
-      assert_receive {:signal, %Event{type: "signal.fleet_degraded"} = event}, 1_000
+      assert_receive {:signal, %Event{type: "signal.compound_alert"} = event}, 1_000
       assert Enum.sort(event.data.signals) == ["crash_cascade", "loop_detected"]
     end
 
-    @tag signals: [LoopDetected, FleetDegraded], sink: Signals.Sink.Local
-    test "one kind of conclusion is not fleet-wide degradation" do
+    @tag signals: [LoopDetected, CompoundAlert], sink: Signals.Sink.Local
+    test "one kind of conclusion is not a compound alert" do
       Signals.subscribe(["signal.*"])
 
       for _ <- 1..3, do: invoke("agent-1", "Read")
 
       assert_receive {:signal, %Event{type: "signal.loop_detected"}}, 1_000
-      refute_receive {:signal, %Event{type: "signal.fleet_degraded"}}, 100
+      refute_receive {:signal, %Event{type: "signal.compound_alert"}}, 100
     end
 
     @tag signals: [LoopDetected], sink: Signals.Sink.Local

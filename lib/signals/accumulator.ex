@@ -2,8 +2,8 @@ defmodule Signals.Accumulator do
   @moduledoc """
   One signal's reasoning about one partition key, as a process.
 
-  There is an accumulator per `{signal, subject}` — one per agent for a
-  per-agent signal, one globally for a fleet-wide one. Each holds its own
+  There is an accumulator per `{signal, key}` — one per subject for a scoped
+  signal, one globally for a signal that correlates across subjects. Each holds its own
   partial conclusion and asks its signal, after every event and on every timer
   tick, whether that partial conclusion has become a real one.
 

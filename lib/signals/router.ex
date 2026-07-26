@@ -10,17 +10,17 @@ defmodule Signals.Router do
   ## Fan-out
 
   One event can reach many signals, and usually does. `agent.crashed` feeds a
-  crash-rate signal, a fleet-health signal, and a watchdog at once, each drawing
-  a different conclusion. That is the point — the same fact means different
-  things in different company.
+  crash-rate signal, a health signal, and a watchdog at once, each drawing a
+  different conclusion. That is the point — the same fact means different things
+  in different company.
 
   ## Partitioning
 
   Each signal decides its own accumulator key via
   `c:Signals.Signal.partition_key/1`, defaulting to the event's `subject`. So
-  the same event can land in a per-agent accumulator for one signal and a
-  fleet-wide one for another, which is what lets a crash-cascade signal count
-  across agents while a loop detector reasons about one.
+  the same event can land in a per-subject accumulator for one signal and a
+  global one for another, which is what lets a crash-cascade signal count across
+  subjects while a loop detector reasons about one.
 
   Within a key, delivery preserves arrival order — a sequence-sensitive signal
   drawing conclusions from a shuffled history would be worse than one drawing

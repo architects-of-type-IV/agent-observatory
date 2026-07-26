@@ -31,7 +31,7 @@ defmodule Signals.Dedup do
   a window — the last few tool calls, the last minute of crashes — so a
   redelivery arriving long after that window has nothing left to corrupt.
   Unbounded, this would be a slow memory leak on a process designed to run for
-  the life of the fleet.
+  the life of the system.
   """
 
   @enforce_keys [:limit]

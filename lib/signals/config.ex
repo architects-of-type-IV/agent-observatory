@@ -18,7 +18,7 @@ defmodule Signals.Config do
   redelivery. Bounded because an accumulator reasons over a window anyway — a
   duplicate arriving long after that window has nothing left to corrupt — and
   because unbounded it would leak on a process meant to run for the life of the
-  fleet.
+  system.
 
   ## `:signals`
 

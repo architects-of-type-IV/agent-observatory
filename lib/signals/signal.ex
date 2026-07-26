@@ -99,17 +99,17 @@ defmodule Signals.Signal do
   @doc """
   Which accumulator this event belongs to.
 
-  Defaults to the event's `subject`, giving one accumulator per agent, team, or
-  run — the right scope for a signal reasoning about one thing.
+  Defaults to the event's `subject`, giving one accumulator per subject — the
+  right scope for a signal reasoning about one thing at a time.
 
   A signal that correlates *across* subjects must say so by returning a
   constant. A crash cascade is precisely the observation that several
-  **different** agents failed; partitioned per agent it can never see more than
-  one, and would silently never fire.
+  **different** subjects failed; partitioned per subject it can never see more
+  than one, and would silently never fire.
 
-  This belongs to the signal, not the emitter. `agent.crashed` naturally carries
-  the agent as its subject, and it should not have to know that some downstream
-  signal wants to count across agents.
+  This belongs to the signal, not the emitter. An event naturally carries its
+  own subject, and it should not have to know that some downstream signal wants
+  to count across subjects.
   """
   @callback partition_key(event :: Event.t()) :: String.t() | nil
 

@@ -16,13 +16,13 @@ defmodule Signals.Event do
   |---|---|
   | `type` | The topic, dot-delimited big-to-small: `agent.tool.completed` |
   | `source` | What produced it: `"backend"`, `"frontend"`, `"temporal"`, or a URI |
-  | `subject` | The partition key — the agent, team, or run this concerns |
+  | `subject` | The partition key — what this event is about |
   | `id` | Unique per event; the dedup key |
   | `time` | When it happened |
   | `data` | The payload |
 
-  `subject` is load-bearing beyond description: it is what the router partitions
-  on, so all events about one agent reach one accumulator in order.
+  `subject` is load-bearing beyond description: it is the default partition key,
+  so all events about one thing reach one accumulator in order.
 
   ## Extensions
 

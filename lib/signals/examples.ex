@@ -105,16 +105,16 @@ end
 
 defmodule Signals.Examples.CrashCascade do
   @moduledoc """
-  Several agents crashing inside a short window.
+  Several distinct subjects crashing inside a short window.
 
-  One crash is noise; OTP restarts it and nobody needs telling. Several across
-  *different* agents in a minute is a systemic fault, and no individual crash
-  event knows that.
+  One crash is noise; the supervisor restarts it and nobody needs telling.
+  Several across *different* subjects in a minute is a systemic fault, and no
+  individual crash event knows that.
 
-  The correlation is across subjects, so this signal accumulates fleet-wide.
-  Partitioned per agent — the default — it could never see more than one agent
-  and would silently never fire. The emitter of `agent.crashed` is right to set
-  the agent as subject; deciding to count across agents is this signal's
+  The correlation is across subjects, so this signal accumulates globally.
+  Partitioned per subject — the default — it could never see more than one and
+  would silently never fire. The emitter of `agent.crashed` is right to set the
+  crashing thing as subject; deciding to count across subjects is this signal's
   business, not the emitter's.
   """
 
@@ -130,7 +130,7 @@ defmodule Signals.Examples.CrashCascade do
   def topics, do: ["agent.crashed"]
 
   @impl true
-  def partition_key(_event), do: "fleet"
+  def partition_key(_event), do: "global"
 
   @impl true
   def interval, do: 15_000
@@ -140,8 +140,8 @@ defmodule Signals.Examples.CrashCascade do
 
   @impl true
   def handle_event(%Event{time: time, subject: subject, data: data}, state) do
-    agent = subject || (data && (Map.get(data, "agent_id") || Map.get(data, :agent_id)))
-    %{state | crashes: [{agent, time} | prune(state.crashes)]}
+    who = subject || (data && (Map.get(data, "agent_id") || Map.get(data, :agent_id)))
+    %{state | crashes: [{who, time} | prune(state.crashes)]}
   end
 
   @impl true
@@ -157,7 +157,7 @@ defmodule Signals.Examples.CrashCascade do
   @impl true
   def build_emission(%{crashes: crashes}) do
     recent = prune(crashes)
-    %{agents: recent |> Enum.map(&elem(&1, 0)) |> Enum.uniq(), count: length(recent)}
+    %{subjects: recent |> Enum.map(&elem(&1, 0)) |> Enum.uniq(), count: length(recent)}
   end
 
   @impl true
@@ -165,26 +165,26 @@ defmodule Signals.Examples.CrashCascade do
 
   defp prune(crashes) do
     cutoff = DateTime.add(DateTime.utc_now(), -@window_ms, :millisecond)
-    Enum.filter(crashes, fn {_agent, time} -> DateTime.compare(time, cutoff) == :gt end)
+    Enum.filter(crashes, fn {_who, time} -> DateTime.compare(time, cutoff) == :gt end)
   end
 end
 
-defmodule Signals.Examples.FleetDegraded do
+defmodule Signals.Examples.CompoundAlert do
   @moduledoc """
-  A meta-signal: several *different* signals firing at once.
+  A meta-signal: several *different* signals firing inside one window.
 
-  Any one conclusion may be local — one looping agent, one gone quiet. Several
-  distinct kinds within a window is a different claim, about the fleet rather
-  than any agent in it.
+  Any one conclusion may be local — one looping worker, one gone quiet. Several
+  distinct kinds at once is a different claim, about the system rather than any
+  part of it.
 
   It needs no special support. `topics: ["signal.*"]` subscribes it to other
   signals' conclusions, because an emission is an ordinary event. This is what
   "a signal is not a topic" buys.
 
-  Like `Signals.Examples.CrashCascade` it accumulates fleet-wide: the incoming
+  Like `Signals.Examples.CrashCascade` it accumulates globally: incoming
   emissions carry whatever subject their own signal used, and correlating them
-  per subject would put a per-agent conclusion and a fleet-wide one into
-  different accumulators, where neither can see the other.
+  per subject would put a scoped conclusion and a global one into different
+  accumulators, where neither can see the other.
   """
 
   use Signals.Signal
@@ -193,13 +193,13 @@ defmodule Signals.Examples.FleetDegraded do
   @window_ms 120_000
 
   @impl true
-  def name, do: "fleet_degraded"
+  def name, do: "compound_alert"
 
   @impl true
   def topics, do: ["signal.*"]
 
   @impl true
-  def partition_key(_event), do: "fleet"
+  def partition_key(_event), do: "global"
 
   @impl true
   def interval, do: 30_000
