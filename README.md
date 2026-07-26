@@ -27,8 +27,12 @@ So the value here is not the text. It's that there is exactly one copy of it.
 | `allowed_contacts/5` | ALLOWED CONTACTS | Who may I talk to, and who not? |
 | `announce_ready/2` | PHASE 0 | How do I prove I am alive? |
 
-Plus `session_id/2` and `roster_entries/2`, which are the data behind the
-roster — see below.
+Plus `session_id/2` and `roster_entries/2` (the data behind the roster) and
+`can_send?/3` / `authorize_session/5` (the same rules as an enforcement point).
+
+For how these pieces relate to the wider system they came from — team
+definitions, supervision strategies, and where the prompt text's shape comes
+from — see [DESIGN.md](DESIGN.md).
 
 ## Install
 
@@ -83,6 +87,51 @@ end
 
 AgentPromptProtocol.roster_from_entries(entries)
 ```
+
+## Roster vs comm_rules
+
+They answer different questions and are easy to conflate:
+
+- **Roster** — who exists, and the exact id to address each by. Identity.
+- **comm_rules** — who is permitted to send to whom. Authorization.
+
+The roster is a directory; comm_rules are RBAC for the `send_message` tool.
+
+## Authorization
+
+`allowed_contacts/5` renders the rules as prose for the agent to read. That is a
+description, not a control: an agent that forgets or reasons around the block
+gets through, and nothing logs it. The same decision is available as a
+predicate, so the tool can enforce what the prompt describes:
+
+```elixir
+AgentPromptProtocol.can_send?(1, 2, rules)          #=> true
+AgentPromptProtocol.authorize(4, 1, rules)          #=> {:error, :denied}
+AgentPromptProtocol.authorize(1, 9, rules)          #=> {:error, :no_rule}
+AgentPromptProtocol.recipients(1, rules)            #=> [2, 4]
+```
+
+In a tool handler, which has session ids rather than slot ids:
+
+```elixir
+case AgentPromptProtocol.authorize_session(from_sid, to_sid, rules, agents, session) do
+  :ok -> deliver(from_sid, to_sid, content)
+  {:error, reason} -> {:error, reason}
+end
+```
+
+Deciding both from one rule set is the point — the text and the gate cannot
+disagree, because there is only one of them. A test asserts exactly that: for
+every agent, being listed in the contacts block matches `can_send?/3`.
+
+`:denied` and `:no_rule` are distinguished deliberately. A denied send is an
+agent ignoring an instruction it was given, which is worth alerting on;
+`:no_rule` is more often a team definition missing an edge. `authorize_session/5`
+also reports `:unknown_sender` / `:unknown_recipient`, which means an agent
+invented an address.
+
+A `"route"` rule authorizes reaching the **relay**, not the destination — the
+whole point of the indirection.
 
 ## Design notes
 
@@ -171,12 +220,15 @@ intermediate chatter never reaches the dashboard.
 mix test
 ```
 
-90 tests and 18 doctests covering every block, all three comm-rule policies and
-their precedence, contact merging, the deny-line logic, template rendering and
-its missing-variable modes, and id parsing. Two assert the properties the library
-exists for: that the ids in the roster match the ids in the allowed-contacts
-block, and that a configured tool prefix reaches every mention of the tool in
-every block.
+111 tests and 23 doctests covering every block, all three comm-rule policies and
+their precedence, authorization by slot and by session id, contact merging, the
+deny-line logic, template rendering and its missing-variable modes, and id
+parsing.
+
+Three assert the properties the library exists for: that the ids in the roster
+match the ids in the allowed-contacts block, that a configured tool prefix
+reaches every mention of the tool in every block, and that the authorization
+gate agrees with the prose it renders for every agent.
 
 One test renders the review-chain team's wiring verbatim — it is the only
 team definition that uses all three policies at once.
@@ -213,5 +265,11 @@ Fixed along the way:
   configuration, applied uniformly.
 - **Two contacts resolving to the same session id printed as two lines.**
 
-Added: `session_id/2` and `roster_entries/2`, exposing the id convention as data
-so session creation and prompt generation cannot diverge.
+Added:
+
+- `session_id/2` and `roster_entries/2`, exposing the id convention as data so
+  session creation and prompt generation cannot diverge.
+- `can_send?/3`, `authorize/3`, `authorize_session/5`, and `recipients/2`. In
+  the original, comm_rules were advisory only — nothing consulted them at send
+  time, so the prompt was the sole barrier. The same rules now serve as an
+  enforcement point.

@@ -267,6 +267,117 @@ defmodule AgentPromptProtocol do
     allowed_contacts(slot_id, comm_rules, agents, session, extra_contacts: extra_contacts)
   end
 
+  # Authorization
+
+  @doc """
+  Whether `from` may send to `to` under these rules.
+
+  The same decision `allowed_contacts/5` renders as prose, exposed as a
+  predicate so the messaging tool can enforce it. Rules describing who may talk
+  to whom are access control; a prompt that merely *describes* access control is
+  a suggestion, and an agent that forgets or reasons around the block gets
+  through with nothing logged.
+
+  Deciding both from one rule set is the point — the text and the gate cannot
+  disagree, because there is only one of them.
+
+      iex> rules = [%{from: 1, to: 2, policy: "allow"}]
+      iex> AgentPromptProtocol.can_send?(1, 2, rules)
+      true
+      iex> AgentPromptProtocol.can_send?(2, 1, rules)
+      false
+
+  A `"route"` rule does **not** authorize the direct send it describes — the
+  whole point of the indirection is that the sender reaches the relay, not the
+  target:
+
+      iex> rules = [%{from: 3, to: 1, policy: "route", via: 2}]
+      iex> AgentPromptProtocol.can_send?(3, 1, rules)
+      false
+      iex> AgentPromptProtocol.can_send?(3, 2, rules)
+      true
+  """
+  @spec can_send?(integer(), integer(), [comm_rule()]) :: boolean()
+  def can_send?(from, to, comm_rules), do: authorize(from, to, comm_rules) == :ok
+
+  @doc """
+  Authorize a send, with a reason when it is refused.
+
+  Returns `:ok`, or `{:error, reason}` where reason is:
+
+    * `:denied` — an explicit `"deny"` rule
+    * `:no_rule` — nothing permits it
+
+  The two are worth distinguishing when logging: a `:denied` send is an agent
+  ignoring an instruction it was given, while `:no_rule` is more often a team
+  definition that forgot an edge.
+
+      iex> AgentPromptProtocol.authorize(1, 2, [%{from: 1, to: 2, policy: "deny"}])
+      {:error, :denied}
+
+      iex> AgentPromptProtocol.authorize(1, 2, [])
+      {:error, :no_rule}
+  """
+  @spec authorize(integer(), integer(), [comm_rule()]) :: :ok | {:error, :denied | :no_rule}
+  def authorize(from, to, comm_rules) do
+    outgoing = Enum.filter(comm_rules, &(&1.from == from and &1.to == to))
+
+    cond do
+      Enum.any?(outgoing, &(policy(&1) == "deny")) -> {:error, :denied}
+      Enum.any?(outgoing, &(policy(&1) == "allow")) -> :ok
+      relays_to?(comm_rules, from, to) -> :ok
+      true -> {:error, :no_rule}
+    end
+  end
+
+  @doc """
+  Authorize a send addressed by session id rather than slot id.
+
+  What a messaging tool actually has in hand: two session ids off the wire. It
+  resolves them back to slots via the roster and applies the same rules, so the
+  gate speaks the same language as the tool.
+
+  Returns `{:error, :unknown_sender}` or `{:error, :unknown_recipient}` when an
+  id does not belong to the team — which is itself worth logging, since it means
+  an agent invented an address.
+  """
+  @spec authorize_session(String.t(), String.t(), [comm_rule()], [agent()], String.t()) ::
+          :ok | {:error, :denied | :no_rule | :unknown_sender | :unknown_recipient}
+  def authorize_session(from_session_id, to_session_id, comm_rules, agents, session) do
+    with {:ok, from} <- slot_for_session(from_session_id, agents, session, :unknown_sender),
+         {:ok, to} <- slot_for_session(to_session_id, agents, session, :unknown_recipient) do
+      authorize(from, to, comm_rules)
+    end
+  end
+
+  @doc """
+  Every slot `from` may send to directly, including relays it must route through.
+
+  The set behind the contacts block, as data. Useful for building a tool's
+  allowlist up front rather than checking one send at a time.
+
+      iex> rules = [%{from: 1, to: 2, policy: "allow"}, %{from: 1, to: 3, policy: "route", via: 2}]
+      iex> AgentPromptProtocol.recipients(1, rules)
+      [2]
+  """
+  @spec recipients(integer(), [comm_rule()]) :: [integer()]
+  def recipients(from, comm_rules) do
+    outgoing = Enum.filter(comm_rules, &(&1.from == from))
+    denied = for r <- outgoing, policy(r) == "deny", into: MapSet.new(), do: r.to
+
+    outgoing
+    |> Enum.reject(&MapSet.member?(denied, &1.to))
+    |> Enum.flat_map(fn rule ->
+      case policy(rule) do
+        "allow" -> [rule.to]
+        "route" -> List.wrap(Map.get(rule, :via))
+        _ -> []
+      end
+    end)
+    |> Enum.uniq()
+    |> Enum.reject(&MapSet.member?(denied, &1))
+  end
+
   @doc """
   Non-agent contacts an agent gets from its capability.
 
@@ -333,6 +444,20 @@ defmodule AgentPromptProtocol do
   end
 
   defp policy(rule), do: Map.get(rule, :policy) || "allow"
+
+  # A route rule authorizes reaching the relay, not the destination.
+  defp relays_to?(comm_rules, from, relay) do
+    Enum.any?(comm_rules, fn rule ->
+      rule.from == from and policy(rule) == "route" and Map.get(rule, :via) == relay
+    end)
+  end
+
+  defp slot_for_session(sid, agents, session, error) do
+    case Enum.find(agents, &(session_id(session, &1.name) == sid)) do
+      nil -> {:error, error}
+      agent -> {:ok, agent.id}
+    end
+  end
 
   defp contact_lines([]), do: "(none -- you are isolated; do not message anyone)"
 

@@ -508,6 +508,218 @@ defmodule AgentPromptProtocolTest do
     end
   end
 
+  describe "authorize/3 and can_send?/3" do
+    test "an allow rule authorizes that direction only" do
+      rules = [%{from: 1, to: 2, policy: "allow"}]
+
+      assert AgentPromptProtocol.can_send?(1, 2, rules)
+      refute AgentPromptProtocol.can_send?(2, 1, rules)
+    end
+
+    test "nothing is permitted by default" do
+      assert AgentPromptProtocol.authorize(1, 2, []) == {:error, :no_rule}
+    end
+
+    test "a deny rule is distinguishable from an absent one" do
+      assert AgentPromptProtocol.authorize(1, 2, [%{from: 1, to: 2, policy: "deny"}]) ==
+               {:error, :denied}
+
+      assert AgentPromptProtocol.authorize(1, 2, []) == {:error, :no_rule}
+    end
+
+    test "deny beats allow in either order" do
+      forward = [%{from: 1, to: 2, policy: "allow"}, %{from: 1, to: 2, policy: "deny"}]
+      reverse = [%{from: 1, to: 2, policy: "deny"}, %{from: 1, to: 2, policy: "allow"}]
+
+      assert AgentPromptProtocol.authorize(1, 2, forward) == {:error, :denied}
+      assert AgentPromptProtocol.authorize(1, 2, reverse) == {:error, :denied}
+    end
+
+    test "a route rule authorizes the relay, not the destination" do
+      rules = [%{from: 3, to: 1, policy: "route", via: 2}]
+
+      refute AgentPromptProtocol.can_send?(3, 1, rules)
+      assert AgentPromptProtocol.can_send?(3, 2, rules)
+    end
+
+    test "a route rule with no via authorizes nothing" do
+      rules = [%{from: 3, to: 1, policy: "route"}]
+
+      refute AgentPromptProtocol.can_send?(3, 1, rules)
+      refute AgentPromptProtocol.can_send?(3, 2, rules)
+    end
+
+    test "rules for other senders do not leak" do
+      rules = [%{from: 1, to: 2, policy: "allow"}]
+
+      refute AgentPromptProtocol.can_send?(3, 2, rules)
+    end
+
+    test "the gate agrees with the prose it renders", %{agents: agents} do
+      # The property that makes one rule set safe to use for both.
+      rules = [
+        %{from: 1, to: 2, policy: "allow"},
+        %{from: 1, to: 3, policy: "deny"},
+        %{from: 1, to: 4, policy: "route", via: 2}
+      ]
+
+      block = AgentPromptProtocol.allowed_contacts(1, rules, agents, "run-7")
+
+      for agent <- agents, agent.id != 1 do
+        sid = AgentPromptProtocol.session_id("run-7", agent.name)
+        listed? = block =~ ~s("#{sid}")
+
+        assert listed? == AgentPromptProtocol.can_send?(1, agent.id, rules),
+               "#{agent.name}: block says #{listed?}, gate says the opposite"
+      end
+    end
+
+    test "the review-chain wiring authorizes exactly what its prompt says" do
+      rules = [
+        %{from: 4, to: 2, policy: "allow"},
+        %{from: 2, to: 1, policy: "allow"},
+        %{from: 3, to: 2, policy: "allow"},
+        %{from: 1, to: 3, policy: "allow"},
+        %{from: 3, to: 1, policy: "route", via: 2},
+        %{from: 4, to: 1, policy: "deny"}
+      ]
+
+      assert AgentPromptProtocol.can_send?(4, 2, rules)
+      assert AgentPromptProtocol.authorize(4, 1, rules) == {:error, :denied}
+      assert AgentPromptProtocol.can_send?(3, 2, rules)
+      refute AgentPromptProtocol.can_send?(3, 1, rules)
+      refute AgentPromptProtocol.can_send?(2, 4, rules)
+    end
+  end
+
+  describe "authorize_session/5" do
+    setup %{agents: agents} do
+      rules = [
+        %{from: 1, to: 2, policy: "allow"},
+        %{from: 1, to: 3, policy: "deny"}
+      ]
+
+      {:ok, rules: rules, agents: agents, session: "run-7"}
+    end
+
+    test "authorizes by session id", ctx do
+      assert AgentPromptProtocol.authorize_session(
+               "run-7-coordinator",
+               "run-7-lead",
+               ctx.rules,
+               ctx.agents,
+               ctx.session
+             ) == :ok
+    end
+
+    test "refuses a denied pair", ctx do
+      assert AgentPromptProtocol.authorize_session(
+               "run-7-coordinator",
+               "run-7-builder",
+               ctx.rules,
+               ctx.agents,
+               ctx.session
+             ) == {:error, :denied}
+    end
+
+    test "reports an invented sender", ctx do
+      assert AgentPromptProtocol.authorize_session(
+               "run-7-ghost",
+               "run-7-lead",
+               ctx.rules,
+               ctx.agents,
+               ctx.session
+             ) == {:error, :unknown_sender}
+    end
+
+    test "reports an invented recipient", ctx do
+      assert AgentPromptProtocol.authorize_session(
+               "run-7-coordinator",
+               "run-7-ghost",
+               ctx.rules,
+               ctx.agents,
+               ctx.session
+             ) == {:error, :unknown_recipient}
+    end
+
+    test "an id from another run does not resolve", ctx do
+      assert AgentPromptProtocol.authorize_session(
+               "other-run-coordinator",
+               "run-7-lead",
+               ctx.rules,
+               ctx.agents,
+               ctx.session
+             ) == {:error, :unknown_sender}
+    end
+
+    test "honours a configured separator", ctx do
+      Application.put_env(:agent_prompt_protocol, :session_separator, ":")
+
+      assert AgentPromptProtocol.authorize_session(
+               "run-7:coordinator",
+               "run-7:lead",
+               ctx.rules,
+               ctx.agents,
+               ctx.session
+             ) == :ok
+    end
+  end
+
+  describe "recipients/2" do
+    test "lists direct targets and relays, not routed destinations" do
+      rules = [
+        %{from: 1, to: 2, policy: "allow"},
+        %{from: 1, to: 3, policy: "route", via: 4}
+      ]
+
+      assert AgentPromptProtocol.recipients(1, rules) == [2, 4]
+    end
+
+    test "excludes denied targets" do
+      rules = [
+        %{from: 1, to: 2, policy: "allow"},
+        %{from: 1, to: 3, policy: "allow"},
+        %{from: 1, to: 3, policy: "deny"}
+      ]
+
+      assert AgentPromptProtocol.recipients(1, rules) == [2]
+    end
+
+    test "a relay that is separately denied is excluded" do
+      rules = [
+        %{from: 1, to: 3, policy: "route", via: 2},
+        %{from: 1, to: 2, policy: "deny"}
+      ]
+
+      assert AgentPromptProtocol.recipients(1, rules) == []
+    end
+
+    test "deduplicates" do
+      rules = [
+        %{from: 1, to: 2, policy: "allow"},
+        %{from: 1, to: 3, policy: "route", via: 2}
+      ]
+
+      assert AgentPromptProtocol.recipients(1, rules) == [2]
+    end
+
+    test "is empty for an isolated slot" do
+      assert AgentPromptProtocol.recipients(1, []) == []
+    end
+
+    test "agrees with can_send?/3" do
+      rules = [
+        %{from: 1, to: 2, policy: "allow"},
+        %{from: 1, to: 3, policy: "deny"},
+        %{from: 1, to: 4, policy: "route", via: 5}
+      ]
+
+      for slot <- AgentPromptProtocol.recipients(1, rules) do
+        assert AgentPromptProtocol.can_send?(1, slot, rules)
+      end
+    end
+  end
+
   describe "render_template/3" do
     test "delegates to Template" do
       assert AgentPromptProtocol.render_template("{{a}}", %{"a" => "1"}) == "1"
