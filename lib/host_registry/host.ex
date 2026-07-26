@@ -1,6 +1,6 @@
 defmodule HostRegistry.Host do
   @moduledoc """
-  One host in the fleet: a BEAM node that can run work.
+  One host: a BEAM node that can run work.
 
   ## Status
 

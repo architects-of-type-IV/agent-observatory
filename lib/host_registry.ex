@@ -23,7 +23,7 @@ defmodule HostRegistry do
   ## Cluster visibility
 
   The registry joins a `:pg` process group, so registries on other nodes can
-  discover each other through `members/0` without a central coordinator.
+  discover each other through `members/0` with no central arbiter.
 
   ## Setup
 
