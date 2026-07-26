@@ -1,91 +1,163 @@
-# ICHOR IV
+# agent_prompt_protocol
 
-ICHOR IV is a Phoenix LiveView dashboard for orchestrating multi-agent Claude Code teams. The Architect (human user) designs agent teams in the Workshop, runs software development projects through the Factory, and observes the entire system via a reactive signal backbone. Each agent is a Claude Code instance running in a tmux window; ICHOR manages their lifecycle, routing, and coordination without the Architect having to touch a terminal.
+The communication protocol blocks that go into a multi-agent prompt: rules,
+roster, allowed contacts, and `{{var}}` templating.
 
-## Architecture
+Extracted from the ICHOR IV agent observatory. No dependencies.
 
-The application follows a hexagonal design with six Ash Domains plus dedicated namespaces for fleet process management, use-case orchestration, and signal-driven projectors:
+## Why this is a library
 
-| Domain / Namespace | Path | Responsibility |
-|--------------------|------|----------------|
-| **Workshop** | `/workshop` | Design agent types, teams, spawn links, and comm rules. Compile and launch teams. |
-| **Factory** | `/mes` | Turn project briefs into requirements via the MES planning pipeline. Track pipeline runs and tasks. |
-| **Signals** | system-wide | Reactive GenStage backbone (ADR-026). All system events flow through a producer/consumer pipeline; all mandatory reactions are Oban jobs. |
-| **Events** | system-wide | Append-only durable event log (`StoredEvent`). Ash notifier bridges Ash actions into the pipeline. |
-| **Archon** | system-wide | App manager agent. Exposes management tool surface (memory, command manifest, signal-fed state). |
-| **Settings** | `/settings` | Application-wide configuration: registered projects, git info, folder locations. |
-| **Infrastructure** | I/O boundary | External adapters only: tmux, webhook, Memories API. Wrapped as Ash Resources with `:none` data layer for policy-ready, code-interface-callable access. No business logic. |
-| **fleet/** | OTP layer | Live agent and team GenServers (`AgentProcess`, `TeamSupervisor`, `FleetSupervisor`). |
-| **orchestration/** | use-case layer | Agent and team launch/cleanup orchestrators. Consumes fleet and infrastructure. |
-| **projector/** | signal consumers | Signal-driven GenServer projectors that react to domain events (watchdogs, ingestors, dispatchers). |
+In the original codebase four separate prompt builders assembled agent
+instructions, and each one inlined its own heredocs. They drifted.
 
-### Signal Pipeline (ADR-026)
+That failure is quiet in a way most are not. When the roster format in one
+builder disagrees with the roster format in another, agents address each other
+with ids that do not resolve — and nothing raises, nothing logs, no test goes
+red. The agents simply stop talking to each other, and you find out from a run
+that produced nothing.
 
-Ash actions emit events via the `FromAsh` notifier. Events flow through a GenStage pipeline: `Ingress` (producer) buffers them; `Router` (consumer) dispatches to per-topic `SignalProcess` accumulators. Signals are flushed to `ActionHandler`, which executes mandatory side effects (Oban jobs) and observational projections.
+So the value here is not the text. It's that there is exactly one copy of it.
 
-```
-Ash action -> FromAsh notifier -> Ingress (GenStage producer)
-                                         |
-                                  Router (GenStage consumer)
-                                         |
-                              SignalProcess per {module, key}
-                                         |
-                               ActionHandler: flush signal
-                                    /              \
-                            Oban job inserted    PubSub broadcast
-                            (mandatory effect)   (observational)
-```
+## The blocks
 
-### Oban Workers
+| Function | Block | Answers |
+|---|---|---|
+| `critical_rules/1` | CRITICAL RULES | How do I communicate at all? |
+| `roster_block/2` | TEAM ROSTER | Who exists and what are their ids? |
+| `allowed_contacts/5` | ALLOWED CONTACTS | Who may I talk to, and who not? |
+| `announce_ready/1` | PHASE 0 | How do I prove I am alive? |
 
-Twelve workers across five queues handle durable side effects: `MesTick` (cron, MES scheduler), `ScheduledJob`, `WebhookDeliveryWorker` (HTTP POST with backoff), `ArchiveRunWorker`, `ResetRunTasksWorker`, `DisbandTeamWorker`, `KillSessionWorker`, `HealthCheckWorker` (cron), `ProjectDiscoveryWorker` (cron, scans for `tasks.jsonl`), `OrphanSweepWorker` (cron), `PipelineReconcilerWorker` (cron, AD-8 safety net), and `PruneStoredEventsWorker` (cron daily, 7-day event retention).
+## Install
 
-### Frontend
-
-The UI is a single Phoenix LiveView at `/` split into ~35 handler modules. A component library under `lib/ichor_web/components/` provides reusable Tailwind components organized into named namespaces (`signal_feed/`, `command_components/`, `primitives/`, `ui/`, etc.). Terminal panels use xterm.js for tmux output rendering.
-
-## Prerequisites
-
-- Elixir 1.19 / Erlang 27
-- `tmux` (agents run in tmux sessions; required at runtime)
-- PostgreSQL (database backend)
-- Node.js (for asset compilation via esbuild and Tailwind)
-
-## Setup
-
-```bash
-mix deps.get
-mix ash.setup       # creates DB, runs migrations, seeds
-mix phx.server      # starts on http://localhost:4005
+```elixir
+def deps do
+  [{:agent_prompt_protocol, path: "../agent_prompt_protocol"}]
+end
 ```
 
-For a full asset rebuild:
+## Use
 
-```bash
-mix assets.build
+```elixir
+agents = [
+  %{id: 1, name: "coordinator", capability: "coordinator"},
+  %{id: 2, name: "lead",        capability: "lead"},
+  %{id: 3, name: "builder",     capability: "builder"}
+]
+
+rules = [
+  %{from: 1, to: 2, policy: "allow"},
+  %{from: 3, to: 1, policy: "route", via: 2}
+]
+
+AgentPromptProtocol.critical_rules("mcp__team__")
+AgentPromptProtocol.roster_block("run-7", ["coordinator", "lead", "builder"])
+AgentPromptProtocol.allowed_contacts(1, rules, agents, "run-7",
+  AgentPromptProtocol.extra_contacts_for(hd(agents)))
+AgentPromptProtocol.announce_ready("run-7-coordinator")
 ```
 
-To reset the database:
+Session ids follow `<session>-<name>`. `roster_block/2` and `allowed_contacts/5`
+agree on that convention, which is the whole point.
 
-```bash
-mix ecto.reset
+## Design notes
+
+**The rules are blunt on purpose.** `critical_rules/1` reads as repetitive
+shouting because the failure it prevents is specific: an agent narrates *"I
+would send a message to the lead asking for the task list"* instead of calling
+the tool. The prose looks like progress and produces nothing. Naming the failure
+mode explicitly — "If you find yourself typing 'I would send...' STOP" — is what
+stops it.
+
+**Routed contacts list the relay, not the target.** With
+`%{from: 3, to: 1, policy: "route", via: 2}`, agent 3 sees the *relay's* session
+id, described as `coordinator (routed via lead)`. That's what it must actually
+send to. Agent 1 stays in the deny line, so the indirection holds.
+
+**Denial is stated, not implied.** Everyone unreachable is named in an explicit
+"Do NOT message ... directly" line. A roster that merely omits someone reads, to
+a model, as an oversight it can helpfully work around.
+
+**Tool names are configurable**, because rules naming a tool the agent does not
+have are worse than no rules at all.
+
+## Templating
+
+`AgentPromptProtocol.Template` does `{{var}}` substitution and nothing else — no
+conditionals, no loops, no partials. A template needing control flow is a sign
+the logic belongs in the code that assembles it, where it can be tested.
+
+```elixir
+Template.render("Hello {{name}}", %{"name" => "Ada"})       #=> "Hello Ada"
+Template.variables("{{a}} {{b}} {{a}}")                     #=> ["a", "b"]
+Template.unresolved("{{a}} {{b}}", %{"a" => 1})             #=> ["b"]
 ```
 
-## Project Structure
+Missing variables are kept as `{{var}}` and warned about, by default. That is
+deliberate: a prompt that visibly contains `{{run_id}}` is diagnosable from the
+agent's transcript, whereas one that silently dropped the value looks fine and
+behaves strangely. Override with `on_missing: :empty | :raise | :keep_quiet`, or
+validate up front with `unresolved/2` before spawning.
 
-- `lib/ichor/` -- all application code, organized by domain. See [TREE.md](lib/ichor/TREE.md) for the annotated module tree (~160 .ex files).
-- `lib/ichor_web/` -- Phoenix LiveView, controllers, and component library (~130 .ex/.heex files).
-- `docs/architecture/` -- architecture decision records and domain specs. See [INDEX.md](docs/architecture/INDEX.md) for the recommended reading order.
-- `docs/diagrams/` -- Mermaid architecture diagrams and database ERD.
-- `contracts/ichor_contracts/` -- shared behaviour contracts (in transition to main app).
-- `priv/repo/migrations/` -- Ash-generated PostgreSQL migrations.
+## Agent ids
 
-## Key Concepts
+`AgentPromptProtocol.AgentId` parses structured session ids —
+`<kind>-<run_id>-<role>` — so `"pipeline-abc123-builder"` becomes a struct
+instead of a string split at every call site.
 
-See [docs/plans/GLOSSARY.md](docs/plans/GLOSSARY.md) for canonical definitions of overloaded terms. Words like Team, Agent, Run, Pipeline, Session, and Spawn mean different things depending on which domain you are reading. The glossary disambiguates each one.
+```elixir
+{:ok, id} = AgentId.parse("pipeline-abc123-builder")
+{id.kind, id.run_id, id.role}    #=> {:pipeline, "abc123", "builder"}
+AgentId.run_id("mes-r1-lead")    #=> {:ok, "r1"}
+AgentId.valid?("nonsense")       #=> false
+```
 
-Start with the architecture docs before reading code:
+## Configuration
 
-1. [decisions.md](docs/architecture/decisions.md) -- eight load-bearing design decisions (AD-1 through AD-8)
-2. [GLOSSARY.md](docs/plans/GLOSSARY.md) -- canonical term definitions
-3. [diagrams/architecture.md](docs/diagrams/architecture.md) -- domain map and signal flow diagrams
+Everything has a default; none of this is required.
+
+```elixir
+config :agent_prompt_protocol,
+  send_function: "send_message",
+  inbox_function: "check_inbox",
+  operator_id: "operator",
+  operator_description: "final deliverables to the dashboard",
+  operator_capabilities: ["coordinator"],
+  id_kinds: [:mes, :pipeline, :planning]
+```
+
+`operator_capabilities` controls who gets the operator contact. Coordinators
+only, by default — they produce the deliverables a human should see, so
+intermediate chatter never reaches the dashboard.
+
+## Tests
+
+```
+mix test
+```
+
+68 tests and 16 doctests covering every block, both comm-rule policies, the
+deny-line logic, template rendering and its missing-variable modes, and id
+parsing. One test asserts the property the library exists for: that the ids in
+the roster match the ids in the allowed-contacts block.
+
+## Changes from the original
+
+- Namespace `Ichor.Workshop.PromptProtocol` → `AgentPromptProtocol`, with
+  `AgentId` alongside and templating split into `AgentPromptProtocol.Template`.
+- Tool names, operator identity, and id kinds moved from hardcoded strings to
+  configuration.
+
+Fixed along the way:
+
+- **A route rule without `:via` crashed prompt assembly.** `rule.via` on a map
+  lacking the key raises `KeyError`, and a `"route"` rule built by hand or
+  loaded from older data may not have one. It now renders a visible `unknown`
+  instead — a diagnosable prompt beats an exception mid-spawn.
+- **An isolated agent got an empty contacts block.** With no matching rules the
+  block listed nothing under "ALLOWED CONTACTS", which reads as an omission. It
+  now says so explicitly: "(none -- you are isolated; do not message anyone)".
+- **`AgentId.parse/1` used `String.to_existing_atom/1`**, so whether a valid id
+  parsed depended on whether some unrelated module had already created the atom.
+  Kinds are now compared as strings against the configured list.
+- `AgentId.parse/1` no longer raises on a non-binary input, and `valid?/1` is
+  new.
