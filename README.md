@@ -1,91 +1,192 @@
-# ICHOR IV
+# workshop_canvas
 
-ICHOR IV is a Phoenix LiveView dashboard for orchestrating multi-agent Claude Code teams. The Architect (human user) designs agent teams in the Workshop, runs software development projects through the Factory, and observes the entire system via a reactive signal backbone. Each agent is a Claude Code instance running in a tmux window; ICHOR manages their lifecycle, routing, and coordination without the Architect having to touch a terminal.
+Pure state transitions for a visual agent-team designer.
 
-## Architecture
+Extracted from the ICHOR IV agent observatory, where a drag-and-drop canvas let
+you place agents, wire up who spawns whom, declare who may talk to whom, and
+launch the result as a running team. No dependencies.
 
-The application follows a hexagonal design with six Ash Domains plus dedicated namespaces for fleet process management, use-case orchestration, and signal-driven projectors:
+Every function takes a state map and returns a new one. No processes, no
+storage, no rendering — so the whole editor is testable without a browser, and
+the same transitions drive a LiveView, a CLI, or a test.
 
-| Domain / Namespace | Path | Responsibility |
-|--------------------|------|----------------|
-| **Workshop** | `/workshop` | Design agent types, teams, spawn links, and comm rules. Compile and launch teams. |
-| **Factory** | `/mes` | Turn project briefs into requirements via the MES planning pipeline. Track pipeline runs and tasks. |
-| **Signals** | system-wide | Reactive GenStage backbone (ADR-026). All system events flow through a producer/consumer pipeline; all mandatory reactions are Oban jobs. |
-| **Events** | system-wide | Append-only durable event log (`StoredEvent`). Ash notifier bridges Ash actions into the pipeline. |
-| **Archon** | system-wide | App manager agent. Exposes management tool surface (memory, command manifest, signal-fed state). |
-| **Settings** | `/settings` | Application-wide configuration: registered projects, git info, folder locations. |
-| **Infrastructure** | I/O boundary | External adapters only: tmux, webhook, Memories API. Wrapped as Ash Resources with `:none` data layer for policy-ready, code-interface-callable access. No business logic. |
-| **fleet/** | OTP layer | Live agent and team GenServers (`AgentProcess`, `TeamSupervisor`, `FleetSupervisor`). |
-| **orchestration/** | use-case layer | Agent and team launch/cleanup orchestrators. Consumes fleet and infrastructure. |
-| **projector/** | signal consumers | Signal-driven GenServer projectors that react to domain events (watchdogs, ingestors, dispatchers). |
+## The three graphs
 
-### Signal Pipeline (ADR-026)
+A canvas holds agents plus two independent edge sets over them:
 
-Ash actions emit events via the `FromAsh` notifier. Events flow through a GenStage pipeline: `Ingress` (producer) buffers them; `Router` (consumer) dispatches to per-topic `SignalProcess` accumulators. Signals are flushed to `ActionHandler`, which executes mandatory side effects (Oban jobs) and observational projections.
+**Spawn links** — who starts whom. A forest that determines launch order.
 
-```
-Ash action -> FromAsh notifier -> Ingress (GenStage producer)
-                                         |
-                                  Router (GenStage consumer)
-                                         |
-                              SignalProcess per {module, key}
-                                         |
-                               ActionHandler: flush signal
-                                    /              \
-                            Oban job inserted    PubSub broadcast
-                            (mandatory effect)   (observational)
+**Comm rules** — who may message whom, `"allow"` for a direct channel and
+`"route"` for one via a relay.
+
+They are deliberately separate. An agent that spawns another usually talks to
+it, but a coordinator that spawns a whole team may want its workers talking only
+to a lead. Collapsing the two would make that inexpressible.
+
+Spawn links dedup in both directions — a link between two slots is one link.
+Comm rules are directional: A may message B without B being able to reply.
+
+## Install
+
+```elixir
+def deps do
+  [{:workshop_canvas, path: "../workshop_canvas"}]
+end
 ```
 
-### Oban Workers
+## Use
 
-Twelve workers across five queues handle durable side effects: `MesTick` (cron, MES scheduler), `ScheduledJob`, `WebhookDeliveryWorker` (HTTP POST with backoff), `ArchiveRunWorker`, `ResetRunTasksWorker`, `DisbandTeamWorker`, `KillSessionWorker`, `HealthCheckWorker` (cron), `ProjectDiscoveryWorker` (cron, scans for `tasks.jsonl`), `OrphanSweepWorker` (cron), `PipelineReconcilerWorker` (cron, AD-8 safety net), and `PruneStoredEventsWorker` (cron daily, 7-day event retention).
+```elixir
+state =
+  WorkshopCanvas.defaults()
+  |> WorkshopCanvas.add_agent(%{name: "coordinator", capability: "coordinator"})
+  |> WorkshopCanvas.add_agent(%{name: "builder"})
+  |> WorkshopCanvas.add_spawn_link(1, 2)
+  |> WorkshopCanvas.add_comm_rule(1, 2, "allow")
 
-### Frontend
+WorkshopCanvas.spawn_order(state)            #=> [coordinator, builder]
+WorkshopCanvas.problems(state)               #=> []
+WorkshopCanvas.to_persistence_params(state)
 
-The UI is a single Phoenix LiveView at `/` split into ~35 handler modules. A component library under `lib/ichor_web/components/` provides reusable Tailwind components organized into named namespaces (`signal_feed/`, `command_components/`, `primitives/`, `ui/`, etc.). Terminal panels use xterm.js for tmux output rendering.
-
-## Prerequisites
-
-- Elixir 1.19 / Erlang 27
-- `tmux` (agents run in tmux sessions; required at runtime)
-- PostgreSQL (database backend)
-- Node.js (for asset compilation via esbuild and Tailwind)
-
-## Setup
-
-```bash
-mix deps.get
-mix ash.setup       # creates DB, runs migrations, seeds
-mix phx.server      # starts on http://localhost:4005
+# editing
+WorkshopCanvas.move_agent(state, 1, 500, 400)
+WorkshopCanvas.update_agent(state, 1, %{"persona" => "You coordinate."})
+WorkshopCanvas.remove_agent(state, 1)
 ```
 
-For a full asset rebuild:
+### State shape
 
-```bash
-mix assets.build
+State is a plain map with `ws_`-prefixed keys, so it merges directly into a
+larger LiveView assigns map without colliding with anything else — and
+`clear/1` wipes the canvas without touching the rest of the page.
+
+```elixir
+%{
+  ws_agents: [],           ws_spawn_links: [],   ws_comm_rules: [],
+  ws_selected_agent: nil,  ws_next_id: 1,        ws_team_id: nil,
+  ws_team_name: "alpha",   ws_strategy: "one_for_one",
+  ws_default_model: "sonnet", ws_cwd: ""
+}
 ```
 
-To reset the database:
+## Design notes
 
-```bash
-mix ecto.reset
+**Removal cascades.** Deleting an agent also drops every spawn link and comm
+rule that referenced it — including rules that named it only as a `via` relay.
+A leftover rule would render as `unknown-4` in the generated prompt, or route
+messages through a slot that no longer exists.
+
+**Agents always carry every key.** The canvas edits with map-update syntax, which
+raises on a missing key. Filling the map at construction means a sparse preset
+or a record persisted before a field existed cannot blow up the first time
+someone edits it. `apply_team/2` runs loaded agents through
+`WorkshopCanvas.Agent.complete/1` for the same reason.
+
+**`ws_next_id` is derived, never trusted.** On load it comes from the highest
+slot id present. A stored counter goes stale the moment anything edits the agent
+list, and the result is a duplicate slot id.
+
+**`problems/1` reports what would misbehave at launch** — duplicate names,
+dangling links and rules, spawn cycles. Duplicate names matter because session
+ids are built as `<session>-<name>`, so two agents sharing a name share an
+inbox.
+
+## Spawn order
+
+`WorkshopCanvas.Topology.spawn_order/2` walks the spawn forest depth-first, so
+every parent starts before its children. A canvas is drawn by hand and is not
+guaranteed to be a tree, so two cases get explicit handling:
+
+- a **cycle** would make a naive walk recurse forever
+- a **diamond** — two parents, one child — would emit the child twice, and
+  launching an agent twice is a real failure
+
+Both are handled by tracking what has been emitted. Anything reachable only
+inside a cycle is appended at the end, so every agent launches exactly once even
+when the drawing is nonsense. `Topology.unreachable/2` reports those ids if you
+want to warn before launching instead.
+
+## Presets
+
+A preset is a named starting layout. Registering your own is the point — the one
+built-in exists to document the shape.
+
+```elixir
+config :workshop_canvas, presets: %{
+  "review" => %WorkshopCanvas.Preset{
+    label: "Code review",
+    color: "#7c3aed",
+    team_name: "review",
+    agents: [
+      %{id: 1, name: "lead", capability: "coordinator"},
+      %{id: 2, name: "reviewer", capability: "scout"}
+    ],
+    links: [%{from: 1, to: 2}],
+    rules: [%{from: 1, to: 2, policy: "allow", via: nil}]
+  }
+}
 ```
 
-## Project Structure
+```elixir
+Preset.ui_list()               #=> [%{name: ..., label: ..., color: ...}]
+Preset.apply(state, "review")
+```
 
-- `lib/ichor/` -- all application code, organized by domain. See [TREE.md](lib/ichor/TREE.md) for the annotated module tree (~160 .ex files).
-- `lib/ichor_web/` -- Phoenix LiveView, controllers, and component library (~130 .ex/.heex files).
-- `docs/architecture/` -- architecture decision records and domain specs. See [INDEX.md](docs/architecture/INDEX.md) for the recommended reading order.
-- `docs/diagrams/` -- Mermaid architecture diagrams and database ERD.
-- `contracts/ichor_contracts/` -- shared behaviour contracts (in transition to main app).
-- `priv/repo/migrations/` -- Ash-generated PostgreSQL migrations.
+Configured presets replace the built-in map rather than merging, so you are
+never stuck with an example you did not ask for. Preset agents only state what
+differs from the defaults; the rest is filled in on apply. An unknown name
+returns the state untouched, so a stale button cannot blank someone's canvas.
 
-## Key Concepts
+## Configuration
 
-See [docs/plans/GLOSSARY.md](docs/plans/GLOSSARY.md) for canonical definitions of overloaded terms. Words like Team, Agent, Run, Pipeline, Session, and Spawn mean different things depending on which domain you are reading. The glossary disambiguates each one.
+```elixir
+config :workshop_canvas,
+  default_team_name: "alpha",
+  default_strategy: "one_for_one",
+  default_model: "sonnet",
+  default_capability: "builder",
+  default_permission: "default",
+  default_quality_gates: "mix compile --warnings-as-errors",
+  grid_columns: 3,
+  grid_x_origin: 40,   grid_y_origin: 30,
+  grid_x_spacing: 230, grid_y_spacing: 170
+```
 
-Start with the architecture docs before reading code:
+## Tests
 
-1. [decisions.md](docs/architecture/decisions.md) -- eight load-bearing design decisions (AD-1 through AD-8)
-2. [GLOSSARY.md](docs/plans/GLOSSARY.md) -- canonical term definitions
-3. [diagrams/architecture.md](docs/diagrams/architecture.md) -- domain map and signal flow diagrams
+```
+mix test
+```
+
+88 tests and 8 doctests covering every transition, removal cascades, the
+persistence round-trip, preset application, and the cycle and diamond cases in
+spawn ordering.
+
+## Changes from the original
+
+- Namespace `Ichor.Workshop.CanvasState` → `WorkshopCanvas`, with agent
+  construction in `WorkshopCanvas.Agent`, ordering in `.Topology`, and presets
+  in `.Preset`.
+- The `AgentSlot`, `CommRule`, and `SpawnLink` Ash embedded resources became
+  plain maps.
+- Defaults and grid layout moved from module attributes to configuration.
+- **The 799-line preset module was left behind.** Its own moduledoc described
+  the personas as hardcoded mock data awaiting replacement, so porting them
+  would have preserved throwaway content. The mechanism came across; one small
+  example preset stands in.
+
+Fixed along the way:
+
+- **`spawn_order/2` recursed forever on a cycle**, and emitted an agent twice
+  when two parents shared a child. It now tracks what it has emitted.
+- **A cycle silently dropped agents from the launch.** With every node parented,
+  there were no roots, so the walk returned fewer agents than it was given —
+  and the caller launched a partial team with no error. Unreachable agents are
+  now appended rather than lost.
+- **`apply_team/2` trusted the loaded agent list for `ws_next_id`** via
+  `max_slot + 1` on possibly-incomplete records, and did not fill in missing
+  agent fields, so an older persisted team crashed on first edit.
+
+Added: `problems/1`, `Topology.unreachable/2`, `children_of/2`,
+`selected_agent/1`, `get_agent/2`, and a `via` argument on `add_comm_rule/5` —
+the state supported routed rules but nothing could create one.
