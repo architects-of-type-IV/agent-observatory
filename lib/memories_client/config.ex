@@ -5,8 +5,8 @@ defmodule MemoriesClient.Config do
       config :memories_client,
         url: "https://memories.example.com",
         api_key: {:system, "MEMORIES_API_KEY"},
-        group_id: "archon",
-        user_id: "archon",
+        group_id: "my-app",
+        user_id: "my-app",
         http: MemoriesClient.HTTP.Httpc
 
   `:url` and `:api_key` are required and raise if missing, naming the key — a

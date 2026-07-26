@@ -6,9 +6,9 @@ defmodule MemoriesClient do
   matching facts (`search/2`), and ask a natural-language question over it
   (`query_memory/2`).
 
-  Extracted from the ICHOR IV agent observatory, where an app-manager agent used
-  it to record what it saw and recall it during conversations. No dependencies —
-  the HTTP transport is a behaviour, defaulting to OTP's `:httpc`.
+  Built for an agent that records what it observes and recalls it during later
+  conversations. No dependencies — the HTTP transport is a behaviour, defaulting
+  to OTP's `:httpc`.
 
   ## Wire format
 
@@ -27,8 +27,8 @@ defmodule MemoriesClient do
       config :memories_client,
         url: "https://memories.example.com",
         api_key: {:system, "MEMORIES_API_KEY"},
-        group_id: "archon",
-        user_id: "archon"
+        group_id: "my-app",
+        user_id: "my-app"
 
   ## Example
 
