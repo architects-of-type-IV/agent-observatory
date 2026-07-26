@@ -173,18 +173,38 @@ accumulation, threshold, or emission. That gap is exactly what this library is.
 An accumulator holds a *partial* conclusion — three of the five crashes that
 make a cascade. Losing it on restart doesn't lose an event; it loses the
 reasoning so far, silently. A watchdog that resets its clock every deploy never
-fires.
-
-So state and log position are written together and restored on start. The
-position makes replay safe: an event at or below the stored position has already
-been folded and is discarded.
-
-That matters more than it sounds. Double-folding isn't a crash — it's a
-crash-rate signal firing at two instead of five, quietly, still looking like it
-works.
+fires. So the partial conclusion is persisted and restored on start.
 
 `Signals.Store.ETS` is the development default and is **not** durable. Back it
 with a database anywhere a half-accumulated signal matters.
+
+## Idempotency
+
+A redelivered event is recognised by **identity** — `{source, id}`, which
+CloudEvents already requires producers to make unique. `Signals.Dedup` keeps a
+bounded set of recent identities per accumulator.
+
+Double-folding isn't a crash. It's a crash-rate signal firing at two instead of
+five, quietly, still looking like it works. So the guard has to be reliable
+rather than best-effort, and a log position cannot do this job:
+
+- **Events without a position get no protection.** A browser click, a clock
+  tick, a PubSub broadcast — most of the event surface — carries no position at
+  all.
+- **Out-of-order arrivals get dropped.** "Discard anything at or below the
+  high-water mark" permanently discards a legitimate event that happens to
+  arrive late, which with more than one producer is routine.
+- **It assumes a global monotonic sequence**, i.e. a single writer. Backend,
+  frontend, and temporal producers are three.
+
+Position is still tracked and persisted, for the different question of *where a
+replay should resume*. Answering both questions with one number gets one of
+them wrong.
+
+The dedup window is bounded (`:dedup_window`, default 256) because an
+accumulator reasons over a window anyway — a duplicate arriving long after that
+window has nothing left to corrupt — and unbounded it would leak on a process
+meant to run for the life of the fleet.
 
 ## Behaviours
 
@@ -205,9 +225,10 @@ anywhere.
 mix test
 ```
 
-64 tests and 10 doctests: routing and fan-out, all three correlation shapes,
-meta-signal chaining through a real sink, emission-depth cutoff, replay
-idempotency, restart recovery, and the CloudEvents round-trip.
+79 tests and 14 doctests: routing and fan-out, all three correlation shapes,
+meta-signal chaining through a real sink, emission-depth cutoff, identity-based
+idempotency including the position-based failure modes, eviction at the window
+boundary, restart recovery, and the CloudEvents round-trip.
 
 ## Provenance
 
@@ -219,8 +240,8 @@ positions comes from Ichor's `SignalProjector`.
 
 Added here, from neither: per-signal timer intervals (the topic tables call for
 5s through 5min; both implementations hardcoded one), declarative wildcard
-`topics/0`, `partition_key/1`, emissions routed back for composition, and the
-depth cutoff that makes composition safe.
+`topics/0`, `partition_key/1`, emissions routed back for composition, the depth
+cutoff that makes composition safe, and identity-based idempotency.
 
 Fixed: Observatory's `SignalProcess` called `handle_info/2` on signal modules,
 but the callback was in neither the behaviour nor the macro and no module

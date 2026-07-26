@@ -9,7 +9,16 @@ defmodule Signals.Config do
         default_source: "backend",
         emission_prefix: "signal.",
         default_interval_ms: nil,
-        max_emission_depth: 4
+        max_emission_depth: 4,
+        dedup_window: 256
+
+  ## `:dedup_window`
+
+  How many recent event identities each accumulator remembers, to recognise a
+  redelivery. Bounded because an accumulator reasons over a window anyway — a
+  duplicate arriving long after that window has nothing left to corrupt — and
+  because unbounded it would leak on a process meant to run for the life of the
+  fleet.
 
   ## `:signals`
 
@@ -33,6 +42,7 @@ defmodule Signals.Config do
     emission_prefix: "signal.",
     default_interval_ms: nil,
     max_emission_depth: 4,
+    dedup_window: 256,
     partitions: 32
   }
 

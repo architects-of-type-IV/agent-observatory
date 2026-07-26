@@ -9,13 +9,22 @@ defmodule Signals.Accumulator do
 
   ## Durability
 
-  State and log position are written together after each folded event. A
-  half-accumulated signal is not recoverable from the event log alone unless you
-  replay everything, and the position is what makes replay cheap and safe: an
-  event at or below the stored position has already been folded, so it is
-  discarded rather than double-counted.
+  State is written after each folded event. A half-accumulated signal is not
+  recoverable from the event log alone unless you replay everything, so the
+  partial conclusion is persisted rather than rebuilt.
 
-  That matters more than it sounds. Double-folding is not a crash — it is a
+  ## Idempotency
+
+  A redelivered event is recognised by its identity — `{source, id}`, which
+  CloudEvents already requires to be unique — via `Signals.Dedup`. Not by log
+  position: events from a browser or a clock carry no position, and with more
+  than one producer positions arrive out of order, where a high-water mark
+  silently discards legitimate late arrivals.
+
+  Position is still tracked and persisted, for the different question of where
+  a replay should resume.
+
+  Double-folding matters more than it sounds. It is not a crash — it is a
   crash-rate signal that fires at two crashes instead of five, quietly, and
   reads as working.
 
@@ -40,6 +49,7 @@ defmodule Signals.Accumulator do
           key: String.t() | nil,
           data: term(),
           position: integer() | nil,
+          seen: Signals.Dedup.t(),
           timer: reference() | nil
         }
 
@@ -79,7 +89,7 @@ defmodule Signals.Accumulator do
   @impl true
   def init(%{signal: signal, key: key}) do
     Process.flag(:trap_exit, true)
-    {data, position} = restore(signal, key)
+    {data, position, seen} = restore(signal, key)
 
     {:ok,
      %{
@@ -87,19 +97,24 @@ defmodule Signals.Accumulator do
        key: key,
        data: data,
        position: position,
+       seen: seen,
        timer: schedule(signal.interval())
      }}
   end
 
   @impl true
   def handle_cast({:event, %Event{} = event}, state) do
-    if already_folded?(event, state.position) do
+    if Signals.Dedup.seen?(state.seen, event) do
       {:noreply, state}
     else
       data = state.signal.handle_event(event, state.data)
-      position = Event.position(event) || state.position
 
-      %{state | data: data, position: position}
+      %{
+        state
+        | data: data,
+          position: max_position(state.position, Event.position(event)),
+          seen: Signals.Dedup.put(state.seen, event)
+      }
       |> persist()
       |> evaluate(:event, depth_of(event))
       |> then(&{:noreply, &1})
@@ -129,16 +144,11 @@ defmodule Signals.Accumulator do
     :ok
   end
 
-  # An event at or below the stored position was folded before the restart that
-  # replayed it. Folding it again would inflate every count the signal keeps.
-  defp already_folded?(_event, nil), do: false
-
-  defp already_folded?(event, last) do
-    case Event.position(event) do
-      nil -> false
-      position -> position <= last
-    end
-  end
+  # The high-water mark for resuming a replay. Kept as a maximum rather than
+  # last-write-wins, so an out-of-order arrival cannot rewind the checkpoint.
+  defp max_position(current, nil), do: current
+  defp max_position(nil, incoming), do: incoming
+  defp max_position(current, incoming), do: max(current, incoming)
 
   defp evaluate(state, trigger, depth) do
     if state.signal.ready?(state.data, trigger) do
@@ -189,7 +199,7 @@ defmodule Signals.Accumulator do
   defp depth_of(%Event{extensions: ext}), do: Map.get(ext, :depth, 0)
 
   defp persist(state) do
-    case Config.store().put(ref(state), state.data, state.position) do
+    case Config.store().put(ref(state), {state.data, state.seen}, state.position) do
       :ok ->
         state
 
@@ -201,8 +211,16 @@ defmodule Signals.Accumulator do
 
   defp restore(signal, key) do
     case Config.store().fetch({signal.name(), key}) do
-      {:ok, %{state: data, position: position}} -> {data, position}
-      _ -> {signal.init(key), nil}
+      {:ok, %{state: {data, %Signals.Dedup{} = seen}, position: position}} ->
+        {data, position, seen}
+
+      # Written before dedup state was persisted, or by a store that only kept
+      # the signal's own state. Resume the accumulation, start dedup fresh.
+      {:ok, %{state: data, position: position}} when not is_nil(data) ->
+        {data, position, Signals.Dedup.new(Config.dedup_window())}
+
+      _ ->
+        {signal.init(key), nil, Signals.Dedup.new(Config.dedup_window())}
     end
   end
 

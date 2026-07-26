@@ -314,26 +314,58 @@ defmodule SignalsTest do
     end
 
     @tag signals: [LoopDetected], sink: Collector
-    test "a replayed event is not folded twice" do
-      event =
-        Event.new("agent.tool.invoked", subject: "a", data: %{"tool" => "Read"})
-        |> Event.with_position(1)
+    test "a redelivered event is not folded twice" do
+      event = Event.new("agent.tool.invoked", subject: "a", data: %{"tool" => "Read"})
 
-      Signals.emit_event(event)
-      sync()
-      Signals.emit_event(event)
-      sync()
-      Signals.emit_event(event)
-      sync()
+      for _ <- 1..3 do
+        Signals.emit_event(event)
+        sync()
+      end
 
-      # Three deliveries, one distinct position — a loop needs three real events.
+      # Three deliveries of one event — a loop needs three distinct events.
       assert Collector.emissions() == []
       assert %{recent: ["Read"]} = Signals.peek(LoopDetected, "a")
     end
 
     @tag signals: [LoopDetected], sink: Collector
-    test "distinct positions are folded normally" do
-      for position <- 1..3 do
+    test "distinct events are folded normally" do
+      for _ <- 1..3 do
+        Event.new("agent.tool.invoked", subject: "a", data: %{"tool" => "Read"})
+        |> Signals.emit_event()
+
+        sync()
+      end
+
+      assert [_] = Collector.emissions_of("loop_detected")
+    end
+
+    @tag signals: [LoopDetected], sink: Collector
+    test "events with no position at all are still deduplicated" do
+      # The failure mode of position-based dedup: a browser click or clock tick
+      # carries no position, so it got no protection and re-folded every time.
+      event = Event.new("agent.tool.invoked", subject: "a", data: %{"tool" => "Read"})
+      refute Event.position(event)
+
+      for _ <- 1..5 do
+        Signals.emit_event(event)
+        sync()
+      end
+
+      assert Collector.emissions() == []
+    end
+
+    @tag signals: [LoopDetected], sink: Collector
+    test "a late event with a lower position is not discarded" do
+      # Position-based dedup dropped anything at or below the high-water mark,
+      # so an out-of-order arrival vanished silently.
+      high =
+        Event.new("agent.tool.invoked", subject: "a", data: %{"tool" => "Read"})
+        |> Event.with_position(10)
+
+      Signals.emit_event(high)
+      sync()
+
+      for position <- [5, 6] do
         Event.new("agent.tool.invoked", subject: "a", data: %{"tool" => "Read"})
         |> Event.with_position(position)
         |> Signals.emit_event()
@@ -341,6 +373,7 @@ defmodule SignalsTest do
         sync()
       end
 
+      # All three folded, so the run of three completes.
       assert [_] = Collector.emissions_of("loop_detected")
     end
 
